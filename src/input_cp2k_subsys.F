@@ -80,8 +80,8 @@ CONTAINS
   SUBROUTINE create_cell_section(section,periodic,error)
     TYPE(section_type), POINTER              :: section
     INTEGER, INTENT(IN), OPTIONAL            :: periodic
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_section', &
       routineP = moduleN//':'//routineN
@@ -200,8 +200,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_rng_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_rng_section', &
       routineP = moduleN//':'//routineN
@@ -250,8 +250,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_cell_ref_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_ref_section', &
       routineP = moduleN//':'//routineN
@@ -355,8 +355,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_subsys_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_subsys_section', &
       routineP = moduleN//':'//routineN
@@ -647,8 +647,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_velocity_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section', &
       routineP = moduleN//':'//routineN
@@ -699,8 +699,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_coord_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section', &
       routineP = moduleN//':'//routineN
@@ -752,8 +752,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_kind_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_kind_section', &
       routineP = moduleN//':'//routineN
@@ -951,8 +951,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_topology_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_topology_section', &
       routineP = moduleN//':'//routineN

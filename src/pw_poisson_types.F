@@ -212,8 +212,8 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: uf_grid
     TYPE(section_vals_type), POINTER         :: print_section
     LOGICAL, INTENT(in), OPTIONAL            :: symm_usage
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
       routineP = moduleN//':'//routineN
@@ -232,7 +232,7 @@ CONTAINS
     symmetry=.FALSE.
     IF (PRESENT(symm_usage)) symmetry=symm_usage
     IF (.NOT. failure) THEN
-       poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)    
+       poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        !
        ! Check if grids will be the same... In this case we don't use a super-reference grid
@@ -243,15 +243,15 @@ CONTAINS
                r_val=mt_rel_cutoff,error=error)
           IF (mt_rel_cutoff>1._dp) mt_s_grid=.TRUE.
        END IF
-       
+
        n_orig=pw_grid_find_n( cell=cell_ref, cutoff=ABS(cutilev),&
             fft_usage=.TRUE., grid_span=grid_span,&
             symm_usage=symm_usage, spherical=cutilev>0._dp,&
             ncommensurate=my_ncommensurate, error=error)
        my_cutilev=pw_cutoff_from_n(n_orig,cell_ref,error=error)
-       
+
        IF (uf_grid) THEN
-          CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group)
+          CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group,error=error)
           xc_super_ref_pw_grid%grid_span = grid_span
           xc_cut=pw_cutoff_from_n(2*n_orig,cell_ref,error=error)
           CALL pw_grid_setup1(cell_ref, xc_super_ref_pw_grid, print_section=print_section,&
@@ -261,9 +261,9 @@ CONTAINS
                error=error)
           super_ref_pw_grid => xc_super_ref_pw_grid
        END IF
-       IF (mt_s_grid) THEN 
-          CALL pw_grid_create(mt_super_ref_pw_grid,para_env%group)
-          
+       IF (mt_s_grid) THEN
+          CALL pw_grid_create(mt_super_ref_pw_grid,para_env%group,error=error)
+
           IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
              CALL cp_unimplemented_error(routineP,&
                   "special grid for mt and fine xc grid not compatible",&
@@ -275,7 +275,7 @@ CONTAINS
                   odd=(grid_span==HALFSPACE .and.symmetry),error=error)
              IF (ALL(n_new>n_orig)) THEN
                 CALL pw_grid_setup1(cell=cell_ref, pw_grid=mt_super_ref_pw_grid,&
-                     print_section=print_section, bounds=pw_grid_bounds_from_n(n_new), &
+                     print_section=print_section, bounds=pw_grid_bounds_from_n(n_new,error=error), &
                      grid_span=grid_span,&
                      spherical_cutoff=SIGN(my_cutilev,cutilev),blocked=.FALSE.,&
                      rs_dims=(/para_env%num_pe,1/), error=error )
@@ -310,8 +310,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_grid_type), POINTER              :: mt_super_ref_pw_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
       routineP = moduleN//':'//routineN
@@ -335,7 +335,7 @@ CONTAINS
     NULLIFY(ewald_section)
     CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN       
+    IF (.NOT.failure) THEN
        ALLOCATE(green, stat=stat)
        CPPostcondition(stat == 0,cp_fatal_level,routineP,error,failure)
     END IF
@@ -476,7 +476,7 @@ CONTAINS
        SELECT CASE ( green % method )
        CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
           CALL pw_pool_create_pw ( pw_pool, green % influence_fn,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE )
+               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
           IF (ewald_kind==do_ewald_spme) THEN
              green % p3m = .TRUE.
              CALL section_vals_val_get(ewald_section,"o_spline",&
@@ -488,8 +488,8 @@ CONTAINS
              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
              CALL spme_coeff_calculate ( n,  green%p3m_coeff )
              CALL pw_pool_create_pw ( pw_pool, green % p3m_charge, use_data=REALDATA1D, &
-                  in_space=RECIPROCALSPACE)
-             CALL influence_factor ( green )
+                  in_space=RECIPROCALSPACE,error=error)
+             CALL influence_factor ( green ,error=error)
              CALL calc_p3m_charge(green)
           ELSE
              green % p3m = .FALSE.
@@ -509,8 +509,8 @@ CONTAINS
        ! initialize influence function
        gf   => green % influence_fn
        grid => green % influence_fn % pw_grid
-       SELECT CASE ( green%method )            
-       CASE ( PERIODIC3D, MULTIPOLE0D )            
+       SELECT CASE ( green%method )
+       CASE ( PERIODIC3D, MULTIPOLE0D )
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig )
              gf % cc ( ig ) = fourpi / g2
@@ -563,12 +563,12 @@ CONTAINS
 
        CASE ( MT2D, MT1D, MT0D )
           DO ig = grid % first_gne0, grid % ngpts_cut_local
-             g2 = grid % gsq ( ig ) 
+             g2 = grid % gsq ( ig )
              g3d = fourpi / g2
-             gf%cc ( ig ) = g3d + green%screen_fn%cc(ig) 
+             gf%cc ( ig ) = g3d + green%screen_fn%cc(ig)
           END DO
           IF ( grid % have_g0 ) &
-               gf%cc(1) = green%screen_fn%cc(1) 
+               gf%cc(1) = green%screen_fn%cc(1)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -631,7 +631,7 @@ CONTAINS
   !!     pw_green_retain
   !!
   !!   FUNCTION
-  !!     retains the type 
+  !!     retains the type
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -639,8 +639,8 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE pw_green_retain(gftype,error)
     TYPE(greens_fn_type), POINTER            :: gftype
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_retain', &
       routineP = moduleN//':'//routineN
@@ -677,8 +677,8 @@ CONTAINS
   SUBROUTINE pw_green_release ( gftype, pw_pool, error )
     TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
       routineP = moduleN//':'//routineN
@@ -703,7 +703,7 @@ CONTAINS
                      accept_non_compatible=.TRUE.,error=error)
              ELSE
                 CALL pw_release(gftype%influence_fn,error=error)
-                CALL pw_release(gftype%screen_fn)
+                CALL pw_release(gftype%screen_fn,error=error)
                 CALL pw_release(gftype % p3m_charge, error=error)
              END IF
              IF (ASSOCIATED(gftype % p3m_bm2)) &
@@ -738,8 +738,8 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE influence_factor ( gftype, error )
     TYPE(greens_fn_type), POINTER            :: gftype
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'influence_factor', &
       routineP = moduleN//':'//routineN
@@ -858,8 +858,8 @@ END SUBROUTINE calc_p3m_charge
   SUBROUTINE pw_poisson_create ( poisson_env, error )
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
       routineP = moduleN//':'//routineN
@@ -904,8 +904,8 @@ END SUBROUTINE calc_p3m_charge
   !!     -
   !!
   !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -913,8 +913,8 @@ END SUBROUTINE calc_p3m_charge
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_retain(poisson_env,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_retain', &
       routineP = moduleN//':'//routineN
@@ -949,8 +949,8 @@ END SUBROUTINE calc_p3m_charge
   SUBROUTINE pw_poisson_release ( poisson_env, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
       routineP = moduleN//':'//routineN

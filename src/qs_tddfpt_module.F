@@ -77,8 +77,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: glob_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &
       routineP = moduleN//':'//routineN
@@ -98,39 +98,39 @@ CONTAINS
     CALL get_qs_env(qs_env, input=input,error=error)
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
 
-    IF (section_get_ival(dft_section,"EXCITATIONS") /= tddfpt_excitations) RETURN
+    IF (section_get_ival(dft_section,"EXCITATIONS",error=error) /= tddfpt_excitations) RETURN
 
     CALL timeset(routineN,"I","",handle)
 
-    IF (section_get_ival(dft_section,"TDDFPT%OE_CORR") /= oe_none) THEN
+    IF (section_get_ival(dft_section,"TDDFPT%OE_CORR",error=error) /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, error)
     END IF
-    
+
     NULLIFY(p_env)
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
-         extension=".Log",error=error)    
+         extension=".Log",error=error)
     CALL tddfpt_header(iw, iw>0)
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
-         "PRINT%PROGRAM_BANNER",error=error)    
+         "PRINT%PROGRAM_BANNER",error=error)
 
     !---------------------------------------!
     ! we don't want to update the KS matrix !
     !---------------------------------------!
     qs_env%ks_env%rho_changed = .FALSE.
 
-    CALL tddfpt_init(p_env, t_env, qs_env)
+    CALL tddfpt_init(p_env, t_env, qs_env,error=error)
 
     CALL eigensolver(p_env, qs_env, t_env, error)
 
     CALL find_contributions(qs_env, t_env, error)
 
-    CALL tddfpt_cleanup(t_env, p_env)
+    CALL tddfpt_cleanup(t_env, p_env,error=error)
 
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE tddfpt_calculation
-  
+
 ! *****************************************************************************
 
   !!****f* qs_scf_post/orbital_eigenvalue_correction *
@@ -144,10 +144,10 @@ CONTAINS
   !!
   !!****
   SUBROUTINE orbital_eigenvalue_correction(qs_env, error)
-    
+
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'orbital_eigenvalue_correction', &
@@ -159,8 +159,8 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: input, xc_fun_orig, xc_fun_tmp
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)    
-    
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+
     failure = .FALSE.
     NULLIFY(logger, scf_env, input)
     logger => cp_error_get_logger(error)
@@ -172,7 +172,7 @@ CONTAINS
        "-----------------------------------------------------------------------------",&
        "-                    orbital eigenvalue correction started                  -",&
        "-----------------------------------------------------------------------------",&
-       ""    
+       ""
     END IF
 
     CALL get_qs_env(qs_env, scf_env=scf_env, input=input, error=error)

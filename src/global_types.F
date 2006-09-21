@@ -8,7 +8,7 @@
 !!     global_types
 !!
 !!   FUNCTION
-!!     represent the global information of a run: the input file, 
+!!     represent the global information of a run: the input file,
 !!     parallel environment (and partially output).
 !!     Use sparingly, try not to send it too deep in your structures.
 !!
@@ -85,7 +85,7 @@ MODULE global_types
 !!
 !!   FUNCTION
 !!     contains the initally parsed file and the initial parallel environment
-!!     
+!!
 !!   NOTES
 !!     This is not but really should be passed as pointer and use reference
 !!     counting. Use it accordingly wherever possible.
@@ -130,8 +130,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - globenv: the globenv to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -139,8 +139,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE globenv_create(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_create', &
       routineP = moduleN//':'//routineN
@@ -182,8 +182,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - globenv: the global environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -191,8 +191,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE globenv_retain(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_retain', &
       routineP = moduleN//':'//routineN
@@ -200,7 +200,7 @@ SUBROUTINE globenv_retain(globenv, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -222,8 +222,8 @@ END SUBROUTINE globenv_retain
 !!
 !!   ARGUMENTS
 !!     - globenv: the global environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -232,8 +232,8 @@ END SUBROUTINE globenv_retain
 SUBROUTINE globenv_release(globenv, para_env, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_release', &
       routineP = moduleN//':'//routineN
@@ -242,13 +242,13 @@ SUBROUTINE globenv_release(globenv, para_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(globenv)) THEN
      CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
-          CALL delete_rng_stream(globenv%gaussian_rng_stream)
+          CALL delete_rng_stream(globenv%gaussian_rng_stream,error=error)
         END IF
         DEALLOCATE(globenv,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

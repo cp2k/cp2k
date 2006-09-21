@@ -105,8 +105,8 @@ CONTAINS
 
   SUBROUTINE cell_clone (cell_in, cell_out, error)
     TYPE(cell_type), POINTER                 :: cell_in, cell_out
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_clone', &
       routineP = moduleN//':'//routineN
@@ -130,7 +130,7 @@ CONTAINS
     last_cell_id = last_cell_id + 1
     cell_out%id_nr = last_cell_id
   END SUBROUTINE cell_clone
- 
+
 ! *****************************************************************************
 
   SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,deth,gamma,&
@@ -543,15 +543,15 @@ CONTAINS
     IF (.NOT.failure) THEN
 
        IF (.NOT.ASSOCIATED(cell)) THEN
-          CALL cell_create(cell)
+          CALL cell_create(cell,error=error)
        END IF
-       
+
        IF (.NOT.ASSOCIATED(cell_ref)) THEN
-          CALL cell_create(cell_ref)
+          CALL cell_create(cell_ref,error=error)
        END IF
-       
+
        IF (PRESENT(check_for_ref)) my_check     =  check_for_ref
-       
+
        cell%unit_of_length_name = "BOHR"
        cell%deth = 0.0_dp
        cell%unit_of_length = 1.0_dp
@@ -560,7 +560,7 @@ CONTAINS
        cell%perd(:) = 1
        cell%hmat(:,:) = 0.0_dp
        cell%h_inv(:,:) = 0.0_dp
-       
+
        CALL section_vals_val_get(cell_section,"A",n_rep_val=n_rep,error=error)
        IF (n_rep /= 0) THEN
           CALL section_vals_val_get(cell_section,"A",r_vals=cell_par,error=error)
@@ -584,7 +584,7 @@ CONTAINS
           cell%hmat(3,3) = cell_par(3)
        END IF
        CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
-       
+
        CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
        SELECT CASE(my_per)
        CASE(use_perd_x)
@@ -628,9 +628,9 @@ CONTAINS
        CASE DEFAULT
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-       cell%hmat(:,:) = cell%hmat(:,:)*cell%unit_of_length      
+       cell%hmat(:,:) = cell%hmat(:,:)*cell%unit_of_length
        CALL init_cell(cell)
-       
+
        IF (.NOT.my_check) RETURN
        cell_ref_section => section_vals_get_subs_vals(cell_section,&
             "CELL_REF",error=error)
@@ -646,9 +646,9 @@ CONTAINS
   END SUBROUTINE read_cell
 
 ! *****************************************************************************
-   
-  SUBROUTINE real_to_scaled(s,r,cell) 
-!            s=h_inv*r 
+
+  SUBROUTINE real_to_scaled(s,r,cell)
+!            s=h_inv*r
 !   Purpose: Transform real to scaled cell coordinates.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
@@ -675,8 +675,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scaled_to_real(r,s,cell) 
-!            r=h*s 
+  SUBROUTINE scaled_to_real(r,s,cell)
+!            r=h*s
 !   Purpose: Transform scaled cell coordinates real coordinates.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
@@ -714,8 +714,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: alpha, beta, gamma
@@ -750,9 +750,9 @@ CONTAINS
           "CELL| Angle (a,b) [degree]: ",gamma
      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
           "CELL| Grid size for subcell generation",cell%subcells
-  
+
      IF ( PRESENT ( cell_ref ) ) THEN
-        WRITE (UNIT=output_unit, FMT='( )' ) 
+        WRITE (UNIT=output_unit, FMT='( )' )
         CALL get_cell(cell=cell_ref,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
 
         WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
@@ -816,8 +816,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
     LOGICAL, INTENT(IN), OPTIONAL            :: orthorhombic
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
       routineP = moduleN//':'//routineN
@@ -866,8 +866,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cell_retain(cell,error)
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain', &
       routineP = moduleN//':'//routineN
@@ -909,8 +909,8 @@ END SUBROUTINE cell_retain
 !!*** **********************************************************************
 SUBROUTINE cell_release(cell,error)
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', &
       routineP = moduleN//':'//routineN

@@ -160,8 +160,8 @@ CONTAINS
 
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, OPTIONAL                        :: virial_in_use, numer_virial
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create', &
       routineP = moduleN//':'//routineN
@@ -220,8 +220,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE virial_retain ( virial, error)
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_retain', &
       routineP = moduleN//':'//routineN
@@ -268,8 +268,8 @@ END SUBROUTINE virial_retain
 !!*** **********************************************************************
 SUBROUTINE virial_release(virial, error)
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', &
       routineP = moduleN//':'//routineN

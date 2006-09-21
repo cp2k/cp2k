@@ -102,11 +102,11 @@ MODULE atomic_kind_types
     TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
     REAL(dp)                               :: hard_radius  ! for hard and soft exp
     REAL(dp)                               :: hard0_radius ! for hard exp of rho0
-    REAL(dp)                               :: max_rad_local ! max GTO radius used in GAPW 
+    REAL(dp)                               :: max_rad_local ! max GTO radius used in GAPW
                                                             !projectors construction
     LOGICAL                                :: paw_atom     ! needs atomic rho1
     LOGICAL                                :: qm_atom    ! needs atomic rho1
-    LOGICAL                                :: gpw_type_forced ! gpw atom even if with hard exponents 
+    LOGICAL                                :: gpw_type_forced ! gpw atom even if with hard exponents
     LOGICAL                                :: ghost
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=2)                       :: element_symbol
@@ -117,7 +117,7 @@ MODULE atomic_kind_types
     INTEGER, DIMENSION(:), POINTER         :: atom_list
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(grid_atom_type), POINTER          :: grid_atom
-    INTEGER                                :: ngrid_rad,ngrid_ang 
+    INTEGER                                :: ngrid_rad,ngrid_ang
     INTEGER                                :: lmax_rho0
     INTEGER, DIMENSION(:), POINTER         :: elec_conf ! used to set up the initial atomic guess
                                                         ! user can specify whatever...
@@ -208,8 +208,8 @@ CONTAINS
       atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
       atomic_kind_set(ikind)%max_rad_local = 13.2_dp*bohr
       atomic_kind_set(ikind)%ngrid_rad = 50
-      atomic_kind_set(ikind)%ngrid_ang = 50 
-      atomic_kind_set(ikind)%lmax_rho0 = 0 
+      atomic_kind_set(ikind)%ngrid_ang = 50
+      atomic_kind_set(ikind)%lmax_rho0 = 0
       atomic_kind_set(ikind)%ghost = .FALSE.
     END DO
 
@@ -501,15 +501,15 @@ CONTAINS
       IF (PRESENT(hard0_radius)) hard0_radius = atomic_kind%hard0_radius
       IF (PRESENT(max_rad_local)) max_rad_local = atomic_kind%max_rad_local
       IF (PRESENT(harmonics))  harmonics => atomic_kind%harmonics
-      IF (PRESENT(max_s_harm)) THEN 
-         IF(ASSOCIATED(atomic_kind%harmonics)) THEN 
+      IF (PRESENT(max_s_harm)) THEN
+         IF(ASSOCIATED(atomic_kind%harmonics)) THEN
             max_s_harm = atomic_kind%harmonics%max_s_harm
          ELSE
             max_s_harm = 0
          END IF
       END IF
-      IF (PRESENT(max_iso_not0)) THEN 
-         IF(ASSOCIATED(atomic_kind%harmonics)) THEN 
+      IF (PRESENT(max_iso_not0)) THEN
+         IF(ASSOCIATED(atomic_kind%harmonics)) THEN
             max_iso_not0 = atomic_kind%harmonics%max_iso_not0
          ELSE
             max_iso_not0 = 0
@@ -705,7 +705,7 @@ CONTAINS
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax,&
                               nset=n)
-            maxgtop = MAX(maxgtop, n*imax)     
+            maxgtop = MAX(maxgtop, n*imax)
           END IF
         END IF
         IF (PRESENT(maxgtops)) THEN
@@ -729,7 +729,7 @@ CONTAINS
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                               nset=n)
-            maxnset = MAX(maxnset, n)     
+            maxnset = MAX(maxnset, n)
           END IF
         END IF
         IF (PRESENT(maxpgf)) THEN
@@ -887,7 +887,7 @@ CONTAINS
             DO ipgf = 1,npgf_kind(iset)
                zetsoft_max= MAX(zetsoft_max,zet_kind(ipgf,iset))
             END DO
-          END DO 
+          END DO
         END IF
       END DO
     ELSE
@@ -901,7 +901,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind(atomic_kind,para_env,force_env_section,method)
+  SUBROUTINE init_atomic_kind(atomic_kind,para_env,force_env_section,method,error)
 
 !   Purpose: Initialise an atomic kind data set.
 
@@ -914,6 +914,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_atomic_kind'
 
@@ -922,7 +923,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(atomic_kind)) THEN
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
       IF (method_name_id == do_qs) THEN
         IF (ASSOCIATED(atomic_kind%gth_potential))THEN
           CALL init_potential(atomic_kind%gth_potential)
@@ -939,7 +940,7 @@ CONTAINS
         END IF
       ELSE IF (method_name_id == do_kg) THEN
         IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
-          IF(method == "KG_GPW")&  
+          IF(method == "KG_GPW")&
           CALL init_potential(atomic_kind%gth_potential)
         END IF
 
@@ -972,14 +973,14 @@ CONTAINS
 
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind is not associated",para_env)
-      
+
    END IF
 
   END SUBROUTINE init_atomic_kind
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind_set(atomic_kind_set,para_env,force_env_section,method)
+  SUBROUTINE init_atomic_kind_set(atomic_kind_set,para_env,force_env_section,method,error)
 
 !   Purpose: Initialise an atomic kind set data set.
 
@@ -993,6 +994,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_atomic_kind_set'
 
@@ -1008,7 +1010,7 @@ CONTAINS
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         CALL init_atomic_kind(atomic_kind,para_env,force_env_section=force_env_section,&
-             method=method)
+             method=method,error=error)
       END DO
 
     ELSE
@@ -1030,8 +1032,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_gapw_basis_set'
 
@@ -1112,8 +1114,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -1172,7 +1174,7 @@ CONTAINS
              z = i
              EXIT
           END IF
-       END DO 
+       END DO
 
        IF (z /= -1) THEN
           akind_name=atomic_kind%element_symbol
@@ -1459,8 +1461,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind_set'
 
@@ -1496,8 +1498,8 @@ CONTAINS
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -1514,7 +1516,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
     CALL get_atomic_kind(atomic_kind,name=name,z=z,mass=mass,&
                          orb_basis_set=orb_basis_set,&
@@ -1549,16 +1551,16 @@ CONTAINS
         END IF
         CALL get_se_param(se_parameter,defined=defined)
         IF (.NOT.defined) THEN
-          ! set default parameters 
+          ! set default parameters
           CALL se_param_set_default(se_parameter,z,&
                  dft_control%qs_control%method)
         END IF
         CALL write_se_param(se_parameter,force_env_section,error)
         CALL init_se_param(atomic_kind%se_parameter,&
-                           atomic_kind%orb_basis_set)
+                           atomic_kind%orb_basis_set,error=error)
         IF ( ASSOCIATED(all_potential) ) THEN
           CALL init_potential ( all_potential, itype="BARE", &
-             zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction) 
+             zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction)
         END IF
       END IF
     ELSE IF (method_name_id == do_kg) THEN
@@ -1576,8 +1578,8 @@ CONTAINS
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind_set'
 
@@ -1711,8 +1713,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -1782,8 +1784,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind_set', &
       routineP = moduleN//':'//routineN
@@ -1799,7 +1801,7 @@ CONTAINS
 
     NULLIFY (logger)
 
-    logger => cp_error_get_logger(error)       
+    logger => cp_error_get_logger(error)
 
     output_unit = cp_print_key_unit_nr(logger,force_env_section,&
                                        "SUBSYS%PRINT%KINDS",extension=".Log",&
@@ -1837,8 +1839,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
       routineP = moduleN//':'//routineN

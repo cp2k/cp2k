@@ -85,8 +85,8 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "Thomas-Fermi kinetic energy functional: see Parr and Yang"
@@ -123,8 +123,8 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -197,8 +197,8 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -287,8 +287,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
 
@@ -315,8 +315,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -346,8 +346,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -377,8 +377,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -408,8 +408,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
 
@@ -434,8 +434,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -463,8 +463,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -492,8 +492,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f

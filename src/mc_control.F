@@ -70,7 +70,7 @@ MODULE mc_control
 
   IMPLICIT NONE
 
-  PRIVATE 
+  PRIVATE
 ! *** Global parameters ***
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_control'
@@ -167,7 +167,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
                  particles%els((ichain-1)*nunits+iunit)%r(1:3)*angstrom
       ENDDO
   ENDDO
-  
+
   CALL close_file(unit_number=unit)
 
 ! end the timing
@@ -306,7 +306,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
             WRITE(iw,*) 'Restart file cell length =',box_length(1:3)
          ENDIF
       ENDIF
-      
+
 ! allocate the array holding the coordiantes, and read in the coordiantes,
 ! and write the dat file so we can make a new force_env
       IF(nunits_tot == 0) THEN
@@ -327,7 +327,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
          ALLOCATE (r(3,nunits_tot),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r",3*nunits_tot*dp_size)
-         
+
          IF(ionode) THEN
             DO ipart=1,mc_nunits_tot
                READ(unit,*) chardum,r(1:3,ipart)
@@ -343,11 +343,11 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
 
       CALL set_mc_par(mc_par,nunits_tot=mc_nunits_tot,nunits=mc_nunits,&
          nstart=nstart,nchain=mc_nchain)
-      
+
 ! advance the random number sequence based on the restart step
       IF(ionode) THEN
          DO i=1,nstart+1
-            rand=next_random_number(rng_stream)
+            rand=next_random_number(rng_stream,error=error)
          ENDDO
       ENDIF
 
@@ -388,8 +388,8 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv_new
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
@@ -412,9 +412,9 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
     ! parse the input
       root_section => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
 
-      CALL cp2k_read(root_section,para_env,globenv)
+      CALL cp2k_read(root_section,para_env,globenv,error=error)
       force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-      CALL section_vals_val_get(root_section,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
+      CALL section_vals_val_get(root_section,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
       CALL section_vals_get(force_env_section, n_repetition=nforce_eval, error=error)
 
@@ -518,11 +518,11 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
          abc(1:3)*angstrom,&
          'bias_temp.inp',bias_env,TRIM(fft_lib),print_level)
 
-      CALL section_vals_release(bias_env%root_section)
+      CALL section_vals_release(bias_env%root_section,error=error)
       CALL force_env_release(bias_env,error=error)
 
       CALL mc_create_force_env(bias_env, para_env, 'bias_temp.inp',error=error)
-      
+
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r")

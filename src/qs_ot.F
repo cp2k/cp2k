@@ -60,6 +60,7 @@ MODULE qs_ot
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PUBLIC  :: qs_ot_type
@@ -97,9 +98,9 @@ MODULE qs_ot
      TYPE(qs_ot_settings_type) :: settings
      LOGICAL                   :: restricted
 
-     ! first part of the variables, for occupied subspace invariant optimisation 
+     ! first part of the variables, for occupied subspace invariant optimisation
 
-     ! add a preconditioner matrix. should be symmetric and positive definite 
+     ! add a preconditioner matrix. should be symmetric and positive definite
      ! the type of this matrix might change in the future
      TYPE(preconditioner_type), POINTER :: preconditioner
 
@@ -159,15 +160,15 @@ MODULE qs_ot
      INTEGER          :: OT_count
      REAL(KIND = dp)  :: ds_min
 
-     LOGICAL          :: do_taylor 
+     LOGICAL          :: do_taylor
      INTEGER          :: taylor_order
      REAL(KIND = dp)  :: largest_eval_upper_bound
 
      ! second part of the variables, if an explicit rotation is required as well
      TYPE(cp_fm_type), POINTER :: rot_mat_u ! rotation matrix
      TYPE(cp_fm_type), POINTER :: rot_mat_x ! antisymmetric matrix that parametrises rot_matrix_u
-     TYPE(cp_fm_type), POINTER :: rot_mat_chcf ! needed for the derivative 
- 
+     TYPE(cp_fm_type), POINTER :: rot_mat_chcf ! needed for the derivative
+
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
      TYPE(cp_fm_type), POINTER :: rot_mat_gx
@@ -223,23 +224,24 @@ CONTAINS
 ! you remain responsible of proper deallocate of your preconditioner
 ! (or you can reuse it on the next step of the computation)
 !*******************************************************************************
-SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
+SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(preconditioner_type), POINTER       :: preconditioner
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
 !----
 
   qs_ot_env%preconditioner => preconditioner
   qs_ot_env%os_valid = .FALSE.
   IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-     CALL cp_fm_create(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0%matrix_struct,"matrix_psc0")
+     CALL cp_fm_create(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0%matrix_struct,"matrix_psc0",error=error)
   ENDIF
 
   IF (.NOT. qs_ot_env%use_dx) THEN
      qs_ot_env%use_dx=.TRUE.
-     CALL cp_fm_create(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx%matrix_struct,"matrix_dx")
+     CALL cp_fm_create(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx%matrix_struct,"matrix_dx",error=error)
      IF (qs_ot_env%settings%do_rotation) THEN
-         CALL cp_fm_create(qs_ot_env%rot_mat_dx,qs_ot_env%rot_mat_gx%matrix_struct,"rot_mat_dx")
+         CALL cp_fm_create(qs_ot_env%rot_mat_dx,qs_ot_env%rot_mat_gx%matrix_struct,"rot_mat_dx",error=error)
      ENDIF
   ENDIF
 
@@ -250,10 +252,11 @@ END SUBROUTINE qs_ot_new_preconditioner
 ! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
 ! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
 !*******************************************************************************
-SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
+SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
     INTEGER, OPTIONAL                        :: ortho_k
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, k, m_diis, my_ortho_k, n
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -268,7 +271,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
    NULLIFY(qs_ot_env%col_indices)
 
    CALL cp_fm_struct_get(fm_struct_ref, nrow_global=n, ncol_global=k, &
-                         para_env=para_env, context=context)
+                         para_env=para_env, context=context,error=error)
 
    IF (PRESENT(ortho_k)) THEN
      my_ortho_k = ortho_k
@@ -278,7 +281,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
 
    m_diis =qs_ot_env%settings%diis_m
 
-   qs_ot_env%use_gx_old=.FALSE. 
+   qs_ot_env%use_gx_old=.FALSE.
    qs_ot_env%use_dx=.FALSE.
 
    SELECT CASE (qs_ot_env%settings%ot_method)
@@ -307,42 +310,42 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
    ALLOCATE(qs_ot_env%dum(k))
 
    CALL cp_fm_struct_create(fm_struct_o_o,para_env=para_env,context=context, &
-                            nrow_global=my_ortho_k,ncol_global=my_ortho_k)
+                            nrow_global=my_ortho_k,ncol_global=my_ortho_k,error=error)
    CALL cp_fm_struct_create(fm_struct_o_k,para_env=para_env,context=context, &
-                            nrow_global=my_ortho_k,ncol_global=k)
+                            nrow_global=my_ortho_k,ncol_global=k,error=error)
    CALL cp_fm_struct_create(fm_struct_k_k,para_env=para_env,context=context, &
-                            nrow_global=k,ncol_global=k)
+                            nrow_global=k,ncol_global=k,error=error)
    CALL cp_fm_struct_create(fm_struct_n_o,para_env=para_env,context=context, &
-                            nrow_global=n,ncol_global=my_ortho_k)
+                            nrow_global=n,ncol_global=my_ortho_k,error=error)
 
-   CALL cp_fm_create(qs_ot_env%matrix_os,fm_struct_o_o,name="matrix_os")
-   CALL cp_fm_create(qs_ot_env%matrix_buf1_ortho,fm_struct_o_k,name="matrix_buf1_ortho")
-   CALL cp_fm_create(qs_ot_env%matrix_buf2_ortho,fm_struct_o_k,name="matrix_buf2_ortho")
-   CALL cp_fm_create(qs_ot_env%matrix_p,fm_struct_k_k,name="matrix_p")
-   CALL cp_fm_create(qs_ot_env%matrix_r,fm_struct_k_k,name="matrix_r")
-   CALL cp_fm_create(qs_ot_env%matrix_sinp,fm_struct_k_k,name="matrix_sinp")
-   CALL cp_fm_create(qs_ot_env%matrix_cosp,fm_struct_k_k,name="matrix_cosp")
-   CALL cp_fm_create(qs_ot_env%matrix_sinp_b,fm_struct_k_k,name="matrix_sinp_b")
-   CALL cp_fm_create(qs_ot_env%matrix_cosp_b,fm_struct_k_k,name="matrix_cosp_b")
-   CALL cp_fm_create(qs_ot_env%matrix_buf1,fm_struct_k_k,name="matrix_buf1")
-   CALL cp_fm_create(qs_ot_env%matrix_buf2,fm_struct_k_k,name="matrix_buf2")
-   CALL cp_fm_create(qs_ot_env%matrix_buf3,fm_struct_k_k,name="matrix_buf3")
-   CALL cp_fm_create(qs_ot_env%matrix_c0,fm_struct_ref,name="matrix_c0")
-   CALL cp_fm_create(qs_ot_env%matrix_sc0,fm_struct_n_o,name="matrix_sc0")
-   CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_ref,name="matrix_x")
-   CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_ref,name="matrix_sx")
-   CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_ref,name="matrix_gx")
+   CALL cp_fm_create(qs_ot_env%matrix_os,fm_struct_o_o,name="matrix_os",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_buf1_ortho,fm_struct_o_k,name="matrix_buf1_ortho",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_buf2_ortho,fm_struct_o_k,name="matrix_buf2_ortho",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_p,fm_struct_k_k,name="matrix_p",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_r,fm_struct_k_k,name="matrix_r",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_sinp,fm_struct_k_k,name="matrix_sinp",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_cosp,fm_struct_k_k,name="matrix_cosp",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_sinp_b,fm_struct_k_k,name="matrix_sinp_b",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_cosp_b,fm_struct_k_k,name="matrix_cosp_b",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_buf1,fm_struct_k_k,name="matrix_buf1",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_buf2,fm_struct_k_k,name="matrix_buf2",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_buf3,fm_struct_k_k,name="matrix_buf3",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_c0,fm_struct_ref,name="matrix_c0",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_sc0,fm_struct_n_o,name="matrix_sc0",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_ref,name="matrix_x",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_ref,name="matrix_sx",error=error)
+   CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_ref,name="matrix_gx",error=error)
 
    IF (qs_ot_env%use_gx_old) &
-      CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_ref,name="matrix_gx_old")
+      CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_ref,name="matrix_gx_old",error=error)
 
    IF (qs_ot_env%use_dx) &
-      CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_ref,name="matrix_dx")
+      CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_ref,name="matrix_dx",error=error)
 
    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
       DO i=1,m_diis
-        CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_ref,name="matrix_h_x")
-        CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_ref,name="matrix_h_e")
+        CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_ref,name="matrix_h_x",error=error)
+        CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_ref,name="matrix_h_e",error=error)
       ENDDO
    ENDIF
 
@@ -350,50 +353,51 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
                              nrow_local=qs_ot_env%nrow_local, &
                              ncol_local=qs_ot_env%ncol_local, &
                              row_indices=qs_ot_env%row_indices, &
-                             col_indices=qs_ot_env%col_indices)
+                             col_indices=qs_ot_env%col_indices,error=error)
 
    NULLIFY(qs_ot_env%rot_mat_u,  qs_ot_env%rot_mat_x,      qs_ot_env%rot_mat_h_e, qs_ot_env%rot_mat_h_x, &
            qs_ot_env%rot_mat_gx, qs_ot_env%rot_mat_gx_old, qs_ot_env%rot_mat_dx,  &
            qs_ot_env%rot_mat_evals,  qs_ot_env%rot_mat_evec, qs_ot_env%rot_mat_chcf)
 
    IF (qs_ot_env%settings%do_rotation) THEN
-     CALL cp_fm_create(qs_ot_env%rot_mat_u,fm_struct_k_k,name="rot_mat_u") 
-     CALL cp_fm_create(qs_ot_env%rot_mat_x,fm_struct_k_k,name="rot_mat_x") 
-     CALL cp_fm_create(qs_ot_env%rot_mat_chcf,fm_struct_k_k,name="rot_mat_chcf") 
-     
+     CALL cp_fm_create(qs_ot_env%rot_mat_u,fm_struct_k_k,name="rot_mat_u",error=error)
+     CALL cp_fm_create(qs_ot_env%rot_mat_x,fm_struct_k_k,name="rot_mat_x",error=error)
+     CALL cp_fm_create(qs_ot_env%rot_mat_chcf,fm_struct_k_k,name="rot_mat_chcf",error=error)
+
      IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
         ALLOCATE(qs_ot_env%rot_mat_h_e(m_diis))
         ALLOCATE(qs_ot_env%rot_mat_h_x(m_diis))
         DO i=1,m_diis
-            CALL cp_fm_create(qs_ot_env%rot_mat_h_x(i)%matrix,fm_struct_k_k,name="matrix_h_x")
-            CALL cp_fm_create(qs_ot_env%rot_mat_h_e(i)%matrix,fm_struct_k_k,name="matrix_h_e")
+            CALL cp_fm_create(qs_ot_env%rot_mat_h_x(i)%matrix,fm_struct_k_k,name="matrix_h_x",error=error)
+            CALL cp_fm_create(qs_ot_env%rot_mat_h_e(i)%matrix,fm_struct_k_k,name="matrix_h_e",error=error)
         ENDDO
      ENDIF
 
      ALLOCATE(qs_ot_env%rot_mat_evals(k))
-     CALL cp_cfm_create(qs_ot_env%rot_mat_evec,fm_struct_k_k,name="rot_mat_evec") 
-     CALL cp_fm_create(qs_ot_env%rot_mat_gx,fm_struct_k_k,name="rot_mat_gx") 
+     CALL cp_cfm_create(qs_ot_env%rot_mat_evec,fm_struct_k_k,name="rot_mat_evec",error=error)
+     CALL cp_fm_create(qs_ot_env%rot_mat_gx,fm_struct_k_k,name="rot_mat_gx",error=error)
 
      IF (qs_ot_env%use_gx_old) &
-         CALL cp_fm_create(qs_ot_env%rot_mat_gx_old,fm_struct_k_k,name="rot_mat_gx_old")
+         CALL cp_fm_create(qs_ot_env%rot_mat_gx_old,fm_struct_k_k,name="rot_mat_gx_old",error=error)
 
      IF (qs_ot_env%use_dx) &
-         CALL cp_fm_create(qs_ot_env%rot_mat_dx,fm_struct_k_k,name="rot_mat_dx")
+         CALL cp_fm_create(qs_ot_env%rot_mat_dx,fm_struct_k_k,name="rot_mat_dx",error=error)
 
    ENDIF
 
-   CALL cp_fm_struct_release(fm_struct_o_o)
-   CALL cp_fm_struct_release(fm_struct_o_k)
-   CALL cp_fm_struct_release(fm_struct_k_k)
-   CALL cp_fm_struct_release(fm_struct_n_o)
+   CALL cp_fm_struct_release(fm_struct_o_o,error=error)
+   CALL cp_fm_struct_release(fm_struct_o_k,error=error)
+   CALL cp_fm_struct_release(fm_struct_k_k,error=error)
+   CALL cp_fm_struct_release(fm_struct_n_o,error=error)
 
 END SUBROUTINE qs_ot_allocate
 
 !******************************************************************************
 ! init matrices, needs c0 and sc0 so that c0*sc0=1
 !******************************************************************************
-SUBROUTINE qs_ot_init(qs_ot_env)
+SUBROUTINE qs_ot_init(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
    qs_ot_env%OT_energy(:)=0.0_dp
    qs_ot_env%OT_pos(:)=0.0_dp
@@ -406,18 +410,18 @@ SUBROUTINE qs_ot_init(qs_ot_env)
    qs_ot_env%ds_min=qs_ot_env%settings%ds_min
    qs_ot_env%os_valid=.FALSE.
 
-   CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_dp)
+   CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_dp,error=error)
    IF (qs_ot_env%use_dx) &
-     CALL cp_fm_set_all(qs_ot_env%matrix_dx,0.0_dp)
+     CALL cp_fm_set_all(qs_ot_env%matrix_dx,0.0_dp,error=error)
    IF (qs_ot_env%use_gx_old) &
-     CALL cp_fm_set_all(qs_ot_env%matrix_gx_old,0.0_dp)
+     CALL cp_fm_set_all(qs_ot_env%matrix_gx_old,0.0_dp,error=error)
 
    IF (qs_ot_env%settings%do_rotation) THEN
-      CALL cp_fm_set_all(qs_ot_env%rot_mat_gx,0.0_dp)
+      CALL cp_fm_set_all(qs_ot_env%rot_mat_gx,0.0_dp,error=error)
       IF (qs_ot_env%use_dx) &
-         CALL cp_fm_set_all(qs_ot_env%rot_mat_dx,0.0_dp)
+         CALL cp_fm_set_all(qs_ot_env%rot_mat_dx,0.0_dp,error=error)
       IF (qs_ot_env%use_gx_old) &
-         CALL cp_fm_set_all(qs_ot_env%rot_mat_gx_old,0.0_dp)
+         CALL cp_fm_set_all(qs_ot_env%rot_mat_gx_old,0.0_dp,error=error)
    ENDIF
 
 END SUBROUTINE qs_ot_init
@@ -425,46 +429,47 @@ END SUBROUTINE qs_ot_init
 !******************************************************************************
 ! deallocates data
 !******************************************************************************
-SUBROUTINE qs_ot_destroy(qs_ot_env)
+SUBROUTINE qs_ot_destroy(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
 
    DEALLOCATE(qs_ot_env%evals)
    DEALLOCATE(qs_ot_env%dum)
 
-   IF(ASSOCIATED(qs_ot_env%matrix_os)) CALL cp_fm_release(qs_ot_env%matrix_os)
-   CALL cp_fm_release(qs_ot_env%matrix_p)
-   CALL cp_fm_release(qs_ot_env%matrix_cosp)
-   CALL cp_fm_release(qs_ot_env%matrix_sinp)
-   CALL cp_fm_release(qs_ot_env%matrix_r)
-   CALL cp_fm_release(qs_ot_env%matrix_cosp_b)
-   CALL cp_fm_release(qs_ot_env%matrix_sinp_b)
-   CALL cp_fm_release(qs_ot_env%matrix_buf1)
-   CALL cp_fm_release(qs_ot_env%matrix_buf2)
-   CALL cp_fm_release(qs_ot_env%matrix_buf3)
-   CALL cp_fm_release(qs_ot_env%matrix_buf1_ortho)
-   CALL cp_fm_release(qs_ot_env%matrix_buf2_ortho)
+   IF(ASSOCIATED(qs_ot_env%matrix_os)) CALL cp_fm_release(qs_ot_env%matrix_os,error)
+   CALL cp_fm_release(qs_ot_env%matrix_p,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_cosp,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_sinp,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_r,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_cosp_b,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_sinp_b,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_buf1,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_buf2,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_buf3,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_buf1_ortho,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_buf2_ortho,error=error)
 
-   CALL cp_fm_release(qs_ot_env%matrix_c0)
-   CALL cp_fm_release(qs_ot_env%matrix_sc0)
-   CALL cp_fm_release(qs_ot_env%matrix_x)
-   CALL cp_fm_release(qs_ot_env%matrix_gx)
-   CALL cp_fm_release(qs_ot_env%matrix_sx)
+   CALL cp_fm_release(qs_ot_env%matrix_c0,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_sc0,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_x,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_gx,error=error)
+   CALL cp_fm_release(qs_ot_env%matrix_sx,error=error)
 
    IF (ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-        CALL cp_fm_release(qs_ot_env%matrix_psc0)
+        CALL cp_fm_release(qs_ot_env%matrix_psc0,error=error)
    ENDIF
 
    IF (qs_ot_env%use_dx) &
-      CALL cp_fm_release(qs_ot_env%matrix_dx)
+      CALL cp_fm_release(qs_ot_env%matrix_dx,error=error)
    IF (qs_ot_env%use_gx_old) &
-      CALL cp_fm_release(qs_ot_env%matrix_gx_old)
+      CALL cp_fm_release(qs_ot_env%matrix_gx_old,error=error)
 
    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
      DO i=1,qs_ot_env%settings%diis_m
-        CALL cp_fm_release(qs_ot_env%matrix_h_x(i)%matrix)
-        CALL cp_fm_release(qs_ot_env%matrix_h_e(i)%matrix)
+        CALL cp_fm_release(qs_ot_env%matrix_h_x(i)%matrix,error=error)
+        CALL cp_fm_release(qs_ot_env%matrix_h_e(i)%matrix,error=error)
      ENDDO
      DEALLOCATE(qs_ot_env%matrix_h_x)
      DEALLOCATE(qs_ot_env%matrix_h_e)
@@ -475,38 +480,39 @@ SUBROUTINE qs_ot_destroy(qs_ot_env)
    ENDIF
 
    IF (qs_ot_env%settings%do_rotation) THEN
-     CALL cp_fm_release(qs_ot_env%rot_mat_u)
-     CALL cp_fm_release(qs_ot_env%rot_mat_x)
-     CALL cp_fm_release(qs_ot_env%rot_mat_chcf)
+     CALL cp_fm_release(qs_ot_env%rot_mat_u,error=error)
+     CALL cp_fm_release(qs_ot_env%rot_mat_x,error=error)
+     CALL cp_fm_release(qs_ot_env%rot_mat_chcf,error=error)
 
      IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
         DO i=1,qs_ot_env%settings%diis_m
-            CALL cp_fm_release(qs_ot_env%rot_mat_h_x(i)%matrix)
-            CALL cp_fm_release(qs_ot_env%rot_mat_h_e(i)%matrix)
+            CALL cp_fm_release(qs_ot_env%rot_mat_h_x(i)%matrix,error=error)
+            CALL cp_fm_release(qs_ot_env%rot_mat_h_e(i)%matrix,error=error)
         ENDDO
         DEALLOCATE(qs_ot_env%rot_mat_h_e)
         DEALLOCATE(qs_ot_env%rot_mat_h_x)
      ENDIF
 
      DEALLOCATE(qs_ot_env%rot_mat_evals)
-     CALL cp_cfm_release(qs_ot_env%rot_mat_evec)
-     CALL cp_fm_release(qs_ot_env%rot_mat_gx)
+     CALL cp_cfm_release(qs_ot_env%rot_mat_evec,error=error)
+     CALL cp_fm_release(qs_ot_env%rot_mat_gx,error=error)
 
      IF (qs_ot_env%use_gx_old) &
-         CALL cp_fm_release(qs_ot_env%rot_mat_gx_old)
+         CALL cp_fm_release(qs_ot_env%rot_mat_gx_old,error=error)
 
      IF (qs_ot_env%use_dx) &
-         CALL cp_fm_release(qs_ot_env%rot_mat_dx)
+         CALL cp_fm_release(qs_ot_env%rot_mat_dx,error=error)
    ENDIF
 
 END SUBROUTINE qs_ot_destroy
 !*******************************************************************************
 ! computes p=x*S*x and the matrix functionals related matrices
 !*******************************************************************************
-SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
+SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sx
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
@@ -514,25 +520,25 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
   CALL timeset("qs_ot_get_p","I","",handle)
 
-  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
 ! get the overlap
-  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_x,matrix_sx,rzero,& 
-                           qs_ot_env%matrix_p)
+  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_x,matrix_sx,rzero,&
+                           qs_ot_env%matrix_p,error=error)
 
 ! get an upper bound for the largest eigenvalue
-  CALL cp_fm_maxabsrownorm(qs_ot_env%matrix_p, qs_ot_env % largest_eval_upper_bound)
+  CALL cp_fm_maxabsrownorm(qs_ot_env%matrix_p, qs_ot_env % largest_eval_upper_bound,error=error)
 
   CALL decide_strategy(qs_ot_env)
 
   IF (qs_ot_env % do_taylor) THEN
-      CALL qs_ot_p2m_taylor(qs_ot_env) 
+      CALL qs_ot_p2m_taylor(qs_ot_env,error=error)
   ELSE
-      CALL qs_ot_p2m_diag(qs_ot_env)
+      CALL qs_ot_p2m_diag(qs_ot_env,error=error)
   ENDIF
 
   IF (qs_ot_env % settings % do_rotation) THEN
-     CALL qs_ot_generate_rotation(qs_ot_env)
+     CALL qs_ot_generate_rotation(qs_ot_env,error=error)
   ENDIF
 
   CALL timestop(0.0_dp,handle)
@@ -558,9 +564,10 @@ END SUBROUTINE qs_ot_get_p
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE qs_ot_generate_rotation(qs_ot_env)
+SUBROUTINE qs_ot_generate_rotation(qs_ot_env,error)
 
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_generate_rotation'
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
@@ -576,27 +583,27 @@ SUBROUTINE qs_ot_generate_rotation(qs_ot_env)
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
    CALL timeset(RoutineN,"I","",handle)
-   CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,nrow_global=k)
-   CALL cp_cfm_create(cmat_x,fm_struct,"cmat_x")
-   CALL cp_cfm_create(cmat_u,fm_struct,"cmat_u")
+   CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,nrow_global=k,error=error)
+   CALL cp_cfm_create(cmat_x,fm_struct,"cmat_x",error=error)
+   CALL cp_cfm_create(cmat_u,fm_struct,"cmat_u",error=error)
    ALLOCATE(evals_exp(k))
 
    ! rot_mat_u = exp(rot_mat_x)
    ! i rot_mat_x is hermitian, so go over the complex variables for diag
-   CALL cp_cfm_get_info(cmat_x,local_data=local_data_c)
-   CALL cp_fm_get_info(qs_ot_env%rot_mat_x,local_data=local_data_r)
+   CALL cp_cfm_get_info(cmat_x,local_data=local_data_c,error=error)
+   CALL cp_fm_get_info(qs_ot_env%rot_mat_x,local_data=local_data_r,error=error)
    local_data_c=CMPLX(0.0_dp,local_data_r,KIND=dp)
-   CALL cp_cfm_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals)
-   evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * qs_ot_env%rot_mat_evals(:) ) 
-   CALL cp_cfm_to_cfm(qs_ot_env%rot_mat_evec,cmat_x)
+   CALL cp_cfm_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals,error=error)
+   evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * qs_ot_env%rot_mat_evals(:) )
+   CALL cp_cfm_to_cfm(qs_ot_env%rot_mat_evec,cmat_x,error=error)
    CALL cp_cfm_column_scale(cmat_x,evals_exp)
-   CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_x,qs_ot_env%rot_mat_evec,czero,cmat_u)
-   CALL cp_cfm_get_info(cmat_u,local_data=local_data_c)
-   CALL cp_fm_get_info(qs_ot_env%rot_mat_u,local_data=local_data_r)
+   CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_x,qs_ot_env%rot_mat_evec,czero,cmat_u,error=error)
+   CALL cp_cfm_get_info(cmat_u,local_data=local_data_c,error=error)
+   CALL cp_fm_get_info(qs_ot_env%rot_mat_u,local_data=local_data_r,error=error)
    local_data_r=REAL(local_data_c,KIND=dp)
 
-   CALL cp_cfm_release(cmat_x)
-   CALL cp_cfm_release(cmat_u)
+   CALL cp_cfm_release(cmat_x,error=error)
+   CALL cp_cfm_release(cmat_u,error=error)
    DEALLOCATE(evals_exp)
 
    CALL timestop(0.0_dp,handle)
@@ -620,8 +627,9 @@ END SUBROUTINE qs_ot_generate_rotation
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env)
+SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_rot_mat_derivative'
     COMPLEX(KIND=dp), PARAMETER              :: cI = (0.0_dp,1.0_dp), &
@@ -640,26 +648,26 @@ SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env)
 
     CALL timeset(RoutineN,"I","",handle)
 
-    CALL cp_fm_get_info(qs_ot_env%rot_mat_u,nrow_global=k)
+    CALL cp_fm_get_info(qs_ot_env%rot_mat_u,nrow_global=k,error=error)
 
     ! create the derivative of the energy wrt to rot_mat_u
     CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,qs_ot_env%rot_mat_u,qs_ot_env%rot_mat_chcf, &
-                                  0.0_dp,qs_ot_env%matrix_buf1)
+                                  0.0_dp,qs_ot_env%matrix_buf1,error=error)
 
     ! now we get to the derivative wrt the antisymmetric matrix rot_mat_x
-    CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct)
-    CALL cp_cfm_create(cmat_buf1,fm_struct,"cmat_buf1")
-    CALL cp_cfm_create(cmat_buf2,fm_struct,"cmat_buf2")
+    CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,error=error)
+    CALL cp_cfm_create(cmat_buf1,fm_struct,"cmat_buf1",error=error)
+    CALL cp_cfm_create(cmat_buf2,fm_struct,"cmat_buf2",error=error)
 
     ! init cmat_buf1
-    CALL cp_fm_get_info(qs_ot_env%matrix_buf1,matrix_struct=fm_struct, local_data=local_data_r) 
+    CALL cp_fm_get_info(qs_ot_env%matrix_buf1,matrix_struct=fm_struct, local_data=local_data_r,error=error)
     CALL cp_cfm_get_info(cmat_buf1, nrow_local=nrow_local,   ncol_local=ncol_local, &
                                     row_indices=row_indices, col_indices=col_indices, &
-                                    local_data=local_data_c)
-    local_data_c=local_data_r 
+                                    local_data=local_data_c,error=error)
+    local_data_c=local_data_r
 
-    CALL cp_cfm_gemm('T','N',k,k,k,cone,cmat_buf1,qs_ot_env%rot_mat_evec,czero,cmat_buf2)
-    CALL cp_cfm_gemm('C','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf2,czero,cmat_buf1)
+    CALL cp_cfm_gemm('T','N',k,k,k,cone,cmat_buf1,qs_ot_env%rot_mat_evec,czero,cmat_buf2,error=error)
+    CALL cp_cfm_gemm('C','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf2,czero,cmat_buf1,error=error)
     DO j=1,ncol_local
       DO i=1,nrow_local
         e1=qs_ot_env%rot_mat_evals(row_indices(i))
@@ -667,19 +675,19 @@ SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env)
         local_data_c(i,j)=local_data_c(i,j)*cint(e1,e2)
       ENDDO
     ENDDO
-    CALL cp_cfm_gemm('N','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf1,czero,cmat_buf2)
-    CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_buf2,qs_ot_env%rot_mat_evec,czero,cmat_buf1)
+    CALL cp_cfm_gemm('N','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf1,czero,cmat_buf2,error=error)
+    CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_buf2,qs_ot_env%rot_mat_evec,czero,cmat_buf1,error=error)
 
     local_data_r=REAL(local_data_c,KIND=dp)
-    CALL cp_fm_transpose(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf2)
-    CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env%matrix_buf1,+1.0_dp,qs_ot_env%matrix_buf2)
-    CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_gx) 
+    CALL cp_fm_transpose(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf2,error=error)
+    CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env%matrix_buf1,+1.0_dp,qs_ot_env%matrix_buf2,error=error)
+    CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_gx,error=error)
 
-    CALL cp_cfm_release(cmat_buf1)
-    CALL cp_cfm_release(cmat_buf2)
+    CALL cp_cfm_release(cmat_buf1,error=error)
+    CALL cp_cfm_release(cmat_buf2,error=error)
 
     CALL timestop(0.0_dp,handle)
-CONTAINS 
+CONTAINS
     FUNCTION cint(e1,e2)
       IMPLICIT NONE
       COMPLEX(KIND=dp) :: cint
@@ -703,14 +711,14 @@ CONTAINS
 END SUBROUTINE qs_ot_rot_mat_derivative
 
 !*******************************************************************************
-! 
+!
 ! decide strategy
 ! tries to decide if the taylor expansion of cos(sqrt(xsx)) converges rapidly enough
 ! to make a taylor expansion of the functions cos(sqrt(xsx)) and sin(sqrt(xsx))/sqrt(xsx)
 ! and their derivatives faster than their computation based on diagonalization
 ! since xsx can be very small, especially during dynamics, only a few terms might indeed be needed
 ! we find the necessary order N to have largest_eval_upper_bound**(N+1)/(2(N+1))! < eps_taylor
-! 
+!
 !*******************************************************************************
 SUBROUTINE decide_strategy(qs_ot_env)
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -737,10 +745,11 @@ END SUBROUTINE decide_strategy
 ! this assumes that x is already ortho to S*C0, and that p is x*S*x
 ! rot_mat_u is an optional rotation matrix
 !*******************************************************************************
-SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
+SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env, error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_c, matrix_x
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
@@ -749,30 +758,30 @@ SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
 
   CALL timeset("qs_ot_get_orbitals","I","",handle)
 
-  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
-  ! rotate the multiplying matrices cosp and sinp instead of the result, 
+  ! rotate the multiplying matrices cosp and sinp instead of the result,
   ! this should be cheaper for large basis sets
   IF (qs_ot_env%settings%do_rotation) THEN
      matrix_kk => qs_ot_env%matrix_buf1
      CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_cosp, &
-                      qs_ot_env%rot_mat_u,rzero,matrix_kk)
+                      qs_ot_env%rot_mat_u,rzero,matrix_kk,error=error)
   ELSE
      matrix_kk => qs_ot_env%matrix_cosp
   ENDIF
 
   CALL cp_fm_gemm('N','N',n,k,k,rone,qs_ot_env%matrix_c0,matrix_kk, &
-                                               rzero,matrix_c)
+                                               rzero,matrix_c,error=error)
 
   IF (qs_ot_env%settings%do_rotation) THEN
      matrix_kk => qs_ot_env%matrix_buf1
      CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_sinp, &
-                      qs_ot_env%rot_mat_u,rzero,matrix_kk)
+                      qs_ot_env%rot_mat_u,rzero,matrix_kk,error=error)
   ELSE
      matrix_kk => qs_ot_env%matrix_sinp
   ENDIF
   CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_x,matrix_kk, &
-                                               rone ,matrix_c)
+                                               rone ,matrix_c,error=error)
 
   CALL timestop(0.0_dp,handle)
 
@@ -785,10 +794,11 @@ END SUBROUTINE qs_ot_get_orbitals
 ! is changed so that P*dE/dx is the right derivative (i.e. in the allowed subspace)
 !*******************************************************************************
 SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-                                               qs_ot_env)
+                                               qs_ot_env,error)
     TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
@@ -797,29 +807,29 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 
-  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
   ! could in principle be taken inside qs_ot_get_derivative_* for increased efficiency
-  ! create a local rotated version of matrix_hc leaving matrix_hc untouched (needed 
+  ! create a local rotated version of matrix_hc leaving matrix_hc untouched (needed
   ! for lagrangian multipliers)
   IF (qs_ot_env % settings % do_rotation) THEN
-      CALL cp_fm_to_fm(matrix_hc,matrix_gx) ! use gx as temporary    
-      CALL cp_fm_create(matrix_hc_local,matrix_hc%matrix_struct)
-      CALL cp_fm_set_all(matrix_hc_local,0.0_dp)
-      CALL cp_fm_gemm('N','T',n,k,k,rone,matrix_gx,qs_ot_env%rot_mat_u,rzero,matrix_hc_local)
+      CALL cp_fm_to_fm(matrix_hc,matrix_gx,error=error) ! use gx as temporary
+      CALL cp_fm_create(matrix_hc_local,matrix_hc%matrix_struct,error=error)
+      CALL cp_fm_set_all(matrix_hc_local,0.0_dp,error=error)
+      CALL cp_fm_gemm('N','T',n,k,k,rone,matrix_gx,qs_ot_env%rot_mat_u,rzero,matrix_hc_local,error=error)
   ELSE
       matrix_hc_local=>matrix_hc
   ENDIF
 
 
   IF (qs_ot_env % do_taylor) THEN
-     CALL qs_ot_get_derivative_taylor(matrix_hc_local,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
+     CALL qs_ot_get_derivative_taylor(matrix_hc_local,matrix_x,matrix_sx,matrix_gx,qs_ot_env,error=error)
   ELSE
-     CALL qs_ot_get_derivative_diag(matrix_hc_local,matrix_x,matrix_sx,matrix_gx,qs_ot_env)
+     CALL qs_ot_get_derivative_diag(matrix_hc_local,matrix_x,matrix_sx,matrix_gx,qs_ot_env,error=error)
   ENDIF
 
   ! and make it orthogonal
-  CALL cp_fm_get_info(qs_ot_env%matrix_sc0,ncol_global=ortho_k)
+  CALL cp_fm_get_info(qs_ot_env%matrix_sc0,ncol_global=ortho_k,error=error)
 
   IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
     matrix_target => qs_ot_env%matrix_psc0
@@ -833,34 +843,34 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
      IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
         CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
-                               qs_ot_env%matrix_psc0 )
+                               qs_ot_env%matrix_psc0 ,error=error)
      ENDIF
      CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
                      qs_ot_env%matrix_sc0,matrix_target, &
-                     rzero,qs_ot_env%matrix_os)
-     CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os)
-     CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os)
+                     rzero,qs_ot_env%matrix_os,error=error)
+     CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os,error=error)
+     CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os,error=error)
      qs_ot_env%os_valid=.TRUE.
   ENDIF
 
   CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_target,matrix_gx, &
-                      rzero,qs_ot_env%matrix_buf1_ortho)
+                      rzero,qs_ot_env%matrix_buf1_ortho,error=error)
 
   CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
                     qs_ot_env%matrix_buf1_ortho, &
-                    rzero,qs_ot_env%matrix_buf2_ortho)
+                    rzero,qs_ot_env%matrix_buf2_ortho,error=error)
 
   CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
                      qs_ot_env%matrix_buf2_ortho, &
-                    rone,matrix_gx)
+                    rone,matrix_gx,error=error)
 
   ! also treat the rot_mat gradient here
   IF (qs_ot_env%settings%do_rotation) THEN
-     CALL qs_ot_rot_mat_derivative(qs_ot_env)
+     CALL qs_ot_rot_mat_derivative(qs_ot_env,error=error)
   ENDIF
 
   IF (qs_ot_env % settings % do_rotation) THEN
-      CALL cp_fm_release(matrix_hc_local)
+      CALL cp_fm_release(matrix_hc_local,error=error)
   ENDIF
 
   CALL timestop(0.0_dp,handle)
@@ -868,11 +878,12 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 END SUBROUTINE qs_ot_get_derivative
 
 SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-                                               qs_ot_env)
+                                               qs_ot_env,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
@@ -880,54 +891,54 @@ SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   CALL timeset("qs_ot_get_derivative_diag","I","",handle)
 
-  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
   ! go for the derivative now
   ! this de/dc*(dX/dx)*sinp
-  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx)
+  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx,error=error)
   ! overlap hc*x
-  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,qs_ot_env%matrix_buf2)
+  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,qs_ot_env%matrix_buf2,error=error)
   ! get it in the basis of the eigenvectors
   CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r,&
-       rzero,qs_ot_env%matrix_buf1)
+       rzero,qs_ot_env%matrix_buf1,error=error)
   CALL cp_fm_gemm('T','N',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-       rzero,qs_ot_env%matrix_buf2)
+       rzero,qs_ot_env%matrix_buf2,error=error)
 
   ! get the schur product of O_uv*B_uv
   CALL cp_fm_schur_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_sinp_b, &
-                                   qs_ot_env%matrix_buf3)
+                                   qs_ot_env%matrix_buf3,error=error)
 
   ! overlap hc*c0
   CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero, &
-                                    qs_ot_env%matrix_buf2)
+                                    qs_ot_env%matrix_buf2,error=error)
   ! get it in the basis of the eigenvectors
   CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r, &
-                                    rzero,qs_ot_env%matrix_buf1)
+                                    rzero,qs_ot_env%matrix_buf1,error=error)
   CALL cp_fm_gemm('T','N',k,k,k,rone,qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
-                                    rzero,qs_ot_env%matrix_buf2)
+                                    rzero,qs_ot_env%matrix_buf2,error=error)
   ! get the schur product of O_uv*B_uv
   CALL cp_fm_schur_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_cosp_b, &
-                                        qs_ot_env%matrix_buf2)
+                                        qs_ot_env%matrix_buf2,error=error)
 
   ! add the two bs and compute b+b^T
 
-  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf2)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf2,error=error)
 
   ! get the b in the eigenvector basis
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_buf3,qs_ot_env%matrix_r, &
-                                     rzero,qs_ot_env%matrix_buf1)
+                                     rzero,qs_ot_env%matrix_buf1,error=error)
   CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-                                 rzero,qs_ot_env%matrix_buf3)
+                                 rzero,qs_ot_env%matrix_buf3,error=error)
 
 
-  CALL cp_fm_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1)
-  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf1)
+  CALL cp_fm_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1,error=error)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf1,error=error)
 
   ! and add to the derivative
 
   CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_buf3, &
-                                          rone,matrix_gx)
- 
+                                          rone,matrix_gx,error=error)
+
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ot_get_derivative_diag
@@ -936,11 +947,12 @@ END SUBROUTINE qs_ot_get_derivative_diag
 ! compute the derivative of the taylor expansion below
 !*******************************************************************************
 SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-                                               qs_ot_env)
+                                               qs_ot_env, error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
@@ -950,11 +962,11 @@ SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   CALL timeset("qs_ot_get_derivative_taylor","I","",handle)
 
-  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
   ! go for the derivative now
   ! this de/dc*(dX/dx)*sinp i.e. zeroth order
-  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx)
+  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx,error=error)
 
   IF (qs_ot_env % taylor_order .LE. 0) THEN
       CALL timestop(0.0_dp,handle)
@@ -962,70 +974,71 @@ SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   ENDIF
 
   ! we store the matrix that will multiply sx in matrix_r
-  CALL cp_fm_set_all(qs_ot_env%matrix_r,rzero)
+  CALL cp_fm_set_all(qs_ot_env%matrix_r,rzero,error=error)
 
   ! just better names for matrix_cosp_b and matrix_sinp_b (they are buffer space here)
   matrix_left  => qs_ot_env%matrix_cosp_b
   matrix_right => qs_ot_env%matrix_sinp_b
 
   ! overlap hc*x and add its transpose to matrix_left
-  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,matrix_left)
-  CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1)
-  CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
-  CALL cp_fm_to_fm(matrix_left,matrix_right)
+  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,matrix_left,error=error)
+  CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1,error=error)
+  CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
+  CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
 
   ! first order
   sinfactor=-1.0_dp/(2.0_dp*3.0_dp)
-  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left,error=error)
 
   !      M
   !    OM+MO
   ! OOM+OMO+MOO
-  !   ... 
+  !   ...
   DO i=2, qs_ot_env % taylor_order
      sinfactor=sinfactor * (-1.0_dp)/REAL(2*i * (2*i+1),KIND=dp)
-     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1)
-     CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left)
-     CALL cp_fm_to_fm(matrix_left,matrix_right)
-     CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
-     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1,error=error)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left,error=error)
+     CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
+     CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left,error=error)
   ENDDO
 
   ! overlap hc*c0 and add its transpose to matrix_left
-  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero,matrix_left)
-  CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1)
-  CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
-  CALL cp_fm_to_fm(matrix_left,matrix_right)
+  CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero,matrix_left,error=error)
+  CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1,error=error)
+  CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
+  CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
 
   ! first order
   cosfactor=-1.0_dp/(1.0_dp*2.0_dp)
-  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left,error=error)
 
   !      M
   !    OM+MO
   ! OOM+OMO+MOO
-  !   ... 
+  !   ...
   DO i=2, qs_ot_env % taylor_order
      cosfactor=cosfactor * (-1.0_dp)/REAL(2*i * (2*i-1),KIND=dp)
-     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1)
-     CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left)
-     CALL cp_fm_to_fm(matrix_left,matrix_right)
-     CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1)
-     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1,error=error)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left,error=error)
+     CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
+     CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left,error=error)
   ENDDO
 
   ! and add to the derivative
-  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_r,rone,matrix_gx)
- 
+  CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_r,rone,matrix_gx,error=error)
+
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ot_get_derivative_taylor
 
 !*******************************************************************************
-! computes a taylor expansion. 
+! computes a taylor expansion.
 !*******************************************************************************
-SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
+SUBROUTINE qs_ot_p2m_taylor(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
@@ -1035,8 +1048,8 @@ SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
   CALL timeset("qs_ot_p2m_taylor","I","",handle)
 
   ! zeroth order
-  CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone)
-  CALL cp_fm_set_all(qs_ot_env%matrix_sinp,rzero,rone)
+  CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone,error=error)
+  CALL cp_fm_set_all(qs_ot_env%matrix_sinp,rzero,rone,error=error)
   IF (qs_ot_env% taylor_order .LE. 0) THEN
       CALL timestop(0.0_dp,handle)
       RETURN
@@ -1045,26 +1058,26 @@ SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
   ! first order
   cosfactor=-1.0_dp/(1.0_dp*2.0_dp)
   sinfactor=-1.0_dp/(2.0_dp*3.0_dp)
-  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_p)
-  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_p)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_p,error=error)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_p,error=error)
   IF (qs_ot_env% taylor_order .LE. 1) THEN
       CALL timestop(0.0_dp,handle)
       RETURN
   ENDIF
 
   ! other orders
-  CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k)
-  CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_r)
+  CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k,error=error)
+  CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_r,error=error)
 
   DO i=2, qs_ot_env%taylor_order
      ! new power of p
-     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,qs_ot_env%matrix_r,rzero,qs_ot_env%matrix_buf1)
-     CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r)
+     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,qs_ot_env%matrix_r,rzero,qs_ot_env%matrix_buf1,error=error)
+     CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,error=error)
      ! add to the taylor expansion so far
      cosfactor=cosfactor * (-1.0_dp)/REAL(2*i * (2*i-1),KIND=dp)
      sinfactor=sinfactor * (-1.0_dp)/REAL(2*i * (2*i+1),KIND=dp)
-     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_r)
-     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_r)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_r,error=error)
+     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_r,error=error)
   ENDDO
 
   CALL timestop(0.0_dp,handle)
@@ -1073,14 +1086,15 @@ END SUBROUTINE qs_ot_p2m_taylor
 
 !*******************************************************************************
 ! given p, computes  - eigenstuff (matrix_r,evals)
-!                    - cos(p^0.5),p^(-0.5)*sin(p^0.5) 
+!                    - cos(p^0.5),p^(-0.5)*sin(p^0.5)
 !                    - the real b matrices, needed for the derivatives of these guys
 !                    cosp_b_ij=(1/(2pii) * int(cos(z^1/2)/((z-eval(i))*(z-eval(j))))
 !                    sinp_b_ij=(1/(2pii) * int(z^(-1/2)*sin(z^1/2)/((z-eval(i))*(z-eval(j))))
 !*******************************************************************************
-SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
+SUBROUTINE qs_ot_p2m_diag(qs_ot_env,error)
 
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
@@ -1089,9 +1103,9 @@ SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
 
   CALL timeset("qs_ot_p2m_diag","I","",handle)
 
-  CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k)
-  CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
-  CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
+  CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k,error=error)
+  CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1,error=error)
+  CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,error=error)
   ! CALL cp_fm_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_dp)
   DO i=1,k
         qs_ot_env%evals(i)=MAX(0.0_dp,qs_ot_env%evals(i))
@@ -1101,24 +1115,24 @@ SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
   DO i=1,k
      qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
   ENDDO
-  CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
+  CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1,error=error)
   CALL cp_fm_column_scale(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-                                     rzero,qs_ot_env%matrix_cosp)
+                                     rzero,qs_ot_env%matrix_cosp,error=error)
 
 !$OMP PARALLEL DO
   DO i=1,k
      qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
   ENDDO
-  CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
+  CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1,error=error)
   CALL cp_fm_column_scale(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-                                     rzero,qs_ot_env%matrix_sinp)
+                                     rzero,qs_ot_env%matrix_sinp,error=error)
 
 !$OMP PARALLEL DO PRIVATE(i,j,a,b)
   DO j=1,qs_ot_env%ncol_local
     DO i=1,qs_ot_env%nrow_local
-       a=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) & 
+       a=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
                   -SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_dp
        b=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
                   +SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_dp
@@ -1129,7 +1143,7 @@ SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
 !$OMP PARALLEL DO PRIVATE(i,j,a,b)
   DO j=1,qs_ot_env%ncol_local
     DO i=1,qs_ot_env%nrow_local
-       a=SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) 
+       a=SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i)))
        b=SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j)))
        qs_ot_env%matrix_sinp_b%local_data(i,j)=qs_ot_sincf(a,b)
     ENDDO
@@ -1179,7 +1193,7 @@ FUNCTION qs_ot_sincf(xa,ya)
 IF (xa.lt.0) CALL stop_program("qs_ot_sincf","x is negative")
 IF (ya.lt.0) CALL stop_program("qs_ot_sincf","y is negative")
 
-IF (xa.lt.ya) THEN 
+IF (xa.lt.ya) THEN
    x=ya
    y=xa
 ELSE
@@ -1191,7 +1205,7 @@ IF ( x .LT. 0.5_dp ) THEN ! use series, keeping in mind that x,y,x+y,x-y can all
 
   qs_ot_sincf=0.0_dp
   IF (x .GT. 0.0_dp) THEN
-     ybx=y/x  
+     ybx=y/x
   ELSE ! should be irrelevant  !?
      ybx=0.0_dp
   ENDIF

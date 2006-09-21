@@ -95,8 +95,8 @@ CONTAINS
   SUBROUTINE do_bsse_calculation(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_bsse_calculation', &
       routineP = moduleN//':'//routineN
@@ -173,8 +173,8 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
     TYPE(section_vals_type), POINTER         :: n_frags, root_section
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy', &
       routineP = moduleN//':'//routineN
@@ -257,8 +257,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: n_frags, root_section
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), INTENT(OUT)               :: energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy_low', &
       routineP = moduleN//':'//routineN
@@ -418,8 +418,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
     TYPE(section_vals_type), POINTER         :: bsse_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_info', &
       routineP = moduleN//':'//routineN
@@ -463,8 +463,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     INTEGER, INTENT(IN)                      :: num_of_frag
     TYPE(section_vals_type), POINTER         :: bsse_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_results', &
       routineP = moduleN//':'//routineN

@@ -8,12 +8,12 @@
 !!     kg_environment
 !!
 !!   FUNCTION
-!!    initialize kg environment             
+!!    initialize kg environment
 !!   AUTHOR
 !!     gt SEPT-23-2002
-!!   HISTORY 
-!!     GT 11-13-2003 :            
-!!     moved the main driver to cp2k 
+!!   HISTORY
+!!     GT 11-13-2003 :
+!!     moved the main driver to cp2k
 !!     performs only the initialization of the environment
 !!*****
 !******************************************************************************
@@ -126,7 +126,7 @@ MODULE kg_environment
   PUBLIC :: kg_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment'
-  
+
 !-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -154,8 +154,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'kg_init'
 
@@ -193,7 +193,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_unit_nr(logger)
     was_present = .FALSE.
-    
+
     ! nullifying  pointers
     NULLIFY ( atomic_kind_set )
     NULLIFY ( cell_section )
@@ -213,17 +213,17 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     cell_section => section_vals_get_subs_vals(force_env_section,&
-         "SUBSYS%CELL",error=error) 
+         "SUBSYS%CELL",error=error)
     dft_section =>  section_vals_get_subs_vals(force_env_section,&
          "DFT",error=error)
     qs_section =>  section_vals_get_subs_vals(dft_section,&
          "QS",error=error)
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
-         extension=".Log",error=error)    
+         extension=".Log",error=error)
     CALL kg_header(iw, iw>0)
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
-         "PRINT%PROGRAM_BANNER",error=error)    
+         "PRINT%PROGRAM_BANNER",error=error)
 
     CALL set_kg_env(kg_env,input=force_env_section,&
          error=error)
@@ -246,7 +246,7 @@ CONTAINS
 !   *** Read the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, use_ref_cell=use_ref_cell,&
          cell_section=cell_section, error=error)
-    CALL get_cell( cell, abc=abc)    
+    CALL get_cell( cell, abc=abc)
 
 !   *** Print the cell parameters ***
     CALL write_cell ( cell, force_env_section, error=error)
@@ -287,12 +287,12 @@ CONTAINS
 
     ! Initialise/print the atomic/molecular kind set
     CALL init_atomic_kind_set(atomic_kind_set,para_env,force_env_section=force_env_section,&
-                              method=dft_control%qs_control%method)
+                              method=dft_control%qs_control%method,error=error)
     CALL write_atomic_kind_set(atomic_kind_set,kg_env%input,error)
     CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
     CALL write_total_numbers(atomic_kind_set,particle_set,kg_env%input,error)
 
-    ! Print the atomic coordinates 
+    ! Print the atomic coordinates
     CALL write_qs_particle_coordinates(particle_set,cell,kg_env%input,error)
 
     ! Print the interatomic distances ***
@@ -301,7 +301,7 @@ CONTAINS
     ! Print the requested structure data
     CALL write_structure_data(particle_set,cell,kg_env%input,error)
 
-    ! Initialize the atomic interaction radii 
+    ! Initialize the atomic interaction radii
     CALL init_interaction_radii ( dft_control%qs_control, cell, &
                                   atomic_kind_set, kg_env%input, error)
 
@@ -315,15 +315,15 @@ CONTAINS
                                  force_env_section=kg_env%input,&
                                  error=error)
 
-    ! If polarization is also present, allocate and initialize coefs pointer  
+    ! If polarization is also present, allocate and initialize coefs pointer
     IF ( dft_control % qs_control % polarization ) THEN
        CALL dyn_coeff_set_create(dyn_coeff_set=dyn_coeff_set,&
                                  atomic_kind_set=atomic_kind_set,&
                                  distribution=local_particles,&
                                  error=error)
        work_section => section_vals_get_subs_vals(root_section,"MOTION%MD%KG_COEFF",error=error)
-       CALL dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,work_section,skipvel=.TRUE.,error=error)         
-       CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set) 
+       CALL dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,work_section,skipvel=.TRUE.,error=error)
+       CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set,error=error)
        CALL dyn_coeff_set_release(dyn_coeff_set, error=error)
     END IF
 
@@ -332,11 +332,11 @@ CONTAINS
 
     ! SCF parameters
     IF ( dft_control % qs_control % method /= "KG_NOPOL" ) THEN
-      CALL scf_c_create(scf_control)
+      CALL scf_c_create(scf_control,error=error)
       CALL scf_c_read_parameters(scf_control,root_section,kg_env%input,error=error)
       CALL scf_c_write_parameters(scf_control,kg_env%input,error=error)
-      CALL set_kg_env(kg_env=kg_env,scf_control=scf_control)
-      CALL scf_c_release(scf_control,error=error)  
+      CALL set_kg_env(kg_env=kg_env,scf_control=scf_control,error=error)
+      CALL scf_c_release(scf_control,error=error)
     END IF
 
     ! Allocate the data structure for energies ***
@@ -369,19 +369,19 @@ CONTAINS
                       local_particles=local_particles,&
                       molecule_kind_set=molecule_kind_set,&
                       molecule_set=molecule_set,&
-                      particle_set=particle_set)  
+                      particle_set=particle_set,error=error)
 
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
     CALL dft_control_release(dft_control, error=error)
- 
-    !Sets up pw, grids, densities              
+
+    !Sets up pw, grids, densities
     CALL kg_env_setup(kg_env,kg_gpw,error)
 
     IF ( kg_gpw ) THEN
-      !Sets up qs_env for subsystems             
+      !Sets up qs_env for subsystems
       CALL kg_subsys_setup(kg_env,force_env_section,error)
     END IF
 
@@ -407,8 +407,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &
@@ -479,8 +479,8 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
@@ -546,7 +546,7 @@ CONTAINS
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
 
-    CALL virial_create ( qs_env % virial, virial_in_use = .FALSE., numer_virial = .FALSE. )
+    CALL virial_create ( qs_env % virial, virial_in_use = .FALSE., numer_virial = .FALSE. ,error=error)
 
     CALL wfi_create(wf_history,&
                     interpolation_method_nr = &
@@ -572,7 +572,7 @@ CONTAINS
 
 
 !   No idea whether OT can work with KG
-    CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
+    CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
 
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell                 ,&
@@ -603,18 +603,18 @@ CONTAINS
                     local_molecules=distribution_1d,&
                     molecule_kind_set=molecule_kind_set,&
                     molecule_set=molecule_set,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,error=error)
 
     nmolecule_kind = SIZE(molecule_kind_set,1)
 
     nspins = dft_control%nspins
- 
+
 !   *** Problems with the distribution of the electrons ***
 
 !   I suppose, the charge of each molecule should be given from input
 !    to assign the correct number of electrons. Is this possible?
 !   It cannot be the global charge of the system, because each molecule
-!   must have a fixed number of electron from the beginning, 
+!   must have a fixed number of electron from the beginning,
 !   and charge transfers are not admitted
     IF(dft_control%charge /= 0) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -626,7 +626,7 @@ CONTAINS
       CALL stop_program(routineN,moduleN,__LINE__,&
          "The multiplicity is assigned molecule by molecule")
     END IF
-    
+
 !   *** Some options require that all MOs are computed ... ***
     nmo_eq_nao = .FALSE.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
@@ -669,7 +669,7 @@ CONTAINS
                               maxocc_global=maxocc_global,&
                               error=error)
       ! Initialize the local cell and the pw_env for each molecule kind
-      fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
+      fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
       CALL build_molbox_env(kg_sub_pw_env%molbox_env_set(imolecule_kind),&
                        fm_mol_set,qs_env,poisson_section=poisson_section,&
                        error=error)
@@ -678,11 +678,11 @@ CONTAINS
         iglobal = distribution_1d%list(imolecule_kind)%array(imol)
         kg_fm%imol_local_name(iglobal) = imol
         kg_fm%imol_pe_pos(iglobal) = para_env%mepos
-      END DO 
+      END DO
 
     END DO
 
-    CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env)
+    CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env,error=error)
     CALL kg_sub_pw_env_release(kg_sub_pw_env,force_env_section=force_env_section,error=error)
 
     CALL mp_sum(nelectron_global, para_env%group)
@@ -699,7 +699,7 @@ CONTAINS
 
     CALL set_kg_env(kg_env=kg_env,&
                     kg_fm_set=kg_fm,&
-                    sub_qs_env=qs_env)
+                    sub_qs_env=qs_env,error=error)
     CALL qs_env_release(qs_env,error=error)
     CALL kg_fm_mol_set_release(kg_fm,error=error)
 

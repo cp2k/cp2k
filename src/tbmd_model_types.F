@@ -176,8 +176,8 @@ CONTAINS
   SUBROUTINE tbmd_model_retain(tbmd_model, error)
 
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_retain', &
       routineP = moduleN//':'//routineN
@@ -222,8 +222,8 @@ CONTAINS
   SUBROUTINE tbmd_model_release(tbmd_model, error)
 
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_release', &
       routineP = moduleN//':'//routineN
@@ -309,8 +309,8 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: r_calpha, n_calpha, C14
     INTEGER, INTENT(OUT), OPTIONAL           :: tb_model_name
     LOGICAL, INTENT(OUT), OPTIONAL           :: noisy_tb
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_get', &
       routineP = moduleN//':'//routineN
@@ -412,8 +412,8 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: r_calpha, n_calpha, C14
     INTEGER, INTENT(IN), OPTIONAL            :: tb_model_name
     LOGICAL, INTENT(IN), OPTIONAL            :: noisy_tb
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_set', &
       routineP = moduleN//':'//routineN
@@ -481,8 +481,8 @@ CONTAINS
   SUBROUTINE tbmd_model_clear(tbmd_model, error)
 
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_clear', &
       routineP = moduleN//':'//routineN
@@ -546,8 +546,8 @@ CONTAINS
   SUBROUTINE tbmd_model_create(tbmd_model, error)
 
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_create', &
       routineP = moduleN//':'//routineN

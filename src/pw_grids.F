@@ -116,8 +116,8 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in)                      :: pe_group
     LOGICAL, INTENT(IN), OPTIONAL            :: local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create', &
       routineP = moduleN//':'//routineN
@@ -228,8 +228,8 @@ END FUNCTION pw_grid_compare
   !!     -
   !!
   !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -244,8 +244,8 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
     INTEGER, INTENT(IN), OPTIONAL            :: grid_span
     LOGICAL, INTENT(IN), OPTIONAL            :: symm_usage, spherical
     INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER, DIMENSION(3)                    :: n
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_find_n', &
@@ -260,16 +260,16 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
 ! in atomic units
 ! parent group for this grid
 ! output unit for information on grid
-! has the grid size to be 
+! has the grid size to be
 ! compatible with the FFT
-! has the grid size to be 
-! symmetric (g <-> -g)    
+! has the grid size to be
+! symmetric (g <-> -g)
 ! block or ray-distribution
 !------------------------------------------------------------------------------
 
   CALL timeset("pw_grid_find_n","I","",handle)
   failure=.FALSE.
-  
+
   my_grid_span=FULLSPACE
   IF (PRESENT(grid_span)) my_grid_span=grid_span
   ! default is to use only fft compatible grids
@@ -286,11 +286,11 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
     symmetry = .TRUE.
   END IF
 
-  ! ncommensurate is the number of commensurate grids 
+  ! ncommensurate is the number of commensurate grids
   ! in order to have non-commensurate grids ncommensurate must be 0
   ! icommensurte  is the level number of communensurate grids
   ! this implies that the number of grid points in each direction
-  ! is k*2**(ncommensurate-icommensurate) 
+  ! is k*2**(ncommensurate-icommensurate)
   IF ( PRESENT ( ncommensurate ) ) THEN
      my_ncommensurate=ncommensurate
      IF (my_ncommensurate .GT. 0 ) THEN
@@ -319,7 +319,7 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
   n= pw_grid_n_from_cutoff ( cell % hmat, cutoff,error=error)
   my_spherical = .FALSE.
   IF (PRESENT(spherical)) my_spherical=spherical
-  
+
   IF (fft) THEN
      n=pw_grid_n_for_fft(n,odd=(my_grid_span == HALFSPACE .AND. symmetry),error=error)
 
@@ -342,14 +342,14 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
            END DO
         END IF
      END IF
-  ELSE 
+  ELSE
      ! without a cutoff and HALFSPACE we have to be sure that there is
      ! a negative counterpart to every g vector (-> odd number of grid points)
      IF ( my_grid_span == HALFSPACE .AND. symmetry ) &
           n = n + MOD ( n + 1, 2 )
-     
+
   END IF
-  
+
   ! final check if all went fine ...
   IF (my_ncommensurate>0) THEN
      DO my_icommensurate=1,my_ncommensurate
@@ -359,7 +359,7 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
         END IF
      END DO
   ENDIF
-  
+
   CALL timestop(0.0_dp,handle)
 
 END FUNCTION pw_grid_find_n
@@ -380,8 +380,8 @@ END FUNCTION pw_grid_find_n
 !!   ARGUMENTS
 !!     - n: the minimum number of points you want
 !!     - odd: if the number has to be odd
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -390,8 +390,8 @@ END FUNCTION pw_grid_find_n
 FUNCTION pw_grid_n_for_fft(n,odd,error) RESULT(nout)
     INTEGER, DIMENSION(3), INTENT(in)        :: n
     LOGICAL, INTENT(in), OPTIONAL            :: odd
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER, DIMENSION(3)                    :: nout
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_for_fft', &
@@ -414,7 +414,7 @@ FUNCTION pw_grid_n_for_fft(n,odd,error) RESULT(nout)
         CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT )
      END IF
   END IF
-     
+
 END FUNCTION pw_grid_n_for_fft
 !***************************************************************************
 
@@ -445,8 +445,8 @@ FUNCTION pw_grid_n_from_cutoff ( hmat, cutoff, error ) RESULT(n)
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: hmat
     REAL(KIND=dp), INTENT(IN)                :: cutoff
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER, DIMENSION(3)                    :: n
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_from_cutoff', &
@@ -481,7 +481,7 @@ END FUNCTION pw_grid_n_from_cutoff
 !!   FUNCTION
 !!     Given a n and a box, calculate the corresponding maximum cutoff in a.u.
 !!     If npts is odd returns the energy of the next biggest g vector, because
-!!     if you take the points with energy smaller than that they are still 
+!!     if you take the points with energy smaller than that they are still
 !!     representable with that cutoff. Whereas if npts is even the energy of
 !!     the last (unpaired) g vector is returned. This implies that you always
 !!     have that 2*i+1, and 2*i+2 have the same cutoff.
@@ -494,8 +494,8 @@ END FUNCTION pw_grid_n_from_cutoff
 FUNCTION pw_cutoff_from_n ( npts, box, error ) RESULT(cutoff)
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(cell_type), INTENT(IN)              :: box
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: cutoff
 
     INTEGER                                  :: idir
@@ -509,7 +509,7 @@ FUNCTION pw_cutoff_from_n ( npts, box, error ) RESULT(cutoff)
      IF (idir==1) cutoff=cut_att
      cutoff = MIN ( cutoff, cut_att )
   END DO
-  
+
 END FUNCTION pw_cutoff_from_n
 
 !******************************************************************************
@@ -527,8 +527,8 @@ END FUNCTION pw_cutoff_from_n
 !!
 !!   ARGUMENTS
 !!     - npts: the number of points in each direction
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -536,8 +536,8 @@ END FUNCTION pw_cutoff_from_n
 !!*** **********************************************************************
 FUNCTION pw_grid_bounds_from_n(npts,error) RESULT(bounds)
     INTEGER, DIMENSION(3), INTENT(in)        :: npts
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER, DIMENSION(2, 3)                 :: bounds
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_bounds_from_n', &
@@ -546,7 +546,7 @@ FUNCTION pw_grid_bounds_from_n(npts,error) RESULT(bounds)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   bounds(1,:)=-npts/2
   bounds(2,:)=bounds(1,:)+npts-1
 END FUNCTION pw_grid_bounds_from_n
@@ -575,7 +575,7 @@ END FUNCTION pw_grid_bounds_from_n
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_find_bounds ( bounds, hmat, cutoff, fft )
+SUBROUTINE pw_grid_find_bounds ( bounds, hmat, cutoff, fft, error)
 
 
     INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
@@ -583,6 +583,7 @@ SUBROUTINE pw_grid_find_bounds ( bounds, hmat, cutoff, fft )
       INTENT(IN)                             :: hmat
     REAL(KIND=dp), INTENT(IN)                :: cutoff
     LOGICAL, INTENT(IN)                      :: fft
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: lwork = 20
 
@@ -592,9 +593,9 @@ SUBROUTINE pw_grid_find_bounds ( bounds, hmat, cutoff, fft )
 
   CALL timeset("pw_grid_find_bounds","I","",handle)
 
-  n=pw_grid_n_from_cutoff(hmat,cutoff)
-  IF (fft) n=pw_grid_n_for_fft(n)
-  bounds = pw_grid_bounds_from_n(n)
+  n=pw_grid_n_from_cutoff(hmat,cutoff,error=error)
+  IF (fft) n=pw_grid_n_for_fft(n,error=error)
+  bounds = pw_grid_bounds_from_n(n,error=error)
 
   CALL timestop(0.0_dp,handle)
 
@@ -638,8 +639,8 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, print_section, cutoff, fft_usage, &
     INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup', &
       routineP = moduleN//':'//routineN
@@ -655,10 +656,10 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, print_section, cutoff, fft_usage, &
 ! in atomic units
 ! parent group for this grid
 ! output unit for information on grid
-! has the grid size to be 
+! has the grid size to be
 ! compatible with the FFT
-! has the grid size to be 
-! symmetric (g <-> -g)    
+! has the grid size to be
+! symmetric (g <-> -g)
 ! block or ray-distribution
 !------------------------------------------------------------------------------
 
@@ -712,7 +713,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, print_section, cutoff, fft_usage, &
 CPSourceFileRef,&
              error=error,failure=failure)
      END IF
-     my_bounds=pw_grid_bounds_from_n(n)
+     my_bounds=pw_grid_bounds_from_n(n,error=error)
   ELSE
      my_bounds=pw_grid%bounds ! *** UGLY! should be an argument ***
      n=my_bounds(2,:)-my_bounds(1,:)+1
@@ -726,7 +727,7 @@ CPSourceFileRef,&
         IF ( my_span == HALFSPACE .AND. symmetry ) &
              n = n + MOD ( n + 1, 2 )
      END IF
-     my_bounds = pw_grid_bounds_from_n(n)
+     my_bounds = pw_grid_bounds_from_n(n,error=error)
   END IF
   IF (ALL(pw_grid%bounds(2,:)-pw_grid%bounds(1,:)+1==n)) THEN
      my_bounds=pw_grid%bounds
@@ -754,8 +755,8 @@ END SUBROUTINE pw_grid_setup
 !!     this is the function that should be used in the future
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -776,8 +777,8 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup1', &
       routineP = moduleN//':'//routineN
@@ -793,10 +794,10 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
 ! in atomic units
 ! parent group for this grid
 ! output unit for information on grid
-! has the grid size to be 
+! has the grid size to be
 ! compatible with the FFT
-! has the grid size to be 
-! symmetric (g <-> -g)    
+! has the grid size to be
+! symmetric (g <-> -g)
 ! block or ray-distribution
 !------------------------------------------------------------------------------
 
@@ -808,7 +809,7 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
   CPPrecondition(ASSOCIATED(print_section),cp_failure_level,routineP,error,failure)
 
   pw_grid%print_section => print_section
-  CALL section_vals_retain(pw_grid%print_section)
+  CALL section_vals_retain(pw_grid%print_section,error=error)
 
   ! default is to allow block usage
   IF ( PRESENT ( blocked ) ) THEN
@@ -822,7 +823,7 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
   ELSE
      pw_grid%grid_span=FULLSPACE
   END IF
- 
+
   ! set pointer to possible reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
     pw_grid % reference = ref_grid %id_nr
@@ -831,7 +832,7 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
   pw_grid % bounds = bounds
   pw_grid % npts = bounds(2,:)-bounds(1,:)+1
   pw_grid % cutoff = pw_cutoff_from_n(pw_grid % npts,cell,error)
-  
+
   pw_grid%spherical=.FALSE.
   IF (PRESENT(spherical_cutoff)) THEN
      IF (spherical_cutoff>0._dp) THEN
@@ -875,7 +876,7 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
 
   ! Distribute grid
   CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, &
-       rs_dims=rs_dims )
+       rs_dims=rs_dims ,error=error)
 
   ! Allocate the grid fields
   CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
@@ -883,10 +884,10 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
 
   ! Fill in the grid structure
   CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut )
-  
+
   ! Sort g vector wrt length (only local for each processor)
   CALL pw_grid_sort ( pw_grid, ref_grid )
-  
+
   CALL pw_grid_remap ( pw_grid, yz_mask )
 
   DEALLOCATE ( yz_mask )
@@ -1004,7 +1005,7 @@ END SUBROUTINE pw_grid_setup1
 
 !******************************************************************************
 
- SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocking,ref_grid)
+ SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocking,ref_grid,error)
   ! Find the number of grid points
   ! yz_mask counts the number of g-vectors orthogonal to the yz plane
   ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
@@ -1015,6 +1016,7 @@ END SUBROUTINE pw_grid_setup1
     REAL(KIND=dp)                            :: ecut
     LOGICAL                                  :: blocking
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: istat, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
@@ -1026,7 +1028,7 @@ END SUBROUTINE pw_grid_setup1
     CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
 
     ! Distribute grid
-    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
+    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking ,error=error)
 
     ! Allocate the grid fields
     CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
@@ -1034,12 +1036,12 @@ END SUBROUTINE pw_grid_setup1
 
     ! Fill in the grid structure
     CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut )
-  
+
     ! Sort g vector wrt length (only local for each processor)
     CALL pw_grid_sort ( pw_grid, ref_grid )
-  
+
     CALL pw_grid_remap ( pw_grid, yz_mask )
- 
+
     DEALLOCATE ( yz_mask, STAT=istat )
     IF ( istat /= 0 ) CALL stop_memory ( "create_gvectors", "yz_mask" )
 
@@ -1059,7 +1061,7 @@ END SUBROUTINE pw_grid_setup1
 !!     JGH (22-12-2000)
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (01-Mar-2001) optional reference grid 
+!!     JGH (01-Mar-2001) optional reference grid
 !!     JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
 !!     JGH (09-Sep-2003) reduce scaling for distribution
 !!
@@ -1075,8 +1077,8 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
     LOGICAL, INTENT(IN)                      :: blocking
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute', &
       routineP = moduleN//':'//routineN
@@ -1227,10 +1229,10 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
         CALL pre_tag ( pw_grid, yz_mask, ref_grid )
       END IF
 
-      ! Round Robin distribution 
+      ! Round Robin distribution
       ! Processors 0 .. NP-1, NP-1 .. 0  get the largest remaining batch
       ! of g vectors in turn
-  
+
       i1 = SIZE ( yz_mask, 1 )
       i2 = SIZE ( yz_mask, 2 )
       ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
@@ -1382,16 +1384,16 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
   ubz = pw_grid % bounds ( 2, 3 )
   my = SIZE ( yz_mask, 1 )
   mz = SIZE ( yz_mask, 2 )
- 
+
   ! loop over all processors and all g vectors yz lines on this processor
   DO ip = 0, ref_grid % para % group_size - 1
     DO ig = 1, ref_grid % para % nyzray ( ip )
       ! go from mapped coordinates to original coordinates
       ! 0 .. N-1 -> -n/2 .. (n+1)/2
       y = ref_grid % para % yzp ( 1, ig, ip ) - 1
-      IF ( y > ny/2 ) y = y - ny 
+      IF ( y > ny/2 ) y = y - ny
       z = ref_grid % para % yzp ( 2, ig, ip ) - 1
-      IF ( z > nz/2 ) z = z - nz 
+      IF ( z > nz/2 ) z = z - nz
       ! check if this is inside the realm of the new grid
       IF ( y < lby .OR. y > uby .OR. z < lbz .OR. z > ubz ) CYCLE
       ! go to shifted coordinates
@@ -1410,7 +1412,7 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
         yz_mask ( yp, zp ) = 0
         pw_grid % para % yzq ( y, z ) = ip
         pw_grid % para % yzq ( yp, zp ) = ip
-      ELSE 
+      ELSE
         gmax = yz_mask ( y, z )
         IF ( gmax == 0 ) CYCLE
         yz_mask ( y, z ) = 0
@@ -1608,7 +1610,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   bounds = pw_grid % bounds
   lby = pw_grid % bounds ( 1, 2 )
   lbz = pw_grid % bounds ( 1, 3 )
-  
+
   IF ( pw_grid % grid_span == HALFSPACE ) THEN
      n_upperlimit = 0
   ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
@@ -1672,7 +1674,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
             IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
                IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
             END IF
-           
+
             length_x &
                  = REAL(l,dp) * h_inv(1,1) &
                  + REAL(m,dp) * h_inv(2,1) &
@@ -1685,10 +1687,10 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
                  = REAL(l,dp) * h_inv(1,3) &
                  + REAL(m,dp) * h_inv(2,3) &
                  + REAL(n,dp) * h_inv(3,3)
-            
+
             length = length_x ** 2 + length_y ** 2 + length_z ** 2
             length = twopi * twopi * length
-          
+
             IF ( 0.5_dp * length <= cutoff ) THEN
                gpt = gpt + 1
                pw_grid % g ( 1, gpt ) = twopi * length_x
@@ -1699,7 +1701,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
                pw_grid % g_hat ( 2, gpt ) = m
                pw_grid % g_hat ( 3, gpt ) = n
             END IF
-               
+
          END DO
       END DO
 
@@ -1741,10 +1743,10 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
                    = REAL(l,dp) * h_inv(1,3) &
                    + REAL(m,dp) * h_inv(2,3) &
                    + REAL(n,dp) * h_inv(3,3)
- 
+
                length = length_x ** 2 + length_y ** 2 + length_z ** 2
                length = twopi * twopi * length
- 
+
                gpt = gpt + 1
                pw_grid % g ( 1, gpt ) = twopi * length_x
                pw_grid % g ( 2, gpt ) = twopi * length_y
@@ -2009,7 +2011,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   pw_grid % g_hat ( 2, 1:ng ) = int_tmp ( idx ( 1:ng ) )
   int_tmp ( 1:ng ) = pw_grid % g_hat ( 3, 1:ng )
   pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-   
+
   DEALLOCATE ( idx, STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx" )
   DEALLOCATE ( int_tmp, STAT = allocstat )
@@ -2142,7 +2144,7 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx )
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
 
-    REAL(KIND=dp), PARAMETER                 :: small = 5.e-16_dp 
+    REAL(KIND=dp), PARAMETER                 :: small = 5.e-16_dp
 
     INTEGER                                  :: ig, ng, s1, s2
     REAL(KIND=dp)                            :: s_begin
@@ -2343,11 +2345,11 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
      l = twopi * REAL ( pw_grid % g_hat ( 1, gpt ),KIND=dp)
      m = twopi * REAL ( pw_grid % g_hat ( 2, gpt ),KIND=dp)
      n = twopi * REAL ( pw_grid % g_hat ( 3, gpt ),KIND=dp)
-     
+
      g ( 1, gpt ) = l * h_inv(1,1) + m * h_inv(2,1) + n * h_inv(3,1)
      g ( 2, gpt ) = l * h_inv(1,2) + m * h_inv(2,2) + n * h_inv(3,2)
      g ( 3, gpt ) = l * h_inv(1,3) + m * h_inv(2,3) + n * h_inv(3,3)
-     
+
      pw_grid % gsq ( gpt ) = g ( 1, gpt ) * g ( 1, gpt ) &
                            + g ( 2, gpt ) * g ( 2, gpt ) &
                            + g ( 3, gpt ) * g ( 3, gpt )
@@ -2386,8 +2388,8 @@ SUBROUTINE pw_find_cutoff_qs ( bounds, h_inv, cutoff, error )
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
     REAL(KIND=dp), DIMENSION(:, :)           :: h_inv
     REAL(KIND=dp), INTENT(OUT)               :: cutoff
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     INTEGER, PARAMETER                       :: lwork = 20
 
@@ -2407,14 +2409,14 @@ SUBROUTINE pw_find_cutoff_qs ( bounds, h_inv, cutoff, error )
    CALL MATVEC_3x3 (vec, gmat_inv (:,:), vec1( : ) )
    length = vec ( 1 ) * eig ( 1 )
    length = CEILING ( length * length * 0.5_dp )
-   gcut = length 
-   length =  vec ( 2 ) * eig ( 2 ) 
+   gcut = length
+   length =  vec ( 2 ) * eig ( 2 )
    length = CEILING ( length * length * 0.5_dp )
    gcut = MIN ( gcut, length )
-   length =  vec ( 3 ) * eig ( 3 ) 
+   length =  vec ( 3 ) * eig ( 3 )
    length = CEILING ( length * length * 0.5_dp )
    gcut = MIN ( gcut, length )
-   cutoff = gcut 
+   cutoff = gcut
 
 END SUBROUTINE pw_find_cutoff_qs
 
@@ -2448,8 +2450,8 @@ SUBROUTINE pw_find_cutoff_fist ( npts, box, cutoff, error )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(cell_type), INTENT(IN)              :: box
     REAL(KIND=dp), INTENT(OUT)               :: cutoff
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     REAL(KIND=dp)                            :: gcut, gdum( 3 ), length
 
@@ -2491,8 +2493,8 @@ END SUBROUTINE pw_find_cutoff_fist
 !!
 !!   ARGUMENTS
 !!     - pw_grid: the pw grid to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -2503,8 +2505,8 @@ END SUBROUTINE pw_find_cutoff_fist
 !!*** **********************************************************************
 SUBROUTINE pw_grid_retain(pw_grid, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_retain', &
       routineP = moduleN//':'//routineN
@@ -2512,7 +2514,7 @@ SUBROUTINE pw_grid_retain(pw_grid, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
@@ -2534,8 +2536,8 @@ END SUBROUTINE pw_grid_retain
 !!
 !!   ARGUMENTS
 !!     - pw_grid: the pw grid to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -2546,8 +2548,8 @@ END SUBROUTINE pw_grid_retain
 !!*** **********************************************************************
 SUBROUTINE pw_grid_release(pw_grid, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
       routineP = moduleN//':'//routineN
@@ -2561,7 +2563,7 @@ SUBROUTINE pw_grid_release(pw_grid, error)
      CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
      pw_grid%ref_count=pw_grid%ref_count-1
      IF (pw_grid%ref_count==0) THEN
-        CALL section_vals_release(pw_grid % print_section )
+        CALL section_vals_release(pw_grid % print_section ,error=error)
         IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
            DEALLOCATE ( pw_grid % gidx, STAT = stat )
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -2652,8 +2654,8 @@ END SUBROUTINE pw_grid_release
 !!   ARGUMENTS
 !!     - pw_grid_in: the pw grid to duplicate
 !!     - pw_grid_out: the output pw_grid_type
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi, Teo
@@ -2668,8 +2670,8 @@ END SUBROUTINE pw_grid_release
   SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
       routineP = moduleN//':'//routineN
@@ -2679,11 +2681,11 @@ END SUBROUTINE pw_grid_release
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    
+
     CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group)
+       CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group,error=error)
        grid_tag = grid_tag + 1
        pw_grid_out %id_nr = grid_tag
        pw_grid_out % ref_count  = 1
@@ -2706,17 +2708,17 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(1,:)+1
        pw_grid_out%ngpts_local=PRODUCT(pw_grid_out%npts_local)
        pw_grid_out%ngpts_cut_local=0
-       pw_grid_out%dr              =  pw_grid_in%dr               
-       pw_grid_out%dh              =  pw_grid_in%dh               
-       pw_grid_out%orthorhombic    =  pw_grid_in%orthorhombic     
-       pw_grid_out%dvol            =  pw_grid_in%dvol             
+       pw_grid_out%dr              =  pw_grid_in%dr
+       pw_grid_out%dh              =  pw_grid_in%dh
+       pw_grid_out%orthorhombic    =  pw_grid_in%orthorhombic
+       pw_grid_out%dvol            =  pw_grid_in%dvol
        pw_grid_out%vol             =  pw_grid_in%vol*REAL(pw_grid_out%ngpts,dp)&
             /REAL(pw_grid_in%ngpts,dp) !FM do not modify?
        pw_grid_out%cutoff          =  pw_grid_in%cutoff
        NULLIFY(pw_grid_out%mapl%pos, pw_grid_out%mapl%neg,&
             pw_grid_out%mapm%pos,pw_grid_out%mapm%neg,&
             pw_grid_out%mapn%pos,pw_grid_out%mapn%neg)
-       
+
        !para
        CALL mp_comm_dup ( pw_grid_in % para % group, pw_grid_out % para % group )
        CALL mp_environ ( pw_grid_out % para % group_size, &
@@ -2744,7 +2746,7 @@ END SUBROUTINE pw_grid_release
           pw_grid_out % para % rs_mpo=HUGE(0) !FM copy also from pw_grid_in?
           pw_grid_out % para % rs_pos=HUGE(0)
        END IF
-       
+
        NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
        CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
        pw_grid_out%grid_span=pw_grid_in%grid_span

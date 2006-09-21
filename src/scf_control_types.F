@@ -175,8 +175,8 @@ CONTAINS
   SUBROUTINE scf_c_create(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_create', &
       routineP = moduleN//':'//routineN
@@ -299,8 +299,8 @@ CONTAINS
   SUBROUTINE scf_c_retain(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_retain', &
       routineP = moduleN//':'//routineN
@@ -348,8 +348,8 @@ CONTAINS
   SUBROUTINE scf_c_release(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_release', &
       routineP = moduleN//':'//routineN
@@ -401,8 +401,8 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: root_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
@@ -590,8 +590,8 @@ CONTAINS
 
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
       routineP = moduleN//':'//routineN
@@ -634,7 +634,7 @@ CONTAINS
                      "T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),"//&
                      "6(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
             "SCF PARAMETERS",&
-            "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess))),&
+            "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
             "max_scf:           ",scf_control%max_scf,&
             "max_scf_aspc:      ",scf_control%max_scf_aspc,&
             "max_diis:          ",scf_control%max_diis,&
@@ -664,7 +664,7 @@ CONTAINS
             CALL keyword_get(keyword,enum=enum,error=error)
             WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T71,A10)")&
               REPEAT("-",56),&
-              "ROKS scheme:",ADJUSTR(TRIM(enum_i2c(enum,roks_scheme)))
+              "ROKS scheme:",ADJUSTR(TRIM(enum_i2c(enum,roks_scheme,error=error)))
             IF (roks_scheme == general_roks) THEN
               WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
                 "ROKS parameter f:",scf_control%roks_f

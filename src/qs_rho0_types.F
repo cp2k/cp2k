@@ -48,7 +48,7 @@ MODULE qs_rho0_types
 
   TYPE  mpole_rho_atom
     REAL(dp), DIMENSION(:), POINTER             ::  Qlm_h, &
-                                                    Qlm_s, & 
+                                                    Qlm_s, &
                                                     Qlm_tot,&
                                                     Qlm_car_h,&
                                                     Qlm_car_s
@@ -56,7 +56,7 @@ MODULE qs_rho0_types
   END TYPE mpole_rho_atom
 
   TYPE mpole_gau_overlap
-    REAL(dp), DIMENSION(:,:,:), POINTER         :: Qlm_gg 
+    REAL(dp), DIMENSION(:,:,:), POINTER         :: Qlm_gg
     REAL(dp), DIMENSION(:,:), POINTER           :: g0_h, g0_s, vg0_h
     REAL(dp)                                    :: rpgf0_h, rpgf0_s
     REAL(dp)                                    :: r_V0hmV0s
@@ -77,7 +77,7 @@ MODULE qs_rho0_types
     INTEGER, DIMENSION(:),  POINTER             :: lmax0_kind
     INTEGER                                     :: lmax_0,igrid_zet0_s
     TYPE(coeff_type), POINTER                   :: rho0_s_rs,&
-                                                   rho0_s_gs  
+                                                   rho0_s_gs
   END TYPE rho0_mpole_type
 
   TYPE rho0_atom_type
@@ -92,17 +92,17 @@ MODULE qs_rho0_types
             rho0_atom_type, rho0_mpole_type
 
 ! Public Subroutine
- 
+
   PUBLIC :: allocate_multipoles, allocate_rho0_mpole, &
             allocate_rho0_atom, allocate_rho0_atom_rad, &
             deallocate_rho0_atom, deallocate_rho0_mpole, &
-            calculate_g0, get_rho0_mpole, initialize_mpole_rho, & 
+            calculate_g0, get_rho0_mpole, initialize_mpole_rho, &
             write_rho0_info
 
 !******************************************************************************
- 
+
 CONTAINS
- 
+
 !******************************************************************************
   SUBROUTINE allocate_multipoles(mp_rho,natom,mp_gau,nkind)
 
@@ -170,16 +170,16 @@ CONTAINS
 
     IF(ASSOCIATED(rho0_set)) THEN
       CALL deallocate_rho0_atom(rho0_set)
-    END IF 
+    END IF
 
     ALLOCATE (rho0_set(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rho0_atom_set",natom*int_size)
 
-    DO iat = 1,natom 
-      NULLIFY(rho0_set(iat)%rho0_rad_h) 
+    DO iat = 1,natom
+      NULLIFY(rho0_set(iat)%rho0_rad_h)
       NULLIFY(rho0_set(iat)%rho0_rad_s)
-      NULLIFY(rho0_set(iat)%vrho0_rad_h) 
+      NULLIFY(rho0_set(iat)%vrho0_rad_h)
     ENDDO
 
   END SUBROUTINE allocate_rho0_atom
@@ -227,9 +227,10 @@ CONTAINS
   END SUBROUTINE allocate_rho0_atom_rad
 ! ******************************************************************************
 
-  SUBROUTINE allocate_rho0_mpole(rho0)
+  SUBROUTINE allocate_rho0_mpole(rho0,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho0_mpole'
 
@@ -238,7 +239,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF(ASSOCIATED(rho0)) THEN
-      CALL deallocate_rho0_mpole(rho0)
+      CALL deallocate_rho0_mpole(rho0,error=error)
     END IF
 
     ALLOCATE (rho0,STAT=istat)
@@ -325,7 +326,7 @@ CONTAINS
 
     DO l = 1,lmax
       gh_tmp(1:nr) = gh_tmp(1:nr)*grid_atom%rad(1:nr)
-      
+
       rho0_mpole%mp_gau(ik)%g0_h(1:nr,l) = gh_tmp(1:nr)* &
                                            rho0_mpole%norm_g0l_h(l)
       gs_tmp(1:nr) = gs_tmp(1:nr)*grid_atom%rad(1:nr)
@@ -339,7 +340,7 @@ CONTAINS
         rho0_mpole%mp_gau(ik)%vg0_h(ir,l) = prefactor*(int1(ir)+&
                                       int2(ir)*grid_atom%rad2l(ir,l))
       END DO
- 
+
     END DO  ! l
 
     DEALLOCATE (gexp,erf_z_h,gh_tmp,gs_tmp,int1,int2,STAT=istat)
@@ -408,7 +409,7 @@ CONTAINS
 
     DO iat = 1,natom
       DEALLOCATE(mp_rho(iat)%Qlm_h,STAT=istat)
-      DEALLOCATE(mp_rho(iat)%Qlm_s,STAT=istat) 
+      DEALLOCATE(mp_rho(iat)%Qlm_s,STAT=istat)
       DEALLOCATE(mp_rho(iat)%Qlm_tot,STAT=istat)
       DEALLOCATE(mp_rho(iat)%Qlm_car_h,STAT=istat)
       DEALLOCATE(mp_rho(iat)%Qlm_car_s,STAT=istat)
@@ -467,9 +468,10 @@ CONTAINS
 
   END SUBROUTINE deallocate_rho0_atom
 ! ******************************************************************************
-  SUBROUTINE deallocate_rho0_mpole(rho0)
+  SUBROUTINE deallocate_rho0_mpole(rho0,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_rho0_mpole'
 
@@ -514,12 +516,12 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
-          CALL coeff_deallocate(rho0%rho0_s_rs)
+          CALL coeff_deallocate(rho0%rho0_s_rs,error=error)
           DEALLOCATE(rho0%rho0_s_rs)
       ENDIF
 
       IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
-          CALL coeff_deallocate(rho0%rho0_s_gs)
+          CALL coeff_deallocate(rho0%rho0_s_gs,error=error)
           DEALLOCATE(rho0%rho0_s_gs)
       ENDIF
 
@@ -654,8 +656,8 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_rho0_info'
 

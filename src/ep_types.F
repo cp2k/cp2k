@@ -234,8 +234,8 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - energy: the energy object to zero out
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -243,8 +243,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_energy_zero(ep_energy,error)
     TYPE(ep_energy_type), INTENT(out)        :: ep_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_energy_zero', &
       routineP = moduleN//':'//routineN
@@ -269,8 +269,8 @@ CONTAINS
   !!
   !!   INPUTS
   !!     - ep_env: the environment to retain
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Fawzi Mohamed
@@ -281,8 +281,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_env_retain(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_retain', &
       routineP = moduleN//':'//routineN
@@ -312,8 +312,8 @@ CONTAINS
   !!
   !!   INPUTS
   !!     - ep_env: the ep_env to release
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Fawzi Mohamed
@@ -324,8 +324,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_env_release(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_release', &
       routineP = moduleN//':'//routineN
@@ -339,7 +339,7 @@ CONTAINS
        CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
        ep_env%ref_count=ep_env%ref_count-1
        IF (ep_env%ref_count<1) THEN
-          CALL rep_env_release(ep_env%mol_envs)
+          CALL rep_env_release(ep_env%mol_envs,error=error)
           IF (ASSOCIATED(ep_env%sub_proj)) THEN
              DO i=1,SIZE(ep_env%sub_proj)
                 CALL p_proj_release(ep_env%sub_proj(i)%projection,error=error)
@@ -347,7 +347,7 @@ CONTAINS
              DEALLOCATE(ep_env%sub_proj,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          CALL qs_env_release(ep_env%main_qs_env)
+          CALL qs_env_release(ep_env%main_qs_env,error=error)
           CALL p_env_release(ep_env%main_p_env,error=error)
           CALL p_env_release(ep_env%sub_p_env,error=error)
           CALL cp_fm_vect_dealloc(ep_env%m_pi_Hrho_psi0d,error=error)
@@ -356,7 +356,7 @@ CONTAINS
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
           IF (ASSOCIATED(ep_env%precond)) THEN
              DO i=1,1 !SIZE(ep_env%precond) ! same precond for all spins
-                CALL destroy_preconditioner(ep_env%precond(i)%preconditioner)
+                CALL destroy_preconditioner(ep_env%precond(i)%preconditioner,error=error)
              END DO
              DEALLOCATE(ep_env%precond,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -397,7 +397,7 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - ep_env: the ep_env to get the info from
-  !!     - error: variable to control error logging, stopping,... 
+  !!     - error: variable to control error logging, stopping,...
   !!       see module cp_error_handling
   !!
   !!     For the other arguments see the attributes of ep_env_type
@@ -429,8 +429,8 @@ CONTAINS
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: at2sub
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_get', &
       routineP = moduleN//':'//routineN
@@ -480,14 +480,14 @@ CONTAINS
   !!   NOTES
   !!     Could take more advantage of what is calculated in main_qs_env
   !!     (for example the S matrix)
-  !!     
+  !!
   !!
   !!   INPUTS
   !!     - ep_env: the ep_env env to create
   !!     - main_qs_env: the qs_env of the full system
   !!     - projections: the projections into the subsystems
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Fawzi Mohamed
@@ -501,8 +501,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_create', &
       routineP = moduleN//':'//routineN
@@ -530,7 +530,7 @@ CONTAINS
             ep_env%psi1, ep_env%precond,ep_env%sub_nmo,ep_env%sub_nao,&
             ep_env%full_nmo,ep_env%full_nao,ep_env%input,ep_env%at2sub,&
             ep_env%force,ep_env%root_section)
-       CALL ep_energy_zero(ep_env%energy)
+       CALL ep_energy_zero(ep_env%energy,error=error)
        ep_env%root_section => root_section
        CALL section_vals_retain(root_section,error)
        ep_env%globenv => globenv
@@ -600,8 +600,8 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - ep_env: the ep_env to add
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -609,8 +609,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_envs_add_ep_env(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_add_ep_env', &
       routineP = moduleN//':'//routineN
@@ -664,8 +664,8 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - ep_env: the ep_env to remove
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -673,8 +673,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_envs_rm_ep_env(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_rm_ep_env', &
       routineP = moduleN//':'//routineN
@@ -721,8 +721,8 @@ CONTAINS
   !!     -
   !!
   !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -731,8 +731,8 @@ CONTAINS
   SUBROUTINE ep_env_calc_e_f(ep_env,calc_f,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     LOGICAL, INTENT(in)                      :: calc_f
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e_f', &
       routineP = moduleN//':'//routineN
@@ -767,8 +767,8 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - local_sm: the matrix to deallocate
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -777,8 +777,8 @@ CONTAINS
   SUBROUTINE ep_dealloc_local_sm(local_sm,error)
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: local_sm
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_dealloc_local_sm', &
       routineP = moduleN//':'//routineN
@@ -792,7 +792,7 @@ CONTAINS
        DO i=1,SIZE(local_sm,2)
           DO ispin=1,SIZE(local_sm,1)
              IF (ASSOCIATED(local_sm(ispin,i)%matrix)) THEN
-                CALL deallocate_matrix(local_sm(ispin,i)%matrix)
+                CALL deallocate_matrix(local_sm(ispin,i)%matrix,error=error)
              END IF
           END DO
        END DO
@@ -816,8 +816,8 @@ CONTAINS
   !!   ARGUMENTS
   !!     - force: the type to create
   !!     - nat: the number of atoms
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -826,8 +826,8 @@ CONTAINS
   SUBROUTINE ep_force_create(force,nat,error)
     TYPE(ep_force_type), POINTER             :: force
     INTEGER, INTENT(in)                      :: nat
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_create', &
       routineP = moduleN//':'//routineN
@@ -864,8 +864,8 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - force: the force type to zero out
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -873,8 +873,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_force_zero(force,error)
     TYPE(ep_force_type), POINTER             :: force
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_zero', &
       routineP = moduleN//':'//routineN
@@ -903,8 +903,8 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - force: the force type to retain
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -912,8 +912,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_force_retain(force,error)
     TYPE(ep_force_type), POINTER             :: force
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_retain', &
       routineP = moduleN//':'//routineN
@@ -942,8 +942,8 @@ CONTAINS
   !!
   !!   ARGUMENTS
   !!     - force: the force type to retain
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     fawzi
@@ -951,8 +951,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_force_release(force,error)
     TYPE(ep_force_type), POINTER             :: force
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_release', &
       routineP = moduleN//':'//routineN

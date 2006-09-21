@@ -90,8 +90,8 @@ CONTAINS
   SUBROUTINE vb_anal(input, para_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vb_anal', &
       routineP = moduleN//':'//routineN
@@ -440,8 +440,8 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: dof
     INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(IN)                      :: ionode, keep_rotations
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
       routineP = moduleN//':'//routineN
@@ -616,8 +616,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: dof
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dout
     LOGICAL, OPTIONAL                        :: full
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_D_matrix', &
       routineP = moduleN//':'//routineN

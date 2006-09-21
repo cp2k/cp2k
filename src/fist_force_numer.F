@@ -71,7 +71,7 @@ MODULE fist_force_numer
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"  
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -567,7 +567,7 @@ END SUBROUTINE force_bend_numer
 !******************************************************************************
 
 SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, f_torsion_numer, pot_torsion, numerical_shift )
+                              particle_set, f_torsion_numer, pot_torsion, numerical_shift, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -578,6 +578,7 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
       INTENT(INOUT)                          :: f_torsion_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot_torsion
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: first_atom, i, idim, ikind, imol, imul, index_a, index_b, &
       index_c, index_d, itorsion, nkind, nmol_per_kind, ntorsions
@@ -797,7 +798,7 @@ END SUBROUTINE force_torsion_numer
 !******************************************************************************
 
 SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                                 particle_set, f_numer, pot, numerical_shift )
+                                 particle_set, f_numer, pot, numerical_shift, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -808,6 +809,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
       INTENT(INOUT)                          :: f_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: first_atom, i, idim, ikind, imol, index_a, index_b, index_c, &
       index_d, itorsion, nimpr, nkind, nmol_per_kind
@@ -1016,7 +1018,7 @@ END SUBROUTINE force_imptors_numer
 !******************************************************************************
 
 SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,  &
-                               local_particles, numerical_shift, f_numer )
+                               local_particles, numerical_shift, f_numer, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -1028,6 +1030,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, parti
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_numer
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: sum_igr
@@ -1057,7 +1060,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, parti
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer', 'r_delta', 3 )
 
 ! defining alpha and epsilon0
-  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0, group = group )
+  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0, group = group ,error=error)
 
 ! first initialize the arrays gauss and sum_igr
   CALL structure_factor ( atomic_kind_set, particle_set, local_particles, &
@@ -1078,7 +1081,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, parti
           r_delta(idim) = r_delta(idim) - 2.0_dp*numerical_shift
           CALL force_g_numer(em, sum_igr, gauss, particle_set ( iparticle ) % r ,  &
                              r_delta, q, g, ngtot)
-          f_numer(idim,iparticle) = f_numer ( idim, iparticle ) + em - ep  
+          f_numer(idim,iparticle) = f_numer ( idim, iparticle ) + em - ep
           r_delta(idim) = r_delta(idim) + numerical_shift
        END DO
     END DO
@@ -1114,7 +1117,7 @@ END SUBROUTINE ewald_force_numer
 !******************************************************************************
 
 SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, cell, pv_test, delta )
+                           particle_set, cell, pv_test, delta, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1125,6 +1128,7 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vp
@@ -1136,9 +1140,9 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1198,11 +1202,11 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
         END DO
      END DO
   END DO
-  
+
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bond_numer', 's' )
 
-  CALL cell_release ( cell_local )
+  CALL cell_release ( cell_local ,error=error)
 
 END SUBROUTINE pv_bond_numer
 
@@ -1226,7 +1230,7 @@ END SUBROUTINE pv_bond_numer
 !******************************************************************************
 
 SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, cell, pv_test, delta )
+                           particle_set, cell, pv_test, delta, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1237,6 +1241,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vp
@@ -1248,9 +1253,9 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
 !------------------------------------------------------------------------------
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1314,7 +1319,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_onefour_numer', 's' )
 
-  CALL cell_release ( cell_local )
+  CALL cell_release ( cell_local ,error=error)
 
 END SUBROUTINE pv_onefour_numer
 
@@ -1338,7 +1343,7 @@ END SUBROUTINE pv_onefour_numer
 !******************************************************************************
 
 SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, cell, pv_test, delta )
+                           particle_set, cell, pv_test, delta, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1349,6 +1354,7 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vp
@@ -1360,9 +1366,9 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1426,7 +1432,7 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_ub_numer', 's' )
 
-  CALL cell_release ( cell_local )
+  CALL cell_release ( cell_local ,error=error)
 
 END SUBROUTINE pv_ub_numer
 
@@ -1450,7 +1456,7 @@ END SUBROUTINE pv_ub_numer
 !******************************************************************************
 
 SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, cell, pv_test, delta )
+                           particle_set, cell, pv_test, delta, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1461,6 +1467,7 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vp
@@ -1472,9 +1479,9 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1533,8 +1540,8 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bend_numer', 's' )
 
-  CALL cell_release ( cell_local )
-  
+  CALL cell_release ( cell_local ,error=error)
+
 END SUBROUTINE pv_bend_numer
 
 !!*****
@@ -1557,7 +1564,7 @@ END SUBROUTINE pv_bend_numer
 !******************************************************************************
 
 SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, cell, pv_test, delta )
+                              particle_set, cell, pv_test, delta, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1568,6 +1575,7 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vp
@@ -1579,9 +1587,9 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
 !------------------------------------------------------------------------------
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1639,7 +1647,7 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_torsion_numer', 's' )
 
-  CALL cell_release ( cell_local )
+  CALL cell_release ( cell_local ,error=error)
 
 END SUBROUTINE pv_torsion_numer
 !!*****
@@ -1662,7 +1670,7 @@ END SUBROUTINE pv_torsion_numer
 !******************************************************************************
 
 SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, cell, pv_test, delta )
+                              particle_set, cell, pv_test, delta, error )
 
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1673,6 +1681,7 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vp
@@ -1684,9 +1693,9 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
 !------------------------------------------------------------------------------
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1744,7 +1753,7 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_imptors_numer', 's' )
 
-  CALL cell_release ( cell_local )
+  CALL cell_release ( cell_local ,error=error)
 
 END SUBROUTINE pv_imptors_numer
 
@@ -1768,7 +1777,7 @@ END SUBROUTINE pv_imptors_numer
 !******************************************************************************
 
 SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
-                              particle_set, cell, pv_test, delta )
+                              particle_set, cell, pv_test, delta, error )
 
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -1779,6 +1788,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
     REAL(KIND=dp)                            :: idelta, vm, vnb, vp
@@ -1790,9 +1800,9 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
 !------------------------------------------------------------------------------
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1819,7 +1829,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
            particle_set ( i ) % r ( : ) = MATMUL ( cell_local % hmat, s(:,i) )
         END DO
         CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
-                                 ewald_env, cell_local, vnb )
+                                 ewald_env, cell_local, vnb ,error=error)
         vp = vnb
 
 ! tweak again
@@ -1829,7 +1839,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
-                                 ewald_env, cell_local, vnb )
+                                 ewald_env, cell_local, vnb ,error=error)
         vm = vnb
 
 ! calculate the derivative
@@ -1856,7 +1866,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'ptens_numer', 's' )
 
-  CALL cell_release ( cell_local )
+  CALL cell_release ( cell_local ,error=error)
 
 END SUBROUTINE pv_nonbond_numer
 
@@ -1880,7 +1890,7 @@ END SUBROUTINE pv_nonbond_numer
 !******************************************************************************
 
 SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,  &
-                        local_particles, delta, pv_test )
+                        local_particles, delta, pv_test, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -1892,6 +1902,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set
     REAL(KIND=dp), INTENT(IN)                :: delta
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_test
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: sum_igr
@@ -1915,9 +1926,9 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set
   ngtot = pw_grid % ngpts_cut
 
   NULLIFY ( cell_local )
- 
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
-  CALL cell_retain ( cell_local )
+
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
+  CALL cell_retain ( cell_local ,error=error)
 
 ! allocating
   natoms = SIZE ( particle_set )
@@ -1934,7 +1945,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set
   END DO
 
 ! defining alpha and epsilon0 (see ewald.f for details)
-  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0, group = group )
+  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0, group = group ,error=error)
 
 ! Initializing pv_test
   pv_test = 0.0_dp
@@ -1950,7 +1961,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set
         CALL get_hinv(cell_local)
         CALL pw_grid_change ( cell_local, pw_grid )
         g => pw_grid % g
-        
+
 ! recompute new partical postions from old scaled coords.
         DO i = 1, natoms
            particle_set ( i ) % r = MATMUL ( cell_local % hmat, s(:,i) )
@@ -2024,7 +2035,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set
   DEALLOCATE (gauss,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory( 'pvg_numer', 'gauss' )
 
-  CALL cell_release ( cell_local )
+  CALL cell_release ( cell_local ,error=error)
 
 END SUBROUTINE pv_g_numer
 
@@ -2175,27 +2186,27 @@ SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_p
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_part
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: i, id, natoms
     REAL(KIND=dp)                            :: eminus, eplus
 
-  natoms = SIZE ( particle_set ) 
-  DO i = 1, natoms 
+  natoms = SIZE ( particle_set )
+  DO i = 1, natoms
     DO id = 1, 3
-      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
+      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
       CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eplus,&
            force_env_section=force_env_section,error=error)
-      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2.0_dp * delta 
+      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2.0_dp * delta
       CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eminus,&
            force_env_section=force_env_section,error=error )
       f_part ( id, i ) = eminus - eplus
-      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
+      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
     ENDDO
   ENDDO
   f_part = f_part / 2.0_dp / delta
-   
+
 END SUBROUTINE pme_force_numer
 
 !!*****
@@ -2216,7 +2227,7 @@ END SUBROUTINE pme_force_numer
 !!   SOURCE
 !******************************************************************************
  SUBROUTINE ewald_energy_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
-                                 particle_set, local_particles, energy_numer )
+                                 particle_set, local_particles, energy_numer, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -2226,6 +2237,7 @@ END SUBROUTINE pme_force_numer
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), INTENT(INOUT)             :: energy_numer
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: sum_igr
@@ -2250,13 +2262,13 @@ END SUBROUTINE pme_force_numer
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'gauss', ngtot )
 
 ! defining alpha and epsilon0
-  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0, group = group )
+  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0, group = group ,error=error)
 
 ! computing the energy
   CALL structure_factor ( atomic_kind_set, particle_set, local_particles, &
                           sum_igr, gauss, alpha, g, ngtot, group )
 
-  
+
 ! computing the potential energy
   energy_numer = 0.0_dp
   DO ig = 1, ngtot
@@ -2265,7 +2277,7 @@ END SUBROUTINE pme_force_numer
   END DO
 
 
-  energy_numer = energy_numer / epsilon0 / pw_grid % vol 
+  energy_numer = energy_numer / epsilon0 / pw_grid % vol
   DEALLOCATE (sum_igr,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'sum_igr' )
   DEALLOCATE (gauss,STAT=isos)
@@ -2765,7 +2777,7 @@ END SUBROUTINE potential_imptors
 !******************************************************************************
 
 SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
-                               ewald_env, cell, vnb )
+                               ewald_env, cell, vnb, error )
 
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -2776,6 +2788,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: vnb
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: atom_a, atom_b, ikind, ilist, &
                                                 ipair, jkind, nkinds
@@ -2789,7 +2802,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 !------------------------------------------------------------------------------
 
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
-                              potparm = potparm )
+                              potparm = potparm ,error=error)
 !
 ! initializing the potential energy
 !
@@ -2813,14 +2826,14 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
         atom_b = neighbor_kind_pair%list(2,ipair)
         rab    = pbc(particle_set(atom_b)%r-particle_set(atom_a)%r,cell)+cell_v
         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-        
+
         IF (rab2 <= rab2_max) THEN
            IF (qi==0.AND.qj==0) THEN
               CALL potential_f ( rab2, potparm, qi, qj, &
-                   ikind, jkind, energy )
+                   ikind, jkind, energy ,error=error)
            ELSE
               CALL potential_f ( rab2, potparm, qi, qj, &
-                   ikind, jkind, energy, ewald_env )
+                   ikind, jkind, energy, ewald_env ,error=error)
            ENDIF
            !
            ! summing up the potential energy
@@ -2829,14 +2842,14 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
         END IF
      END DO
   END DO
-  
+
 END SUBROUTINE potential_nonbond
 
 ! *****************************************************************************
   SUBROUTINE force_nonbond_numer (atomic_kind_set,particle_set,&
                                   local_particles, ewald_env, cell, &
                                   potparm, delta, f_numer,    &
-                                  energy_numer )
+                                  energy_numer, error )
 
 !   Purpose: Build all the required neighbor lists for FIST.
 
@@ -2854,6 +2867,7 @@ END SUBROUTINE potential_nonbond
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     REAL(KIND=dp), INTENT(IN)                :: delta
     REAL(KIND=dp), INTENT(INOUT)             :: f_numer( :, : ), energy_numer
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond_numer'
 
@@ -2871,7 +2885,7 @@ END SUBROUTINE potential_nonbond
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxatom=maxatom)
-! Zero 
+! Zero
     energy_numer = 0.0_dp
     f_numer = 0.0_dp
 
@@ -2952,7 +2966,7 @@ END SUBROUTINE potential_nonbond
 !   *** evaluate the forces ***
     CALL force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
                                   potparm, energy_numer, f_numer, delta,   &
-                                  maxatom_local )
+                                  maxatom_local ,error=error)
 
     f_numer = f_numer/(2.0_dp*delta)
 !   *** Release work storage ***
@@ -2989,7 +3003,7 @@ END SUBROUTINE potential_nonbond
 
   SUBROUTINE force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
                                       potparm, energy_numer, f_numer,    &
-                                      numerical_shift, maxatom_local )
+                                      numerical_shift, maxatom_local, error )
 
 !   Purpose: Build simple pair neighbor lists.
 
@@ -3009,6 +3023,7 @@ END SUBROUTINE potential_nonbond
       INTENT(OUT)                            :: f_numer
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
     INTEGER, INTENT(IN)                      :: maxatom_local
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond_evaluate'
 
@@ -3021,7 +3036,7 @@ END SUBROUTINE potential_nonbond
                                                 sb_max, sb_min, sb_pbc
 
     CALL timeset(routineN,"I","",handle)
-   
+
     f_numer=0.0_dp
     energy_numer=0.0_dp
 
@@ -3050,7 +3065,7 @@ END SUBROUTINE potential_nonbond
 
 !       *** Calculate the square of the maximum interaction distance ***
 
-        rab2_max = potparm %pot( ikind, jkind )%pot % rcutsq 
+        rab2_max = potparm %pot( ikind, jkind )%pot % rcutsq
         r(:) = SQRT ( rab2_max )
 
         sab_max(1) = r(1)/plane_distance(1,0,0,cell)
@@ -3138,7 +3153,7 @@ END SUBROUTINE potential_nonbond
                                                               qi, qj, &
                                                               numerical_shift, &
                                                               f_numer,     &
-                                                              energy_numer )
+                                                              energy_numer ,error=error)
                             END SELECT
                           END IF
                         END IF
@@ -3163,7 +3178,7 @@ END SUBROUTINE potential_nonbond
 
 SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
                                         ikind, jkind, atom_a, atom_b, qi, qj, &
-                                        numerical_shift, f_numer, energy_numer )
+                                        numerical_shift, f_numer, energy_numer, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -3174,6 +3189,7 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_numer
     REAL(KIND=dp), INTENT(INOUT)             :: energy_numer
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: id
     REAL(KIND=dp)                            :: energy, energy_minus, &
@@ -3190,14 +3206,14 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
      rij_plus_delta_sq = DOT_PRODUCT(rab+delta,rab+delta)
      IF (qi==0.AND.qj==0) THEN
         CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-             ikind, jkind, energy_minus )
+             ikind, jkind, energy_minus ,error=error)
         CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-             ikind, jkind, energy_plus )
+             ikind, jkind, energy_plus ,error=error)
      ELSE
         CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-             ikind, jkind, energy_minus, ewald_env )
+             ikind, jkind, energy_minus, ewald_env ,error=error)
         CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-             ikind, jkind, energy_plus, ewald_env )
+             ikind, jkind, energy_plus, ewald_env ,error=error)
      ENDIF
      f_numer(id,atom_a) = f_numer(id,atom_a) + (energy_plus-energy_minus)
      f_numer(id,atom_b) = f_numer(id,atom_b) - (energy_plus-energy_minus)
@@ -3206,13 +3222,13 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
   ! compute energy
   IF (qi==0.AND.qj==0) THEN
      CALL potential_f ( rab2, potparm, qi, qj, &
-          ikind, jkind, energy )
+          ikind, jkind, energy ,error=error)
   ELSE
      CALL potential_f ( rab2, potparm, qi, qj, &
-          ikind, jkind, energy, ewald_env )
+          ikind, jkind, energy, ewald_env ,error=error)
   ENDIF
   energy_numer = energy_numer + energy
-  
+
 END SUBROUTINE finite_difference_evaluate
 
 !!*****

@@ -185,8 +185,8 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
     REAL(KIND=dp), INTENT(IN)                :: maxocc
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE allocate_mo_set (MODULE qs_mo_types)"
@@ -257,8 +257,8 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
     CHARACTER(len=*), INTENT(in)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_mo_set', &
       routineP = moduleN//':'//routineN
@@ -314,8 +314,8 @@ CONTAINS
   SUBROUTINE mo_set_restrict(mo_array,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mo_set_restrict'
 
@@ -368,7 +368,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_mo_set(mo_set)
+  SUBROUTINE deallocate_mo_set(mo_set,error)
 
 !   Purpose: Deallocate a wavefunction data structure.
 
@@ -377,6 +377,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -396,7 +397,7 @@ CONTAINS
           IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
        END IF
 
-       CALL cp_fm_release(mo_set%mo_coeff)
+       CALL cp_fm_release(mo_set%mo_coeff,error=error)
 
        DEALLOCATE (mo_set,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine,"mo_set")
@@ -603,8 +604,8 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: dft_section
     INTEGER, INTENT(in), OPTIONAL            :: rst_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -636,14 +637,14 @@ CONTAINS
 
     IF (para_env%ionode) THEN
 
-      IF(PRESENT(dft_section)) THEN     
+      IF(PRESENT(dft_section)) THEN
         CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
              c_val=file_name,error=error)
         IF (id_nr/=1) THEN
            file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                 ADJUSTL(cp_to_string(id_nr))
         END IF
-       
+
         CALL open_file(file_name=file_name,&
              file_action="WRITE",&
              file_form="UNFORMATTED",&
@@ -653,7 +654,7 @@ CONTAINS
          restart_unit = rst_unit
       ELSE
          CALL stop_program(routine,"not known restart file-unit")
-      END IF       
+      END IF
 
 !     *** create some info about the basis set first ***
       natom = SIZE(particle_set,1)
@@ -723,7 +724,7 @@ CONTAINS
     END IF
 
     ! use the scalapack block size as a default for buffering columns
-    CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block)
+    CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
     ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*max_block*dp_size)
 
@@ -742,7 +743,7 @@ CONTAINS
 
       DO i=1,nmo,MAX(max_block,1)
         i_block=MIN(max_block,nmo-i+1)
-        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block)
+        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
         ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
         ! to old ones, and in cases where max_block is different between runs, as might happen during
         ! restarts with a different number of CPUs
@@ -756,7 +757,7 @@ CONTAINS
     DEALLOCATE (vecbuffer,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
 
-    IF(PRESENT(dft_section) .AND. para_env%ionode) THEN 
+    IF(PRESENT(dft_section) .AND. para_env%ionode) THEN
       CALL close_file(unit_number=restart_unit)
     END IF
 
@@ -778,8 +779,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -890,7 +891,7 @@ CONTAINS
 
       mo_array(ispin)%mo_set%eigenvalues(:) = 0.0_dp
       mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
-      CALL cp_fm_set_all(mo_array(ispin)%mo_set%mo_coeff,0.0_dp)
+      CALL cp_fm_set_all(mo_array(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
         READ (restart_unit) nmo_read,&
@@ -984,7 +985,7 @@ CONTAINS
         END IF
 
         CALL mp_bcast(vecbuffer,source,group)
-        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,1,transpose=.TRUE.)
+        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
         did_change=.FALSE.
 
       END DO
@@ -1011,7 +1012,7 @@ CONTAINS
                          "LSD: try to use a different multiplicity.")
         END IF
         mo_array(ispin)%mo_set%nelectron = (nelectron + multiplicity - 1)/2
-        mo_array(ispin+1)%mo_set%nelectron = (nelectron - multiplicity + 1)/2 
+        mo_array(ispin+1)%mo_set%nelectron = (nelectron - multiplicity + 1)/2
         IF(mo_array(ispin+1)%mo_set%nelectron < 0)THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                          "LSD: too few electrons for this multiplicity.")
@@ -1049,22 +1050,22 @@ CONTAINS
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
                                          before,after,dft_section,spin,last,&
                                          error)
-    
+
     ! Purpose: Write the MO eigenvalues, MO occupation numbers and
     !          MO mo_coeff.
-    
+
     ! History: - Creation (15.05.2001,MK)
     !          - Optionally print Cartesian MOs (20.04.2005,MK)
-    
+
     ! *************************************************************************
-    
+
     ! List of variables:
-    
+
     ! after : Number of digits after point.
     ! before: Number of digits before point.
-    
+
     ! -------------------------------------------------------------------------
-    
+
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1074,8 +1075,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: spin
     LOGICAL, INTENT(IN), OPTIONAL            :: last
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit'
 
@@ -1125,13 +1126,13 @@ CONTAINS
     IF (p_evec) THEN
        CALL cp_fm_get_info(mo_set%mo_coeff,&
             nrow_global=nrow_global,&
-            ncol_global=ncol_global)
+            ncol_global=ncol_global,error=error)
        ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
        IF (istat /= 0) THEN
           CALL stop_memory(routineN,moduleN,__LINE__,&
                "smatrix",nrow_global*ncol_global*dp_size)
        END IF
-       CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
+       CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix,error=error)
        IF (.NOT.ionode) THEN
           DEALLOCATE(smatrix,STAT=istat)
           IF (istat /= 0) THEN
@@ -1335,15 +1336,15 @@ CONTAINS
                          END DO
                       END DO
                    END DO
-                   
+
                 END IF
-                
+
              END DO
-             
+
           END IF
-          
+
        END DO
-       
+
        WRITE (UNIT=iw,FMT="(/)")
 
        ! Release work storage

@@ -22,7 +22,7 @@ MODULE ewald_spline_util
 !!     12.2005 created [tlaino]
 !!
 !!   SOURCE
-!****************************************************************************  
+!****************************************************************************
   USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type
@@ -61,7 +61,7 @@ MODULE ewald_spline_util
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_spline_util'
   PUBLIC :: Setup_Ewald_Spline
-  
+
 CONTAINS
 
 !!****f* ewald_spline_util/Setup_Ewald_Spline [1.0] *
@@ -76,8 +76,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -85,7 +85,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     12.2005 created [tlaino]
 !!
-!!*** ********************************************************************** 
+!!*** **********************************************************************
   SUBROUTINE Setup_Ewald_Spline(pw_grid, pw_pool, coeff, LG, gx, gy, gz, hmat, npts,&
        param_section, tag, print_section, para_env, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -98,8 +98,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: tag
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline', &
       routineP = moduleN//':'//routineN
@@ -124,14 +124,14 @@ CONTAINS
        pw_grid % grid_span       =  HALFSPACE
        pw_grid % bounds ( 1, 1:3 ) = 0
        pw_grid % bounds ( 2, 1:3 ) = npts(1:3) - 1
-       CALL pw_find_cutoff ( npts, cell, cutoff )
+       CALL pw_find_cutoff ( npts, cell, cutoff ,error=error)
        ecut = 0.5_dp * cutoff * cutoff
       ! CALL pw_find_cutoff ( pw_grid % bounds , cell % h_inv, cutoff )
-      ! ecut =  cutoff 
+      ! ecut =  cutoff
        ! pw_grid initialized NOT DISTRIBUTED
-       CALL pw_grid_setup(cell, pw_grid, print_section, cutoff = ecut, fft_usage = .TRUE.)
+       CALL pw_grid_setup(cell, pw_grid, print_section, cutoff = ecut, fft_usage = .TRUE.,error=error)
        ! pw_pool initialized
-       CALL pw_pool_create(pw_pool, pw_grid=pw_grid, error=error)     
+       CALL pw_pool_create(pw_pool, pw_grid=pw_grid, error=error)
        CALL pw_pool_create_pw ( pw_pool, pw, use_data = REALDATA3D, in_space = REALSPACE,&
             error=error)
        CALL pw_pool_create_pw ( pw_pool, coeff, use_data = REALDATA3D, in_space = REALSPACE,&
@@ -159,8 +159,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -168,7 +168,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     12.2005 created [tlaino]
 !!
-!!*** ********************************************************************** 
+!!*** **********************************************************************
   SUBROUTINE eval_pw_TabLR( grid, pw_pool, TabLR, Lg, gx, gy, gz, hmat_mm,&
        param_section, tag, error)
     TYPE(pw_type), POINTER                   :: grid
@@ -178,8 +178,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_mm
     TYPE(section_vals_type), POINTER         :: param_section
     CHARACTER(LEN=*), INTENT(IN)             :: tag
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_pw_TabLR', &
       routineP = moduleN//':'//routineN
@@ -197,9 +197,9 @@ CONTAINS
     n1  = grid%pw_grid%npts(1)
     n2  = grid%pw_grid%npts(2)
     n3  = grid%pw_grid%npts(3)
-    dr1 = grid%pw_grid%dr(1) 
-    dr2 = grid%pw_grid%dr(2) 
-    dr3 = grid%pw_grid%dr(3) 
+    dr1 = grid%pw_grid%dr(1)
+    dr2 = grid%pw_grid%dr(2)
+    dr3 = grid%pw_grid%dr(3)
     gbo = grid%pw_grid%bounds
     nxlim = FLOOR(REAL(n1,KIND=dp)/2.0_dp)
     nylim = FLOOR(REAL(n2,KIND=dp)/2.0_dp)
@@ -228,7 +228,7 @@ CONTAINS
              DO kg = 1, SIZE(Lg)
                 Term = Term + lg(kg)*COS(gx(kg)*xs1+gy(kg)*xs2+gz(kg)*xs3)
              END DO
-             grid%cr3d(i,j,k) = Term 
+             grid%cr3d(i,j,k) = Term
              xs1 = xs1 + dr1
           END DO
           xs2 = xs2 + dr2
@@ -237,7 +237,7 @@ CONTAINS
 
     Fake_LoopOnGrid: DO k = gbo(1,3), gbo(2,3)
        my_k = k
-       IF ( k > nzlim ) my_k = nzlim - ABS(nzlim-k) + ks       
+       IF ( k > nzlim ) my_k = nzlim - ABS(nzlim-k) + ks
        DO j  =  gbo(1,2), gbo(2,2)
           my_j = j
           IF ( j > nylim ) my_j = nylim - ABS(nylim-j) + js
@@ -272,7 +272,7 @@ CONTAINS
     CALL pw_spline_precond_release(precond,error=error)
     !
     ! Check for the interpolation Spline
-    ! 
+    !
     CALL check_spline_interp_TabLR(hmat_mm, Lg, gx, gy, gz, TabLR, param_section,&
          tag, error)
     CALL timestop(0.0_dp,handle)
@@ -290,8 +290,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -299,7 +299,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     12.2005 created [tlaino]
 !!
-!!*** ********************************************************************** 
+!!*** **********************************************************************
   SUBROUTINE check_spline_interp_TabLR(hmat_mm, Lg, gx, gy, gz, TabLR,&
        param_section, tag, error)
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_mm
@@ -307,8 +307,8 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: TabLR
     TYPE(section_vals_type), POINTER         :: param_section
     CHARACTER(LEN=*), INTENT(IN)             :: tag
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_spline_interp_TabLR', &
       routineP = moduleN//':'//routineN
@@ -333,12 +333,12 @@ CONTAINS
        dr1 = hmat_mm(1,1) / REAL(npoints, KIND=dp)
        dr2 = hmat_mm(2,2) / REAL(npoints, KIND=dp)
        dr3 = hmat_mm(3,3) / REAL(npoints, KIND=dp)
-       xs1 = 0.0_dp 
-       xs2 = 0.0_dp 
+       xs1 = 0.0_dp
+       xs2 = 0.0_dp
        xs3 = 0.0_dp
        WRITE(iw,'(A,T5,A15,4X,A17,T50,4X,A,5X,A,T80,A,T85,A15,4X,A17,T130,4X,A,5X,A)')&
             "#","Analytical Term","Interpolated Term","Error","MaxError",&
-            "*"," Analyt Deriv  ","Interp Deriv Mod ","Error","MaxError"  
+            "*"," Analyt Deriv  ","Interp Deriv Mod ","Error","MaxError"
        DO i = 1, npoints+1
           Term    = 0.0_dp
           dxTerm  = 0.0_dp

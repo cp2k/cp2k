@@ -42,7 +42,7 @@ MODULE input_val_types
 
   IMPLICIT NONE
   PRIVATE
- 
+
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_val_types'
 
@@ -56,7 +56,7 @@ MODULE input_val_types
 
   INTEGER, PARAMETER, PUBLIC :: no_t=0, logical_t=1, &
        integer_t=2, real_t=3, char_t=4, enum_t=5, lchar_t=6
-  
+
 !!****s* input_val_types/val_p_type [1.0] *
 !!
 !!   NAME
@@ -137,10 +137,10 @@ CONTAINS
 !!     - l_vals, i_vals, r_vals, c_vals: an array of logicals,
 !!       integers, reals, characters, long strings to be stored in val
 !!     - l_vals_ptr, i_vals_ptr, r_vals_ptr, c_vals_ptr: an array of logicals,
-!!       ... to be stored in val, val will get the ownership of the pointer 
+!!       ... to be stored in val, val will get the ownership of the pointer
 !!     - enum: the enumaration type this value is using
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -175,8 +175,8 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
       DIMENSION(:), OPTIONAL, POINTER        :: lc_vals_ptr
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create', &
       routineP = moduleN//':'//routineN
@@ -185,7 +185,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(.NOT.ASSOCIATED(val),cp_failure_level,routineP,error,failure)
   ALLOCATE(val,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -220,7 +220,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         val%l_val => l_vals_ptr
         val%type_of_var=logical_t
      END IF
-     
+
      IF (PRESENT(r_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(r_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,error,failure)
@@ -243,7 +243,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         val%r_val => r_vals_ptr
         val%type_of_var=real_t
      END IF
-     
+
      IF (PRESENT(i_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(i_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,error,failure)
@@ -266,7 +266,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         val%i_val => i_vals_ptr
         val%type_of_var=integer_t
      END IF
-     
+
      IF (PRESENT(c_val)) THEN
         CPPrecondition(LEN_TRIM(c_val)<=default_string_length,cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,error,failure)
@@ -299,7 +299,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         nVal=MAX(1,CEILING(REAL(len_c,dp)/80._dp))
         ALLOCATE(val%c_val(nVal),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        
+
         IF (len_c == 0) THEN
            val%c_val(1) = ""
         ELSE
@@ -355,8 +355,8 @@ END SUBROUTINE val_create
 !!
 !!   INPUTS
 !!     - val: the val to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -364,8 +364,8 @@ END SUBROUTINE val_create
 !!*** **********************************************************************
 SUBROUTINE val_release(val,error)
     TYPE(val_type), POINTER                  :: val
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_release', &
       routineP = moduleN//':'//routineN
@@ -418,8 +418,8 @@ END SUBROUTINE val_release
 !!
 !!   INPUTS
 !!     - val: the val to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -427,8 +427,8 @@ END SUBROUTINE val_release
 !!*** **********************************************************************
 SUBROUTINE val_retain(val,error)
     TYPE(val_type), POINTER                  :: val
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_retain', &
       routineP = moduleN//':'//routineN
@@ -436,7 +436,7 @@ SUBROUTINE val_retain(val,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(val),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(val%ref_count>0,cp_failure_level,routineP,error)
@@ -467,8 +467,8 @@ END SUBROUTINE val_retain
 !!       from the val
 !!     - len_c: len_trim of c_val (if it was a lc_val, of type lchar_t
 !!       it might be longet than default_string_length)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -491,8 +491,8 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
     INTEGER, INTENT(out), OPTIONAL           :: len_c, type_of_var
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_get', &
       routineP = moduleN//':'//routineN
@@ -632,8 +632,8 @@ END SUBROUTINE val_get
 !!     - unit: the unit of mesure in wich the output should be written
 !!       (overrides unit_str)
 !!     - unit_str: the unit of mesure in wich the output should be written
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -644,8 +644,8 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
     INTEGER, INTENT(in)                      :: unit_nr
     TYPE(cp_unit_type), OPTIONAL, POINTER    :: unit
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str, fmt
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_write', &
       routineP = moduleN//':'//routineN
@@ -671,7 +671,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
      CASE (logical_t)
         IF (ASSOCIATED(val%l_val)) THEN
            DO i=1,SIZE(val%l_val)
-              IF (MODULO(i,20)==0) THEN 
+              IF (MODULO(i,20)==0) THEN
                  WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
@@ -684,7 +684,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
      CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
            DO i=1,SIZE(val%i_val)
-              IF (MODULO(i,8)==0) THEN 
+              IF (MODULO(i,8)==0) THEN
                  WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
@@ -697,7 +697,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
      CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
            DO i=1,SIZE(val%r_val)
-              IF (MODULO(i,5)==0) THEN 
+              IF (MODULO(i,5)==0) THEN
                  WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
@@ -763,7 +763,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
-        
+
      CASE(no_t)
         WRITE(unit=unit_nr,fmt="(' *empty*')",advance="NO")
      CASE default
@@ -792,8 +792,8 @@ END SUBROUTINE val_write
     TYPE(val_type), POINTER                  :: val
     CHARACTER(LEN=*), INTENT(OUT)            :: string
     TYPE(cp_unit_type), OPTIONAL, POINTER    :: unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_write_internal', &
       routineP = moduleN//':'//routineN
@@ -858,7 +858,7 @@ END SUBROUTINE val_write
         END IF
       CASE (lchar_t)
         IF (ASSOCIATED(val%c_val)) THEN
-          CALL val_get(val,c_val=string)
+          CALL val_get(val,c_val=string,error=error)
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
@@ -897,8 +897,8 @@ END SUBROUTINE val_write
 !!   ARGUMENTS
 !!     - val_in: the value to copy
 !!     - val_out: the value tha will be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -906,8 +906,8 @@ END SUBROUTINE val_write
 !!*** **********************************************************************
 SUBROUTINE val_duplicate(val_in,val_out,error)
     TYPE(val_type), POINTER                  :: val_in, val_out
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_duplicate', &
       routineP = moduleN//':'//routineN

@@ -108,8 +108,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - ep_qs_env: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -117,8 +117,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE ep_qs_retain(ep_qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_retain', &
       routineP = moduleN//':'//routineN
@@ -148,8 +148,8 @@ END SUBROUTINE ep_qs_retain
 !!
 !!   ARGUMENTS
 !!     - ep_qs_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -157,8 +157,8 @@ END SUBROUTINE ep_qs_retain
 !!*** **********************************************************************
 SUBROUTINE ep_qs_release(ep_qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_release', &
       routineP = moduleN//':'//routineN
@@ -172,8 +172,8 @@ SUBROUTINE ep_qs_release(ep_qs_env,error)
      CPPrecondition(ep_qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      ep_qs_env%ref_count=ep_qs_env%ref_count-1
      IF(ep_qs_env%ref_count==0) THEN
-        CALL deallocate_matrix_set(ep_qs_env%dH_coeffs)
-        CALL deallocate_matrix_set(ep_qs_env%dS_coeffs)
+        CALL deallocate_matrix_set(ep_qs_env%dH_coeffs,error=error)
+        CALL deallocate_matrix_set(ep_qs_env%dS_coeffs,error=error)
         DEALLOCATE(ep_qs_env,stat=stat)
      END IF
   END IF
@@ -199,8 +199,8 @@ END SUBROUTINE ep_qs_release
 !!       the pointer
 !!     - dS_coeffs: the new coeffs, might be null, aquires ownership of
 !!       the pointer
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -210,8 +210,8 @@ SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: dH_coeffs_ptr, dS_coeffs_ptr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_set', &
       routineP = moduleN//':'//routineN
@@ -236,7 +236,7 @@ CPSourceFileRef,&
                       error,failure)
               END DO
            END IF
-           CALL deallocate_matrix_set(ep_qs_env%dH_coeffs)
+           CALL deallocate_matrix_set(ep_qs_env%dH_coeffs,error=error)
         END IF
         ep_qs_env%dH_coeffs => dH_coeffs_ptr
      END IF
@@ -251,7 +251,7 @@ CPSourceFileRef,&
                       error,failure)
               END DO
            END IF
-           CALL deallocate_matrix_set(ep_qs_env%dS_coeffs)
+           CALL deallocate_matrix_set(ep_qs_env%dS_coeffs,error=error)
         END IF
         ep_qs_env%dS_coeffs => dS_coeffs_ptr
      END IF

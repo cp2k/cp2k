@@ -134,8 +134,8 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
     TYPE(particle_type), INTENT(in)          :: p_in
     TYPE(particle_type), INTENT(out)         :: p_out
     LOGICAL, INTENT(in)                      :: nullify_non_owned_pointers
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clone_particle', &
       routineP = moduleN//':'//routineN
@@ -571,8 +571,8 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -629,8 +629,8 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
@@ -689,8 +689,8 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_particle_distances'
 
@@ -755,8 +755,8 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: iw
     INTEGER, INTENT(IN), OPTIONAL            :: el_per_part
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: from, iatom, icol, jatom, &
@@ -798,8 +798,8 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data', &
       routineP = moduleN//':'//routineN

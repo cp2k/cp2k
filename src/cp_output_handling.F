@@ -9,7 +9,7 @@
 !!     cp_output_handling
 !!
 !!   FUNCTION
-!!     routines to handle the output, The idea is to remove the 
+!!     routines to handle the output, The idea is to remove the
 !!     decision of wheter to output and what to output from the code
 !!     that does the output, and centralize it here.
 !!
@@ -81,10 +81,10 @@ MODULE cp_output_handling
 !! cp_out_store_if : if the printkey says it calculate and store in memory
 !!                   the property
 !! cp_out_file_each: calculate and output the property with the same periodicity
-!!                   as said in the printkey (irrespective of the activation of 
+!!                   as said in the printkey (irrespective of the activation of
 !!                   the printkey)
 !! cp_out_store_each: calculate and store the property with the same periodicity
-!!                   as said in the printkey (irrespective of the activation of 
+!!                   as said in the printkey (irrespective of the activation of
 !!                   the printkey)
 !! cp_out_file: always calculate and output the property
 !! cp_out_store: always calculate and store in memory the property
@@ -93,7 +93,7 @@ MODULE cp_output_handling
 !! cp_out_default: the default value for proprety flags (cp_out_file_if)
 !!
 !! this flags can be ior-ed together:
-!! ior(cp_out_file_if,cp_out_store_if): if the printkey says it both print 
+!! ior(cp_out_file_if,cp_out_store_if): if the printkey says it both print
 !!                                          and store the property
 !!
 !! there is no guarantee that a proprety is not stored if it is not necessary
@@ -181,8 +181,8 @@ CONTAINS
 !!     - description: the description of the print key
 !!     - print_level: print level starting at which the printing takes place
 !!       (defaults to debug_print_level)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -198,8 +198,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: filename
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
     LOGICAL, INTENT(IN), OPTIONAL            :: store
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
       routineP = moduleN//':'//routineN
@@ -364,8 +364,8 @@ CONTAINS
 !!     - first_time: if it ist the first time that an output is written
 !!       (not fully correct, but most of the time)
 !!     - used_print_key: here the print_key that was used is returned
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -380,8 +380,8 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: used_print_key
     LOGICAL, INTENT(out), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output', &
@@ -409,7 +409,7 @@ CONTAINS
        IF (to_path<1) THEN
           to_path=end_str+1
        END IF
-       
+
        IF (to_path>1) THEN
           print_key => section_vals_get_subs_vals(basis_section,&
                print_key_path(1:(to_path-1)),error=error)
@@ -431,7 +431,7 @@ CONTAINS
     IF (PRESENT(used_print_key)) used_print_key => print_key
 
     IF (.NOT.flags) RETURN
-    
+
     CALL section_vals_val_get(print_key,"__CONTROL_VAL",&
          i_val=my_control_val,error=error)
     is_on=cp_printkey_is_on(iteration_info,print_key,error=error)
@@ -474,8 +474,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - iteration_info: information about the actual iteration level
 !!     - print_key: the section values of the key to be printed
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -484,8 +484,8 @@ CONTAINS
 FUNCTION cp_printkey_is_on(iteration_info,print_key,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_on', &
@@ -516,7 +516,7 @@ END FUNCTION cp_printkey_is_on
 !!
 !!   FUNCTION
 !!     returns if the actual iteration matches those selected by the
-!!     given printkey. Does not check it the prinkey is active (at the 
+!!     given printkey. Does not check it the prinkey is active (at the
 !!     actual print_level)
 !!
 !!   NOTES
@@ -527,8 +527,8 @@ END FUNCTION cp_printkey_is_on
 !!     - print_key: the section values of the key to be printed
 !!     - first_time: returns if it is the first time that output is written
 !!       (not fully correct, but most of the time)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -539,8 +539,8 @@ END FUNCTION cp_printkey_is_on
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
     LOGICAL, INTENT(out), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
@@ -612,12 +612,12 @@ END FUNCTION cp_printkey_is_on
 !!       number
 !!     - print_key: the print key to optionally show the last iteration
 !!       symbolically
-!!     - for_file: if the string is to be used for file generation 
+!!     - for_file: if the string is to be used for file generation
 !!       (and should consequently ignore some iteration levels depending
 !!       on COMMON_ITERATION_LEVELS).
 !!       Defaults to false.
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -628,8 +628,8 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: print_key
     LOGICAL, INTENT(in), OPTIONAL            :: for_file
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(len=9*max_iter_r_level)        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', &
@@ -704,8 +704,8 @@ END FUNCTION cp_iter_string
 !!   INPUTS
 !!     - iteration_info: the iteration info to update
 !!     - last: if this iteration is the last one (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -715,8 +715,8 @@ SUBROUTINE cp_iterate(iteration_info,last,iter_nr,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     LOGICAL, INTENT(in), OPTIONAL            :: last
     INTEGER, INTENT(in), OPTIONAL            :: iter_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate', &
       routineP = moduleN//':'//routineN
@@ -726,7 +726,7 @@ SUBROUTINE cp_iterate(iteration_info,last,iter_nr,error)
   failure=.FALSE.
   my_last=.FALSE.
   IF (PRESENT(last)) my_last=last
-  
+
   CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -757,8 +757,8 @@ END SUBROUTINE cp_iterate
 !!       to be added
 !!     - level_name : the name of this level, for pretty printing only, right now
 !!     - n_level_new: number of iteration levels after this call
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -768,8 +768,8 @@ SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(LEN=*), INTENT(IN)             :: level_name
     INTEGER, INTENT(out), OPTIONAL           :: n_rlevel_new
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
       routineP = moduleN//':'//routineN
@@ -777,7 +777,7 @@ SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
   CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -806,8 +806,8 @@ END SUBROUTINE cp_add_iter_level
 !!     - iteration_info: the iteration info to which an iteration level has
 !!       to be removed
 !!     - n_rlevel_att: iteration level before the call (to do some checks)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -816,8 +816,8 @@ END SUBROUTINE cp_add_iter_level
 SUBROUTINE cp_rm_iter_level(iteration_info,n_rlevel_att,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     INTEGER, INTENT(in), OPTIONAL            :: n_rlevel_att
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rm_iter_level', &
       routineP = moduleN//':'//routineN
@@ -825,7 +825,7 @@ SUBROUTINE cp_rm_iter_level(iteration_info,n_rlevel_att,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
   CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -850,7 +850,7 @@ END SUBROUTINE cp_rm_iter_level
 !!    Might open a file with a unique filename, generated from
 !!    the print_key name and iteration info.
 !!
-!!    Normally a valid unit (>0) is returned only if cp_print_key_should_output 
+!!    Normally a valid unit (>0) is returned only if cp_print_key_should_output
 !!    says that the print_key should be printed, and if the unit is global
 !!    only the io node has a valid unit.
 !!    So in many cases you can decide if you should print just checking if
@@ -874,12 +874,12 @@ END SUBROUTINE cp_rm_iter_level
 !!       to the main log (defaults to false)
 !!     - extension: extension to be applied to the filename (including the ".")
 !!     - middle_name: name to be added to the generated filename, useful when
-!!       print_key activates different distinct outputs, to be able to 
+!!       print_key activates different distinct outputs, to be able to
 !!       distinguish them
 !!     - ignore_should_output: if true always returns a valid unit (ignoring
 !!       cp_print_key_should_output)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -894,8 +894,8 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
     CHARACTER(len=*), INTENT(in)             :: extension
     LOGICAL, INTENT(IN)                      :: my_local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(len=default_path_length)       :: filename
 
     CHARACTER(len=default_path_length)       :: postfix, root
@@ -911,12 +911,12 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
   IF (my_ind2 /= 0) THEN
      build_complete_name = .FALSE.
      DO WHILE (INDEX(outPath(my_ind2+1:),"/")/=0)
-        my_ind2 = INDEX(outPath(my_ind2+1:),"/") + my_ind2 
+        my_ind2 = INDEX(outPath(my_ind2+1:),"/") + my_ind2
      END DO
      my_ind1 = INDEX(outPath(my_ind2:),".")
   ELSE
      build_complete_name = .TRUE.
-     my_ind1 = INDEX(outPath,".")     
+     my_ind1 = INDEX(outPath,".")
   END IF
   IF (my_ind1 /= 0) THEN
      build_complete_name  = .FALSE.
@@ -929,9 +929,9 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
         ELSE
            my_middle_name="-"//TRIM(outPath)//"-"//middle_name
         END IF
-     ELSE                 
+     ELSE
         IF (outPath.EQ."") THEN
-           my_middle_name="" 
+           my_middle_name=""
         ELSE
            my_middle_name="-"//TRIM(outPath)
         ENDIF
@@ -942,10 +942,10 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
      ! use the cp_iter_string as a postfix
      postfix="-"//TRIM(cp_iter_string(logger%iter_info,print_key=print_key,for_file=.TRUE.,error=error))
      IF (TRIM(postfix)=="-") postfix=""
-     
+
      ! and add the extension
      postfix=TRIM(postfix)//extension
-     
+
   ELSE
      root=outPath
      postfix=""
@@ -968,8 +968,8 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: file_form, file_position, &
                                                 file_action
     LOGICAL, INTENT(in), OPTIONAL            :: do_backup, on_file
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
@@ -1048,7 +1048,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
                  CALL cp_log(logger=logger, level=cp_note_level, &
                       fromWhere=routineP , &
                       message="writing "//TRIM(print_key%section%name)//" "//&
-                      TRIM(cp_iter_string(logger%iter_info))//" to "//&
+                      TRIM(cp_iter_string(logger%iter_info,error=error))//" to "//&
                       TRIM(filename),local=my_local)
               END IF
            END IF
@@ -1093,8 +1093,8 @@ END FUNCTION cp_print_key_unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: print_key_path
     LOGICAL, INTENT(in), OPTIONAL            :: local, ignore_should_output, &
                                                 on_file
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_finished_output', &
       routineP = moduleN//':'//routineN
@@ -1157,12 +1157,12 @@ END FUNCTION cp_print_key_unit_nr
 !!     - log_filename: if a small log with the filename should be written
 !!       to the main log (defaults to false)
 !!     - middle_name: name to be added to the generated filename, useful when
-!!       print_key activates different distinct outputs, to be able to 
+!!       print_key activates different distinct outputs, to be able to
 !!       distinguish them
 !!     - ignore_should_output: if true always returns a valid unit (ignoring
 !!       cp_print_key_should_output)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1178,8 +1178,8 @@ END FUNCTION cp_print_key_unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
     LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output, on_file
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_log', &
       routineP = moduleN//':'//routineN
@@ -1230,8 +1230,8 @@ END FUNCTION cp_print_key_unit_nr
 !!       the others are equal; +/- HUGE if they are different
 !!     - common_offset: like offset, but keeps into account only the common
 !!       iteration levels
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1244,8 +1244,8 @@ SUBROUTINE cp_iter_compare(iter1,iter2,equal,common_equal, ascending,&
     LOGICAL, INTENT(out), OPTIONAL           :: equal, common_equal, &
                                                 ascending, descending
     INTEGER, INTENT(out), OPTIONAL           :: offset, common_offset
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_compare', &
       routineP = moduleN//':'//routineN

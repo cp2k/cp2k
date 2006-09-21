@@ -102,7 +102,7 @@ MODULE md
   !!***
   !****************************************************************************
 
-  TYPE simpar_units_type 
+  TYPE simpar_units_type
      CHARACTER ( LEN = 8 ) :: time, tau,            &
           verlet_skin, tau_cell,&
           press
@@ -292,7 +292,7 @@ CONTAINS
           print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%HMC",error=error)
           CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
           filename = cp_print_key_generate_filename(logger,print_key,&
-               extension=".hmc",middle_name="pos",my_local=.FALSE.,error=error)          
+               extension=".hmc",middle_name="pos",my_local=.FALSE.,error=error)
           WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' HMC| HMC Statistics', iprint, &
                ADJUSTR ( TRIM(filename) )
           WRITE (iw, *)
@@ -324,7 +324,7 @@ CONTAINS
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
        WRITE ( iw, '( A,T61,A )' ) ' MD| Output Format ', &
             ADJUSTR ( output_name_types(simpar % output_format)(1:20))
-       WRITE ( iw, '( A,T61,A )' ) ' MD| Ensemble Type ', & 
+       WRITE ( iw, '( A,T61,A )' ) ' MD| Ensemble Type ', &
             ADJUSTR ( ensemble_name_types(simpar % ensemble)(1:20))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
             simpar % nsteps
@@ -435,15 +435,15 @@ CONTAINS
   !!
   !!
   !!   FUNCTION
-  !!     Parses the MD input section 
+  !!     Parses the MD input section
   !!
   !!   AUTHOR
   !!     teo
   !!
   !!   MODIFICATION HISTORY
-  !!  
   !!
-  !!*** *************************************************************************  
+  !!
+  !!*** *************************************************************************
   SUBROUTINE read_md_new_section(simpar, root_section, md_section, subsys_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -480,7 +480,7 @@ CONTAINS
        tmp_section => section_vals_get_subs_vals(root_section,&
             "MOTION%CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit) THEN 
+       IF (explicit) THEN
           simpar%constraint = .TRUE.
           CALL section_vals_val_get(tmp_section,"SHAKE",r_val=simpar%shake_tol,error=error)
        END IF
@@ -583,15 +583,15 @@ CONTAINS
   !!
   !!
   !!   FUNCTION
-  !!     Initializes the simpar 
+  !!     Initializes the simpar
   !!
   !!   AUTHOR
   !!     teo
   !!
   !!   MODIFICATION HISTORY
-  !!  
   !!
-  !!*** *************************************************************************  
+  !!
+  !!*** *************************************************************************
   SUBROUTINE set_md_defaults(simpar)
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
@@ -691,8 +691,8 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: print_section, work_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities'
 
@@ -756,10 +756,10 @@ CONTAINS
 
     ! Read or initialize the particle velocities
 
-    CALL get_cp2k_units ( unit ) 
+    CALL get_cp2k_units ( unit )
     IF (ASSOCIATED(work_section)) &
          CALL section_vals_get(work_section,explicit=explicit,error=error)
-    
+
     IF (explicit) THEN
        akin = 0.0_dp
        DO i = 1, natoms
@@ -773,7 +773,7 @@ CONTAINS
           ELSE
              CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,r_vals=vel,error=error)
              part ( i ) % v  = vel
-             vcom  = vcom + mass * part ( i ) % v 
+             vcom  = vcom + mass * part ( i ) % v
              denom = denom + mass
           END IF
        END DO
@@ -789,7 +789,7 @@ CONTAINS
           END IF
        END DO
        temp = 0.0_dp
-       IF (simpar % nfree /= 0) THEN 
+       IF (simpar % nfree /= 0) THEN
           temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
        END IF
        vcom_new=vcom
@@ -806,9 +806,9 @@ CONTAINS
                 part ( i ) % v ( 2 ) = 0.0_dp
                 part ( i ) % v ( 3 ) = 0.0_dp
              ELSE
-                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream)
-                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream)
-                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream)
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,error=error)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,error=error)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,error=error)
                 vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
                 vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
                 vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
@@ -835,7 +835,7 @@ CONTAINS
           END DO
           temp = 0.0_dp
           sc   = 0.0_dp
-          IF (simpar % nfree /= 0) THEN 
+          IF (simpar % nfree /= 0) THEN
              temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
              ! scale velocities to get the correct initial temperature and
              sc = SQRT ( simpar % temp_ext / temp )

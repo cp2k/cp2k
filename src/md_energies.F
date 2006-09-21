@@ -101,8 +101,8 @@ CONTAINS
   SUBROUTINE md_energy(md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'md_energy'
 
@@ -210,7 +210,7 @@ CONTAINS
             temp_part=temp,&
             temp_baro=temp_baro,&
             ekin_coefs=ekin_coefs,&
-            temp_coefs=temp_coefs)
+            temp_coefs=temp_coefs,error=error)
        temp_coefs=temp_coefs*kelvin
        temp = temp*kelvin
        temp_baro = temp_baro*kelvin
@@ -220,7 +220,7 @@ CONTAINS
             cons,&
             ekin=ekin,&
             temp_part=temp,&
-            temp_baro=temp_baro )
+            temp_baro=temp_baro ,error=error)
        temp = temp*kelvin
        temp_baro = temp_baro*kelvin
     END IF
@@ -250,7 +250,7 @@ CONTAINS
 ! Print to the screen no matter what (e.g. ignore_should_output = .TRUE.)
        iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
            extension=".mdLog",ignore_should_output=.TRUE.,file_position=my_pos,    &
-           file_action=my_act,error=error) 
+           file_action=my_act,error=error)
 ! Computing the Hugoniot for NPH calculations
        IF ( simpar % ensemble == nph_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_ensemble .OR.&
@@ -262,7 +262,7 @@ CONTAINS
        ENDIF
 ! Assigning the conserved quantity
        constant = cons
-       CALL set_md_env(md_env=md_env,constant=constant)
+       CALL set_md_env(md_env=md_env,constant=constant,error=error)
 ! Assigning the initial time-step and time
        itimes_old = itimes
        t_old      = t
@@ -377,9 +377,9 @@ CONTAINS
           econs_avg = econs_avg + (cons-constant)/nat*kelvin
        END SELECT
 
-! Print to the screen 
+! Print to the screen
        iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
-            extension=".mdLog",file_position=my_pos, file_action=my_act,error=error) 
+            extension=".mdLog",file_position=my_pos, file_action=my_act,error=error)
        IF ( iw>0  ) THEN
           WRITE ( iw, '( )' )
           WRITE ( iw, '( A,A )' ) ' **************************************', &
@@ -449,7 +449,7 @@ CONTAINS
        ! Now we deal with any initial headers for the output dcd files
        !--------------------------------------------------------------
        ene = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%ENERGY",&
-            extension=".ener",file_position=my_pos, file_action=my_act,error=error)    
+            extension=".ener",file_position=my_pos, file_action=my_act,error=error)
        crd = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="pos", error=error)

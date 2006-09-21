@@ -49,7 +49,7 @@ MODULE dg_types
   CONTAINS
 
 !-----------------------------------------------------------------------------!
- SUBROUTINE dg_get ( dg, id_nr, grid_index, dg_rho0 ) 
+ SUBROUTINE dg_get ( dg, id_nr, grid_index, dg_rho0 )
 
 !   Purpose: Get the dg_type
 
@@ -79,8 +79,8 @@ MODULE dg_types
 !   ***************************************************************************
 
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_create', &
       routineP = moduleN//':'//routineN
@@ -120,8 +120,8 @@ MODULE dg_types
 !!
 !!   ARGUMENTS
 !!     - dg_type: the dg_type to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -132,8 +132,8 @@ MODULE dg_types
 !!*** **********************************************************************
 SUBROUTINE dg_retain ( dg, error)
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_retain', &
       routineP = moduleN//':'//routineN
@@ -141,7 +141,7 @@ SUBROUTINE dg_retain ( dg, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(dg),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
@@ -168,8 +168,8 @@ END SUBROUTINE dg_retain
 !!
 !!   ARGUMENTS
 !!     - dg: the dg_type to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -180,8 +180,8 @@ END SUBROUTINE dg_retain
 !!*** **********************************************************************
 SUBROUTINE dg_release(dg, error)
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_release', &
       routineP = moduleN//':'//routineN
@@ -190,7 +190,7 @@ SUBROUTINE dg_release(dg, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(dg)) THEN
      CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
      dg%ref_count=dg%ref_count-1
@@ -204,7 +204,7 @@ SUBROUTINE dg_release(dg, error)
 END SUBROUTINE dg_release
 
 ! *****************************************************************************
-  SUBROUTINE dg_set ( dg, dg_rho0, grid_index )
+  SUBROUTINE dg_set ( dg, dg_rho0, grid_index, error )
 
 !   Purpose: Set the double grid environment
 
@@ -213,13 +213,14 @@ END SUBROUTINE dg_release
     TYPE(dg_type), POINTER                   :: dg
     TYPE(dg_rho0_type), OPTIONAL, POINTER    :: dg_rho0
     INTEGER, OPTIONAL                        :: grid_index
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_set', &
       routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( dg_rho0 ) ) THEN
-       CALL dg_rho0_retain ( dg_rho0 ) 
-       CALL dg_rho0_release ( dg % dg_rho0 )
+       CALL dg_rho0_retain ( dg_rho0 ,error=error)
+       CALL dg_rho0_release ( dg % dg_rho0 ,error=error)
        dg % dg_rho0 => dg_rho0
     END IF
     IF ( PRESENT ( grid_index ) ) dg % grid_index = grid_index

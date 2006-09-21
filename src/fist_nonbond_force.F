@@ -49,6 +49,7 @@ MODULE fist_nonbond_force
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -67,7 +68,7 @@ CONTAINS
   !******************************************************************************
 
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
-       pot_nonbond, f_nonbond, ptens_nonbond )
+       pot_nonbond, f_nonbond, ptens_nonbond, error )
 
     ! Calculates the force and the potential of the minimum image, and
     ! the pressure tensor
@@ -80,6 +81,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: pot_nonbond
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: f_nonbond, ptens_nonbond
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
 
@@ -106,8 +108,8 @@ CONTAINS
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update, &
          r_last_update_pbc=r_last_update_pbc,&
-         natom_types = nkinds )
-    ! initializing the potential energy, pressure tensor and force 
+         natom_types = nkinds ,error=error)
+    ! initializing the potential energy, pressure tensor and force
     pot_nonbond = 0.0_dp
     f_nonbond = 0.0_dp
     ptens= 0.0_dp
@@ -156,8 +158,8 @@ CONTAINS
 
              IF (is_eam) THEN
                 pot => potparm %pot( ikind, jkind )%pot
-                CALL get_force_eam ( rab2, pot, particle_set, atom_a, atom_b, & 
-                     f_eam ) 
+                CALL get_force_eam ( rab2, pot, particle_set, atom_a, atom_b, &
+                     f_eam )
                 fr(1) =  fr(1) - f_eam * rab ( 1 )
                 fr(2) =  fr(2) - f_eam * rab ( 2 )
                 fr(3) =  fr(3) - f_eam * rab ( 3 )
@@ -191,7 +193,7 @@ CONTAINS
 
   !******************************************************************************
 
-  SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, para_env )
+  SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, para_env, error )
     ! Computes the density term for manybody empirical potentials (e.g. EAM )
     !
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -199,6 +201,7 @@ CONTAINS
       INTENT(INOUT)                          :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'density_nonbond'
 
@@ -223,7 +226,7 @@ CONTAINS
     do_eam = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update,&
-         r_last_update_pbc=r_last_update_pbc)
+         r_last_update_pbc=r_last_update_pbc,error=error)
     nkinds = SIZE ( potparm%pot, 1 )
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
@@ -231,7 +234,7 @@ CONTAINS
        END DO
     END DO
     ! Only if EAM potential are present
-    IF (do_eam) THEN       
+    IF (do_eam) THEN
        nparticle = SIZE ( particle_set )
        ALLOCATE ( rho ( nparticle ), STAT = istat )
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -264,7 +267,7 @@ CONTAINS
        DO iparticle=1,nparticle
           particle_set(iparticle)%rho = rho(iparticle)
        END DO
-       
+
        DEALLOCATE ( rho, STAT = istat )
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "deallocate rho")
@@ -274,9 +277,9 @@ CONTAINS
   END SUBROUTINE density_nonbond
   !******************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-       local_particles, particle_set, pot_manybody, para_env )
+       local_particles, particle_set, pot_manybody, para_env, error )
 
-    ! computes the embedding contribution to the energy 
+    ! computes the embedding contribution to the energy
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -284,6 +287,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(dp), INTENT(INOUT)                  :: pot_manybody
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'energy_manybody'
 
@@ -298,7 +302,7 @@ CONTAINS
       POINTER                                :: pot
 
     flops = 0.0_dp
-    CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
+    CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm ,error=error)
     DO ikind = 1, SIZE ( atomic_kind_set )
        pot => potparm %pot ( ikind, ikind ) % pot
        SELECT CASE ( pot % type )
@@ -409,7 +413,7 @@ CONTAINS
 
   SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
        particle_set, ewald_env, &
-       v_bonded_corr, pv_bc )
+       v_bonded_corr, pv_bc, error )
 
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -419,6 +423,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: v_bonded_corr
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_bc
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian'
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
@@ -447,7 +452,7 @@ CONTAINS
 
     !
     !
-    CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group )
+    CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group ,error=error)
     const = 2.0_dp * alpha / SQRT( pi )
     ifourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
 

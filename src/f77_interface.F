@@ -205,6 +205,7 @@ CONTAINS
     INTEGER                                  :: mpi_comm_default, stat, &
                                                 unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_error_type)                      :: error ! XXXXXXXXXXXXXXXX not initialised ?
 
     IF (.NOT. module_initialized) THEN
        IF (init_mpi) THEN
@@ -213,14 +214,14 @@ CONTAINS
        ELSE
           mpi_comm_default=MPI_COMM_WORLD
        END IF
- 
+
        CALL string_table_allocate()
 
        CALL add_mp_perf_env()
        CALL add_timer_env()
        NULLIFY(default_para_env)
        CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
-            owns_group=.FALSE.)
+            owns_group=.FALSE.,error=error) ! XXXXXXXXXXXXXXXX error here not initialised !?
        IF (default_para_env%source==default_para_env%mepos) THEN
           unit_nr=6
        ELSE
@@ -239,13 +240,13 @@ CONTAINS
        ierr=0
 
        !   *** Initialize mathematical constants ***
-       
+
        CALL init_mathcon()
-       
+
        !   *** Initialize physical constants ***
-       
+
        CALL init_physcon()
-       CALL init_cp2k_units()
+       CALL init_cp2k_units(error=error)
     ELSE
        ierr=cp_failure_level
     END IF
@@ -295,7 +296,7 @@ CONTAINS
        CALL cp_para_env_release(default_para_env,error)
        ierr=cp_error_get_level(error)
        CALL cp_rm_default_logger()
-       CALL rm_cp2k_units()
+       CALL rm_cp2k_units(error=error)
        CALL rm_timer_env()
        CALL rm_mp_perf_env()
        CALL string_table_deallocate(0)
@@ -319,8 +320,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - f_env: the f_env to deallocate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -328,8 +329,8 @@ CONTAINS
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_dealloc', &
       routineP = moduleN//':'//routineN
@@ -337,7 +338,7 @@ RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(f_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL force_env_release(f_env%force_env,error=error)
@@ -373,14 +374,14 @@ END SUBROUTINE f_env_dealloc
 SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      id_nr,error)
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(cp_error_type), INTENT(inout), &
+    TYPE(cp_error_type), INTENT(inout),  &
       OPTIONAL                               :: template_error
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(timer_env_type), POINTER            :: timer_env
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     INTEGER, INTENT(in)                      :: id_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', &
       routineP = moduleN//':'//routineN
@@ -389,7 +390,7 @@ SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   ALLOCATE(f_env,stat=stat)
   CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -411,7 +412,7 @@ END SUBROUTINE f_env_create
 !!     f_env_add_defaults
 !!
 !!   FUNCTION
-!!     adds the default environments of the f_env to the stack of the 
+!!     adds the default environments of the f_env to the stack of the
 !!     defaults, and returns a new error and sets failure to true if
 !!     something went wrong
 !!
@@ -477,7 +478,7 @@ END SUBROUTINE f_env_add_defaults
 !!     f_env_rm_defaults
 !!
 !!   FUNCTION
-!!     removes the default environments of the f_env to the stack of the 
+!!     removes the default environments of the f_env to the stack of the
 !!     defaults, and sets ierr accordingly to the failuers stored in error
 !!     It also releases the error
 !!
@@ -574,7 +575,7 @@ END SUBROUTINE f_env_rm_defaults
   !!       and no file is open(should be valid on the processor with rank 0)
   !!     - owns_out_unit: if the output unit should be closed upon destroing
   !!       of the force_env (defaults to true if not 6)
-  !!     - input: the parsed input, if given and valid it is used 
+  !!     - input: the parsed input, if given and valid it is used
   !!       instead of parsing from file
   !!     - ierr: will return a number different from 0 if there was an error
   !!
@@ -618,14 +619,14 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(timer_env_type), POINTER            :: timer_env
 
     failure=.FALSE.
-    
+
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
          fp_env)
     IF (PRESENT(mpi_comm)) THEN
-       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
+       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.,error=error)
     ELSE
        para_env => default_para_env
-       CALL cp_para_env_retain(para_env)
+       CALL cp_para_env_retain(para_env,error=error)
     END IF
     IF (PRESENT(output_unit)) THEN
        unit_nr=output_unit
@@ -644,7 +645,7 @@ END SUBROUTINE f_env_rm_defaults
     END IF
     my_owns_out_unit=unit_nr/=6
     IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
-    CALL globenv_create(globenv)
+    CALL globenv_create(globenv,error=error)
     CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path)
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
@@ -696,8 +697,8 @@ END SUBROUTINE f_env_rm_defaults
     END IF
 
     IF (.NOT.failure) THEN
-       
-       CALL cp2k_read(root_section,para_env,globenv)
+
+       CALL cp2k_read(root_section,para_env,globenv,error=error)
        CALL cp2k_setup(root_section,para_env,globenv,error)
        ! Setup all possible force_env
        force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
@@ -803,7 +804,7 @@ CPSourceFileRef,&
   !!
   !!   INPUTS
   !!     - env_id: the id of the force_env to remove
-  !!     - ierr: will contain a number different from 0 if 
+  !!     - ierr: will contain a number different from 0 if
   !!
   !!   AUTHOR
   !!     fawzi
@@ -845,10 +846,10 @@ CPSourceFileRef,&
           CALL globenv_retain(globenv,error=error)
           CALL f_env_dealloc(f_env,error=error)
           CALL cp2k_finalize(root_section,para_env,globenv,error)
-          CALL section_vals_release(root_section)
+          CALL section_vals_release(root_section,error=error)
           CALL globenv_release(globenv,para_env,error=error)
           CALL cp_error_check(error,failure)
-          
+
           DEALLOCATE(f_env,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
@@ -1303,7 +1304,7 @@ CPSourceFileRef,&
     TYPE(f_env_type), POINTER                :: f_env
 
     failure=.FALSE.
-   
+
     NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
@@ -1416,7 +1417,7 @@ CPSourceFileRef,&
   !!     - n_el_pos: number of elements in pos (3*natom)
   !!     - e_pot: the potential energy of the system
   !!     - force: array that will contain the forces
-  !!     - n_el_force: number of elements in force (3*natom). If 0 the 
+  !!     - n_el_force: number of elements in force (3*natom). If 0 the
   !!       forces are not calculated
   !!     - ierr: will return a number different from 0 if there was an error
   !!
@@ -1497,10 +1498,10 @@ CPSourceFileRef,&
 
     IF (PRESENT(mpi_comm)) THEN
        NULLIFY(para_env)
-       CALL cp_para_env_create(para_env, group=mpi_comm)
+       CALL cp_para_env_create(para_env, group=mpi_comm,error=error)
     ELSE
        para_env => default_para_env
-       CALL cp_para_env_retain(para_env)
+       CALL cp_para_env_retain(para_env,error=error)
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
@@ -1537,7 +1538,7 @@ CPSourceFileRef,&
     CALL section_vals_release(input_file,error=error)
 
     CALL cp_logger_release(logger)
-    CALL cp_para_env_release(para_env)
+    CALL cp_para_env_release(para_env,error=error)
     ierr=cp_error_get_level(error)
     CALL cp_error_dealloc_ref(error)
     CALL cp_rm_default_logger()
@@ -1560,8 +1561,8 @@ CPSourceFileRef,&
 !!     - f_env_id: the force env on which to apply the shake
 !!     - dt: timestep
 !!     - shake_tol: tolerance for shake
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1580,7 +1581,7 @@ SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
     TYPE(f_env_type), POINTER                :: f_env
 
   failure=.FALSE.
-  
+
   NULLIFY(f_env)
   CALL f_env_add_defaults(f_env_id,f_env,error,failure)
   IF (.NOT.failure) THEN

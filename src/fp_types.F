@@ -15,7 +15,7 @@
 !!
 !!   AUTHOR
 !!     Joost VandeVondele
-!!     
+!!
 !!
 !!   MODIFICATION HISTORY
 !!     04.2006 [Joost VandeVondele]
@@ -39,7 +39,7 @@ MODULE fp_types
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: fp_type 
+  PUBLIC :: fp_type
   PUBLIC :: fp_env_create,fp_env_release,fp_env_retain,fp_env_read,fp_env_write
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fp_types'
@@ -59,7 +59,7 @@ MODULE fp_types
     TYPE(section_vals_type), POINTER   :: print_section
 
     ! computed during runs
-    INTEGER                        :: i1,i2,o1,o2 
+    INTEGER                        :: i1,i2,o1,o2
     REAL(KIND=dp)                  :: ri1,ri2,ro1,ro2
     REAL(KIND=dp)                  :: weight, comb_weight, bias_weight
     REAL(KIND=dp)                  :: energy, bias_energy, restraint_energy
@@ -84,8 +84,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fp_env_create(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_create', &
       routineP = moduleN//':'//routineN
@@ -95,24 +95,24 @@ CONTAINS
 
     CALL timeset(routineN,handle)
       failure=.FALSE.
-  
+
       CPPrecondition(.NOT.ASSOCIATED(fp_env),cp_failure_level,routineP,error,failure)
       ALLOCATE(fp_env,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       fp_env%ref_count=1
-  
+
       fp_env%use_fp=.FALSE.
       NULLIFY(fp_env%inner_atoms)
       NULLIFY(fp_env%outer_atoms)
       NULLIFY(fp_env%print_section)
     CALL timestop(handle)
-  
+
   END SUBROUTINE fp_env_create
-  
+
   SUBROUTINE fp_env_release(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_release', &
       routineP = moduleN//':'//routineN
@@ -129,19 +129,19 @@ CONTAINS
         IF (fp_env%ref_count==0) THEN
            IF (ASSOCIATED(fp_env%inner_atoms)) DEALLOCATE(fp_env%inner_atoms)
            IF (ASSOCIATED(fp_env%outer_atoms)) DEALLOCATE(fp_env%outer_atoms)
-           IF (ASSOCIATED(fp_env%print_section)) CALL section_vals_release(fp_env%print_section)
+           IF (ASSOCIATED(fp_env%print_section)) CALL section_vals_release(fp_env%print_section,error)
            fp_env%use_fp=.FALSE.
            DEALLOCATE(fp_env)
         ENDIF
      ENDIF
     CALL timestop(handle)
-  
+
   END SUBROUTINE fp_env_release
-  
+
   SUBROUTINE fp_env_retain(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_retain', &
       routineP = moduleN//':'//routineN
@@ -151,7 +151,7 @@ CONTAINS
       failure=.FALSE.
       CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,error,failure)
       fp_env%ref_count=fp_env%ref_count+1
-  
+
   END SUBROUTINE fp_env_retain
 
 
@@ -174,8 +174,8 @@ CONTAINS
   SUBROUTINE fp_env_read(fp_env,fp_section,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(section_vals_type), POINTER         :: fp_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_read', &
       routineP = moduleN//':'//routineN
@@ -207,7 +207,7 @@ CONTAINS
        CALL section_vals_val_get(fp_section,"TEMPERATURE",r_val=fp_env%temperature,error=error)
 
        fp_env%print_section=>section_vals_get_subs_vals(fp_section,"WEIGHTS",error=error)
-       CALL section_vals_retain(fp_env%print_section)
+       CALL section_vals_retain(fp_env%print_section,error=error)
     ENDIF
     CALL timestop(handle)
 
@@ -232,8 +232,8 @@ CONTAINS
   SUBROUTINE fp_env_write(fp_env,fp_section,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(section_vals_type), POINTER         :: fp_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_write', &
       routineP = moduleN//':'//routineN
@@ -283,7 +283,7 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,PRINT,"",error=error)
     ENDIF
     CALL timestop(handle)
-  
+
   END SUBROUTINE fp_env_write
 
 END MODULE fp_types

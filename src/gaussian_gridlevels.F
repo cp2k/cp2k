@@ -47,12 +47,13 @@ MODULE gaussian_gridlevels
 
 CONTAINS
 
-  SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff, print_section)
+  SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff, print_section, error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     INTEGER                                  :: ngrid_levels
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp)                            :: rel_cutoff
     TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
 
@@ -66,15 +67,15 @@ CONTAINS
           gridlevel_info%count(i)=0
        ENDDO
        gridlevel_info%print_section=>print_section
-       CALL section_vals_retain(print_section)
+       CALL section_vals_retain(print_section,error=error)
   END SUBROUTINE
- 
+
 SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
@@ -117,9 +118,9 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")
 
   CALL cp_print_key_finished_output(output_unit,logger,gridlevel_info%print_section,&
-                                    "", error=error)  
+                                    "", error=error)
 
-  CALL section_vals_release(gridlevel_info%print_section)
+  CALL section_vals_release(gridlevel_info%print_section,error=error)
 
   DEALLOCATE (gridlevel_info%count,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%count")
@@ -134,7 +135,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: needed_cutoff
 
-  gridlevel=1 
+  gridlevel=1
   needed_cutoff=ABS(exponent)*gridlevel_info%rel_cutoff
   DO i=1,gridlevel_info%ngrid_levels
      IF ((gridlevel_info%cutoff(i)+1E-6_dp).GE.needed_cutoff) THEN

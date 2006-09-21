@@ -1,7 +1,7 @@
 !!****** cp2k/cp2k [1.0] *
-!!   
+!!
 !!   NAME
-!!     cp2k, The main program  
+!!     cp2k, The main program
 !!
 !!   COPYRIGHT
 !!I---------------------------------------------------------------------------I
@@ -29,7 +29,7 @@
 !!      starts the program
 !!
 !!   AUTHOR
-!!      Joost VandeVondele 
+!!      Joost VandeVondele
 !!
 !!   NOTES
 !!      should be kept as lean as possible.
@@ -45,6 +45,7 @@ PROGRAM cp2k
   USE kinds,             ONLY : default_string_length
   USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
                                 check_input, default_para_env
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   CHARACTER(LEN=default_string_length) :: input_file_name,output_file_name,arg_att
@@ -53,9 +54,10 @@ PROGRAM cp2k
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive
   LOGICAL                              :: run_it, force_run, has_input, xml
-  ! this is the only place that should need unit 6 all others will get 
+  ! this is the only place that should need unit 6 all others will get
   ! something reasonable from the cp_logger
-  INTEGER, PARAMETER                   :: default_output_unit = 6 
+  INTEGER, PARAMETER                   :: default_output_unit = 6
+  TYPE(cp_error_type)                  :: error ! XXXXXXXXXXXXXX uninitialised error
 
   ! output goes to the screen by default
   output_unit=default_output_unit
@@ -74,7 +76,7 @@ PROGRAM cp2k
      END DO
 #endif
 
-     ! set default behaviour for the command line switches 
+     ! set default behaviour for the command line switches
      check      =.FALSE.
      manual     =.FALSE.
      usage      =.FALSE.
@@ -90,7 +92,7 @@ PROGRAM cp2k
 
      ! parsing of command line arguments
      n_arg=m_iargc()
-  
+
      ! this is an error condition, provide usage information
      IF (n_arg<1) THEN
          WRITE (output_unit,"(a)") ""
@@ -99,7 +101,7 @@ PROGRAM cp2k
      ENDIF
 
      i_arg=0
-arg_loop: DO WHILE (i_arg<n_arg) 
+arg_loop: DO WHILE (i_arg<n_arg)
         i_arg=i_arg+1
         CALL m_getarg(i_arg,arg_att)
         SELECT CASE(arg_att)
@@ -125,12 +127,12 @@ arg_loop: DO WHILE (i_arg<n_arg)
            i_arg=i_arg+1
            CALL m_getarg(i_arg,arg_att)
            ! argument does not start with a - it is an filename
-           IF (.NOT. arg_att(1:1)=="-") THEN  
+           IF (.NOT. arg_att(1:1)=="-") THEN
               input_file_name=arg_att
               has_input=.TRUE.
            ELSE
               WRITE (output_unit,"(a)") ""
-              WRITE (output_unit,"(a)") "ERROR: the input file name"//TRIM(arg_att)//" starts with -"     
+              WRITE (output_unit,"(a)") "ERROR: the input file name"//TRIM(arg_att)//" starts with -"
               command_line_error=.TRUE.
               EXIT arg_loop
            ENDIF
@@ -138,11 +140,11 @@ arg_loop: DO WHILE (i_arg<n_arg)
            i_arg=i_arg+1
            CALL m_getarg(i_arg,arg_att)
            ! argument does not start with a - it is an filename
-           IF (.NOT. arg_att(1:1)=="-") THEN  
+           IF (.NOT. arg_att(1:1)=="-") THEN
               output_file_name=arg_att
            ELSE
               WRITE (output_unit,"(a)") ""
-              WRITE (output_unit,"(a)") "ERROR: the output file name"//TRIM(arg_att)//" starts with -"     
+              WRITE (output_unit,"(a)") "ERROR: the output file name"//TRIM(arg_att)//" starts with -"
               command_line_error=.TRUE.
               EXIT arg_loop
            ENDIF
@@ -210,13 +212,13 @@ arg_loop: DO WHILE (i_arg<n_arg)
         ! if a manual is needed
         IF (manual) THEN
            IF (default_para_env%mepos==default_para_env%source) THEN
-              CALL write_cp2k_html_manual()
+              CALL write_cp2k_html_manual(error=error) ! XXXXXXXXXXXXXX uninitialised error
            END IF
         ENDIF
 
         IF (xml) THEN
           IF (default_para_env%mepos == default_para_env%source) THEN
-            CALL write_xml_file()
+            CALL write_xml_file(error=error) ! XXXXXXXXXXXXXX uninitialised error
           END IF
         END IF
 
@@ -254,7 +256,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
   ELSE
      WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error"
   END IF
- 
+
   ! and the final cleanup
   CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)
 

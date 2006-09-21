@@ -33,7 +33,7 @@ MODULE coefficient_types
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero, coeff_init 
+  PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero, coeff_init
   PUBLIC :: coeff_copy, coeff_add, coeff_sumup, coeff_subtract, coeff_reduce, coeff_scale
   PUBLIC :: coeff_transform_space, coeff_array_type
   PUBLIC :: PW_REALDATA1D, PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
@@ -43,12 +43,12 @@ MODULE coefficient_types
   INTEGER, PARAMETER, PUBLIC :: PLANEWAVES = 401, ATOMICORBITALS = 402, NOTHING=0
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'coefficient_types'
-  
+
   ! 'group_id' to grid?
   TYPE coeff_type
      INTEGER :: in_use
      TYPE ( pw_type ), POINTER :: pw
-     TYPE ( ao_type ) :: ao  
+     TYPE ( ao_type ) :: ao
   END TYPE coeff_type
 
   TYPE coeff_array_type
@@ -97,8 +97,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - coeff: the coefficent to initialize
 !!     - pw: optional, a pw to initialize the coefficent
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -107,8 +107,8 @@ CONTAINS
 SUBROUTINE coeff_init(coeff, pw, error)
     TYPE(coeff_type), INTENT(inout)          :: coeff
     TYPE(pw_type), OPTIONAL, POINTER         :: pw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coeff_init', &
       routineP = moduleN//':'//routineN
@@ -127,12 +127,13 @@ SUBROUTINE coeff_init(coeff, pw, error)
 END SUBROUTINE coeff_init
 !***************************************************************************
 
-SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
+SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis , error)
 
 
     TYPE(coeff_type), INTENT(OUT)            :: c_out
     TYPE(coeff_type), POINTER                :: c_model
     INTEGER, INTENT(IN), OPTIONAL            :: use_basis
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: use_data
 
@@ -143,7 +144,7 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
      IF ( use_basis == PLANEWAVES ) THEN
         c_out % in_use = PLANEWAVES
         CALL pw_create ( c_out % pw, c_model % pw % pw_grid, &
-             use_data = c_model % pw % in_use )
+             use_data = c_model % pw % in_use ,error=error)
 
      ELSE IF ( use_basis == PW_REALDATA1D .OR. use_basis == PW_COMPLEXDATA1D &
           .OR. use_basis == PW_REALDATA3D .OR. use_basis == PW_COMPLEXDATA3D &
@@ -152,7 +153,7 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
         c_out % in_use = PLANEWAVES
 
         CALL pw_create ( c_out % pw, c_model % pw % pw_grid, &
-             use_data = use_basis )
+             use_data = use_basis ,error=error)
 
      ELSE
         CALL stop_program ( "coeff_allocate_from_coeff", &
@@ -167,7 +168,7 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
 
         c_out % in_use = PLANEWAVES
         CALL pw_create ( c_out % pw, c_model % pw % pw_grid, &
-             use_data = c_model % pw % in_use )
+             use_data = c_model % pw % in_use ,error=error)
 
      ELSE
         CALL stop_program ( "coeff_allocate_from_coeff", &
@@ -185,8 +186,8 @@ SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data,error )
     TYPE(coeff_type), INTENT(OUT)            :: c_out
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(IN)                      :: use_data
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coeff_allocate_from_grid', &
       routineP = moduleN//':'//routineN
@@ -195,20 +196,21 @@ SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data,error )
 
   NULLIFY(c_out%pw)
   c_out % in_use = PLANEWAVES
-  CALL pw_create ( c_out % pw, pw_grid, use_data )
+  CALL pw_create ( c_out % pw, pw_grid, use_data ,error=error)
 
 END SUBROUTINE coeff_allocate_from_grid
 
 !******************************************************************************
 
-SUBROUTINE coeff_deallocate ( coeff )
+SUBROUTINE coeff_deallocate ( coeff , error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: coeff
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
 !------------------------------------------------------------------------------
 
   IF ( coeff % in_use == PLANEWAVES ) THEN
-     CALL pw_release ( coeff % pw )
+     CALL pw_release ( coeff % pw ,error=error)
      coeff%in_use=NOTHING
   ELSEIF (coeff%in_use /= NOTHING) THEN
      CALL stop_program ( "coeff_deallocate", "no valid data type" )
@@ -219,7 +221,7 @@ END SUBROUTINE coeff_deallocate
 !******************************************************************************
 
 SUBROUTINE coeff_zero ( coeff )
-  
+
     TYPE(coeff_type), INTENT(INOUT)          :: coeff
 
 !------------------------------------------------------------------------------
@@ -229,13 +231,13 @@ SUBROUTINE coeff_zero ( coeff )
   ELSE
      CALL stop_program ( "coeff_zero", "no valid data type" )
   END IF
-  
+
 END SUBROUTINE coeff_zero
 
 !******************************************************************************
 
 SUBROUTINE coeff_copy ( coeff1, coeff2 )
-  
+
     TYPE(coeff_type), INTENT(IN)             :: coeff1
     TYPE(coeff_type), INTENT(INOUT)          :: coeff2
 
@@ -246,13 +248,13 @@ SUBROUTINE coeff_copy ( coeff1, coeff2 )
   ELSE
      CALL stop_program ( "coeff_copy", "no valid data type" )
   END IF
-  
+
 END SUBROUTINE coeff_copy
 
 !******************************************************************************
 
 SUBROUTINE coeff_add ( coeff1, coeff2, coeff3 )
-  
+
     TYPE(coeff_type), INTENT(IN)             :: coeff1, coeff2
     TYPE(coeff_type), INTENT(INOUT)          :: coeff3
 
@@ -264,13 +266,13 @@ SUBROUTINE coeff_add ( coeff1, coeff2, coeff3 )
   ELSE
      CALL stop_program ( "coeff_add", "no valid data type" )
   END IF
-  
+
 END SUBROUTINE coeff_add
 
 !******************************************************************************
 
 SUBROUTINE coeff_sumup ( coeff1, coeff2 )
-  
+
     TYPE(coeff_type), INTENT(IN)             :: coeff1
     TYPE(coeff_type), INTENT(INOUT)          :: coeff2
 
@@ -281,7 +283,7 @@ SUBROUTINE coeff_sumup ( coeff1, coeff2 )
   ELSE
      CALL stop_program ( "coeff_sumup", "no valid data type" )
   END IF
-  
+
 END SUBROUTINE coeff_sumup
 
 
@@ -303,7 +305,7 @@ END SUBROUTINE coeff_sumup
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE coeff_scale ( coeff1, a )
- 
+
     TYPE(coeff_type), INTENT(INOUT)          :: coeff1
     REAL(KIND=dp), INTENT(IN)                :: a
 
@@ -314,14 +316,14 @@ SUBROUTINE coeff_scale ( coeff1, a )
   ELSE
      CALL stop_program ( "coeff_sumup", "no valid data type" )
   END IF
- 
+
 END SUBROUTINE coeff_scale
 
 
 !******************************************************************************
 
 SUBROUTINE coeff_subtract ( coeff1, coeff2, coeff3 )
-  
+
     TYPE(coeff_type), INTENT(IN)             :: coeff1, coeff2
     TYPE(coeff_type), INTENT(INOUT)          :: coeff3
 
@@ -333,13 +335,13 @@ SUBROUTINE coeff_subtract ( coeff1, coeff2, coeff3 )
   ELSE
      CALL stop_program ( "coeff_subtract", "no valid data type" )
   END IF
-  
+
 END SUBROUTINE coeff_subtract
 
 !******************************************************************************
 
 SUBROUTINE coeff_reduce ( coeff1, coeff2 )
-  
+
     TYPE(coeff_type), INTENT(IN)             :: coeff1
     TYPE(coeff_type), INTENT(INOUT)          :: coeff2
 
@@ -350,7 +352,7 @@ SUBROUTINE coeff_reduce ( coeff1, coeff2 )
   ELSE
      CALL stop_program ( "coeff_reduce", "no valid data type" )
   END IF
-  
+
 END SUBROUTINE coeff_reduce
 
 !******************************************************************************
@@ -372,7 +374,7 @@ END SUBROUTINE coeff_reduce
 !******************************************************************************
 
 SUBROUTINE coeff_transform_c1 ( c1, debug )
-  
+
 
     TYPE(coeff_type), POINTER                :: c1
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
@@ -395,7 +397,7 @@ END SUBROUTINE coeff_transform_c1
 !******************************************************************************
 
 SUBROUTINE coeff_transform_c1c2 ( c1, c2, debug )
-  
+
 
     TYPE(coeff_type), INTENT(IN)             :: c1
     TYPE(coeff_type), INTENT(INOUT)          :: c2
@@ -415,7 +417,7 @@ END SUBROUTINE coeff_transform_c1c2
 !******************************************************************************
 
 SUBROUTINE coeff_transform_c1pw2 ( c1, pw2, debug )
-  
+
 
     TYPE(coeff_type), INTENT(IN)             :: c1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
@@ -439,7 +441,7 @@ END SUBROUTINE coeff_transform_c1pw2
 !******************************************************************************
 
 SUBROUTINE coeff_transform_pw1c2 ( pw1, c2, debug )
-  
+
 
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(coeff_type), INTENT(INOUT)          :: c2

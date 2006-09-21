@@ -73,8 +73,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &
       routineP = moduleN//':'//routineN

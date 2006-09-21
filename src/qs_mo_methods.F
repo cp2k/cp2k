@@ -11,7 +11,7 @@
 !!     collects routines that perform operations directly related to MOs
 !!
 !!   NOTES
-!!     first version : most routines imported 
+!!     first version : most routines imported
 !!
 !!   AUTHOR
 !!     Joost VandeVondele (2003-08)
@@ -59,7 +59,7 @@ MODULE qs_mo_methods
   END INTERFACE
 
   INTERFACE calculate_subspace_eigenvalues
-    MODULE PROCEDURE subspace_eigenvalues_ks 
+    MODULE PROCEDURE subspace_eigenvalues_ks
   END INTERFACE
 
   PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
@@ -84,10 +84,11 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE make_basis_sm(vmatrix,ncol,matrix_s)
+  SUBROUTINE make_basis_sm(vmatrix,ncol,matrix_s,error)
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(real_matrix_type), POINTER          :: matrix_s
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm', &
       routineP = moduleN//':'//routineN
@@ -105,25 +106,25 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
 
 
-    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
 
-    CALL cp_fm_create(svmatrix,vmatrix%matrix_struct,"SV")
-    CALL cp_sm_fm_multiply(matrix_s,vmatrix,svmatrix,ncol)
-    
+    CALL cp_fm_create(svmatrix,vmatrix%matrix_struct,"SV",error=error)
+    CALL cp_sm_fm_multiply(matrix_s,vmatrix,svmatrix,ncol,error=error)
+
     NULLIFY(fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
-                             para_env=vmatrix%matrix_struct%para_env, & 
-                             context=vmatrix%matrix_struct%context)
-    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
-    CALL cp_fm_struct_release(fm_struct_tmp)
+                             para_env=vmatrix%matrix_struct%para_env, &
+                             context=vmatrix%matrix_struct%context,error=error)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv)
-    CALL cp_fm_cholesky_decompose(overlap_vv)
-    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv,error=error)
+    CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
 
-    CALL cp_fm_release(overlap_vv)
-    CALL cp_fm_release(svmatrix)
+    CALL cp_fm_release(overlap_vv,error=error)
+    CALL cp_fm_release(svmatrix,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -146,11 +147,12 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE make_basis_sv(vmatrix,ncol,svmatrix)
+  SUBROUTINE make_basis_sv(vmatrix,ncol,svmatrix,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(cp_fm_type), POINTER                :: svmatrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv', &
       routineP = moduleN//':'//routineN
@@ -168,21 +170,21 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     NULLIFY(fm_struct_tmp)
 
-    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
-    
+
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
-                             para_env=vmatrix%matrix_struct%para_env, & 
-                             context=vmatrix%matrix_struct%context)
-    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
-    CALL cp_fm_struct_release(fm_struct_tmp)
+                             para_env=vmatrix%matrix_struct%para_env, &
+                             context=vmatrix%matrix_struct%context,error=error)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv)
-    CALL cp_fm_cholesky_decompose(overlap_vv)
-    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
-    CALL cp_fm_triangular_multiply(overlap_vv,svmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.) 
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv,error=error)
+    CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
+    CALL cp_fm_triangular_multiply(overlap_vv,svmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
 
-    CALL cp_fm_release(overlap_vv)
+    CALL cp_fm_release(overlap_vv,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -209,11 +211,12 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE make_basis_cholesky(vmatrix,ncol,ortho)
+  SUBROUTINE make_basis_cholesky(vmatrix,ncol,ortho,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(cp_fm_type), POINTER                :: ortho
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_cholesky', &
       routineP = moduleN//':'//routineN
@@ -231,22 +234,22 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(fm_struct_tmp)
 
-    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
-    
+
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
-                             para_env=vmatrix%matrix_struct%para_env, & 
-                             context=vmatrix%matrix_struct%context)
-    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
-    CALL cp_fm_struct_release(fm_struct_tmp)
+                             para_env=vmatrix%matrix_struct%para_env, &
+                             context=vmatrix%matrix_struct%context,error=error)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol)
-    CALL cp_fm_syrk('U','T',n,rone,vmatrix,1,1,rzero,overlap_vv)
-    CALL cp_fm_cholesky_decompose(overlap_vv)
-    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
-    CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol,invert_tr=.TRUE.)
+    CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol,error=error)
+    CALL cp_fm_syrk('U','T',n,rone,vmatrix,1,1,rzero,overlap_vv,error=error)
+    CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
+    CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol,invert_tr=.TRUE.,error=error)
 
-    CALL cp_fm_release(overlap_vv)
+    CALL cp_fm_release(overlap_vv,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -269,10 +272,11 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE make_basis_simple(vmatrix,ncol)
+  SUBROUTINE make_basis_simple(vmatrix,ncol,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_simple', &
       routineP = moduleN//':'//routineN
@@ -291,20 +295,20 @@ CONTAINS
 
     NULLIFY(fm_struct_tmp)
 
-    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
-    
+
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
-                             para_env=vmatrix%matrix_struct%para_env, & 
-                             context=vmatrix%matrix_struct%context)
-    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
-    CALL cp_fm_struct_release(fm_struct_tmp)
+                             para_env=vmatrix%matrix_struct%para_env, &
+                             context=vmatrix%matrix_struct%context,error=error)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, overlap_vv)
-    CALL cp_fm_cholesky_decompose(overlap_vv)
-    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, overlap_vv,error=error)
+    CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
 
-    CALL cp_fm_release(overlap_vv)
+    CALL cp_fm_release(overlap_vv,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -323,8 +327,8 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: density_matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, imo
 
@@ -333,13 +337,13 @@ CONTAINS
     CALL timeset("calculate_density_matrix_blacs","I","",handle)
 
     CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%mo_coeff,&
-                    1,1,0.0_dp,density_matrix)
+                    1,1,0.0_dp,density_matrix,error=error)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL cp_fm_syrk("U","N",1,mo_set%occupation_numbers(imo),&
-                      mo_set%mo_coeff,1,imo,1.0_dp,density_matrix)
+                      mo_set%mo_coeff,1,imo,1.0_dp,density_matrix,error=error)
 
     END DO
 
@@ -360,8 +364,8 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: density_matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: alpha
@@ -375,24 +379,24 @@ CONTAINS
 
     IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
        NULLIFY(fm_tmp)
-       CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct)
-       CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp)
+       CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)
+       CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp,error=error)
        CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
        alpha=1.0_dp
 
     ELSE
        alpha=mo_set%maxocc
        fm_tmp => mo_set%mo_coeff
-       CALL cp_fm_retain(fm_tmp)
+       CALL cp_fm_retain(fm_tmp,error=error)
     ENDIF
 
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
                             matrix_v=mo_set%mo_coeff,&
                             matrix_g=fm_tmp,&
                             ncol=mo_set%homo,&
-                            alpha=alpha)
+                            alpha=alpha,error=error)
 
-    CALL cp_fm_release(fm_tmp)
+    CALL cp_fm_release(fm_tmp,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -404,7 +408,7 @@ CONTAINS
 !!     subspace_eigenvalues_ks
 !!
 !!   FUNCTION
-!!     computes ritz values of a set of orbitals given a ks_matrix 
+!!     computes ritz values of a set of orbitals given a ks_matrix
 !!     rotates the orbitals into eigenstates depending on do_rotation
 !!     writes the evals to the screen depending on ionode/scr
 !!
@@ -426,7 +430,7 @@ CONTAINS
 !!*** **********************************************************************
 ! *****************************************************************************
 
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,do_rotation,co_rotate)
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,do_rotation,co_rotate,error)
 
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
@@ -444,6 +448,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: scr
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: co_rotate
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, i, j, ncol_global, &
                                                 nrow_global
@@ -463,39 +468,39 @@ CONTAINS
     NULLIFY(weighted_vectors,h_block,e_vectors,fm_struct_tmp)
     CALL cp_fm_get_info(matrix=orbitals, &
                                  ncol_global=ncol_global, &
-                                 nrow_global=nrow_global)
+                                 nrow_global=nrow_global,error=error)
 
     IF (ncol_global.GT.0) THEN
 
         ALLOCATE(evals(ncol_global))
 
-        CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors")
+        CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors",error=error)
         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
                                                 para_env=orbitals%matrix_struct%para_env, &
-                                                context=orbitals%matrix_struct%context)
-        CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
-        CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
-        CALL cp_fm_struct_release(fm_struct_tmp)
+                                                context=orbitals%matrix_struct%context,error=error)
+        CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
+        CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
+        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
         ! h subblock and diag
-        CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global)
+        CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
 
 
         CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
-                        orbitals,weighted_vectors,0.0_dp,h_block)
+                        orbitals,weighted_vectors,0.0_dp,h_block,error=error)
 
-        CALL cp_fm_syevd(h_block,e_vectors,evals)
+        CALL cp_fm_syevd(h_block,e_vectors,evals,error=error)
 
         ! rotate the orbitals
         IF (do_rotation_local) THEN
             CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                        orbitals,e_vectors,0.0_dp,weighted_vectors)
-            CALL cp_fm_to_fm(weighted_vectors,orbitals)
+                        orbitals,e_vectors,0.0_dp,weighted_vectors,error=error)
+            CALL cp_fm_to_fm(weighted_vectors,orbitals,error=error)
             IF (PRESENT(co_rotate)) THEN
               IF (ASSOCIATED(co_rotate)) THEN
                 CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                        co_rotate,e_vectors,0.0_dp,weighted_vectors)
-                CALL cp_fm_to_fm(weighted_vectors,co_rotate)
+                        co_rotate,e_vectors,0.0_dp,weighted_vectors,error=error)
+                CALL cp_fm_to_fm(weighted_vectors,co_rotate,error=error)
               ENDIF
             ENDIF
         ENDIF
@@ -525,9 +530,9 @@ CONTAINS
           ENDIF
         ENDIF
 
-        CALL cp_fm_release(weighted_vectors)
-        CALL cp_fm_release(h_block)
-        CALL cp_fm_release(e_vectors)
+        CALL cp_fm_release(weighted_vectors,error=error)
+        CALL cp_fm_release(h_block,error=error)
+        CALL cp_fm_release(e_vectors,error=error)
 
         DEALLOCATE(evals)
 
@@ -541,12 +546,13 @@ CONTAINS
 ! computes the effective orthonormality of a set of mos given an s-matrix
 ! orthonormality is the max deviation from unity of the C^T S C
 ! *****************************************************************************
-  SUBROUTINE calculate_orthonormality(orthonormality,mo_array,matrix_s)
+  SUBROUTINE calculate_orthonormality(orthonormality,mo_array,matrix_s,error)
     REAL(KIND=dp)                            :: orthonormality
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: matrix_s
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, i, ispin, j, k, n, &
                                                 ncol_local, nrow_local, nspin
@@ -565,34 +571,34 @@ CONTAINS
    DO ispin=1,nspin
       IF (PRESENT(matrix_s)) THEN
         ! get S*C
-        CALL cp_fm_create(svec,mo_array(ispin)%mo_set%mo_coeff%matrix_struct)       
+        CALL cp_fm_create(svec,mo_array(ispin)%mo_set%mo_coeff%matrix_struct,error=error)
         CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
-             nrow_global=n,ncol_global=k)
+             nrow_global=n,ncol_global=k,error=error)
         CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%mo_coeff,&
-             svec,k)
+             svec,k,error=error)
         ! get C^T (S*C)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
              para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
-             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
-        CALL cp_fm_create(overlap,tmp_fm_struct)       
-        CALL cp_fm_struct_release(tmp_fm_struct)
+             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context,error=error)
+        CALL cp_fm_create(overlap,tmp_fm_struct,error=error)
+        CALL cp_fm_struct_release(tmp_fm_struct,error=error)
         CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
-             svec,0.0_dp,overlap)
-        CALL cp_fm_release(svec)
+             svec,0.0_dp,overlap,error=error)
+        CALL cp_fm_release(svec,error=error)
       ELSE
         ! orthogonal basis C^T C
         CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
-             nrow_global=n,ncol_global=k)
+             nrow_global=n,ncol_global=k,error=error)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
              para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
-             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
-        CALL cp_fm_create(overlap,tmp_fm_struct)       
-        CALL cp_fm_struct_release(tmp_fm_struct)
+             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context,error=error)
+        CALL cp_fm_create(overlap,tmp_fm_struct,error=error)
+        CALL cp_fm_struct_release(tmp_fm_struct,error=error)
         CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
-             mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap)
+             mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap,error=error)
       ENDIF
       CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
-           row_indices=row_indices,col_indices=col_indices)
+           row_indices=row_indices,col_indices=col_indices,error=error)
       DO i=1,nrow_local
          DO j=1,ncol_local
             alpha=overlap%local_data(i,j)
@@ -600,7 +606,7 @@ CONTAINS
             max_alpha=MAX(max_alpha,ABS(alpha))
          ENDDO
       ENDDO
-      CALL cp_fm_release(overlap)
+      CALL cp_fm_release(overlap,error=error)
     ENDDO
     CALL mp_max(max_alpha,mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env%group)
     orthonormality=max_alpha
@@ -620,8 +626,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     REAL(KIND=dp)                            :: mo_mag_min, mo_mag_max
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_magnitude'
 
@@ -639,22 +645,22 @@ CONTAINS
    mo_mag_max=-HUGE(0.0_dp)
    DO ispin=1,nspin
       CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
-             nrow_global=n,ncol_global=k)
+             nrow_global=n,ncol_global=k,error=error)
       ALLOCATE(evals(k))
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
              para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
-             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
-      CALL cp_fm_create(overlap,tmp_fm_struct)
-      CALL cp_fm_create(evecs,tmp_fm_struct)
-      CALL cp_fm_struct_release(tmp_fm_struct)
+             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context,error=error)
+      CALL cp_fm_create(overlap,tmp_fm_struct,error=error)
+      CALL cp_fm_create(evecs,tmp_fm_struct,error=error)
+      CALL cp_fm_struct_release(tmp_fm_struct,error=error)
       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
-             mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap)
+             mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap,error=error)
       CALL cp_fm_syevd(overlap,evecs,evals,error)
       mo_mag_min=MIN(MINVAL(evals),mo_mag_min)
       mo_mag_max=MAX(MAXVAL(evals),mo_mag_max)
-      CALL cp_fm_release(overlap)
-      CALL cp_fm_release(evecs)
-      DEALLOCATE(evals) 
+      CALL cp_fm_release(overlap,error=error)
+      CALL cp_fm_release(evecs,error=error)
+      DEALLOCATE(evals)
     ENDDO
     CALL timestop(0.0_dp,handle)
 

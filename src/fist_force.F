@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_force [1.0] 
+!!****** cp2k/fist_force [1.0]
 !!
 !!   NAME
 !!     fist_force
@@ -89,7 +89,7 @@ MODULE fist_force
 !!****** fist_force/fist_force_control [1.1] *
 !!
 !!   NAME
-!!    fist_force_control 
+!!    fist_force_control
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force, and the
@@ -119,8 +119,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_force_control', &
       routineP = moduleN//':'//routineN
@@ -171,16 +171,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                       atomic_kind_set = atomic_kind_set, molecule_set = molecule_set, &
                       local_molecules = local_molecules, thermo = thermo, &
                       molecule_kind_set = molecule_kind_set,  &
-                      fist_nonbond_env = fist_nonbond_env, cell = cell )
+                      fist_nonbond_env = fist_nonbond_env, cell = cell ,error=error)
 
-  CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
+  CALL ewald_env_get ( ewald_env, ewald_type = ewald_type ,error=error)
 
   natoms = SIZE ( particle_set )
   nlocal_particles = 0
   nparticle_kind = SIZE ( atomic_kind_set )
   DO ikind = 1, nparticle_kind
-     nlocal_particles = nlocal_particles + local_particles%n_el(ikind) 
-  ENDDO 
+     nlocal_particles = nlocal_particles + local_particles%n_el(ikind)
+  ENDDO
 
   ALLOCATE ( f_nonbond ( 3, natoms ), STAT = stat )
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -188,7 +188,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 ! first check with list_control to update neighbor lists
 
   CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                      cell, fist_nonbond_env,para_env, iw, force_env_section, error) 
+                      cell, fist_nonbond_env,para_env, iw, force_env_section, error)
 
 !
 ! initial force, energy and pressure tensor arrays
@@ -227,16 +227,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF
 
-!  compute density for EAM 
-  CALL density_nonbond ( fist_nonbond_env, particle_set, cell, para_env )
+!  compute density for EAM
+  CALL density_nonbond ( fist_nonbond_env, particle_set, cell, para_env ,error=error)
 
-! compute embedding function and manybody energy 
+! compute embedding function and manybody energy
   CALL energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-                         local_particles, particle_set, pot_manybody, para_env )
+                         local_particles, particle_set, pot_manybody, para_env ,error=error)
 
 ! nonbond contribution + manybody forces
   CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
-                       pot_nonbond, f_nonbond, pv_nonbond  )
+                       pot_nonbond, f_nonbond, pv_nonbond  ,error=error)
 
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: NONBOND + R-SPACE ELECTROSTATIC FORCES ..."
@@ -257,8 +257,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
         CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
-                              local_particles, fg_coulomb, vg_coulomb, pv_g )
-        
+                              local_particles, fg_coulomb, vg_coulomb, pv_g ,error=error)
+
      CASE ( do_ewald_pme )
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=stat )
@@ -266,7 +266,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
         fg_coulomb = 0.0_dp
         CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                             vg_coulomb, fg_coulomb, pv_g , force_env_section, error)
-        CALL mp_sum ( fg_coulomb, para_env%group ) 
+        CALL mp_sum ( fg_coulomb, para_env%group )
      CASE ( do_ewald_spme )
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=stat )
@@ -274,13 +274,13 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
         fg_coulomb = 0.0_dp
         CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                              fg_coulomb, vg_coulomb, pv_g, force_env_section, error)
-        CALL mp_sum ( fg_coulomb, para_env%group ) 
-        
+        CALL mp_sum ( fg_coulomb, para_env%group )
+
      END SELECT
 
      CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
                                     particle_set, ewald_env, &
-                                    thermo % e_bonded, pv_bc )
+                                    thermo % e_bonded, pv_bc ,error=error)
      IF (  first_time ) THEN
            IF (iw > 0 )  CALL ewald_print ( iw , cell, vg_coulomb, &
                               thermo % e_self, thermo % e_neut, thermo % e_bonded )
@@ -361,7 +361,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (1) INTERNAL + ELECTROSTATIC BONDED + NONBONDED"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
-  END IF  
+  END IF
 
 ! Adding in the reciprocal forces: EWALD is a special
 ! case because of distrubted data
@@ -390,7 +390,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
-  END IF  
+  END IF
 
 !
 ! add up all the pressure tensors
@@ -428,16 +428,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     END DO
   CASE ( do_ewald_ewald, do_ewald_none )
     DO i = 1, natoms
-      particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) 
-      particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) 
-      particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) 
+      particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
+      particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
+      particle_set ( i ) % f ( 3 ) = f_total ( 3, i )
     END DO
   END SELECT
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)
      WRITE(iw,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
-  END IF  
+  END IF
 
 !
 ! if we are doing debugging, check if variables are present and assign
@@ -537,8 +537,8 @@ SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
@@ -546,13 +546,13 @@ SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
 
   NULLIFY(logger,print_key)
   logger => cp_error_get_logger(error)
-  print_key => section_vals_get_subs_vals(print_section,"dipole",error=error)  
+  print_key => section_vals_get_subs_vals(print_section,"dipole",error=error)
   IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
        cp_p_file)) THEN
      unit_nr=cp_print_key_unit_nr(logger,print_section,"dipole",&
           extension=".data",middle_name="MM_DIPOLE",log_filename=.FALSE.,error=error)
      CALL fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
-     CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)     
+     CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
   END IF
 
 END SUBROUTINE print_fist
@@ -582,8 +582,8 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zeta
     INTEGER                                  :: i, iparticle_kind, j
@@ -598,14 +598,14 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
   ENDDO
 
   ! dipole deriv will be the derivative of the Dipole (dM/dt=\sum e_j v_j)
-  dipole_deriv=0.0_dp  
+  dipole_deriv=0.0_dp
 
   ggamma = CMPLX(0.0_dp,0.0_dp,KIND=dp)
-  DO iparticle_kind = 1, SIZE(atomic_kind_set)     
+  DO iparticle_kind = 1, SIZE(atomic_kind_set)
      atomic_kind => atomic_kind_set(iparticle_kind)
      CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q,&
           atom_list=atom_list)
-     
+
      DO i = 1, SIZE(atom_list)
         DO j = 1, 3
            dipole_deriv(j)=dipole_deriv(j)+particle_set(i)%v(j)*q
@@ -615,19 +615,19 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
         ggamma = ggamma + zeta
      ENDDO
   END DO
-  
+
   dipole = 0.0_dp
   DO j = 1, 3
      IF (REAL(ggamma(j),KIND=dp) /= 0.0_dp) &
-     dipole(j) = 1.0_dp/gvec(j) * ATAN( REAL(AIMAG(ggamma(j)),KIND=dp)/REAL(ggamma(j),KIND=dp) )  
+     dipole(j) = 1.0_dp/gvec(j) * ATAN( REAL(AIMAG(ggamma(j)),KIND=dp)/REAL(ggamma(j),KIND=dp) )
   END DO
-  
+
   IF (unit_nr>0) THEN
      WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE ( A.U.)|                ",dipole
      WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE (Debye)|                ",dipole*debye
      WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE (NON BERRY PHASE) DERIVATIVE (A.U.)|",dipole_deriv
   END IF
-  
+
 END SUBROUTINE fist_dipole
 
 !******************************************************************************

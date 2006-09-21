@@ -12,30 +12,30 @@
 !!     routines that optimize a functional using the limited memory bfgs
 !!     quasi-newton method.
 !!     The process set up so that a master runs the real optimizer and the
-!!     others help then to calculate the objective function. 
-!!     The arguments for the objective function are physicaly present in 
+!!     others help then to calculate the objective function.
+!!     The arguments for the objective function are physicaly present in
 !!     every processor (nedeed in the actual implementation of pao).
 !!     In the future tha arguments themselves could be distributed.
 !!
 !!   NOTES
-!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
 !!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!                                                       |___/                                        
-!!     ____ _                  ___                              _ _       _       _       
-!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!                                                       |___/
+!!     ____ _                  ___                              _ _       _       _
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
 !!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!!                                                                                  |___/ 
-!!    _____ _     _       _____ _ _      _ 
+!!                                                                                  |___/
+!!    _____ _     _       _____ _ _      _
 !!   |_   _| |__ (_)___  |  ___(_) | ___| |
 !!     | | | '_ \| / __| | |_  | | |/ _ \ |
 !!     | | | | | | \__ \ |  _| | | |  __/_|
 !!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!   
+!!
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
@@ -105,7 +105,7 @@ MODULE cp_lbfgs_optimizer_gopt
        cp_opt_gopt_step, cp_opt_gopt_stop,&
        cp_opt_gopt_retain
 
-  ! initalize the object 
+  ! initalize the object
   INTERFACE cp_create
      MODULE PROCEDURE cp_opt_gopt_create
   END INTERFACE
@@ -150,10 +150,10 @@ MODULE cp_lbfgs_optimizer_gopt
 !!
 !!   ATTRIBUTES
 !!     - task: the actual task of the optimizer (in the master it is up to
-!!       date, in case of error also the slaves one get updated. 
+!!       date, in case of error also the slaves one get updated.
 !!     - csave: internal character string used by the lbfgs optimizer,
-!!       meaningful only in the master  
-!!     - lsave: logical array used by the lbfgs optimizer, updated only 
+!!       meaningful only in the master
+!!     - lsave: logical array used by the lbfgs optimizer, updated only
 !!       in the master
 !!       On exit with task = 'NEW_X', the following information is
 !!       available:
@@ -162,14 +162,14 @@ MODULE cp_lbfgs_optimizer_gopt
 !!          lsave(3) = .true.  each variable has upper and lower bounds.
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
 !!     - id_nr: identification number (unique)
-!!     - m: the dimension of the subspace used to approximate the second 
+!!     - m: the dimension of the subspace used to approximate the second
 !!       derivative
 !!     - print_every: every how many iterations output should be written.
 !!       if 0 only at end, if print_every<0 never
 !!     - master: the pid of the master processor
 !!     - max_f_per_iter: the maximum number of function evaluations per
 !!       iteration
-!!     - status: 0: just initialized, 1: f g calculation, 
+!!     - status: 0: just initialized, 1: f g calculation,
 !!       2: begin new iteration, 3: ended iteration,
 !!       4: normal (converged) exit, 5: abnormal (error) exit,
 !!       6: daellocated
@@ -192,12 +192,12 @@ MODULE cp_lbfgs_optimizer_gopt
 !!        - isave(39) = the number of active constraints at the current
 !!          iteration;
 !!     - f: the actual best value of the object function
-!!     - wanted_relative_f_delta: the wanted relative error on f 
+!!     - wanted_relative_f_delta: the wanted relative error on f
 !!       (to be multiplied by epsilon), 0.0 -> no check
 !!     - wanted_projected_gradient: the wanted error on the projected
 !!       gradient (hessian times the gradient), 0.0 -> no check
 !!     - last_f: the value of f in the last iteration
-!!     - projected_gradient: the value of the sup norm of the projected 
+!!     - projected_gradient: the value of the sup norm of the projected
 !!       gradient
 !!     - x: the actual evaluation point (best one if converged or stopped)
 !!     - lower_bound: the lower bounds
@@ -219,7 +219,7 @@ MODULE cp_lbfgs_optimizer_gopt
   !***************************************************************************
   TYPE cp_lbfgs_opt_gopt_type
      CHARACTER (len=60) :: task
-     CHARACTER (len=60) :: csave  
+     CHARACTER (len=60) :: csave
      LOGICAL :: lsave (4)
      INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
      INTEGER :: ref_count, id_nr
@@ -245,11 +245,11 @@ CONTAINS
 !!     initializes the optimizer
 !!
 !!   NOTES
-!!     redirects the lbfgs output the the default unit 
+!!     redirects the lbfgs output the the default unit
 !!
 !!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -276,8 +276,8 @@ CONTAINS
     INTEGER, DIMENSION(SIZE(x0)), &
       INTENT(in), OPTIONAL                   :: kind_of_bound
     INTEGER, INTENT(in), OPTIONAL            :: master, max_f_per_iter
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_create', &
       routineP = moduleN//':'//routineN
@@ -304,7 +304,7 @@ CONTAINS
        IF (PRESENT(m)) optimizer%m=m
        optimizer%master= para_env%source
        optimizer%para_env => para_env
-       CALL cp_para_env_retain(para_env)
+       CALL cp_para_env_retain(para_env,error=error)
        optimizer%obj_funct => obj_funct
        CALL gopt_f_retain(obj_funct, error=error)
        optimizer%max_f_per_iter=20
@@ -372,8 +372,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - optimizer: the optimizer to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -384,8 +384,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cp_opt_gopt_retain(optimizer,error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain', &
       routineP = moduleN//':'//routineN
@@ -393,7 +393,7 @@ SUBROUTINE cp_opt_gopt_retain(optimizer,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
@@ -415,8 +415,8 @@ END SUBROUTINE cp_opt_gopt_retain
 !!
 !!   INPUTS
 !!     optimizer: the object that should be released
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -428,8 +428,8 @@ END SUBROUTINE cp_opt_gopt_retain
 !!*** **********************************************************************
 SUBROUTINE cp_opt_gopt_release(optimizer,error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_release', &
       routineP = moduleN//':'//routineN
@@ -507,8 +507,8 @@ END SUBROUTINE cp_opt_gopt_release
 !!     -
 !!
 !!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -541,8 +541,8 @@ END SUBROUTINE cp_opt_gopt_release
                                                 max_f_per_iter
     LOGICAL, INTENT(out), OPTIONAL           :: at_end, is_master
     REAL(kind=dp), INTENT(out), OPTIONAL     :: last_f, f
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_get', &
       routineP = moduleN//':'//routineN
@@ -581,7 +581,7 @@ END SUBROUTINE cp_opt_gopt_release
             actual_projected_gradient=optimizer%projected_gradient
        IF (optimizer%master==optimizer%para_env%mepos) THEN
           IF (optimizer%isave(30)>1 .AND. (optimizer%task(1:5)=="NEW_X".OR.&
-               optimizer%task(1:4)=="STOP".AND.optimizer%task(7:9)=="CPU")) THEN 
+               optimizer%task(1:4)=="STOP".AND.optimizer%task(7:9)=="CPU")) THEN
              ! nr iterations >1 .and. dsave contains the wanted data
              IF (PRESENT(last_f)) last_f = optimizer%dsave(2)
              IF (PRESENT(actual_projected_gradient))&
@@ -616,8 +616,8 @@ CPSourceFileRef,&
 !!     use directly mainlb in place of setulb ??
 !!
 !!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -637,8 +637,8 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: force_env_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_step', &
       routineP = moduleN//':'//routineN
@@ -763,13 +763,13 @@ CPSourceFileRef,&
              IF (dataunit>0) THEN
                 CALL force_env_get(force_env,&
                      cell=cell,&
-                     subsys=subsys)           
+                     subsys=subsys,error=error)
                 CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                     particles=particles)
-                particle_set => particles%els              
+                     particles=particles,error=error)
+                particle_set => particles%els
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",optimizer%isave(30),", E =",optimizer%f
                 CALL write_particle_coordinates(particle_set,dataunit,&
-                     dump_xmol,"POS",TRIM(title))                
+                     dump_xmol,"POS",TRIM(title))
                 CALL m_flush(dataunit)
              END IF
              CALL cp_print_key_finished_output(dataunit,logger,input,&
@@ -802,8 +802,8 @@ CPSourceFileRef,&
              CALL mp_bcast(optimizer%x,optimizer%master,&
                   optimizer%para_env%group)
           CASE (3)
-             !op=3 ended iter             
-             wildcard = "LBFGS"             
+             !op=3 ended iter
+             wildcard = "LBFGS"
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN
@@ -846,17 +846,17 @@ CPSourceFileRef,&
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"step on a deallocated opt structure "//&
 CPSourceFileRef,&
-                  error,failure)           
+                  error,failure)
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unknown status "//cp_to_string(optimizer%status)//&
-                  " in "//& 
+                  " in "//&
 CPSourceFileRef,&
                   error,failure)
              optimizer%status=5
              EXIT
           END SELECT
-          IF (optimizer%status == 1 .AND. justEntred) THEN 
+          IF (optimizer%status == 1 .AND. justEntred) THEN
              optimizer%eold = optimizer%f
              optimizer%emin = optimizer%eold
           END IF
@@ -867,7 +867,7 @@ CPSourceFileRef,&
        CALL cp_opt_gopt_bcast_res(optimizer,&
             n_iter=optimizer%n_iter,&
             f=optimizer%f, last_f=optimizer%last_f,&
-            projected_gradient=optimizer%projected_gradient)
+            projected_gradient=optimizer%projected_gradient,error=error)
     END IF
     DEALLOCATE(xold,stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -897,8 +897,8 @@ CPSourceFileRef,&
 !!     f: the actual value of the objective function (f)
 !!     last_f: the last value of f
 !!     projected_gradient: the infinity norm of the projected gradient
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -913,8 +913,8 @@ CPSourceFileRef,&
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     INTEGER, INTENT(out), OPTIONAL           :: n_iter
     REAL(kind=dp), INTENT(inout), OPTIONAL   :: f, last_f, projected_gradient
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res', &
       routineP = moduleN//':'//routineN
@@ -958,8 +958,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     optimizer: the optimizer that goes to the next point
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -979,8 +979,8 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: force_env_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_next', &
@@ -1020,8 +1020,8 @@ CPSourceFileRef,&
 !!     necessary???
 !!
 !!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -1033,8 +1033,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gopt_stop(optimizer, error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_stop', &
       routineP = moduleN//':'//routineN
@@ -1064,7 +1064,7 @@ CPSourceFileRef,&
   END SUBROUTINE cp_opt_gopt_stop
   !***************************************************************************
 
-  ! template def put here so that line numbers in template and derived 
+  ! template def put here so that line numbers in template and derived
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:

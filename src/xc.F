@@ -119,14 +119,14 @@ CONTAINS
 !!       only for gradient corrections)
 !!     - tau: value of the kinetic density tau on the grid (can be null,
 !!       used only with meta functionals)
-!!     - vxc: will contain the resulting xc potential, has to be 
+!!     - vxc: will contain the resulting xc potential, has to be
 !!       already allocated
 !!     - exc: the xc energy
 !!     - xc_section: parameters selecting the xc and the method used to
 !!       calculate it
 !!     - pw_pool: the pool for the grids
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -140,8 +140,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
       routineP = moduleN//':'//routineN
@@ -150,9 +150,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,error,failure)    
+    CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -207,8 +207,8 @@ CONTAINS
 !!     - exc: the xc energy
 !!     - xc_section: which functional to calculate, and how
 !!     - pw_pool: the pool for the grids
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -222,8 +222,8 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd', &
       routineP = moduleN//':'//routineN
@@ -287,7 +287,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
            END DO
         END DO
      END IF
-       
+
        PRINT *, "about to calculate xc (lda)"
        CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
             tau=tau,xc_section=xc_section,&
@@ -316,79 +316,79 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        OPEN(unit=120,file="rho.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => rho_set1%rho
-       WRITE(unit=120) pot(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(2,3)) 
+       WRITE(unit=120) pot(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(2,3))
        CLOSE(unit=120)
        OPEN(unit=120,file="rhoa.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => rho_set2%rhoa
-       WRITE(unit=120) pot(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(2,3)) 
+       WRITE(unit=120) pot(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(2,3))
        CLOSE(unit=120)
        OPEN(unit=120,file="rhob.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => rho_set2%rhob
-       WRITE(unit=120) pot(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(2,3)) 
+       WRITE(unit=120) pot(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(2,3))
        CLOSE(unit=120)
        OPEN(unit=120,file="ndrho.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => rho_set1%norm_drho
-       WRITE(unit=120) pot(:,:,bo(2,3)) 
+       WRITE(unit=120) pot(:,:,bo(2,3))
        CLOSE(unit=120)
        OPEN(unit=120,file="ndrhoa.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => rho_set2%norm_drhoa
-       WRITE(unit=120) pot(:,:,bo(2,3)) 
+       WRITE(unit=120) pot(:,:,bo(2,3))
        CLOSE(unit=120)
        OPEN(unit=120,file="ndrhob.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => rho_set2%norm_drhob
-       WRITE(unit=120) pot(:,:,bo(2,3)) 
+       WRITE(unit=120) pot(:,:,bo(2,3))
        CLOSE(unit=120)
        IF (rho_set1%has%tau) THEN
           OPEN(unit=120,file="tau.bindata",status="unknown",access='sequential',&
                form="unformatted",action="write")
           pot => rho_set1%tau
-          WRITE(unit=120) pot(:,:,bo(2,3)) 
+          WRITE(unit=120) pot(:,:,bo(2,3))
           CLOSE(unit=120)
        END IF
        IF (rho_set2%has%tau_spin) THEN
           OPEN(unit=120,file="tau_a.bindata",status="unknown",access='sequential',&
                form="unformatted",action="write")
           pot => rho_set2%tau_a
-          WRITE(unit=120) pot(:,:,bo(2,3)) 
+          WRITE(unit=120) pot(:,:,bo(2,3))
           CLOSE(unit=120)
           OPEN(unit=120,file="tau_v.bindata",status="unknown",access='sequential',&
                form="unformatted",action="write")
           pot => rho_set2%tau_b
-          WRITE(unit=120) pot(:,:,bo(2,3)) 
+          WRITE(unit=120) pot(:,:,bo(2,3))
           CLOSE(unit=120)
        END IF
        OPEN(unit=120,file="vxc.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => vxc_rho(1)%pw%cr3d
-       WRITE(unit=120) pot(:,:,bo(2,3)) 
+       WRITE(unit=120) pot(:,:,bo(2,3))
        CLOSE(unit=120)
        OPEN(unit=120,file="vxc2.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => vxc_rho2(1)%pw%cr3d
-       WRITE(unit=120) pot(:,:,bo(2,3)) 
+       WRITE(unit=120) pot(:,:,bo(2,3))
        CLOSE(unit=120)
        IF (ASSOCIATED(vxc_tau)) THEN
           OPEN(unit=120,file="vxc_tau.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
           pot => vxc_tau(1)%pw%cr3d
-          WRITE(unit=120) pot(:,:,bo(2,3)) 
+          WRITE(unit=120) pot(:,:,bo(2,3))
           CLOSE(unit=120)
        END IF
        IF (ASSOCIATED(vxc_tau2)) THEN
           OPEN(unit=120,file="vxc_tau2_a.bindata",status="unknown",access='sequential',&
                form="unformatted",action="write")
           pot => vxc_tau2(1)%pw%cr3d
-          WRITE(unit=120) pot(:,:,bo(2,3)) 
+          WRITE(unit=120) pot(:,:,bo(2,3))
           CLOSE(unit=120)
           OPEN(unit=120,file="vxc_tau2_b.bindata",status="unknown",access='sequential',&
                form="unformatted",action="write")
           pot => vxc_tau2(2)%pw%cr3d
-          WRITE(unit=120) pot(:,:,bo(2,3)) 
+          WRITE(unit=120) pot(:,:,bo(2,3))
           CLOSE(unit=120)
        END IF
 
@@ -550,7 +550,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
           DEALLOCATE(vxc_tau2,stat=stat)
        END IF
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     
+
   END IF
 END SUBROUTINE xc_vxc_pw_create_test_lsd
 !***************************************************************************
@@ -582,8 +582,8 @@ END SUBROUTINE xc_vxc_pw_create_test_lsd
 !!     - exc: the xc energy
 !!     - xc_section: which functional should be used, and how to do it
 !!     - pw_pool: the pool for the grids
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -597,8 +597,8 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug', &
       routineP = moduleN//':'//routineN
@@ -642,26 +642,26 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
            OPEN(unit=120,file="rhob.bindata",status="unknown",access='sequential',&
                 form="unformatted",action="write")
            pot => rho_set1%rhob
-           WRITE(unit=120) pot(0,:,:) 
+           WRITE(unit=120) pot(0,:,:)
            CLOSE(unit=120)
         END IF
         IF (rho_set1%has%norm_drho) THEN
            OPEN(unit=120,file="ndrho.bindata",status="unknown",access='sequential',&
                 form="unformatted",action="write")
            pot => rho_set1%norm_drho
-           WRITE(unit=120) pot(0,:,:) 
+           WRITE(unit=120) pot(0,:,:)
            CLOSE(unit=120)
         END IF
         IF (rho_set1%has%norm_drho_spin) THEN
            OPEN(unit=120,file="ndrhoa.bindata",status="unknown",access='sequential',&
                 form="unformatted",action="write")
            pot => rho_set1%norm_drhoa
-           WRITE(unit=120) pot(0,:,:) 
+           WRITE(unit=120) pot(0,:,:)
            CLOSE(unit=120)
            OPEN(unit=120,file="ndrhob.bindata",status="unknown",access='sequential',&
                 form="unformatted",action="write")
            pot => rho_set1%norm_drhob
-           WRITE(unit=120) pot(0,:,:) 
+           WRITE(unit=120) pot(0,:,:)
            CLOSE(unit=120)
         END IF
         IF (rho_set1%has%rho) THEN
@@ -895,13 +895,13 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !!     - cell: the simulation cell (to scale the derivatives)
 !!     - xc_section: the section describing the functional to use
 !!     - pw_pool: the pool for the grids
-!!     - gradient_f: returns true if any of the functionals is gradient 
+!!     - gradient_f: returns true if any of the functionals is gradient
 !!       corrected
-!!     - needs_basic_components: if the basic components of the arguments 
+!!     - needs_basic_components: if the basic components of the arguments
 !!       should be kept in rho set (a basic component is for example drho
 !!       when with lda a functional needs norm_drho)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -919,8 +919,8 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     LOGICAL, INTENT(in)                      :: needs_basic_components
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create', &
       routineP = moduleN//':'//routineN
@@ -981,7 +981,7 @@ END SUBROUTINE xc_rho_set_and_dset_create
 !!     smooth_cutoff
 !!
 !!   FUNCTION
-!!     smooths the cutoff on rho with a function smooth(rho) that is 0 
+!!     smooths the cutoff on rho with a function smooth(rho) that is 0
 !!     for rho<rho_cutoff and 1 for rho>rho_cutoff*rho_smooth_cutoff_range:
 !!     E= integral e_0*smooth(rho) => dE/d...= de/d... * smooth,
 !!     dE/drho = de/drho * smooth + e_0 * dsmooth/drho
@@ -994,10 +994,10 @@ END SUBROUTINE xc_rho_set_and_dset_create
 !!     - rho, rhoa,rhob: the value of the density (used to apply the cutoff)
 !!     - rho_cutoff: the vaule at whch the cutoff function must go to 0
 !!     - rho_smooth_cutoff_range: range of the smoothing
-!!     - e_0: value of e_0, if given it is assumed that pot is the derivative 
+!!     - e_0: value of e_0, if given it is assumed that pot is the derivative
 !!       wrt. to rho, and needs the dsmooth*e_0 contribution
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1012,8 +1012,8 @@ END SUBROUTINE xc_rho_set_and_dset_create
     REAL(kind=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: e_0
     REAL(kind=dp), INTENT(in), OPTIONAL      :: e_0_scale_factor
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'smooth_cutoff', &
       routineP = moduleN//':'//routineN
@@ -1196,8 +1196,8 @@ END SUBROUTINE smooth_cutoff
 !!     - exc: the xc energy
 !!     - xc_section: which functional to calculate, and how to do it
 !!     - pw_pool: the pool for the grids
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi; based LDA version of JGH, based on earlier version of apsi
@@ -1219,8 +1219,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create', &
       routineP = moduleN//':'//routineN
@@ -1362,10 +1362,10 @@ CPSourceFileRef,&
 
      CALL xc_rho_set_get(rho_set,rho=rho,rhoa=rhoa,rhob=rhob,&
           can_return_null=.TRUE., error=error)
-  
+
      ! recover the vxc arrays
      IF (lsd) THEN
-        deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
+        deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)",error=error)
         IF (ASSOCIATED(deriv_att)) THEN
            CALL pw_create(vxc_rho(1)%pw,pw_grid=pw_grid,&
                    cr3d_ptr=deriv_att%deriv_data,&
@@ -1378,7 +1378,7 @@ CPSourceFileRef,&
            CALL pw_zero(vxc_rho(1)%pw)
         END IF
 
-        deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)")
+        deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)",error=error)
         IF (ASSOCIATED(deriv_att)) THEN
            CALL pw_create(vxc_rho(2)%pw,pw_grid=pw_grid,&
                    cr3d_ptr=deriv_att%deriv_data,&
@@ -1392,7 +1392,7 @@ CPSourceFileRef,&
         END IF
 
      ELSE
-        deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+        deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
         IF (ASSOCIATED(deriv_att)) THEN
            CALL pw_create(vxc_rho(1)%pw,pw_grid=pw_grid,&
                 cr3d_ptr=deriv_att%deriv_data,&
@@ -1406,7 +1406,7 @@ CPSourceFileRef,&
         END IF
      END IF
 
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
         IF (lsd) THEN ! otherwise already taken care in vxc recovery
            CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
@@ -1429,7 +1429,7 @@ CPSourceFileRef,&
 
      ! rhoa,rhob already taken care of in vxc recovery
 
-     deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+     deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
              error=error)
@@ -1438,7 +1438,7 @@ CPSourceFileRef,&
              drho=drho,drhoa=drhoa,drhob=drhob,rho_cutoff=rho_cutoff,&
              drho_cutoff=drho_cutoff,&
              can_return_null=.TRUE., error=error)
-           
+
         IF (ASSOCIATED(norm_drho)) THEN
            !$omp parallel do default(none) shared(bo,deriv_data,norm_drho,drho_cutoff)&
            !$omp             private(k,j,i)
@@ -1539,7 +1539,7 @@ CPSourceFileRef,&
                    can_return_null=.TRUE., error=error)
            END IF
 
-           deriv_att => xc_dset_get_derivative(deriv_set, norm_drho_spin_name(ispin))
+           deriv_att => xc_dset_get_derivative(deriv_set, norm_drho_spin_name(ispin),error=error)
            IF (ASSOCIATED(deriv_att)) THEN
               CPPrecondition(lsd,cp_failure_level,routineP,error,failure)
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
@@ -1628,7 +1628,7 @@ CPSourceFileRef,&
               END DO
            END IF
         END IF
-        
+
         IF (ASSOCIATED(pw_to_deriv(1)%pw)) THEN
            ! partial integration
            IF (xc_deriv_method_id/=xc_deriv_pw&
@@ -1740,7 +1740,7 @@ CPSourceFileRef,&
                 error=error)
            CALL pw_transfer ( vxc_rho(ispin)%pw, vxc_g )
            CALL pw_transfer ( vxc_g,vxc_rho(ispin)%pw )
-           CALL pw_pool_give_back_pw(pw_pool,vxc_g)
+           CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
         END IF
         CALL smooth_cutoff(pot=vxc_rho(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
              rho_cutoff=rho_cutoff*density_smooth_cut_range,&
@@ -1793,10 +1793,10 @@ CPSourceFileRef,&
              use_data=REALDATA3D,in_space=REALSPACE,&
              cr3d_ptr=deriv_data, error=error)
         NULLIFY(tmp_r%cr3d)
-        CALL pw_release(tmp_r)
+        CALL pw_release(tmp_r,error=error)
 
-        CALL smooth_cutoff(pot=deriv_data,rho=rho,rhoa=rhoa,rhob=rhob,& 
-             rho_cutoff=rho_cutoff,& 
+        CALL smooth_cutoff(pot=deriv_data,rho=rho,rhoa=rhoa,rhob=rhob,&
+             rho_cutoff=rho_cutoff,&
              rho_smooth_cutoff_range=density_smooth_cut_range,&
              error=error)
 
@@ -1822,7 +1822,7 @@ CPSourceFileRef,&
            IF (ASSOCIATED(deriv_att)) THEN
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
                    error=error)
-              
+
               CALL pw_create(vxc_tau(1)%pw,pw_grid,&
                    use_data=REALDATA3D,in_space=REALSPACE,&
                    cr3d_ptr=deriv_data, error=error)
@@ -1832,7 +1832,7 @@ CPSourceFileRef,&
            IF (ASSOCIATED(deriv_att)) THEN
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
                    error=error)
-              
+
               CALL pw_create(vxc_tau(2)%pw,pw_grid,&
                    use_data=REALDATA3D,in_space=REALSPACE,&
                    cr3d_ptr=deriv_data, error=error)
@@ -1876,7 +1876,7 @@ CPSourceFileRef,&
   END IF
 
   CALL timestop(0.0_dp,handle)
-  
+
 END SUBROUTINE xc_vxc_pw_create
   !***************************************************************************
 
@@ -1893,8 +1893,8 @@ END SUBROUTINE xc_vxc_pw_create
 !!     has to be kept consistent with xc_vxc_create
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1909,8 +1909,8 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: exc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_exc_calc', &
@@ -1929,7 +1929,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
   NULLIFY(rho_set, deriv_set, deriv,e_0)
   failure=.FALSE.
   exc=0.0_dp
-  
+
   ! this has to be consistent with what is done in xc_vxc_create
   CALL xc_rho_set_and_dset_create(rho_set=rho_set,&
        deriv_set=deriv_set,deriv_order=0,&
@@ -1940,17 +1940,17 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
 
   IF (ASSOCIATED(deriv)) THEN
      CALL xc_derivative_get(deriv, deriv_data=e_0, error=error)
-     
+
      CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
           r_val=rho_cutoff,error=error)
      CALL section_vals_val_get(xc_section,"DENSITY_SMOOTH_CUTOFF_RANGE",&
           r_val=density_smooth_cut_range,error=error)
      CALL smooth_cutoff(pot=e_0,rho=rho_set%rho,&
-          rhoa=rho_set%rhoa,rhob=rho_set%rhob,& 
-          rho_cutoff=rho_cutoff,& 
+          rhoa=rho_set%rhoa,rhob=rho_set%rhob,&
+          rho_cutoff=rho_cutoff,&
           rho_smooth_cutoff_range=density_smooth_cut_range,&
           error=error)
-     
+
      exc = accurate_sum ( e_0 )*rho_r(1)%pw%pw_grid%dvol
      IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
         CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
@@ -1985,10 +1985,10 @@ END FUNCTION xc_exc_calc
 !!     terms (tau,rho in LSD,...). The problem with the old code was that it
 !!     because of the old functional structure it sometime guessed wrongly
 !!     which derivative was where. There were probably still bugs with gradient
-!!     corrected functionals (never tested), and it didn't contain first 
-!!     derivatives with respect to drho (that contibute also to the second 
+!!     corrected functionals (never tested), and it didn't contain first
+!!     derivatives with respect to drho (that contibute also to the second
 !!     derivative wrt. rho).
-!!     The code was a little complex because it really tried to handle any 
+!!     The code was a little complex because it really tried to handle any
 !!     functional derivative in the most efficent way with the given contents of
 !!     rho_set.
 !!     Anyway I strongly encourage whoever wants to modify this code to give a
@@ -2002,8 +2002,8 @@ END FUNCTION xc_exc_calc
 !!     - pw_pool: the pool for the grids
 !!     - tddfpt_fac: factor that multiplies the crossterms (tddfpt triplets
 !!       on a closed shell sistem it should be -1, defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
@@ -2018,8 +2018,8 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
     REAL(kind=dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: vxg
     REAL(kind=dp), INTENT(in), OPTIONAL      :: tddfpt_fac
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
       routineP = moduleN//':'//routineN
@@ -2730,7 +2730,7 @@ CPSourceFileRef,&
                                e_norm_drho(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
                        ELSE
                           vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
-                               fac * e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)                         
+                               fac * e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
                        END IF
                     END IF
                  END DO
@@ -2787,7 +2787,7 @@ CPSourceFileRef,&
                                      e_norm_drho(i,j,k) * drho1a(idir)%array(i,j,k)
                              ELSE
                                 tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                     fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)                         
+                                     fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)
                              END IF
                           END DO
                        END DO
@@ -2988,7 +2988,7 @@ CPSourceFileRef,&
         ELSE
            ! partial integration
 
-           ! this does not work with non orthorombic cells 
+           ! this does not work with non orthorombic cells
            ! (you will have to use a vector of pw with 3 components)
            IF (ASSOCIATED(pw_pool)) THEN
               CALL pw_pool_create_pw(pw_pool,tmp_r(1)%pw,&
@@ -3096,8 +3096,8 @@ END SUBROUTINE xc_calc_2nd_deriv
 !!     - pw_pool: the pool for the grids
 !!     - xc_section: which functional should be used and how to calculate it
 !!     - cell: the simulation cell (needed to scale the derivatives)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_prep_2nd_deriv(deriv_set, &
@@ -3109,8 +3109,8 @@ END SUBROUTINE xc_calc_2nd_deriv
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
       routineP = moduleN//':'//routineN
@@ -3148,7 +3148,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     bo = rho_r(1)%pw%pw_grid%bounds_local
-    
+
     CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
     CALL timestop(0.0_dp,handle)
@@ -3160,8 +3160,8 @@ END SUBROUTINE xc_calc_2nd_deriv
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho', &
       routineP = moduleN//':'//routineN
@@ -3208,7 +3208,7 @@ END SUBROUTINE xc_calc_2nd_deriv
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          deriv_att%deriv_data(i,j,k) = deriv_att%deriv_data(i,j,k) / &
-                              MAX(rho_set%norm_drhoa(i,j,k), drho_cutoff) 
+                              MAX(rho_set%norm_drhoa(i,j,k), drho_cutoff)
                       END DO
                    END DO
                 END DO

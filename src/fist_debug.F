@@ -89,8 +89,8 @@ CONTAINS
 SUBROUTINE  debug_control ( force_env, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ewald_type, group, i, iatom, &
                                                 ir, isos, iw, iwf, natoms
@@ -128,12 +128,12 @@ SUBROUTINE  debug_control ( force_env, error)
                       atomic_kind_set = atomic_kind_set, molecule_set = molecule_set, &
                       local_molecules = local_molecules, &
                       molecule_kind_set = molecule_kind_set, &
-                      fist_nonbond_env = fist_nonbond_env, cell = cell )
+                      fist_nonbond_env = fist_nonbond_env, cell = cell ,error=error)
   NULLIFY(force_env_section)
   force_env_section => force_env%force_env_section
 
-  CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
-  CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
+  CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm ,error=error)
+  CALL ewald_env_get ( ewald_env, ewald_type = ewald_type ,error=error)
   isos = 0
 
   natoms = SIZE ( particle_set )
@@ -174,7 +174,7 @@ SUBROUTINE  debug_control ( force_env, error)
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_ub", 3 * natoms )
   ALLOCATE ( dbg % f_onef ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_onef", 3 * natoms )
-  
+
    dbg % f_nonbond          = 0.0_dp
    dbg % f_g                = 0.0_dp
    dbg % f_bond             = 0.0_dp
@@ -203,7 +203,7 @@ SUBROUTINE  debug_control ( force_env, error)
   CALL mp_sum ( dbg % f_imptors, group )
   CALL mp_sum ( dbg % f_onef, group )
   CALL mp_sum ( dbg % f_ub, group )
-  
+
 ! defining delta
   delta = 1.0E-5_dp
   IF ( iw>0 ) &
@@ -224,7 +224,7 @@ SUBROUTINE  debug_control ( force_env, error)
 
   CALL force_nonbond_numer ( atomic_kind_set, particle_set, local_particles, &
                              ewald_env, cell, potparm, delta, f_numer, &
-                             energy_numer)
+                             energy_numer,error=error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 )  THEN
@@ -283,10 +283,10 @@ SUBROUTINE  debug_control ( force_env, error)
 ! Debug non-bonded virial
 
   CALL pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
-                          particle_set, cell, pv_test, delta )
+                          particle_set, cell, pv_test, delta ,error=error)
 
   CALL mp_sum( pv_test, group )
- 
+
   IF ( iw > 0 ) THEN
 ! write out the virials
     WRITE ( iw, '( A )' ) ' PV ANA NON-BONDED'
@@ -373,7 +373,7 @@ SUBROUTINE  debug_control ( force_env, error)
 
    pv_test = 0.0_dp
    CALL pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                        particle_set, cell, pv_test, delta )
+                        particle_set, cell, pv_test, delta ,error=error)
    CALL mp_sum ( pv_test, group )
    IF ( iw > 0 ) THEN
 ! write out the virials
@@ -403,7 +403,7 @@ SUBROUTINE  debug_control ( force_env, error)
   pv_test = 0.0_dp
   CALL force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
                         particle_set, f_numer, energy_numer, delta )
-  
+
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 ) THEN
@@ -461,7 +461,7 @@ SUBROUTINE  debug_control ( force_env, error)
   ENDIF
 ! Debug ub virial
   CALL pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                     particle_set, cell, pv_test, delta )
+                     particle_set, cell, pv_test, delta ,error=error)
 
   CALL mp_sum ( pv_test, group )
   IF ( iw > 0 ) THEN
@@ -548,7 +548,7 @@ SUBROUTINE  debug_control ( force_env, error)
   ENDIF
 ! Debug ub virial
   CALL pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                          particle_set, cell, pv_test, delta )
+                          particle_set, cell, pv_test, delta ,error=error)
   CALL mp_sum ( pv_test, group )
   IF ( iw > 0 ) THEN
 ! write out the virials
@@ -633,9 +633,9 @@ SUBROUTINE  debug_control ( force_env, error)
   END IF
 ! Debug bend virial
   CALL pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                       particle_set, cell, pv_test, delta )
+                       particle_set, cell, pv_test, delta ,error=error)
   CALL mp_sum ( pv_test, group )
- 
+
   IF ( iw > 0 ) THEN
 ! write out the virials
     WRITE ( iw, '( A )' ) ' PV ANA BEND'
@@ -663,10 +663,10 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                            particle_set, f_numer, energy_numer, delta )
+                            particle_set, f_numer, energy_numer, delta ,error=error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
-  
+
   IF ( iw > 0 ) THEN
     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA TORSION = ', dbg % pot_torsion
@@ -723,7 +723,7 @@ SUBROUTINE  debug_control ( force_env, error)
   END IF
 ! Debug torsion virial
   CALL pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                          particle_set, cell, pv_test, delta )
+                          particle_set, cell, pv_test, delta ,error=error)
   CALL mp_sum ( pv_test, group )
 
   IF ( iw > 0 ) THEN
@@ -753,7 +753,7 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                                  particle_set, f_numer, energy_numer, delta )
+                                  particle_set, f_numer, energy_numer, delta ,error=error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 ) THEN
@@ -812,7 +812,7 @@ SUBROUTINE  debug_control ( force_env, error)
   END IF
 ! Debug torsion virial
   CALL pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                          particle_set, cell, pv_test, delta )
+                          particle_set, cell, pv_test, delta ,error=error)
   CALL mp_sum ( pv_test, group )
 
   IF ( iw > 0 ) THEN
@@ -833,7 +833,7 @@ SUBROUTINE  debug_control ( force_env, error)
 
   END IF
 ! Debug g-space
-  CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
+  CALL ewald_env_get ( ewald_env, ewald_type = ewald_type ,error=error)
   IF ( iw > 0 ) THEN
     IF ( ewald_type /= do_ewald_none ) THEN
       WRITE ( iw, '( A,A )' ) ' **************************************', &
@@ -847,7 +847,7 @@ SUBROUTINE  debug_control ( force_env, error)
   CASE ( do_ewald_ewald )
     energy_numer = 0.0_dp
     CALL ewald_energy_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
-                              particle_set, local_particles, energy_numer )
+                              particle_set, local_particles, energy_numer ,error=error)
     IF ( iw > 0 ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
          energy_numer
@@ -864,9 +864,9 @@ SUBROUTINE  debug_control ( force_env, error)
   CASE ( do_ewald_ewald )
     f_numer = 0.0_dp
     CALL ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set,  &
-                             particle_set, local_particles, delta, f_numer )
-    CALL mp_sum ( f_numer, group )    
-    CALL mp_sum ( dbg % f_g, group )    
+                             particle_set, local_particles, delta, f_numer ,error=error)
+    CALL mp_sum ( f_numer, group )
+    CALL mp_sum ( dbg % f_g, group )
   CASE ( do_ewald_pme )
     f_numer = 0.0_dp
     CALL pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_numer,&
@@ -895,7 +895,7 @@ SUBROUTINE  debug_control ( force_env, error)
 ! find the maximum difference and the relative and absolute errors
    WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
        MAXVAL (diff)
-   IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
+   IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN
      WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
        MAXVAL (rel)
    ENDIF
@@ -910,7 +910,7 @@ SUBROUTINE  debug_control ( force_env, error)
    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
         f_numer(:,dum(2))
 
-   IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
+   IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN
      dum = MAXLOC ( rel )
      WRITE ( iw, '( A,T71,I10 )' ) &
         'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -926,7 +926,7 @@ SUBROUTINE  debug_control ( force_env, error)
   CASE ( do_ewald_ewald )
     pv_test = 0.0_dp
     CALL pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
-                       particle_set, local_particles, delta, pv_test )
+                       particle_set, local_particles, delta, pv_test ,error=error)
   CASE ( do_ewald_pme )
     CALL stop_program ( "fist_debug", " NO PME debug routines " )
   CASE ( do_ewald_spme )

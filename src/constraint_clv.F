@@ -74,8 +74,8 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE fix_atom_control( force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fix_atom_control', &
       routineP = moduleN//':'//routineN
@@ -101,12 +101,12 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
     IF (.NOT. failure) THEN
-       CALL force_env_get(force_env=force_env, subsys=subsys)
+       CALL force_env_get(force_env=force_env, subsys=subsys,error=error)
        DO isubsys = 1, SIZE(subsys)
           CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
                particles=particles, &
                local_particles=local_particles,&
-               molecule_kinds_new=molecule_kinds )
+               molecule_kinds_new=molecule_kinds ,error=error)
 
           nkind             =  molecule_kinds % n_els
           molecule_kind_set => molecule_kinds % els
@@ -130,11 +130,11 @@ CONTAINS
                    force(:,iparticle)  = particle_set(iparticle)%f(:)
                 END DO
              END DO
-             
+
              Mol_kind:  DO ikind = 1, nkind
                 molecule_kind => molecule_kind_set(ikind)
                 CALL get_molecule_kind ( molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list )
-                
+
                 IF (nfixed_atoms ==0) CYCLE Mol_Kind
                 DO i = 1, SIZE(local_particles%n_el)
                    nparticle_local   = local_particles%n_el(i)
@@ -155,7 +155,7 @@ CONTAINS
                 END DO
              END DO Mol_kind
              CALL update_particle_set(particle_set,force_env%para_env%group,for=force)
-             
+
              DEALLOCATE(force,stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
@@ -193,8 +193,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv', &
       routineP = moduleN//':'//routineN
@@ -209,7 +209,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     failure = .FALSE.
-    ishake = 0       
+    ishake = 0
     max_sigma = -1.0E+10_dp
     dtsqby2 = dt*dt*.5_dp
     dtby2   = dt*.5_dp
@@ -223,16 +223,16 @@ CONTAINS
        IF (ishake==1) THEN
           DO iconst = 1, SIZE(colv_list)
              IF (colv_list(iconst)%restraint%active) CYCLE
-             ! Update positions 
+             ! Update positions
              CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
                   imass=imass, error=error)
-             ! Update velocities 
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
                   imass=imass, error=error)
           END DO
-       ELSE             
+       ELSE
           DO iconst = 1, SIZE(colv_list)
              IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar
@@ -244,12 +244,12 @@ CONTAINS
                   lcolv ( iconst ) % colvar_old, particle_set, imass=imass, error=error)
              del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
-             
-             ! Update positions 
+
+             ! Update positions
              CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                   particles=particle_set, lambda=del_lam,&
                   imass=imass, error=error)
-             ! Update velocities 
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=del_lam,&
                   imass=imass, error=error)
@@ -298,8 +298,8 @@ CONTAINS
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: first_atom, iconst, irattle
     REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum, &
@@ -323,31 +323,31 @@ CONTAINS
              IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar_old
              CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
-                  particles=particle_set, error=error)                
-             ! Update velocities 
+                  particles=particle_set, error=error)
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
-                  imass=imass,error=error)                
+                  imass=imass,error=error)
           END DO
-       ELSE             
+       ELSE
           DO iconst = 1, SIZE(colv_list)
              IF (colv_list(iconst)%restraint%active) CYCLE
-             lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
+             lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,error=error)
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
                   lcolv ( iconst ) % colvar_old, particle_set,imass=imass,error=error)
              del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
-             
-             ! Update velocities 
+
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=del_lam,&
-                  imass=imass,error=error)  
+                  imass=imass,error=error)
           END DO
        END IF
-       
+
        DO iconst = 1, SIZE(colv_list)
           IF (colv_list(iconst)%restraint%active) CYCLE
-          lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
+          lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,error=error)
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
        IF (log_unit>0) &
@@ -386,8 +386,8 @@ CONTAINS
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: first_atom, iconst, ishake
     REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
@@ -410,11 +410,11 @@ CONTAINS
        IF (ishake==1) THEN
           DO iconst = 1, SIZE(colv_list)
              IF (colv_list(iconst)%restraint%active) CYCLE
-             ! Update positions 
+             ! Update positions
              CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
                   roll=.TRUE.,rmat=r_shake,imass=imass,error=error)
-             ! Update velocities 
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
                   roll=.TRUE.,rmat=v_shake,imass=imass,error=error)
@@ -432,18 +432,18 @@ CONTAINS
                   imass=imass, error=error)
              del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
-             
-             ! Update positions 
+
+             ! Update positions
              CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                   particles=particle_set, lambda=del_lam,&
                   roll=.TRUE., rmat=r_shake, imass=imass,error=error)
-             ! Update velocities 
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=del_lam,&
                   roll=.TRUE., rmat=v_shake, imass=imass,error=error)
           END DO
        END IF
-       
+
        ! computing the constraint and value of tolerance
        DO iconst = 1, SIZE(colv_list)
           IF (colv_list(iconst)%restraint%active) CYCLE
@@ -489,8 +489,8 @@ CONTAINS
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: first_atom, iconst, irattle
     REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum, &
@@ -514,8 +514,8 @@ CONTAINS
              IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar_old
              CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
-                  particles=particle_set, error=error)                
-             ! Update velocities 
+                  particles=particle_set, error=error)
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
                   imass=imass,error=error)
@@ -531,11 +531,11 @@ CONTAINS
                   rmat=r_rattle,imass=imass, error=error)
              del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
-             
-             ! Update velocities 
+
+             ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=del_lam,&
-                  roll=.TRUE.,rmat=r_rattle,imass=imass,error=error)  
+                  roll=.TRUE.,rmat=r_rattle,imass=imass,error=error)
           END DO
        END IF
        ! computing the constraint and value of the tolerance
@@ -580,8 +580,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: rmat
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_con_colv', &
       routineP = moduleN//':'//routineN
@@ -637,8 +637,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: rmat
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_Jac_colvar', &
@@ -661,7 +661,7 @@ CONTAINS
     DO i = 1, SIZE(colvar%i_atom)
        iatom = colvar%i_atom(i)
        tmp1 = colvar%dsdr(1:3,i)
-       IF (my_roll) THEN          
+       IF (my_roll) THEN
           tmp3 = colvar_old%dsdr(1:3,i)
           CALL  matvec_3x3 (tmp2, rmat, tmp3 )
        ELSE
@@ -695,8 +695,8 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: veps, rmat
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rattle_con_eval', &
@@ -725,7 +725,7 @@ CONTAINS
           CALL MATVEC_3x3 (f_roll, rmat, colvar % dsdr(:,iatm) )
           CALL matvec_3x3 (tmp, veps, pos )
           v_roll = vel(:,ind) + tmp
-       ELSE          
+       ELSE
           f_roll = colvar % dsdr(:,iatm)
           v_roll = vel(:,ind)
        END IF

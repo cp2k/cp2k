@@ -9,7 +9,7 @@
 !!   NAME
 !!     kg_gpw_correction
 !!
-!!     
+!!
 !!   AUTHOR
 !!     MI (20.12.2004)
 !!
@@ -19,7 +19,7 @@
 !!   SOURCE
 !******************************************************************************
 
- 
+
 MODULE kg_gpw_correction
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -98,14 +98,14 @@ CONTAINS
 !!     - fm_mol_set : other info about the molecule, maybe not neede
 !!     - h : ks-matrix in sparse form
 !!     - ekin_mol : total energy from this term (to be added to the total energy)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     MI
 !!
 !!   MODIFICATION HISTORY
-!!    
+!!
 !!
 !!*** **********************************************************************
 
@@ -121,8 +121,8 @@ CONTAINS
       POINTER                                :: ks_global, p_global
     REAL(dp), INTENT(OUT)                    :: ekin_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_ekin_mol', &
       routineP = moduleN//':'//routineN
@@ -177,7 +177,7 @@ CONTAINS
     NULLIFY(rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau,input,xc_section_kg)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-         input=input,rho=rho_global,para_env=para_env)
+         input=input,rho=rho_global,para_env=para_env,error=error)
 
     ! generate a new XC section with only the KE functional
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
@@ -254,7 +254,7 @@ CONTAINS
     IF (rho_global%tau_r_valid) THEN
        ALLOCATE(tau(nspins),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF 
+    END IF
 
     ! for gradient corrected functional the density in g space might be useful
     IF ( rho_global%rho_g_valid ) THEN
@@ -273,10 +273,10 @@ CONTAINS
     IF(PRESENT(calculate_forces)) my_calculate_forces = calculate_forces
 
     IF (my_calculate_forces) THEN
-    ! Array of index within the kind 
+    ! Array of index within the kind
     ! to associate the forces to the right position in forces array
 
-      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
+      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
       natom = SIZE(particle_set)
       ALLOCATE (atom_of_kind(natom),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -284,7 +284,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
-      CALL get_qs_env(qs_env=qs_env, force=force_global)
+      CALL get_qs_env(qs_env=qs_env, force=force_global,error=error)
 
     END IF
 
@@ -314,7 +314,7 @@ CONTAINS
         END IF
 
         ! Loop over the molecules of one kind
-        DO imol = 1,nmol_local 
+        DO imol = 1,nmol_local
 
           NULLIFY(rho_block, rho_mol, r_mbox)
           rho_block => rho_mol_blocks(imol)

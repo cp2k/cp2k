@@ -117,8 +117,8 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_info', &
       routineP = moduleN//':'//routineN
@@ -207,8 +207,8 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     INTEGER                                  :: n, stat
     LOGICAL                                  :: calc(0:4)
@@ -338,8 +338,8 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     INTEGER                                  :: i, j, k
     LOGICAL                                  :: calc(0:4)

@@ -88,7 +88,7 @@ CONTAINS
 !!     needs updated  pw pools, s, s_mstruct and h in qs_env.
 !!     The use of p to keep the structure of h (needed for the forces)
 !!     is ugly and should be removed.
-!!     Change so that it does not allocate a subcomponent if it is not 
+!!     Change so that it does not allocate a subcomponent if it is not
 !!     associated and not requested?
 !!
 !!   INPUTS
@@ -97,8 +97,8 @@ CONTAINS
 !!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
 !!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
 !!       Defaults to false.
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -112,8 +112,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids, &
                                                 gapw_xc
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
       routineP = moduleN//':'//routineN
@@ -170,14 +170,14 @@ CONTAINS
     IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
        IF (.NOT.failure) THEN
           IF (ASSOCIATED(rho%rho_ao)) THEN
-             CALL deallocate_matrix_set(rho%rho_ao)
+             CALL deallocate_matrix_set(rho%rho_ao,error=error)
           END IF
-          CALL allocate_matrix_set(rho%rho_ao,nspins)
+          CALL allocate_matrix_set(rho%rho_ao,nspins,error=error)
           DO i=1,nspins
              NULLIFY (rho%rho_ao(i)%matrix)
              CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                 rho%rho_ao(i)%matrix,&
-                  "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))))
+                  "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
           END DO
        END IF
      END IF
@@ -188,7 +188,7 @@ CONTAINS
      IF (.NOT.failure) THEN
         IF (ASSOCIATED(rho%rho_r)) THEN
            DO i=1,SIZE(rho%rho_r)
-              CALL coeff_deallocate(rho%rho_r(i))
+              CALL coeff_deallocate(rho%rho_r(i),error=error)
            END DO
            DEALLOCATE(rho%rho_r,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -209,7 +209,7 @@ CONTAINS
      IF (.NOT.failure) THEN
         IF (ASSOCIATED(rho%rho_g)) THEN
            DO i=1,SIZE(rho%rho_g)
-              CALL coeff_deallocate(rho%rho_g(i))
+              CALL coeff_deallocate(rho%rho_g(i),error=error)
            END DO
            DEALLOCATE(rho%rho_g,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -225,14 +225,14 @@ CONTAINS
      END IF
   END IF
 
-  ! allocate tau_r and tau_g if use_kinetic_energy_density 
+  ! allocate tau_r and tau_g if use_kinetic_energy_density
   IF (dft_control%use_kinetic_energy_density) THEN
      ! tau_r
      IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%tau_r)) THEN
         IF (.NOT.failure) THEN
            IF (ASSOCIATED(rho%tau_r)) THEN
               DO i=1,SIZE(rho%tau_r)
-                 CALL coeff_deallocate(rho%tau_r(i))
+                 CALL coeff_deallocate(rho%tau_r(i),error=error)
               END DO
               DEALLOCATE(rho%tau_r,stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -253,7 +253,7 @@ CONTAINS
         IF (.NOT.failure) THEN
            IF (ASSOCIATED(rho%tau_g)) THEN
               DO i=1,SIZE(rho%tau_g)
-                 CALL coeff_deallocate(rho%tau_g(i))
+                 CALL coeff_deallocate(rho%tau_g(i),error=error)
               END DO
               DEALLOCATE(rho%tau_g,stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -270,7 +270,7 @@ CONTAINS
      END IF
   END IF  ! use_kinetic_energy_density
 
-  CALL timestop(0.0_dp,handle) 
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_rho_rebuild
 !***************************************************************************
 
@@ -298,7 +298,7 @@ END SUBROUTINE qs_rho_rebuild
 !!     - rho_struct: the rho structure that should be updated
 !!     - qs_env: the qs_env rho_struct refers to
 !!       the integrated charge in r space
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -311,8 +311,8 @@ END SUBROUTINE qs_rho_rebuild
 SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
       routineP = moduleN//':'//routineN
@@ -331,7 +331,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control,error=error)
       nspins=dft_control%nspins
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
@@ -372,11 +372,11 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
 
      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF(gapw ) THEN
-         CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao)
+         CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao,error=error)
       ENDIF
       IF(gapw_xc ) THEN
-         CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc)
-         CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao)
+         CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc,error=error)
+         CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao,error=error)
          DO ispin=1,nspins
            CALL calculate_rho_elec(matrix_p=rho_xc%rho_ao(ispin)%matrix,&
                 rho=rho_xc%rho_r(ispin),&
@@ -401,7 +401,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
          ENDIF
       ENDIF
     END IF
-    
+
 END SUBROUTINE qs_rho_update_rho
 
 !***************************************************************************
@@ -420,10 +420,10 @@ END SUBROUTINE qs_rho_update_rho
 !!   INPUTS
 !!     - rho_input: The rho structure to be duplicated
 !!     - rho_output: The duplicate rho structure
-!!     - qs_env: The QS environment from which the auxilliary PW basis-set 
+!!     - qs_env: The QS environment from which the auxilliary PW basis-set
 !!               pool is taken
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -436,8 +436,8 @@ END SUBROUTINE qs_rho_update_rho
 
     TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_rho_type', &
       routineP = moduleN//':'//routineN
@@ -477,22 +477,22 @@ END SUBROUTINE qs_rho_update_rho
       NULLIFY(rho_output%rho_ao, rho_output%rho_g, rho_output%rho_r, &
               rho_output%tau_g, rho_output%tau_r, rho_output%tot_rho_r, &
               rho_output%tot_rho_g)
-      
+
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
         !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-        CALL allocate_matrix_set(rho_output%rho_ao, nspins)
+        CALL allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         !DO i = 1, SIZE(rho_input%rho_ao)
         DO i = 1, nspins
           CALL replicate_matrix(source=rho_input%rho_ao(i)%matrix, &
                                 TARGET=rho_output%rho_ao(i)%matrix, &
                                 target_name="myDensityMatrix_for_Spin_"//&
                                 TRIM(ADJUSTL(cp_to_string(i))), &
-                                allocate_blocks=.TRUE.)
+                                allocate_blocks=.TRUE.,error=error)
         END DO
       END IF
     END IF
-    
+
     ! rho_r
     IF (.NOT. failure) THEN
       IF (ASSOCIATED(rho_input%rho_r)) THEN
@@ -532,8 +532,8 @@ END SUBROUTINE qs_rho_update_rho
     END IF
 
 
-    ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals 
-    ! are used. Therefore they are only allocated if 
+    ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
+    ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
     IF (.NOT.failure) THEN
       IF (dft_control%use_kinetic_energy_density) THEN
@@ -617,7 +617,7 @@ END SUBROUTINE qs_rho_update_rho
 !!     diff_rho_type
 !!
 !!   FUNCTION
-!!     Creates a qs_rho_type, which is equivalent to 
+!!     Creates a qs_rho_type, which is equivalent to
 !!     alpha*rho_input1 - beta*rho_input2
 !!
 !!   NOTES
@@ -628,10 +628,10 @@ END SUBROUTINE qs_rho_update_rho
 !!     - alpha & beta: Multiplier for the rho input structures
 !!     - rho_input1 & rho_input2: The rho input structure
 !!     - rho_output: The difference rho structure
-!!     - qs_env: The QS environment from which the auxilliary PW basis-set 
+!!     - qs_env: The QS environment from which the auxilliary PW basis-set
 !!               pool is taken
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -648,8 +648,8 @@ END SUBROUTINE qs_rho_update_rho
     REAL(KIND=dp), OPTIONAL                  :: beta
     TYPE(qs_rho_type), POINTER               :: rho_input2, rho_output
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diff_rho_type', &
       routineP = moduleN//':'//routineN
@@ -708,14 +708,14 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input1%rho_ao) .AND. ASSOCIATED(rho_input2%rho_ao)) THEN
         !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-        CALL allocate_matrix_set(rho_output%rho_ao, nspins)
+        CALL allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         !DO i = 1, SIZE(rho_input%rho_ao)
         DO i = 1, nspins
           CALL replicate_matrix(source=rho_input1%rho_ao(i)%matrix, &
                                 TARGET=rho_output%rho_ao(i)%matrix, &
                                 target_name="myDensityMatrix_for_Spin_"//&
                                 TRIM(ADJUSTL(cp_to_string(i))), &
-                                allocate_blocks=.TRUE.)
+                                allocate_blocks=.TRUE.,error=error)
           CALL add_matrices(c=rho_output%rho_ao(i)%matrix, alpha=a, &
                             a=rho_input1%rho_ao(i)%matrix, beta=b, &
                             b=rho_input2%rho_ao(i)%matrix)
@@ -768,8 +768,8 @@ END SUBROUTINE qs_rho_update_rho
     END IF
 
 
-    ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals 
-    ! are used. Therefore they are only allocated if 
+    ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
+    ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
     IF (.NOT.failure) THEN
       IF (dft_control%use_kinetic_energy_density) THEN
@@ -870,10 +870,10 @@ END SUBROUTINE qs_rho_update_rho
 !!   INPUTS
 !!     - rho_input: The rho structure to be copied
 !!     - rho_output: The copy rho structure
-!!     - qs_env: The QS environment from which the auxilliary PW basis-set 
+!!     - qs_env: The QS environment from which the auxilliary PW basis-set
 !!               pool is taken
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -886,8 +886,8 @@ END SUBROUTINE qs_rho_update_rho
 
     TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_rho_type', &
       routineP = moduleN//':'//routineN
@@ -923,17 +923,17 @@ END SUBROUTINE qs_rho_update_rho
     END IF
 
     IF (.NOT. failure) THEN
-      
+
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
         IF (.NOT. ASSOCIATED(rho_output%rho_ao)) THEN
-          CALL allocate_matrix_set(rho_output%rho_ao, nspins)
+          CALL allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
           DO i = 1, nspins
             CALL replicate_matrix(source=rho_input%rho_ao(i)%matrix, &
                                   TARGET=rho_output%rho_ao(i)%matrix, &
                                   target_name="myDensityMatrix_for_Spin_"//&
                                   TRIM(ADJUSTL(cp_to_string(i))), &
-                                  allocate_blocks=.TRUE.)
+                                  allocate_blocks=.TRUE.,error=error)
           END DO
         ELSE
           DO i = 1,nspins
@@ -946,7 +946,7 @@ END SUBROUTINE qs_rho_update_rho
         END IF
       END IF
     END IF
-    
+
     ! rho_r
     IF (.NOT. failure) THEN
       IF (ASSOCIATED(rho_input%rho_r)) THEN
@@ -1004,8 +1004,8 @@ END SUBROUTINE qs_rho_update_rho
     END IF
 
 
-    ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals 
-    ! are used. Therefore they are only allocated if 
+    ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
+    ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
     IF (.NOT.failure) THEN
       IF (dft_control%use_kinetic_energy_density) THEN

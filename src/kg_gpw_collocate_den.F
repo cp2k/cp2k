@@ -11,7 +11,7 @@
 !!
 !!   FUNCTION
 !!     Calculate the plane wave density for each molecule independently
-!!     by collocating the primitive Gaussian functions on the grids 
+!!     by collocating the primitive Gaussian functions on the grids
 !!     constructed in the molecolar box. The molecule is centered in the
 !!     small box and no PBC are used.
 !!     Each molecule is handled by one processor entirely, therefore
@@ -107,7 +107,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     This function is called within a loop over all the molecules
-!!     to calculate the molecular density on the molecular grid only. 
+!!     to calculate the molecular density on the molecular grid only.
 !!     The molecular densities are used by KG_GPW to calculate the Kinetic energy
 !!     correction by subtracting the sum of the kinetic energies calculated
 !!     for each molecule independently
@@ -117,8 +117,8 @@ CONTAINS
 !!     which is based on a molecular cell box that does not use PBC
 !!     The molecule is located in the center of the bos and the coordinates passed
 !!     to this routine are internal coordinates.
-!!     At this level, it should not be necessary to have the atomic positions 
-!!     in the global box 
+!!     At this level, it should not be necessary to have the atomic positions
+!!     in the global box
 !!
 !!   INPUTS
 !!     - qs_env: the qs environment
@@ -130,14 +130,14 @@ CONTAINS
 !!     - kind: index of the kind of the atoms in the molecule (input)
 !!     - ratom: internal coordinates of the atoms in the box of the molecule (input)
 !!     - compute_tau: logical to control if tau is required
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     MI
 !!
 !!   MODIFICATION HISTORY
-!!    
+!!
 !!
 !!*** **************************************************************************
 
@@ -152,8 +152,8 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom, kind
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ratom
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_mol', &
       routineP = moduleN//':'//routineN
@@ -208,7 +208,7 @@ CONTAINS
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referencing to rho are actually tau
-    IF (PRESENT(compute_tau)) THEN 
+    IF (PRESENT(compute_tau)) THEN
        my_compute_tau = compute_tau
     ELSE
        my_compute_tau = .FALSE.
@@ -225,7 +225,7 @@ CONTAINS
     NULLIFY(atomic_kind_set,dft_control)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control)
+                    dft_control=dft_control,error=error)
 
     ! *** assign from pw_env
     NULLIFY(gridlevel_info,cube_info)
@@ -233,7 +233,7 @@ CONTAINS
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
 
-    ! *** set up the pw multi-grids 
+    ! *** set up the pw multi-grids
     NULLIFY(rs_pools,pw_pools)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
@@ -308,7 +308,7 @@ CONTAINS
        iatom = atom(iat)
        ra(1:3) = ratom(1:3,iat)
 
-       IF(ikind /= ikind_old) THEN 
+       IF(ikind /= ikind_old) THEN
          NULLIFY(atomic_kind,orb_basis_a,la_max,la_min,npgfa,nsgfa,&
                  rpgfa,set_radius_a,sphi_a,zeta)
          atomic_kind => atomic_kind_set(ikind)
@@ -328,7 +328,7 @@ CONTAINS
                                 set_radius=set_radius_a,&
                                 sphi=sphi_a,&
                                 zet=zeta)
-         ikind_old = ikind 
+         ikind_old = ikind
        END IF
        IF (.NOT.ASSOCIATED(orb_basis_a)) CYCLE
 
@@ -397,17 +397,17 @@ CONTAINS
           DO iset=1,nseta
 
             IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
-   
+
             IF (iatom == jatom) THEN
                first_setb = iset
             ELSE
                first_setb = 1
             END IF
- 
+
             DO jset=first_setb,nsetb
- 
+
               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
- 
+
               DO ipgf=1,npgfa(iset)
 
                 IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
@@ -419,9 +419,9 @@ CONTAINS
                 END IF
 
                 DO jpgf=first_pgfb,npgfb(jset)
- 
+
                   IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
- 
+
                   zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
 
                   IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
@@ -505,11 +505,11 @@ CONTAINS
 !$          ithread = omp_get_thread_num()
             pab => pabt(:,:,ithread)
             work => workt(:,:,ithread)
-!$OMP do 
-            DO itask = 1,num_tasks 
- 
+!$OMP do
+            DO itask = 1,num_tasks
+
               IF (.NOT.ASSOCIATED(p_block)) &
-                  CALL stop_program(routineP,"p_block not associated in matrixp") 
+                  CALL stop_program(routineP,"p_block not associated in matrixp")
               iset = ival (3,itask)
               jset = ival (4,itask)
               ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -560,7 +560,7 @@ CONTAINS
                        l_info,eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        lgrid=lgrid,ithread=ithread, &
-                       map_consistent=map_consistent)
+                       map_consistent=map_consistent,error=error)
                 ELSE
                   CALL collocate_pgf_product_rspace(&
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -570,7 +570,7 @@ CONTAINS
                        l_info,eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        lgrid=lgrid,ithread=ithread, &
-                       map_consistent=map_consistent)
+                       map_consistent=map_consistent,error=error)
                 END IF
               ELSE
                 IF (iatom <= jatom) THEN
@@ -581,7 +581,7 @@ CONTAINS
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                        l_info,eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
-                       map_consistent=map_consistent)
+                       map_consistent=map_consistent,error=error)
                 ELSE
                   CALL collocate_pgf_product_rspace(&
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -590,7 +590,7 @@ CONTAINS
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                        l_info,eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
-                       map_consistent=map_consistent)
+                       map_consistent=map_consistent,error=error)
                 END IF
               END IF
             END DO  ! itask
@@ -617,7 +617,7 @@ CONTAINS
 
     IF ( nthread > 1 ) THEN
       DEALLOCATE (lgrid%r,STAT=istat)
-      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error) 
+      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END IF
 
     DEALLOCATE (pabt,workt,ntasks,tasks,tasks_local,ival,latom,STAT=istat)
@@ -637,15 +637,15 @@ CONTAINS
        ENDDO
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
-       ! we want both rho_r and rho_g 
-       IF (dft_control % qs_control % realspace_mgrids) THEN 
+       ! we want both rho_r and rho_g
+       IF (dft_control % qs_control % realspace_mgrids) THEN
            CALL pw_copy(mgrid_rspace(gridlevel_info%ngrid_levels)%pw,mgrid_temp_rspace(gridlevel_info%ngrid_levels)%pw)
            DO igridlevel=gridlevel_info%ngrid_levels,2,-1
               ! prologate to the next grid and addup
               CALL pw_prolongate_l(mgrid_temp_rspace(igridlevel)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
               ! add the next grid to the prolongated grid
               CALL pw_sumup(mgrid_rspace(igridlevel-1)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
-           ENDDO 
+           ENDDO
            CALL pw_copy(mgrid_temp_rspace(1)%pw,rho_r%pw)
            CALL coeff_transform_space(rho_r,rho_g)
         ELSE
@@ -658,7 +658,7 @@ CONTAINS
            CALL coeff_transform_space(rho_g,rho_r)
        ENDIF
     END IF
-    
+
     total_rho = calculate_total_rho(rho_r)
 
     ! *** give back the pw multi-grids
@@ -690,7 +690,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     This function is called within a loop over all the molecules
-!!     to calculate  integrate a given potential defined on the molecular grid only. 
+!!     to calculate  integrate a given potential defined on the molecular grid only.
 !!     This is used by KG_GPW to calculate the Kinetic energy
 !!     correction as sum over the molecular contributions to the kinetic energy calculated
 !!     through the kinetic energy functional of the single molecular density,
@@ -701,7 +701,7 @@ CONTAINS
 !!     The corresponding molecular cell box  does not use PBC and is smaller than the global box.
 !!     The molecule is located in the center of the box and the coordinates passed
 !!     to this routine are internal coordinates.
-!!     At this level, it should not be necessary to have the atomic positions in the global box 
+!!     At this level, it should not be necessary to have the atomic positions in the global box
 !!
 !!   INPUTS
 !!     - qs_env: the qs environment
@@ -714,20 +714,20 @@ CONTAINS
 !!     - ratom: internal coordinates of the atoms in the box of the molecule (input)
 !!     - forces_mol: forces on the atoms of the molecule, coming from this additional potential
 !!     - compute_tau: logical to control if tau is required
-!!     - error: variable to control error logging, stopping, see module cp_error_handling 
+!!     - error: variable to control error logging, stopping, see module cp_error_handling
 !!
 !!   AUTHOR
 !!     MI
 !!
 !!   MODIFICATION HISTORY
-!!    
+!!
 !!
 !!*** **************************************************************************
 
   SUBROUTINE integrate_mol_potential(qs_env,vxc_mol,matrix_p,&
                                     matrix_h,pw_env,atom, kind, ratom,&
                                     forces_mol,compute_tau,error)
- 
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(IN)             :: vxc_mol
     TYPE(real_matrix_p_type), INTENT(IN)     :: matrix_p
@@ -738,8 +738,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_mol_potential', &
       routineP = moduleN//':'//routineN
@@ -792,7 +792,7 @@ CONTAINS
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
-    IF (PRESENT(compute_tau)) THEN 
+    IF (PRESENT(compute_tau)) THEN
        my_compute_tau = compute_tau
     ELSE
        my_compute_tau = .FALSE.
@@ -810,7 +810,7 @@ CONTAINS
     NULLIFY(atomic_kind_set,dft_control)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control)
+                    dft_control=dft_control,error=error)
 
     ! *** assign from pw_env for this molecule kind
     NULLIFY(gridlevel_info,cube_info)
@@ -1181,7 +1181,7 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.TRUE.,&
                           force_a=force_a,force_b=force_b,ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,map_consistent=map_consistent,error=error)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -1192,7 +1192,7 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.TRUE.,&
                           force_a=force_b,force_b=force_a,ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,map_consistent=map_consistent,error=error)
                    END IF
                 ELSE
                    IF (iatom <= jatom) THEN
@@ -1205,7 +1205,7 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.FALSE.,&
                           ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,map_consistent=map_consistent,error=error)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -1216,7 +1216,7 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.FALSE.,&
                           ithread=ithread, &
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,map_consistent=map_consistent,error=error)
                    END IF
                 END IF
               END DO ! itask
@@ -1262,7 +1262,7 @@ CONTAINS
                 pabt,atasks,STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -1295,7 +1295,7 @@ CONTAINS
          iset_old = iset
          jset_old = jset
         END IF
-     END DO  ! itask 
+     END DO  ! itask
      IF(nset_pairs>0) atasks(2,nset_pairs) = npme
 
   END SUBROUTINE pair_get_loop_vars

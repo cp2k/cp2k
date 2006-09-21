@@ -140,8 +140,8 @@ CONTAINS
   SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env,error)
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
@@ -181,8 +181,8 @@ CONTAINS
     ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
     IF(ierr/=0) CALL stop_memory("integrate_v_core_rspace","hab,pab",1)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool,error=error)
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_v, error=error)
 
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
@@ -193,7 +193,7 @@ CONTAINS
                     dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,pw_env=pw_env,&
-                    force=force,virial=virial)
+                    force=force,virial=virial,error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -232,7 +232,7 @@ CONTAINS
 
       END DO
 
-      CALL rs_get_my_tasks ( rs_v, tasks, npme )
+      CALL rs_get_my_tasks ( rs_v, tasks, npme ,error=error)
 
       DO j=1,npme
 
@@ -268,7 +268,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v)
+    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v,error=error)
 
     DEALLOCATE(hab,pab,tasks,STAT=ierr)
     IF(ierr /= 0) CALL stop_memory("integrate_v_core_rspace",&
@@ -279,17 +279,17 @@ CONTAINS
   END SUBROUTINE integrate_v_core_rspace
 
 ! **********************************************************************
-! integrates a given potential (or other object on a real 
+! integrates a given potential (or other object on a real
 ! space grid) = v_rspace using a multi grid technique (mgrid_*)
-! over the basis set producing a number for every element of h 
+! over the basis set producing a number for every element of h
 ! (should have the same sparsity structure of S)
-! additional screening is available using the magnitude of the 
+! additional screening is available using the magnitude of the
 ! elements in p (? I'm not sure this is a very good idea)
 ! this argument is optional
-! derivatives of these matrix elements with respect to the ionic 
+! derivatives of these matrix elements with respect to the ionic
 ! coordinates can be computed as well
 ! ***********************************************************************
- 
+
   SUBROUTINE integrate_v_rspace(v_rspace,&
                                 p,h,qs_env,calculate_forces,compute_tau,gapw,&
                                 matrix_dv,error)
@@ -303,8 +303,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, TARGET                       :: matrix_dv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
@@ -421,7 +421,7 @@ CONTAINS
                     para_env=para_env,&
                     input=input,&
                     force=force,pw_env=pw_env,&
-                    virial=virial)
+                    virial=virial,error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -511,7 +511,7 @@ CONTAINS
             cp_to_string(interp_kind),error=error)
     END SELECT
 
-    CALL pw_env_get(pw_env, rs_pools=rs_pools)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
@@ -563,11 +563,11 @@ CONTAINS
                          last_col=h%matrix%last_col(:),&
                          matrix_name="LocalH",&
                          sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
-                         matrix_symmetry=h%matrix%symmetry)
+                         matrix_symmetry=h%matrix%symmetry,error=error)
         h_duplicated = .TRUE.
         IF (has_dv) THEN
            NULLIFY(ddv)
-           CALL allocate_matrix_set(ddv,3)
+           CALL allocate_matrix_set(ddv,3,error=error)
            DO idir=1,3
               CALL allocate_matrix(matrix=ddv(idir)%matrix,&
                          nrow=h%matrix%nrow,&
@@ -580,7 +580,7 @@ CONTAINS
                          last_col=h%matrix%last_col(:),&
                          matrix_name="LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))),&
                          sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
-                         matrix_symmetry=h%matrix%symmetry)
+                         matrix_symmetry=h%matrix%symmetry,error=error)
            END DO
         END IF
         EXIT
@@ -603,7 +603,7 @@ CONTAINS
                          last_col=p%matrix%last_col(:),&
                          matrix_name="LocalP",&
                          sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
-                         matrix_symmetry=p%matrix%symmetry)
+                         matrix_symmetry=p%matrix%symmetry,error=error)
            p_duplicated = .TRUE.
            EXIT
          END IF
@@ -740,14 +740,14 @@ CONTAINS
             IF ( p_duplicated ) THEN
               IF (iatom <= jatom) THEN
                  NULLIFY ( dp_block )
-                 CALL add_block_node ( deltap, iatom, jatom, dp_block )
+                 CALL add_block_node ( deltap, iatom, jatom, dp_block ,error=error)
                  CALL get_block_node(matrix=p%matrix,&
                                      block_row=iatom,&
                                      block_col=jatom,&
                                      block=p_block)
                ELSE
                  NULLIFY ( dp_block )
-                 CALL add_block_node ( deltap, jatom, iatom, dp_block )
+                 CALL add_block_node ( deltap, jatom, iatom, dp_block ,error=error)
                  CALL get_block_node(matrix=p%matrix,&
                                      block_row=jatom,&
                                      block_col=iatom,&
@@ -755,39 +755,39 @@ CONTAINS
                END IF
                dp_block = p_block
             ENDIF
- 
+
              rb(:) = ra(:) + rab(:)
              rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
              dab = SQRT(rab2)
- 
+
              DO iset=1,nseta
- 
+
                IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
- 
+
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1,iset)
- 
+
                DO jset=1,nsetb
- 
+
                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
- 
+
                  ncob = npgfb(jset)*ncoset(lb_max(jset))
                  sgfb = first_sgfb(1,jset)
-    
+
                  DO ipgf=1,npgfa(iset)
- 
+
                    IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
- 
+
                    na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                    na2 = ipgf*ncoset(la_max(iset))
- 
+
                    DO jpgf=1,npgfb(jset)
- 
+
                      IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
- 
+
                      nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
                      nb2 = jpgf*ncoset(lb_max(jset))
- 
+
                      zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
                      IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
                          igrid_level = 1
@@ -874,10 +874,10 @@ CONTAINS
             END DO
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local, &
-                                   pmat=deltap, pcor=latom )
+                                   pmat=deltap, pcor=latom ,error=error)
           ELSE
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
-                                   npme, ival=ival, rval=dab_local )
+                                   npme, ival=ival, rval=dab_local ,error=error)
           END IF
           CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
 
@@ -927,7 +927,7 @@ CONTAINS
                                 block_col=bcol,&
                                 block=h_block)
             IF (.NOT.ASSOCIATED(h_block)) &
-               CALL add_block_node ( dh, brow, bcol, h_block )
+               CALL add_block_node ( dh, brow, bcol, h_block ,error=error)
             IF (has_dv) THEN
                DO idir=1,3
                   CALL get_block_node(matrix=ddv(idir)%matrix,&
@@ -935,7 +935,7 @@ CONTAINS
                        block_col=bcol,&
                        BLOCK=dv_block(idir)%array)
                   IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
-                       CALL add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array )
+                       CALL add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
                END DO
             END IF
 
@@ -1044,7 +1044,7 @@ CONTAINS
                              my_virial_b=my_virial_a,error=error)
                       END IF
                    ELSE
-   
+
                       IF (iatom <= jatom) THEN
                         CALL integrate_pgf_product_rspace(&
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
@@ -1159,7 +1159,7 @@ CONTAINS
                END IF
 !$OMP end critical (qs_integrate_force)
             END IF
-  
+
             IF (use_virial .AND. calculate_forces) THEN
               DO idir=1,3
                 virial%pv_virial(idir,idir) = virial%pv_virial(idir,idir) +&
@@ -1170,14 +1170,14 @@ CONTAINS
                   virial%pv_virial(idir,idir) = virial%pv_virial(idir,idir) +&
                                                   2.0_dp*my_virial_b(idir)
                 END DO
-              END IF 
-            END IF          
+              END IF
+            END IF
 
           END DO
 !$OMP end parallel
 
         END DO
-    
+
       END DO
 
     END DO
@@ -1185,21 +1185,21 @@ CONTAINS
 !   *** Release work storage ***
 
     IF ( h_duplicated ) THEN
-      ! Reconstruct H matrix 
-      CALL redistribute_matrix ( dh, h%matrix, para_env )
-      CALL deallocate_matrix ( dh )
+      ! Reconstruct H matrix
+      CALL redistribute_matrix ( dh, h%matrix, para_env ,error=error)
+      CALL deallocate_matrix ( dh ,error=error)
       IF (has_dv) THEN
          DO idir=1,3
-            CALL redistribute_matrix(ddv(idir)%matrix,matrix_dv(idir)%matrix,para_env)
+            CALL redistribute_matrix(ddv(idir)%matrix,matrix_dv(idir)%matrix,para_env,error=error)
          END DO
-         CALL deallocate_matrix_set(ddv)
+         CALL deallocate_matrix_set(ddv,error=error)
       END IF
     ELSE
       NULLIFY ( dh, ddv )
     END IF
 
     IF ( p_duplicated ) THEN
-      CALL deallocate_matrix ( deltap )
+      CALL deallocate_matrix ( deltap ,error=error)
     ELSE
       NULLIFY ( deltap )
     END IF
@@ -1214,7 +1214,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"pabt")
     END IF
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
 
     IF (calculate_forces) THEN
       DEALLOCATE (atom_of_kind,STAT=istat)
@@ -1265,8 +1265,8 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
     LOGICAL, INTENT(IN), OPTIONAL            :: use_virial
     REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: my_virial_a, my_virial_b
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
@@ -1301,7 +1301,7 @@ CONTAINS
     ELSE
        ithread_l=0
     ENDIF
-   
+
     IF (PRESENT(use_virial)) THEN
        my_use_virial=use_virial
     ELSE
@@ -1448,7 +1448,7 @@ CONTAINS
     ENDDO
 
 !   *** initialise the pol x,y,z terms
-!  new trick to avoid to many exps (reuse the result from the previous gridpoint): 
+!  new trick to avoid to many exps (reuse the result from the previous gridpoint):
 !  exp( -a*(x+d)**2)=exp(-a*x**2)*(-2*a*x*d)*exp(-a*d**2)
 !  exp(-2*a*(x+d)*d)=exp(-2*a*x*d)*exp(-2*a*d**2)
 
@@ -1673,7 +1673,7 @@ CONTAINS
   END SUBROUTINE integrate_pgf_product_rspace
 
 ! *****************************************************************************
-  SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 
+  SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
@@ -1726,7 +1726,7 @@ CONTAINS
   END SUBROUTINE virial_update
 
 ! *****************************************************************************
-  SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 
+  SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force_a, force_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
@@ -1760,7 +1760,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 
+  SUBROUTINE hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: der_a, der_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
@@ -1794,9 +1794,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE redistribute_matrix ( dh, h, para_env)
+  SUBROUTINE redistribute_matrix ( dh, h, para_env,error)
     TYPE(real_matrix_type), POINTER          :: dh, h
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: hmax, i, ii, il, isend, j, &
                                                 jj, k, plength, stat
@@ -1806,10 +1807,10 @@ CONTAINS
 
 ! local blocks
 
-     CALL cp_sm_scale_and_add(matrix_a=h,matrix_b=dh)
+     CALL cp_sm_scale_and_add(matrix_a=h,matrix_b=dh,error=error)
      NULLIFY(hlist,dhlist)
-     CALL cp_sm_get_block_list ( h, hlist )
-     CALL cp_sm_get_block_list ( dh, dhlist )
+     CALL cp_sm_get_block_list ( h, hlist ,error=error)
+     CALL cp_sm_get_block_list ( dh, dhlist ,error=error)
 
      hmax = SIZE ( hlist, 2 )
      CALL mp_max ( hmax, para_env%group )

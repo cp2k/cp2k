@@ -50,14 +50,14 @@ MODULE cp_control_types
 
 ! *** Control parameters for GAPW method within QUICKSTEP ***
 
-! eps_3c_reduce:to reduce the cutoff value for the interaction of 
+! eps_3c_reduce:to reduce the cutoff value for the interaction of
 !              the primitive Gaussian-type
 !              functions with the GAPW projectors in the construction of
-!              the 3 center terms. This factor multiplies eps_pgf_orb in 
-!              the calculation of a shorter radius that can be used for 
-!              the construction of the OCE coefficients. The default is 1 
+!              the 3 center terms. This factor multiplies eps_pgf_orb in
+!              the calculation of a shorter radius that can be used for
+!              the construction of the OCE coefficients. The default is 1
 !              (no effects). Larger values can be used to reduce the memory
-!              allocations, but should be tested first. 
+!              allocations, but should be tested first.
   TYPE gapw_control_type
     REAL(KIND = dp)                 :: eps_3c_reduce,&
                                        eps_fit,eps_iso,eps_Vrho0,eps_svd
@@ -174,11 +174,11 @@ MODULE cp_control_types
 !!                  to calculate
 !!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
 !!
-!! NOTES  
-!!   The lumos are helpfull in choosing a initial vector for the TDDFPT 
+!! NOTES
+!!   The lumos are helpfull in choosing a initial vector for the TDDFPT
 !!   calculation, since they can be used to construct the solutions of the
 !!   TDDFPT operator without the perturbation kernel.
-!!  
+!!
 !!***
   TYPE tddfpt_control_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
@@ -218,7 +218,7 @@ MODULE cp_control_types
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
                                         do_xas_calculation, &
-                                        use_kinetic_energy_density, & 
+                                        use_kinetic_energy_density, &
                                         restricted,roks,uks,lsd
      !FM add xc_section ?
   END TYPE dft_control_type
@@ -266,7 +266,7 @@ CONTAINS
 !!   FUNCTION
 !!      create retain release the mulliken_restraint_type
 !!   NOTES
-!!      
+!!
 !!   INPUTS
 !!
 !!   MODIFICATION HISTORY
@@ -276,8 +276,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_create', &
       routineP = moduleN//':'//routineN
@@ -287,7 +287,7 @@ SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
 
    failure=.FALSE.
 
-   CPPrecondition(.NOT.ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(.NOT.ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)
    ALLOCATE(mulliken_restraint_control,stat=stat)
    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -301,8 +301,8 @@ END SUBROUTINE mulliken_control_create
 
 SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_release', &
       routineP = moduleN//':'//routineN
@@ -310,8 +310,8 @@ SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
     LOGICAL                                  :: failure
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
-   CPPrecondition(mulliken_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)  
+   CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)
+   CPPrecondition(mulliken_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)
    mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count-1
    IF (mulliken_restraint_control%ref_count==0) THEN
       IF (ASSOCIATED(mulliken_restraint_control%atoms)) &
@@ -326,8 +326,8 @@ END SUBROUTINE mulliken_control_release
 
 SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_retain', &
       routineP = moduleN//':'//routineN
@@ -335,7 +335,7 @@ SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
     LOGICAL                                  :: failure
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)
 
    mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
 END SUBROUTINE mulliken_control_retain
@@ -347,7 +347,7 @@ END SUBROUTINE mulliken_control_retain
 !!   FUNCTION
 !!      create retain release the ddapc_restraint_type
 !!   NOTES
-!!      
+!!
 !!   INPUTS
 !!
 !!   MODIFICATION HISTORY
@@ -357,8 +357,8 @@ END SUBROUTINE mulliken_control_retain
 !!*** **********************************************************************
 SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_create', &
       routineP = moduleN//':'//routineN
@@ -368,7 +368,7 @@ SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
 
    failure=.FALSE.
 
-   CPPrecondition(.NOT.ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(.NOT.ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)
    ALLOCATE(ddapc_restraint_control,stat=stat)
    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -384,8 +384,8 @@ END SUBROUTINE ddapc_control_create
 
 SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_release', &
       routineP = moduleN//':'//routineN
@@ -393,8 +393,8 @@ SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
     LOGICAL                                  :: failure
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)  
-   CPPrecondition(ddapc_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)  
+   CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)
+   CPPrecondition(ddapc_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)
    ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count-1
    IF (ddapc_restraint_control%ref_count==0) THEN
       IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
@@ -409,8 +409,8 @@ END SUBROUTINE ddapc_control_release
 
 SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_retain', &
       routineP = moduleN//':'//routineN
@@ -418,7 +418,7 @@ SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
     LOGICAL                                  :: failure
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)
 
    ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
 END SUBROUTINE ddapc_control_retain
@@ -430,7 +430,7 @@ END SUBROUTINE ddapc_control_retain
 !!   FUNCTION
 !!      create retain release the s2_restraint_type
 !!   NOTES
-!!      
+!!
 !!   INPUTS
 !!
 !!   MODIFICATION HISTORY
@@ -440,8 +440,8 @@ END SUBROUTINE ddapc_control_retain
 !!*** **********************************************************************
 SUBROUTINE s2_control_create(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_create', &
       routineP = moduleN//':'//routineN
@@ -451,7 +451,7 @@ SUBROUTINE s2_control_create(s2_restraint_control,error)
 
    failure=.FALSE.
 
-   CPPrecondition(.NOT.ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(.NOT.ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)
    ALLOCATE(s2_restraint_control,stat=stat)
    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -465,8 +465,8 @@ END SUBROUTINE s2_control_create
 
 SUBROUTINE s2_control_release(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_release', &
       routineP = moduleN//':'//routineN
@@ -474,8 +474,8 @@ SUBROUTINE s2_control_release(s2_restraint_control,error)
     LOGICAL                                  :: failure
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)  
-   CPPrecondition(s2_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)  
+   CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)
+   CPPrecondition(s2_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)
    s2_restraint_control%ref_count=s2_restraint_control%ref_count-1
    IF (s2_restraint_control%ref_count==0) THEN
       s2_restraint_control%ref_count=0
@@ -487,8 +487,8 @@ END SUBROUTINE s2_control_release
 
 SUBROUTINE s2_control_retain(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_retain', &
       routineP = moduleN//':'//routineN
@@ -496,7 +496,7 @@ SUBROUTINE s2_control_retain(s2_restraint_control,error)
     LOGICAL                                  :: failure
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)
 
    s2_restraint_control%ref_count=s2_restraint_control%ref_count+1
 END SUBROUTINE s2_control_retain
@@ -514,8 +514,8 @@ END SUBROUTINE s2_control_retain
 !!
 !!   ARGUMENTS
 !!     - dft_control: the object to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -526,8 +526,8 @@ END SUBROUTINE s2_control_retain
 !!*** **********************************************************************
 SUBROUTINE dft_control_create(dft_control, error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_create', &
       routineP = moduleN//':'//routineN
@@ -537,7 +537,7 @@ SUBROUTINE dft_control_create(dft_control, error)
 
   failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)  
+  CPPrecondition(.NOT.ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE (dft_control,STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -567,8 +567,8 @@ END SUBROUTINE dft_control_create
 !!
 !!   ARGUMENTS
 !!     - dft_control: the dft_control to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -579,8 +579,8 @@ END SUBROUTINE dft_control_create
 !!*** **********************************************************************
 SUBROUTINE dft_control_retain(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_retain', &
       routineP = moduleN//':'//routineN
@@ -609,8 +609,8 @@ END SUBROUTINE dft_control_retain
 !!
 !!   ARGUMENTS
 !!     - dft_control: the dft_control to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -621,8 +621,8 @@ END SUBROUTINE dft_control_retain
 !!*** **********************************************************************
 SUBROUTINE dft_control_release(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_release', &
       routineP = moduleN//':'//routineN
@@ -648,8 +648,8 @@ END SUBROUTINE dft_control_release
 
 SUBROUTINE gapw_control_create(gapw_control, error)
     TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gapw_control_create', &
       routineP = moduleN//':'//routineN
@@ -669,8 +669,8 @@ END SUBROUTINE gapw_control_create
 
 SUBROUTINE qs_control_init(qs_control, error)
     TYPE(qs_control_type), INTENT(out)       :: qs_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
   NULLIFY(qs_control%e_cutoff)
   NULLIFY(qs_control%gapw_control)
@@ -679,9 +679,9 @@ SUBROUTINE qs_control_init(qs_control, error)
   NULLIFY(qs_control%s2_restraint_control)
   NULLIFY(qs_control%localized_wfn_control)
 
-  CALL mulliken_control_create(qs_control%mulliken_restraint_control)
-  CALL ddapc_control_create(qs_control%ddapc_restraint_control)
-  CALL s2_control_create(qs_control%s2_restraint_control)
+  CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
+  CALL ddapc_control_create(qs_control%ddapc_restraint_control,error=error)
+  CALL s2_control_create(qs_control%s2_restraint_control,error=error)
 
   CALL localized_wfn_control_create(qs_control%localized_wfn_control, error=error)
 
@@ -689,17 +689,17 @@ END SUBROUTINE qs_control_init
 
 SUBROUTINE qs_control_dealloc_ref(qs_control, error)
     TYPE(qs_control_type), INTENT(inout)     :: qs_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_dealloc_ref', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
 
-    CALL mulliken_control_release(qs_control%mulliken_restraint_control)
-    CALL ddapc_control_release(qs_control%ddapc_restraint_control)
-    CALL s2_control_release(qs_control%s2_restraint_control)
+    CALL mulliken_control_release(qs_control%mulliken_restraint_control,error=error)
+    CALL ddapc_control_release(qs_control%ddapc_restraint_control,error=error)
+    CALL s2_control_release(qs_control%s2_restraint_control,error=error)
     CALL localized_wfn_control_release(qs_control% localized_wfn_control, error=error)
 
     IF (ASSOCIATED(qs_control%e_cutoff)) THEN
@@ -715,16 +715,16 @@ END SUBROUTINE qs_control_dealloc_ref
 
 SUBROUTINE tddfpt_control_init(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(out)   :: tddfpt_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
 END SUBROUTINE tddfpt_control_init
 
 SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_dealloc_ref', &
       routineP = moduleN//':'//routineN
@@ -733,7 +733,7 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
 
   IF (ASSOCIATED(tddfpt_control%lumos)) THEN
      DO ispin=1, SIZE(tddfpt_control%lumos)
-        CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix)
+        CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix,error=error)
      END DO
      DEALLOCATE(tddfpt_control%lumos,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

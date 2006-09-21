@@ -229,10 +229,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_se_param(se_parameter,orb_basis_set)
+  SUBROUTINE init_se_param(se_parameter,orb_basis_set,error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_se_param'
 
@@ -271,10 +272,10 @@ CONTAINS
         END IF
         lq(l)=l
         zet(l)=se_parameter%sto_exponents(l)
-        IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S" 
-        IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P" 
-        IF(l==2) WRITE(symbol(2),'(I1,A1)') nq(l),"D" 
-        IF(l==3) WRITE(symbol(3),'(I1,A1)') nq(l),"F" 
+        IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
+        IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P"
+        IF(l==2) WRITE(symbol(2),'(I1,A1)') nq(l),"D"
+        IF(l==3) WRITE(symbol(3),'(I1,A1)') nq(l),"F"
       END DO
 
       IF (nshell > 0) THEN
@@ -282,7 +283,7 @@ CONTAINS
                                nshell=nshell,symbol=symbol,&
                                nq=nq,lq=lq,zet=zet)
         CALL create_gto_from_sto_basis(se_parameter%basis,orb_basis_set,&
-                               se_parameter%ngauss)
+                               se_parameter%ngauss,error=error)
       END IF
 
       DEALLOCATE (nq,lq,zet,STAT=istat)
@@ -381,8 +382,8 @@ CONTAINS
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_se_param'
 
@@ -584,7 +585,7 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
             "SUBSYS%PRINT%KINDS",error=error)
     END IF
-    
+
   END SUBROUTINE write_se_param
 
 ! *****************************************************************************
@@ -648,7 +649,7 @@ CONTAINS
          se_type=4
        CASE ("MNDO")
          se_type=1
-    END SELECT 
+    END SELECT
 
   END FUNCTION get_se_type
 

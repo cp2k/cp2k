@@ -46,8 +46,8 @@ CONTAINS
   SUBROUTINE cp_cfm_schur_product(matrix_a,matrix_b,matrix_c,error)
 
     TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b, matrix_c
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, b, c
@@ -92,8 +92,8 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: matrix_a
     COMPLEX(KIND=dp), INTENT(in), OPTIONAL   :: beta
     TYPE(cp_cfm_type), OPTIONAL, POINTER     :: matrix_b
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_add', &
       routineP = moduleN//':'//routineN
@@ -252,8 +252,8 @@ CPSourceFileRef,&
     TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b
     COMPLEX(KIND=dp), INTENT(IN)             :: beta
     TYPE(cp_cfm_type), POINTER               :: matrix_c
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER, INTENT(IN), OPTIONAL            :: b_first_col
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &

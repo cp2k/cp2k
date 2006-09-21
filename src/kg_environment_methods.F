@@ -8,10 +8,10 @@
 !!     kg_environment_methods
 !!
 !!   FUNCTION
-!!    to complete the setup of the kg_env      
+!!    to complete the setup of the kg_env
 !!   AUTHOR
-!!     gt 15-10-2004    
-!!   HISTORY 
+!!     gt 15-10-2004
+!!   HISTORY
 !!*****
 !******************************************************************************
 
@@ -60,7 +60,7 @@ MODULE kg_environment_methods
   PUBLIC :: kg_env_setup, kg_qs_env_update
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_methods'
-  
+
 !-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -71,8 +71,8 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_setup', &
       routineP = moduleN//':'//routineN
@@ -104,9 +104,9 @@ CONTAINS
                   molecule_kind_set=molecule_kind_set,&
                   molecule_set=molecule_set,&
                   particle_set=particle_set,&
-                  rho=rho, rspw=rspw)
+                  rho=rho, rspw=rspw,error=error)
 
-  CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)   
+  CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
 
     IF(.NOT. my_kg_gpw) THEN
@@ -114,15 +114,15 @@ CONTAINS
       CALL get_kg_env(kg_env=kg_env,rspw=rspw,error=error)
       IF (.NOT.ASSOCIATED(rspw)) THEN
          CALL kg_rspw_create(rspw,kg_env=kg_env,error=error)
-         CALL set_kg_env(kg_env,rspw=rspw)
+         CALL set_kg_env(kg_env,rspw=rspw,error=error)
          CALL kg_rspw_release(rspw,error=error)
       ELSE
          CALL kg_rspw_rebuild(rspw,kg_env=kg_env,error=error)
       END IF
-  
+
      ! allocate rho structures
       CALL kg_rho_create(kg_rho=rho,kg_env=kg_env,error=error)
-      CALL set_kg_env(kg_env,rho=rho)
+      CALL set_kg_env(kg_env,rho=rho,error=error)
       CALL kg_rho_release(kg_rho=rho,error=error)
     END IF
 
@@ -148,8 +148,8 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_qs_env_update', &
       routineP = moduleN//':'//routineN
@@ -165,32 +165,32 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
 
-!------------------------------------------------------------------------------  
+!------------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
- 
+
     NULLIFY(para_env, cell, dft_control,particle_set)
-  
+
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-  
+
     CALL get_qs_env(qs_env, cell=cell, para_env=para_env, dft_control=dft_control,&
          particle_set=particle_set,matrix_ks=matrix_ks, error=error)
-  
+
     nspins = dft_control%nspins
     use_tau = dft_control%use_kinetic_energy_density
     ! *** rebuilds the S_sm_pools ***
     CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
          nspins=nspins,particle_set=particle_set,&
          para_env=para_env, error=error)
-  
+
     CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
-  
+
     ! *** deallocate matrices that will have the wrong structure ***
-    CALL deallocate_matrix_set(matrix_ks)
-    CALL set_qs_env(qs_env,matrix_ks=matrix_ks)
-  
+    CALL deallocate_matrix_set(matrix_ks,error=error)
+    CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
+
     ! *** updates rho core ***
     CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
@@ -199,19 +199,19 @@ CONTAINS
        CALL calculate_rho_core(qs_env%rho_core, &
             qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
     END IF
-   
+
     ! *** tell ks_env ***
     IF (ASSOCIATED(qs_env%ks_env)) THEN
        CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
     END IF
 
     !   *** Updates rho structure ***
-    CALL qs_env_rebuild_rho(qs_env=qs_env)
+    CALL qs_env_rebuild_rho(qs_env=qs_env,error=error)
 
     !   *** Updates the molecular rho structures ***
-    CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+    CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
     CALL update_rho_mol_blocks(kg_sub_pw_env, particle_set, cell, nspins, use_tau, error=error)
- 
+
     ! *** tell scf_env ***
     IF (ASSOCIATED(kg_env%scf_env)) THEN
        CALL kg_scf_env_did_change(kg_env%scf_env,&

@@ -67,8 +67,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_coordinate_control', &
       routineP = moduleN//':'//routineN
@@ -146,8 +146,8 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_connectivity_control', &
       routineP = moduleN//':'//routineN

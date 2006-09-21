@@ -43,7 +43,7 @@ MODULE md_environment_types
   TYPE md_environment_type
      PRIVATE
      INTEGER :: id_nr, ref_count
-     TYPE (cp_para_env_type), POINTER :: para_env 
+     TYPE (cp_para_env_type), POINTER :: para_env
      INTEGER, POINTER :: itimes, md_approach_nr, accepted_md
      REAL (KIND=dp), POINTER  :: used_time, t
      REAL (KIND=dp), POINTER :: constant
@@ -116,9 +116,9 @@ CONTAINS
     IF ( PRESENT ( constant ) ) constant => md_env % constant
     IF ( PRESENT ( used_time ) ) used_time => md_env % used_time
     IF ( PRESENT ( t ) ) t => md_env % t
-    IF ( PRESENT ( cell ) ) cell => md_env % cell 
+    IF ( PRESENT ( cell ) ) cell => md_env % cell
     IF ( PRESENT ( simpar ) ) simpar => md_env % simpar
-    IF ( PRESENT ( nhc_part ) ) nhc_part => md_env % nhc_part 
+    IF ( PRESENT ( nhc_part ) ) nhc_part => md_env % nhc_part
     IF ( PRESENT ( nhc_coef ) ) nhc_coef => md_env % nhc_coef
     IF ( PRESENT ( nhc_baro ) ) nhc_baro => md_env % nhc_baro
     IF ( PRESENT ( npt ) ) npt => md_env % npt
@@ -140,8 +140,8 @@ CONTAINS
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', &
       routineP = moduleN//':'//routineN
@@ -168,8 +168,8 @@ CONTAINS
     NULLIFY ( md_env % nhc_baro )
     NULLIFY ( md_env % npt )
     NULLIFY ( md_env % force_env_p )
-    md_env % para_env => para_env 
-    CALL cp_para_env_retain ( md_env % para_env )
+    md_env % para_env => para_env
+    CALL cp_para_env_retain ( md_env % para_env ,error=error)
     ALLOCATE( md_env % itimes , stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     ALLOCATE( md_env % md_approach_nr , stat=istat )
@@ -207,8 +207,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - md_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -219,8 +219,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE md_env_retain(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_retain', &
       routineP = moduleN//':'//routineN
@@ -228,7 +228,7 @@ SUBROUTINE md_env_retain(md_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(md_env%ref_count>0,cp_failure_level,routineP,error)
@@ -249,8 +249,8 @@ END SUBROUTINE md_env_retain
 !!
 !!   ARGUMENTS
 !!     - md_env: the md environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -261,8 +261,8 @@ END SUBROUTINE md_env_retain
 !!*** **********************************************************************
 SUBROUTINE md_env_release(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
@@ -271,7 +271,7 @@ SUBROUTINE md_env_release(md_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(md_env)) THEN
      CPPreconditionNoFail(md_env%ref_count>0,cp_failure_level,routineP,error)
      md_env%ref_count=md_env%ref_count-1
@@ -316,7 +316,8 @@ END SUBROUTINE md_env_release
 ! *****************************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
                           nhc_part, nhc_coef, nhc_baro, &
-                          npt, force_env_p, para_env, accepted_md, md_approach_nr )
+                          npt, force_env_p, para_env, accepted_md, md_approach_nr ,&
+                          error)
 
 !   Purpose: Set the integrator environment to the correct program.
 
@@ -337,6 +338,7 @@ END SUBROUTINE md_env_release
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
       routineP = moduleN//':'//routineN
@@ -357,18 +359,18 @@ END SUBROUTINE md_env_release
 ! accept null pointers?
        IF (ASSOCIATED(force_env_p)) THEN
           DO i=1,SIZE(force_env_p)
-             CALL force_env_retain ( force_env_p(i) % force_env )
+             CALL force_env_retain ( force_env_p(i) % force_env ,error=error)
           END DO
        END IF
        IF (ASSOCIATED(md_env%force_env_p)) THEN
           DO i=1,SIZE(md_env%force_env_p)
-             CALL force_env_release ( md_env % force_env_p(i) % force_env )
+             CALL force_env_release ( md_env % force_env_p(i) % force_env ,error=error)
           END DO
        END IF
        md_env % force_env_p => force_env_p
     END IF
-    
-         
+
+
 !   ---------------------------------------------------------------------------
 
   END SUBROUTINE set_md_env

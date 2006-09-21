@@ -28,6 +28,7 @@ MODULE molecule_types_new
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -101,7 +102,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_molecule_set(molecule_set,nmolecule)
+  SUBROUTINE allocate_molecule_set(molecule_set,nmolecule,error)
 
 !   Purpose: Allocate a molecule set.
 
@@ -112,6 +113,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, INTENT(IN)                      :: nmolecule
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_molecule_set'
 
@@ -119,7 +121,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set)
+    IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set,error)
 
     ALLOCATE (molecule_set(nmolecule),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -129,7 +131,7 @@ CONTAINS
       NULLIFY (molecule_set(imolecule)%molecule_kind)
       NULLIFY (molecule_set(imolecule)%lmi)
       NULLIFY (molecule_set(imolecule)%lci)
-      
+
       molecule_set(imolecule)%first_atom = 0
       molecule_set(imolecule)%last_atom = 0
     END DO
@@ -138,7 +140,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_molecule_set(molecule_set)
+  SUBROUTINE deallocate_molecule_set(molecule_set,error)
 
 !   Purpose: Deallocate a molecule set.
 
@@ -148,6 +150,7 @@ CONTAINS
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_set'
 
@@ -171,8 +174,8 @@ CONTAINS
          IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
             IF (ASSOCIATED(molecule_set(imolecule)%lci%lcolv)) THEN
                DO j = 1, SIZE(molecule_set(imolecule)%lci%lcolv)
-                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar)
-                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
+                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar,error=error)
+                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar_old,error=error)
                   NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar)
                   NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
                END DO
@@ -244,7 +247,7 @@ CONTAINS
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
       IF ( PRESENT ( lcolv ) ) THEN
-         IF ( ASSOCIATED ( molecule%lci ) ) THEN 
+         IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lcolv => molecule%lci%lcolv
          ELSE
            CALL stop_program(routineN,moduleN,__LINE__,&
@@ -252,17 +255,17 @@ CONTAINS
          ENDIF
       ENDIF
       IF ( PRESENT ( lg3x3 ) ) THEN
-         IF ( ASSOCIATED ( molecule%lci ) ) THEN 
+         IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lg3x3 => molecule%lci%lg3x3
-         ELSE 
+         ELSE
            CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
       IF ( PRESENT ( lg4x6 ) ) THEN
-         IF ( ASSOCIATED ( molecule%lci ) ) THEN 
+         IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lg4x6 => molecule%lci%lg4x6
-         ELSE 
+         ELSE
            CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
@@ -310,7 +313,7 @@ CONTAINS
       IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
       IF (PRESENT(lmi))           molecule%lmi           => lmi
       IF (PRESENT(lci))           molecule%lci           => lci
-      IF (PRESENT(lcolv) ) THEN 
+      IF (PRESENT(lcolv) ) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lcolv => lcolv
          ELSE
@@ -318,7 +321,7 @@ CONTAINS
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
-      IF (PRESENT(lg3x3)) THEN 
+      IF (PRESENT(lg3x3)) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lg3x3 => lg3x3
          ELSE
@@ -326,7 +329,7 @@ CONTAINS
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
-      IF (PRESENT(lg4x6)) THEN 
+      IF (PRESENT(lg4x6)) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lg4x6 => lg4x6
          ELSE

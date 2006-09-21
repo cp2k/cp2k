@@ -106,7 +106,7 @@ SUBROUTINE rep_env_init_low(rep_env_id, ierr)
     TYPE(replica_env_type), POINTER          :: rep_env
 
   failure=.FALSE.
-  rep_env => rep_envs_get_rep_env(rep_env_id)
+  rep_env => rep_envs_get_rep_env(rep_env_id,error=error)
   CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
        routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
        failure=failure)
@@ -178,8 +178,8 @@ END SUBROUTINE rep_env_init_low
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -188,8 +188,8 @@ END SUBROUTINE rep_env_init_low
 SUBROUTINE rep_env_test(para_env,input,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_test', &
       routineP = moduleN//':'//routineN
@@ -341,8 +341,8 @@ END SUBROUTINE rep_env_test
 !!   ARGUMENTS
 !!     - rep_env: the replica env to update
 !!     - if the force should be calculated as well (defaults to true)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -351,8 +351,8 @@ END SUBROUTINE rep_env_test
 SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     LOGICAL, OPTIONAL                        :: calc_f
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int', &
       routineP = moduleN//':'//routineN
@@ -374,7 +374,7 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
      IF (PRESENT(calc_f)) THEN
         IF (.NOT.calc_f) my_calc_f=0
      END IF
-     
+
      CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
           new_error=new_error, failure=failure)
      logger => cp_error_get_logger(new_error)
@@ -390,10 +390,10 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
            CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
            IF (failure) EXIT
         END IF
-        
+
         logger%iter_info%iteration(1)=irep
         logger%iter_info%iteration(2)=md_iter
-        
+
         IF (rep_env%keep_wf_history) THEN
            CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                 new_error=new_error, failure=failure)
@@ -404,7 +404,7 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
            CALL f_env_rm_defaults(f_env,new_error,ierr)
            CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
         END IF
-        
+
         CALL cp_calc_force(rep_env%f_env_id,rep_env%r(:,irep),3*rep_env%nat,&
              rep_env%f(3*rep_env%nat+1,irep),rep_env%f(:3*rep_env%nat,irep),&
              my_calc_f,ierr)
@@ -416,7 +416,7 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
      END IF
      CALL cp_error_synchronize_error(error,rep_env%para_env)
   END IF
-     
+
 END SUBROUTINE rep_env_calc_e_f_int
 !***************************************************************************
 
@@ -430,12 +430,12 @@ END SUBROUTINE rep_env_calc_e_f_int
 !!
 !!   NOTES
 !!     low level wrapper to export this function in f77_int_low and work
-!!     around the handling of circular dependecies in fortran 
+!!     around the handling of circular dependecies in fortran
 !!
 !!   ARGUMENTS
 !!     - rep_env_id: the id if the replica environment in which energy and
 !!       forces have to be evaluated
-!!     - calc_f: if nonzero calculates also the forces along with the 
+!!     - calc_f: if nonzero calculates also the forces along with the
 !!       energy
 !!     - ierr: if an error happens this will be nonzero
 !!
@@ -454,9 +454,10 @@ RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id,calc_f,ierr)
     TYPE(cp_error_type)                      :: new_error
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(replica_env_type), POINTER          :: rep_env
+    TYPE(cp_error_type)                      :: error ! XXXXXXXXXXXXX uninitialized
 
   failure=.FALSE.
-  rep_env => rep_envs_get_rep_env(rep_env_id)
+  rep_env => rep_envs_get_rep_env(rep_env_id,error=error) ! XXXXXXXXXXXXX uninitialized error
   IF (ASSOCIATED(rep_env)) THEN
      CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
           new_error=new_error, failure=failure)

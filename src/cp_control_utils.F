@@ -80,8 +80,8 @@ CONTAINS
   SUBROUTINE read_dft_control(dft_control,root_section, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: root_section, dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_dft_control (MODULE dft_types)"
@@ -158,7 +158,7 @@ CONTAINS
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type ")
     END SELECT
- 
+
 !   *** Read the input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"sic",&
          error=error)
@@ -168,14 +168,14 @@ CONTAINS
          r_val=dft_control%sic_scaling_a,error=error)
     CALL section_vals_val_get(tmp_section,"SIC_SCALING_B",&
          r_val=dft_control%sic_scaling_b,error=error)
-    
+
 
     CALL section_vals_val_get(dft_section,"EXCITATIONS",&
          i_val=excitations,error=error)
     dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
 
     xc_section => section_vals_get_subs_vals(dft_section,"XC", error=error)
-    
+
 !   *** Read the input section ***
     CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
@@ -201,8 +201,8 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_mgrid_control "
 
@@ -226,11 +226,11 @@ CONTAINS
        multigrid_set = .FALSE.
     END IF
 
-    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)    
+    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
                                              ngrid_level*dp_size)
-    CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)    
-    qs_control%cutoff = MAX(0.01_dp,cutoff) 
+    CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
+    qs_control%cutoff = MAX(0.01_dp,cutoff)
     CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",&
                  r_val=qs_control%progression_factor,error=error)
     CALL section_vals_val_get(mgrid_section,"COMMENSURATE",&
@@ -238,12 +238,12 @@ CONTAINS
     CALL section_vals_val_get(mgrid_section,"REALSPACE",&
                  l_val=qs_control%realspace_mgrids,error=error)
     CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",&
-                 r_val=qs_control%relative_cutoff)
+                 r_val=qs_control%relative_cutoff,error=error)
 
     IF ( qs_control%semi_empirical ) THEN
-      qs_control%cutoff = 1._dp 
+      qs_control%cutoff = 1._dp
     END IF
-    
+
     IF(multigrid_set) THEN
       ! Read the values from input
       IF (qs_control%commensurate_mgrids) THEN
@@ -300,8 +300,8 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: qs_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_qs_section "
 
@@ -332,27 +332,27 @@ CONTAINS
     qs_control%eps_ppnl = value/100.0_dp
     qs_control%eps_rho_gspace = value
     qs_control%eps_rho_rspace = value
-    qs_control%eps_gvg_rspace = SQRT(value)       
+    qs_control%eps_gvg_rspace = SQRT(value)
     qs_control%eps_kg_gpw = SQRT(value)*1000._dp
     !
     CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",r_val=qs_control%eps_core_charge,error=error)
-    END IF    
+    END IF
     CALL section_vals_val_get(qs_section,"EPS_GVG_RSPACE",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_GVG_RSPACE",r_val=qs_control%eps_gvg_rspace,error=error)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",n_rep_val=n_rep,error=error)
-    IF (n_rep /=0) THEN    
+    IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",r_val=qs_control%eps_pgf_orb,error=error)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_PPL",n_rep_val=n_rep,error=error)
-    IF (n_rep /=0) THEN    
+    IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_PPL",r_val=qs_control%eps_ppl,error=error)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_PPNL",n_rep_val=n_rep,error=error)
-    IF (n_rep /=0) THEN    
+    IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_PPNL",r_val=qs_control%eps_ppnl,error=error)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_RHO",n_rep_val=n_rep,error=error)
@@ -361,21 +361,21 @@ CONTAINS
        qs_control%eps_rho_rspace = qs_control%eps_rho_gspace
     END IF
     CALL section_vals_val_get(qs_section,"EPS_RHO_RSPACE",n_rep_val=n_rep,error=error)
-    IF (n_rep /=0) THEN    
+    IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_RHO_RSPACE",r_val=qs_control%eps_rho_rspace,error=error)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_RHO_GSPACE",n_rep_val=n_rep,error=error)
-    IF (n_rep /=0) THEN    
+    IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_RHO_GSPACE",r_val=qs_control%eps_rho_rspace,error=error)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_KG_GPW",n_rep_val=n_rep,error=error)
-    IF (n_rep /=0) THEN    
+    IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_KG_GPW",r_val=qs_control%eps_kg_gpw,error=error)
     END IF
 
 
     ! Gapw
-    CALL gapw_control_create(qs_control%gapw_control)
+    CALL gapw_control_create(qs_control%gapw_control,error=error)
 
     CALL section_vals_val_get(qs_section,"EPS_3C_REDUCE",r_val=qs_control%gapw_control%eps_3c_reduce,error=error)
     CALL section_vals_val_get(qs_section,"EPSFIT",r_val=qs_control%gapw_control%eps_fit,error=error)
@@ -403,7 +403,7 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"LADDN0",i_val=qs_control%gapw_control%ladd_rho0,error=error)
     CALL section_vals_val_get(qs_section,"QUADRATURE",i_val=qs_control%gapw_control%quadrature,error=error)
     qs_control%gapw_control%quadrature_name=quadrature_name(qs_control%gapw_control%quadrature)
-    
+
     ! Integers grids
     CALL section_vals_val_get(qs_section,"PW_GRID",i_val=qs_control%pw_grid_opt_id,error=error)
     SELECT CASE (qs_control%pw_grid_opt_id)
@@ -423,7 +423,7 @@ CONTAINS
     !Integers extrapolation
     CALL section_vals_val_get(qs_section,"EXTRAPOLATION",i_val=qs_control%wf_interpolation_method_nr,error=error)
     CALL section_vals_val_get(qs_section,"EXTRAPOLATION_ORDER",i_val=qs_control%wf_extrapolation_order,error=error)
-    
+
     !Method
     CALL section_vals_val_get(qs_section,"METHOD",i_val=qs_control%method_id,error=error)
     qs_control %method = elstr_method_name(qs_control %method_id)
@@ -443,9 +443,9 @@ CONTAINS
       CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
         qs_control%semi_empirical = .TRUE.
     END SELECT
-    
+
     IF(qs_control %method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
-    
+
     IF(qs_control%localized_wfn) THEN
       CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
     END IF
@@ -467,10 +467,10 @@ CONTAINS
       jj = 0
       DO k = 1,n_rep
          CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist) 
+         DO  j = 1,SIZE(tmplist)
            jj = jj+1
-           qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j) 
-         END DO 
+           qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j)
+         END DO
       END DO
     ENDIF
 
@@ -541,8 +541,8 @@ CONTAINS
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt_control', &
       routineP = moduleN//':'//routineN
@@ -556,7 +556,7 @@ CONTAINS
     kenergy_den = .FALSE.
     NULLIFY(sic_section, t_section, xc_section )
     t_section => section_vals_get_subs_vals(dft_section,"TDDFPT",error=error)
-    
+
     CALL section_vals_val_get(t_section,"CONVERGENCE", &
          r_val=t_control%tolerance,error=error)
 
@@ -621,8 +621,8 @@ CONTAINS
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_dft_control'
 
@@ -641,8 +641,8 @@ CONTAINS
     IF (dft_control%qs_control%semi_empirical) RETURN
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    
-    
+
+
     output_unit = cp_print_key_unit_nr(logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
@@ -672,13 +672,13 @@ CONTAINS
             WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
           END IF
           WRITE ( output_unit, '( A, T61, F20.5 )' ) " DFT| Field strength [a.u.]",&
-            dft_control % finite_field_control % efield_strength 
+            dft_control % finite_field_control % efield_strength
           WRITE ( output_unit, '( A, T51, 3F10.5 )' ) " DFT| Field polarisation",&
             dft_control % finite_field_control % efield_polarisation
           CALL stop_program(routineN,moduleN,__LINE__,&
                            "Finite field not operational")
        END IF
-       
+
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
          "DFT| Charge",dft_control%charge
 
@@ -772,7 +772,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
-    
+
   END SUBROUTINE write_dft_control
 
 ! *****************************************************************************
@@ -785,8 +785,8 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_qs_control'
 
@@ -797,7 +797,7 @@ CONTAINS
     IF (qs_control%semi_empirical) RETURN
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-        
+
     output_unit = cp_print_key_unit_nr(logger, dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
@@ -870,7 +870,7 @@ CONTAINS
            qs_control%gapw_control%quadrature_name
          WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
            "QS| GAPW|      atom-s-grid:  max l :",&
-           qs_control%gapw_control%lmax_sphere ,& 
+           qs_control%gapw_control%lmax_sphere ,&
            "QS| GAPW|      max_l_rho0 :",&
             qs_control%gapw_control%lmax_rho0
       END IF
@@ -887,7 +887,7 @@ CONTAINS
            qs_control%gapw_control%quadrature_name
          WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
            "QS| GAPW_XC|   atom-s-grid:  max l :",&
-           qs_control%gapw_control%lmax_sphere 
+           qs_control%gapw_control%lmax_sphere
       END IF
       IF (qs_control%mulliken_restraint) THEN
          WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
@@ -942,37 +942,37 @@ CONTAINS
            "                  at the end of a scf loop every ",nstep," iteration steps"
          SELECT CASE ( qs_control%localized_wfn_control%set_of_states )
          CASE(state_loc_all)
-           WRITE (UNIT=output_unit,FMT="(T2,A)")& 
+           WRITE (UNIT=output_unit,FMT="(T2,A)")&
            "                Set:  All the occupied orbitals"
          CASE(state_loc_upton)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")& 
+           WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
            "                Set:  All the orbital with index lower than ",&
             qs_control%localized_wfn_control%nloc_states(1)
          CASE(state_loc_fromitoj)
-           WRITE (UNIT=output_unit,FMT="(T2,A,T73,2I8)")& 
+           WRITE (UNIT=output_unit,FMT="(T2,A,T73,2I8)")&
            "                Set:  All the orbital with index between ",&
             qs_control%localized_wfn_control%lu_bound_states(1,1),&
             qs_control%localized_wfn_control%lu_bound_states(2,1)
          CASE(state_loc_list)
-           WRITE (UNIT=output_unit,FMT="(T2,A)")& 
+           WRITE (UNIT=output_unit,FMT="(T2,A)")&
            "                Set:  All the orbital with index in the list:"
            WRITE (UNIT=output_unit,FMT=*) qs_control%localized_wfn_control%loc_states
          CASE DEFAULT
-           WRITE (UNIT=output_unit,FMT="(T2,A)")& 
+           WRITE (UNIT=output_unit,FMT="(T2,A)")&
            "                Set:  None"
          END SELECT
          SELECT CASE (qs_control%localized_wfn_control%operator_type )
-         CASE(op_loc_berry) 
+         CASE(op_loc_berry)
            WRITE (UNIT=output_unit,FMT="(T2,A)")&
            "                Spread: defined by the Berry phase operator "
-         CASE(op_loc_boys) 
+         CASE(op_loc_boys)
            WRITE (UNIT=output_unit,FMT="(T2,A)")&
            "                Spread: defined by the Boys operator"
          CASE DEFAULT
             WRITE (UNIT=output_unit,FMT="(T2,A)")&
            "                Spread: defined by the Pipek operator"
          END SELECT
-         
+
          SELECT CASE (qs_control%localized_wfn_control%localization_method)
          CASE(do_loc_jacobi)
             WRITE (UNIT=output_unit,FMT="(T2,A)")&
@@ -1008,8 +1008,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - xc_rho_smooth_id: the id that represent the smoothing
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1020,8 +1020,8 @@ CONTAINS
 !!*** **********************************************************************
 FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_rho_smooth_id
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(len=10)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_rho_smooth_label', &
@@ -1030,7 +1030,7 @@ FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   SELECT CASE(xc_rho_smooth_id)
   CASE (xc_rho_no_smooth)
      res="NONE"
@@ -1054,7 +1054,7 @@ END FUNCTION xc_get_rho_smooth_label
 !!     xc_get_deriv_method_label
 !!
 !!   FUNCTION
-!!     returns a string that describes the derivative used in the xc 
+!!     returns a string that describes the derivative used in the xc
 !!     calculation
 !!
 !!   NOTES
@@ -1062,8 +1062,8 @@ END FUNCTION xc_get_rho_smooth_label
 !!
 !!   INPUTS
 !!     - xc_deriv_method_id: the id that represent the derivative method
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1074,8 +1074,8 @@ END FUNCTION xc_get_rho_smooth_label
 !!*** **********************************************************************
 FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_deriv_method_id
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(len=20)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_deriv_method_label', &
@@ -1084,7 +1084,7 @@ FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   SELECT CASE(xc_deriv_method_id)
   CASE (xc_deriv_pw)
      res="PW"
@@ -1114,17 +1114,17 @@ END FUNCTION xc_get_deriv_method_label
 !!     xc_get_routine_label
 !!
 !!   FUNCTION
-!!     returns a string that describes the functional routine used in the xc 
+!!     returns a string that describes the functional routine used in the xc
 !!     calculation
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - xc_functional_routine_id: the id that represent the functional 
+!!     - xc_functional_routine_id: the id that represent the functional
 !!       routine
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1132,8 +1132,8 @@ END FUNCTION xc_get_deriv_method_label
 !!*** **********************************************************************
 FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_functional_routine_id
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(len=20)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_routine_label', &
@@ -1142,7 +1142,7 @@ FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   SELECT CASE(xc_functional_routine_id)
   CASE(xc_old_f_routine)
      res="OLD"

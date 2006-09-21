@@ -352,8 +352,8 @@ CONTAINS
   SUBROUTINE deallocate_topology (topology, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: istat
 
@@ -532,8 +532,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 4. DEALLOCATE things in topology
     !-----------------------------------------------------------------------------
-    CALL cell_release(topology%cell)
-    CALL cell_release(topology%cell_ref)
+    CALL cell_release(topology%cell,error=error)
+    CALL cell_release(topology%cell_ref,error=error)
     IF(ASSOCIATED(topology%atom_info)) THEN
        DEALLOCATE(topology%atom_info,STAT=istat)
        IF (istat /= 0) CALL stop_memory('deallocate_topology','atom_info')
@@ -553,8 +553,8 @@ CONTAINS
 
   SUBROUTINE deallocate_constraint(constraint_info, error)
     TYPE(constraint_info_type), POINTER      :: constraint_info
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
       routineP = moduleN//':'//routineN

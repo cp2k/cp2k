@@ -71,8 +71,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmoments
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: ref_point
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     TYPE block_p_type
       REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
@@ -109,7 +109,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_s
     INTEGER                                               :: handle
-    REAL(KIND = dp)                                       :: rab2, dab 
+    REAL(KIND = dp)                                       :: rab2, dab
     LOGICAL                                               :: failure, new_atom_b
 
 ! ------------------------------------------------------------------------------
@@ -121,22 +121,22 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY (matrix_s)
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
 
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
-    CALL allocate_matrix_set ( moments, nm )
+    CALL allocate_matrix_set ( moments, nm ,error=error)
 
     DO i=1,nm
       CALL replicate_matrix(source=matrix_s(1)%matrix,&
                             TARGET=moments(i)%matrix,&
-                            target_name="Moments")
+                            target_name="Moments",error=error)
     END DO
 
     NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,cell=cell,&
-                    sab_orb=sab_orb)
+                    sab_orb=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -292,15 +292,15 @@ CONTAINS
                              1.0_dp,mab(1,1,i),SIZE(mab,1),&
                              sphi_b(1,sgfb),SIZE(sphi_b,1),&
                              0.0_dp,work(1,1),SIZE(work,1))
-  
+
                   IF (iatom <= jatom) THEN
-  
+
                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
                                1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                work(1,1),SIZE(work,1),&
                                1.0_dp,mint(i)%block(sgfa,sgfb),&
                                SIZE(mint(i)%block,1))
-  
+
                   ELSE
 
                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
@@ -308,7 +308,7 @@ CONTAINS
                                sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                1.0_dp,mint(i)%block(sgfb,sgfa),&
                                SIZE(mint(i)%block,1))
-  
+
                   END IF
 
                 END DO

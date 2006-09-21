@@ -10,7 +10,7 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     CJM SEPT-01-02 
+!!     CJM SEPT-01-02
 !!
 !!   MODIFICATION HISTORY
 !!   gt sept-23-02 added atomic_kind_set to replica_environment_type
@@ -80,7 +80,7 @@ MODULE fist_environment_types
 
   TYPE fist_environment_type
     PRIVATE
-    INTEGER :: id_nr, ref_count 
+    INTEGER :: id_nr, ref_count
     LOGICAL                                        :: qmmm
     TYPE ( qmmm_env_mm_type ), POINTER             :: qmmm_env
     TYPE ( cell_type ), POINTER                    :: cell
@@ -123,7 +123,7 @@ MODULE fist_environment_types
 
 ! *** Public data types ***
 
-  PUBLIC :: fist_environment_type,        & 
+  PUBLIC :: fist_environment_type,        &
             fist_environment_p_type
 
 ! *** Public subroutines ***
@@ -182,8 +182,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
       routineP = moduleN//':'//routineN
@@ -237,8 +237,8 @@ CONTAINS
 
     TYPE(fist_environment_type), INTENT(OUT) :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -297,8 +297,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
       routineP = moduleN//':'//routineN
@@ -330,12 +330,12 @@ CONTAINS
        CALL ewald_env_retain ( ewald_env, error = error )
        CALL ewald_env_release ( fist_env % ewald_env, error = error )
        fist_env % ewald_env => ewald_env
-    ENDIF 
+    ENDIF
     IF ( PRESENT ( ewald_pw ) ) THEN
        CALL ewald_pw_retain ( ewald_pw, error = error )
        CALL ewald_pw_release ( fist_env % ewald_pw, error = error )
        fist_env % ewald_pw => ewald_pw
-    ENDIF 
+    ENDIF
     IF (PRESENT(cell_ref)) THEN
        CALL cell_retain(cell_ref, error=error)
        CALL cell_release(fist_env%cell_ref,error=error)
@@ -426,8 +426,8 @@ CONTAINS
 !   ARGUMENTS
 !     - fist_env: the object to create
 !     - para_env: the parallel environement for the qs_env
-!     - error: variable to control error logging, stopping,... 
-!       see module cp_error_handling 
+!     - error: variable to control error logging, stopping,...
+!       see module cp_error_handling
 !
 !   AUTHOR
 !     Fawzi Mohamed
@@ -439,8 +439,8 @@ CONTAINS
 SUBROUTINE fist_env_create(fist_env,para_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_create', &
       routineP = moduleN//':'//routineN
@@ -449,7 +449,7 @@ SUBROUTINE fist_env_create(fist_env,para_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   ALLOCATE(fist_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -477,8 +477,8 @@ END SUBROUTINE fist_env_create
 !
 !   ARGUMENTS
 !     - fist_env: the object to retain
-!     - error: variable to control error logging, stopping,... 
-!       see module cp_error_handling 
+!     - error: variable to control error logging, stopping,...
+!       see module cp_error_handling
 !
 !   AUTHOR
 !     Fawzi Mohamed
@@ -489,8 +489,8 @@ END SUBROUTINE fist_env_create
 !*** **********************************************************************
 SUBROUTINE fist_env_retain(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_retain', &
       routineP = moduleN//':'//routineN
@@ -498,7 +498,7 @@ SUBROUTINE fist_env_retain(fist_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-!!  
+!!
   CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -526,8 +526,8 @@ END SUBROUTINE fist_env_retain
 !
 !   ARGUMENTS
 !     - fist_env: the object to release
-!     - error: variable to control error logging, stopping,... 
-!       see module cp_error_handling 
+!     - error: variable to control error logging, stopping,...
+!       see module cp_error_handling
 !
 !   AUTHOR
 !     Fawzi Mohamed
@@ -538,8 +538,8 @@ END SUBROUTINE fist_env_retain
 !*** **********************************************************************
 SUBROUTINE fist_env_release(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
       routineP = moduleN//':'//routineN
@@ -554,10 +554,10 @@ SUBROUTINE fist_env_release(fist_env,error)
      fist_env%ref_count=fist_env%ref_count-1
      IF (fist_env%ref_count<1) THEN
         CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
-        CALL cell_release(fist_env%cell)
-        CALL cell_release(fist_env%cell_ref)
-        CALL ewald_pw_release(fist_env%ewald_pw)
-        CALL ewald_env_release(fist_env%ewald_env)
+        CALL cell_release(fist_env%cell,error=error)
+        CALL cell_release(fist_env%cell_ref,error=error)
+        CALL ewald_pw_release(fist_env%ewald_pw,error=error)
+        CALL ewald_env_release(fist_env%ewald_env,error=error)
         CALL cp_para_env_release(fist_env%para_env,error=error)
         CALL deallocate_fist_energy(fist_env%thermo)
 

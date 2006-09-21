@@ -11,7 +11,7 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -101,8 +101,8 @@ MODULE qs_rho_atom_methods
     TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: tot_rho1_h, tot_rho1_s
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom', &
       routineP = moduleN//':'//routineN
@@ -185,8 +185,8 @@ MODULE qs_rho_atom_methods
             ELSE
                 CALL set2zero_rho_atom_rad(rho_atom_set,iatom,i,error=error)
             ENDIF
-          END DO 
-        END DO 
+          END DO
+        END DO
 
 
 !******************************************************************************
@@ -238,7 +238,7 @@ MODULE qs_rho_atom_methods
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
               gg_lm1(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12-1)*g1(1:nr)*g2(1:nr)
             END IF
-           
+
             ! reduce the number of terms in the expansion local densities
             IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
@@ -281,7 +281,7 @@ MODULE qs_rho_atom_methods
                      int2(ir) = grid_atom%rad2l(ir,l_iso)*int2(ir)
                      vgg(ir,l,l_iso) = c1 * (int1(ir) + int2(ir))
                    END DO
-                 END IF 
+                 END IF
                  done_vgg(l,l_iso) = .TRUE.
                END IF ! failure
 
@@ -357,11 +357,11 @@ MODULE qs_rho_atom_methods
                     END IF !failure
                   END DO  ! icg
 
-                ENDDO  ! iso 
+                ENDDO  ! iso
 
              ENDDO ! i
             ENDDO  ! iat
-        
+
           ENDDO ! ipgf2
           m2s = m2s+maxso
 
@@ -372,7 +372,7 @@ MODULE qs_rho_atom_methods
 
 
     DO iat = bo(1),bo(2)
-       iatom = atom_list(iat) 
+       iatom = atom_list(iat)
 
        DO i = 1,nspins
 
@@ -412,13 +412,14 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set)
+  SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
 
@@ -471,7 +472,7 @@ MODULE qs_rho_atom_methods
             dft_control=dft_control,&
             atomic_kind_set=atomic_kind_set,&
             oce=oce,sab_orb=sab_orb,&
-            rho_atom_set=rho_atom)
+            rho_atom_set=rho_atom,error=error)
 
     IF (PRESENT(rho_atom_set)) rho_atom => rho_atom_set
 
@@ -601,7 +602,7 @@ MODULE qs_rho_atom_methods
 
                ENDDO
             ENDIF
-            
+
             DO kkind=1,nkind
 
               atomic_kind => atomic_kind_set(kkind)
@@ -785,10 +786,11 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE init_rho_atom(qs_env,gapw_control)
+  SUBROUTINE init_rho_atom(qs_env,gapw_control,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho_atom'
 
@@ -824,7 +826,7 @@ MODULE qs_rho_atom_methods
     NULLIFY(my_CG, atomic_kind, grid_atom, harmonics,atom_list)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                    dft_control=dft_control,linres_control=linres_control) 
+                    dft_control=dft_control,linres_control=linres_control,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxlgto=maxlgto,&
                              natom = natom)
@@ -840,7 +842,7 @@ MODULE qs_rho_atom_methods
 
     lcleb = MAX(llmax,2*maxlgto,1)
 
-!   *** allocate calculate the CG coefficients up to the maxl *** 
+!   *** allocate calculate the CG coefficients up to the maxl ***
     CALL clebsch_gordon_init ( lcleb )
     CALL reallocate(my_CG,1,max_s_set,1,max_s_set,1,max_s_harm)
 
@@ -855,7 +857,7 @@ MODULE qs_rho_atom_methods
         l1 = indso(1,iso1)
         m1 = indso(2,iso1)
         DO lc2 = 0,maxlgto
-          DO iso2 = nsoset(lc2-1)+1,nsoset(lc2) 
+          DO iso2 = nsoset(lc2-1)+1,nsoset(lc2)
             l2 = indso(1,iso2)
             m2 = indso(2,iso2)
             CALL clebsch_gordon (l1,m1,l2,m2,rga)
@@ -897,7 +899,7 @@ MODULE qs_rho_atom_methods
       ENDDO    ! iso1
     ENDDO      ! lc1
     DEALLOCATE(rga,STAT=istat)
-    CALL clebsch_gordon_deallocate 
+    CALL clebsch_gordon_deallocate
 
 !   *** initialize the Lebedev grids ***
     CALL init_lebedev_grids
@@ -923,7 +925,7 @@ MODULE qs_rho_atom_methods
 
       IF (llmax > la) THEN
         WRITE(6,'(/,72("*"))')
-        WRITE(6,'(T2,A,T66,I4)') & 
+        WRITE(6,'(T2,A,T66,I4)') &
           "WARNING: the lebedev grid is built for angular momentum l up to ",la,&
           "         the max l of spherical harmonics is larger, l_max = ", llmax,&
           "         good integration is guaranteed only for l <= ",la
@@ -933,13 +935,13 @@ MODULE qs_rho_atom_methods
 !     *** calculate the radial grid ***
       CALL create_grid_atom(grid_atom,nr,na,llmax,quadrature)
 
-      
+
       grid_atom%wa(1:na) = 4._dp*pi*lebedev_grid(ll)%w(1:na)
       DO ir = 1,nr
         DO ia= 1,na
           grid_atom%weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
-        END DO 
-      END DO 
+        END DO
+      END DO
 
       DO ia = 1,na
         cosia = lebedev_grid(ll)%r(3,ia)
@@ -950,7 +952,7 @@ MODULE qs_rho_atom_methods
         phi =  ACOS(cosia)
         IF( grid_atom%sin_phi(ia) < 0.0_dp ) phi = - phi
         grid_atom%phi(ia) = phi
-        grid_atom%sin_phi(ia)  = SIN(grid_atom%phi(ia)) 
+        grid_atom%sin_phi(ia)  = SIN(grid_atom%phi(ia))
         IF(ABS(grid_atom%sin_phi(ia)) > EPSILON(1.0_dp)) THEN
           grid_atom%cotan_phi(ia) = &
                 grid_atom%cos_phi(ia)/grid_atom%sin_phi(ia)
@@ -958,7 +960,7 @@ MODULE qs_rho_atom_methods
           grid_atom%cotan_phi(ia) = 0.0_dp
         END IF
 
-        grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) ) 
+        grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) )
         IF(ABS(grid_atom%sin_theta(ia)) > EPSILON(1.0_dp)) THEN
           grid_atom%usin_theta(ia)  = 1.0_dp/grid_atom%sin_theta(ia)
         ELSE
@@ -980,9 +982,9 @@ MODULE qs_rho_atom_methods
     CALL deallocate_lebedev_grids
     DEALLOCATE(my_CG)
 
-    CALL allocate_rho_atom_internals(qs_env, rho_atom_set)
+    CALL allocate_rho_atom_internals(qs_env, rho_atom_set,error=error)
 
-    CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
+    CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -990,11 +992,12 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set)
+  SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
@@ -1015,7 +1018,7 @@ MODULE qs_rho_atom_methods
     NULLIFY(atomic_kind_set)
     NULLIFY(rho_atom_set)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              natom = natom)
@@ -1039,10 +1042,10 @@ MODULE qs_rho_atom_methods
 
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                               maxso=maxso, nset=nset)
-       nsotot = maxso * nset 
+       nsotot = maxso * nset
        max_iso_not0 = harmonics%max_iso_not0
        DO iat = 1,nat
-          iatom = atom_list(iat) 
+          iatom = atom_list(iat)
           !       *** allocate the radial density for each LM,for each atom ***
 
           ALLOCATE (rho_atom_set(iatom)%rho_rad_h(nspins),STAT=istat)
@@ -1078,7 +1081,7 @@ MODULE qs_rho_atom_methods
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                           "ga_Vlocal_gb_h,ga_Vlocal_gb_s")
 
-          IF (paw_atom) THEN 
+          IF (paw_atom) THEN
              istat = 0
              DO ispin = 1,nspins
                 NULLIFY(rho_atom_set(iatom)%cpc_h(ispin)%r_coef, &
@@ -1137,8 +1140,8 @@ MODULE qs_rho_atom_methods
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     INTEGER, INTENT(IN)                      :: iatom, ispin, nr, max_iso_not0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -1182,7 +1185,7 @@ MODULE qs_rho_atom_methods
 !    END IF
 
     CALL timestop(0.0_dp,handle)
- 
+
   END SUBROUTINE  allocate_rho_atom_rad
 
   SUBROUTINE set2zero_rho_atom_rad(rho_atom_set,iatom,ispin,error)
@@ -1191,8 +1194,8 @@ MODULE qs_rho_atom_methods
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     INTEGER, INTENT(IN)                      :: iatom, ispin
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_rho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -1216,7 +1219,7 @@ MODULE qs_rho_atom_methods
       DO j = 1,3
          rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef = 0.0_dp
          rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef = 0.0_dp
-      END DO 
+      END DO
 
   END SUBROUTINE set2zero_rho_atom_rad
 

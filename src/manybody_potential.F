@@ -71,8 +71,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, &
                                                 rlow_nb, emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_manybody_control', &
       routineP = moduleN//':'//routineN
@@ -103,7 +103,7 @@ CONTAINS
              dx2 = (hicut-locut)/10000.0_dp
              x   = hicut
              DO jx = 1, 10000
-                e = manybody_pot ( potparm%pot ( i, j )%pot, x ) 
+                e = manybody_pot ( potparm%pot ( i, j )%pot, x )
                 IF (ABS(e) > emax_spline) THEN
                    locut = x
                    EXIT
@@ -120,7 +120,7 @@ CONTAINS
                 x2  = 1.0_dp/hicut**2
                 DO jx = 1, npoints + 1 ! jx: loop over 1/distance**2
                    x = SQRT ( 1.0_dp/x2 )
-                   e = manybody_pot ( potparm%pot ( i, j )%pot, x ) 
+                   e = manybody_pot ( potparm%pot ( i, j )%pot, x )
                    spline_data % x(jx) = x2
                    spline_data % y(jx) = e
                    x2 = x2 + dx2
@@ -135,7 +135,7 @@ CONTAINS
                 xsav = hicut
                 DO jx = 1, 5*npoints
                    x = x2
-                   e = manybody_pot ( potparm%pot ( i, j )%pot, x ) 
+                   e = manybody_pot ( potparm%pot ( i, j )%pot, x )
                    IF (e<max_energy) THEN
                       xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
                       diffmax = MAX(diffmax,xdum1)
@@ -165,14 +165,14 @@ CONTAINS
                 check_bounds = (spline_env%spline_data_p(kx)%spline_data%x1 == &
                      spline_env%spline_data_p(n )%spline_data%x1).AND.&
                      (spline_env%spline_data_p(kx)%spline_data%xn == &
-                     spline_env%spline_data_p(n )%spline_data%xn)                
+                     spline_env%spline_data_p(n )%spline_data%xn)
                 IF (nsize==nkx) THEN
                    ediff = MAXVAL(ABS(spline_env%spline_data_p(n)%spline_data%y-&
                         spline_env%spline_data_p(kx)%spline_data%y))
                    IF (ediff <= eps_spline) THEN
                       CALL spline_data_release(spline_env%spline_data_p(n)%spline_data,&
                            error)
-                      CALL spline_data_create ( spline_env%spline_data_p(n)%spline_data)
+                      CALL spline_data_create ( spline_env%spline_data_p(n)%spline_data,error=error)
                       n = n - 1
                       nspline = kx
                       EXIT
@@ -209,12 +209,12 @@ CONTAINS
 
           CASE default
              ! Nullify spline_data not involved in interaction
-             CALL spline_data_release ( spline_env % spline_data_p ( n ) % spline_data )
+             CALL spline_data_release ( spline_env % spline_data_p ( n ) % spline_data ,error=error)
              n = n - 1
              nspline = n
           END SELECT
           spline_env % spltab ( i, j ) = nspline
-          spline_env % spltab ( j, i ) = nspline          
+          spline_env % spltab ( j, i ) = nspline
 
        END DO ! j:  second atom type
     END DO ! i:  first atom type

@@ -77,7 +77,7 @@ MODULE sparse_matrix_types
     !TYPE(cp_sm_struct_type), pointer                 :: matrix_struct
     TYPE(distribution_2d_type), POINTER               :: distribution_2d
 
-    ! the sparsity of type of this matrix is of this kind 
+    ! the sparsity of type of this matrix is of this kind
     ! this is not yet strictly enforced
     INTEGER                                           ::  sparsity_id
   END TYPE real_matrix_type
@@ -120,7 +120,7 @@ MODULE sparse_matrix_types
             cp_sm_get_id_nr,&
             cp_sm_set,&
             cp_sm_sm_trace,&
-            cp_sm_get_block_list,& 
+            cp_sm_get_block_list,&
             cp_sm_maxabsval,&
             create_dbm_from_sm,&
             deallocate_dbm_from_sm
@@ -142,7 +142,7 @@ MODULE sparse_matrix_types
   END INTERFACE
 
   INTERFACE allocate_matrix
-    MODULE PROCEDURE allocate_real_matrix 
+    MODULE PROCEDURE allocate_real_matrix
   END INTERFACE
 
   INTERFACE allocate_matrix_set
@@ -255,8 +255,8 @@ CONTAINS
 !!     - alpha: scaling factor of matrix_a (defaults to 1.0)
 !!     - matrix_b: a sparse matrix (in)
 !!     - beta: scaling factor of matrix_b (defaults to 1.0)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -271,8 +271,8 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: matrix_b
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: beta
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_scale_and_add', &
       routineP = moduleN//':'//routineN
@@ -335,19 +335,19 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
                                  BLOCK=b_block)
-             
+
              IF (ASSOCIATED(b_block)) THEN
                 a_block(:,:) = my_alpha*a_block(:,:) + my_beta*b_block(:,:)
              ELSE
                 CALL dscal(SIZE(a_block,1)*SIZE(a_block,2),&
                      my_alpha,a_block(1,1),1)
              END IF
-             
+
              block_node => block_node%next_block_node
           END DO
        END DO
     END IF
-     
+
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_sm_scale_and_add
@@ -497,8 +497,8 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_real_matrix_block', &
       routineP = moduleN//':'//routineN
@@ -519,9 +519,9 @@ END SUBROUTINE cp_sm_scale_and_add
        rbc    = matrix%distribution_2d%row_distribution(block_col)
        cbr    = matrix%distribution_2d%col_distribution(block_row)
        cbc    = matrix%distribution_2d%col_distribution(block_col)
-       SELECT CASE(matrix%symmetry)      
+       SELECT CASE(matrix%symmetry)
        CASE("symmetric","antisymmetric")
-         ! we allow for putting a block at i,j even if we officially only own j,i 
+         ! we allow for putting a block at i,j even if we officially only own j,i
          IF ( .NOT. ((rbr.EQ.myprow .AND. cbc.EQ.mypcol) .OR. &
                      (rbc.EQ.myprow .AND. cbr.EQ.mypcol))       ) THEN
             CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
@@ -610,8 +610,8 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_1d_block_node', &
       routineP = moduleN//':'//routineN
@@ -629,7 +629,7 @@ END SUBROUTINE cp_sm_scale_and_add
        myprow = matrix%distribution_2d%blacs_env%mepos(1)
        mypcol = matrix%distribution_2d%blacs_env%mepos(2)
        rbr    = matrix%distribution_2d%row_distribution(block_col)
-       cbc    = matrix%distribution_2d%col_distribution(block_col)       
+       cbc    = matrix%distribution_2d%col_distribution(block_col)
        IF ( .NOT. ( rbr.EQ.myprow .OR. cbc.EQ.mypcol ) ) THEN
           CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
        ENDIF
@@ -693,7 +693,7 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE add_1d_block_node
 
 !*****************************************************************************************
-! writes for all local blocks the maximum absolute value of 
+! writes for all local blocks the maximum absolute value of
 ! the block entries to unit fileunit
 !*****************************************************************************************
 
@@ -732,7 +732,7 @@ END SUBROUTINE cp_sm_scale_and_add
 ! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
                                   first_row,last_row,first_col,last_col,&
-                                  matrix_name,matrix_symmetry,sparsity_id,distribution_2d)
+                                  matrix_name,matrix_symmetry,sparsity_id,distribution_2d,error)
 
 !   Purpose: Allocate and initialize a real matrix at the real_matrix_type
 !            level.
@@ -754,6 +754,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: sparsity_id
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE allocate_real_matrix (MODULE sparse_matrix_types)"
@@ -763,22 +764,22 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 !   *** Deallocate the old matrix ***
 
-    IF (ASSOCIATED(matrix)) CALL deallocate_matrix(matrix)
+    IF (ASSOCIATED(matrix)) CALL deallocate_matrix(matrix,error=error)
 
 !   *** Allocate a set of block lists ***
 
     ALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
 
-    NULLIFY(matrix%distribution_2d) 
+    NULLIFY(matrix%distribution_2d)
     IF (PRESENT(distribution_2d)) matrix%distribution_2d=>distribution_2d
     IF (ASSOCIATED(matrix%distribution_2d)) THEN
-       CALL distribution_2d_retain(matrix%distribution_2d)
+       CALL distribution_2d_retain(matrix%distribution_2d,error=error)
     END IF
 
     ALLOCATE (matrix%block_list(nblock_row),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
-    
+
     last_matrix_id=last_matrix_id+1
     matrix%id_nr=last_matrix_id
     matrix%ref_count=1
@@ -830,7 +831,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_real_matrix_set(matrix_set,nmatrix)
+  SUBROUTINE allocate_real_matrix_set(matrix_set,nmatrix,error)
 
 !   Purpose: Allocate and initialize a real matrix set.
 
@@ -841,6 +842,7 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_set
     INTEGER, INTENT(IN)                      :: nmatrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE allocate_real_matrix_set (MODULE sparse_matrix_types)"
@@ -849,7 +851,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set)
+    IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set,error=error)
 
     ALLOCATE (matrix_set(nmatrix),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"matrix_set",0)
@@ -861,7 +863,7 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE allocate_real_matrix_set
 ! *****************************************************************************
 
-  SUBROUTINE allocate_real_matrix_set_2d(matrix_set,nmatrix,mmatrix)
+  SUBROUTINE allocate_real_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
 
 !   Purpose: Allocate and initialize a real matrix set.
 
@@ -872,6 +874,7 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
     INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE allocate_real_matrix_set (MODULE sparse_matrix_types)"
@@ -880,7 +883,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set)
+    IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set,error=error)
 
     ALLOCATE (matrix_set(nmatrix,mmatrix),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"matrix_set",0)
@@ -897,7 +900,7 @@ END SUBROUTINE cp_sm_scale_and_add
   SUBROUTINE copy_local_sm_to_replicated_fm(sparse_matrix,fm)
 
 !   Purpose: copy to local blocks of a sparse matrix in a replicated full matrix (why ??)
-!            ! according to me this routine is a bug in parallel JVDV 
+!            ! according to me this routine is a bug in parallel JVDV
 
 !   History: - Creation (19.06.2001, MK)
 
@@ -1061,7 +1064,7 @@ END SUBROUTINE cp_sm_scale_and_add
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
                             BLOCK=sparse_block)
-        
+
         owner=.TRUE.
         IF (owner) THEN
            sbnrow=sparse_matrix%last_row(iblock_row)- &
@@ -1077,9 +1080,9 @@ END SUBROUTINE cp_sm_scale_and_add
                          1.0_dp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
                          nblock)
            ENDIF
-           
+
            IF (iblock_col .NE. iblock_row .AND. (symmetric .OR. antisymmetric)) THEN
-              IF (MOD(iblock_col,nthread).eq.ithread) THEN 
+              IF (MOD(iblock_col,nthread).eq.ithread) THEN
                  flops=flops+2.0_dp*sbnrow*sbncol*ncol
                  CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l_ji, &
                       rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
@@ -1087,7 +1090,7 @@ END SUBROUTINE cp_sm_scale_and_add
                       sparse_block(1,1),sbnrow, &
                       1.0_dp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
                       nblock)
-              ENDIF 
+              ENDIF
            ENDIF
         END IF
 
@@ -1310,7 +1313,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_real_matrix(matrix)
+  SUBROUTINE deallocate_real_matrix(matrix,error)
 
 !   Purpose: Deallocate a real matrix at the real_matrix_type level.
 
@@ -1319,6 +1322,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE deallocate_real_matrix (MODULE sparse_matrix_types)"
@@ -1348,7 +1352,7 @@ END SUBROUTINE cp_sm_scale_and_add
     DEALLOCATE (matrix%last_col,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (last_col)")
 
-    CALL distribution_2d_release(matrix%distribution_2d)
+    CALL distribution_2d_release(matrix%distribution_2d,error=error)
 
     DEALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name)
@@ -1378,7 +1382,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 
     current_block_node => matrix%block_list(block_row)%first_block_node
-    
+
     DO WHILE (ASSOCIATED(current_block_node))
       next_block_node => current_block_node%next_block_node
       DEALLOCATE (current_block_node%block,STAT=istat)
@@ -1397,7 +1401,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_real_matrix_set(matrix_set)
+  SUBROUTINE deallocate_real_matrix_set(matrix_set,error)
 
 !   Purpose: Deallocate a real matrix set.
 
@@ -1407,6 +1411,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE deallocate_real_matrix_set (MODULE sparse_matrix_types)"
@@ -1417,7 +1422,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     IF (ASSOCIATED(matrix_set)) THEN
       DO imatrix=1,SIZE(matrix_set)
-        CALL deallocate_matrix(matrix_set(imatrix)%matrix)
+        CALL deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
@@ -1427,7 +1432,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_real_matrix_set_2d(matrix_set)
+  SUBROUTINE deallocate_real_matrix_set_2d(matrix_set,error)
 
 !   Purpose: Deallocate a real matrix set.
 
@@ -1437,6 +1442,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE deallocate_real_matrix_set (MODULE sparse_matrix_types)"
@@ -1448,7 +1454,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (ASSOCIATED(matrix_set)) THEN
       DO jmatrix=1,SIZE(matrix_set,2)
         DO imatrix=1,SIZE(matrix_set,1)
-          CALL deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix)
+          CALL deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix,error=error)
         END DO
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
@@ -1791,7 +1797,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK,add)
+  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK,add,error)
 
 !   Purpose: Allocate and initialize a new block node or update an existing
 !            block node.
@@ -1805,6 +1811,7 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
     LOGICAL, INTENT(IN), OPTIONAL            :: add
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE put_real_matrix_block (MODULE sparse_matrix_types)"
@@ -1859,9 +1866,9 @@ END SUBROUTINE cp_sm_scale_and_add
 !     *** Add a new block node ***
 
       IF (PRESENT(BLOCK)) THEN
-        CALL add_block_node(matrix,block_row,block_col,BLOCK)
+        CALL add_block_node(matrix,block_row,block_col,BLOCK,error=error)
       ELSE
-        CALL add_block_node(matrix,block_row,block_col)
+        CALL add_block_node(matrix,block_row,block_col,error=error)
       END IF
 
     END IF
@@ -1870,7 +1877,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE replicate_real_matrix(source,TARGET,target_name,allocate_blocks)
+  SUBROUTINE replicate_real_matrix(source,TARGET,target_name,allocate_blocks,error)
 
 !   Purpose: Replicate the existing matrix source. The replicated matrix is
 !            target with the name target_name.
@@ -1884,6 +1891,7 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: source, TARGET
     CHARACTER(LEN=*), INTENT(IN)             :: target_name
     LOGICAL, INTENT(IN), OPTIONAL            :: allocate_blocks
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE replicate_real_matrix (MODULE sparse_matrix_types)"
@@ -1900,7 +1908,7 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routine,"The source matrix pointer is not associated")
     END IF
 
-    IF (ASSOCIATED(TARGET)) CALL deallocate_matrix(TARGET)
+    IF (ASSOCIATED(TARGET)) CALL deallocate_matrix(TARGET,error=error)
 
 !   *** Allocate a new matrix structure ***
 
@@ -1916,7 +1924,7 @@ END SUBROUTINE cp_sm_scale_and_add
                          matrix_name=target_name,&
                          sparsity_id=source%sparsity_id, &
                          distribution_2d=source%distribution_2d,&
-                         matrix_symmetry=source%symmetry)
+                         matrix_symmetry=source%symmetry,error=error)
 
     IF (PRESENT(allocate_blocks)) THEN
       make_data_blocks = allocate_blocks
@@ -1941,7 +1949,7 @@ END SUBROUTINE cp_sm_scale_and_add
           CALL add_block_node(matrix=TARGET,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              BLOCK=BLOCK)
+                              BLOCK=BLOCK,error=error)
 
           block_node => next_block_node(block_node)
 
@@ -1956,7 +1964,7 @@ END SUBROUTINE cp_sm_scale_and_add
 ! *****************************************************************************
 
   SUBROUTINE replicate_real_matrix_structure(source,TARGET,target_name,&
-                                             target_symmetry)
+                                             target_symmetry,error)
 
 !   Purpose: Replicate the matrix structure of the existing matrix source. The
 !            new matrix target with the name target_name has the same
@@ -1969,6 +1977,7 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: source, TARGET
     CHARACTER(LEN=*), INTENT(IN)             :: target_name
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: target_symmetry
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = "replicate_real_matrix_structure"
 
@@ -2004,7 +2013,7 @@ END SUBROUTINE cp_sm_scale_and_add
                          matrix_name=target_name,&
                          sparsity_id=source%sparsity_id,&
                          distribution_2d=source%distribution_2d,&
-                         matrix_symmetry=matrix_symmetry)
+                         matrix_symmetry=matrix_symmetry,error=error)
 
 !   *** Initialize all block nodes ***
 
@@ -2020,11 +2029,11 @@ END SUBROUTINE cp_sm_scale_and_add
         IF(matrix_symmetry=="none" .OR.matrix_symmetry=="non symmetric")THEN
           CALL add_1d_block_node(matrix=TARGET,&
                             block_row=iblock_row,&
-                            block_col=iblock_col)
+                            block_col=iblock_col,error=error)
         ELSE
           CALL add_block_node(matrix=TARGET,&
                             block_row=iblock_row,&
-                            block_col=iblock_col)
+                            block_col=iblock_col,error=error)
         END IF
 
         block_node => next_block_node(block_node)
@@ -2206,7 +2215,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !!     transfer_real_matrix
 !!
 !!   FUNCTION
-!!   Transfers source matrix to target matrix (copies the values) 
+!!   Transfers source matrix to target matrix (copies the values)
 !!   filtering the result through the structure (sparsity) of target matrix
 !!   zeros blocks as necessary
 !!
@@ -2217,8 +2226,8 @@ END SUBROUTINE cp_sm_scale_and_add
 !!   INPUTS
 !!     source_matrix: the matrix to copy
 !!     target_matrix: the matrix that will contain the copy
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Matthias Krack
@@ -2231,8 +2240,8 @@ END SUBROUTINE cp_sm_scale_and_add
   SUBROUTINE transfer_real_matrix(source_matrix,target_matrix ,error)
 
     TYPE(real_matrix_type), POINTER          :: source_matrix, target_matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_real_matrix', &
       routineP = moduleN//':'//routineN
@@ -2282,8 +2291,8 @@ END SUBROUTINE cp_sm_scale_and_add
               NULLIFY(source_block)
               IF (iblock_col_source >  iblock_col_target) EXIT
               block_node_source => block_node_source%next_block_node
-           ENDDO 
-           
+           ENDDO
+
            IF (ASSOCIATED(source_block)) THEN
               CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
                    source_block(1,1),1,target_block(1,1),1)
@@ -2292,7 +2301,7 @@ END SUBROUTINE cp_sm_scale_and_add
                    0.0_dp,0,target_block(1,1),1)
            END IF
         END IF
-        
+
         block_node_target => block_node_target%next_block_node
 
       END DO
@@ -2319,8 +2328,8 @@ END SUBROUTINE cp_sm_scale_and_add
 !!     - matrix: the matrix you remove the block from
 !!     - block_row: the row of the block to remove
 !!     - block_col: the column of the block to remove
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -2332,8 +2341,8 @@ END SUBROUTINE cp_sm_scale_and_add
   SUBROUTINE remove_real_matrix_block(matrix,block_row, block_col, error)
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(in)                      :: block_row, block_col
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'remove_real_matrix_block', &
       routineP = moduleN//':'//routineN
@@ -2402,7 +2411,7 @@ END SUBROUTINE cp_sm_scale_and_add
        DO WHILE (ASSOCIATED(NODE))
           block_memory = SIZE(node%block,1) * SIZE(node%block,2)
           j = node%block_col
-          IF (i == j) THEN 
+          IF (i == j) THEN
              n_diagonal_blocks = n_diagonal_blocks + 1
              diagonal_memory = diagonal_memory + block_memory
           END IF
@@ -2411,7 +2420,7 @@ END SUBROUTINE cp_sm_scale_and_add
           node => next_block_node(node)
        END DO
     END DO
-    
+
     IF (TRIM(matrix%symmetry) == "symmetric") THEN
        IF (.NOT.PRESENT(fill_symmetric) .OR. fill_symmetric) THEN
           block_counter = 2*block_counter - n_diagonal_blocks
@@ -2443,8 +2452,8 @@ END SUBROUTINE cp_sm_scale_and_add
 !!
 !!   ARGUMENTS
 !!     - matrix: the matrix you want info about
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -2455,8 +2464,8 @@ END SUBROUTINE cp_sm_scale_and_add
 !!*** **********************************************************************
 FUNCTION cp_sm_get_id_nr(matrix,error) RESULT(res)
     TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_get_id_nr', &
@@ -2494,8 +2503,8 @@ END FUNCTION cp_sm_get_id_nr
 !!     -
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -2507,8 +2516,8 @@ END FUNCTION cp_sm_get_id_nr
 SUBROUTINE cp_sm_set(matrix,name,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_set', &
       routineP = moduleN//':'//routineN
@@ -2516,7 +2525,7 @@ SUBROUTINE cp_sm_set(matrix,name,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
   CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -2558,8 +2567,8 @@ END SUBROUTINE cp_sm_set
 SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_get_block_list', &
       routineP = moduleN//':'//routineN
@@ -2569,7 +2578,7 @@ SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
     TYPE(real_block_node_type), POINTER      :: node
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -2594,8 +2603,8 @@ SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
     END DO
 
   END IF
-  
-END SUBROUTINE cp_sm_get_block_list 
+
+END SUBROUTINE cp_sm_get_block_list
 
 !***************************************************************************
 
@@ -2620,8 +2629,8 @@ END SUBROUTINE cp_sm_get_block_list
 !!
 !!   ARGUMENTS
 !!     - matrix: the matrix you are interested in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -2634,8 +2643,8 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), INTENT(out)               :: maxabsval
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_maxabsval', &
       routineP = moduleN//':'//routineN
@@ -2646,18 +2655,18 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
     TYPE(real_block_node_type), POINTER      :: block_node
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
   CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  
+
   maxabsval=0.0_dp
 
   DO iblock_row=1,matrix%nblock_row
-     
+
      block_node => first_block_node(matrix,iblock_row)
-     
+
      DO WHILE (ASSOCIATED(block_node))
 
         CALL get_block_node(block_node=block_node,&
@@ -2697,8 +2706,8 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
 !!
 !!   ARGUMENTS
 !!     - matrix: the matrix you are interested in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     jgh
@@ -2711,8 +2720,8 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), INTENT(out)               :: trace
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_scalar', &
       routineP = moduleN//':'//routineN
@@ -2726,14 +2735,14 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
 
     failure=.FALSE.
-  
+
     CPPrecondition(ASSOCIATED(matrix1),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix2),cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix1%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix2%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  
+
     trace=0.0_dp
     ks = 0.0_dp ;  t = 0.0_dp ; y = 0.0_dp ; c = 0.0_dp
 
@@ -2742,10 +2751,10 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     sfactor = 2._dp
 
     DO iblock_row=1,nblock_row
-     
+
      block_node1 => first_block_node(matrix1,iblock_row)
      block_node2 => first_block_node(matrix2,iblock_row)
-     
+
      DO WHILE (ASSOCIATED(block_node1) .AND. ASSOCIATED(block_node2))
 
         CALL get_block_node(block_node=block_node1,&
@@ -2762,13 +2771,13 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
         ELSE
           trace_block = sfactor*trace_block
         END IF
-   
+
         ! use Kahan's sum to reduce roundoff
         y  = trace_block - c
         t  = ks + y
         c  = (t - ks) - y
         ks = t
- 
+
         block_node1 => block_node1%next_block_node
         block_node2 => block_node2%next_block_node
 
@@ -2790,7 +2799,7 @@ END SUBROUTINE cp_sm_sm_trace_scalar
 !!
 !!   FUNCTION
 !!     Calculates blockwise the trace of a matrix product of two sparse matrices,
-!!     this is necessary if the forceone application is the calculation of the 
+!!     this is necessary if the forceone application is the calculation of the
 !!     forces via F=Tr[p*(dH/dR)]
 !!
 !!   NOTES
@@ -2798,11 +2807,11 @@ END SUBROUTINE cp_sm_sm_trace_scalar
 !!     - matrix2: 2nd multiplier
 !!     - trace_vec: The vector in which the blockwise traces are written
 !!     - para_env: The paralle environment
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   INPUTS
-!!     - 
+!!     -
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -2815,8 +2824,8 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
     TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_vector', &
       routineP = moduleN//':'//routineN
@@ -2829,23 +2838,23 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
     TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(matrix1), cp_failure_level, routineP, error, failure)
   CPPrecondition(ASSOCIATED(matrix2), cp_failure_level, routineP, error, failure)
   CPPrecondition(matrix1%ref_count>0, cp_failure_level, routineP, error, failure)
   CPPrecondition(matrix2%ref_count>0, cp_failure_level, routineP, error, failure)
   CPPrecondition(ASSOCIATED(para_env), cp_failure_level, routineP, error, failure)
   CPPrecondition(para_env%ref_count>0, cp_failure_level, routineP, error, failure)
-  
+
   trace_vec(:) = 0.0_dp
 
   CALL get_matrix_info(matrix=matrix1, nblock_row=nblock_row)
 
   DO iblock_row = 1,nblock_row
-     
+
      block_node1 => first_block_node(matrix1, iblock_row)
      block_node2 => first_block_node(matrix2, iblock_row)
-     
+
      DO WHILE (ASSOCIATED(block_node1) .AND. ASSOCIATED(block_node2))
 
         CALL get_block_node(block_node=block_node1, &
@@ -2878,7 +2887,7 @@ END SUBROUTINE cp_sm_sm_trace_vector
 
 !***************************************************************************
 
-SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
+SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
 
 !   Purpose: Create a diagonal block matrix from a real sparse matrix
 !            same structure.
@@ -2889,6 +2898,7 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
     LOGICAL, INTENT(IN)                      :: copy_in
     TYPE(cp_para_env_type), INTENT(IN), &
       OPTIONAL                               :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dbm_from_sm', &
       routineP = moduleN//':'//routineN
@@ -2912,12 +2922,12 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
                          last_col=sm%last_col,&
                          matrix_name=matrix_name,&
                          matrix_symmetry="symmetric",&
-                         sparsity_id=1111)
+                         sparsity_id=1111,error=error)
 
     DO iblock_row = 1, sm%nblock_row
        CALL add_block_node(matrix=dbm,&
                            block_row=iblock_row,&
-                           block_col=iblock_row)
+                           block_col=iblock_row,error=error)
     END DO
 
     IF ( copy_in ) THEN
@@ -2930,7 +2940,7 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
                               block_col=iblock_col,&
                               block=block)
           IF (iblock_row == iblock_col) THEN
-            CALL put_block_node(dbm,iblock_row,iblock_row,block)
+            CALL put_block_node(dbm,iblock_row,iblock_row,block,error=error)
           END IF
           block_node => next_block_node(block_node)
         END DO
@@ -2952,15 +2962,16 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
 END SUBROUTINE create_dbm_from_sm
 
 !***************************************************************************
-SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env)
+SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
 
-!   Purpose: Deallocate a diagonal block matrix 
+!   Purpose: Deallocate a diagonal block matrix
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: dbm, sm
     LOGICAL, INTENT(IN)                      :: copy_out
     TYPE(cp_para_env_type), INTENT(IN), &
       OPTIONAL                               :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbm_from_sm', &
       routineP = moduleN//':'//routineN
@@ -2992,14 +3003,14 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env)
             CALL get_block_node(matrix=dbm,&
                                 block_row=iblock_row,block_col=iblock_row,&
                                 BLOCK=block)
-            CALL put_block_node(sm,iblock_row,iblock_row,block,.TRUE.)
+            CALL put_block_node(sm,iblock_row,iblock_row,block,.TRUE.,error=error)
           END IF
           block_node => next_block_node(block_node)
         END DO
       END DO
   END IF
 
-  CALL deallocate_matrix(dbm)
+  CALL deallocate_matrix(dbm,error=error)
 
   CALL timestop(0.0_dp,handle)
 

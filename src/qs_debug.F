@@ -13,7 +13,7 @@
 !!     Debug energy and derivatives w.r.t. finite differences
 !!
 !!   NOTES
-!!     Use INTERPOLATION USE_GUESS, in order to perform force and energy 
+!!     Use INTERPOLATION USE_GUESS, in order to perform force and energy
 !!     calculations with the same density. This is not compulsory when iterating
 !!     to selfconsistency, but essential in the non-selfconsistent case [08.2005,TdK].
 !!
@@ -22,13 +22,13 @@
 !!
 !!   MODIFICATION HISTORY
 !!     12.2004 created [tlaino]
-!!     08.2005 consistent_energies option added, to allow FD calculations 
-!!             with the correct energies in the non-selfconsistent case, but 
-!!             keep in mind, that the QS energies and forces are then NOT 
+!!     08.2005 consistent_energies option added, to allow FD calculations
+!!             with the correct energies in the non-selfconsistent case, but
+!!             keep in mind, that the QS energies and forces are then NOT
 !!             consistent to each other [TdK].
-!!     08.2005 In case the Harris functional is used, consistent_energies is 
+!!     08.2005 In case the Harris functional is used, consistent_energies is
 !!             et to .FALSE., otherwise the QS energies are spuriously used [TdK].
-!!             
+!!
 !!
 !!   SOURCE
 !****************************************************************************
@@ -59,8 +59,8 @@ CONTAINS
 
   SUBROUTINE qs_debug_energy_and_forces(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_debug_energy_and_forces', &
       routineP = moduleN//':'//routineN
@@ -87,7 +87,7 @@ CONTAINS
     root_section=>force_env%root_section
     IF (.NOT.failure) THEN
        harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
-                                                    "DFT%QS%HARRIS")
+                                                    "DFT%QS%HARRIS",error=error)
        CALL section_vals_val_get(harris_section, "ACTIVATE", &
                                  l_val=harris_flag, error=error)
 
@@ -99,7 +99,7 @@ CONTAINS
        logger => cp_error_get_logger(error)
        iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
-       ! 
+       !
        ! First evaluate energy and forces...
        !
        CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
@@ -107,7 +107,7 @@ CONTAINS
        !
        ! Copy forces in array and start the numerical calculation
        !
-       CALL force_env_get(force_env,subsys=subsys,error=error)       
+       CALL force_env_get(force_env,subsys=subsys,error=error)
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
        iseq = 0
        DO isubsys=1, SIZE(subsys)
@@ -128,14 +128,14 @@ CONTAINS
        iseq = 0
        DO isubsys=1, SIZE(subsys)
           IF (ASSOCIATED( numer_forces)) DEALLOCATE( numer_forces)
-          ALLOCATE(  numer_forces(subsys(isubsys)%subsys%particles%n_els,3), stat=stat)          
+          ALLOCATE(  numer_forces(subsys(isubsys)%subsys%particles%n_els,3), stat=stat)
           particles => subsys(isubsys)%subsys%particles%els
           Atom: DO ip = 1, subsys(isubsys)%subsys%particles%n_els
              iseq = iseq + 1
              Coord: DO k = 1, 3
                 numer_energy = 0.0_dp
                 std_value = particles(ip)%r(k)
-                DO j = 1, 2 
+                DO j = 1, 2
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j * Dx
                    IF (.NOT. harris_flag) THEN
                      CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
@@ -155,7 +155,7 @@ CONTAINS
              END DO Coord
              !
              ! Check analytical forces Vs numerical forces
-             !             
+             !
              IF (para_env%ionode) THEN
                 WRITE(iw,'(A,I5,6F15.9)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:)
              ENDIF
@@ -165,10 +165,10 @@ CONTAINS
           ENDIF
           iseq = iseq - subsys(isubsys)%subsys%particles%n_els
           DO ip = 1, subsys(isubsys)%subsys%particles%n_els
-             iseq = iseq + 1 
+             iseq = iseq + 1
              IF (para_env%ionode) THEN
                  WRITE(iw,'(A,I5,9F12.6)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:),&
-                      analyt_forces(iseq,:) - numer_forces(ip,:)   
+                      analyt_forces(iseq,:) - numer_forces(ip,:)
              ENDIF
           END DO
           !
@@ -177,7 +177,7 @@ CONTAINS
           DO ip =  1, subsys(isubsys)%subsys%particles%n_els
              Err = 0.0_dp
              DO K = 1, 3
-                IF (ABS(numer_forces(ip,K)) >= 1.0E-6_dp) THEN 
+                IF (ABS(numer_forces(ip,K)) >= 1.0E-6_dp) THEN
                    Err(K) = (analyt_forces(ip,K)-numer_forces(ip,K))/numer_forces(ip,K)*100.0_dp
                 END IF
              END DO

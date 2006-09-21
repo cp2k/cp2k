@@ -5,10 +5,10 @@
 !!     qs_localization_methods
 !!
 !!   FUNCTION
-!!     Localization methods such as 2x2 Jacobi rotations 
+!!     Localization methods such as 2x2 Jacobi rotations
 !!                                  Steepest Decents
 !!                                  Conjugate Gradient
-!! 
+!!
 !!
 !!   AUTHORS
 !!     CJM (04.2003)
@@ -67,7 +67,7 @@ CONTAINS
     DO idim = 1, 3
       weights ( idim ) = cell % hmat ( idim, idim ) * cell % hmat ( idim, idim )
     ENDDO
-  END SUBROUTINE initialize_weights 
+  END SUBROUTINE initialize_weights
 
 ! *****************************************************************************
   SUBROUTINE jacobi_rotations ( weights, zij, vectors, max_iter, eps_localization, sweeps )
@@ -97,7 +97,7 @@ CONTAINS
     CALL cp_fm_set_all ( rmat, 0._dp, 1._dp, error )
 
     CALL cp_cfm_create ( c_rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_cfm_set_all ( c_rmat, (0._dp,0._dp) , (1._dp,0._dp) )
+    CALL cp_cfm_set_all ( c_rmat, (0._dp,0._dp) , (1._dp,0._dp) ,error=error)
     DO idim=1,SIZE(c_zij)
        NULLIFY(c_zij(idim)%matrix)
        CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
@@ -113,7 +113,7 @@ CONTAINS
       WRITE(cp_logger_get_default_unit_nr(),'(T20,A12,T40,A12 )') "Iteration", "Tolerance"
     END IF
 ! do jacobi sweeps until converged
-    DO WHILE ( tolerance >= eps_localization .AND. sweeps < max_iter ) 
+    DO WHILE ( tolerance >= eps_localization .AND. sweeps < max_iter )
       sweeps = sweeps + 1
       DO istate = 1, nstate
         DO jstate = istate + 1, nstate
@@ -121,7 +121,7 @@ CONTAINS
             CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, istate, mii(idim) )
             CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, jstate, mij(idim) )
             CALL cp_cfm_get_element ( c_zij(idim) % matrix, jstate, jstate, mjj(idim) )
-          END DO 
+          END DO
           CALL get_angle ( mii, mjj, mij, weights, theta )
           st = SIN ( theta )
           ct = COS ( theta )
@@ -139,13 +139,13 @@ CONTAINS
     DO idim=1,SIZE(c_zij)
        zij(1,idim) % matrix % local_data =  REAL ( c_zij(idim)%matrix% local_data , dp )
        zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
-       CALL cp_cfm_release( c_zij(idim)%matrix )
+       CALL cp_cfm_release( c_zij(idim)%matrix ,error=error)
     ENDDO
     DEALLOCATE(c_zij)
     rmat % local_data = REAL ( c_rmat%local_data, dp )
-    CALL cp_cfm_release( c_rmat )
-    CALL rotate_orbitals ( rmat, vectors ) 
-    CALL cp_fm_release ( rmat )
+    CALL cp_cfm_release( c_rmat ,error=error)
+    CALL rotate_orbitals ( rmat, vectors )
+    CALL cp_fm_release ( rmat ,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -180,8 +180,8 @@ CONTAINS
       CALL zrot( nstate, zij(idim) %matrix % local_data ( istate, 1 ), stride, &
                  zij(idim) %matrix % local_data ( jstate, 1 ), stride, ct, st_cmplx )
 #endif
-    END DO 
-  END SUBROUTINE rotate_zij 
+    END DO
+  END SUBROUTINE rotate_zij
 ! *****************************************************************************
   SUBROUTINE rotate_rmat ( istate, jstate, st, ct, rmat )
     IMPLICIT NONE
@@ -220,12 +220,12 @@ CONTAINS
     a12 = 0.0_dp
     b12 = 0.0_dp
     DO idim = 1, 3
-      z11 = mii(idim) 
-      z22 = mjj(idim) 
+      z11 = mii(idim)
+      z22 = mjj(idim)
       z12 = mij(idim)
       a12 = a12 + weights ( idim ) * REAL ( CONJG ( z12 ) * ( z11 - z22 ), dp )
       b12 = b12 + weights ( idim ) * (  z12 * CONJG ( z12 ) -  &
-            0.25_dp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) ) 
+            0.25_dp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) )
     END DO
     IF ( ABS ( b12 ) > 1.e-10_dp ) THEN
       ratio = -a12/b12
@@ -245,7 +245,7 @@ CONTAINS
         theta = theta + 0.25_dp * pi
        ENDIF
     ENDIF
-  END SUBROUTINE get_angle 
+  END SUBROUTINE get_angle
 ! *****************************************************************************
   SUBROUTINE check_tolerance ( zij, weights, tolerance )
     TYPE(cp_cfm_p_type)                      :: zij( : )
@@ -262,10 +262,10 @@ CONTAINS
     CALL cp_fm_set_all ( force, 0._dp, error=error )
     CALL grad_at_0 ( zij, weights, force )
     CALL cp_fm_maxabsval ( force, tolerance, error = error )
-    CALL cp_fm_release ( force )
+    CALL cp_fm_release ( force ,error=error)
   END SUBROUTINE check_tolerance
 ! *****************************************************************************
-  SUBROUTINE rotate_orbitals ( rmat, vectors ) 
+  SUBROUTINE rotate_orbitals ( rmat, vectors )
     TYPE(cp_fm_type), POINTER                :: rmat, vectors
 
     INTEGER                                  :: k, n
@@ -274,11 +274,11 @@ CONTAINS
 
     NULLIFY ( wf )
     CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
-    CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k )
-    CALL cp_fm_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf )
-    CALL cp_fm_to_fm ( wf, vectors )
-    CALL cp_fm_release ( wf )
-  END SUBROUTINE rotate_orbitals 
+    CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k ,error=error)
+    CALL cp_fm_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf ,error=error)
+    CALL cp_fm_to_fm ( wf, vectors ,error=error)
+    CALL cp_fm_release ( wf ,error=error)
+  END SUBROUTINE rotate_orbitals
 ! *****************************************************************************
   SUBROUTINE gradsq_at_0 ( diag, weights, matrix )
     COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -360,10 +360,11 @@ CONTAINS
 ! *****************************************************************************
 ! return energy and maximum gradient in the current point
 ! *****************************************************************************
-  SUBROUTINE check_tolerance_new( weights, zij, tolerance, value)
+  SUBROUTINE check_tolerance_new( weights, zij, tolerance, value, error)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     REAL(KIND=dp)                            :: tolerance, value
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp)                         :: kii, kij, kjj
     COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -377,7 +378,7 @@ CONTAINS
     NULLIFY(diag)
     CALL cp_fm_get_info ( zij(1,1)%matrix, nrow_local = nrow_local,  &
                    ncol_local = ncol_local, nrow_global = nrow_global, &
-                   row_indices = row_indices, col_indices = col_indices)
+                   row_indices = row_indices, col_indices = col_indices,error=error)
     ALLOCATE(diag(nrow_global,3))
     value=0.0_dp
     DO idim = 1,SIZE(zij,2)
@@ -400,7 +401,7 @@ CONTAINS
             kij = CMPLX(ra,rb,dp)
             grad_ij = grad_ij + weights ( idim ) * &
                       REAL ( 4.0_dp * CONJG ( kij ) * ( kjj - kii ), dp )
-          END DO 
+          END DO
           tolerance=MAX(ABS(grad_ij),tolerance)
        ENDDO
     ENDDO
@@ -421,8 +422,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
     LOGICAL, INTENT(out), OPTIONAL           :: converged
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
@@ -447,44 +448,44 @@ CONTAINS
     NULLIFY(cmat_A,cmat_R,cmat_t1)
     CALL cp_fm_get_info(zij(1,1)%matrix,nrow_global=nrow_global, ncol_global=ncol_global, &
                                         row_indices=row_indices, col_indices=col_indices, &
-                                        nrow_local=nrow_local, ncol_local=ncol_local)
-  
+                                        nrow_local=nrow_local, ncol_local=ncol_local,error=error)
+
     ALLOCATE(diag_z(nrow_global,3))
     ALLOCATE(evals(nrow_global))
     ALLOCATE(evals_exp(nrow_global))
 
-    CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct)
-    CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct)
-    CALL cp_cfm_create ( cmat_t1, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+    CALL cp_cfm_create ( cmat_R, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+    CALL cp_cfm_create ( cmat_t1, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
 
-    CALL cp_fm_create ( mat_U, zij ( 1, 1 ) % matrix % matrix_struct)
-    CALL cp_fm_create ( mat_t, zij ( 1, 1 ) % matrix % matrix_struct)
-    CALL cp_fm_create ( mat_R, zij ( 1, 1 ) % matrix % matrix_struct)
+    CALL cp_fm_create ( mat_U, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+    CALL cp_fm_create ( mat_t, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
+    CALL cp_fm_create ( mat_R, zij ( 1, 1 ) % matrix % matrix_struct,error=error)
 
-    CALL cp_fm_set_all( mat_R,0.0_dp,1.0_dp )
-    CALL cp_fm_set_all( mat_t, 0.0_dp)
+    CALL cp_fm_set_all( mat_R,0.0_dp,1.0_dp ,error=error)
+    CALL cp_fm_set_all( mat_t, 0.0_dp,error=error)
     DO idim=1,SIZE(zij,2)
-       CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(1,idim) % matrix)
-       CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(2,idim) % matrix)
+       CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(1,idim) % matrix,error=error)
+       CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(2,idim) % matrix,error=error)
     ENDDO
-    CALL cp_fm_syevd(mat_t,mat_U,evals)
+    CALL cp_fm_syevd(mat_t,mat_U,evals,error=error)
     DO idim=1,SIZE(zij,2)
        ! rotate z's
-       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t)
-       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix)
-       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t)
-       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix)
+       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
+       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
     ENDDO
     ! collect rotation matrix
-    CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t)
-    CALL cp_fm_to_fm(mat_t,mat_R)
+    CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
+    CALL cp_fm_to_fm(mat_t,mat_R,error=error)
 
     iterations=0
     tolerance=1.0_dp
-    DO 
+    DO
       iterations=iterations+1
       DO idim=1,SIZE(zij,2)
-         DO i=1,nrow_global 
+         DO i=1,nrow_global
             CALL cp_fm_get_element(zij(1,idim) % matrix, i, i, ra)
             CALL cp_fm_get_element(zij(2,idim) % matrix, i, i, rb)
             diag_z(i,idim)=CMPLX(ra,rb,dp)
@@ -512,27 +513,27 @@ CONTAINS
 
       ! construct rotation matrix U based on A using diagonalization
       ! alternatively, exp based on repeated squaring could be faster
-      CALL cp_cfm_heevd(cmat_A,cmat_R,evals)
+      CALL cp_cfm_heevd(cmat_A,cmat_R,evals,error=error)
       maxeval=MAXVAL(ABS(evals))
       evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
-      CALL cp_cfm_to_cfm(cmat_R,cmat_t1)
+      CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
       CALL cp_cfm_column_scale(cmat_t1,evals_exp)
-      CALL cp_cfm_gemm('N','C',nrow_global,nrow_global,nrow_global,cone,cmat_t1,cmat_R,czero,cmat_A)
+      CALL cp_cfm_gemm('N','C',nrow_global,nrow_global,nrow_global,cone,cmat_t1,cmat_R,czero,cmat_A,error=error)
       mat_U%local_data=REAL(cmat_A%local_data) ! U is a real matrix
 
       DO idim=1,SIZE(zij,2)
          ! rotate z's
-         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t)
-         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix)
-         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t)
-         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix)
+         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
+         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
       ENDDO
       ! collect rotation matrix
-      CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t)
-      CALL cp_fm_to_fm(mat_t,mat_R)
+      CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
+      CALL cp_fm_to_fm(mat_t,mat_R,error=error)
 
-      CALL check_tolerance_new ( weights, zij, tolerance, value )
-      IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source ) THEN 
+      CALL check_tolerance_new ( weights, zij, tolerance, value ,error=error)
+      IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source ) THEN
           WRITE(cp_logger_get_default_unit_nr(),'(I6,1X,G20.15,E12.4,E12.4)') &
                  iterations,value,tolerance,maxeval
       ENDIF
@@ -541,16 +542,16 @@ CONTAINS
 
     IF (PRESENT(converged)) converged=(tolerance .LT. eps_localization)
 
-    CALL cp_cfm_release(cmat_A)
-    CALL cp_cfm_release(cmat_R)
-    CALL cp_cfm_release(cmat_T1)
+    CALL cp_cfm_release(cmat_A,error=error)
+    CALL cp_cfm_release(cmat_R,error=error)
+    CALL cp_cfm_release(cmat_T1,error=error)
 
-    CALL cp_fm_release(mat_U)
-    CALL cp_fm_release(mat_T)
+    CALL cp_fm_release(mat_U,error=error)
+    CALL cp_fm_release(mat_T,error=error)
 
     CALL rotate_orbitals(mat_R,vectors)
 
-    CALL cp_fm_release(mat_R)
+    CALL cp_fm_release(mat_R,error=error)
     DEALLOCATE(evals_exp,evals,diag_z)
 
     CALL timestop(0.0_dp,handle)
@@ -562,7 +563,7 @@ CONTAINS
 !
 ! Gerd Berghold et al. PRB 61 (15), pag. 10040 (2000)
 !
-! none of the input is modified for the time being, just finds the rotations 
+! none of the input is modified for the time being, just finds the rotations
 ! that minimizes, and throws it away afterwards :-)
 ! apart from being expensive and not cleaned, this works fine
 ! useful to try different spread functionals
@@ -601,7 +602,7 @@ CONTAINS
                                                 matrix_G_search, matrix_H, &
                                                 matrix_R, matrix_T
 
-    NULLIFY(evals,evals_exp,diag_z,fval,fvald,c_zij) 
+    NULLIFY(evals,evals_exp,diag_z,fval,fvald,c_zij)
     NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)
     NULLIFY(cmat_A,cmat_U,cmat_R,cmat_t1,cmat_t2,cmat_B,cmat_M)
 
@@ -626,9 +627,9 @@ CONTAINS
     CALL cp_fm_create  ( matrix_G_search, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_G_old, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_R, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
-    CALL cp_fm_set_all(matrix_R,0.0_dp,1.0_dp)
-    
-    CALL cp_fm_set_all(matrix_A,0.0_dp)
+    CALL cp_fm_set_all(matrix_R,0.0_dp,1.0_dp,error=error)
+
+    CALL cp_fm_set_all(matrix_A,0.0_dp,error=error)
 !    CALL cp_fm_init_random ( matrix_A )
 
     CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
@@ -640,10 +641,10 @@ CONTAINS
     CALL cp_cfm_create ( cmat_M, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
 
     CALL cp_cfm_get_info ( cmat_B, nrow_local=nrow_local, ncol_local=ncol_local, &
-                                   row_indices=row_indices, col_indices=col_indices )
+                                   row_indices=row_indices, col_indices=col_indices ,error=error)
 
-    CALL cp_fm_set_all(matrix_G_old,0.0_dp)
-    CALL cp_fm_set_all(matrix_G_search,0.0_dp)
+    CALL cp_fm_set_all(matrix_G_old,0.0_dp,error=error)
+    CALL cp_fm_set_all(matrix_G_search,0.0_dp,error=error)
     normg_old=1.0E30_dp
     ds_min=1.0_dp
     new_direction=.TRUE.
@@ -654,41 +655,41 @@ CONTAINS
          iterations = iterations + 1
          ! compute U,R,evals given A
          cmat_A % local_data = CMPLX ( 0.0_dp , matrix_A % local_data, dp ) ! cmat_A is hermitian, evals are reals
-         CALL cp_cfm_heevd(cmat_A,cmat_R,evals) 
+         CALL cp_cfm_heevd(cmat_A,cmat_R,evals,error=error)
          evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
-         CALL cp_cfm_to_cfm(cmat_R,cmat_t1)
+         CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
          CALL cp_cfm_column_scale(cmat_t1,evals_exp)
-         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U) 
+         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U,error=error)
          cmat_U%local_data=REAL(cmat_U%local_data) ! enforce numerics, U is a real matrix
-         
+
          IF ( new_direction .AND. MOD(line_searches,20).EQ.5 ) THEN ! reset with A .eq. 0
             DO idim=1,SIZE(c_zij)
-               CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1) 
-               CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix) 
+               CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1,error=error)
+               CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix,error=error)
             ENDDO
             ! collect rotation matrix
             matrix_H%local_data=REAL(cmat_U%local_data)
-            CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T)
-            CALL cp_fm_to_fm(matrix_T,matrix_R)
+            CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
+            CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
 
-            CALL cp_cfm_set_all(cmat_U,czero,cone)
-            CALL cp_cfm_set_all(cmat_R,czero,cone)
-            CALL cp_cfm_set_all(cmat_A,czero)
-            CALL cp_fm_set_all(matrix_A,0.0_dp)
+            CALL cp_cfm_set_all(cmat_U,czero,cone,error=error)
+            CALL cp_cfm_set_all(cmat_R,czero,cone,error=error)
+            CALL cp_cfm_set_all(cmat_A,czero,error=error)
+            CALL cp_fm_set_all(matrix_A,0.0_dp,error=error)
             evals(:)=0.0_dp
             evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
-            CALL cp_fm_set_all(matrix_G_old,0.0_dp)
-            CALL cp_fm_set_all(matrix_G_search,0.0_dp)
+            CALL cp_fm_set_all(matrix_G_old,0.0_dp,error=error)
+            CALL cp_fm_set_all(matrix_G_search,0.0_dp,error=error)
             normg_old=1.0E30_dp
          ENDIF
 
          ! compute Omega and M
-         CALL cp_cfm_set_all(cmat_M,czero)
+         CALL cp_cfm_set_all(cmat_M,czero,error=error)
          omega = 0.0_dp
          DO idim=1,SIZE(c_zij)
-            CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1) ! t1=ZU
-            CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,cmat_t2) ! t2=(U^T)ZU
-            DO i=1,n    
+            CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1,error=error) ! t1=ZU
+            CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,cmat_t2,error=error) ! t2=(U^T)ZU
+            DO i=1,n
                CALL cp_cfm_get_element(cmat_t2,i,i,diag_z(i,idim))
                SELECT CASE (2) ! allows for selection of different spread functionals
                CASE (1)
@@ -713,7 +714,7 @@ CONTAINS
          IF (.TRUE.) THEN
             CALL gradsq_at_0(diag_z,weights,matrix_H)
          ELSE
-            CALL cp_fm_set_all(matrix_H,1.0_dp)
+            CALL cp_fm_set_all(matrix_H,1.0_dp,error=error)
          ENDIF
 
          ! compute B
@@ -736,15 +737,15 @@ CONTAINS
          ENDDO
          ! compute gradient matrix_G
 
-         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_M,cmat_R,czero,cmat_t1) ! t1=(M^T)(R^T)
-         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_R,cmat_t1,czero,cmat_t2) ! t2=(R)t1
-         CALL cp_cfm_schur_product(cmat_t2,cmat_B,cmat_t1)
-         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_t2) 
-         CALL cp_cfm_gemm('N','N',n,n,n,cone,cmat_R,cmat_t2,czero,cmat_t1) 
+         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_M,cmat_R,czero,cmat_t1,error=error) ! t1=(M^T)(R^T)
+         CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_R,cmat_t1,czero,cmat_t2,error=error) ! t2=(R)t1
+         CALL cp_cfm_schur_product(cmat_t2,cmat_B,cmat_t1,error=error)
+         CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_t2,error=error)
+         CALL cp_cfm_gemm('N','N',n,n,n,cone,cmat_R,cmat_t2,czero,cmat_t1,error=error)
          matrix_G%local_data=REAL(cmat_t1%local_data)
-         CALL cp_fm_transpose(matrix_G,matrix_T)
-         CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T)
-         CALL cp_fm_maxabsval(matrix_G,tol)
+         CALL cp_fm_transpose(matrix_G,matrix_T,error=error)
+         CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T,error=error)
+         CALL cp_fm_maxabsval(matrix_G,tol,error=error)
 
 
          ! from here on, minimizing technology
@@ -765,7 +766,7 @@ CONTAINS
             IF (tol.lt.1.0E-3_dp)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
-                CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross)
+                CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross,error=error)
                 normg_cross=normg_cross*0.5_dp ! takes into account the fact that A is antisymmetric
                 ! apply the preconditioner
                 DO icol=1,ncol_local
@@ -773,23 +774,23 @@ CONTAINS
                       matrix_G_old%local_data(irow,icol)=matrix_G%local_data(irow,icol)/matrix_H%local_data(irow,icol)
                    ENDDO
                 ENDDO
-                CALL cp_fm_trace(matrix_G,matrix_G_old,normg)
+                CALL cp_fm_trace(matrix_G,matrix_G_old,normg,error=error)
                 normg=normg*0.5_dp
                 beta_pr=(normg-normg_cross)/normg_old
                 normg_old=normg
                 beta_pr=MAX(beta_pr,0.0_dp)
-                CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old)
-                CALL cp_fm_trace(matrix_G_search,matrix_G_old,normg_cross)
-                IF (normg_cross .GE. 0) THEN ! back to SD 
+                CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old,error=error)
+                CALL cp_fm_trace(matrix_G_search,matrix_G_old,normg_cross,error=error)
+                IF (normg_cross .GE. 0) THEN ! back to SD
                    IF (matrix_A%matrix_struct%para_env%mepos .EQ. &
                        matrix_A%matrix_struct%para_env%source) THEN
                       WRITE(cp_logger_get_default_unit_nr(),*) "!"
                    ENDIF
                    beta_pr=0.0_dp
-                   CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old)
+                   CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_dp,matrix_G_old,error=error)
                 ENDIF
             ELSE ! SD
-                CALL cp_fm_scale_and_add(0.0_dp,matrix_G_search,-1.0_dp,matrix_G)
+                CALL cp_fm_scale_and_add(0.0_dp,matrix_G_search,-1.0_dp,matrix_G,error=error)
             ENDIF
             ! ds_min=1.0E-4_dp
             line_search_count=0
@@ -799,12 +800,12 @@ CONTAINS
 
          ! line search section
          SELECT CASE (3)
-         CASE(1) ! two point line search 
+         CASE(1) ! two point line search
            SELECT CASE (line_search_count)
            CASE (1)
               pos(1)=0.0_dp
               pos(2)=ds_min
-              CALL cp_fm_trace(matrix_G,matrix_G_search,grad(1)) 
+              CALL cp_fm_trace(matrix_G,matrix_G_search,grad(1),error=error)
               grad(1)=grad(1)/2.0_dp
               new_direction=.FALSE.
            CASE (2)
@@ -824,7 +825,7 @@ CONTAINS
               ELSE  ! just take an extended step
                  pos(3)=MAXVAL(pos(1:2))*2.0_dp
               ENDIF
-           END SELECT 
+           END SELECT
          CASE(2) ! 3 point line search
               SELECT CASE(line_search_count)
               CASE(1)
@@ -872,7 +873,7 @@ CONTAINS
               lsm=1
               pos(1)=0.0_dp
               pos(2)=ds_min/gold_sec
-            ELSE 
+            ELSE
               IF (line_search_count .EQ. 150) STOP "Too many"
               IF (lsr.eq.0) THEN
                  IF (energy(line_search_count-1).lt.energy(line_search_count)) THEN
@@ -892,7 +893,7 @@ CONTAINS
                        lsl = line_search_count
                     ENDIF
                  ELSE
-                    IF (energy(line_search_count).LT. energy(lsm)) THEN 
+                    IF (energy(line_search_count).LT. energy(lsm)) THEN
                        lsl = lsm
                        lsm = line_search_count
                     ELSE
@@ -913,36 +914,36 @@ CONTAINS
          ! now go to the suggested point
          ds_min=pos(line_search_count+1)
          ds=pos(line_search_count+1)-pos(line_search_count)
-         CALL cp_fm_scale_and_add(1.0_dp,matrix_A,ds,matrix_G_search)
-    ENDDO 
+         CALL cp_fm_scale_and_add(1.0_dp,matrix_A,ds,matrix_G_search,error=error)
+    ENDDO
 
     ! collect rotation matrix
     matrix_H%local_data=REAL(cmat_U%local_data)
-    CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T)
-    CALL cp_fm_to_fm(matrix_T,matrix_R)
+    CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
+    CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
     CALL rotate_orbitals(matrix_R,vectors)
-    CALL cp_fm_release  ( matrix_R)
+    CALL cp_fm_release  ( matrix_R,error=error)
 
-    CALL cp_fm_release  ( matrix_A)
-    CALL cp_fm_release  ( matrix_G)
-    CALL cp_fm_release  ( matrix_H)
-    CALL cp_fm_release  ( matrix_T)
-    CALL cp_fm_release  ( matrix_G_search)
-    CALL cp_fm_release  ( matrix_G_old)
-    CALL cp_cfm_release ( cmat_A)
-    CALL cp_cfm_release ( cmat_U)
-    CALL cp_cfm_release ( cmat_R)
-    CALL cp_cfm_release ( cmat_t1)
-    CALL cp_cfm_release ( cmat_t2)
-    CALL cp_cfm_release ( cmat_B)
-    CALL cp_cfm_release ( cmat_M)
+    CALL cp_fm_release  ( matrix_A,error=error)
+    CALL cp_fm_release  ( matrix_G,error=error)
+    CALL cp_fm_release  ( matrix_H,error=error)
+    CALL cp_fm_release  ( matrix_T,error=error)
+    CALL cp_fm_release  ( matrix_G_search,error=error)
+    CALL cp_fm_release  ( matrix_G_old,error=error)
+    CALL cp_cfm_release ( cmat_A,error=error)
+    CALL cp_cfm_release ( cmat_U,error=error)
+    CALL cp_cfm_release ( cmat_R,error=error)
+    CALL cp_cfm_release ( cmat_t1,error=error)
+    CALL cp_cfm_release ( cmat_t2,error=error)
+    CALL cp_cfm_release ( cmat_B,error=error)
+    CALL cp_cfm_release ( cmat_M,error=error)
 
     DEALLOCATE(evals,evals_exp,fval,fvald)
 
     DO idim=1,SIZE(c_zij)
        zij(1,idim) % matrix % local_data =  REAL ( c_zij(idim)%matrix% local_data , dp )
        zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
-       CALL cp_cfm_release( c_zij(idim)%matrix )
+       CALL cp_cfm_release( c_zij(idim)%matrix ,error=error)
     ENDDO
     DEALLOCATE(c_zij)
     DEALLOCATE(diag_z)

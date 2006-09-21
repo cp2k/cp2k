@@ -167,8 +167,8 @@ SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create', &
       routineP = moduleN//':'//routineN
@@ -216,8 +216,8 @@ END SUBROUTINE gopt_f_create
 !!*** **********************************************************************
 SUBROUTINE gopt_f_retain(gopt_env, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_retain', &
       routineP = moduleN//':'//routineN
@@ -259,8 +259,8 @@ END SUBROUTINE gopt_f_retain
 !!*** **********************************************************************
 SUBROUTINE gopt_f_release(gopt_env, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_release', &
       routineP = moduleN//':'//routineN
@@ -320,8 +320,8 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
     INTEGER, INTENT(in)                      :: master
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', &
       routineP = moduleN//':'//routineN
@@ -424,8 +424,8 @@ END SUBROUTINE cp_eval_at
 SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
       routineP = moduleN//':'//routineN
@@ -494,8 +494,8 @@ END SUBROUTINE gopt_f_create_x0
 !!*** **********************************************************************
 SUBROUTINE gopt_param_create(gopt_param,error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_create', &
       routineP = moduleN//':'//routineN
@@ -560,8 +560,8 @@ END SUBROUTINE gopt_param_create
 SUBROUTINE gopt_param_read(gopt_param, root_section, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
       routineP = moduleN//':'//routineN
@@ -626,8 +626,8 @@ SUBROUTINE gopt_param_read(gopt_param, root_section, error)
 !!*** **********************************************************************
 SUBROUTINE gopt_param_retain(gopt_param, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_retain', &
       routineP = moduleN//':'//routineN
@@ -669,8 +669,8 @@ END SUBROUTINE gopt_param_retain
 !!*** **********************************************************************
 SUBROUTINE gopt_param_release(gopt_param, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_release', &
       routineP = moduleN//':'//routineN

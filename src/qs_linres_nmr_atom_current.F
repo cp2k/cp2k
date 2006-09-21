@@ -6,15 +6,15 @@
 
 !!****m* cp2k/qs_linres_nmr_current *
 !!
-!!   NAME 
+!!   NAME
 !!     qs_linres_nmr_current
 !!
 !!   FUNCTION
 !!     given the response wavefunctions obtained by the application
 !!     of the (rxp), p, and ((dk-dl)xp) operators,
 !!     here the current density vector (jx, jy, jz)
-!!     is computed for the 3 directions of the magnetic field (Bx, By, Bz)   
-!!     
+!!     is computed for the 3 directions of the magnetic field (Bx, By, Bz)
+!!
 !!
 !!   AUTHOR
 !!     MI
@@ -87,13 +87,13 @@ MODULE qs_linres_nmr_atom_current
  CONTAINS
 
 ! *****************************************************************************
- 
+
 !!****f* cp2k/qs_linres_nmr_atom_current/calculate_jrho_atom_coeff!!
 !!   NAME
 !!     calculate_jrho_atom_coeff
 !!
 !!   FUNCTION
-!!     Calculate the expansio coefficients for the atomic terms 
+!!     Calculate the expansio coefficients for the atomic terms
 !!     of the current densitiy in GAPW
 !!
 !!   NOTES
@@ -115,8 +115,8 @@ MODULE qs_linres_nmr_atom_current
       POINTER                                :: mat_jp, mat_jp_pii, &
                                                 mat_jp_piii
     INTEGER, INTENT(IN)                      :: iB, idir
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
       routineP = moduleN//':'//routineN
@@ -166,10 +166,10 @@ MODULE qs_linres_nmr_atom_current
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     oce=oce,&
-                    sab_all=sab_orb)
+                    sab_all=sab_orb,error=error)
 
     CALL get_nmr_env(nmr_env=nmr_env,&
-                     jrho1_atom_set=jrho1_atom_set)
+                     jrho1_atom_set=jrho1_atom_set,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxsgf=max_nsgf,&
@@ -221,7 +221,7 @@ MODULE qs_linres_nmr_atom_current
     END DO ! ikind
 
 
-   ! Three centers 
+   ! Three centers
     DO ikind = 1 ,nkind
       atomic_kind => atomic_kind_set(ikind)
 
@@ -256,7 +256,7 @@ MODULE qs_linres_nmr_atom_current
         ! Allocate temporary block to store the sum of the 3 blocks before contraction
         DO ispin = 1,nspins
           NULLIFY(jp_RARnu(ispin)%r_coef)
-          ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat) 
+          ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
         END DO
 
@@ -292,7 +292,7 @@ MODULE qs_linres_nmr_atom_current
               CYCLE
             END IF
 
-   ! Take the block \mu \nu of jpab, jpab_ii and jpab_iii, ! 
+   ! Take the block \mu \nu of jpab, jpab_ii and jpab_iii, !
             DO ispin = 1,nspins
                NULLIFY(jp_block(ispin)%r_coef)
                NULLIFY(jp_ii_block(ispin)%r_coef)
@@ -340,11 +340,11 @@ MODULE qs_linres_nmr_atom_current
                 DO isgfb = 1, nsgfb
                 DO isgfa = 1, nsgfa
                   jp_RARnu(ispin)%r_coef(isgfa,isgfb) =  &
-                    jp_block(ispin)%r_coef(isgfa,isgfb)  & 
+                    jp_block(ispin)%r_coef(isgfa,isgfb)  &
                    -jp_iii_block(ispin)%r_coef(isgfa,isgfb)*rbc(ii)&
                    + jp_ii_block(ispin)%r_coef(isgfa,isgfb)*rbc(iii)
-                END DO 
-                END DO 
+                END DO
+                END DO
                 END DO
 
                 NULLIFY(C_coeff_hh_a)
@@ -416,7 +416,7 @@ MODULE qs_linres_nmr_atom_current
                      CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,1.0_dp,C_coeff_hh_a,&
                                SIZE(C_coeff_hh_a,1),PC,max_nsgf,1.0_dp,&
                                jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef,nsoctot)
-     
+
                  END DO  ! ispin
 
                ELSE
@@ -500,12 +500,12 @@ MODULE qs_linres_nmr_atom_current
 
         END DO  ! ilist
         DO ispin = 1,nspins
-          DEALLOCATE(jp_RARnu(ispin)%r_coef,STAT=istat) 
+          DEALLOCATE(jp_RARnu(ispin)%r_coef,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
         END DO
 
-      END DO ! jkind 
-    END DO ! ikind 
+      END DO ! jkind
+    END DO ! ikind
 
     DO iatom = 1,natom
 
@@ -540,8 +540,8 @@ MODULE qs_linres_nmr_atom_current
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(IN)                      :: IB, idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -588,10 +588,10 @@ MODULE qs_linres_nmr_atom_current
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
-                    para_env=para_env)
+                    para_env=para_env,error=error)
 
     CALL get_nmr_env(nmr_env=nmr_env,&
-                     jrho1_atom_set=jrho1_atom_set)
+                     jrho1_atom_set=jrho1_atom_set,error=error)
 
 
     nkind = SIZE(atomic_kind_set)
@@ -599,7 +599,7 @@ MODULE qs_linres_nmr_atom_current
 
     DO ikind = 1,nkind
       NULLIFY (atom_kind,atom_list,grid_atom,harmonics,orb_basis_set)
-      NULLIFY (lmax, lmin, npgf, zet) 
+      NULLIFY (lmax, lmin, npgf, zet)
       NULLIFY (grid_atom,harmonics)
       NULLIFY (my_CG,my_CG_dxyz_asym)
       atom_kind => atomic_kind_set(ikind)
@@ -690,7 +690,7 @@ MODULE qs_linres_nmr_atom_current
                   dgg_1(1:nr,l-1) = 2.0_dp*(zet(ipgf1,iset1) - zet(ipgf2,iset2))*&
                                     gg(1:nr,l)
                   IF(l-2>=lmin12) THEN
-                    dgg_2(1:nr,l-2) = 2.0_dp*(zet(ipgf1,iset1)- zet(ipgf2,iset2))* & 
+                    dgg_2(1:nr,l-2) = 2.0_dp*(zet(ipgf1,iset1)- zet(ipgf2,iset2))* &
                                       gg(1:nr,l)
                   END IF
                 END DO
@@ -781,7 +781,7 @@ MODULE qs_linres_nmr_atom_current
                            dgg_2(1:nr,l)*cjc_ii_h_block(iso1,iso2)*my_CG(iso1,iso2,iso)
                       Fr_a_s_ii(1:nr,iso) = Fr_a_s_ii(1:nr,iso) + &
                            dgg_2(1:nr,l)*cjc_ii_s_block(iso1,iso2)*my_CG(iso1,iso2,iso)
-                     
+
                       Fr_c_h_ii(1:nr,iso) = Fr_c_h_ii(1:nr,iso) + &
                            gg(1:nr,l)*cjc_ii_h_block(iso1,iso2)*my_CG(iso1,iso2,iso)
                       Fr_c_s_ii(1:nr,iso) = Fr_c_s_ii(1:nr,iso) + &
@@ -869,8 +869,8 @@ MODULE qs_linres_nmr_atom_current
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(IN)                      :: IB, idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
       routineP = moduleN//':'//routineN
@@ -914,13 +914,13 @@ MODULE qs_linres_nmr_atom_current
                     cell=cell,&
                     dft_control=dft_control,&
                     para_env=para_env,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,error=error)
 
     CALL get_nmr_env(nmr_env=nmr_env,&
          chemical_shift_loc=chemical_shift_loc, &
          chemical_shift_loc_nics=chemical_shift_loc_nics, &
          jrho1_atom_set=jrho1_atom_set,&
-         n_nics=n_nics, r_nics=r_nics)
+         n_nics=n_nics, r_nics=r_nics,error=error)
 
 
     nkind = SIZE(atomic_kind_set,1)
@@ -949,7 +949,7 @@ MODULE qs_linres_nmr_atom_current
       mepos  = para_env%mepos
       bo = get_limit( natom, num_pe, mepos )
 
-      DO iat = bo(1),bo(2) 
+      DO iat = bo(1),bo(2)
         iatom = atom_list(iat)
         r_iatom(1:3) = pbc(particle_set(iatom)%r,cell)
 
@@ -987,7 +987,7 @@ MODULE qs_linres_nmr_atom_current
                ! be sure you take the minimum image
                rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
                distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
-! the right thing to do is to build a list of neighbors, but for the time being 
+! the right thing to do is to build a list of neighbors, but for the time being
 ! let's simply use a cutoff here
                threshold = 30.0_dp
                jatomisneighbor = (distance .LE. threshold)
@@ -998,7 +998,7 @@ MODULE qs_linres_nmr_atom_current
                   rdiff(2) = rij(2) - rvec(2)
                   rdiff(3) = rij(3) - rvec(3)
                   ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
-       ! the component idir of J contributes to the components idir2/=idir of the shift 
+       ! the component idir of J contributes to the components idir2/=idir of the shift
                   DO idir2 = 1,3
 
                     IF(idir2/=idir) THEN
@@ -1033,7 +1033,7 @@ MODULE qs_linres_nmr_atom_current
                    rdiff(2) = rij(2) - rvec(2)
                    rdiff(3) = rij(3) - rvec(3)
                    ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
-       ! the component idir of J contributes to the components idir2/=idir of the shift 
+       ! the component idir of J contributes to the components idir2/=idir of the shift
                    DO idir2 = 1,3
 
                      IF(idir2/=idir) THEN
@@ -1057,7 +1057,7 @@ MODULE qs_linres_nmr_atom_current
           END DO  ! ir
           END DO  ! ia
 
-        END DO 
+        END DO
 
       END DO  ! iat
 
@@ -1081,8 +1081,8 @@ MODULE qs_linres_nmr_atom_current
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     INTEGER, INTENT(IN)                      :: iB, idir, ispin
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
       routineP = moduleN//':'//routineN
@@ -1112,14 +1112,14 @@ MODULE qs_linres_nmr_atom_current
       Fr_a_s => jrho1_atom%jrho_a_s(ispin)%r_coef
       Fr_b_h => jrho1_atom%jrho_b_h(ispin)%r_coef
       Fr_b_s => jrho1_atom%jrho_b_s(ispin)%r_coef
-  
+
       Fr_a_h_ii => jrho1_atom%jrho_a_h_ii(ispin)%r_coef
       Fr_a_s_ii => jrho1_atom%jrho_a_s_ii(ispin)%r_coef
       Fr_b_h_ii => jrho1_atom%jrho_b_h_ii(ispin)%r_coef
       Fr_b_s_ii => jrho1_atom%jrho_b_s_ii(ispin)%r_coef
       Fr_c_h_ii => jrho1_atom%jrho_c_h_ii(ispin)%r_coef
       Fr_c_s_ii => jrho1_atom%jrho_c_s_ii(ispin)%r_coef
-  
+
       Fr_a_h_iii => jrho1_atom%jrho_a_h_iii(ispin)%r_coef
       Fr_a_s_iii => jrho1_atom%jrho_a_s_iii(ispin)%r_coef
       Fr_b_h_iii => jrho1_atom%jrho_b_h_iii(ispin)%r_coef
@@ -1143,7 +1143,7 @@ MODULE qs_linres_nmr_atom_current
 !            ELSEIF(idir==iiiB) THEN
 !              rad_part = rad_part + Fr_c_h_ii(ir,iso)
 !            END IF
-                       
+
             jrho_h(ir,ia) = jrho_h(ir,ia) + rad_part * harmonics%slm(ia,iso)
 
             rad_part = harmonics%a(idir,ia)*Fr_a_s(ir,iso)+Fr_b_s(ir,iso)-&
@@ -1156,27 +1156,27 @@ MODULE qs_linres_nmr_atom_current
 !            ELSEIF(idir==iiiB) THEN
 !              rad_part = rad_part + Fr_c_s_ii(ir,iso)
 !            END IF
-                       
+
             jrho_s(ir,ia) = jrho_s(ir,ia) + rad_part * harmonics%slm(ia,iso)
 
           END DO  ! ia
         END DO  ! iso
-      
-      END DO  ! ir 
+
+      END DO  ! ir
 
   END SUBROUTINE calculate_jrho_atom_ang
 
 ! *****************************************************************************
 !!****f* cp2k/qs_linres_nmr_atom_current/list_3c_jrho_atom
 !!   NAME
-!!    list_3c_jrho_atom 
+!!    list_3c_jrho_atom
 !!
 !!   FUNCTION
 !!     Prepare the 3 center lists used tocpmpute the atomic terms of the current density
 !!     New lists need to be constructed because the density matrices
 !!     are not symmetric, hence, the ij and the ji pairs  are not equivalens and bpth
 !!     need to be considered
-!!     
+!!
 !!
 !!   NOTES
 !!
@@ -1191,8 +1191,8 @@ MODULE qs_linres_nmr_atom_current
   SUBROUTINE list_3c_jrho_atom(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_3c_jrho_atom', &
       routineP = moduleN//':'//routineN
@@ -1221,14 +1221,14 @@ MODULE qs_linres_nmr_atom_current
     NULLIFY (sac_oce, sbc_oce, oce)
     NULLIFY (atomic_kind,atomic_kind_set)
     NULLIFY (sab_orb_neighbor_list,sab_orb_neighbor_list_local)
-    NULLIFY (sab_orb_neighbor_node,reduced_3c_oce) 
+    NULLIFY (sab_orb_neighbor_node,reduced_3c_oce)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     sab_all=sab_orb,&
                     sac_oce=sac_oce,&
                     sbc_oce=sbc_oce,&
-                    oce=oce)
+                    oce=oce,error=error)
 
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(sac_oce),cp_failure_level,routineP,error,failure)
@@ -1315,7 +1315,7 @@ MODULE qs_linres_nmr_atom_current
     END DO  ! ikind
 
 !   the vlist can be deallocated already here
-    CALL deallocate_vtriple(oce%voce)
+    CALL deallocate_vtriple(oce%voce,error=error)
 
   END SUBROUTINE list_3c_jrho_atom
 

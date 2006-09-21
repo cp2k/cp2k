@@ -168,8 +168,8 @@ SUBROUTINE particle_list_create(list, els_ptr, &
       OPTIONAL, POINTER                      :: els_ptr
     LOGICAL, INTENT(in), OPTIONAL            :: owns_els
     INTEGER, INTENT(in), OPTIONAL            :: n_els
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_create', &
       routineP = moduleN//':'//routineN
@@ -234,8 +234,8 @@ END SUBROUTINE particle_list_create
 !!*** **********************************************************************
 SUBROUTINE particle_list_retain(list, error)
     TYPE(particle_list_type), POINTER        :: list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_retain', &
       routineP = moduleN//':'//routineN
@@ -277,8 +277,8 @@ END SUBROUTINE particle_list_retain
 !!*** **********************************************************************
 SUBROUTINE particle_list_release(list, error)
     TYPE(particle_list_type), POINTER        :: list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_release', &
       routineP = moduleN//':'//routineN

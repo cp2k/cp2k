@@ -112,8 +112,8 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_density (MODULE kg_density)"
@@ -165,7 +165,7 @@ CONTAINS
                     dft_control=dft_control,&
                     particle_set=particle_set,&
                     local_particles=local_particles,&
-                    rspw=rspw) 
+                    rspw=rspw,error=error)
 
     ! *** assign from kg_rspw
     gridlevel_info=>rspw%gridlevel_info
@@ -240,10 +240,10 @@ CONTAINS
 
 ! In KG simulation, density is frozen. The PDM effective charges are
 ! already included in sphi and are the ones read from the POTENTIAL file in
-! the initialization. Thus all prefactors (defined in work(:,:)) are set to 1.0  
+! the initialization. Thus all prefactors (defined in work(:,:)) are set to 1.0
 
             DO i=1,nsgfa(iset)
-               work(i,1)=1.0_dp 
+               work(i,1)=1.0_dp
             ENDDO
 
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
@@ -269,7 +269,7 @@ CONTAINS
                            l_info,eps_rho_rspace,ga_gb_function=401,error=error)
             END DO
 
-         END DO                     
+         END DO
 
       END DO
 
@@ -368,8 +368,8 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "calculate_epc_density (MODULE kg_density)"
@@ -414,7 +414,7 @@ CONTAINS
                     dft_control=dft_control,&
                     local_particles=local_particles,&
                     rspw=rspw,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,error=error)
     CALL kg_rspw_get(kg_rspw=rspw,&
                     auxbas_rs_pool=auxbas_rs_pool,&
                     auxbas_pw_pool=auxbas_pw_pool,&
@@ -477,8 +477,8 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_p_density (MODULE kg_density)"
@@ -534,7 +534,7 @@ CONTAINS
                     dyn_coeff_set=dyn_coeff_set,&
                     local_particles=local_particles,&
                     particle_set=particle_set,&
-                    rspw=rspw ) 
+                    rspw=rspw ,error=error)
 
     ! *** assign from kg_rspw
     gridlevel_info=>rspw%gridlevel_info
@@ -703,14 +703,14 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calculate_epc_rspace_forces(v_rspace,kg_env,error)
-   
+
 
 !   *** Arguments ***
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
@@ -755,8 +755,8 @@ CONTAINS
                     dft_control=dft_control,&
                     local_particles=local_particles,&
                     particle_set=particle_set,&
-                    rspw=rspw) 
-    CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_pool=auxbas_rs_pool)
+                    rspw=rspw,error=error)
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_pool=auxbas_rs_pool,error=error)
 
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_v,error=error)
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
@@ -798,7 +798,7 @@ CONTAINS
                                           hab,pab,0,0,&
                                           eps_gvg_rspace=eps_rho_rspace,&
                                           calculate_forces=.TRUE.,&
-                                          force_a=force_a,force_b=force_b)
+                                          force_a=force_a,force_b=force_b,error=error)
 
         atom_a=atom_of_kind(iatom)
         force(ikind)%f_hartree_core(:,atom_a) =&
@@ -808,7 +808,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v)
+    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v,error=error)
 
     DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab,pab,atom_of_kind")
@@ -827,8 +827,8 @@ CONTAINS
     TYPE(coeff_type)                         :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_v_rspace_forces (MODULE kg_density)"
@@ -887,7 +887,7 @@ CONTAINS
                     dft_control=dft_control,&
                     local_particles=local_particles,&
                     particle_set=particle_set,&
-                    rspw=rspw )
+                    rspw=rspw ,error=error)
 
     ! *** set up of the potential on the multigrids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
@@ -940,7 +940,7 @@ CONTAINS
     DEALLOCATE(mgrid_gspace,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools)
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools,error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
 
 
@@ -1036,7 +1036,7 @@ CONTAINS
              na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
              na2 = ipgf*ncoset(la_max(iset))
 
-             zetp = zeta(ipgf,iset) 
+             zetp = zeta(ipgf,iset)
 
              igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
@@ -1048,7 +1048,7 @@ CONTAINS
                         hab,pab=pab,o1=na1-1,o2=0,&
                         eps_gvg_rspace=eps_gvg_rspace,&
                         calculate_forces=calculate_forces,&
-                        force_a=force_a,force_b=force_b)
+                        force_a=force_a,force_b=force_b,error=error)
 
            END DO
 
@@ -1071,7 +1071,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
 
 !   *** Release work storage ***
 
@@ -1102,8 +1102,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_vp_rspace_forces (MODULE kg_density)"
@@ -1163,12 +1163,12 @@ CONTAINS
                     dyn_coeff_set=dyn_coeff_set,&
                     local_particles=local_particles,&
                     particle_set=particle_set,&
-                    rspw=rspw )
+                    rspw=rspw ,error=error)
 
     IF (calculate_forces) THEN
-       CALL get_kg_env(kg_env=kg_env,force=force)
+       CALL get_kg_env(kg_env=kg_env,force=force,error=error)
     END IF
-    
+
     ! *** set up of the potential on the multigrids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
@@ -1220,7 +1220,7 @@ CONTAINS
     DEALLOCATE(mgrid_gspace,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
-    CALL kg_rspw_get(rspw, rs_pools=rs_pools)
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools,error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v,error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -1263,7 +1263,7 @@ CONTAINS
 
     ALLOCATE (work(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*dp_size)
-    
+
     offset = 0
 
     DO ikind=1,nkind
@@ -1326,19 +1326,19 @@ CONTAINS
              na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
              na2 = ipgf*ncoset(la_max(iset))
 
-             zetp = zeta(ipgf,iset) 
+             zetp = zeta(ipgf,iset)
 
              igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dp,0,&
-                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&             
+                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
                         cube_info(igrid_level),l_info,&
                         hab,pab,na1-1,0,&
                         eps_gvg_rspace=eps_gvg_rspace,&
                         calculate_forces=calculate_forces,&
-                        force_a=force_a,force_b=force_b)
+                        force_a=force_a,force_b=force_b,error=error)
 
            END DO
 ! in work are stored the eigenforces (i.e. forces on coefficients)
@@ -1346,7 +1346,7 @@ CONTAINS
                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                           hab(1,1),SIZE(hab,1),&
                           0.0_dp,work(1,1),SIZE(work,1))
- 
+
            DO i=1,nsgfa(iset)
             local_coeffs%forces(iparticle_local,offset+i) = &
                   local_coeffs%forces(iparticle_local,offset+i) +  work(i,1)
@@ -1375,7 +1375,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
 
 !   *** Release work storage ***
 

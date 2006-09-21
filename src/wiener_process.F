@@ -74,8 +74,8 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process', &
       routineP = moduleN//':'//routineN
@@ -115,12 +115,12 @@ CONTAINS
 
       ! Load initial seed (not needed for a restart)
 
-      initial_seed = next_rng_seed()
+      initial_seed = next_rng_seed(error=error)
 
       DO i=1,SIZE(force_env_p)
 
         CALL force_env_get(force_env_p(i)%force_env,force_env_section=force_env_section,&
-             subsys=subsys)
+             subsys=subsys,error=error)
 
         DO isubsys=1,SIZE(subsys)
 
@@ -135,9 +135,9 @@ CONTAINS
 
            nparticle_kind = atomic_kinds%n_els
            nparticle = particles%n_els
-           
+
            ! Allocate the (local) data structures for the Wiener process
-           
+
            ALLOCATE(local_particles%local_particle_set(nparticle_kind),&
                     STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -161,12 +161,12 @@ CONTAINS
 
           seed(:,:,1) = initial_seed
           DO iparticle=2,nparticle
-            seed(:,:,iparticle) = next_rng_seed(seed(:,:,iparticle-1))
+            seed(:,:,iparticle) = next_rng_seed(seed(:,:,iparticle-1),error=error)
           END DO
 
           ! Update initial seed
 
-          initial_seed = next_rng_seed(seed(:,:,nparticle))
+          initial_seed = next_rng_seed(seed(:,:,nparticle),error=error)
 
           ! Create a random number stream (Wiener process) for each particle
 
@@ -181,7 +181,7 @@ CONTAINS
                                      name=name,&
                                      distribution_type=GAUSSIAN,&
                                      extended_precision=.TRUE.,&
-                                     seed=seed(:,:,iparticle))
+                                     seed=seed(:,:,iparticle),error=error)
             END DO
           END DO
 
@@ -201,7 +201,7 @@ CONTAINS
                                        error=error)
 
         END DO
-        
+
       END DO
 
     END IF

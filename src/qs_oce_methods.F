@@ -14,7 +14,7 @@
 !!
 !!   AUTHOR
 !!     MI
-!!   
+!!
 !!   MODIFICATION HISTORY
 !!     05-2004 created
 !!
@@ -74,8 +74,8 @@ CONTAINS
     INTEGER,INTENT(IN)                         :: nder
     REAL(dp)                                   :: dab
     REAL(dp), DIMENSION(3)                     :: rab
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                              :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+         :: error
 
 
 !   *** Local parameters ***
@@ -130,7 +130,7 @@ CONTAINS
 
    NULLIFY(cprj_s,nprjla,fp_cara,fp_spha,rzetprja,zetprja)
    CALL get_paw_proj_set(paw_proj_set=paw_proj_a,cprj_s=cprj_s,maxl=maxlprj, &
-                         nprj=nprjla,ncgauprj=np_car,nsgauprj=np_sph,rcprj=rcprja, & 
+                         nprj=nprjla,ncgauprj=np_car,nsgauprj=np_sph,rcprj=rcprja, &
                          first_prj=fp_cara,first_prjs=fp_spha,&
                          rzetprj=rzetprja,zetprj=zetprja)
 
@@ -222,7 +222,7 @@ CONTAINS
               isp =  0
               DO ip = 1,npgfb(jset)
                  ic = (ip-1)*ncoset(lb_max(jset))
-                 DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
+                 DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset))
                    ovc(m:m-1+nco(lprj),jc+ic+isp+m1) =&
                      spa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc+is)
                  ENDDO
@@ -236,14 +236,14 @@ CONTAINS
                 m = fp_cara(lprj)+(ipgf -1)*nco(lprj)
                 DO ip = 1,npgfb(jset)
                    ic = (ip-1)*ncoset(lb_max(jset))
-                   DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
+                   DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset))
                      ovc(m:m-1+nco(lprj),jc+ic+isp+m1) =&
                        sdpa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc,ider)
                    ENDDO
                 ENDDO
               ENDDO
             ENDDO
- 
+
           ELSE
             CALL overlap(lprj,lprj,nprjla(lprj),&
                        rzetprja(:,lprj),zetprja(:,lprj),&
@@ -261,7 +261,7 @@ CONTAINS
               isp =  0
               DO ip = 1,npgfb(jset)
                  ic = (ip-1)*ncoset(lb_max(jset))
-                 DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
+                 DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset))
                    ovc(m:m-1+nco(lprj),jc+ic+m1) =&
                      spa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc)
                  ENDDO
@@ -301,34 +301,34 @@ CONTAINS
                 ENDDO ! lprj
               ENDDO ! ic
             ENDDO ! lshell
-          ENDDO ! ipgf 
+          ENDDO ! ipgf
         ENDDO ! ider
 
-      
+
         IF(paw_atom_b) THEN
           CALL get_paw_proj_set(paw_proj_set=paw_proj_b,zisomin=zisominb)
           DO ipgf = 1,npgfb(jset)
             DO lshell = lb_min(jset),lb_max(jset)
               IF(zetb(ipgf,jset) >= zisominb(lshell)) THEN
-                igau = n*(ipgf-1) + ncoset(lshell - 1) 
+                igau = n*(ipgf-1) + ncoset(lshell - 1)
                 DO ider =1,maxder
                   is = maxcob*(ider-1)
                   isp =  (ider-1)*maxcob*nsetb
                   ovs(:,igau+1+isp+m1:igau+nco(lshell)+isp+m1) = 0.0_dp
                 ENDDO
               ENDIF
-            ENDDO 
+            ENDDO
           END DO
         ENDIF
 
 !       *** Contraction step (integrals and derivatives)
         IF(dab <= 1.0E-8_dp)THEN
           iset = jset
-          n = maxsoa*(iset-1) 
+          n = maxsoa*(iset-1)
 
           NULLIFY(local_oce_h,local_oce_s)
           CALL get_paw_proj_set(paw_proj_set=paw_proj_a, &
-                                local_oce_sphi_h=local_oce_h, & 
+                                local_oce_sphi_h=local_oce_h, &
                                 local_oce_sphi_s=local_oce_s)
           oceh(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
                     local_oce_h(1:maxsoa,isgfb:lsgfb)
@@ -345,7 +345,7 @@ CONTAINS
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
                       1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
-                      1.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1)) 
+                      1.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1))
 
             CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
                       1.0_dp,ovs(1,first_col),SIZE(ovs,1),&
@@ -357,7 +357,7 @@ CONTAINS
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
                       1.0_dp,oces(ider)%block(1,isgfb),SIZE(oces(ider)%block,1))
           ENDDO
-        ELSE       
+        ELSE
           DO ider = 1,maxder
             first_col = (ider - 1)*maxcob*nsetb + 1 + m1
             CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
@@ -373,11 +373,11 @@ CONTAINS
             oces(ider)%block(1:nsoatot,isgfb:lsgfb) = &
                       oceh(ider)%block(1:nsoatot,isgfb:lsgfb)
           ENDDO
-        END IF 
+        END IF
       END IF ! radius
       m1 = m1 + maxcob
     ENDDO  !jset
-    
+
     DEALLOCATE(s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs ,STAT = istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
 
@@ -408,14 +408,14 @@ CONTAINS
 !!     - nder: it is =/ 0 if the forces are required
 !!     - dist_list: tool used to know which triplets have been already taken into account
 !!                  (to avoid double counting in presence of PBC)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     MI
 !!
 !!   MODIFICATION HISTORY
-!!     02.2004 created 
+!!     02.2004 created
 !!
 !!*** **********************************************************************
   SUBROUTINE set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
@@ -435,8 +435,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nder
     TYPE(dist_list_4oce_type), &
       DIMENSION(:), POINTER                  :: dist_list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_up_oce'
 
@@ -513,12 +513,12 @@ CONTAINS
                 CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
                                  block_row=katom,&
                                  block_col=iatom,&
-                                 BLOCK=oceh(i)%block)
+                                 BLOCK=oceh(i)%block,error=error)
                 NULLIFY (oces(i)%block)
                 CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
                                  block_row=katom,&
                                  block_col=iatom,&
-                                 BLOCK=oces(i)%block)
+                                 BLOCK=oces(i)%block,error=error)
              ENDDO
 !       write(num,"(A,4I5)") 'aloc ', katom, iatom, size(oceh(1)%block,1),size(oceh(1)%block,2)
            END IF
@@ -536,7 +536,7 @@ CONTAINS
           dist_list(katom)%ndist =dist_list(katom)%ndist + 1
           ndist = dist_list(katom)%ndist
           CALL reallocate(dist_list(katom)%rdist,1,3,1,ndist)
-          dist_list(katom)%rdist(1:3,ndist) = rac(1:3) 
+          dist_list(katom)%rdist(1:3,ndist) = rac(1:3)
 
 10         CONTINUE
            IF(jatom == iatom) THEN
@@ -579,12 +579,12 @@ CONTAINS
                 CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
                                block_row=katom,&
                                block_col=jatom,&
-                               BLOCK=oceh(i)%block)
+                               BLOCK=oceh(i)%block,error=error)
                 NULLIFY (oces(i)%block)
                 CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
                                block_row=katom,&
                                block_col=jatom,&
-                               BLOCK=oces(i)%block)
+                               BLOCK=oces(i)%block,error=error)
              ENDDO
            END IF
 
@@ -608,7 +608,7 @@ CONTAINS
 
        ENDDO   ! kneighbor
     ENDDO  ! kkind
- 
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE set_up_oce

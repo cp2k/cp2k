@@ -143,8 +143,8 @@ CONTAINS
   SUBROUTINE tbmd_energy_retain(tbmd_energy, error)
 
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_retain', &
       routineP = moduleN//':'//routineN
@@ -189,8 +189,8 @@ CONTAINS
   SUBROUTINE tbmd_energy_release(tbmd_energy, error)
 
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_release', &
       routineP = moduleN//':'//routineN
@@ -254,8 +254,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_kinetic, E_bandstructure, &
                                                 E_repulsion, E_correction, &
                                                 E_tb
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_get', &
       routineP = moduleN//':'//routineN
@@ -322,8 +322,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: E_kinetic, E_bandstructure, &
                                                 E_repulsion, E_correction, &
                                                 E_tb
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_set', &
       routineP = moduleN//':'//routineN
@@ -376,8 +376,8 @@ CONTAINS
   SUBROUTINE tbmd_energy_clear(tbmd_energy, error)
 
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_clear', &
       routineP = moduleN//':'//routineN
@@ -428,8 +428,8 @@ CONTAINS
   SUBROUTINE tbmd_energy_create(tbmd_energy, error)
 
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_create', &
       routineP = moduleN//':'//routineN

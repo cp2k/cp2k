@@ -113,8 +113,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_nddo_fock_matrix', &
       routineP = moduleN//':'//routineN
@@ -153,19 +153,19 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             matrix_h=matrix_h,&
-            para_env=para_env)
- 
+            para_env=para_env,error=error)
+
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
- 
+
        DO ispin=1,nspins
          ! copy the core matrix into the fock matrix
-         CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
+         CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
        END DO
- 
+
        CALL build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
                 calculate_forces,just_energy,error)
        CALL build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
@@ -189,16 +189,16 @@ CONTAINS
           END IF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%DETAILED_ENERGY", error=error)       
+            "PRINT%DETAILED_ENERGY", error=error)
        ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
-          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
+          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
           DO ispin=1,SIZE(mo_derivs)
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
                              occupation_numbers=occupation_numbers )
-             CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global)
+             CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                          mo_derivs(ispin)%matrix, ncol_global)
+                                          mo_derivs(ispin)%matrix, ncol_global,error=error)
              ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
              scaling_factor=2.0_dp*occupation_numbers
              CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
@@ -224,8 +224,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_nddo_fock_matrix_coulomb', &
@@ -278,9 +278,9 @@ CONTAINS
          dft_control=dft_control,&
          matrix_h=matrix_h,&
          cell=cell,&
-         para_env=para_env)
+         para_env=para_env,error=error)
 
-    ! set values for tapering function 
+    ! set values for tapering function
     rc = dft_control%qs_control%se_control%rc_coulomb
     range = dft_control%qs_control%se_control%rc_range
     CALL set_taper_fn (2._dp*rc,range)
@@ -292,21 +292,21 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
 
-       CALL allocate_matrix_set(diagmat_ks,nspins)
-       CALL allocate_matrix_set(diagmat_p,nspins)
+       CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL allocate_matrix_set(diagmat_p,nspins,error=error)
 
        matrix_p => rho%rho_ao
 
        CALL get_qs_env(qs_env=qs_env,&
                        sab_2c=sab_2c,&
-                       atomic_kind_set=atomic_kind_set)
+                       atomic_kind_set=atomic_kind_set,error=error)
 
        nkind = SIZE(atomic_kind_set)
 
        IF(calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env,&
                          particle_set=particle_set,&
-                         force=force)
+                         force=force,error=error)
          natom = SIZE (particle_set)
          ALLOCATE (atom_of_kind(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -318,9 +318,9 @@ CONTAINS
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
-                             "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env)
+                             "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
           CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
-                             "DIAGONAL BLOCK KS MATRIX",.FALSE.)
+                             "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
        END DO
 
        ecore2 = 0._dp
@@ -613,9 +613,9 @@ CONTAINS
 
        DO ispin = 1, nspins
           CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,&
-                                      matrix_p(1)%matrix,.FALSE.)
+                                      matrix_p(1)%matrix,.FALSE.,error=error)
           CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,&
-                                      ks_matrix(ispin)%matrix,.TRUE.,para_env)
+                                      ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
        END DO
        DEALLOCATE(diagmat_ks,diagmat_p)
 
@@ -651,8 +651,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_nddo_fock_matrix_exchange', &
@@ -701,7 +701,7 @@ CONTAINS
          dft_control=dft_control,&
          matrix_h=matrix_h,&
          cell=cell,&
-         para_env=para_env)
+         para_env=para_env,error=error)
 
     ! set values for tapering function
     rc = dft_control%qs_control%se_control%rc_interaction
@@ -719,14 +719,14 @@ CONTAINS
 
        CALL get_qs_env(qs_env=qs_env,&
                        sab_orb=sab_orb,&
-                       atomic_kind_set=atomic_kind_set)
+                       atomic_kind_set=atomic_kind_set,error=error)
 
        nkind = SIZE(atomic_kind_set)
 
        IF(calculate_forces) THEN
          CALL get_qs_env(qs_env=qs_env,&
                          particle_set=particle_set,&
-                         force=force)
+                         force=force,error=error)
          natom = SIZE (particle_set)
          ALLOCATE (atom_of_kind(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -896,8 +896,8 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: gss, gsp, gpp, gp2, hsp
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmat
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmat
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock1', &
       routineP = moduleN//':'//routineN
@@ -950,8 +950,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmata
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmatb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmatb
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock1', &
       routineP = moduleN//':'//routineN
@@ -1022,7 +1022,7 @@ CONTAINS
       fmatb(4,3) = fmatb(3,4)
 
     END IF
-   
+
   END SUBROUTINE ufock1
 
 ! *****************************************************************************
@@ -1032,8 +1032,8 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2c', &
       routineP = moduleN//':'//routineN
@@ -1086,8 +1086,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_a, fb_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_b, pb_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_b, fb_b
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2c', &
       routineP = moduleN//':'//routineN
@@ -1156,8 +1156,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2c', &
       routineP = moduleN//':'//routineN
@@ -1208,8 +1208,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pa_b, pb_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2c', &
       routineP = moduleN//':'//routineN
@@ -1267,8 +1267,8 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2e', &
       routineP = moduleN//':'//routineN
@@ -1320,8 +1320,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_b
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2e', &
       routineP = moduleN//':'//routineN
@@ -1393,8 +1393,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2e', &
       routineP = moduleN//':'//routineN
@@ -1447,8 +1447,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a, pab_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2e', &
       routineP = moduleN//':'//routineN

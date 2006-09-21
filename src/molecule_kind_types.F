@@ -222,7 +222,7 @@ CONTAINS
     IF (ASSOCIATED(colv_list)) THEN
        DO k = 1, SIZE(colv_list)
           IF (colv_list(k)%restraint%active) ncolv%nrestraint  = ncolv%nrestraint + 1
-          SELECT CASE(colv_list(k)%type_id)       
+          SELECT CASE(colv_list(k)%type_id)
           CASE(angle_colvar_id)
              ncolv%nangle = ncolv%nangle + 1
           CASE(coord_colvar_id)
@@ -238,7 +238,7 @@ CONTAINS
           END SELECT
        END DO
     END IF
-    ncolv%ntot = ncolv%ndist        +&      
+    ncolv%ntot = ncolv%ndist        +&
                  ncolv%nangle       +&
                  ncolv%ntorsion     +&
                  ncolv%ncoord       +&
@@ -249,7 +249,7 @@ CONTAINS
 
 
 
-  SUBROUTINE allocate_molecule_kind_set(molecule_kind_set,nmolecule_kind)
+  SUBROUTINE allocate_molecule_kind_set(molecule_kind_set,nmolecule_kind,error)
 
 !   Purpose: Allocate and initialize a molecule kind set.
 
@@ -260,6 +260,7 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(IN)                      :: nmolecule_kind
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_molecule_kind_set'
 
@@ -268,7 +269,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
-      CALL deallocate_molecule_kind_set(molecule_kind_set)
+      CALL deallocate_molecule_kind_set(molecule_kind_set,error=error)
     END IF
 
     ALLOCATE (molecule_kind_set(nmolecule_kind),STAT=istat)
@@ -283,7 +284,7 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%colv_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%ub_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%ub_kind_set)
-      NULLIFY (molecule_kind_set(imolecule_kind)%impr_kind_set)      
+      NULLIFY (molecule_kind_set(imolecule_kind)%impr_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%impr_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%onfo_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%onfo_kind_set)
@@ -323,7 +324,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_molecule_kind_set(molecule_kind_set)
+  SUBROUTINE deallocate_molecule_kind_set(molecule_kind_set,error)
 
 !   Purpose: Deallocate a molecule kind set.
 
@@ -333,6 +334,7 @@ CONTAINS
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_kind_set'
 
@@ -376,8 +378,8 @@ CONTAINS
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_kind_set)) THEN
-           CALL ub_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%ub_kind_set)
-        END IF        
+           CALL ub_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%ub_kind_set,error=error)
+        END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=istat)
            IF (istat /= 0) THEN
@@ -387,7 +389,7 @@ CONTAINS
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_kind_set)) THEN
            DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%impr_kind_set)
-              CALL impr_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%impr_kind_set(i))
+              CALL impr_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%impr_kind_set(i),error=error)
            END DO
            DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_kind_set,STAT=istat)
            IF (istat /= 0) THEN
@@ -403,7 +405,7 @@ CONTAINS
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_kind_set)) THEN
-          CALL onfo_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%onfo_kind_set)
+          CALL onfo_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%onfo_kind_set,error=error)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_kind_set)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set,STAT=istat)
@@ -424,7 +426,7 @@ CONTAINS
               DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list(j)%i_atoms,STAT=istat)
               IF (istat /= 0) THEN
                  CALL stop_memory(routineN,moduleN,__LINE__,&
-                      "molecule_kind_set(imolecule_kind)%colv_list%i_atoms")        
+                      "molecule_kind_set(imolecule_kind)%colv_list%i_atoms")
               END IF
            END DO
            DEALLOCATE (molecule_kind_set(imolecule_kind)%colv_list,STAT=istat)
@@ -456,7 +458,7 @@ CONTAINS
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_kind_set)) THEN
            DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%torsion_kind_set)
-              CALL torsion_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%torsion_kind_set(i))
+              CALL torsion_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%torsion_kind_set(i),error=error)
            END DO
            DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_kind_set,STAT=istat)
            IF (istat /= 0) THEN
@@ -762,13 +764,13 @@ CONTAINS
            zeff_correction = 0.0_dp
         END IF
         nelectron = nelectron + INT(zeff-zeff_correction)
-  
+
         IF (ASSOCIATED(orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
-        ELSE 
+        ELSE
           nsgf = 0
         ENDIF
-        n_ao = n_ao + nsgf 
+        n_ao = n_ao + nsgf
       END DO  ! iatom
       CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            nelectron=nelectron, nsgf=n_ao)
@@ -928,8 +930,8 @@ CONTAINS
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind', &
       routineP = moduleN//':'//routineN
@@ -975,7 +977,7 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
           "Number of one-four:    ",molecule_kind%nonfo
 
-      ELSE         
+      ELSE
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
       END IF
 
@@ -995,8 +997,8 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set', &
       routineP = moduleN//':'//routineN
@@ -1010,7 +1012,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)       
+    logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,force_env_section,&
          "SUBSYS%PRINT%MOLECULES",extension=".Log",error=error)
     IF (output_unit>0) THEN

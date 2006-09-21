@@ -78,7 +78,7 @@ MODULE pw_env_types
 !!     - l_info: informations for l calc
 !!     - cube_info: info on cube and max sphere size for multigrids
 !!     - aux_bas: which multigrid is the auxiliar basis
-!!     
+!!
 !!     readonly attributes
 !!     - auxbas_pw_pool: a pool that allocates grids in the auxiliary basis
 !!     - auxbas_rs_pool: real space grid in the auxiliary basis, be careful
@@ -141,8 +141,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pw_env: the einvironment you want info about
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!     For the other see the attributes of pw_env_type
 !!
 !!   AUTHOR
@@ -171,8 +171,8 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get', &
       routineP = moduleN//':'//routineN
@@ -222,8 +222,8 @@ END SUBROUTINE pw_env_get
 !!
 !!   INPUTS
 !!     - pw_env: the pw_env to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -234,8 +234,8 @@ END SUBROUTINE pw_env_get
 !!*** **********************************************************************
 SUBROUTINE pw_env_retain(pw_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_retain', &
       routineP = moduleN//':'//routineN
@@ -243,7 +243,7 @@ SUBROUTINE pw_env_retain(pw_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -271,8 +271,8 @@ END SUBROUTINE pw_env_retain
 !!
 !!   INPUTS
 !!     - pw_env: the pw_env to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -283,8 +283,8 @@ END SUBROUTINE pw_env_retain
 !!*** **********************************************************************
 SUBROUTINE pw_env_release(pw_env,  error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN
@@ -293,7 +293,7 @@ SUBROUTINE pw_env_release(pw_env,  error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pw_env)) THEN
      CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
      pw_env%ref_count=pw_env%ref_count-1
@@ -306,14 +306,14 @@ SUBROUTINE pw_env_release(pw_env,  error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(pw_env%l_info)) THEN
-           CALL l_info_release(pw_env%l_info)
+           CALL l_info_release(pw_env%l_info,error=error)
            IF(pw_env%l_info%ref_count == 0) THEN
               DEALLOCATE(pw_env%l_info, stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            END IF
         END IF
         IF (ASSOCIATED(pw_env%l_info_rho0)) THEN
-           CALL l_info_release(pw_env%l_info_rho0)
+           CALL l_info_release(pw_env%l_info_rho0,error=error)
            IF(pw_env%l_info_rho0%ref_count == 0) THEN
               DEALLOCATE(pw_env%l_info_rho0, stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -355,8 +355,8 @@ END SUBROUTINE pw_env_release
 !!
 !!   INPUTS
 !!     - pw_env: the pw_env to be flushed
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -367,8 +367,8 @@ END SUBROUTINE pw_env_release
 !!*** **********************************************************************
 SUBROUTINE pw_env_flush_cache(pw_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -376,7 +376,7 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (ASSOCIATED(pw_env%pw_pools)) THEN
@@ -389,4 +389,4 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
 END SUBROUTINE pw_env_flush_cache
 !***************************************************************************
 
-END MODULE 
+END MODULE

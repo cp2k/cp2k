@@ -55,7 +55,7 @@ MODULE kg_neighbor_lists
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"  
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -78,8 +78,8 @@ CONTAINS
   SUBROUTINE build_kg_neighbor_lists(kg_env,para_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists'
 
@@ -90,7 +90,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_kg_env(kg_env=kg_env,&
-                    dft_control=dft_control)
+                    dft_control=dft_control,error=error)
     qs_control => dft_control%qs_control
 
     SELECT CASE (qs_control%method)
@@ -115,8 +115,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists1'
 
@@ -179,7 +179,7 @@ CONTAINS
                     local_particles=distribution_1d,&
                     particle_set=particle_set,&
                     sac_ppl=sac_ppl,&
-                    sac_ppl_aux=sac_ppl_aux)
+                    sac_ppl_aux=sac_ppl_aux,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              elp_potential_present=elp_potential_present,&
@@ -276,8 +276,8 @@ CONTAINS
         aux_present(ikind) = .FALSE.
 
       END IF
- 
-      IF (orb_present(ikind).OR.aux_present(ikind)) THEN 
+
+      IF (orb_present(ikind).OR.aux_present(ikind)) THEN
 
         IF (natom_local_a > 0) THEN
 
@@ -322,11 +322,11 @@ CONTAINS
       IF (ASSOCIATED(gth_potential)) THEN
         CALL get_potential(potential=gth_potential,&
                            ppl_present=ppl_present(ikind),&
-                           ppl_radius=ppl_radius(ikind)) 
+                           ppl_radius=ppl_radius(ikind))
       ELSE IF (ASSOCIATED(elp_potential)) THEN
         CALL get_potential(potential=elp_potential,&
                            ppl_present=ppl_present(ikind),&
-                           ppl_radius=ppl_radius(ikind))  
+                           ppl_radius=ppl_radius(ikind))
       END IF
 
     END DO
@@ -344,7 +344,7 @@ CONTAINS
                                           name="ORBITAL GTH-PPL",&
                                           particle_set=particle_set)
 
-        CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl)
+        CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl,error=error)
 
         print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
 
@@ -380,7 +380,7 @@ CONTAINS
                                           aux_radius,ppl_radius,&
                                           name="AUXILIARY ORBITAL GTH-PPL")
 
-        CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux)
+        CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux,error=error)
 
         print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
 
@@ -468,7 +468,7 @@ CONTAINS
 
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-                                      "SUBSYS%PRINT%SUBCELL",error=error)    
+                                      "SUBSYS%PRINT%SUBCELL",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_kg_neighbor_lists1
@@ -480,8 +480,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists2'
 
@@ -495,7 +495,7 @@ CONTAINS
     NULLIFY (qs_env)
 
     CALL get_kg_env(kg_env=kg_env,&
-                    sub_qs_env=qs_env)
+                    sub_qs_env=qs_env,error=error)
 
     IF(ASSOCIATED(qs_env)) THEN
       CALL build_qs_neighbor_lists(qs_env,para_env,.TRUE.,force_env_section,error=error)

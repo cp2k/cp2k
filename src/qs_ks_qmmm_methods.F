@@ -52,7 +52,7 @@ MODULE qs_ks_qmmm_methods
 
   PUBLIC :: ks_qmmm_env_rebuild, qs_ks_qmmm_create,qmmm_calculate_energy,&
             qmmm_modify_hartree_pot
-            
+
 CONTAINS
   !!****f* force_env_methods/ks_qmmm_env_rebuild [1.0] *
   !!
@@ -66,8 +66,8 @@ CONTAINS
   !!     -
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -80,20 +80,20 @@ CONTAINS
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
 
     NULLIFY(ks_qmmm_env)
     CALL get_qs_env(qs_env=qs_env,&
-         ks_qmmm_env=ks_qmmm_env)
+         ks_qmmm_env=ks_qmmm_env,error=error)
 
     !   *** allocate the ks_qmmm env if not allocated yet!**
     IF (.NOT.ASSOCIATED(ks_qmmm_env)) THEN
        CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,&
             qmmm_env=qmmm_env,error=error)
-       CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env)
+       CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env,error=error)
        CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env,force_env_section=qs_env%input,&
             error=error)
     END IF
@@ -114,8 +114,8 @@ CONTAINS
 !!   INPUTS
 !!     - ks_qmmm_env: the ks_qmmm env to be initialized
 !!     - qs_env: the qs environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -128,8 +128,8 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
       routineP = moduleN//':'//routineN
@@ -154,8 +154,8 @@ CONTAINS
     IF (.not.failure) THEN
        NULLIFY( auxbas_pw_pool)
        CALL get_qs_env(qs_env=qs_env,&
-            pw_env=ks_qmmm_env%pw_env)
-       CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool)
+            pw_env=ks_qmmm_env%pw_env,error=error)
+       CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_env_retain(ks_qmmm_env%pw_env,error=error)
 
        ks_qmmm_env%n_evals=0
@@ -164,8 +164,8 @@ CONTAINS
        ks_qmmm_env%id_nr=last_ks_qmmm_nr
 
        CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
-            use_data=REALDATA3D, in_space=REALSPACE)
-  
+            use_data=REALDATA3D, in_space=REALSPACE,error=error)
+
        IF (qmmm_env%qmmm_coupl_type.EQ.do_qmmm_gauss) THEN
           CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
           ALLOCATE(cube_info(SIZE(pools)), stat=stat)
@@ -192,7 +192,7 @@ CONTAINS
 !!     qmmm_calculate_energy
 !!
 !!   FUNCTION
-!!     Computes the contribution to the total energy of the QM/MM 
+!!     Computes the contribution to the total energy of the QM/MM
 !!     electrostatic coupling
 !!
 !!   NOTES
@@ -212,8 +212,8 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho
     TYPE(coeff_type), INTENT(IN)             :: v_qmmm
     REAL(KIND=dp), INTENT(INOUT)             :: qmmm_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
       routineP = moduleN//':'//routineN
@@ -223,7 +223,7 @@ CONTAINS
     TYPE(coeff_type), POINTER                :: rho0_s_rs
     TYPE(dft_control_type), POINTER          :: dft_control
 
-    CALL timeset(routineN,"I","",handle)    
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     NULLIFY(dft_control)
@@ -270,8 +270,8 @@ CONTAINS
   SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm, error)
     TYPE(coeff_type), INTENT(INOUT)          :: v_hartree
     TYPE(coeff_type), INTENT(IN)             :: v_qmmm
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
       routineP = moduleN//':'//routineN
@@ -279,7 +279,7 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    CALL timeset(routineN,"I","",handle)    
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + &

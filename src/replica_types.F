@@ -16,7 +16,7 @@
 !!   NOTES
 !!     this is a stupid implementation that replicates all the information
 !!     about the replicas, if you really want to do a *lot* of replicas on
-!!     a lot of processors you should think about distributiong also that 
+!!     a lot of processors you should think about distributiong also that
 !!     information
 !!
 !!   AUTHOR
@@ -92,11 +92,11 @@ MODULE replica_types
   !!       the indexing is as follow (idir,iat,irep)
   !!     - replica_owner: which processor column owns the replica irep
   !!     - cart: 2d distribution of the processors for the replicas,
-  !!       a column  work together on the same force_env (i.e. changing the 
+  !!       a column  work together on the same force_env (i.e. changing the
   !!       row you stay in the same replica), rows have different replicas
   !!     - para_env: the global para env that contains all the replicas,
   !!       this is just the cart as para_env
-  !!     - para_env_f: parallel environment of the underlying force 
+  !!     - para_env_f: parallel environment of the underlying force
   !!       environment
   !!     - row_rank: mapping row -> rank in para_env_f
   !!     - para_env_inter_rep: parallel environment between processors
@@ -114,7 +114,7 @@ MODULE replica_types
   !***************************************************************************
   TYPE replica_env_type
      INTEGER :: ref_count, id_nr, f_env_id, nrep,nat,ndim
-     REAL(kind=dp), DIMENSION(:,:), POINTER :: r,v,f     
+     REAL(kind=dp), DIMENSION(:,:), POINTER :: r,v,f
      LOGICAL :: sync_v, keep_wf_history
      TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history
      INTEGER, DIMENSION(:), POINTER :: local_rep_indices
@@ -174,8 +174,8 @@ CONTAINS
 !!     - sync_v: if the volocity should be synchronized (defaults to false)
 !!     - keep_wf_history: if wf history should be kept on a per replica
 !!       basis (defaults to true for QS jobs)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -188,8 +188,8 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
     TYPE(section_vals_type), POINTER         :: input
     INTEGER                                  :: nrep, prep
     LOGICAL, INTENT(in), OPTIONAL            :: sync_v, keep_wf_history
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_create', &
       routineP = moduleN//':'//routineN
@@ -280,7 +280,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
      CALL cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
           para_env_f%group,ierr)
      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-     
+
      IF (.NOT.failure) THEN
         rep_env%f_env_id=new_env_id
         CALL cp_get_natom(new_env_id,natom,ierr)
@@ -289,7 +289,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
         rep_env%ndim=3*natom
         ALLOCATE(rep_env%replica_owner(nrep),stat=stat)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        
+
         i0=nrep/cart%num_pe(2)
         ir=MODULO(nrep,cart%num_pe(2))
         DO ip=0,cart%num_pe(2)-1
@@ -297,7 +297,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
               rep_env%replica_owner(i)=ip
            END DO
         END DO
-        
+
         nrep_local=i0
         IF (cart%mepos(2)<ir) nrep_local=nrep_local+1
         ALLOCATE(rep_env%local_rep_indices(nrep_local),stat=stat)
@@ -356,8 +356,8 @@ END SUBROUTINE rep_env_create
 !!
 !!   ARGUMENTS
 !!     - rep_env: the replica environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -365,8 +365,8 @@ END SUBROUTINE rep_env_create
 !!*** **********************************************************************
 SUBROUTINE rep_env_release(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_release', &
       routineP = moduleN//':'//routineN
@@ -438,8 +438,8 @@ END SUBROUTINE rep_env_release
 !!
 !!   ARGUMENTS
 !!     - rep_env: the replica environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -447,8 +447,8 @@ END SUBROUTINE rep_env_release
 !!*** **********************************************************************
 SUBROUTINE rep_env_retain(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_retain', &
       routineP = moduleN//':'//routineN
@@ -481,8 +481,8 @@ END SUBROUTINE rep_env_retain
 !!   ARGUMENTS
 !!     - rep_env: the replica env to describe
 !!     - unit_nr: the unit to write to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -491,8 +491,8 @@ END SUBROUTINE rep_env_retain
 SUBROUTINE rep_env_write(rep_env, unit_nr, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_write', &
       routineP = moduleN//':'//routineN
@@ -501,7 +501,7 @@ SUBROUTINE rep_env_write(rep_env, unit_nr, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CALL timeset(routineN,"I","",handle)
   IF (ASSOCIATED(rep_env)) THEN
      WRITE(unit_nr,"('<replica_env, id_nr=',i6,' ref_count=',i6,'> sync_v=',l1,',')")&
@@ -558,8 +558,8 @@ END SUBROUTINE rep_env_write
 !!   ARGUMENTS
 !!     - rep_env: replica environment
 !!     - vals: the values to synchronize (second index runs over replicas)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -569,8 +569,8 @@ SUBROUTINE rep_env_sync(rep_env,vals,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: vals
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_sync', &
       routineP = moduleN//':'//routineN
@@ -611,8 +611,8 @@ END SUBROUTINE rep_env_sync
 !!       forces
 !!     - calc_f: if true calculates also the forces, if false only the
 !!       energy
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -621,8 +621,8 @@ END SUBROUTINE rep_env_sync
 SUBROUTINE rep_env_calc_e_f(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     LOGICAL, OPTIONAL                        :: calc_f
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f', &
       routineP = moduleN//':'//routineN
@@ -660,8 +660,8 @@ END SUBROUTINE rep_env_calc_e_f
 !!
 !!   ARGUMENTS
 !!     - id_nr: the id_nr of the requested rep_envs
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -669,8 +669,8 @@ END SUBROUTINE rep_env_calc_e_f
 !!*** **********************************************************************
 FUNCTION rep_envs_get_rep_env(id_nr,error) RESULT(res)
     INTEGER, INTENT(in)                      :: id_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(replica_env_type), POINTER          :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_get_rep_env', &
@@ -705,8 +705,8 @@ END FUNCTION rep_envs_get_rep_env
 !!
 !!   ARGUMENTS
 !!     - rep_env: the rep_env to add
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -714,8 +714,8 @@ END FUNCTION rep_envs_get_rep_env
 !!*** **********************************************************************
 SUBROUTINE rep_envs_add_rep_env(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_add_rep_env', &
       routineP = moduleN//':'//routineN
@@ -727,9 +727,9 @@ SUBROUTINE rep_envs_add_rep_env(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env2
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(rep_env)) THEN
-     rep_env2 => rep_envs_get_rep_env(rep_env%id_nr)
+     rep_env2 => rep_envs_get_rep_env(rep_env%id_nr,error=error)
      IF (.NOT.ASSOCIATED(rep_env2)) THEN
         IF (module_initialized) THEN
            IF (.NOT.ASSOCIATED(rep_envs)) THEN
@@ -769,8 +769,8 @@ END SUBROUTINE rep_envs_add_rep_env
 !!
 !!   ARGUMENTS
 !!     - rep_env: the rep_env to remove
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -778,8 +778,8 @@ END SUBROUTINE rep_envs_add_rep_env
 !!*** **********************************************************************
 SUBROUTINE rep_envs_rm_rep_env(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_rm_rep_env', &
       routineP = moduleN//':'//routineN
@@ -828,8 +828,8 @@ END SUBROUTINE rep_envs_rm_rep_env
 !!   ARGUMENTS
 !!     - rep_env: the replica env
 !!     - global_index: the global replica index
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -838,8 +838,8 @@ END SUBROUTINE rep_envs_rm_rep_env
 FUNCTION rep_env_local_index(rep_env,global_index,error) RESULT(res)
     TYPE(replica_env_type), POINTER          :: rep_env
     INTEGER, INTENT(in)                      :: global_index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_local_index', &

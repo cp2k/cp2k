@@ -8,10 +8,10 @@
 !!     kg_rho_types
 !!
 !!   FUNCTION
-!!     rho_types    
+!!     rho_types
 !!
 !!   AUTHOR
-!!     gloria,30.09.2002, previously in kg_force 
+!!     gloria,30.09.2002, previously in kg_force
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (22-Feb-03) PW grid options added
@@ -40,12 +40,12 @@ MODULE kg_rho_types
   TYPE kg_rho_type
      INTEGER :: ref_count, id_nr
      REAL(KIND=dp) :: total_rho_gspace, total_rho_core_rspace, &
-                  total_rho_rspace  
+                  total_rho_rspace
      TYPE(coeff_type), POINTER                    :: rho_g, &
                                                      rhop_g, &
                                                      rho_r, &
                                                      rhop_r,&
-                                                     rho_core 
+                                                     rho_core
   END TYPE kg_rho_type
 !-----------------------------------------------------------------------------!
 
@@ -59,8 +59,8 @@ SUBROUTINE kg_rho_get(kg_rho, rho_r, rho_g, rhop_r, rhop_g, &
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(coeff_type), OPTIONAL, POINTER      :: rho_r, rho_g, rhop_r, rhop_g, &
                                                 rho_core
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_get', &
       routineP = moduleN//':'//routineN
@@ -83,8 +83,8 @@ END SUBROUTINE kg_rho_get
 !!**************************************************************************
 SUBROUTINE kg_rho_retain(kg_rho,error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_retain', &
       routineP = moduleN//':'//routineN
@@ -92,7 +92,7 @@ SUBROUTINE kg_rho_retain(kg_rho,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
- 
+
   CPPrecondition(ASSOCIATED(kg_rho),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(kg_rho%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -106,17 +106,17 @@ END SUBROUTINE kg_rho_retain
 !!     release_kg_rho
 !!
 !!   FUNCTION
-!!     releases the memory used by the kg_rho and kg_rho 
+!!     releases the memory used by the kg_rho and kg_rho
 !!
 !!   MODIFICATION HISTORY
 !!
 !!*************************************************************************
-  SUBROUTINE kg_rho_release(kg_rho,error)               
+  SUBROUTINE kg_rho_release(kg_rho,error)
 
 
     TYPE(kg_rho_type), POINTER               :: kg_rho
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_release', &
       routineP = moduleN//':'//routineN
@@ -127,33 +127,33 @@ END SUBROUTINE kg_rho_retain
 !---------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)
-  failure=.FALSE.  
+  failure=.FALSE.
   IF (ASSOCIATED(kg_rho)) THEN
     CPPrecondition(kg_rho%ref_count>0,cp_failure_level,routineP,error,failure)
     kg_rho%ref_count=kg_rho%ref_count-1
     IF (kg_rho%ref_count<1) THEN
       IF (ASSOCIATED(kg_rho%rho_core)) THEN
-        CALL coeff_deallocate(kg_rho%rho_core)
+        CALL coeff_deallocate(kg_rho%rho_core,error=error)
         DEALLOCATE(kg_rho%rho_core,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rho_r)) THEN
-        CALL coeff_deallocate(kg_rho%rho_r)
+        CALL coeff_deallocate(kg_rho%rho_r,error=error)
         DEALLOCATE(kg_rho%rho_r,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rho_g)) THEN
-        CALL coeff_deallocate(kg_rho%rho_g)
+        CALL coeff_deallocate(kg_rho%rho_g,error=error)
         DEALLOCATE(kg_rho%rho_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rhop_r)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_r)
+        CALL coeff_deallocate(kg_rho%rhop_r,error=error)
         DEALLOCATE(kg_rho%rhop_r,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(kg_rho%rhop_g)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_g)
+        CALL coeff_deallocate(kg_rho%rhop_g,error=error)
         DEALLOCATE(kg_rho%rhop_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF

@@ -88,8 +88,8 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
     TYPE(section_vals_type), POINTER         :: topology_section
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
@@ -166,8 +166,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(section_vals_type), POINTER         :: constraint_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
       routineP = moduleN//':'//routineN
@@ -476,8 +476,8 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, error)
     LOGICAL, INTENT(OUT)                     :: is_restraint
     REAL(KIND=dp), INTENT(OUT)               :: k0
     INTEGER, INTENT(IN), OPTIONAL            :: i_rep_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_restraint', &
       routineP = moduleN//':'//routineN

@@ -7,7 +7,7 @@
 !!****** cp2k/qs_semi_empirical_hamiltonian [1.1] *
 !!
 !!   FUNCTION
-!!     Calculation of the Hamiltonian integral matrix <a|H|b> for 
+!!     Calculation of the Hamiltonian integral matrix <a|H|b> for
 !!     semi-empirical methods
 !!
 !!   AUTHOR
@@ -79,8 +79,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix', &
       routineP = moduleN//':'//routineN
@@ -135,17 +135,17 @@ CONTAINS
                      matrix_h=matrix_h,&
                      matrix_s=matrix_s,&
                      atomic_kind_set=atomic_kind_set,&
-                     dft_control=dft_control)
+                     dft_control=dft_control,error=error)
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&
                        particle_set=particle_set,&
                        rho=rho,&
-                       force=force)
+                       force=force,error=error)
        matrix_p => rho%rho_ao
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-               matrix_p(2)%matrix,1.0_dp)
+               matrix_p(2)%matrix,1.0_dp,error=error)
        END IF
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -154,20 +154,20 @@ CONTAINS
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
        CALL create_dbm_from_sm(diagmat_p,matrix_p(1)%matrix,&
-                               "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env)
+                               "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
      END IF
 
      ! Allocate the core Hamiltonian matrix
-     CALL allocate_matrix_set(matrix_h,1)
+     CALL allocate_matrix_set(matrix_h,1,error=error)
      CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                     TARGET=matrix_h(1)%matrix,&
-                    target_name="CORE HAMILTONIAN MATRIX")
+                    target_name="CORE HAMILTONIAN MATRIX",error=error)
 
      ! Allocate a diagonal block matrix
      CALL create_dbm_from_sm(diagmat_h,matrix_s(1)%matrix,&
-                             "DIAGONAL BLOCK H MATRIX",.FALSE.)
+                             "DIAGONAL BLOCK H MATRIX",.FALSE.,error=error)
 
-     CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb)
+     CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
      ! kh might be set in qs_control
      kh=1._dp
@@ -369,9 +369,9 @@ CONTAINS
 
      END DO ! ikind
 
-     CALL deallocate_dbm_from_sm(diagmat_h,matrix_h(1)%matrix,.TRUE.,para_env)
+     CALL deallocate_dbm_from_sm(diagmat_h,matrix_h(1)%matrix,.TRUE.,para_env,error=error)
 
-     CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h)
+     CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
 
      qs_env%energy%core_self    = econst
 
@@ -380,7 +380,7 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
        CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
-             scale=evolt,output_unit=iw)
+             scale=evolt,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
      END IF
@@ -388,10 +388,10 @@ CONTAINS
      IF(calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
-               matrix_p(2)%matrix,-1.0_dp)
+               matrix_p(2)%matrix,-1.0_dp,error=error)
        END IF
        DEALLOCATE(atom_of_kind)
-       CALL deallocate_dbm_from_sm(diagmat_p,matrix_p(1)%matrix,.FALSE.)
+       CALL deallocate_dbm_from_sm(diagmat_p,matrix_p(1)%matrix,.FALSE.,error=error)
      END IF
 
   END SUBROUTINE build_se_core_matrix
@@ -408,8 +408,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
       routineP = moduleN//':'//routineN
@@ -419,7 +419,7 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
 
     SELECT CASE (dft_control%qs_control%method)
       CASE DEFAULT

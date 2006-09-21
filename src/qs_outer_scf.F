@@ -76,8 +76,8 @@ CONTAINS
 !!*** **********************************************************************
 FUNCTION outer_loop_variables_count(scf_control,error) RESULT(res)
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     SELECT CASE(scf_control%outer_scf%type)
@@ -113,8 +113,8 @@ END FUNCTION outer_loop_variables_count
 SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_gradient', &
       routineP = moduleN//':'//routineN
@@ -131,12 +131,12 @@ SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
     failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, &
-                    dft_control=dft_control,energy=energy)
+                    dft_control=dft_control,energy=energy,error=error)
     CPPrecondition(scf_control%outer_scf%have_scf,cp_failure_level,routineP,error,failure)
 
     ihistory=scf_env%outer_scf%iter_count
     CPPrecondition(ihistory<=SIZE(scf_env%outer_scf%energy,1),cp_failure_level,routineP,error,failure)
-    
+
     scf_env%outer_scf%energy(ihistory)=energy%total
 
     SELECT CASE(scf_control%outer_scf%type)
@@ -190,8 +190,8 @@ END SUBROUTINE
 SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_optimize', &
       routineP = moduleN//':'//routineN
@@ -212,10 +212,10 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     SELECT CASE(scf_control%outer_scf%optimizer)
     CASE(outer_scf_optimizer_none)
       scf_env%outer_scf%variables(:,ihistory+1)=scf_env%outer_scf%variables(:,ihistory)
-    CASE(outer_scf_optimizer_sd) 
+    CASE(outer_scf_optimizer_sd)
       ! Notice that we are just trying to find a stationary point
       ! e.g. the ddpac_constraint, one maximizes the function, so the stepsize might have
-      ! to be negative 
+      ! to be negative
       scf_env%outer_scf%variables(:,ihistory+1)=scf_env%outer_scf%variables(:,ihistory) - &
                 scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:,ihistory)
     CASE(outer_scf_optimizer_diis)
@@ -246,8 +246,8 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
          DO I=1,nb+1
             IF (ABS(ev(I)).LT.1.0E-12_dp) THEN
                a(:,I)=0.0_dp
-            ELSE 
-               a(:,I)=a(:,I)/ev(I)             
+            ELSE
+               a(:,I)=a(:,I)/ev(I)
             ENDIF
          END DO
          ev=-MATMUL(a,b(nb+1,:))
@@ -262,7 +262,7 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
        ENDIF
     CASE DEFAULT
       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT 
+    END SELECT
 
     CALL timestop(handle)
 
@@ -274,7 +274,7 @@ END SUBROUTINE outer_loop_optimize
 !!      outer_loop_set
 !!
 !!   FUNCTION
-!!      propagates the updated variables to wherever they need to be set in 
+!!      propagates the updated variables to wherever they need to be set in
 !!      qs_env
 !!
 !!   NOTES
@@ -288,8 +288,8 @@ END SUBROUTINE outer_loop_optimize
 SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_update_qs_env', &
       routineP = moduleN//':'//routineN
@@ -305,7 +305,7 @@ SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, dft_control=dft_control)
+    CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, dft_control=dft_control,error=error)
     ihistory=scf_env%outer_scf%iter_count
 
     SELECT CASE(scf_control%outer_scf%type)
@@ -345,8 +345,8 @@ END SUBROUTINE outer_loop_update_qs_env
 !!*** **********************************************************************
 SUBROUTINE outer_loop_extrapolate(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_extrapolate', &
       routineP = moduleN//':'//routineN
@@ -364,10 +364,10 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
- 
+
     CALL get_qs_env(qs_env,outer_scf_history=outer_scf_history, &
                            outer_scf_ihistory=outer_scf_ihistory, &
-                           scf_control=scf_control, dft_control=dft_control)
+                           scf_control=scf_control, dft_control=dft_control,error=error)
 
     nvariables=SIZE(outer_scf_history,1)
     nhistory=SIZE(outer_scf_history,2)
@@ -378,7 +378,7 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     ! add the current version of qs_env to the history
     outer_scf_ihistory=outer_scf_ihistory+1
     ivec=1+MODULO(outer_scf_ihistory-1,nhistory)
-    SELECT CASE(scf_control%outer_scf%type) 
+    SELECT CASE(scf_control%outer_scf%type)
     CASE (outer_scf_none)
          outer_scf_history(1,ivec)=0.0_dp
     CASE (outer_scf_ddapc_constraint)
@@ -390,7 +390,7 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
-    CALL set_qs_env(qs_env,outer_scf_ihistory=outer_scf_ihistory)     
+    CALL set_qs_env(qs_env,outer_scf_ihistory=outer_scf_ihistory,error=error)
 
     ! multilinear extrapolation
     nvec=MIN(nhistory,outer_scf_ihistory)
@@ -403,7 +403,7 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
        extrapolation=extrapolation+alpha*outer_scf_history(:,ivec)
     ENDDO
 
-    ! update qs_env to use this extrapolation        
+    ! update qs_env to use this extrapolation
     SELECT CASE(scf_control%outer_scf%type)
     CASE (outer_scf_none)
            ! nothing

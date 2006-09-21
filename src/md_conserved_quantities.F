@@ -8,11 +8,11 @@
 !!     conserved_quantities
 !!
 !!   FUNCTION
-!!     computes the conserved quantities for a given md ensemble 
+!!     computes the conserved quantities for a given md ensemble
 !!     and also kinetic energies, thermo/barostat stuff
 !!
 !!   AUTHOR
-!!     gtb, 05.02.2003 
+!!     gtb, 05.02.2003
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -20,7 +20,7 @@
 !******************************************************************************
 
 MODULE md_conserved_quantities
-  
+
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -51,23 +51,24 @@ MODULE md_conserved_quantities
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
   TYPE md_ener_type
-  REAL(KIND=dp) :: epot  
-  REAL(KIND=dp) :: ekin  
+  REAL(KIND=dp) :: epot
+  REAL(KIND=dp) :: ekin
   REAL(KIND=dp) :: temp_part
-  REAL(KIND=dp) :: temp_baro  
+  REAL(KIND=dp) :: temp_baro
   REAL(KIND=dp) :: ekin_coefs
-  REAL(KIND=dp) :: temp_coefs  
+  REAL(KIND=dp) :: temp_coefs
   END TYPE md_ener_type
 
 
   PUBLIC :: compute_conserved_quantity
-           ! compute_conserved_quantity_pimd                                    
+           ! compute_conserved_quantity_pimd
 
 
 !******************************************************************************
@@ -80,14 +81,14 @@ CONTAINS
 !!     compute_conserved_quantity
 !!
 !!   FUNCTION
-!!     calculates conserved quantity.                                  
+!!     calculates conserved quantity.
 !!
-!!   INPUT ARGUMENTS    
-!!    md_env is the md_environment 
+!!   INPUT ARGUMENTS
+!!    md_env is the md_environment
 !!    epot is the total potential energy
 !!   OUTPUT ARGUMENTS
 !!    cons is the conserved quantity
-!!   OUTPUT OPTIONAL ARGUMENTS 
+!!   OUTPUT OPTIONAL ARGUMENTS
 !!    cons_rel : relative cons. quantity (to the first md step)
 !!    ekin : kinetic energy of particles
 !!    temp : temperature
@@ -104,7 +105,7 @@ CONTAINS
 
 SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
                                        temp_part, temp_baro, ekin_coefs, &
-                                       temp_coefs )                            
+                                       temp_coefs, error )
 
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -113,6 +114,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cons_rel, ekin, temp_part, &
                                                 temp_baro, ekin_coefs, &
                                                 temp_coefs
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity'
 
@@ -127,7 +129,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
 
 !------------------------------------------------------------------------------
 
-    md_ener%ekin        = 0.0_dp 
+    md_ener%ekin        = 0.0_dp
     md_ener%epot        = 0.0_dp
     md_ener%temp_part   = 0.0_dp
     md_ener%temp_baro   = 0.0_dp
@@ -135,7 +137,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     md_ener%temp_coefs  = 0.0_dp
 
 
-  md_ener%epot=epot 
+  md_ener%epot=epot
 
   CALL get_md_env (md_env=md_env,&
                    constant=constant,&
@@ -144,9 +146,9 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
                    para_env = para_env, &
                    force_env_p=force_env_p)
 
-  int_grp =  para_env % group  
- 
-  CALL get_part_ke ( md_env, md_ener % ekin, int_grp )
+  int_grp =  para_env % group
+
+  CALL get_part_ke ( md_env, md_ener % ekin, int_grp ,error=error)
 
 
   IF (simpar%nfree /= 0) &
@@ -154,16 +156,16 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
 
   SELECT CASE ( simpar % ensemble  )
   CASE DEFAULT
-    ! hence, should be implemented 
+    ! hence, should be implemented
     CALL stop_program( RoutineN, 'Unknown Ensemble')
   CASE ( isokin_ensemble )
     cons = md_ener % ekin
   CASE ( reftraj_ensemble ) ! no constant of motion available
     cons = md_ener % epot
   CASE ( nve_ensemble)
-    CALL get_econs_nve (md_env, md_ener, cons, int_grp)
+    CALL get_econs_nve (md_env, md_ener, cons, int_grp,error=error)
   CASE ( nvt_ensemble)
-    CALL get_econs_nvt (md_env, md_ener, cons, int_grp)
+    CALL get_econs_nvt (md_env, md_ener, cons, int_grp,error=error)
   CASE (  npt_i_ensemble,  npt_f_ensemble )
     CALL get_econs_npt (md_env, md_ener, cons, int_grp)
   CASE (  nph_uniaxial_ensemble )
@@ -176,7 +178,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
 
   IF (itimes==1) THEN
      constant = cons
-     CALL set_md_env (md_env=md_env, constant=constant)
+     CALL set_md_env (md_env=md_env, constant=constant,error=error)
   END IF
 
   IF ((PRESENT(cons_rel)).AND.(itimes /= 0 )) THEN
@@ -185,8 +187,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   IF (PRESENT(ekin)) ekin=md_ener%ekin
   IF (PRESENT(temp_part)) temp_part=md_ener%temp_part
   IF (PRESENT(temp_baro)) temp_baro=md_ener%temp_baro
-  IF (PRESENT(ekin_coefs)) ekin_coefs=md_ener%ekin_coefs 
-  IF (PRESENT(temp_coefs)) temp_coefs=md_ener%temp_coefs 
+  IF (PRESENT(ekin_coefs)) ekin_coefs=md_ener%ekin_coefs
+  IF (PRESENT(temp_coefs)) temp_coefs=md_ener%temp_coefs
 
 END SUBROUTINE compute_conserved_quantity
 
@@ -206,13 +208,14 @@ END SUBROUTINE compute_conserved_quantity
 !!     none
 !!
 !!*** *************************************************************************
-SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp )
+SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp, error )
 
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
     REAL(KIND=dp), INTENT(OUT)               :: cons
     INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot
@@ -229,12 +232,12 @@ SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp )
 
   CALL get_md_env (md_env, force_env_p=force_env_p, nhc_coef=nhc_coef)
 
-  cons = md_ener % ekin + md_ener % epot 
-  
-  DO iforce_env = 1, SIZE(force_env_p)  
+  cons = md_ener % ekin + md_ener % epot
+
+  DO iforce_env = 1, SIZE(force_env_p)
 
      CALL force_env_get (force_env = force_env_p(iforce_env)%force_env, &
-                         dyn_coeff_set=dyn_coeff_set)
+                         dyn_coeff_set=dyn_coeff_set,error=error)
 
      IF (ASSOCIATED (dyn_coeff_set)) THEN
 
@@ -255,10 +258,10 @@ END SUBROUTINE get_econs_nve
 !!******
 !!
 !!   NAME
-!!     get_econs_nvt    
+!!     get_econs_nvt
 !!
 !!   FUNCTION
-!!     calculates conserved quantity for nvt ensemble           
+!!     calculates conserved quantity for nvt ensemble
 !!
 !!   AUTHOR
 !!    gloria
@@ -268,13 +271,14 @@ END SUBROUTINE get_econs_nve
 !!
 !!*** *************************************************************************
 
-SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)                            
+SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp, error)
 
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
     REAL(KIND=dp), INTENT(OUT)               :: cons
     INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iforce_env
     REAL(KIND=dp)                            :: nhc_coef_kin, nhc_coef_pot, &
@@ -296,7 +300,7 @@ SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)
   cons = md_ener% ekin + md_ener%epot + nhc_part_kin + nhc_part_pot
   DO iforce_env = 1, SIZE(force_env_p)
      CALL force_env_get (force_env=force_env_p(iforce_env)%force_env, &
-                         dyn_coeff_set=dyn_coeff_set)
+                         dyn_coeff_set=dyn_coeff_set,error=error)
      IF (ASSOCIATED (dyn_coeff_set)) THEN
         CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
                           md_ener%temp_coefs, int_grp)
@@ -304,7 +308,7 @@ SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)
         IF (ASSOCIATED(nhc_coef)) THEN
            CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin,&
                                    int_grp )
-           cons = cons + nhc_coef_kin + nhc_coef_pot 
+           cons = cons + nhc_coef_kin + nhc_coef_pot
         END IF
      END IF
   END DO
@@ -403,7 +407,7 @@ SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp)
 
   CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
 
-  md_ener % temp_baro = 2.0_dp * baro_kin 
+  md_ener % temp_baro = 2.0_dp * baro_kin
 
   cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot
 
@@ -460,7 +464,7 @@ SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
 
 !!! Valid only for orthorhombic box !!!
      baro_pot = -0.5_dp * v_shock * v_shock * ( 1._dp - box % deth * iv0 )**2 - &
-                 simpar % p0 * ( v0 - box % deth ) 
+                 simpar % p0 * ( v0 - box % deth )
 ! dbg UNIAXIAL LIMIT
 !     baro_pot =  simpar % p0 * box % deth
 ! dbg UNIAXIAL LIMIT
@@ -470,7 +474,7 @@ SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
           npt ( 1, 1 ) % mass
   END IF
 
-END SUBROUTINE get_baro_energies 
+END SUBROUTINE get_baro_energies
 
 !******************************************************************************
 !!****** md_conserved_quantity/get_nhc_energies [1.0] *
@@ -512,7 +516,7 @@ SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
       CALL mp_sum(nhc_kin,int_grp)
       CALL mp_sum(nhc_pot,int_grp)
    END IF
-END SUBROUTINE get_nhc_energies 
+END SUBROUTINE get_nhc_energies
 !******************************************************************************
 !!****** md_conserved_quantity/get_part_ke [1.0] *
 !!
@@ -530,12 +534,13 @@ END SUBROUTINE get_nhc_energies
 !!
 !!*** *************************************************************************
 
-SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
+SUBROUTINE get_part_ke ( md_env, ekin, int_grp, error )
 
 
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(OUT)               :: ekin
     INTEGER, INTENT(IN)                      :: int_grp
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iparticle, iparticle_kind, &
                                                 iparticle_local, &
@@ -558,13 +563,13 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
   ekin  = zero
 
   CALL get_md_env ( md_env, force_env_p = force_env_p )
-  CALL force_env_get ( force_env = force_env_p(1)%force_env, subsys = subsys )
+  CALL force_env_get ( force_env = force_env_p(1)%force_env, subsys = subsys ,error=error)
 !HAF: subsys(1)?? ARGHHHHH
-!HAF: ok, in that case I can just as well use force_env_p(1)%force_env 
+!HAF: ok, in that case I can just as well use force_env_p(1)%force_env
   CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                      atomic_kinds=atomic_kinds,&
                      local_particles=local_particles,&
-                     particles=particles)
+                     particles=particles,error=error)
 
   nparticle_kind = atomic_kinds%n_els
   atomic_kind_set => atomic_kinds%els
@@ -586,7 +591,7 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
 
 ! sum all contributions to energy over calculated parts on all processors
   CALL mp_sum ( ekin, int_grp )
-END SUBROUTINE get_part_ke 
+END SUBROUTINE get_part_ke
 
 !******************************************************************************
 !!****** md_conserved_quantity/get_part_ke_serial [1.0] *
@@ -604,10 +609,11 @@ END SUBROUTINE get_part_ke
 !!     none
 !!
 !!*** *************************************************************************
-SUBROUTINE get_part_ke_serial(md_env, ekin)
+SUBROUTINE get_part_ke_serial(md_env, ekin,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(OUT)               :: ekin
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iparticle, nparticle, &
                                                 nparticle_kind
@@ -624,11 +630,11 @@ SUBROUTINE get_part_ke_serial(md_env, ekin)
   ekin  = zero
 
   CALL get_md_env(md_env, force_env_p = force_env_p)
-  CALL force_env_get(force_env = force_env_p(1)%force_env, subsys = subsys)
+  CALL force_env_get(force_env = force_env_p(1)%force_env, subsys = subsys,error=error)
 
   CALL cp_subsys_get(subsys=subsys(1)%subsys, &
                      atomic_kinds=atomic_kinds, &
-                     particles=particles)
+                     particles=particles,error=error)
 
   nparticle_kind = atomic_kinds%n_els
 
@@ -696,15 +702,15 @@ END SUBROUTINE get_part_ke_serial
        END DO
      END IF
    END DO
- 
+
  ! sum all contributions to energy over calculated parts on all processors
   CALL mp_sum ( ekinc, int_group )
   CALL mp_sum ( ncoefs, int_group )
 
 ! get coefficient temperature
 
-  ctemp=2.0_dp*ekinc/REAL(ncoefs,dp) 
-  
+  ctemp=2.0_dp*ekinc/REAL(ncoefs,dp)
+
   END SUBROUTINE get_coef_ke
 !******************************************************************************
 

@@ -896,8 +896,8 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_all_potential'
 
@@ -936,7 +936,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL parser_search_string(parser,apname,.TRUE.,found,line)
+      CALL parser_search_string(parser,apname,.TRUE.,found,line,error=error)
 
       IF (found) THEN
 
@@ -961,11 +961,11 @@ CONTAINS
 
           l = 0
           CALL reallocate(elec_conf,0,l)
-          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.)
-          DO WHILE (parser_test_next_token(parser) == "INT")
+          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
+          DO WHILE (parser_test_next_token(parser,error=error) == "INT")
             l = l + 1
             CALL reallocate(elec_conf,0,l)
-            CALL parser_get_object(parser,elec_conf(l))
+            CALL parser_get_object(parser,elec_conf(l),error=error)
           END DO
 
           CALL reallocate(potential%elec_conf,0,l)
@@ -981,7 +981,7 @@ CONTAINS
 !         *** Read r(loc) to define the exponent of the core charge    ***
 !         *** distribution and calculate the corresponding coefficient ***
 
-          CALL parser_get_object(parser,r,newline=.TRUE.)
+          CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
 
           alpha = 1.0_dp/(2.0_dp*r**2)
 
@@ -1024,8 +1024,8 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_elp_potential'
 
@@ -1066,7 +1066,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
+      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
 
       IF (found) THEN
 
@@ -1087,19 +1087,19 @@ CONTAINS
 
 !         *** Read the effective charge qeff ***
 
-          CALL parser_get_object(parser,qeff,newline=.TRUE.)
+          CALL parser_get_object(parser,qeff,newline=.TRUE.,error=error)
 
           potential%qeff = qeff
 
 !         *** read alpha and calculate the corresponding coefficient ***
 
-          CALL parser_get_object(parser,alpha,newline=.TRUE.)
+          CALL parser_get_object(parser,alpha,newline=.TRUE.,error=error)
 
           potential%alpha_core_charge = alpha
           potential%ccore_charge = potential%qeff*SQRT((alpha/pi)**3)
           potential%cerf_ppl = potential%qeff*SQRT((alpha/pi)**3)
 
-          CALL parser_get_object(parser,nalpha_ppl,newline=.TRUE.)
+          CALL parser_get_object(parser,nalpha_ppl,newline=.TRUE.,error=error)
 
           potential%nalpha_ppl = nalpha_ppl
 
@@ -1107,15 +1107,15 @@ CONTAINS
             CALL reallocate(potential%alpha_ppl,1,nalpha_ppl)
             CALL reallocate(potential%nexp_ppl,1,nalpha_ppl)
             DO i=1,nalpha_ppl
-              CALL parser_get_object(parser,potential%alpha_ppl(i),newline=.TRUE.)
-              CALL parser_get_object(parser,n)
+              CALL parser_get_object(parser,potential%alpha_ppl(i),newline=.TRUE.,error=error)
+              CALL parser_get_object(parser,n,error=error)
               potential%nexp_ppl(i)=n
               IF (n > nmax) THEN
                 nmax = n
                 CALL reallocate(potential%cexp_ppl,1,nalpha_ppl,1,nmax)
               END IF
               DO j=1,n
-                 CALL parser_get_object(parser,potential%cexp_ppl(i,j))
+                 CALL parser_get_object(parser,potential%cexp_ppl(i,j),error=error)
                  potential%cexp_ppl(i,j) = (2.0_dp*potential%alpha_ppl(i))**(j - 1)*&
                                            potential%cexp_ppl(i,j)
               END DO
@@ -1153,7 +1153,7 @@ CONTAINS
 
     END DO search_loop
 
-    CALL parser_release(parser)
+    CALL parser_release(parser,error=error)
 
   END SUBROUTINE read_elp_potential
 
@@ -1178,8 +1178,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gth_potential'
 
@@ -1225,7 +1225,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
+      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line,error=error)
 
       IF (found) THEN
 
@@ -1249,11 +1249,11 @@ CONTAINS
           NULLIFY (elec_conf)
           l = 0
           CALL reallocate(elec_conf,0,l)
-          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.)
-          DO WHILE (parser_test_next_token(parser) == "INT")
+          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.,error=error)
+          DO WHILE (parser_test_next_token(parser,error=error) == "INT")
             l = l + 1
             CALL reallocate(elec_conf,0,l)
-            CALL parser_get_object(parser,elec_conf(l))
+            CALL parser_get_object(parser,elec_conf(l),error=error)
           END DO
 
           CALL reallocate(potential%elec_conf,0,l)
@@ -1269,7 +1269,7 @@ CONTAINS
 !         *** Read r(loc) to define the exponent of the core charge    ***
 !         *** distribution and calculate the corresponding coefficient ***
 
-          CALL parser_get_object(parser,r,newline=.TRUE.)
+          CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
 
           alpha = 1.0_dp/(2.0_dp*r**2)
 
@@ -1282,12 +1282,12 @@ CONTAINS
 !         *** Read the parameters for the local part ***
 !         *** of the GTH pseudopotential (ppl)       ***
 
-          CALL parser_get_object(parser,n)
+          CALL parser_get_object(parser,n,error=error)
           potential%nexp_ppl = n
           CALL reallocate(potential%cexp_ppl,1,n)
 
           DO i=1,n
-            CALL parser_get_object(parser,potential%cexp_ppl(i))
+            CALL parser_get_object(parser,potential%cexp_ppl(i),error=error)
             potential%cexp_ppl(i) = (2.0_dp*potential%alpha_ppl)**(i - 1)*&
                                     potential%cexp_ppl(i)
           END DO
@@ -1299,7 +1299,7 @@ CONTAINS
 !         *** Read the parameters for the non-local  ***
 !         *** part of the GTH pseudopotential (ppnl) ***
 
-          CALL parser_get_object(parser,n,newline=.TRUE.)
+          CALL parser_get_object(parser,n,newline=.TRUE.,error=error)
 
           potential%lppnl = n - 1
           potential%nppnl = 0
@@ -1325,9 +1325,9 @@ CONTAINS
             nprj_ppnl_max = 0
 
             DO l=0,lppnl
-              CALL parser_get_object(parser,r,newline=.TRUE.)
+              CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
               potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
-              CALL parser_get_object(parser,nprj_ppnl)
+              CALL parser_get_object(parser,nprj_ppnl,error=error)
               potential%nprj_ppnl(l) = nprj_ppnl
               nppnl = nppnl + nprj_ppnl*nco(l)
               IF (nprj_ppnl > nprj_ppnl_max) THEN
@@ -1338,12 +1338,12 @@ CONTAINS
               END IF
               DO i=1,nprj_ppnl
                 IF (i == 1) THEN
-                  CALL parser_get_object(parser,hprj_ppnl(i,i,l))
+                  CALL parser_get_object(parser,hprj_ppnl(i,i,l),error=error)
                 ELSE
-                  CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.)
+                  CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.,error=error)
                 END IF
                 DO j=i+1,nprj_ppnl
-                  CALL parser_get_object(parser,hprj_ppnl(i,j,l))
+                  CALL parser_get_object(parser,hprj_ppnl(i,j,l),error=error)
                 END DO
               END DO
               IF (nprj_ppnl > 1) THEN
@@ -1636,8 +1636,8 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=20)                        :: string
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1682,8 +1682,8 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1723,8 +1723,8 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=20)                        :: string
     INTEGER                                  :: i, j, l

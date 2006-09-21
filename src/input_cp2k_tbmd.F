@@ -78,8 +78,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_tbmd_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_tbmd_section', &
       routineP = moduleN//':'//routineN
@@ -154,8 +154,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_tb_model_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_tb_model_section', &
       routineP = moduleN//':'//routineN
@@ -352,8 +352,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_tb_neighbor_list_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'create_tb_neighbor_list_section', &
@@ -422,8 +422,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_tb_print_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_tb_print_section', &
       routineP = moduleN//':'//routineN

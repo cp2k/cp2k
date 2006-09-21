@@ -62,7 +62,7 @@ MODULE  hartree_local_3centers
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: trace_r_AxB, trace_r_AxB_new 
+  USE qs_util,                         ONLY: trace_r_AxB, trace_r_AxB_new
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: get_block_node,&
@@ -83,13 +83,13 @@ MODULE  hartree_local_3centers
   CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_3centers"
 
 ! Public Subroutine
- 
+
   PUBLIC :: integrate_a_vhg0_b
 
 !******************************************************************************
- 
+
   CONTAINS
- 
+
 !!****f* hartree_local_3centers/integrate_a_vhg0_b [1.0] *
 !!
 !!   NAME
@@ -99,11 +99,11 @@ MODULE  hartree_local_3centers
 !!     Analytic calculation of the 3 center integrals for the GAPW 3 center terms
 !!     This terms give the Hartree contribution due to the interaction of the soft density
 !!     and the (rho0_hard-rho0_soft) density, i.e. the difference between the hard and
-!!     soft compensation charges. (rho0_hard-rho0_soft) is a sum over atomic 
-!!     contributions, which should be very shor ranged. 
+!!     soft compensation charges. (rho0_hard-rho0_soft) is a sum over atomic
+!!     contributions, which should be very shor ranged.
 !!     For this terms, properly constructed 3 center lists are used, in order to restrict
 !!     the calculation only to those triplets of atoms with overlapping functions.
-!!     For atom A and atom B the only soft primitives of the basis set are taken into 
+!!     For atom A and atom B the only soft primitives of the basis set are taken into
 !!     account, for the atom C, instead, the g0 primitives (see compensation charges)
 !!     are used in the integrals.
 !!
@@ -133,8 +133,8 @@ MODULE  hartree_local_3centers
                                                   just_energy
     LOGICAL, INTENT(IN), OPTIONAL              :: tddft
     TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
-    TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "integrate_a_vhg0_b"
     REAL(dp), PARAMETER         :: EPS_a_vhg0_b = 1.E-8_dp ! other parameter for input ?
@@ -156,7 +156,7 @@ MODULE  hartree_local_3centers
     TYPE(qs_force_type), DIMENSION(:), POINTER :: force
     TYPE(reduced_3c_list_type), DIMENSION(:), &
                                   POINTER      :: reduced_3c_rho0
-    TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole 
+    TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole
     TYPE(rho_atom_type), DIMENSION(:), &
                                      POINTER   :: rho_atom_set
     TYPE(rho_atom_type),       POINTER         :: rho_atom
@@ -228,15 +228,15 @@ MODULE  hartree_local_3centers
     END IF
 
     fac = 1.0_dp
-    nspins = qs_env%dft_control%nspins 
+    nspins = qs_env%dft_control%nspins
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    para_env=para_env,& 
+                    para_env=para_env,&
                     particle_set=particle_set,&
                     rho0_mpole=rho0_mpole,&
                     rho_atom_set=rho_atom_set,&
-                    sab_orb=sab_orb)
+                    sab_orb=sab_orb,error=error)
 
     NULLIFY(ng0_h,ng0_s)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
@@ -265,7 +265,7 @@ MODULE  hartree_local_3centers
 
     maxder = 0
     IF (calculate_forces) THEN
- 
+
       CALL timeset(routineN//" (forces)","I"," ",handle)
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -275,12 +275,12 @@ MODULE  hartree_local_3centers
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
-      CALL get_qs_env(qs_env=qs_env, force=force)
+      CALL get_qs_env(qs_env=qs_env, force=force,error=error)
 
       maxder = 1
       maxlgto1 = maxlgto + maxder
     ELSE
-     
+
       CALL timeset(routineN,"I"," ",handle)
 
       maxlgto1 = maxlgto
@@ -332,7 +332,7 @@ MODULE  hartree_local_3centers
     ALLOCATE(int_tmpp(maxco_global,maxco_global,maxch0),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "int_tmpp",(maxco_global*maxco_global*maxch0)*dp_size)
-    
+
     ALLOCATE(vv(ncoset(maxlgto1),ncoset(maxlgto),ncoset(lmax_0),&
          maxlgto1+maxlgto+lmax_0+1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -400,7 +400,7 @@ MODULE  hartree_local_3centers
         ELSE
            nlist=0
         END IF
-        
+
         DO ilist = 1,nlist
 
           sab_orb_neighbor_list_local => sab_orb_neighbor_list
@@ -424,7 +424,7 @@ MODULE  hartree_local_3centers
               ieqj = 1.0_dp
             ELSE
               ieqj = 2.0_dp
-            END IF 
+            END IF
 
             NULLIFY(h_block, p_block, p_block2, h_block2)
             IF (iatom <= jatom) THEN
@@ -468,7 +468,7 @@ MODULE  hartree_local_3centers
                 hab = 0.0_dp
               END IF
 
-!             Build the CPC coefficients that should then multiplied to the 
+!             Build the CPC coefficients that should then multiplied to the
 !             3-centers integrals of primitives to get the energy and the aVh3c0b
 !             integrals for atom C (the one where the g0 are centered)
 
@@ -486,7 +486,7 @@ MODULE  hartree_local_3centers
                   ns2  = nsgfb_set(iset2)
                   ic2_min_m1 = ncoset(lb_min(iset2)-1)
                   ic2_max    = ncoset(lb_max(iset2))
- 
+
                   CALL dgemm("N","N",nco1,ns2,ns1,&
                               1.0_dp,sphi_a(1,ifs1),maxcoa,&
                               p_block(ifs1,ifs2),nsgfa,&
@@ -581,7 +581,7 @@ MODULE  hartree_local_3centers
                                      block_row=jatom,&
                                      block_col=iatom,&
                                      BLOCK=h_block2)
- 
+
                  CALL get_block_node(matrix=p_mat(2)%matrix,&
                                      block_row=jatom,&
                                      block_col=iatom,&
@@ -717,7 +717,7 @@ MODULE  hartree_local_3centers
                 c1 = alpha_core/pi
                 c1 = c1*c1*c1
                 normhard(:) = 0.0_dp
-                normhard(0) = SQRT(c1) 
+                normhard(0) = SQRT(c1)
                 zhard =  alpha_core
               END IF
 
@@ -735,7 +735,7 @@ MODULE  hartree_local_3centers
                      ABS(rac(3)-(rab(3) + rbc(3))) > EPS_a_vhg0_b ) THEN
                     CYCLE
                 END IF
-                
+
                 Int_abc = 0.0_dp
                 NULLIFY(QN_s,QN_h,Qlm)
                 CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=katom,&
@@ -784,7 +784,7 @@ MODULE  hartree_local_3centers
                            1.0_dp,Int_ab_sum(1,1),ldintab1,&
                            sphi_b(1,ifs2),SIZE(sphi_b,1),&
                            0.0_dp,work(1,1),maxco_global)
-                      
+
                       CALL dgemm("T","N",ns1,ns2,nco1,&
                             fac,sphi_a(1,ifs1),SIZE(sphi_a,1),&
                            work(1,1),maxco_global,&
@@ -800,7 +800,7 @@ MODULE  hartree_local_3centers
                       DO ispin = 1,nspins
                         trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                                           Int_ab_sum,ldintab1,0,0,nco1,nco2)
-                        energy_hartree_3c = energy_hartree_3c + ieqj*trace 
+                        energy_hartree_3c = energy_hartree_3c + ieqj*trace
                       ENDDO
 
                       IF(calculate_forces) THEN
@@ -808,7 +808,7 @@ MODULE  hartree_local_3centers
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
-                        DO idir = 1,3 
+                        DO idir = 1,3
                           DO ispin = 1,nspins
                             trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                                     Int_dab_sum(:,:,idir),ldintab1,0,0,nco1,nco2)
@@ -826,7 +826,7 @@ MODULE  hartree_local_3centers
                             force(kkind)%hartree_3c(idir,k_atom) = &
                                     force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
                           END DO
-                        END DO 
+                        END DO
 
                       END IF
 
@@ -889,12 +889,12 @@ MODULE  hartree_local_3centers
                              1.0_dp,h_block2(ifs1,ifs2),SIZE(h_block,1))
                       END IF
 
- 
+
                       DO ispin = 1,nspins
                         trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                                             Int_ab_sum,ldintab1,0,0,nco1,nco2)
 
-                        energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace 
+                        energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace
                       END DO
 
                       IF(calculate_forces) THEN
@@ -902,7 +902,7 @@ MODULE  hartree_local_3centers
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
-                        DO idir = 1,3 
+                        DO idir = 1,3
                           DO ispin = 1,nspins
                             trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                                     Int_dab_sum(:,:,idir),ldintab1,0,0,nco1,nco2)
@@ -914,13 +914,13 @@ MODULE  hartree_local_3centers
 
                             trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                                     Int_adb_sum(:,:,idir),ldintab1,0,0,nco1,nco2)
-  
+
                             force(jkind)%hartree_3c(idir,j_atom) = &
                                     force(jkind)%hartree_3c(idir,j_atom) - 2._dp*trace
                             force(kkind)%hartree_3c(idir,k_atom) = &
                                     force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
                           END DO
-                        END DO 
+                        END DO
                       END IF
 
 !                      END IF  ! set_radius_3c
@@ -933,7 +933,7 @@ MODULE  hartree_local_3centers
                     m1 = m1 + maxcob
                   END DO  ! iset1
 
-                END IF 
+                END IF
 
                 DO ispin = 1,nspins
                   DO ico = 1,nchan0_car
@@ -950,7 +950,7 @@ MODULE  hartree_local_3centers
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           END DO  ! inode
           sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-        END DO  ! ilist 
+        END DO  ! ilist
 
       END DO  ! jkind
     END DO  ! ikind
@@ -999,7 +999,7 @@ MODULE  hartree_local_3centers
          sum_ab_sph = 0.0_dp
          DO lshell = 0,l0_kkind
            DO is = 1,nso(lshell)
-             iso = nsoset(lshell-1) + is 
+             iso = nsoset(lshell-1) + is
              DO ic = 1,nco(lshell)
                 ico = ncoset(lshell-1) + ic
                 lx = indco(1,ico)
@@ -1028,7 +1028,7 @@ MODULE  hartree_local_3centers
                           sum_ab_sph(iso)*Qlm_gg(1:nsototc,is,iso)
              END DO
            END DO
-         END DO 
+         END DO
 
 
        END DO  ! kat
@@ -1061,12 +1061,12 @@ MODULE  hartree_local_3centers
     IF(ASSOCIATED(CPC_ab)) THEN
       DEALLOCATE(CPC_ab, STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "CPC_ab") 
+          "CPC_ab")
     END IF
     IF(ASSOCIATED(hab)) THEN
       DEALLOCATE(hab, STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "hab") 
+          "hab")
     END IF
 
     DEALLOCATE(int_tmpp,vv,ff,STAT=istat)
@@ -1196,8 +1196,8 @@ MODULE  hartree_local_3centers
          CALL DSCAL(nco1,ng0_h(l),int_tmp(1,ico1,ico),1)
          CALL DCOPY(nco1,int_tmp(1,ico1,ico),1,Int_abc(m1+1,m2+ico1,ico),1)
        END DO
-    END DO 
-    
+    END DO
+
     IF(maxder > 0) THEN
       CALL coulomb3(l1_max+maxder,nz1,z1,rp1,l1_min,&
                   l2_max,nz2,z2,rp2,l2_min,&
@@ -1246,7 +1246,7 @@ MODULE  hartree_local_3centers
             idx_1 = ico1 + (ipgf1-1)*n1
             idx_1_L = ico1 + (ipgf1-1)*n1L
             idx_1p_L = ico1p + (ipgf1-1)*n1L
- 
+
             DO ipgf2 = 1,npgf2
               z2x2 = z2(ipgf2)*2._dp
               DO ico2 = ncoset(l2_min-1)+1,ncoset(l2_max)
@@ -1288,7 +1288,7 @@ MODULE  hartree_local_3centers
           END DO  ! ico1
         END DO  ! ipgf1
 
-      END DO  
+      END DO
 
     END IF
 

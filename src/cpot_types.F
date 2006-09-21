@@ -103,8 +103,8 @@ CONTAINS
     TYPE(cpot_type), POINTER                 :: cpot_env
     TYPE(section_vals_type), POINTER         :: cpot_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cpot_create', &
       routineP = moduleN//':'//routineN
@@ -176,8 +176,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cpot_retain(cpot_env,error)
     TYPE(cpot_type), POINTER                 :: cpot_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cpot_retain', &
       routineP = moduleN//':'//routineN
@@ -215,8 +215,8 @@ END SUBROUTINE cpot_retain
 !!*** **********************************************************************
 SUBROUTINE cpot_release(cpot_env,error)
     TYPE(cpot_type), POINTER                 :: cpot_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cpot_release', &
       routineP = moduleN//':'//routineN
@@ -266,8 +266,8 @@ SUBROUTINE cpot_calc(cpot_env, e_s_1_1,pos_s_1_1,error)
     TYPE(cpot_type), POINTER                 :: cpot_env
     REAL(kind=dp), INTENT(in)                :: e_s_1_1
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: pos_s_1_1
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cpot_calc', &
       routineP = moduleN//':'//routineN

@@ -8,7 +8,7 @@
 !!     kg_intra
 !!
 !!   FUNCTION
-!!     bonded_correction due to the non-interaction of gaussian charges on 
+!!     bonded_correction due to the non-interaction of gaussian charges on
 !!     the same molecule. Calculates the nuclear bonded_correction
 !!     and the frozen_density bonded correction
 !!   AUTHOR
@@ -71,8 +71,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(out)               :: e_bc
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"
@@ -118,12 +118,12 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=box,&
                     local_particles=local_particles,&
-                    particle_set=particle_set) 
+                    particle_set=particle_set,error=error)
 
     IF(calculate_forces) THEN
       CALL get_kg_env(kg_env=kg_env,&
-                    force=force) 
-    END IF 
+                    force=force,error=error)
+    END IF
     nkind = SIZE ( atomic_kind_set )
     npart = SIZE ( particle_set )
 
@@ -143,7 +143,7 @@ CONTAINS
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            alpha_core_charge=alpha_i,&
-                           orb_basis_set=orb_basis_set,&                   
+                           orb_basis_set=orb_basis_set,&
                            qeff=qnuc_i)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              npgf=npgfa,&
@@ -171,7 +171,7 @@ CONTAINS
             idij = 1.0_dp / dij
             CALL get_atomic_kind ( atomic_kind=atomic_kind, &
                  alpha_core_charge=alpha_j,&
-                 orb_basis_set=orb_basis_set, qeff=qnuc_j)            
+                 orb_basis_set=orb_basis_set, qeff=qnuc_j)
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                    npgf=npgfb,&
                                    nset=nsetb,&
@@ -252,7 +252,7 @@ CONTAINS
     CALL mp_sum(e_bc,group)
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE calculate_ebond_corr  
+  END SUBROUTINE calculate_ebond_corr
 
 ! *****************************************************************************
 

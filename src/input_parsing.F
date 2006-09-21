@@ -100,8 +100,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - root_section: if the root section should be parsed (defaults to true)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -113,8 +113,8 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     LOGICAL, INTENT(in), OPTIONAL            :: root_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_parse', &
       routineP = moduleN//':'//routineN
@@ -213,14 +213,14 @@ CONTAINS
              IF (token=="&END") THEN
                 ! end of section
                 compatible_end=.TRUE.
-                IF (parser_test_next_token(parser)/="EOL") THEN
+                IF (parser_test_next_token(parser,error=error)/="EOL") THEN
                    CALL parser_get_object(parser,token,newline=.FALSE.,&
                         lower_to_upper=.TRUE.,error=suberror)
                    IF (token/="SECTION".and.token/=section%name) THEN
                       compatible_end=.FALSE.
                    END IF
                 END IF
-                IF (parser_test_next_token(parser)/="EOL") THEN
+                IF (parser_test_next_token(parser,error=error)/="EOL") THEN
                    CALL parser_get_object(parser,token,newline=.FALSE.,&
                         lower_to_upper=.TRUE.,error=suberror)
                    IF (token/=section%name) THEN
@@ -289,11 +289,11 @@ CONTAINS
                         "(/,' ****** DESCRIPTION ******',/)")
                    skip_description=.TRUE.
                    desc_level=3
-                   IF (parser_test_next_token(parser)=="INT") THEN
-                      CALL parser_get_object(parser,desc_level)
+                   IF (parser_test_next_token(parser,error=error)=="INT") THEN
+                      CALL parser_get_object(parser,desc_level,error=error)
                    END IF
                    whole_section=.TRUE.
-                   DO WHILE (parser_test_next_token(parser)=="STR")
+                   DO WHILE (parser_test_next_token(parser,error=error)=="STR")
                       whole_section=.FALSE.
                       CALL parser_get_object(parser,token,newline=.FALSE.,&
                            lower_to_upper=.TRUE.,error=suberror)
@@ -418,8 +418,8 @@ CONTAINS
 !!     - n_var: number of values to be parsed (-1: undefined)
 !!     - default_value: a default value if nothing is found (can be null)
 !!     - parser: the parser from where the values should be read
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -434,8 +434,8 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
     TYPE(cp_unit_type), POINTER              :: unit
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(val_type), OPTIONAL, POINTER        :: default_value
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
       routineP = moduleN//':'//routineN
@@ -510,7 +510,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                          failure=failure)
           CALL cp_error_reset(suberror)
                     IF (failure) EXIT
-                 END DO                 
+                 END DO
               END IF
            END IF
            IF (ASSOCIATED(l_val_p)) THEN

@@ -9,12 +9,12 @@
 !!
 !!   NAME
 !!     xc_atom
-!!     
+!!
 !!
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE xc_atom 
+MODULE xc_atom
 
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
@@ -57,10 +57,10 @@ CONTAINS
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
-! to call xc_rho_set_update. 
-! As input of this routine one gets rho and drho on a one dimensional grid. 
+! to call xc_rho_set_update.
+! As input of this routine one gets rho and drho on a one dimensional grid.
 ! The grid is the angular grid corresponding to a given point ir_pnt on the radial grid.
-! The derivatives are calculated on this one dimensional grid, the results are stored in 
+! The derivatives are calculated on this one dimensional grid, the results are stored in
 ! exc, vxc(1:na,ir_pnt,ispin), vxg(1:na,ir_pnt,ispin), vxg_cross(1:na,ir_pnt,ispin)
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
 ! can safely be called for the next radial point ir_pnt
@@ -77,8 +77,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
     LOGICAL, INTENT(IN), OPTIONAL            :: energy_only
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &
       routineP = moduleN//':'//routineN
@@ -96,7 +96,7 @@ CONTAINS
     failure = .FALSE.
     my_only_energy = .FALSE.
     IF(PRESENT(energy_only)) my_only_energy=energy_only
-    
+
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
@@ -127,19 +127,19 @@ CONTAINS
    IF(.NOT.my_only_energy) THEN
 !  Derivative with respect to the density
    IF(lsd) THEN
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
        vxc(:,:,1) = deriv_data(:,:,1)*w(:,:)
        NULLIFY (deriv_data)
      END IF
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)")
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
        vxc(:,:,2) = deriv_data(:,:,1)*w(:,:)
        NULLIFY(deriv_data)
      END IF
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
      IF(ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
         vxc(:,:,1) = vxc(:,:,1) + deriv_data(:,:,1)*w(:,:)
@@ -147,7 +147,7 @@ CONTAINS
         NULLIFY (deriv_data)
      END IF
    ELSE
-     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+     deriv_att => xc_dset_get_derivative(deriv_set, "(rho)",error=error)
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data, error=error)
        vxc(:,:,1) = deriv_data(:,:,1)*w(:,:)
@@ -158,7 +158,7 @@ CONTAINS
 
 !  Derivatives with respect to the gradient
    IF (lsd) THEN
-      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhoa)")
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhoa)",error=error)
       IF (ASSOCIATED(deriv_att)) THEN
          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
          DO ir = 1, nr
@@ -176,7 +176,7 @@ CONTAINS
          END DO
          NULLIFY(deriv_data)
       END IF
-      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhob)")
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhob)",error=error)
       IF (ASSOCIATED(deriv_att)) THEN
          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
          DO ir = 1, nr
@@ -195,10 +195,10 @@ CONTAINS
          NULLIFY(deriv_data)
       END IF
       ! Cross Terms
-      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)",error=error)
       IF(ASSOCIATED(deriv_att)) THEN
          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
-         DO ir = 1, nr 
+         DO ir = 1, nr
             DO ia = 1, na
                DO idir = 1, 3
                   IF (rho_set%norm_drho(ia,ir,1) > drho_cutoff) THEN
@@ -212,7 +212,7 @@ CONTAINS
          NULLIFY (deriv_data)
       END IF
    ELSE
-      deriv_att => xc_dset_get_derivative(deriv_set,"(norm_drho)")
+      deriv_att => xc_dset_get_derivative(deriv_set,"(norm_drho)",error=error)
       IF (ASSOCIATED(deriv_att)) THEN
          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
          DO ir = 1, nr
@@ -242,9 +242,9 @@ CONTAINS
   SUBROUTINE xc_2nd_deriv_of_r(rho_set, rho1_set,xc_section,&
        deriv_set, needs, w, exc, vxc, vxg, error)
 
-! As input of this routine one gets rho and drho on a one dimensional grid. 
+! As input of this routine one gets rho and drho on a one dimensional grid.
 ! The grid is the angular grid corresponding to a given point ir on the radial grid.
-! The derivatives are calculated on this one dimensional grid, the results are stored in 
+! The derivatives are calculated on this one dimensional grid, the results are stored in
 ! exc, vxc(1:na,ir,ispin), vxg(1:na,ir,ispin), vxg_cross(1:na,ir,ispin)
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
 ! can safely be called for the next radial point ir
@@ -257,8 +257,8 @@ CONTAINS
     REAL(dp)                                 :: exc
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_2nd_deriv_of_r', &
       routineP = moduleN//':'//routineN
@@ -277,7 +277,7 @@ CONTAINS
 
     CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
-    
+
     nspins = SIZE(vxc,3)
     lsd = (nspins==2)
     IF (ASSOCIATED(rho_set%rhoa)) THEN
@@ -337,7 +337,7 @@ CONTAINS
   SUBROUTINE xc_rho_set_atom_update(rho_set,needs,nspins,bo)
 
 !   This routine allocates the storage arrays for rho and drho
-!   In calculate_vxc_atom this is called once for each atomic_kind, 
+!   In calculate_vxc_atom this is called once for each atomic_kind,
 !   After the loop over all the atoms of the kind and over all the points
 !   of the radial grid for each atom, rho_set is deallocated.
 !   Within the same kind, at each new point on the radial grid, the rho_set
@@ -364,7 +364,7 @@ CONTAINS
         rho_set%owns%rho_1_3=.TRUE.
         rho_set%has%rho_1_3= .FALSE.
       END IF
-!     Allocate the storage space for the density 
+!     Allocate the storage space for the density
       IF (needs%rho) THEN
         NULLIFY(rho_set%rho)
         ALLOCATE(rho_set%rho(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
@@ -374,7 +374,7 @@ CONTAINS
 !     Allocate the storage space for  the norm of the gradient of the density
       IF (needs%norm_drho) THEN
         NULLIFY(rho_set%norm_drho)
-        ALLOCATE(rho_set%norm_drho(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))) 
+        ALLOCATE(rho_set%norm_drho(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%norm_drho=.TRUE.
         rho_set%has%norm_drho=.FALSE.
       END IF
@@ -399,7 +399,7 @@ CONTAINS
 !     What is this for?
       IF (needs%rho_1_3) THEN
         NULLIFY(rho_set%rho_1_3)
-        ALLOCATE(rho_set%rho_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))) 
+        ALLOCATE(rho_set%rho_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%rho_1_3=.TRUE.
         rho_set%has%rho_1_3=.FALSE.
       END IF
@@ -407,7 +407,7 @@ CONTAINS
       IF (needs%rho_spin_1_3) THEN
         NULLIFY(rho_set%rhoa_1_3,rho_set%rhob_1_3)
         ALLOCATE(rho_set%rhoa_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-        ALLOCATE(rho_set%rhob_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))) 
+        ALLOCATE(rho_set%rhob_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%rho_spin_1_3=.TRUE.
         rho_set%has%rho_spin_1_3=.FALSE.
       END IF
@@ -447,7 +447,7 @@ CONTAINS
           NULLIFY(rho_set%drho(idir)%array)
           ALLOCATE(rho_set%drho(idir)%array(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         END DO
-        rho_set%owns%drho=.TRUE.        
+        rho_set%owns%drho=.TRUE.
         rho_set%has%drho=.FALSE.
       END IF
 !     Allocate the storage space for the components of the gradient for rhoa and rhob
@@ -457,7 +457,7 @@ CONTAINS
           ALLOCATE(rho_set%drhoa(idir)%array(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
           ALLOCATE(rho_set%drhob(idir)%array(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         END DO
-        rho_set%owns%drho_spin=.TRUE.        
+        rho_set%owns%drho_spin=.TRUE.
         rho_set%has%drho_spin=.FALSE.
       END IF
 !
@@ -495,8 +495,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: rho
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho
     INTEGER, INTENT(IN)                      :: na, ir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_rho_set', &
       routineP = moduleN//':'//routineN
@@ -535,10 +535,10 @@ CONTAINS
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
-    
+
     SELECT CASE(my_nspins)
     CASE(1)
-       ! Give rho to 1/3  
+       ! Give rho to 1/3
        IF (needs%rho_1_3) THEN
           DO ia = 1,na
              rho_set%rho_1_3(ia,ir,1) = MAX(rho(ia,1),0.0_dp)**f13
@@ -588,7 +588,7 @@ CONTAINS
           rho_set%owns%rho=.TRUE.
           rho_set%has%rho=.TRUE.
        END IF
-       ! Give the total density to 1/3  
+       ! Give the total density to 1/3
        IF (needs%rho_1_3) THEN
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
@@ -602,7 +602,7 @@ CONTAINS
           rho_set%owns%rho_1_3=.TRUE.
           rho_set%has%rho_1_3=.TRUE.
        END IF
-       ! Give the spin densities to 1/3  
+       ! Give the spin densities to 1/3
        IF (needs%rho_spin_1_3) THEN
           IF (.NOT.tddft_split) THEN
              DO ia = 1,na
@@ -678,7 +678,7 @@ CONTAINS
                 rho_set%drhoa_drhob(ia,ir,1) =&
                      (drho(1,ia,ir,1)*drho(1,ia,ir,2))+&
                      (drho(2,ia,ir,1)*drho(2,ia,ir,2))+&
-                     (drho(3,ia,ir,1)*drho(3,ia,ir,2))   
+                     (drho(3,ia,ir,1)*drho(3,ia,ir,2))
              END DO
           ELSE
              DO ia =1,na
@@ -686,7 +686,7 @@ CONTAINS
 !!                rho_set%drhoa_drhob(ia,ir,1) =&
 !!                     (0.25_dp*drho(1,ia,ir,1)**2)+&
 !!                     (0.25_dp*drho(2,ia,ir,1)**2)+&
-!!                     (0.25_dp*drho(3,ia,ir,1)**2)   
+!!                     (0.25_dp*drho(3,ia,ir,1)**2)
              END DO
           END IF
           rho_set%owns%drhoa_drhob=.TRUE.
@@ -707,7 +707,7 @@ CONTAINS
                 END DO
              END DO
           END IF
-          rho_set%owns%drho=.TRUE.        
+          rho_set%owns%drho=.TRUE.
           rho_set%has%drho=.TRUE.
        END IF
        ! Give the components of the gradient for rhoa and rhob
@@ -727,7 +727,7 @@ CONTAINS
                 END DO
              END DO
           END IF
-          rho_set%owns%drho_spin=.TRUE.        
+          rho_set%owns%drho_spin=.TRUE.
           rho_set%has%drho_spin=.TRUE.
        END IF
        !

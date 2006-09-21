@@ -127,8 +127,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE kg_scf_env_retain(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_retain', &
       routineP = moduleN//':'//routineN
@@ -136,7 +136,7 @@ SUBROUTINE kg_scf_env_retain(scf_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -161,8 +161,8 @@ END SUBROUTINE kg_scf_env_retain
 !!*** **********************************************************************
 SUBROUTINE kg_scf_env_release(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_release', &
       routineP = moduleN//':'//routineN
@@ -171,18 +171,18 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(scf_env)) THEN
      CPPreconditionNoFail(scf_env%ref_count>0,cp_failure_level,routineP,error)
      scf_env%ref_count=scf_env%ref_count-1
      IF (scf_env%ref_count==0) THEN
         IF (ASSOCIATED(scf_env%p_mix_new)) THEN
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
-           CALL deallocate_matrix_set(scf_env%p_mix_new)
+           CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
         ENDIF
         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
            DO i=1,SIZE(scf_env%ot_preconditioner)
-                CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
+                CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner,error=error)
                 DEALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
            ENDDO
            DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
@@ -190,7 +190,7 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
         END IF
         IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
            DO i=1,SIZE(scf_env%qs_ot_env)
-              CALL qs_ot_destroy(scf_env%qs_ot_env(i))
+              CALL qs_ot_destroy(scf_env%qs_ot_env(i),error=error)
            END DO
            DEALLOCATE(scf_env%qs_ot_env, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

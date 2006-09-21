@@ -110,8 +110,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
       routineP = moduleN//':'//routineN
@@ -139,8 +139,8 @@ CONTAINS
     NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
     CALL timeset ( 'PME', 'I', ' ', handle )
-    CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
-    CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, & 
+    CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group ,error=error)
+    CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
                        pw_small_pool=pw_small_pool, &
                        poisson_env=poisson_env, dg = dg )
 
@@ -156,9 +156,9 @@ CONTAINS
          allocate_centre = .TRUE. )
 
     CALL pw_pool_init_coeff ( pw_small_pool, rhos1, &
-                              use_data = REALDATA3D )
+                              use_data = REALDATA3D ,error=error)
     CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
-                              use_data = REALDATA3D )
+                              use_data = REALDATA3D ,error=error)
 
     CALL rs_grid_create( rden, grid_b, -MAXVAL ( grid_s % npts ),&
          error=error)
@@ -172,23 +172,23 @@ CONTAINS
 
     ipart = 0
     jpart = 0
-    DO 
+    DO
 
        CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, &
             ipart, jpart )
        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
-       
+
        ! calculate function on small boxes (we use double packing in FFT)
        CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
             rhos1, rhos2 )
-       
+
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
        IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
-       
+
     END DO
-    
-    CALL pw_pool_create_pw ( pw_big_pool, rhob_r, use_data = REALDATA3D, in_space = REALSPACE )
+
+    CALL pw_pool_create_pw ( pw_big_pool, rhob_r, use_data = REALDATA3D, in_space = REALSPACE ,error=error)
     CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
 
     !-------------- ELECTROSTATIC CALCULATION -----------
@@ -198,16 +198,16 @@ CONTAINS
        NULLIFY(dphi_g ( i )%pw)
        CALL pw_pool_create_pw ( pw_big_pool, dphi_g ( i )%pw, &
                                 use_data = COMPLEXDATA1D, &
-                                in_space = RECIPROCALSPACE )
+                                in_space = RECIPROCALSPACE ,error=error)
     END DO
     CALL pw_pool_create_pw ( pw_big_pool, phi_r, &
                              use_data = REALDATA3D, &
-                             in_space = REALSPACE )
+                             in_space = REALSPACE ,error=error)
 
-    CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
-    
-    CALL pw_pool_give_back_pw ( pw_big_pool, phi_r )
-    
+    CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress ,error=error)
+
+    CALL pw_pool_give_back_pw ( pw_big_pool, phi_r ,error=error)
+
     vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
     !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -225,7 +225,7 @@ CONTAINS
        f_stress = -ffa * f_stress
        pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
     ENDIF
-    
+
     !--------END OF STRESS TENSOR CALCULATION -----------
 
     CALL rs_grid_p_create ( drpot, 3, grid_b , -MAXVAL ( grid_s % npts ),&
@@ -233,29 +233,29 @@ CONTAINS
 
     DO i = 1, 3
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
-       CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw )
+       CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw ,error=error)
        CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs )
     END DO
-    
-    CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r )
-    
+
+    CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r ,error=error)
+
     !----------------- FORCE CALCULATION ----------------
 
     ! initialize the forces
     IF ( PRESENT ( fg_coulomb ) ) THEN
        fg_coulomb = 0.0_dp
        dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
-       
+
        ipart = 0
        jpart = 0
        DO
-          
+
           CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
-          
+
           ! calculate function on small boxes (we use double packing in FFT)
           CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
-          
+
           ! sum boxes on real space grids (big box)
           CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
           fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
@@ -267,7 +267,7 @@ CONTAINS
              fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
              fg_coulomb ( 3, p2 ) = fg_coulomb ( 3, p2 ) - fat ( 3 ) * dvols
           END IF
-          
+
        END DO
     ENDIF
     !--------------END OF FORCE CALCULATION -------------
@@ -276,12 +276,12 @@ CONTAINS
 
     CALL rs_grid_release ( rden, error)
     CALL rs_grid_p_release ( drpot, error)
-    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 )
-    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 )
+    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 ,error=error)
+    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 ,error=error)
     CALL structure_factor_deallocate ( exp_igr )
 
     CALL timestop ( 0.0_dp, handle )
-    
+
   END SUBROUTINE pme_evaluate
 
 !!*****
@@ -330,9 +330,9 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
   rho0 => dg_rho0 % density
 
   r1 = particle_set ( p1 ) % r
-  
+
   atomic_kind => particle_set (p1) % atomic_kind
-  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1) 
+  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1)
 
   center1 => exp_igr % centre ( :, p1 )
   ex1 => exp_igr % ex ( :, p1 )
@@ -344,7 +344,7 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
   IF ( p2 /= 0 ) THEN
      r2 = particle_set ( p2 ) % r
      atomic_kind => particle_set (p2) % atomic_kind
-     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2) 
+     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2)
      center2 => exp_igr % centre ( :, p2 )
      ex2 => exp_igr % ex ( :, p2 )
      ey2 => exp_igr % ey ( :, p2 )
@@ -386,14 +386,14 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
   rho0 => dg_rho0 % density
 
   atomic_kind => particle_set (p1) % atomic_kind
-  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1) 
+  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1)
   ex1 => exp_igr % ex ( :, p1 )
   ey1 => exp_igr % ey ( :, p1 )
   ez1 => exp_igr % ez ( :, p1 )
 
   IF ( p2 /= 0 ) THEN
      atomic_kind => particle_set (p2) % atomic_kind
-     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2) 
+     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2)
      ex2 => exp_igr % ex ( :, p2 )
      ey2 => exp_igr % ey ( :, p2 )
      ez2 => exp_igr % ez ( :, p2 )

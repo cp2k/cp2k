@@ -72,13 +72,13 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Main driver routine for a Quickstep calculation.
-!!     QS_INIT:: Read the input and the database files and perform further 
+!!     QS_INIT:: Read the input and the database files and perform further
 !!               initializations for the setup of the QUICKSTEP environment
 !!
 !!   MODIFICATION HISTORY
 !!    Creation (23.01.2002,MK)
-!!    Modified for RESPA (07.2006)  
-!! 
+!!    Modified for RESPA (07.2006)
+!!
 !******************************************************************************
   SUBROUTINE quickstep_create_force_env(force_env,root_section,para_env,globenv,subsystem,cell,cell_ref,&
        qmmm, qmmm_periodic, force_env_section, error)
@@ -92,8 +92,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'quickstep_create_force_env', &
       routineP = moduleN//':'//routineN
@@ -107,8 +107,8 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
-    !Reference qs_env 
-    CALL qs_env_create(qs_env,para_env)
+    !Reference qs_env
+    CALL qs_env_create(qs_env,para_env,error=error)
     CALL qs_init( qs_env, root_section, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
                   qmmm=qmmm, qmmm_periodic=qmmm_periodic,&
                   force_env_section=force_env_section, error=error )

@@ -76,8 +76,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_poisson_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_poisson_section', &
       routineP = moduleN//':'//routineN
@@ -163,8 +163,8 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE create_multipole_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_section', &
       routineP = moduleN//':'//routineN
@@ -305,8 +305,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_screening_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_screening_section', &
       routineP = moduleN//':'//routineN
@@ -376,8 +376,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_mt_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mt_section', &
       routineP = moduleN//':'//routineN
@@ -439,8 +439,8 @@ CONTAINS
 
 SUBROUTINE create_ewald_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ewald_section', &
       routineP = moduleN//':'//routineN
@@ -540,8 +540,8 @@ END SUBROUTINE create_ewald_section
 !!*** **********************************************************************
   SUBROUTINE create_gspace_interp_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gspace_interp_section', &
       routineP = moduleN//':'//routineN

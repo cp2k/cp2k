@@ -324,8 +324,8 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_spherical_harmonics'
 

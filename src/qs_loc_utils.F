@@ -99,11 +99,11 @@ CONTAINS
 !!
 !!   FUNCTION
 !!      2by2 rotation for the pipek operator
-!!      in this case the z_ij numbers are reals 
+!!      in this case the z_ij numbers are reals
 !!
 !!   ARGUMENTS
 !!
-!!  
+!!
 !!   AUTHOR
 !!     MI
 !!
@@ -117,8 +117,8 @@ CONTAINS
       POINTER                                :: zij_fm_set
     TYPE(cp_fm_type), POINTER                :: vectors
     INTEGER                                  :: sweeps
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotation_pipek', &
       routineP = moduleN//':'//routineN
@@ -135,14 +135,14 @@ CONTAINS
     NULLIFY(rmat)
 
     CALL cp_fm_create(rmat,zij_fm_set(1,1)%matrix%matrix_struct,error=error)
-    CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp, error=error)  
-    
+    CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp, error=error)
+
     CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
     tolerance = 1.0e10_dp
     sweeps = 0
-    natom = SIZE(zij_fm_set,1) 
+    natom = SIZE(zij_fm_set,1)
     ! do jacobi sweeps until converged
-    DO WHILE ( tolerance >= 1.0e-4_dp ) 
+    DO WHILE ( tolerance >= 1.0e-4_dp )
        sweeps = sweeps + 1
        DO istate = 1, nstate
          DO jstate = istate+1, nstate
@@ -165,7 +165,7 @@ CONTAINS
            END IF
            ! Check max or min
            ! To minimize the spread
-           IF(theta > pi * 0.5_dp) THEN 
+           IF(theta > pi * 0.5_dp) THEN
              theta = theta - pi*0.25_dp
            ELSE IF(theta < - pi*0.5_dp) THEN
              theta =theta + pi*0.25_dp
@@ -175,13 +175,13 @@ CONTAINS
            st = SIN(theta)
            CALL rotate_rmat_real(istate,jstate,st,ct,rmat,error=error)
            CALL rotate_zij_real(istate,jstate,st,ct,zij_fm_set,error=error)
-         END DO  
-       END DO  
-       CALL check_tolerance_real(zij_fm_set,tolerance,error=error) 
+         END DO
+       END DO
+       CALL check_tolerance_real(zij_fm_set,tolerance,error=error)
     END DO
 
-    CALL rotate_orbitals ( rmat, vectors ) 
-    CALL cp_fm_release ( rmat )
+    CALL rotate_orbitals ( rmat, vectors )
+    CALL cp_fm_release ( rmat ,error=error)
 
   END SUBROUTINE jacobi_rotation_pipek
 
@@ -191,8 +191,8 @@ CONTAINS
     REAL(dp), INTENT(IN)             :: ct, st
     TYPE(cp_fm_type), POINTER        :: rmat
     INTEGER                          :: nstate
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                            :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                         :: error
 
 
 #if defined(__SCALAPACK)
@@ -200,14 +200,14 @@ CONTAINS
 #endif
 
     CALL cp_fm_get_info(rmat, nrow_global=nstate, error=error)
-#if defined(__SCALAPACK)    
+#if defined(__SCALAPACK)
     desc(:) = rmat%matrix_struct%descriptor(:)
     CALL pzrot(nstate,rmat%local_data(1,1),1,istate,desc,1,&
          rmat%local_data(1,1),1,jstate,desc,1,ct,st)
-#else    
+#else
     CALL drot(nstate,rmat%local_data(1,istate),1,&
          rmat%local_data(1,jstate),1,ct,st)
-#endif         
+#endif
 
   END SUBROUTINE rotate_rmat_real
 
@@ -217,8 +217,8 @@ CONTAINS
     REAL(dp), INTENT(IN)                  :: ct, st
     TYPE(cp_fm_p_type), DIMENSION(:,:), &
       POINTER                             :: zij
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                            :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                         :: error
 
     INTEGER :: iatom, natom, nstate, stride
 #if defined(__SCALAPACK)
@@ -245,15 +245,15 @@ CONTAINS
             stride,zij(iatom,1)%matrix%local_data(jstate,1),stride,ct,st)
 #endif
     END DO
-    
+
   END SUBROUTINE rotate_zij_real
 
   SUBROUTINE check_tolerance_real(zij_fm_set,tolerance,error)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: zij_fm_set
     REAL(dp), INTENT(OUT)                    :: tolerance
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: iatom, istat, istate, jstate, &
                                                 natom, ncol_local, &
@@ -275,13 +275,13 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,"check_tolerance_real",error,failure)
 
     CALL cp_fm_create(force , zij_fm_set(1,1)%matrix%matrix_struct,error=error)
-    CALL cp_fm_set_all (force, 0._dp, error= error) 
+    CALL cp_fm_set_all (force, 0._dp, error= error)
 
     DO iatom = 1,natom
       DO istate = 1,nrow_global
         CALL cp_fm_get_element(zij_fm_set(iatom,1)%matrix,istate,istate,diag(istate,iatom))
       END DO
-    END DO 
+    END DO
 
     DO istate = 1,nrow_local
       DO jstate = 1,ncol_local
@@ -296,12 +296,12 @@ CONTAINS
       END DO
     END DO
 
-    DEALLOCATE(diag,STAT=istat)  
+    DEALLOCATE(diag,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,"check_tolerance_real",error,failure)
 
     CALL cp_fm_maxabsval ( force, tolerance, error = error )
 
-    CALL cp_fm_release ( force ) 
+    CALL cp_fm_release ( force ,error=error)
 
   END SUBROUTINE check_tolerance_real
 !******************************************************************************
@@ -318,10 +318,10 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - qs_loc_env: new environment for the localization calculations
-!!     - localized_wfn_control: variables and directives for the localization 
+!!     - localized_wfn_control: variables and directives for the localization
 !!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     MI
@@ -337,8 +337,8 @@ CONTAINS
       POINTER                                :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, OPTIONAL                        :: onlyspin1
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
       routineP = moduleN//':'//routineN
@@ -375,12 +375,12 @@ CONTAINS
     IF(PRESENT(onlyspin1)) my_one_spin = onlyspin1
 
     NULLIFY(mos,matrix_s,moloc_coeff,particle_set,para_env,cell,local_molecules,occupations)
-  
+
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, cell=cell, &
                      local_molecules=local_molecules,&
                      particle_set=particle_set, &
                      para_env=para_env,&
-                     mos=mos)
+                     mos=mos,error=error)
 
     nspins = SIZE(mos,1)
     my_nspins = nspins
@@ -391,16 +391,16 @@ CONTAINS
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
       nmosub = localized_wfn_control%nloc_states(ispin)
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-           ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context)
+           ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
 
-      CALL cp_fm_create (moloc_coeff(ispin)%matrix , tmp_fm_struct )
+      CALL cp_fm_create (moloc_coeff(ispin)%matrix , tmp_fm_struct ,error=error)
 
       CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
            ncol_global=nmosub,error=error)
       CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
       CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
-      CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp)
-      CALL cp_fm_struct_release ( tmp_fm_struct )
+      CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp,error=error)
+      CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
     END DO  ! ispin
     ! Copy the submatrix
 
@@ -451,24 +451,24 @@ CONTAINS
 
     CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules,&
                         moloc_coeff=moloc_coeff, particle_set=particle_set,para_env=para_env,&
-                        localized_wfn_control=localized_wfn_control)
+                        localized_wfn_control=localized_wfn_control,error=error)
 
     ! Prepare the operators
     NULLIFY(tmp_fm_struct,mo_coeff)
     nmosub = MAXVAL(localized_wfn_control%nloc_states)
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
-         ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context)
+         ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
 
     IF ( localized_wfn_control%operator_type==op_loc_berry )  THEN
       ALLOCATE ( qs_loc_env % op_sm_set ( 2, 3 ), STAT = istat )
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO i=1, SIZE ( qs_loc_env % op_sm_set, 2 )
          DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
            NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
            CALL replicate_matrix_structure(matrix_s(1)%matrix, &
                 qs_loc_env%op_sm_set(j,i)%matrix,"qs_loc_env%op_sm_"//&
-                TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))))
+                TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
            CALL set_matrix(qs_loc_env%op_sm_set(j,i)%matrix,0.0_dp)
          ENDDO
       END DO
@@ -481,40 +481,40 @@ CONTAINS
          DO j =   1, SIZE ( qs_loc_env % op_fm_set, 1 )
            NULLIFY(qs_loc_env % op_fm_set(j,i)%matrix)
 
-           CALL cp_fm_create (qs_loc_env % op_fm_set(j,i)%matrix , tmp_fm_struct )
+           CALL cp_fm_create (qs_loc_env % op_fm_set(j,i)%matrix , tmp_fm_struct ,error=error)
 
            CALL cp_fm_get_info(qs_loc_env %op_fm_set(j,i)%matrix, nrow_global=nmosub, &
                error=error)
            CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
-           CALL cp_fm_set_all(qs_loc_env %op_fm_set(j,i)%matrix,0.0_dp)
+           CALL cp_fm_set_all(qs_loc_env %op_fm_set(j,i)%matrix,0.0_dp,error=error)
          END DO
       END DO
     ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
       natoms = SIZE ( qs_loc_env % particle_set, 1 )
       ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO ispin = 1, SIZE(qs_loc_env % op_fm_set ,2)
          CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
          DO iatom = 1,natoms
            NULLIFY(qs_loc_env %op_fm_set(iatom,ispin)%matrix)
 
-           CALL cp_fm_create (qs_loc_env % op_fm_set(iatom,ispin)%matrix , tmp_fm_struct )
+           CALL cp_fm_create (qs_loc_env % op_fm_set(iatom,ispin)%matrix , tmp_fm_struct ,error=error)
 
            CALL cp_fm_get_info(qs_loc_env %op_fm_set(iatom,ispin)%matrix, nrow_global=nmosub, &
                 error=error)
            CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
-           CALL cp_fm_set_all(qs_loc_env %op_fm_set(iatom,ispin)%matrix,0.0_dp)
+           CALL cp_fm_set_all(qs_loc_env %op_fm_set(iatom,ispin)%matrix,0.0_dp,error=error)
          END DO  ! iatom
       END DO  ! ispin
     ELSE
       CALL stop_program(routineP,"Type of operator not implemented")
     ENDIF
-    CALL cp_fm_struct_release ( tmp_fm_struct )
+    CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 
-    IF (  localized_wfn_control%operator_type==op_loc_berry ) THEN 
- 
-      CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights ) 
-  
+    IF (  localized_wfn_control%operator_type==op_loc_berry ) THEN
+
+      CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights )
+
       CALL get_berry_operator ( qs_loc_env, qs_env , error=error)
 
     ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
@@ -524,13 +524,13 @@ CONTAINS
 
     ENDIF
 
-    
+
     qs_loc_env%molecular_states = .FALSE.
-  
+
 
 ! done
     qs_loc_env%is_initialized = 666
-    CALL timestop(0.0_dp,handle) 
+    CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_loc_env_init
 
@@ -543,7 +543,7 @@ END SUBROUTINE qs_loc_env_init
 !!   FUNCTION
 !!      Computes the Berry operator for periodic systems
 !!      used to define the spread of the MOS
-!!      Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu> 
+!!      Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu>
 !!      are computed, where mu and nu are the contracted basis functions.
 !!      Namely the Berry operator is exp(ikr)
 !!      k is defined somewhere
@@ -556,8 +556,8 @@ END SUBROUTINE qs_loc_env_init
 !!   ARGUMENTS
 !!     - qs_loc_env: new environment for the localization calculations
 !!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     MI
@@ -567,13 +567,13 @@ END SUBROUTINE qs_loc_env_init
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE get_berry_operator ( qs_loc_env, qs_env, error ) 
+  SUBROUTINE get_berry_operator ( qs_loc_env, qs_env, error )
 
 ! globals
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
       routineP = moduleN//':'//routineN
@@ -631,7 +631,7 @@ END SUBROUTINE qs_loc_env_init
 
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set, sab_orb=sab_orb)
+                    particle_set=particle_set, sab_orb=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -656,10 +656,10 @@ END SUBROUTINE qs_loc_env_init
         NULLIFY (op_cost(i,j)%block)
         NULLIFY (op_sint(i,j)%block)
       END DO
-    END DO 
+    END DO
 
-    CALL get_qs_loc_env(qs_loc_env=qs_loc_env,op_sm_set=op_sm_set, cell=cell)
-    ooLx = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) 
+    CALL get_qs_loc_env(qs_loc_env=qs_loc_env,op_sm_set=op_sm_set, cell=cell,error=error)
+    ooLx = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )
     ooLy = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )
     ooLz = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )
     twopoLx = twopi*ooLx
@@ -671,7 +671,7 @@ END SUBROUTINE qs_loc_env_init
     ! If an isolated system is used the periodicity is overimposed
     perd0(1:3) = cell%perd(1:3)
     cell%perd(1:3) = 1
- 
+
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
@@ -802,9 +802,9 @@ END SUBROUTINE qs_loc_env_init
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_sin(i)%block)
-              END DO  
+              END DO
             END IF  ! new_atom_b
- 
+
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = SQRT(rab2)
 
@@ -827,8 +827,8 @@ END SUBROUTINE qs_loc_env_init
                     ! x component
                     kvec = 0.0_dp
                     kvec(1) = twopoLx
-                    cosab = 0.0_dp  
-                    sinab = 0.0_dp  
+                    cosab = 0.0_dp
+                    sinab = 0.0_dp
 
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -842,8 +842,8 @@ END SUBROUTINE qs_loc_env_init
                     ! y component
                     kvec = 0.0_dp
                     kvec(2) = twopoLy
-                    cosab = 0.0_dp  
-                    sinab = 0.0_dp  
+                    cosab = 0.0_dp
+                    sinab = 0.0_dp
 
 
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
@@ -858,8 +858,8 @@ END SUBROUTINE qs_loc_env_init
                     ! z component
                     kvec = 0.0_dp
                     kvec(3) = twopoLz
-                    cosab = 0.0_dp  
-                    sinab = 0.0_dp  
+                    cosab = 0.0_dp
+                    sinab = 0.0_dp
 
 
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
@@ -904,7 +904,7 @@ END SUBROUTINE qs_loc_env_init
          NULLIFY(op_cost(i,j)%block)
          NULLIFY(op_sint(i,j)%block)
       END DO
-    END DO 
+    END DO
     DEALLOCATE(op_cost,op_sint, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

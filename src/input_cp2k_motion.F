@@ -77,8 +77,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_motion_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_motion_section', &
       routineP = moduleN//':'//routineN
@@ -226,8 +226,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_constraint_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_constraint_section', &
       routineP = moduleN//':'//routineN
@@ -315,8 +315,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE restraint_info_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restraint_info_section', &
       routineP = moduleN//':'//routineN
@@ -370,8 +370,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_collective_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_collective_section', &
       routineP = moduleN//':'//routineN
@@ -437,8 +437,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_fixed_atom_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fixed_atom_section', &
       routineP = moduleN//':'//routineN
@@ -523,8 +523,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_g3x3_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_g3x3_section', &
       routineP = moduleN//':'//routineN
@@ -591,8 +591,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_hbonds_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hbonds_section', &
       routineP = moduleN//':'//routineN
@@ -654,8 +654,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_g4x6_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_g4x6_section', &
       routineP = moduleN//':'//routineN
@@ -722,8 +722,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_mc_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mc_section', &
       routineP = moduleN//':'//routineN
@@ -1036,8 +1036,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_geoopt_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_geoopt_section', &
       routineP = moduleN//':'//routineN
@@ -1237,8 +1237,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_metadyn_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metadyn_section', &
       routineP = moduleN//':'//routineN
@@ -1372,8 +1372,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_fp_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fp_section', &
       routineP = moduleN//':'//routineN
@@ -1495,8 +1495,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_metadyn_history(section, metadyn_section, error)
     TYPE(section_type), POINTER              :: section, metadyn_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metadyn_history', &
       routineP = moduleN//':'//routineN
@@ -1606,8 +1606,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_metavar_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metavar_section', &
       routineP = moduleN//':'//routineN
@@ -1702,8 +1702,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_md_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_md_section', &
       routineP = moduleN//':'//routineN
@@ -1920,8 +1920,8 @@ END SUBROUTINE create_md_section
 
 SUBROUTINE create_respa_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_respa_section', &
       routineP = moduleN//':'//routineN
@@ -1981,8 +1981,8 @@ END SUBROUTINE create_respa_section
 
 SUBROUTINE create_qs_md_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_md_section', &
       routineP = moduleN//':'//routineN
@@ -2038,8 +2038,8 @@ END SUBROUTINE create_qs_md_section
 
 SUBROUTINE create_uniaxial_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_uniaxial_section', &
       routineP = moduleN//':'//routineN
@@ -2128,8 +2128,8 @@ SUBROUTINE create_uniaxial_section(section, error)
 
 SUBROUTINE create_barostat_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_section', &
       routineP = moduleN//':'//routineN
@@ -2223,8 +2223,8 @@ SUBROUTINE create_barostat_section(section, error)
 
 SUBROUTINE create_coeff_section(coeff_section, error)
     TYPE(section_type), POINTER              :: coeff_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_coeff_section', &
       routineP = moduleN//':'//routineN
@@ -2367,8 +2367,8 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 
 SUBROUTINE create_nose_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_nose_section', &
       routineP = moduleN//':'//routineN
@@ -2461,8 +2461,8 @@ END SUBROUTINE create_nose_section
 !!*** **********************************************************************
   SUBROUTINE create_hmc_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hmc_section', &
       routineP = moduleN//':'//routineN
@@ -2715,8 +2715,8 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_force_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_section', &
       routineP = moduleN//':'//routineN
@@ -2769,8 +2769,8 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_mass_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mass_section', &
       routineP = moduleN//':'//routineN
@@ -2822,8 +2822,8 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_velocity_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section', &
       routineP = moduleN//':'//routineN
@@ -2874,8 +2874,8 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_coord_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section', &
       routineP = moduleN//':'//routineN
@@ -2924,8 +2924,8 @@ END SUBROUTINE create_nose_section
 !!*** **********************************************************************
 SUBROUTINE create_pint_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_pint_section', &
       routineP = moduleN//':'//routineN

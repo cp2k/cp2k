@@ -114,8 +114,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
       routineP = moduleN//':'//routineN
@@ -237,8 +237,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid', &
       routineP = moduleN//':'//routineN
@@ -316,8 +316,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'qmmm_electrostatic_on_grid_low', &
@@ -448,8 +448,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: auxbas_grid, coarser_grid
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
       routineP = moduleN//':'//routineN
@@ -583,8 +583,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: periodic
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: per_potentials
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
       routineP = moduleN//':'//routineN
@@ -742,8 +742,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: per_potentials
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LG', &
       routineP = moduleN//':'//routineN
@@ -1014,8 +1014,8 @@ CONTAINS
       POINTER                                :: potentials
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
       routineP = moduleN//':'//routineN

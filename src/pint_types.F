@@ -67,7 +67,7 @@ MODULE pint_types
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_types'
-  
+
   INTEGER, SAVE, PRIVATE :: last_pint_id=0, last_staging_id=0
 
   PUBLIC :: pint_env_type, staging_env_type
@@ -157,8 +157,8 @@ CONTAINS
 !!     that are not needed
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -168,8 +168,8 @@ CONTAINS
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_env_create', &
       routineP = moduleN//':'//routineN
@@ -228,12 +228,12 @@ CONTAINS
             error=error)
        pint_env%beta=1._dp/pint_env%kT
 
-       seed(:,:) = next_rng_seed()
+       seed(:,:) = next_rng_seed(error=error)
        CALL create_rng_stream(pint_env%randomG,&
                               name="pint_randomG",&
                               distribution_type=GAUSSIAN,&
                               extended_precision=.TRUE.,&
-                              seed=seed)
+                              seed=seed,error=error)
 
        ALLOCATE(pint_env%e_pot_bead(pint_env%p),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -259,7 +259,7 @@ CONTAINS
             pint_env%tv(pint_env%nnos,pint_env%p,pint_env%ndim),    &
             pint_env%tv_t(pint_env%nnos,pint_env%p,pint_env%ndim),  &
             pint_env%tv_old(pint_env%nnos,pint_env%p,pint_env%ndim),&
-            pint_env%tv_new(pint_env%nnos,pint_env%p,pint_env%ndim),& 
+            pint_env%tv_new(pint_env%nnos,pint_env%p,pint_env%ndim),&
             pint_env%tf(pint_env%nnos,pint_env%p,pint_env%ndim), stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
        DO ib=1,pint_env%p
@@ -339,8 +339,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     - pint_env: the pint_env to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -348,8 +348,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 SUBROUTINE pint_retain(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_retain', &
       routineP = moduleN//':'//routineN
@@ -357,7 +357,7 @@ SUBROUTINE pint_retain(pint_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -379,8 +379,8 @@ END SUBROUTINE pint_retain
 !!
 !!   INPUTS
 !!     - pint_env: the pint_env to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -388,8 +388,8 @@ END SUBROUTINE pint_retain
 !!*** **********************************************************************
 SUBROUTINE pint_release(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_release', &
       routineP = moduleN//':'//routineN
@@ -398,7 +398,7 @@ SUBROUTINE pint_release(pint_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pint_env)) THEN
      CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
      pint_env%ref_count=pint_env%ref_count-1
@@ -471,8 +471,8 @@ END SUBROUTINE pint_release
 !!
 !!   INPUTS
 !!     - staging_env: the staging_env to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -480,8 +480,8 @@ END SUBROUTINE pint_release
 !!*** **********************************************************************
 SUBROUTINE staging_retain(staging_env,error)
     TYPE(staging_env_type), POINTER          :: staging_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_retain', &
       routineP = moduleN//':'//routineN
@@ -489,7 +489,7 @@ SUBROUTINE staging_retain(staging_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -511,8 +511,8 @@ END SUBROUTINE staging_retain
 !!
 !!   INPUTS
 !!     - staging_env: the staging_env to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -520,8 +520,8 @@ END SUBROUTINE staging_retain
 !!*** **********************************************************************
 SUBROUTINE staging_release(staging_env,error)
     TYPE(staging_env_type), POINTER          :: staging_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_release', &
       routineP = moduleN//':'//routineN
@@ -530,7 +530,7 @@ SUBROUTINE staging_release(staging_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(staging_env)) THEN
      CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
      staging_env%ref_count=staging_env%ref_count-1
@@ -561,8 +561,8 @@ END SUBROUTINE staging_release
 !!     - mass_beads: masses of the beads
 !!     - mass_fict: the fictitious masses
 !!     - Q: masses of the nose thermostats
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -579,8 +579,8 @@ SUBROUTINE staging_init_masses(staging_env,mass,mass_beads,mass_fict,&
       INTENT(out), OPTIONAL                  :: mass_beads, mass_fict
     REAL(kind=dp), DIMENSION(:), &
       INTENT(out), OPTIONAL                  :: Q
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_init_masses', &
       routineP = moduleN//':'//routineN
@@ -590,7 +590,7 @@ SUBROUTINE staging_init_masses(staging_env,mass,mass_beads,mass_fict,&
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: scal
 
   failure=.FALSE.
-  
+
   IF (.NOT. failure) THEN
      IF (PRESENT(Q)) THEN
         Q=staging_env%Q_stage
@@ -599,7 +599,7 @@ SUBROUTINE staging_init_masses(staging_env,mass,mass_beads,mass_fict,&
         END DO
      END IF
      IF (PRESENT(mass_beads).OR.PRESENT(mass_fict)) THEN
-        
+
         ALLOCATE(scal(staging_env%p),stat=stat)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
         DO iseg=1,staging_env%nseg
@@ -644,8 +644,8 @@ END SUBROUTINE staging_init_masses
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -656,8 +656,8 @@ SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
     TYPE(section_vals_type), POINTER         :: staging_section
     INTEGER, INTENT(in)                      :: p, ndim
     REAL(kind=dp), INTENT(in)                :: kT
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create', &
       routineP = moduleN//':'//routineN
@@ -684,7 +684,7 @@ SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
           error=error)
      staging_env%p=p
      staging_env%nseg=staging_env%p/staging_env%j
-     
+
      staging_env%w_p=SQRT(REAL(staging_env%p,dp))*kT
      staging_env%w_j=kT*SQRT(REAL(staging_env%nseg,dp))
      staging_env%Q_stage=kT/staging_env%w_p**2
@@ -711,8 +711,8 @@ END SUBROUTINE staging_env_create
 !!     - pint_env: the path integral environment
 !!     - ux: will contain the u variable (defaults to pint_env%ux)
 !!     - x: the positions to transform (defaults to pint_env%x)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -724,8 +724,8 @@ SUBROUTINE pint_x2u(pint_env,ux,x,error)
       INTENT(out), OPTIONAL, TARGET          :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: x
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_x2u', &
       routineP = moduleN//':'//routineN
@@ -734,7 +734,7 @@ SUBROUTINE pint_x2u(pint_env,ux,x,error)
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -744,7 +744,7 @@ SUBROUTINE pint_x2u(pint_env,ux,x,error)
      IF (PRESENT(ux)) my_ux => ux
      CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
-     
+
      CALL staging_x2u(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
   END IF
 END SUBROUTINE pint_x2u
@@ -766,8 +766,8 @@ END SUBROUTINE pint_x2u
 !!     - staging_env: the environment for the staging transformation
 !!     - ux: will contain the u variable
 !!     - x: the positions to transform
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -779,8 +779,8 @@ SUBROUTINE staging_x2u(staging_env,ux,x,error)
       INTENT(out)                            :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: x
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_x2u', &
       routineP = moduleN//':'//routineN
@@ -789,7 +789,7 @@ SUBROUTINE staging_x2u(staging_env,ux,x,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -821,8 +821,8 @@ END SUBROUTINE staging_x2u
 !!     - pint_env: path integral environment
 !!     - ux: the u variable (positions to be backtransformed)
 !!     - x: will contain the positions
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -834,8 +834,8 @@ SUBROUTINE pint_u2x(pint_env,ux,x,error)
       INTENT(in), OPTIONAL, TARGET           :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out), OPTIONAL, TARGET          :: x
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x', &
       routineP = moduleN//':'//routineN
@@ -844,7 +844,7 @@ SUBROUTINE pint_u2x(pint_env,ux,x,error)
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -854,7 +854,7 @@ SUBROUTINE pint_u2x(pint_env,ux,x,error)
      IF (PRESENT(ux)) my_ux => ux
      CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
-     
+
      CALL staging_u2x(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
   END IF
 END SUBROUTINE pint_u2x
@@ -876,8 +876,8 @@ END SUBROUTINE pint_u2x
 !!     - staging_env: the environment for the staging transformation
 !!     - ux: the u variable (positions to be backtransformed)
 !!     - x: will contain the positions
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -889,8 +889,8 @@ SUBROUTINE staging_u2x(staging_env,ux,x,error)
       INTENT(in)                             :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: x
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_u2x', &
       routineP = moduleN//':'//routineN
@@ -901,7 +901,7 @@ SUBROUTINE staging_u2x(staging_env,ux,x,error)
     REAL(kind=dp)                            :: const, const2
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -917,7 +917,7 @@ SUBROUTINE staging_u2x(staging_env,ux,x,error)
         jjj(i)=iii(i)+j ! next first el (pbc)
      END DO
      jjj(staging_env%nseg)=1
-            
+
      x=ux
      DO i=1,staging_env%nseg
         x(j-1+iii(i),:)=x(j-1+iii(i),:)+&
@@ -949,8 +949,8 @@ END SUBROUTINE staging_u2x
 !!     - pint_env: the path integral environment
 !!     - uf: will contain the forces after for the tranformed variable
 !!     - f: the forces to transform
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -962,8 +962,8 @@ SUBROUTINE pint_f2uf(pint_env,uf,f,error)
       INTENT(out), OPTIONAL, TARGET          :: uf
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: f
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_f2uf', &
       routineP = moduleN//':'//routineN
@@ -982,7 +982,7 @@ SUBROUTINE pint_f2uf(pint_env,uf,f,error)
      IF (PRESENT(uf)) my_uf => uf
      CPPrecondition(ASSOCIATED(my_uf),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(my_f),cp_failure_level,routineP,error,failure)
-     
+
      CALL staging_f2uf(pint_env%staging_env,uf=my_uf,f=my_f,error=error)
      my_uf=my_uf/pint_env%mass_fict
   END IF
@@ -1004,8 +1004,8 @@ END SUBROUTINE pint_f2uf
 !!     - staging_env: the environment for the staging transformation
 !!     - uf: will contain the forces after for the tranformed variable
 !!     - f: the forces to transform
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1017,8 +1017,8 @@ SUBROUTINE staging_f2uf(staging_env,uf,f,error)
       INTENT(out)                            :: uf
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: f
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_f2uf', &
       routineP = moduleN//':'//routineN
@@ -1079,12 +1079,12 @@ END SUBROUTINE staging_f2uf
 !!     -
 !!
 !!   INPUTS
-!!     - pint_env: the pint env in which you should initialize the 
+!!     - pint_env: the pint env in which you should initialize the
 !!       velocity
 !!     - kT: the temperature the particles should be initialized to
 !!       (defaults to pint_env%kT)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1093,8 +1093,8 @@ END SUBROUTINE staging_f2uf
 SUBROUTINE pint_init_v(pint_env,kT,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), INTENT(in), OPTIONAL      :: kT
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_v', &
       routineP = moduleN//':'//routineN
@@ -1104,7 +1104,7 @@ SUBROUTINE pint_init_v(pint_env,kT,error)
     REAL(kind=dp)                            :: mykt
 
   failure=.FALSE.
-  
+
   mykt=pint_env%kT
   IF (PRESENT(kT)) mykt=kT
   DO idim=1,SIZE(pint_env%uv,2)
@@ -1140,8 +1140,8 @@ END SUBROUTINE pint_init_v
 !!   INPUTS
 !!     - pint_env: the path integral environment in which the harmonic
 !!       forces should be calculated
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1149,8 +1149,8 @@ END SUBROUTINE pint_init_v
 !!*** **********************************************************************
 FUNCTION  pint_calc_uf_h(pint_env, error)RESULT(res)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_uf_h', &
@@ -1188,8 +1188,8 @@ END FUNCTION pint_calc_uf_h
 !!     - mass_beads: the masses of the beads
 !!     - ux: the positions of the beads in the staging basis
 !!     - uf_h: the harmonic forces (not accelerations)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1201,8 +1201,8 @@ FUNCTION  staging_calc_uf_h(staging_env, mass_beads, ux, uf_h, error)RESULT(res)
       INTENT(in)                             :: mass_beads, ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: uf_h
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_calc_uf_h', &
@@ -1270,8 +1270,8 @@ END FUNCTION staging_calc_uf_h
 !!     - x: positions at which you want to evaluate the forces
 !!     - f: the forces
 !!     - e: potential energy on each bead
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1285,8 +1285,8 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
       INTENT(out), OPTIONAL, TARGET          :: f
     REAL(kind=dp), DIMENSION(:), &
       INTENT(out), OPTIONAL                  :: e
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_f', &
       routineP = moduleN//':'//routineN
@@ -1340,8 +1340,8 @@ END SUBROUTINE pint_calc_f
 !!
 !!   INPUTS
 !!     - pint_env: path integral env
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1349,8 +1349,8 @@ END SUBROUTINE pint_calc_f
 !!*** **********************************************************************
 SUBROUTINE pint_setup(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_setup', &
       routineP = moduleN//':'//routineN
@@ -1410,8 +1410,8 @@ END SUBROUTINE pint_setup
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1421,8 +1421,8 @@ FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: uv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u', &
@@ -1433,7 +1433,7 @@ FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_uv
 
   failure=.FALSE.
-  
+
 
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1466,8 +1466,8 @@ END FUNCTION pint_calc_e_kin_beads_u
 !!
 !!   INPUTS
 !!     - pint_env: the path integral environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1475,8 +1475,8 @@ END FUNCTION pint_calc_e_kin_beads_u
 !!*** **********************************************************************
 SUBROUTINE pint_calc_nh_energy(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_nh_energy', &
       routineP = moduleN//':'//routineN
@@ -1486,7 +1486,7 @@ SUBROUTINE pint_calc_nh_energy(pint_env,error)
     REAL(kind=dp)                            :: ekin, epot
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1525,8 +1525,8 @@ END SUBROUTINE pint_calc_nh_energy
 !!
 !!   INPUTS
 !!     - pint_env: the path integral environment to evolve
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1534,8 +1534,8 @@ END SUBROUTINE pint_calc_nh_energy
 !!*** **********************************************************************
 SUBROUTINE pint_step(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_step', &
       routineP = moduleN//':'//routineN
@@ -1650,7 +1650,7 @@ CPSourceFileRef,&
              error,failure)
         CALL f_env_rm_defaults(f_env,new_error,ierr)
         pint_env%iter=pint_env%iter+1
-        pint_env%t=pint_env%t+pint_env%dt     
+        pint_env%t=pint_env%t+pint_env%dt
      END DO
   END IF
 END SUBROUTINE pint_step
@@ -1669,8 +1669,8 @@ END SUBROUTINE pint_step
 !!
 !!   INPUTS
 !!     - pint_env: path integral environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1678,8 +1678,8 @@ END SUBROUTINE pint_step
 !!*** **********************************************************************
 SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids', &
       routineP = moduleN//':'//routineN
@@ -1699,7 +1699,7 @@ SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(section_vals_type), POINTER         :: print_key
 
   failure=.FALSE.
-  
+
   NULLIFY(f_env,cell,subsys)
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1748,7 +1748,7 @@ SUBROUTINE pint_write_centroids(pint_env,error)
                     particles%els(iat)%v(idir)=SQRT(ss2/nb-(ss/nb)**2)
                  END DO
               END DO
-              
+
               WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                    " i =",logger%iter_info%iteration(2),&
                    ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
@@ -1779,8 +1779,8 @@ END SUBROUTINE pint_write_centroids
 !!
 !!   INPUTS
 !!     - pint_env: path integral environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1788,8 +1788,8 @@ END SUBROUTINE pint_write_centroids
 !!*** **********************************************************************
 SUBROUTINE pint_write_ener(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
@@ -1801,7 +1801,7 @@ SUBROUTINE pint_write_ener(pint_env,error)
     TYPE(section_vals_type), POINTER         :: print_key
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1849,8 +1849,8 @@ END SUBROUTINE pint_write_ener
 !!   INPUTS
 !!     - para_env: parallel environment
 !!     - input: the input to test
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1861,8 +1861,8 @@ END SUBROUTINE pint_write_ener
 !!*** **********************************************************************
 SUBROUTINE pint_start(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_start', &
       routineP = moduleN//':'//routineN
@@ -1877,7 +1877,7 @@ SUBROUTINE pint_start(pint_env,error)
                                                 velocity_section
 
   failure=.FALSE.
-  
+
   NULLIFY(input, nose_section,coord_section,velocity_section)
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1897,7 +1897,7 @@ SUBROUTINE pint_start(pint_env,error)
         END DO
         CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
      END IF
-     
+
      nose_section => section_vals_get_subs_vals(input,"MOTION%PINT%NOSE",&
           error=error)
      coord_section => section_vals_get_subs_vals(nose_section,"COORD",&
@@ -1975,7 +1975,7 @@ CPSourceFileRef,&
               END DO
            END DO
         ELSE
-           
+
         END IF
      END IF
      velocity_section => section_vals_get_subs_vals(beads_section,"VELOCITY",&
@@ -2001,7 +2001,7 @@ CPSourceFileRef,&
            END DO
         END IF
      END IF
-     
+
      CALL section_vals_val_get(input,"MOTION%PINT%INIT%RANDOMIZE_POS",&
           l_val=randomize_pos,error=error)
      IF (randomize_pos) THEN
@@ -2035,8 +2035,8 @@ END SUBROUTINE pint_start
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -2048,8 +2048,8 @@ END SUBROUTINE pint_start
 SUBROUTINE pint_write_restart(pint_env,force,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     LOGICAL, INTENT(in), OPTIONAL            :: force
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_restart', &
       routineP = moduleN//':'//routineN
@@ -2057,7 +2057,7 @@ SUBROUTINE pint_write_restart(pint_env,force,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (.NOT. failure) THEN
      ! to do
   END IF
@@ -2077,8 +2077,8 @@ END SUBROUTINE pint_write_restart
 !!
 !!   INPUTS
 !!     - pint_env: the pint env to run
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -2089,8 +2089,8 @@ END SUBROUTINE pint_write_restart
 !!*** **********************************************************************
 SUBROUTINE pint_run(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_run', &
       routineP = moduleN//':'//routineN
@@ -2100,7 +2100,7 @@ SUBROUTINE pint_run(pint_env,error)
     REAL(kind=dp)                            :: scal, t_tol
 
   failure=.FALSE.
-  
+
   IF (.NOT. failure) THEN
      CALL section_vals_val_get(pint_env%input,"MOTION%PINT%NUM_STEPS",&
           i_val=num_steps,error=error)

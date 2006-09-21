@@ -8,14 +8,14 @@
 !!     velocity_verlet_control.F
 !!
 !!   FUNCTION
-!!     Provides an interface to the velocity-verlet based integrator 
+!!     Provides an interface to the velocity-verlet based integrator
 !!     routines for all ensembles
 !!
 !!   AUTHOR
-!!     CJM (11-SEPT-2002) 
+!!     CJM (11-SEPT-2002)
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -68,11 +68,11 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE velocity_verlet ( md_env, error )
-  
+
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, in_use
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
@@ -86,8 +86,8 @@ SUBROUTINE velocity_verlet ( md_env, error )
 ! get force environment
   CALL get_md_env ( md_env, force_env_p=force_env_p, simpar=simpar )
 ! get in_use
-  CALL force_env_get ( force_env=force_env_p ( 1 ) % force_env, in_use=in_use )
-  
+  CALL force_env_get ( force_env=force_env_p ( 1 ) % force_env, in_use=in_use ,error=error)
+
   SELECT CASE ( in_use )
   CASE ( use_fist_force )
      SELECT CASE ( simpar % ensemble  )
@@ -140,7 +140,7 @@ SUBROUTINE velocity_verlet ( md_env, error )
       CALL stop_program("velocity_verlet",&
                         "integrator not implemented for a generic force_env")
     END SELECT
-    
+
   END SELECT
 
   CALL timestop ( zero, handle )

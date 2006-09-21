@@ -99,7 +99,7 @@ MODULE force_env_types
             force_env_get,&
             force_env_pos_get,&
             force_env_get_natom
-  
+
 !!***
 !******************************************************************************
 
@@ -113,7 +113,7 @@ MODULE force_env_types
 !!
 !!   NOTES
 !!     as always direct manipulation of these attributes can have very
-!!     bad effects. In this case it can be quite bad and the variables 
+!!     bad effects. In this case it can be quite bad and the variables
 !!     might not be up to date. You are warned, use only the get method...
 !!
 !!   ATTRIBUTES
@@ -151,7 +151,7 @@ MODULE force_env_types
   TYPE force_env_type
 !     PRIVATE
      INTEGER :: id_nr,ref_count,in_use,method_name_id
-     TYPE ( fist_environment_type ), POINTER             :: fist_env 
+     TYPE ( fist_environment_type ), POINTER             :: fist_env
      TYPE ( kg_environment_type ), POINTER               :: kg_env
      TYPE ( meta_env_type ), POINTER                     :: meta_env
      TYPE ( fp_type ), POINTER                           :: fp_env
@@ -213,8 +213,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - force_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -225,8 +225,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE force_env_retain(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_retain', &
       routineP = moduleN//':'//routineN
@@ -234,7 +234,7 @@ SUBROUTINE force_env_retain(force_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
@@ -256,8 +256,8 @@ END SUBROUTINE force_env_retain
 !!
 !!   ARGUMENTS
 !!     - force_env: the force environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -268,8 +268,8 @@ END SUBROUTINE force_env_retain
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_release(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_release', &
       routineP = moduleN//':'//routineN
@@ -278,7 +278,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(force_env)) THEN
      CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
      force_env%ref_count=force_env%ref_count-1
@@ -325,7 +325,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         CALL cpot_release(force_env%cpot_env,error=error)
-           
+
         CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
         CALL cp_para_env_release(force_env%para_env,error=error)
         ! not deallocated
@@ -359,8 +359,8 @@ END SUBROUTINE force_env_release
 !!
 !!   ARGUMENTS
 !!     - force_env: the force environment you what informations about
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!     for the orther arguments see the attributes of force_env_type
 !!
 !!   AUTHOR
@@ -414,8 +414,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     INTEGER, INTENT(out), OPTIONAL           :: method_name_id
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: root_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
@@ -432,7 +432,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -531,13 +531,13 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         IF(dft_control % qs_control % method == "KG_GPW") THEN
            NULLIFY(my_qs_env,qs_energy)
            CALL get_kg_env(force_env%kg_env,&
-                          sub_qs_env=my_qs_env)
+                          sub_qs_env=my_qs_env,error=error)
            CALL get_qs_env(qs_env=my_qs_env,&
-                          energy=qs_energy)
+                          energy=qs_energy,error=error)
            IF (PRESENT(potential_energy)) potential_energy=qs_energy%total
            NULLIFY(my_qs_env,qs_energy)
         ELSE
-          IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
+          IF (PRESENT(potential_energy)) potential_energy=kg_energy%total
           IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
         END IF
      CASE (use_qmmm)
@@ -642,8 +642,8 @@ END SUBROUTINE force_env_get
 !!   INPUTS
 !!     - force_env: the force environment where the cell should be changed
 !!     - meta_env: the new meta environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -663,8 +663,8 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
     INTEGER, OPTIONAL                        :: method_name_id
     TYPE(extended_energy_type), OPTIONAL, &
       POINTER                                :: extended_energies
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
       routineP = moduleN//':'//routineN
@@ -733,8 +733,8 @@ END SUBROUTINE force_env_set
 !!     - force_env: the force_env you want to get the positions
 !!     - pos: the array of the positions
 !!     - n_el: the number of positions (3*natom), just to check
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -744,8 +744,8 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), DIMENSION(*), INTENT(out) :: pos
     INTEGER, INTENT(in)                      :: n_el
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_pos_get', &
       routineP = moduleN//':'//routineN
@@ -816,8 +816,8 @@ END SUBROUTINE force_env_pos_get
 !!   ARGUMENTS
 !!     - force_env: the force_env you what information about
 !!     - natom: the numer of atoms
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -825,8 +825,8 @@ END SUBROUTINE force_env_pos_get
 !!*** **********************************************************************
 FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: n_atom
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get_natom', &

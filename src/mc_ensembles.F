@@ -9,7 +9,7 @@
 !!
 !!   FUNCTION
 !!     Used to run the bulk of the MC simulation, doing things like
-!!     choosing move types and writing data to files 
+!!     choosing move types and writing data to files
 !!
 !!   AUTHOR
 !!     Matthew J. McGrath  (09.26.2003)
@@ -106,9 +106,9 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - mc_env: a pointer that contains all mc_env for all the simulation
-!!         boxes 
+!!         boxes
 !!     - globenv: the global environment for the simulation
-!!     - nboxes: the number of simulation boxes 
+!!     - nboxes: the number of simulation boxes
 !!     - error: the error type
 !!     - rng_stream: the stream we pull random numbers from
 !!
@@ -127,8 +127,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nboxes
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section
 
@@ -268,7 +268,7 @@ CONTAINS
       istep(:)=0
 
       DO ibox=1,nboxes
-! initialize the moves array, the arrays for updating maximum move 
+! initialize the moves array, the arrays for updating maximum move
 ! displacements, and the averages array
          CALL init_mc_moves(moves(ibox)%moves)
          CALL init_mc_moves(move_updates(ibox)%moves)
@@ -296,7 +296,7 @@ CONTAINS
                   calc_force=.FALSE.,error=error)
                CALL force_env_get(bias_env(ibox)%force_env,&
                   potential_energy=moves(ibox)%moves%bias_energy,error=error)
-                  
+
             ELSE
                moves(ibox)%moves%bias_energy=0.0d0
             ENDIF
@@ -406,11 +406,11 @@ CONTAINS
       DO nnstep=nstart+1,nstart + nstep
 
          IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
-            WRITE(iw,*) 
+            WRITE(iw,*)
             WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
          ENDIF
 
-         IF (ionode) rand=next_random_number(rng_stream)
+         IF (ionode) rand=next_random_number(rng_stream,error=error)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,source,group)
 
@@ -418,7 +418,7 @@ CONTAINS
 
             IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting a volume move"
-               WRITE(iw,*) 
+               WRITE(iw,*)
             ENDIF
 
             IF( nboxes .EQ. 1) THEN
@@ -438,7 +438,7 @@ CONTAINS
 ! we need a new biasing environment now, if we're into that sort of thing
             IF(lbias) THEN
                DO ibox=1,nboxes
-                  CALL section_vals_release(bias_env(ibox)%force_env%root_section)
+                  CALL section_vals_release(bias_env(ibox)%force_env%root_section,error=error)
                   CALL force_env_release(bias_env(ibox)%force_env,error=error)
                   !
                   CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
@@ -452,7 +452,7 @@ CONTAINS
                         potential_energy=moves(ibox)%moves%bias_energy,&
                         error=error)
                   ELSE
-                    moves(ibox)%moves%bias_energy=0.0d0 
+                    moves(ibox)%moves%bias_energy=0.0d0
                   ENDIF
                   bias_energy(ibox)=moves(ibox)%moves%bias_energy
                ENDDO
@@ -462,7 +462,7 @@ CONTAINS
 ! try a swap move
             IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting a swap move"
-               WRITE(iw,*) 
+               WRITE(iw,*)
             ENDIF
 
             CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
@@ -479,11 +479,11 @@ CONTAINS
 ! try an AVBMC move
             IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting an AVBMC1 move"
-               WRITE(iw,*) 
+               WRITE(iw,*)
             ENDIF
 
 ! first, pick a box to do it for
-            IF(ionode) rand=next_random_number(rng_stream)
+            IF(ionode) rand=next_random_number(rng_stream,error=error)
             CALL mp_bcast(rand,source,group)
 
             IF(nboxes .EQ. 2) THEN
@@ -516,9 +516,9 @@ CONTAINS
                      IF(mol_target .NE. mol_swap) EXIT
                   ENDDO
 
-! choose if we're swapping into the bonded region of mol_target, or 
+! choose if we're swapping into the bonded region of mol_target, or
 ! into the nonbonded region
-                  rand=next_random_number(rng_stream)
+                  rand=next_random_number(rng_stream,error=error)
 
                ENDIF
                CALL mp_bcast(mol_swap,source,group)
@@ -546,18 +546,18 @@ CONTAINS
 
             IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting an inner move"
-               WRITE(iw,*) 
+               WRITE(iw,*)
             ENDIF
 
             DO imove=1,nmoves
-                  
-               IF(ionode) rand=next_random_number(rng_stream)
+
+               IF(ionode) rand=next_random_number(rng_stream,error=error)
                CALL mp_bcast(rand,source,group)
 
                IF(rand .LT. pmtraion) THEN
 ! change molecular conformation
 ! first, pick a box to do it for
-                  IF(ionode) rand=next_random_number(rng_stream)
+                  IF(ionode) rand=next_random_number(rng_stream,error=error)
                   CALL mp_bcast(rand,source,group)
                   IF(nboxes .EQ. 2) THEN
                      IF(rand .LT. 0.75E0_dp) THEN
@@ -581,9 +581,9 @@ CONTAINS
                         CALL find_mc_test_molecule(force_env,mol,&
                            box_number,nchain(:),rng_stream,&
                            box=ibox,error=error)
-                        
+
 ! choose if we're changing a bond length or an angle
-                        rand=next_random_number(rng_stream)
+                        rand=next_random_number(rng_stream,error=error)
                      ENDIF
                      CALL mp_bcast(rand,source,group)
                      CALL mp_bcast(mol,source,group)
@@ -614,7 +614,7 @@ CONTAINS
                      CALL find_mc_test_molecule(force_env,mol,box_number,&
                      nchain(:),rng_stream,error=error)
                   CALL mp_bcast(mol,source,group)
-                  CALL mp_bcast(box_number,source,group)                     
+                  CALL mp_bcast(box_number,source,group)
                   box_flag(box_number)=1
                   CALL mc_molecule_translation(mc_par(box_number)%mc_par,&
                      force_env(box_number)%force_env,&
@@ -629,7 +629,7 @@ CONTAINS
                      CALL find_mc_test_molecule(force_env,mol,box_number,&
                      nchain(:),rng_stream,error=error)
                   CALL mp_bcast(mol,source,group)
-                  CALL mp_bcast(box_number,source,group)  
+                  CALL mp_bcast(box_number,source,group)
                   box_flag(box_number)=1
                   CALL mc_molecule_rotation(mc_par(box_number)%mc_par,&
                      force_env(box_number)%force_env,&
@@ -640,7 +640,7 @@ CONTAINS
                      lreject,rng_stream,error=error)
                   IF(lreject) EXIT
                ENDIF
-               
+
             ENDDO
 
 ! now do a Quickstep calculation to see if we accept the sequence
@@ -664,7 +664,7 @@ CONTAINS
          ENDDO
 
          IF(ionode) THEN
-            
+
             IF(MOD(nnstep,iprint) == 0) THEN
                WRITE(com_ene,*) nnstep,old_energy(1:nboxes)
                WRITE(com_mol,*) nnstep,nchain(1:nboxes)
@@ -742,7 +742,7 @@ CONTAINS
                CALL mc_move_update(mc_par(ibox)%mc_par,&
                   move_updates(ibox)%moves,"trans",nnstep,ionode)
             ENDIF
-               
+
             IF (MOD(nnstep-nstart,iupvolume) == 0  ) THEN
                CALL mc_move_update(mc_par(ibox)%mc_par,&
                   move_updates(ibox)%moves,"volume",nnstep,ionode)
@@ -808,7 +808,7 @@ CONTAINS
             final_energy(ibox)=0.0d0
          ENDIF
          IF (lbias) THEN
-            CALL section_vals_release(bias_env(ibox)%force_env%root_section)
+            CALL section_vals_release(bias_env(ibox)%force_env%root_section,error=error)
             CALL force_env_release(bias_env(ibox)%force_env,error=error)
          ENDIF
       ENDDO
@@ -843,7 +843,7 @@ CONTAINS
                iw,energy_check(ibox),&
                initial_energy(ibox),final_energy(ibox),&
                averages(ibox)%averages)
-            
+
 ! close any open files
             CALL close_file(unit_number=diff(ibox))
             CALL close_file(unit_number=data_unit(ibox))

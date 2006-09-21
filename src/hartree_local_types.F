@@ -10,7 +10,7 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -80,7 +80,7 @@ MODULE hartree_local_types
       CALL deallocate_ecoul_1center(ecoul_1c)
     END IF
 
-    ALLOCATE(ecoul_1c(natom), STAT=istat) 
+    ALLOCATE(ecoul_1c(natom), STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "ecoul_1c",natom*int_size)
 
@@ -143,7 +143,7 @@ MODULE hartree_local_types
       IF(PRESENT(Vh1_h)) Vh1_h => ecoul_1c(iatom)%Vh1_h%r_coef
       IF(PRESENT(Vh1_s)) Vh1_s => ecoul_1c(iatom)%Vh1_s%r_coef
     END IF
-    
+
   END SUBROUTINE get_ecoul_1c
 
 ! *****************************************************************************
@@ -170,8 +170,8 @@ MODULE hartree_local_types
   SUBROUTINE hartree_local_create(hartree_local, error)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create'
 
@@ -184,7 +184,7 @@ MODULE hartree_local_types
 
     ALLOCATE(hartree_local, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
-  
+
     NULLIFY (hartree_local%ecoul_1c)
     NULLIFY (hartree_local%vtriple)
 
@@ -195,8 +195,8 @@ MODULE hartree_local_types
   SUBROUTINE hartree_local_release(hartree_local, error)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release'
 
@@ -210,7 +210,7 @@ MODULE hartree_local_types
       END IF
 
       IF (ASSOCIATED(hartree_local%vtriple)) THEN
-        CALL deallocate_vtriple(hartree_local%vtriple)
+        CALL deallocate_vtriple(hartree_local%vtriple,error=error)
       END IF
 
       DEALLOCATE(hartree_local,stat=stat)
@@ -256,7 +256,7 @@ MODULE hartree_local_types
 
     IF(PRESENT(ecoul_1c)) hartree_local%ecoul_1c => ecoul_1c
     IF(PRESENT(vtriple))  hartree_local%vtriple => vtriple
-    
+
   END SUBROUTINE set_hartree_local
 
 ! *****************************************************************************

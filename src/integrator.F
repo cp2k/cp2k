@@ -144,8 +144,8 @@ CONTAINS
   SUBROUTINE langevin(md_env,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'langevin'
 
@@ -193,7 +193,7 @@ CONTAINS
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set, virial = virial )
+                       dyn_coeff_set=dyn_coeff_set, virial = virial ,error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -203,7 +203,7 @@ CONTAINS
                          particles=particles,&
                          local_molecules_new=local_molecules,&
                          molecules_new=molecules, &
-                         molecule_kinds_new=molecule_kinds)
+                         molecule_kinds_new=molecule_kinds,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -250,9 +250,9 @@ CONTAINS
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
           rng_stream => local_particles%local_particle_set(iparticle_kind)%&
                         &rng(iparticle_local)%stream
-          w(1,iparticle) = next_random_number(rng_stream,variance=sigma)
-          w(2,iparticle) = next_random_number(rng_stream,variance=sigma)
-          w(3,iparticle) = next_random_number(rng_stream,variance=sigma)
+          w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
           vel(:,iparticle) = particle_set(iparticle)%v(:) +&
                              c3*particle_set(iparticle)%f(:)
           pos(:,iparticle) = particle_set(iparticle)%r(:) +&
@@ -328,8 +328,8 @@ CONTAINS
   SUBROUTINE nve ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve'
 
@@ -383,7 +383,7 @@ CONTAINS
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell)
+                       dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -393,7 +393,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds )
+                        molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -451,11 +451,11 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
 
 !     *** coefficients
-    
-      IF(ASSOCIATED(dyn_coeff_set)) THEN 
+
+      IF(ASSOCIATED(dyn_coeff_set)) THEN
         CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                                coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-                               mass_storage=mass_storage)
+                               mass_storage=mass_storage,error=error)
         IF(ASSOCIATED(nhc_coef))THEN
           CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
                       para_env % group)
@@ -470,7 +470,7 @@ CONTAINS
                 SELECT CASE (mass_storage)
                 CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
                   coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                         dmcoef*coeffs%forces(iparticle_local,icoef)     
+                         dmcoef*coeffs%forces(iparticle_local,icoef)
                 CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
                   coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
                         coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
@@ -520,7 +520,7 @@ CONTAINS
       IF(ASSOCIATED(dyn_coeff_set)) THEN
         CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                                coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-                               mass_storage=mass_storage)
+                               mass_storage=mass_storage,error=error)
         IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
         DO iparticle_kind=1,nparticle_kind
           IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
@@ -529,7 +529,7 @@ CONTAINS
             DO iparticle_local=1,coeffs%n_els
               DO icoef=1,coeffs%ncoef_atom
                 SELECT CASE (mass_storage)
-                CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind) 
+                CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
                   coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
                          dmcoef*coeffs%forces(iparticle_local,icoef)
                 CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
@@ -540,7 +540,7 @@ CONTAINS
             END DO
           END IF
         END DO
-        IF(ASSOCIATED(nhc_coef))THEN 
+        IF(ASSOCIATED(nhc_coef))THEN
           CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
                      para_env % group)
         END IF
@@ -550,7 +550,7 @@ CONTAINS
 !     *** Update virial ***
 
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                      molecule_set,    & 
+                                                      molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
                                                       para_env % group )
@@ -590,8 +590,8 @@ CONTAINS
   SUBROUTINE isokin ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'isokin'
 
@@ -621,17 +621,17 @@ CONTAINS
 
     CALL get_md_env(md_env=md_env,simpar=simpar, &
                     force_env_p=force_env_p,para_env=para_env)
-                    
+
     dt = simpar%dt
 
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("isokin","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys)
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,error=error)
 
     IF (SIZE(subsys)/=1) THEN
-       ! presumably one just needs to get e.g. kinetic energy of the full system by looping 
+       ! presumably one just needs to get e.g. kinetic energy of the full system by looping
        ! over the subsystems
        CALL stop_program("isokin","integrator",__LINE__,&
        "force_env with more than (or less) than one subsys not supported atm!")
@@ -647,7 +647,7 @@ CONTAINS
       CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
                         atomic_kinds=atomic_kinds,&
                         local_particles=local_particles,&
-                        particles=particles )
+                        particles=particles ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -769,8 +769,8 @@ CONTAINS
   SUBROUTINE nvt ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nvt'
 
@@ -825,7 +825,7 @@ CONTAINS
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell)
+                       dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell,error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -835,7 +835,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds )
+                        molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -897,7 +897,7 @@ CONTAINS
       IF(ASSOCIATED(dyn_coeff_set)) THEN
         CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                                coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-                               mass_storage=mass_storage)
+                               mass_storage=mass_storage,error=error)
         IF(ASSOCIATED(nhc_coef))THEN
           CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
                       para_env % group)
@@ -945,7 +945,7 @@ CONTAINS
       END DO
 
       IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
-                                                  molecule_kind_set, particle_set, &  
+                                                  molecule_kind_set, particle_set, &
                                                   vel, simpar%dt,simpar%shake_tol,&
                                                   simpar%info_constraint,cell, error )
 
@@ -960,7 +960,7 @@ CONTAINS
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                      molecule_set,    & 
+                                                      molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
                                                       para_env % group )
@@ -973,7 +973,7 @@ CONTAINS
       IF(ASSOCIATED(dyn_coeff_set)) THEN
         CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                                coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-                               mass_storage=mass_storage)
+                               mass_storage=mass_storage,error=error)
         IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
         DO iparticle_kind=1,nparticle_kind
           IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
@@ -1033,10 +1033,10 @@ CONTAINS
 !******************************************************************************
 
  SUBROUTINE npt_i ( md_env, error )
-  
+
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_i'
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
@@ -1091,14 +1091,14 @@ CONTAINS
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
                     itimes = itimes, para_env=para_env )
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp) 
+    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("npt_i","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       virial = virial, cell = cell )
+                       virial = virial, cell = cell ,error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -1108,7 +1108,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds )
+                        molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -1170,7 +1170,7 @@ CONTAINS
           CALL update_pv ( simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
 !
 ! first half of velocity verlet
@@ -1211,7 +1211,7 @@ CONTAINS
                                         roll_tol, iroll, vector_r, vector_v,  &
                                         para_env % group, cell=cell, error=error )
   END DO SR
-     
+
 
 ! Update eps:
       npt ( :, : ) % eps =  npt ( :, : ) % eps + dt * npt ( :, : ) % v
@@ -1271,7 +1271,7 @@ CONTAINS
           CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
       END DO RR
 
@@ -1289,7 +1289,7 @@ CONTAINS
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                      molecule_set,    & 
+                                                      molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
                                                       para_env % group )
@@ -1328,8 +1328,8 @@ CONTAINS
 !!*** **********************************************************************
  SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
@@ -1352,12 +1352,12 @@ CONTAINS
        CALL stop_program("reftraj","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys)
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,error=error)
     IF (SIZE(subsys)/=1) THEN
        CALL stop_program("reftraj","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one subsys not supported atm!")
     END IF
-    CALL cp_subsys_get(subsys=subsys(1)%subsys, particles=particles)
+    CALL cp_subsys_get(subsys=subsys(1)%subsys, particles=particles,error=error)
     nparticle = particles%n_els
     particle_set => particles%els
     ALLOCATE (pos(3,nparticle),STAT=istat)
@@ -1408,9 +1408,9 @@ CONTAINS
 !!     End Subroutine npt_i
 !!
 !!   FUNCTION
-!!     nph_uniaxial integrator (non-Hamiltonian version) 
+!!     nph_uniaxial integrator (non-Hamiltonian version)
 !!     for particle positions & momenta undergoing
-!!     uniaxial stress ( in x-direction of orthorhombic cell) 
+!!     uniaxial stress ( in x-direction of orthorhombic cell)
 !!     due to a shock compression:
 !!     Reed et. al. Physical Review Letters 90, 235503 (2003).
 !!   AUTHOR
@@ -1423,10 +1423,10 @@ CONTAINS
 !******************************************************************************
 
  SUBROUTINE nph_uniaxial ( md_env, error )
-  
+
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nph_uniaxial'
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
@@ -1477,14 +1477,14 @@ CONTAINS
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     npt = npt, para_env=para_env)
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
+    infree = 1.0_dp / REAL ( simpar % nfree, dp )
 
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("nph_uniaxial","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       virial = virial, cell = cell )
+                       virial = virial, cell = cell ,error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -1494,7 +1494,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds )
+                        molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -1544,7 +1544,7 @@ CONTAINS
           CALL update_pv ( simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
 !
 ! first half of velocity verlet
@@ -1600,7 +1600,7 @@ CONTAINS
 
 ! Update h_mat
 
-       cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r 
+       cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r
 
 ! Update the inverse
       CALL get_hinv ( cell )
@@ -1655,7 +1655,7 @@ CONTAINS
           CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
 
       END DO RR
@@ -1667,7 +1667,7 @@ CONTAINS
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                      molecule_set,    & 
+                                                      molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
                                                       para_env % group )
@@ -1698,9 +1698,9 @@ CONTAINS
 !!     End Subroutine npt_i
 !!
 !!   FUNCTION
-!!     nph_uniaxial integrator (non-Hamiltonian version) 
+!!     nph_uniaxial integrator (non-Hamiltonian version)
 !!     for particle positions & momenta undergoing
-!!     uniaxial stress ( in x-direction of orthorhombic cell) 
+!!     uniaxial stress ( in x-direction of orthorhombic cell)
 !!     due to a shock compression:
 !!     Reed et. al. Physical Review Letters 90, 235503 (2003).
 !!     Added damping (e.g. thermostat to barostat)
@@ -1714,10 +1714,10 @@ CONTAINS
 !******************************************************************************
 
  SUBROUTINE nph_uniaxial_damped ( md_env, error )
-  
+
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nph_uniaxial_damped'
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
@@ -1766,7 +1766,7 @@ CONTAINS
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     npt = npt, para_env=para_env)
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
+    infree = 1.0_dp / REAL ( simpar % nfree, dp )
     gamma1 = simpar % gamma_nph
 
     IF (SIZE(force_env_p)/=1) THEN
@@ -1774,7 +1774,7 @@ CONTAINS
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       virial = virial, cell = cell )
+                       virial = virial, cell = cell ,error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -1784,7 +1784,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds )
+                        molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -1844,7 +1844,7 @@ CONTAINS
           CALL update_pv ( simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
 ! perform damping on the barostat momentum
           CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
@@ -1860,7 +1860,7 @@ CONTAINS
           arg_vx = ( 0.25_dp * dt * aax ) * ( 0.25_dp * dt * aax )
           poly_vx = 1._dp + e2*arg_vx + e4*arg_vx*arg_vx + e6*arg_vx**3 + e8*arg_vx**4
 
-          aa = npt ( 1, 1 ) % v *  infree 
+          aa = npt ( 1, 1 ) % v *  infree
           arg_v = ( 0.25_dp * dt * aa ) * ( 0.25_dp * dt * aa )
           poly_v = 1._dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
 
@@ -1904,7 +1904,7 @@ CONTAINS
 ! Update h_mat
 
 
-       cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r 
+       cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r
 
 
 ! Update the inverse
@@ -1962,7 +1962,7 @@ CONTAINS
           CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
 ! perform damping on the barostat momentum
           CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
@@ -1982,7 +1982,7 @@ CONTAINS
 
 !     *** Update constraint virial ***
       IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                      molecule_set,    & 
+                                                      molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
                                                       para_env % group )
@@ -2059,7 +2059,7 @@ SUBROUTINE set_particle_set ( atomic_kind_set, particle_set, local_particles, ce
          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
            DO idim = 1, 3
               particle_set ( iparticle ) % v ( idim ) = old % v ( iparticle, idim )
-              particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim ) 
+              particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
            END DO
        END DO
      END DO
@@ -2130,7 +2130,7 @@ SUBROUTINE set_vel ( atomic_kind_set, particle_set, vel, local_particles, cell ,
          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
            DO idim = 1, 3
               vel ( idim, iparticle ) = old % v ( iparticle, idim )
-              particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim ) 
+              particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
            END DO
        END DO
      END DO
@@ -2215,7 +2215,7 @@ END SUBROUTINE allocate_old
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE deallocate_old 
+SUBROUTINE deallocate_old
 
 
 
@@ -2268,11 +2268,11 @@ END SUBROUTINE deallocate_old
 !******************************************************************************
 
  SUBROUTINE npt_f ( md_env, error )
-  
+
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_f'
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
@@ -2328,14 +2328,14 @@ END SUBROUTINE deallocate_old
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
                     itimes = itimes, para_env=para_env )
     dt = simpar%dt
-    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp) 
+    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("npt_f","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       virial = virial, cell = cell )
+                       virial = virial, cell = cell ,error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -2345,7 +2345,7 @@ END SUBROUTINE deallocate_old
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds )
+                        molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -2402,11 +2402,11 @@ END SUBROUTINE deallocate_old
           CALL update_pv ( simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+          CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
 
-          trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v 
-!     
+          trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v
+!
 ! find eigenvalues and eigenvectors of npt ( :, : ) % v
 !
 
@@ -2524,7 +2524,7 @@ END SUBROUTINE deallocate_old
         CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
-        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
      END DO RR
 
@@ -2542,7 +2542,7 @@ END SUBROUTINE deallocate_old
 
 !     *** Update constraint virial ***
      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                     molecule_set,    & 
+                                                     molecule_set,    &
                                                      molecule_kind_set, &
                                                      particle_set, virial, &
                                                      para_env % group )
@@ -2606,7 +2606,7 @@ SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set, atomic_kind_set
       imol = local_molecules % list ( ikind ) % array ( imol_local )
       molecule => molecule_set ( imol )
       CALL get_molecule ( molecule, first_atom = first_atom, &
-                          last_atom = last_atom ) 
+                          last_atom = last_atom )
       DO ipart = first_atom, last_atom
         atomic_kind => particle_set ( ipart ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
@@ -2619,21 +2619,21 @@ SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set, atomic_kind_set
       END DO
     END DO
   END DO
-! 
+!
   CALL mp_sum ( kin, group )
-! 
+!
   ikin = 1.0_dp/ kin
   scale = 1.0_dp
   alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma1 * ikin
   scale = scale * SQRT ( 1.0_dp + alpha* 0.5_dp * dt )
-! Scale 
+! Scale
   DO ikind = 1, SIZE ( molecule_kind_set )
     nmol_local = local_molecules % n_el ( ikind )
     DO imol_local = 1, nmol_local
       imol = local_molecules % list ( ikind ) % array ( imol_local )
       molecule => molecule_set ( imol )
       CALL get_molecule ( molecule, first_atom = first_atom, &
-                          last_atom = last_atom ) 
+                          last_atom = last_atom )
       DO ipart = first_atom, last_atom
         particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * scale
         particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * scale
@@ -2692,7 +2692,7 @@ SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, atomic_kind_set,&
       imol = local_molecules % list ( ikind ) % array ( imol_local )
       molecule => molecule_set ( imol )
       CALL get_molecule ( molecule, first_atom = first_atom, &
-                          last_atom = last_atom ) 
+                          last_atom = last_atom )
       DO ipart = first_atom, last_atom
         atomic_kind => particle_set ( ipart ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
@@ -2709,14 +2709,14 @@ SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, atomic_kind_set,&
   scale = 1.0_dp
   alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma1  * ikin
   scale = scale * SQRT ( 1.0_dp + alpha* 0.5_dp * dt )
-! Scale 
+! Scale
   DO ikind = 1, SIZE ( molecule_kind_set )
     nmol_local = local_molecules % n_el ( ikind )
     DO imol_local = 1, nmol_local
       imol = local_molecules % list ( ikind ) % array ( imol_local )
       molecule => molecule_set ( imol )
       CALL get_molecule ( molecule, first_atom = first_atom, &
-                          last_atom = last_atom ) 
+                          last_atom = last_atom )
       DO ipart = first_atom, last_atom
         vel ( 1, ipart ) = vel ( 1, ipart ) * scale
         vel ( 2, ipart ) = vel ( 2, ipart ) * scale
@@ -2725,7 +2725,7 @@ SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, atomic_kind_set,&
     END DO
   END DO
 
-END SUBROUTINE damp_v_velocity 
+END SUBROUTINE damp_v_velocity
 
 !*****
 !******************************************************************************
@@ -2752,9 +2752,9 @@ SUBROUTINE damp_veps ( npt, gamma1, dt )
 
     REAL(KIND=dp)                            :: scale
 
-  scale = 1.0_dp 
+  scale = 1.0_dp
   scale = scale * EXP ( -gamma1 * 0.25_dp * dt )
-! Scale 
+! Scale
   npt % v = npt % v * scale
 
 END SUBROUTINE damp_veps
@@ -2802,8 +2802,8 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
     LOGICAL, INTENT(INOUT)                   :: first
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u( : , : )
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     REAL(KIND=dp)                            :: kin
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
@@ -2816,9 +2816,9 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
       CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                        local_molecules, molecule_set, molecule_kind_set, &
                        local_particles, kin, pv_kin, virial, para_env % group )
-      CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
+      CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
 
-  ENDIF 
+  ENDIF
   first = .FALSE.
 
 ! assigning local variable
@@ -2892,7 +2892,7 @@ SUBROUTINE update_pv_particle_set ( simpar, atomic_kind_set, particle_set,  &
 ! initializing locals
 
   pv_kin = 0.0_dp
-   
+
   kin = 0.0_dp
   DO iparticle_kind = 1, SIZE ( atomic_kind_set )
     atomic_kind => atomic_kind_set ( iparticle_kind )
@@ -2909,7 +2909,7 @@ SUBROUTINE update_pv_particle_set ( simpar, atomic_kind_set, particle_set,  &
         kin = kin + mass * particle_set ( iparticle ) % v ( i ) * &
                            particle_set ( iparticle ) % v ( i )
       END DO
-    END DO 
+    END DO
   END DO
 
   CALL mp_sum( pv_kin, int_group )
@@ -2923,12 +2923,12 @@ SUBROUTINE update_pv_particle_set ( simpar, atomic_kind_set, particle_set,  &
 
 ! updating the constraint virial
   IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                  molecule_set,    & 
+                                                  molecule_set,    &
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
                                                   int_group )
 
-END SUBROUTINE update_pv_particle_set 
+END SUBROUTINE update_pv_particle_set
 
 !!*****
 !******************************************************************************
@@ -2990,11 +2990,11 @@ SUBROUTINE update_pv_velocity ( simpar, atomic_kind_set, vel, particle_set,  &
            pv_kin ( i, j ) = pv_kin ( i, j ) + &
                mass* vel ( i, iparticle ) * vel ( j, iparticle )
         END DO
-        kin = kin + mass * vel ( i, iparticle ) * vel ( i, iparticle ) 
+        kin = kin + mass * vel ( i, iparticle ) * vel ( i, iparticle )
       END DO
-    END DO 
+    END DO
   END DO
-   
+
   CALL mp_sum( pv_kin, int_group )
   CALL mp_sum( kin, int_group )
 
@@ -3006,7 +3006,7 @@ SUBROUTINE update_pv_velocity ( simpar, atomic_kind_set, vel, particle_set,  &
 
 ! updating the constraint virial
   IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-                                                  molecule_set,    & 
+                                                  molecule_set,    &
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
                                                   int_group )
@@ -3020,7 +3020,7 @@ END SUBROUTINE update_pv_velocity
 !!     update_veps
 !!
 !!   FUNCTION
-!!     Routine to compute veps 
+!!     Routine to compute veps
 !!
 !!   AUTHOR
 !!     CJM
@@ -3083,7 +3083,7 @@ SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
            simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
      v = box % deth
      vi = 1._dp/v
-     v0 = simpar % v0 
+     v0 = simpar % v0
      v0i = 1._dp/v0
 !!! orthorhombic box only  !!!
 ! Chooses only the compressive solution
@@ -3091,16 +3091,16 @@ SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
        npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
          pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
          simpar % p0 * v - simpar % v_shock * simpar % v_shock *   &
-         v * v0i * ( 1._dp -v * v0i ) + infree * kin 
+         v * v0i * ( 1._dp -v * v0i ) + infree * kin
      ELSE
        npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
          pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
-         simpar % p0 * v + infree * kin 
+         simpar % p0 * v + infree * kin
      ENDIF
 ! dbg UNIAXIAL LIMIT
 !     npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +                   &
 !       pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -  &
-!       simpar % p0 * box % deth + infree * kin 
+!       simpar % p0 * box % deth + infree * kin
 ! dbg UNIAXIAL LIMIT
 !!! orthorhombic box only  !!!
   ENDIF
@@ -3125,7 +3125,7 @@ END SUBROUTINE update_veps
 !!     FS
 !!
 !!   MODIFICATION HISTORY
-!!   
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -3133,8 +3133,8 @@ END SUBROUTINE update_veps
   SUBROUTINE nve_respa ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve_respa'
 
@@ -3185,45 +3185,45 @@ END SUBROUTINE update_veps
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
          nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
-    
+
     n_time_steps=simpar%n_time_steps
-    
+
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("nve","integrator",__LINE__,&
             "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-         dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell)
-    
+         dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
+
     CALL force_env_get(force_env=force_env_p(1)%force_env%sub_force_env(1)%force_env,&
-         subsys=subsys_respa)
-    
+         subsys=subsys_respa,error=error)
+
     DO isubsys=1,SIZE(subsys)
-       
+
        CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
            atomic_kinds=atomic_kinds,&
                         local_particles=local_particles,&
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds )
-       
-       CALL cp_subsys_get (subsys=subsys_respa(isubsys)%subsys, particles=particles_respa)
+                        molecule_kinds_new=molecule_kinds ,error=error)
+
+       CALL cp_subsys_get (subsys=subsys_respa(isubsys)%subsys, particles=particles_respa,error=error)
        particle_set_respa => particles_respa%els
-       
-       
+
+
        nparticle_kind = atomic_kinds%n_els
        atomic_kind_set => atomic_kinds%els
        nmolecule_kind = molecule_kinds % n_els
        molecule_kind_set => molecule_kinds % els
-       
+
        nparticle = particles%n_els
        particle_set => particles%els
        nmolecule = molecules % n_els
        molecule_set => molecules % els
-       
+
        !     *** Allocate work storage for positions and velocities ***
-       
+
        ALLOCATE (pos(3,nparticle),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "pos",3*nparticle*dp_size)
@@ -3231,14 +3231,14 @@ END SUBROUTINE update_veps
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
            "vel",3*nparticle*dp_size)
       vel(:,:) = 0.0_dp
-      
+
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
            molecule_kind_set, particle_set, cell, error)
       !     *** Multiple time step (first part)
         DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-          dm = 0.5_dp * dt / mass                             
+          dm = 0.5_dp * dt / mass
           nparticle_local = local_particles%n_el(iparticle_kind)
           DO iparticle_local=1,nparticle_local
              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
@@ -3271,7 +3271,7 @@ END SUBROUTINE update_veps
                molecule_kind_set, particle_set, &
                pos, vel, simpar%dt, simpar%shake_tol, simpar%info_constraint,&
                cell, error )
-        
+
 !     *** Broadcast the new particle positions ***
           CALL update_particle_set ( particle_set, para_env % group, pos = pos )
           DO iparticle = 1, SIZE(particle_set)
@@ -3280,12 +3280,12 @@ END SUBROUTINE update_veps
 
 
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
-          
+
           !     *** coefficients
-          IF(ASSOCIATED(dyn_coeff_set)) THEN 
+          IF(ASSOCIATED(dyn_coeff_set)) THEN
              CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                   coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-                  mass_storage=mass_storage)
+                  mass_storage=mass_storage,error=error)
              IF(ASSOCIATED(nhc_coef))THEN
                 CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
                      para_env % group)
@@ -3300,7 +3300,7 @@ END SUBROUTINE update_veps
                          SELECT CASE (mass_storage)
                          CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
                             coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                                 dmcoef*coeffs%forces(iparticle_local,icoef)     
+                                 dmcoef*coeffs%forces(iparticle_local,icoef)
                          CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
                             coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
                                  coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
@@ -3314,11 +3314,11 @@ END SUBROUTINE update_veps
           END IF
 
           !     *** Update forces ***
-          
+
           CALL force_env_calc_energy_force(force_env_p(1)%force_env%sub_force_env(1)%force_env,error=error)
-          
+
           !     *** Velocity Verlet (second part) ***
-          
+
           DO iparticle_kind=1,nparticle_kind
              atomic_kind => atomic_kind_set(iparticle_kind)
              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -3331,19 +3331,19 @@ END SUBROUTINE update_veps
                 vel ( 3, iparticle) = vel ( 3, iparticle) + dm*particle_set_respa(iparticle)%f(3)
              END DO
           END DO
-     
+
           IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
                molecule_kind_set, particle_set, &
                vel, simpar%dt,simpar%shake_tol,simpar%info_constraint, cell, error )
-          
+
           IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
-          
-          
+
+
           !     *** coefficients
           IF(ASSOCIATED(dyn_coeff_set)) THEN
              CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                   coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-                  mass_storage=mass_storage)
+                  mass_storage=mass_storage,error=error)
              IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
              DO iparticle_kind=1,nparticle_kind
                 IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
@@ -3352,7 +3352,7 @@ END SUBROUTINE update_veps
                    DO iparticle_local=1,coeffs%n_els
                       DO icoef=1,coeffs%ncoef_atom
                          SELECT CASE (mass_storage)
-                         CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind) 
+                         CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
                             coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
                                  dmcoef*coeffs%forces(iparticle_local,icoef)
                          CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
@@ -3363,32 +3363,32 @@ END SUBROUTINE update_veps
                    END DO
                 END IF
              END DO
-             IF(ASSOCIATED(nhc_coef))THEN 
+             IF(ASSOCIATED(nhc_coef))THEN
                 CALL lnhc (nhc_coef(isubsys),dyn_coeff_set(isubsys)%dyn_coeff_set,&
                      para_env % group)
              END IF
           END IF
-          
-          
+
+
 !     *** Update virial ***
-          
+
           IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
-               molecule_set,    & 
+               molecule_set,    &
                molecule_kind_set, &
                particle_set, virial, &
                para_env % group )
-          
+
           CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                local_particles, virial, para_env % group  )
        END DO
           DEALLOCATE (pos,STAT=istat)
 
-       
+
 !     *** Multiple time step (second part) ***
-       
+
          ! Compute forces for respa force_env
        CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
-       
+
        DO iparticle_kind=1,nparticle_kind
           atomic_kind => atomic_kind_set(iparticle_kind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -3401,14 +3401,14 @@ END SUBROUTINE update_veps
              vel ( 3, iparticle) = vel ( 3, iparticle) + dm*(particle_set(iparticle)%f(3)-particle_set_respa(iparticle)%f(3))
           END DO
        END DO
-       
+
        !      *** Broadcast the new particle velocities ***
-       CALL update_particle_set ( particle_set, para_env % group, vel = vel )         
-       
+       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
+
        DEALLOCATE (vel,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")      
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
     END DO ! next subsys or sub-system
-    
+
   END SUBROUTINE nve_respa
 !!****
 !******************************************************************************

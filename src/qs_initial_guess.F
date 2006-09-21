@@ -87,7 +87,7 @@ MODULE qs_initial_guess
   PUBLIC ::  calculate_first_density_matrix
 
 CONTAINS
-  
+
 !!****f* qs_initial_guess/calculate_first_density_matrix *
 !!
 !!   NAME
@@ -111,8 +111,8 @@ CONTAINS
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'calculate_first_density_matrix', &
@@ -203,7 +203,7 @@ CONTAINS
         IF (id_nr/=1) THEN
             file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                          ADJUSTL(cp_to_string(id_nr))
-        END IF 
+        END IF
         INQUIRE(FILE=file_name,exist=exist)
         IF (.NOT. exist) THEN
            density_guess = atomic_guess
@@ -220,7 +220,7 @@ CONTAINS
           IF (scf_control%level_shift /= 0.0_dp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                              mo_coeff=mo_coeff)
-             CALL cp_fm_to_fm(mo_coeff,ortho)
+             CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
           END IF
 
           ! make all nmo vectors present orthonormal
@@ -228,15 +228,15 @@ CONTAINS
                mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
           IF(ortho_basis) THEN
-            CALL make_basis_simple(mo_coeff,nmo)
+            CALL make_basis_simple(mo_coeff,nmo,error=error)
           ELSE
             ! ortho so that one can restart for different positions (basis sets?)
-            CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix)
+            CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
           ENDIF
           ! only alpha spin is kept for restricted
           IF (dft_control%restricted) EXIT
        ENDDO
-       IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
+       IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
        DO ispin=1,nspin
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
@@ -247,16 +247,16 @@ CONTAINS
        DO ispin=1,nspin
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff=mo_coeff, nmo=nmo)
-          CALL cp_fm_init_random(mo_coeff,nmo)
+          CALL cp_fm_init_random(mo_coeff,nmo,error=error)
           IF(ortho_basis) THEN
-            CALL make_basis_simple(mo_coeff,nmo)
+            CALL make_basis_simple(mo_coeff,nmo,error=error)
           ELSE
-            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
+            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
           ENDIF
           ! only alpha spin is kept for restricted
           IF (dft_control%restricted) EXIT
        ENDDO
-       IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
+       IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
        DO ispin=1,nspin
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
@@ -273,7 +273,7 @@ CONTAINS
 
        ! Load core Hamiltonian into work matrix
 
-       CALL copy_sm_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix)
+       CALL copy_sm_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix,error=error)
 
        ! Diagonalize the core Hamiltonian matrix and retrieve a first set of
        ! molecular orbitals (MOs)
@@ -359,12 +359,12 @@ CONTAINS
         trps2 = 0.0_dp
         pdiag(:) = 0.0_dp
 
-        IF (nelectron /= 0) THEN 
+        IF (nelectron /= 0) THEN
 
           DO ikind=1,SIZE(atomic_kind_set)
 
             atomic_kind => atomic_kind_set(ikind)
-   
+
             CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                  natom=natom,&
                                  atom_list=atom_list,&
@@ -428,7 +428,7 @@ CONTAINS
             END DO
           ELSE
             scale = (REAL(nelectron,dp) - trps1)/trps2
-            DO isgf=1,nao 
+            DO isgf=1,nao
               IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
             END DO
           END IF
@@ -438,35 +438,35 @@ CONTAINS
         CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
 
         ! do we require an initial wavefunction ?
-        ! assume p is a projector (it is not ..) and generate an initial  
+        ! assume p is a projector (it is not ..) and generate an initial
         ! wavefunction and the corresponding dm
 
         IF (scf_control%use_ot) THEN
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                           mo_coeff=mo_coeff,&
                           nmo=nmo)
-          CALL cp_fm_init_random(mo_coeff,nmo)
-          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
+          CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
 
           ! multiply times PS
 
           IF (ortho_basis) THEN
-            CALL cp_fm_to_fm(mo_coeff,sv)
+            CALL cp_fm_to_fm(mo_coeff,sv,error=error)
           ELSE
-            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
+            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
           END IF
 
-          ! here we could easily multiply with the diag that we actually have replicated already 
+          ! here we could easily multiply with the diag that we actually have replicated already
 
-          CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo)
-          CALL cp_fm_release(sv)
+          CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo,error=error)
+          CALL cp_fm_release(sv,error=error)
 
           ! and ortho the result
 
           IF (ortho_basis) THEN
-            CALL make_basis_simple(mo_coeff,nmo)
+            CALL make_basis_simple(mo_coeff,nmo,error=error)
           ELSE
-            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
+            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
           ENDIF
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
@@ -493,7 +493,7 @@ CONTAINS
       ! Collocation of the density into the PW-grid
       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
 
-      ! do some assertions here on these matrices having the same structure, 
+      ! do some assertions here on these matrices having the same structure,
       ! as is currently required
       DO ispin=1,SIZE(qs_env%matrix_s)
         id_equal=(qs_env%matrix_s(ispin)%matrix%sparsity_id==qs_env%matrix_s(1)%matrix%sparsity_id)
@@ -528,7 +528,7 @@ CONTAINS
 
       ! diagonalization
       DO ispin = 1,qs_env%dft_control%nspins
-        CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix, qs_env%scf_env%scf_work1(ispin)%matrix)
+        CALL copy_sm_to_fm(qs_env%matrix_ks(ispin)%matrix, qs_env%scf_env%scf_work1(ispin)%matrix,error=error)
       END DO
 
       qs_env%scf_env%iter_method = "Mixing/Diag"

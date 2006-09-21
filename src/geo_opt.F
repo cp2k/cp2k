@@ -82,21 +82,21 @@ MODULE geo_opt
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!*** **********************************************************************
    SUBROUTINE qs_geo_opt(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
       routineP = moduleN//':'//routineN
@@ -114,11 +114,11 @@ MODULE geo_opt
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     NULLIFY (gopt_param,force_env_section,gopt_env,x0)
-    root_section=>force_env%root_section 
+    root_section=>force_env%root_section
     CALL gopt_param_read(gopt_param, root_section, error=error)
 
-    force_env_section => force_env%force_env_section   
-    CALL gopt_f_create(gopt_env, force_env=force_env, globenv=globenv)   
+    force_env_section => force_env%force_env_section
+    CALL gopt_f_create(gopt_env, force_env=force_env, globenv=globenv,error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
     SELECT CASE (gopt_param%method_id)
@@ -140,7 +140,7 @@ MODULE geo_opt
     CALL gopt_f_release(gopt_env, error=error)
     CALL gopt_param_release(gopt_param, error=error)
     CALL timestop(handle)
-    
+
   END SUBROUTINE qs_geo_opt
 
 !!****f* geo_opt/gopt_do_opt [1.0] *
@@ -155,8 +155,8 @@ MODULE geo_opt
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -173,8 +173,8 @@ MODULE geo_opt
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_do_opt', &
       routineP = moduleN//':'//routineN
@@ -213,13 +213,13 @@ MODULE geo_opt
            IF (.NOT.cp_opt_gopt_next(optimizer,force_env_section=force_env_section,&
                 input=root_section,force_env=force_env,gopt_param=gopt_param,&
                 error=error)) EXIT
-           ! check for an external exit command 
+           ! check for an external exit command
            CALL external_control(should_stop,"GEO",globenv,error)
            IF (should_stop) THEN
               CALL cp_opt_gopt_stop(optimizer, error=error)
               EXIT
            END IF
-           CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section)
+           CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section,error=error)
         END DO
 
         ! write out more data for the minimum
@@ -230,8 +230,8 @@ MODULE geo_opt
         CALL cp_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
              para_env=optimizer%para_env,force_env_section=force_env_section, error=error)
 
-        
-        
+
+
         CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
         DO isubsys=1,SIZE(subsys)
            CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&

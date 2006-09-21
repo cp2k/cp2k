@@ -119,8 +119,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init', &
       routineP = moduleN//':'//routineN
@@ -242,8 +242,8 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_subsys', &
       routineP = moduleN//':'//routineN
@@ -351,8 +351,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE eip_init_model(eip_env, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_model', &
       routineP = moduleN//':'//routineN

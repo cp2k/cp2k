@@ -15,7 +15,7 @@
 !!
 !!   AUTHOR
 !!     Joost VandeVondele
-!!     
+!!
 !!
 !!   MODIFICATION HISTORY
 !!     04.2006 [Joost VandeVondele]
@@ -60,7 +60,7 @@ CONTAINS
 !!    fp_eval
 !!
 !!   FUNCTION
-!!    computest the forces and the energy due to the flexible potential & bias, 
+!!    computest the forces and the energy due to the flexible potential & bias,
 !!    and writes the weights file
 !!
 !!   NOTES
@@ -77,8 +77,8 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_eval', &
       routineP = moduleN//':'//routineN
@@ -116,7 +116,7 @@ CONTAINS
     fp_env%ri1=0.0_dp ; fp_env%ri2=0.0_dp ; fp_env%ro1=0.0_dp ; fp_env%ro2=0.0_dp
     fp_env%energy=0.0_dp
 
-    ! inner particles 
+    ! inner particles
     DO i=1,SIZE(fp_env%inner_atoms)
        iparticle=fp_env%inner_atoms(i)
        rab=particles(iparticle)%r-particles(icenter)%r
@@ -132,9 +132,9 @@ CONTAINS
        ENDIF
        ! count the distribution
        IF (r>fp_env%inner_radius) THEN
-          fp_env%i2=fp_env%i2+1 
+          fp_env%i2=fp_env%i2+1
        ELSE
-          fp_env%i1=fp_env%i1+1 
+          fp_env%i1=fp_env%i1+1
        ENDIF
        ! smooth count the distribution
        CALL smooth_count(r,fp_env%inner_radius,fp_env%smooth_width,c,dcdr)
@@ -142,7 +142,7 @@ CONTAINS
        fp_env%ri2=fp_env%ri2+(1.0_dp-c)
     ENDDO
 
-    ! outer particles 
+    ! outer particles
     DO i=1,SIZE(fp_env%outer_atoms)
        iparticle=fp_env%outer_atoms(i)
        rab=particles(iparticle)%r-particles(icenter)%r
@@ -159,9 +159,9 @@ CONTAINS
        ENDIF
        ! count the distribution
        IF (r>fp_env%outer_radius) THEN
-          fp_env%o2=fp_env%o2+1 
+          fp_env%o2=fp_env%o2+1
        ELSE
-          fp_env%o1=fp_env%o1+1 
+          fp_env%o1=fp_env%o1+1
        ENDIF
        ! smooth count the distribution
        CALL smooth_count(r,fp_env%outer_radius,fp_env%smooth_width,c,dcdr)
@@ -214,7 +214,7 @@ CONTAINS
 
     ! if this configuration is a valid one, compute its weight
     IF (zero_weight) THEN
-        fp_env%weight=0.0_dp 
+        fp_env%weight=0.0_dp
     ELSE
         fp_env%weight=fp_env%comb_weight*fp_env%bias_weight
     ENDIF
@@ -224,7 +224,7 @@ CONTAINS
     output_unit=cp_print_key_unit_nr(logger,fp_env%print_section,"", &
                                      extension=".weights",error=error)
     IF (output_unit>0) THEN
-       tmpstr=cp_iter_string(logger%iter_info, fp_env%print_section)
+       tmpstr=cp_iter_string(logger%iter_info, fp_env%print_section,error=error)
        WRITE(output_unit,'(T2,A15,6(1X,F16.10),4(1X,I4),4(1X,F16.10))') &
          tmpstr, &
          fp_env%weight, fp_env%comb_weight, fp_env%bias_weight, &

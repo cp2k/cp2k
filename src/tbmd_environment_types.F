@@ -9,12 +9,12 @@
 !!     tbmd_environment_types
 !!
 !!   FUNCTION
-!!     The tight-binding environment type, which contains everything needed 
+!!     The tight-binding environment type, which contains everything needed
 !!     to actually do tight-binding.
 !!
 !!   NOTES
 !!     -
-!!     
+!!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
@@ -125,19 +125,19 @@ MODULE tbmd_environment_types
 !!     - force_env_input: Pointer to the force_env input section
 !!     - cell: The simulation cell
 !!     - cell_ref: The reference simulation cell
-!!     - use_ref_cell: Logical which indicates if reference 
+!!     - use_ref_cell: Logical which indicates if reference
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!     - matrix_h: The tight-binding hamiltonian matrix
-!!     - matrix_dh: The derivatives of the tight-binding hamiltonian 
+!!     - matrix_dh: The derivatives of the tight-binding hamiltonian
 !!                  matrix with respect to the coordinates (x,y,z)
 !!     - matrix_p: The density matrix
-!!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
+!!     - mos: The molecular orbitlas, the plain mo_set_type is used,
 !!            since there is no partition into spins
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
-!!     - matrix_pools: The matrix pools, needed e.g. for the molecular 
+!!     - matrix_pools: The matrix pools, needed e.g. for the molecular
 !!                     orbitals (MOs).
 !!
 !!   AUTHOR
@@ -218,7 +218,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment to retain
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -231,8 +231,8 @@ CONTAINS
   SUBROUTINE tbmd_env_retain(tbmd_env, error)
 
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_retain', &
       routineP = moduleN//':'//routineN
@@ -242,7 +242,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
       CPPrecondition(tbmd_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -264,7 +264,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment to release
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -277,8 +277,8 @@ CONTAINS
   SUBROUTINE tbmd_env_release(tbmd_env, error)
 
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_release', &
       routineP = moduleN//':'//routineN
@@ -289,7 +289,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     IF (ASSOCIATED(tbmd_env)) THEN
       CPPrecondition(tbmd_env%ref_count>0, cp_failure_level, routineP, error, failure)
       tbmd_env%ref_count = tbmd_env%ref_count-1
@@ -329,21 +329,21 @@ CONTAINS
                                               error=error)
         END IF
         IF (ASSOCIATED(tbmd_env%matrix_h)) THEN
-          CALL deallocate_matrix(tbmd_env%matrix_h)
+          CALL deallocate_matrix(tbmd_env%matrix_h,error=error)
         END IF
         IF (ASSOCIATED(tbmd_env%matrix_dh)) THEN
           DO i = 1,SIZE(tbmd_env%matrix_dh)
-            CALL deallocate_matrix_set(tbmd_env%matrix_dh)
+            CALL deallocate_matrix_set(tbmd_env%matrix_dh,error=error)
           END DO
         END IF
         IF (ASSOCIATED(tbmd_env%matrix_p)) THEN
-          CALL deallocate_matrix(tbmd_env%matrix_p)
+          CALL deallocate_matrix(tbmd_env%matrix_p,error=error)
         END IF
         IF (ASSOCIATED(tbmd_env%mos)) THEN
-          CALL deallocate_mo_set(tbmd_env%mos)
+          CALL deallocate_mo_set(tbmd_env%mos,error=error)
         END IF
         IF (ASSOCIATED(tbmd_env%distribution_2d)) THEN
-          CALL distribution_2d_release(tbmd_env%distribution_2d)
+          CALL distribution_2d_release(tbmd_env%distribution_2d,error=error)
         ENDIF
         IF (ASSOCIATED(tbmd_env%blacs_env)) THEN
           CALL cp_blacs_env_release(tbmd_env%blacs_env, error=error)
@@ -373,7 +373,7 @@ CONTAINS
 !!   ARGUMENTS
 !!     - tbmd_env: The enquired tbmd environment
 !!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!     - tbmd_energy: The tight-binding energies
 !!     - tbmd_force: The tight-binding forces
@@ -390,22 +390,22 @@ CONTAINS
 !!     - force_env_input: Pointer to the force_env input section
 !!     - cell: The simulation cell
 !!     - cell_ref: The reference simulation cell
-!!     - use_ref_cell: Logical which indicates if reference 
+!!     - use_ref_cell: Logical which indicates if reference
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!     - matrix_h: The tight-binding hamiltonian matrix
-!!     - matrix_dh: The derivatives of the tight-binding hamiltonian 
+!!     - matrix_dh: The derivatives of the tight-binding hamiltonian
 !!                  matrix with respect to the coordinates (x,y,z)
 !!     - matrix_p: The density matrix
-!!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
+!!     - mos: The molecular orbitlas, the plain mo_set_type is used,
 !!            since there is no partition into spins
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
-!!     - matrix_pools: The matrix pools, needed e.g. for the molecular 
+!!     - matrix_pools: The matrix pools, needed e.g. for the molecular
 !!                     orbitals (MOs).
 !!
-!!     For possible missing arguments see the attributes of 
+!!     For possible missing arguments see the attributes of
 !!     tbmd_environment_type
 !!
 !!   AUTHOR
@@ -468,8 +468,8 @@ CONTAINS
       POINTER                                :: blacs_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: matrix_pools
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_get', &
       routineP = moduleN//':'//routineN
@@ -557,7 +557,7 @@ CONTAINS
 !!   ARGUMENTS
 !!     - tbmd_env: The enquired tbmd environment
 !!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!     - tbmd_energy: The tight-binding energies
 !!     - tbmd_force: The tight-binding forces
@@ -574,22 +574,22 @@ CONTAINS
 !!     - force_env_input: Pointer to the force_env input section
 !!     - cell: The simulation cell
 !!     - cell_ref: The reference simulation cell
-!!     - use_ref_cell: Logical which indicates if reference 
+!!     - use_ref_cell: Logical which indicates if reference
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!     - matrix_h: The tight-binding hamiltonian matrix
-!!     - matrix_dh: The derivatives of the tight-binding hamiltonian 
+!!     - matrix_dh: The derivatives of the tight-binding hamiltonian
 !!                  matrix with respect to the coordinates (x,y,z)
 !!     - matrix_p: The density matrix
-!!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
+!!     - mos: The molecular orbitlas, the plain mo_set_type is used,
 !!            since there is no partition into spins
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
-!!     - matrix_pools: The matrix pools, needed e.g. for the molecular 
+!!     - matrix_pools: The matrix pools, needed e.g. for the molecular
 !!                     orbitals (MOs).
 !!
-!!     For possible missing arguments see the attributes of 
+!!     For possible missing arguments see the attributes of
 !!     tbmd_environment_type
 !!
 !!   AUTHOR
@@ -652,8 +652,8 @@ CONTAINS
       POINTER                                :: blacs_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: matrix_pools
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_set', &
       routineP = moduleN//':'//routineN
@@ -669,7 +669,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(atomic_kinds, particles, molecules_new, molecule_kinds_new)
-  
+
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(tbmd_env%ref_count>0, cp_failure_level, routineP, error, failure)
 
@@ -789,10 +789,10 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - tbmd_env: The tbmd environment to be reinitialized
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
-!!     For possible missing arguments see the attributes of 
+!!     For possible missing arguments see the attributes of
 !!     tbmd_environment_type
 !!
 !!   AUTHOR
@@ -805,8 +805,8 @@ CONTAINS
   SUBROUTINE tbmd_env_clear(tbmd_env, error)
 
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_clear', &
       routineP = moduleN//':'//routineN
@@ -817,9 +817,9 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
       IF (ASSOCIATED(tbmd_env%tbmd_energy)) THEN
         CALL tbmd_energy_clear(tbmd_env%tbmd_energy, error=error)
@@ -857,19 +857,19 @@ CONTAINS
                                           error=error)
       END IF
       IF (ASSOCIATED(tbmd_env%matrix_h)) THEN
-        CALL deallocate_matrix(tbmd_env%matrix_h)
+        CALL deallocate_matrix(tbmd_env%matrix_h,error=error)
       END IF
       IF (ASSOCIATED(tbmd_env%matrix_dh)) THEN
-        CALL deallocate_matrix_set(tbmd_env%matrix_dh)
+        CALL deallocate_matrix_set(tbmd_env%matrix_dh,error=error)
       END IF
       IF (ASSOCIATED(tbmd_env%mos)) THEN
-        CALL deallocate_mo_set(tbmd_env%mos)
+        CALL deallocate_mo_set(tbmd_env%mos,error=error)
        END IF
        IF (ASSOCIATED(tbmd_env%matrix_p)) THEN
-         CALL deallocate_matrix(tbmd_env%matrix_p)
+         CALL deallocate_matrix(tbmd_env%matrix_p,error=error)
        END IF
        IF (ASSOCIATED(tbmd_env%distribution_2d)) THEN
-         CALL distribution_2d_release(tbmd_env%distribution_2d)
+         CALL distribution_2d_release(tbmd_env%distribution_2d,error=error)
        ENDIF
        IF (ASSOCIATED(tbmd_env%blacs_env)) THEN
          CALL cp_blacs_env_release(tbmd_env%blacs_env, error=error)
@@ -896,10 +896,10 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - tbmd_env: The tbmd environment to be created
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
-!!     For possible missing arguments see the attributes of 
+!!     For possible missing arguments see the attributes of
 !!     tbmd_environment_type
 !!
 !!   AUTHOR
@@ -912,8 +912,8 @@ CONTAINS
   SUBROUTINE tbmd_env_create(tbmd_env, error)
 
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_create', &
       routineP = moduleN//':'//routineN
@@ -924,7 +924,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-  
+
     ALLOCATE(tbmd_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
@@ -946,7 +946,7 @@ CONTAINS
     NULLIFY(tbmd_env%distribution_2d)
     NULLIFY(tbmd_env%blacs_env)
     NULLIFY(tbmd_env%matrix_pools)
-   
+
     IF (.NOT. failure) THEN
       tbmd_env%ref_count = 1
       last_tbmd_id=last_tbmd_id+1

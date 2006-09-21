@@ -101,8 +101,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_overlap_matrix'
 
@@ -158,7 +158,7 @@ CONTAINS
                     matrix_s=matrix_s,&
                     sab_orb=sab_orb,&
                     neighbor_list_id=neighbor_list_id, &
-                    distribution_2d=distribution_2d)
+                    distribution_2d=distribution_2d,error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -172,7 +172,7 @@ CONTAINS
     END IF
 
     maxder = ncoset(nder)
-    CALL allocate_matrix_set(matrix_s,maxder)
+    CALL allocate_matrix_set(matrix_s,maxder,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
@@ -186,8 +186,8 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
-   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix 
-   ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have 
+   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
+   ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
    ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
     CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
                          nblock_row=natom,&
@@ -200,8 +200,8 @@ CONTAINS
                          last_col=last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
                          matrix_symmetry="symmetric",&
-                         sparsity_id=neighbor_list_id, &  
-                         distribution_2d=distribution_2d)
+                         sparsity_id=neighbor_list_id, &
+                         distribution_2d=distribution_2d,error=error)
 
     DEALLOCATE (first_sgf,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -219,7 +219,7 @@ CONTAINS
       CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                       TARGET=matrix_s(i)%matrix,&
                                       target_name=TRIM(name),&
-                                      target_symmetry="antisymmetric")
+                                      target_symmetry="antisymmetric",error=error)
     END DO
 
 !   *** Allocate work storage ***
@@ -344,7 +344,7 @@ CONTAINS
                 CALL add_block_node(matrix=matrix_s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    BLOCK=sint(i)%block)
+                                    BLOCK=sint(i)%block,error=error)
               END DO
             END IF
 
@@ -447,7 +447,7 @@ CONTAINS
                                      "sint")
 
     CALL set_qs_env(qs_env=qs_env,&
-                    matrix_s=matrix_s)
+                    matrix_s=matrix_s,error=error)
 
 !   *** Print the overlap matrix distribution ***
 
@@ -459,11 +459,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
+       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,maxder
-             CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw)
+             CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -497,8 +497,8 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:)         :: sint
     REAL(KIND=dp), DIMENSION(:, :)           :: sab, work
     REAL(KIND=dp), DIMENSION(:, :, :)        :: ai_work
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: i, iblock, iset, jset, &
                                                 maxder, ncoa, ncob, sgfa, sgfb

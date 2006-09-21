@@ -52,7 +52,7 @@ MODULE ewald_environment_types
 
   TYPE ewald_environment_type
     PRIVATE
-    INTEGER :: id_nr, ref_count 
+    INTEGER :: id_nr, ref_count
     INTEGER :: ewald_type                 ! type of ewald
     CHARACTER( LEN = default_string_length ) :: unit_type   !  unit_type TO BE DELETED when new input will work!
     REAL (KIND=dp) :: alpha               ! ewald alpha
@@ -94,7 +94,7 @@ MODULE ewald_environment_types
 
 ! *** Public data types ***
 
-  PUBLIC :: ewald_environment_type,        & 
+  PUBLIC :: ewald_environment_type,        &
             ewald_environment_p_type
 
 ! *** Public subroutines ***
@@ -102,7 +102,7 @@ MODULE ewald_environment_types
   PUBLIC :: ewald_env_get,&
             ewald_env_set,&
             ewald_env_create, &
-            ewald_env_retain, & 
+            ewald_env_retain, &
             ewald_env_release, &
             read_ewald_section
 
@@ -135,8 +135,8 @@ MODULE ewald_environment_types
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_get', &
       routineP = moduleN//':'//routineN
@@ -184,8 +184,8 @@ MODULE ewald_environment_types
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_set', &
       routineP = moduleN//':'//routineN
@@ -196,7 +196,7 @@ MODULE ewald_environment_types
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
-    
+
     IF ( .NOT. failure ) THEN
       IF ( PRESENT ( id_nr ) ) ewald_env % id_nr = id_nr
       IF ( PRESENT ( ewald_type ) ) ewald_env % ewald_type = ewald_type
@@ -235,8 +235,8 @@ MODULE ewald_environment_types
 !
 !   ARGUMENTS
 !     - ewald_env: the object to create
-!     - error: variable to control error logging, stopping,... 
-!       see module cp_error_handling 
+!     - error: variable to control error logging, stopping,...
+!       see module cp_error_handling
 !
 !   AUTHOR
 !     Fawzi Mohamed
@@ -248,8 +248,8 @@ MODULE ewald_environment_types
 SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_create', &
       routineP = moduleN//':'//routineN
@@ -259,7 +259,7 @@ SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
     TYPE(unit_convert_type), POINTER         :: units
 
   failure=.FALSE.
-  
+
   ALLOCATE( ewald_env, stat=stat )
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -278,7 +278,7 @@ SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
     ewald_env % ewald_type = do_ewald_none
     ewald_env % unit_type = 'ANGSTROM'
     NULLIFY(ewald_env%poisson_section)
-    CALL cp_para_env_retain ( para_env )
+    CALL cp_para_env_retain ( para_env ,error=error)
     ewald_env % para_env => para_env
   END IF
 END SUBROUTINE ewald_env_create
@@ -303,8 +303,8 @@ END SUBROUTINE ewald_env_create
 !
 !   ARGUMENTS
 !     - ewald_env: the object to retain
-!     - error: variable to control error logging, stopping,... 
-!       see module cp_error_handling 
+!     - error: variable to control error logging, stopping,...
+!       see module cp_error_handling
 !
 !   AUTHOR
 !     Fawzi Mohamed
@@ -315,8 +315,8 @@ END SUBROUTINE ewald_env_create
 !*** **********************************************************************
 SUBROUTINE ewald_env_retain(ewald_env,error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_retain', &
       routineP = moduleN//':'//routineN
@@ -324,7 +324,7 @@ SUBROUTINE ewald_env_retain(ewald_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-!!  
+!!
   CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -352,8 +352,8 @@ END SUBROUTINE ewald_env_retain
 !
 !   ARGUMENTS
 !     - ewald_env: the object to release
-!     - error: variable to control error logging, stopping,... 
-!       see module cp_error_handling 
+!     - error: variable to control error logging, stopping,...
+!       see module cp_error_handling
 !
 !   AUTHOR
 !     Fawzi Mohamed
@@ -364,8 +364,8 @@ END SUBROUTINE ewald_env_retain
 !*** **********************************************************************
 SUBROUTINE ewald_env_release(ewald_env,error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_release', &
       routineP = moduleN//':'//routineN
@@ -382,9 +382,9 @@ SUBROUTINE ewald_env_release(ewald_env,error)
         CALL cp_para_env_release ( ewald_env % para_env, error )
         CALL section_vals_release(ewald_env%poisson_section,error=error)
         DEALLOCATE (  ewald_env, stat = stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)       
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      ENDIF
-  END IF      
+  END IF
   NULLIFY(ewald_env)
 END SUBROUTINE ewald_env_release
 !***************************************************************************
@@ -406,8 +406,8 @@ END SUBROUTINE ewald_env_release
 SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: ewald_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: iw
     REAL(KIND=dp)                            :: dummy
@@ -426,7 +426,7 @@ SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
   !..end of parsing the input section
   IF ( iw > 0 ) THEN
      IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
-        dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1") 
+        dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1",error=error)
         WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
              ADJUSTR(ewald_name_types(ewald_env % ewald_type)(1:14))
         WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) ' Ewald| Alpha parameter [','ANGSTROM^-1',']', &
@@ -467,8 +467,8 @@ END SUBROUTINE read_ewald_section
 SUBROUTINE read_ewald_section1(ewald_env, ewald_section, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: ewald_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section1', &
       routineP = moduleN//':'//routineN

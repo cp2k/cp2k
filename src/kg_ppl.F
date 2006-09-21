@@ -12,7 +12,7 @@
 !!                            (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
 !!                             C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
 !!
-!!        <a|V(non-local)|b> = O                            
+!!        <a|V(non-local)|b> = O
 !!
 !!   AUTHOR
 !!
@@ -21,7 +21,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE kg_ppl               
+MODULE kg_ppl
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -88,8 +88,8 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho0_ppl', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -137,7 +137,7 @@ CONTAINS
     END TYPE cexp_ppl_type
 
     TYPE alpha_ppl_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: alpha 
+      REAL(KIND=dp), DIMENSION(:), POINTER :: alpha
     END TYPE alpha_ppl_type
 
     TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
@@ -153,13 +153,13 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
     REAL(KIND=dp), DIMENSION(:), POINTER :: my_alpha
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_logger_type), POINTER            :: logger
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-    
+
     NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
     NULLIFY(orb_basis_set,particle_set,sac_ppl,set_radius_a,rpgfa,sphi_a,zeta)
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
@@ -176,7 +176,7 @@ CONTAINS
                     local_particles=local_particles,&
                     sac_ppl=sac_ppl,&
                     energy=energy,&
-                    force=force) 
+                    force=force,error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -228,7 +228,7 @@ CONTAINS
     CALL init_orbital_pointers(maxl+nder+1)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxder=maxder)      
+                             maxder=maxder)
 
     ldai = ncoset(maxl+nder+1)
     ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
@@ -303,19 +303,19 @@ CONTAINS
           cexp_ppl(ikind)%c = my_c
         ELSE IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
-                             alpha_ppl=alfa,& 
+                             alpha_ppl=alfa,&
                              cexp_ppl=cexp,&
                              ppl_radius=ppl_radius(ikind))
-          ALLOCATE(cexp_ppl(ikind)%c(1,SIZE(cexp)),STAT=istat) 
+          ALLOCATE(cexp_ppl(ikind)%c(1,SIZE(cexp)),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl%c",&
                           SIZE(cexp)*int_size)
           DO i=1,SIZE(cexp)
             cexp_ppl(ikind)%c(1,i)=cexp(i)
-          END DO 
+          END DO
           ALLOCATE(alpha_ppl(ikind)%alpha(1),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
                           1*int_size)
-          alpha_ppl(ikind)%alpha(1)=alfa    
+          alpha_ppl(ikind)%alpha(1)=alfa
         END IF
 
       END DO
@@ -360,11 +360,11 @@ CONTAINS
         IF (ppl_present) THEN
 
 !           *** Retrieve the data of the SAC_PPL neighbors of atom "iatom" ***
- 
+
           DO kkind=1,nkind
 
             ac = ikind + (kkind - 1)*nkind
-  
+
             IF (.NOT.ASSOCIATED(sac_ppl(ac)%neighbor_list_set)) CYCLE
 
             sac_ppl_neighbor_list =>&
@@ -389,9 +389,9 @@ CONTAINS
             IF (istat /= 0) THEN
               CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*dp_size)
             END IF
-  
+
             sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
-  
+
             DO knode=1,nnode
               CALL get_neighbor_node(neighbor_node=sac_ppl_neighbor_node,&
                                      neighbor=vppl(kkind)%neighbor(knode),&
@@ -402,7 +402,7 @@ CONTAINS
                 vppl(kkind)%r(3,knode)*vppl(kkind)%r(3,knode)
               sac_ppl_neighbor_node => next(sac_ppl_neighbor_node)
             END DO
-  
+
           END DO
 
         END IF
@@ -418,10 +418,10 @@ CONTAINS
           IF (calculate_forces) THEN
 
             DO i=1,nsgfa(iset)
-              work(i,1)=1.0E0_dp                   
+              work(i,1)=1.0E0_dp
             ENDDO
-         
-  
+
+
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                       work(1,1),SIZE(work,1),&
@@ -497,7 +497,7 @@ CONTAINS
                     hab,0,0,.FALSE.,ai_work)
 
                 END IF
-                END DO 
+                END DO
 
                 CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -514,7 +514,7 @@ CONTAINS
 
           END IF
 
-        END DO 
+        END DO
 
         IF (ppl_present) THEN
 
@@ -533,7 +533,7 @@ CONTAINS
 
       END DO ! iatom => atom A
 
-    END DO ! ikind 
+    END DO ! ikind
 
 !   *** Release work storage ***
 
@@ -602,8 +602,8 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_drho_ppl', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -653,7 +653,7 @@ CONTAINS
     END TYPE cexp_ppl_type
 
     TYPE alpha_ppl_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: alpha 
+      REAL(KIND=dp), DIMENSION(:), POINTER :: alpha
     END TYPE alpha_ppl_type
 
     TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
@@ -674,7 +674,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-    
+
     NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
     NULLIFY(aux_basis_set,particle_set,sac_ppl_aux,set_radius_a,rpgfa,sphi_a,zeta)
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
@@ -694,7 +694,7 @@ CONTAINS
                     local_particles=local_particles,&
                     sac_ppl_aux=sac_ppl_aux,&
                     energy=energy,&
-                    force=force) 
+                    force=force,error=error)
 
 
     IF(dyn_coeff_set%distribution_method/=dyn_coeff_distributed) THEN
@@ -751,7 +751,7 @@ CONTAINS
     CALL init_orbital_pointers(maxl+nder+1)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxder=maxder)      
+                             maxder=maxder)
 
     ldai = ncoset(maxl+nder+1)
     ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
@@ -818,19 +818,19 @@ CONTAINS
                              ppl_radius=ppl_radius(ikind))
         ELSE IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
-                             alpha_ppl=alfa,& 
+                             alpha_ppl=alfa,&
                              cexp_ppl=cexp,&
                              ppl_radius=ppl_radius(ikind))
-          ALLOCATE(cexp_ppl(ikind)%c(1,SIZE(cexp)),STAT=istat) 
+          ALLOCATE(cexp_ppl(ikind)%c(1,SIZE(cexp)),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl%c",&
                           SIZE(cexp)*int_size)
           DO i=1,SIZE(cexp)
             cexp_ppl(ikind)%c(1,i)=cexp(i)
-          END DO 
+          END DO
           ALLOCATE(alpha_ppl(ikind)%alpha(1),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
                           1*int_size)
-          alpha_ppl(ikind)%alpha(1)=alfa    
+          alpha_ppl(ikind)%alpha(1)=alfa
         END IF
 
       END DO
@@ -876,11 +876,11 @@ CONTAINS
         IF (ppl_present) THEN
 
 !           *** Retrieve the data of the SAC_PPL neighbors of atom "iatom" ***
- 
+
           DO kkind=1,nkind
 
             ac = ikind + (kkind - 1)*nkind
-  
+
             IF (.NOT.ASSOCIATED(sac_ppl_aux(ac)%neighbor_list_set)) CYCLE
 
             sac_ppl_neighbor_list =>&
@@ -905,9 +905,9 @@ CONTAINS
             IF (istat /= 0) THEN
               CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*dp_size)
             END IF
-  
+
             sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
-  
+
             DO knode=1,nnode
               CALL get_neighbor_node(neighbor_node=sac_ppl_neighbor_node,&
                                      neighbor=vppl(kkind)%neighbor(knode),&
@@ -918,7 +918,7 @@ CONTAINS
                 vppl(kkind)%r(3,knode)*vppl(kkind)%r(3,knode)
               sac_ppl_neighbor_node => next(sac_ppl_neighbor_node)
             END DO
-  
+
           END DO
 
         END IF
@@ -937,8 +937,8 @@ CONTAINS
             DO i=1,nsgfa(iset)
               work(i,1)=local_coeffs%pos(iparticle_local,i+offset)
             ENDDO
-         
-  
+
+
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                       work(1,1),SIZE(work,1),&
@@ -1013,7 +1013,7 @@ CONTAINS
                       hab,0,0,.FALSE.,ai_work)
 
                   END IF
-                END DO 
+                END DO
 
                 CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -1036,7 +1036,7 @@ CONTAINS
 
           offset=offset+nsgfa(iset)
 
-        END DO 
+        END DO
 
         IF (ppl_present) THEN
 
@@ -1055,7 +1055,7 @@ CONTAINS
 
       END DO ! iatom => atom A
 
-    END DO ! ikind 
+    END DO ! ikind
 
 !   *** Release work storage ***
 
@@ -1088,11 +1088,11 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"vppl")
 
     END IF
- 
+
     DEALLOCATE (ai_work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ai_work")
- 
+
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
 

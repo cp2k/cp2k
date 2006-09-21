@@ -159,8 +159,8 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
       OPTIONAL                               :: proj_indexes
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_create', &
       routineP = moduleN//':'//routineN
@@ -259,8 +259,8 @@ END SUBROUTINE p_proj_create
 !!*** **********************************************************************
 SUBROUTINE p_proj_retain(p_proj, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_retain', &
       routineP = moduleN//':'//routineN
@@ -311,8 +311,8 @@ END SUBROUTINE p_proj_retain
 !!*** **********************************************************************
 SUBROUTINE p_proj_release(p_proj, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_release', &
       routineP = moduleN//':'//routineN
@@ -386,8 +386,8 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
     TYPE(cp_fm_type), POINTER                :: min_m, full_m
     INTEGER, INTENT(in), OPTIONAL            :: start_col_full, &
                                                 start_col_min, ncol
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_transfer_blacs_to_f', &
       routineP = moduleN//':'//routineN
@@ -496,8 +496,8 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
     TYPE(cp_fm_type), POINTER                :: full_m
     INTEGER, INTENT(in), OPTIONAL            :: start_col, ncol
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_restrain_f', &
       routineP = moduleN//':'//routineN

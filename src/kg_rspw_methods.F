@@ -8,7 +8,7 @@
 !!     kg_rspw_methods
 !!
 !!   FUNCTION
-!!     rho_methods    
+!!     rho_methods
 !!
 !!   AUTHOR
 !!
@@ -80,8 +80,8 @@ SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_create', &
       routineP = moduleN//':'//routineN
@@ -90,7 +90,7 @@ SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
- 
+
   ALLOCATE(kg_rspw, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -105,7 +105,7 @@ END SUBROUTINE kg_rspw_create
 !!**** kg_rspw_methods/kg_rspw_rebuild        [1.0] *
 !!
 !!   NAME
-!!     kg_rspw_rebuild               
+!!     kg_rspw_rebuild
 !!
 !!   FUNCTION
 !!
@@ -118,7 +118,7 @@ END SUBROUTINE kg_rspw_create
 !!     - error: error
 !!
 !!   AUTHOR
-!!    gloria 
+!!    gloria
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -127,8 +127,8 @@ END SUBROUTINE kg_rspw_create
 
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_rebuild', &
       routineP = moduleN//':'//routineN
@@ -179,7 +179,7 @@ END SUBROUTINE kg_rspw_create
                     cell_ref=cell_ref,&
                     dft_control=dft_control,&
                     input=poisson_section,&
-                    para_env=para_env)
+                    para_env=para_env,error=error)
 
     CPPrecondition(ASSOCIATED(kg_rspw),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_rspw%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -193,7 +193,7 @@ END SUBROUTINE kg_rspw_create
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(kg_rspw%l_info)) THEN
-          CALL l_info_release(kg_rspw%l_info)
+          CALL l_info_release(kg_rspw%l_info,error=error)
        ELSE
           ALLOCATE(kg_rspw%l_info,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -216,7 +216,7 @@ END SUBROUTINE kg_rspw_create
 !
 
   IF (.NOT.failure) THEN
-     CALL get_kg_env ( kg_env, use_ref_cell = use_ref_cell )
+     CALL get_kg_env ( kg_env, use_ref_cell = use_ref_cell ,error=error)
      IF (use_ref_cell) THEN
        my_cell => cell_ref
      ELSE
@@ -234,7 +234,7 @@ END SUBROUTINE kg_rspw_create
      print_section=>section_vals_get_subs_vals(kg_env%input, &
                        "PRINT%GRID_INFORMATION",error=error)
      CALL init_gaussian_gridlevel(kg_rspw%gridlevel_info,&
-           ngrid_level,cutoff,rel_cutoff,print_section=print_section)
+           ngrid_level,cutoff,rel_cutoff,print_section=print_section,error=error)
      ! init pw_grids and pools
      ALLOCATE(pw_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -245,8 +245,8 @@ END SUBROUTINE kg_rspw_create
        ncommensurate=0
      ENDIF
 
-     DO igrid_level=1,ngrid_level 
-        CALL pw_grid_create(pw_grid,para_env%group)
+     DO igrid_level=1,ngrid_level
+        CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(igrid_level)
@@ -264,18 +264,18 @@ END SUBROUTINE kg_rspw_create
              CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
                   ref_grid=old_pw_grid, &
                   blocked=.FALSE., ncommensurate=ncommensurate, &
-                  icommensurate=igrid_level,rs_dims=(/para_env%num_pe,1/))
+                  icommensurate=igrid_level,rs_dims=(/para_env%num_pe,1/),error=error)
               old_pw_grid => pw_grid
            ELSE
               CALL pw_grid_setup(my_cell,pw_grid,print_section, cutilev,&
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),error=error)
               old_pw_grid => pw_grid
            END IF
         ELSE
            CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
                 blocked=.FALSE.,ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
-                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
+                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),error=error)
         ENDIF
 
       ! init pw_pools
@@ -313,7 +313,7 @@ END SUBROUTINE kg_rspw_create
            DO igrid_level = 1, SIZE ( pw_pools )
              CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
              CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds,  &
-                                   cell%h_inv, my_cut )
+                                   cell%h_inv, my_cut ,error=error)
              my_cutoff (igrid_level) = my_cut
            ENDDO
            CALL destroy_gaussian_gridlevel (kg_rspw%gridlevel_info, error=error )
@@ -321,7 +321,7 @@ END SUBROUTINE kg_rspw_create
                                "PRINT%GRID_INFORMATION",error=error)
            CALL init_gaussian_gridlevel(kg_rspw%gridlevel_info,&
                 ngrid_levels=ngrid_level,cutoff=my_cutoff,rel_cutoff=rel_cutoff, &
-                print_section=print_section)
+                print_section=print_section,error=error)
            CALL pw_poisson_set(kg_rspw%poisson_env,cell=cell,pw_pools=kg_rspw%pw_pools,&
            parameters=poisson_section, use_level=kg_rspw%auxbas_grid,error=error)
            DEALLOCATE( my_cutoff ,stat=stat)
@@ -339,7 +339,7 @@ END SUBROUTINE kg_rspw_create
       ALLOCATE (kg_rspw%cube_info(ngrid_level),STAT=stat)
       IF (stat /= 0) CALL stop_memory(routineP,"cube_info",0)
 
-      CALL get_kg_env(kg_env=kg_env, atomic_kind_set=atomic_kind_set)
+      CALL get_kg_env(kg_env=kg_env, atomic_kind_set=atomic_kind_set,error=error)
       nkind=SIZE(atomic_kind_set)
 
       cmax = 0
@@ -390,12 +390,12 @@ END SUBROUTINE kg_rspw_create
       END DO
 !
 !
-!    set up the rs_grids, 
+!    set up the rs_grids,
 !
 !
       ALLOCATE(rs_pools(ngrid_level),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DO igrid_level=1,ngrid_level 
+      DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
 ! init rs_pools
         drmin = MINVAL ( pw_grid%dr )
@@ -415,7 +415,7 @@ END SUBROUTINE kg_rspw_create
 ! set up the cube info and the cmaxl array
 !
 !
-      DO igrid_level=1,ngrid_level 
+      DO igrid_level=1,ngrid_level
          CALL init_cube_info(kg_rspw%cube_info(igrid_level),&
                pw_pools(igrid_level)%pool%pw_grid%dr(:),&
                pw_pools(igrid_level)%pool%pw_grid%dh(:,:),&
@@ -432,7 +432,7 @@ END SUBROUTINE kg_rspw_create
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
 
 ! maxl+1 to allow for the forces
-      CALL init_l_info(kg_rspw%l_info,maxlgto+1,cmax)
+      CALL init_l_info(kg_rspw%l_info,maxlgto+1,cmax,error=error)
 
 
 
@@ -440,7 +440,7 @@ END SUBROUTINE kg_rspw_create
 
    CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE kg_rspw_rebuild              
+  END SUBROUTINE kg_rspw_rebuild
 
 ! **************************************************************************
 

@@ -63,8 +63,8 @@ MODULE dg_rho0_types
 
 CONTAINS
 !-----------------------------------------------------------------------------!
- SUBROUTINE dg_rho0_set ( dg_rho0, TYPE, grid, kind, cutoff_radius, & 
-                          gcc, zet, density ) 
+ SUBROUTINE dg_rho0_set ( dg_rho0, TYPE, grid, kind, cutoff_radius, &
+                          gcc, zet, density )
 
 !   Purpose: Set the dg_rho0_type
 
@@ -91,7 +91,7 @@ CONTAINS
 
   END SUBROUTINE dg_rho0_set
 !-----------------------------------------------------------------------------!
- SUBROUTINE dg_rho0_get ( dg_rho0, cutoff_radius, TYPE, grid, kind, gcc, zet, density ) 
+ SUBROUTINE dg_rho0_get ( dg_rho0, cutoff_radius, TYPE, grid, kind, gcc, zet, density )
 
 !   Purpose: Get the dg_rho0_type
 
@@ -127,8 +127,8 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_create', &
       routineP = moduleN//':'//routineN
@@ -139,8 +139,8 @@ CONTAINS
 
     ALLOCATE ( dg_rho0, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    NULLIFY ( dg_rho0 % gcc ) 
-    NULLIFY ( dg_rho0 % zet ) 
+    NULLIFY ( dg_rho0 % gcc )
+    NULLIFY ( dg_rho0 % zet )
     dg_rho0 % cutoff_radius = 0.0_dp
     dg_rho0 % grid = 0
     dg_rho0 % kind = 0
@@ -172,8 +172,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - dg_rho0_type: the dg_rho0_type to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -184,8 +184,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE dg_rho0_retain ( dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_retain', &
       routineP = moduleN//':'//routineN
@@ -193,7 +193,7 @@ SUBROUTINE dg_rho0_retain ( dg_rho0, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(dg_rho0),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP,error)
@@ -220,8 +220,8 @@ END SUBROUTINE dg_rho0_retain
 !!
 !!   ARGUMENTS
 !!     - dg: the dg_rho0_type to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -232,8 +232,8 @@ END SUBROUTINE dg_rho0_retain
 !!*** **********************************************************************
 SUBROUTINE dg_rho0_release(dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_release', &
       routineP = moduleN//':'//routineN
@@ -242,12 +242,12 @@ SUBROUTINE dg_rho0_release(dg_rho0, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(dg_rho0)) THEN
      CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP,error)
      dg_rho0%ref_count=dg_rho0%ref_count-1
      IF (dg_rho0%ref_count==0) THEN
-        IF ( ASSOCIATED ( dg_rho0 % gcc ) ) THEN 
+        IF ( ASSOCIATED ( dg_rho0 % gcc ) ) THEN
            DEALLOCATE ( dg_rho0 % gcc, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
@@ -255,7 +255,7 @@ SUBROUTINE dg_rho0_release(dg_rho0, error)
            DEALLOCATE ( dg_rho0 % zet, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        CALL coeff_deallocate ( dg_rho0 % density )
+        CALL coeff_deallocate ( dg_rho0 % density ,error=error)
         NULLIFY ( dg_rho0 % gcc )
         NULLIFY ( dg_rho0 % zet )
         DEALLOCATE (  dg_rho0 , stat = stat )
@@ -267,17 +267,18 @@ END SUBROUTINE dg_rho0_release
 
 !******************************************************************************
 
-SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid )
+SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid, error )
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CALL coeff_deallocate ( dg_rho0 % density )
+  CALL coeff_deallocate ( dg_rho0 % density ,error=error)
   SELECT CASE ( dg_rho0 % type )
   CASE ( do_ewald_ewald )
-    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
+    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D ,error=error)
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
   CASE ( do_ewald_pme )
-    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
+    CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D ,error=error)
     CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ) )
   CASE ( do_ewald_spme )
     CALL stop_program ( 'dg_rho0_init', 'SPME type not implemented' )

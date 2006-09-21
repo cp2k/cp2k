@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 MODULE cp2k_runs
- 
+
   USE bsse,                            ONLY: do_bsse_calculation
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
@@ -113,7 +113,7 @@ CONTAINS
 !!     para_env should be a valid communicator
 !!     output_unit should be writeable by at least the lowest rank of the mpi group
 !!
-!!     recursive because a given run_type might need to be able to perform 
+!!     recursive because a given run_type might need to be able to perform
 !!     another cp2k_run as part of its job (e.g. farming, classical equilibration, ...)
 !!
 !!     the idea is that a cp2k instance should be able to run with just three
@@ -125,7 +125,7 @@ CONTAINS
 !!     and able to fail safe
 !!
 !!   INPUTS
-!!     input_file_name : name of the file to be opened for input 
+!!     input_file_name : name of the file to be opened for input
 !!     ouput_unit      : unit to which output should be written
 !!     mpi_env         : the mpi environement for the run (the caller is
 !!                       responsible to get rid of it)
@@ -167,7 +167,7 @@ CONTAINS
     was_present = .FALSE.
     NULLIFY(para_env, f_env)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
-         owns_group=.FALSE.)
+         owns_group=.FALSE.,error=error)
 
     NULLIFY(globenv, force_env)
 
@@ -258,7 +258,7 @@ CONTAINS
              CALL section_vals_retain(input_file,error=error)
              CALL cp2k_init ( para_env, output_unit, globenv, input_file_name=input_file_name )
              CALL cp_error_init(suberror)
-             CALL cp2k_read(root_section,para_env,globenv)
+             CALL cp2k_read(root_section,para_env,globenv,error=error)
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
 
@@ -301,7 +301,7 @@ CONTAINS
              force_env => f_env%force_env
              CALL force_env_get(force_env,globenv=globenv,error=suberror)
              CALL globenv_retain(globenv,error=suberror)
-             CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id)
+             CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id,error=error)
 
           CASE (do_test)
              CALL lib_test(root_section,para_env,globenv,suberror)
@@ -309,7 +309,7 @@ CONTAINS
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
           CALL section_vals_release(input_file,error=suberror)
-   
+
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
              CALL do_pint_run(para_env,root_section,error=suberror)
@@ -333,7 +333,7 @@ CPSourceFileRef,&
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
- 
+
           CASE (mol_dyn_run)
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (geo_opt_run)
@@ -350,7 +350,7 @@ CPSourceFileRef,&
                   suberror,failure)
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                   error=suberror)
-             CALL tddfpt_calculation(force_env%qs_env, globenv)
+             CALL tddfpt_calculation(force_env%qs_env, globenv,error=error)
           CASE (bsse_run)
              CALL do_bsse_calculation(force_env, globenv, error=suberror)
           CASE (linear_response_run)
@@ -393,23 +393,23 @@ CPSourceFileRef,&
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
              CALL destroy_force_env(new_env_id,ierr=ierr)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-             CALL globenv_release(globenv,para_env)
+             CALL globenv_release(globenv,para_env,error=error)
           ELSE
              CALL cp_error_dealloc_ref(suberror)
              I_was_ionode=para_env%ionode
              CALL cp2k_finalize(root_section,para_env,globenv,error)
              CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
-             CALL section_vals_release(root_section)
-             CALL globenv_release(globenv,para_env)
+             CALL section_vals_release(root_section,error=error)
+             CALL globenv_release(globenv,para_env,error=error)
           END IF
        END IF
 
     END IF
 
     CALL cp_error_dealloc_ref(error)
-    CALL cp_para_env_release(para_env)
+    CALL cp_para_env_release(para_env,error=error)
     cp2k_run_OK = .NOT. failure
-    
+
   END FUNCTION cp2k_run
 
 !!****f* cp2k_runs/farming_run [1.0] *
@@ -437,8 +437,8 @@ CPSourceFileRef,&
   RECURSIVE SUBROUTINE farming_run(root_section,para_env, error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
       routineP = moduleN//':'//routineN
@@ -477,8 +477,8 @@ CPSourceFileRef,&
     CALL m_getcwd(farming_env%cwd)
     CALL farming_parse_input(farming_env,root_section,para_env,error)
 
-    ! split the current communicator 
-    ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat) 
+    ! split the current communicator
+    ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (farming_env%group_size_wish_set) THEN
        CALL mp_comm_split(para_env%group,new_group,ngroups,group_distribution,&
@@ -516,7 +516,7 @@ CPSourceFileRef,&
     ! and write it now, that's the point where the next job starts, even if this one is running
     IF (para_env%ionode) THEN
        iunit=get_unit_number()
-       OPEN(UNIT=iunit,FILE="RESTARTFARM") 
+       OPEN(UNIT=iunit,FILE="RESTARTFARM")
        WRITE(iunit,*) i_job_to_restart
        CLOSE(UNIT=iunit)
     ENDIF
@@ -551,11 +551,11 @@ CPSourceFileRef,&
           ! generate a fresh call to cp2k_run
           IF (ierr==0) THEN
               CALL mp_environ(new_size,new_rank,new_group)
-              IF (new_rank == 0) THEN 
+              IF (new_rank == 0) THEN
 
                  ! generate the output file
                   WRITE(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-                  CALL parser_create(my_parser,file_name=TRIM(farming_env%Job_input(i)))
+                  CALL parser_create(my_parser,file_name=TRIM(farming_env%Job_input(i)),error=error)
                   label="&GLOBAL"
                   CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
                   IF (found) THEN
@@ -571,8 +571,8 @@ CPSourceFileRef,&
                      CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
                              c_val=str,error=error)
                      IF (str.NE."") output_file=str
-                     CALL section_vals_release(g_data)
-                     CALL section_release(g_section)
+                     CALL section_vals_release(g_data,error=error)
+                     CALL section_release(g_section,error=error)
                   END IF
                   CALL parser_release(my_parser,error=error)
                   CALL open_file(file_name=TRIM(output_file),&
@@ -581,15 +581,15 @@ CPSourceFileRef,&
                         file_position="APPEND",&
                         unit_number=new_output_unit)
               ELSE
-                ! this should never be used by cp2k_run, but e.g. still happens, incorrectly, 
+                ! this should never be used by cp2k_run, but e.g. still happens, incorrectly,
                 ! on eror, writes now to fort.999 so that error messages can be recovered and fixed
                 new_output_unit=999
               ENDIF
-          
+
               IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
               run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),new_output_unit,new_group)
-              
+
               IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 
           ELSE ! problem if just one node does not change...
@@ -650,16 +650,16 @@ CPSourceFileRef,&
 !!     -
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     joost [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE write_cp2k_html_manual(error)
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_cp2k_html_manual', &
       routineP = moduleN//':'//routineN
@@ -720,8 +720,8 @@ CPSourceFileRef,&
 
   SUBROUTINE write_xml_file(error)
 
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xml_file', &
       routineP = moduleN//':'//routineN
@@ -805,15 +805,17 @@ CPSourceFileRef,&
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: failure, success
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type)                      :: error !XXXXXXXXXXXX uninitiliased error
+
 
     failure=.FALSE.
 
     IF (PRESENT(mpi_comm)) THEN
        NULLIFY(para_env)
-       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
+       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.,error=error) !XXXXXXXXXXXX uninitiliased error
     ELSE
        para_env => f77_default_para_env
-       CALL cp_para_env_retain(para_env)
+       CALL cp_para_env_retain(para_env,error=error) !XXXXXXXXXXXX uninitiliased error
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
@@ -832,7 +834,7 @@ CPSourceFileRef,&
     ELSE
        ierr=0
     END IF
-    CALL cp_para_env_release(para_env)
+    CALL cp_para_env_release(para_env,error=error) !XXXXXXXXXXXX uninitiliased error
   END SUBROUTINE run_input
   !****************************************************************************
 

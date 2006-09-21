@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2004   CP2K developers group                         ! 
+!   Copyright (C) 2000 - 2004   CP2K developers group                         !
 !-----------------------------------------------------------------------------!
 
 
@@ -13,7 +13,7 @@
 !!     Perform a direct inversion in the iterative subspace (DIIS).
 !!
 !!   AUTHOR
-!!    MI 
+!!    MI
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -76,8 +76,8 @@ CONTAINS
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
     TYPE(mol_diis_block_type), POINTER       :: mol_diis_iblock
     INTEGER, INTENT(IN)                      :: nao
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'alloc_mol_diis_iblock', &
       routineP = moduleN//':'//routineN
@@ -103,7 +103,7 @@ CONTAINS
           IF (istat /= 0) CALL stop_memory(routineP,"ks_buffer(ibuffer,ispin)%array",&
                                            nao*nao*dp_size)
           mol_diis_iblock%ks_buffer(ibuffer,ispin)%array = 0.0_dp
-        END DO 
+        END DO
       END DO
 
     END IF
@@ -119,7 +119,7 @@ CONTAINS
           IF (istat /= 0) CALL stop_memory(routineP,"er_buffer(ibuffer,ispin)%array",&
                                            nao*nao*dp_size)
           mol_diis_iblock%er_buffer(ibuffer,ispin)%array = 0.0_dp
-        END DO 
+        END DO
       END DO
 
     END IF
@@ -138,8 +138,8 @@ CONTAINS
   SUBROUTINE kg_diis_b_clear(scf_diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_clear', &
       routineP = moduleN//':'//routineN
@@ -153,7 +153,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        scf_diis_buffer%ncall=0
     END IF
-    
+
   END SUBROUTINE kg_diis_b_clear
 
 ! *****************************************************************************
@@ -163,15 +163,15 @@ CONTAINS
 
 !    FUNCTION
 !       Allocates the kg_scf buffer for each molecule
-! 
+!
 ! *****************************************************************************
 
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
     INTEGER, INTENT(IN)                      :: nbuffer, nspins
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_create', &
       routineP = moduleN//':'//routineN
@@ -199,7 +199,7 @@ CONTAINS
 
       ALLOCATE(scf_diis_buffer%mol_diis_buffer_set(nmol_kind), STAT = istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL init_mol_diis_set(scf_diis_buffer%mol_diis_buffer_set,nmol_kind)
+      CALL init_mol_diis_set(scf_diis_buffer%mol_diis_buffer_set,nmol_kind,error=error)
 
       DO ikind = 1,nmol_kind
         fm_mol_set => kg_fm_mol_set(ikind)
@@ -209,7 +209,7 @@ CONTAINS
 
         NULLIFY(diis_set)
         diis_set => scf_diis_buffer%mol_diis_buffer_set(ikind)
-        CALL allocate_diis_block(diis_set,nmol_global,nmol_local)
+        CALL allocate_diis_block(diis_set,nmol_global,nmol_local,error=error)
 
       END DO   ! ikind
     END IF
@@ -235,8 +235,8 @@ CONTAINS
       POINTER                                :: matrix_ks
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: overlap
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_A', &
       routineP = moduleN//':'//routineN
@@ -310,12 +310,12 @@ CONTAINS
         CALL alloc_mol_diis_iblock(diis_buffer,mol_diis_iblock,n_ao_kind,error=error)
 
         NULLIFY(b_buffer)
-        mol_diis_iblock%mol_error_max = 0.0_dp 
+        mol_diis_iblock%mol_error_max = 0.0_dp
         b_buffer => mol_diis_iblock%b_buffer
 
         DO ispin=1,nspins
 
-          ! Copy the ks matrix of this molecule in the aux1_matrix 
+          ! Copy the ks matrix of this molecule in the aux1_matrix
            CALL copy_sparse2mol_block(matrix_ks(ispin)%matrix, mol_block,&
                                       aux1_matrix, nat_mol, n_ao_kind, &
                                       n_ao_kind, error=error)
@@ -324,7 +324,7 @@ CONTAINS
            CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
                                nmo=mo_ncol, homo = homo)
            ldc = SIZE(mo_coeff,1)
-           CPPrecondition(ldc>=n_ao_kind,cp_failure_level,routineP,error,failure) 
+           CPPrecondition(ldc>=n_ao_kind,cp_failure_level,routineP,error,failure)
 
            ks_ib => mol_diis_iblock%ks_buffer(ibuffer,ispin)%array
            ldks = SIZE(ks_ib,1)
@@ -343,7 +343,7 @@ CONTAINS
              CALL copy_sparse2mol_block(overlap,mol_block,er_ib,nat_mol,n_ao_kind,&
                                         n_ao_kind, error=error)
              CALL DSYMM("L","U",n_ao_kind,homo,2.0_dp,er_ib(1,1),lder,&
-                        mo_coeff(1,1),ldc,0.0_dp,aux2_matrix(1,1),ldaux2) 
+                        mo_coeff(1,1),ldc,0.0_dp,aux2_matrix(1,1),ldaux2)
 
              CALL DGEMM("N","T",n_ao_kind,n_ao_kind,homo,1.0_dp,aux2_matrix(1,1),ldaux2,&
                         aux1_matrix(1,1),ldaux1,0.0_dp,er_ib(1,1),lder)
@@ -372,7 +372,7 @@ CONTAINS
                 END DO
               END DO
               b_buffer(jb,ibuffer) =  b_buffer(jb,ibuffer) + tmp
-              IF(ispin==nspins) b_buffer(ibuffer,jb) = b_buffer(jb,ibuffer) 
+              IF(ispin==nspins) b_buffer(ibuffer,jb) = b_buffer(jb,ibuffer)
             END DO
 
           END DO  ! ispin
@@ -382,9 +382,9 @@ CONTAINS
            DO jb = 1,nb_active
              diis_mat(jb,ib) = diis_mat(jb,ib) +  b_buffer(jb,ib)
            END DO
-         END DO 
+         END DO
          ! Update the diis error
-         diis_error = MAX(diis_error,mol_diis_iblock%mol_error_max) 
+         diis_error = MAX(diis_error,mol_diis_iblock%mol_error_max)
 
        END DO  ! imol
 
@@ -416,8 +416,8 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_p
     LOGICAL, INTENT(IN)                      :: do_iter, diis_step, &
                                                 do_level_shift, use_jacobi
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_B', &
       routineP = moduleN//':'//routineN
@@ -501,7 +501,7 @@ CONTAINS
 
                  CALL DAXPY(n_ao_kind*n_ao_kind,-diis_ev(jb),&
                             ks_ib(1,1),1,aux1_matrix(1,1),1)
-               END DO 
+               END DO
 
              ELSE
                ks_ib => mol_diis_iblock%ks_buffer(ibuffer,ispin)%array
@@ -511,13 +511,13 @@ CONTAINS
              END IF
 
           ELSE
-             ! Copy the core hamiltonian of this molecule in the aux1_matrix 
+             ! Copy the core hamiltonian of this molecule in the aux1_matrix
               CALL copy_sparse2mol_block(matrix_ks(ispin)%matrix, mol_block,&
                                          aux1_matrix, nat_mol, n_ao_kind, &
                                          n_ao_kind, error=error)
           END IF
 
-          ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set 
+          ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set
           CALL fm_mol_eigensolver(aux1_matrix,mo_set,ortho,aux2_matrix,n_ao_kind,&
                                    do_level_shift,scf_control%level_shift,&
                                    use_cholesky=scf_control%use_cholesky, &

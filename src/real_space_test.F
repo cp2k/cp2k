@@ -72,8 +72,8 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_test', &
       routineP = moduleN//':'//routineN
@@ -100,7 +100,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
 
   NULLIFY(pw_a,pw_b,pw_c)
   NULLIFY(box)
-  CALL cell_create(box)
+  CALL cell_create(box,error=error)
   IF ( iw > 0 ) &
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
   NULLIFY(grid)
@@ -146,7 +146,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     IF ( refpt ( 3, i ) > np(3) ) refpt ( 3, i ) = refpt ( 3, i ) - np ( 3 )
   END DO
 
-  CALL pw_grid_create ( grid, para_env%group )
+  CALL pw_grid_create ( grid, para_env%group ,error=error)
   grid % grid_span = FULLSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
@@ -154,7 +154,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
   print_section=>section_vals_get_subs_vals(root_section, &
                         "TEST%PRINT%GRID_INFORMATION",error=error)
   CALL pw_grid_setup ( box, grid,print_section &
-                       , rs_dims=(/para_env%num_pe,1/) )
+                       , rs_dims=(/para_env%num_pe,1/) ,error=error)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 1, replicated calculation
@@ -172,7 +172,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     pt = refco(:,i) - rden%lb(:) + 1
     CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
   END DO
-  CALL pw_create ( pw_a, grid, REALDATA3D )
+  CALL pw_create ( pw_a, grid, REALDATA3D ,error=error)
   CALL rs_pw_get ( rden, pw_a )
   pw_a%cr3d = pw_a%cr3d**(1.0_dp/3.0_dp)
   CALL rs_pw_transfer ( rden, pw_a, pw2rs )
@@ -184,7 +184,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     energy1 = energy1 + integral
   END DO
   memory1 = SIZE ( rden%r ) + SIZE ( pw_a%cr3d )
-  CALL rs_grid_release ( rden )
+  CALL rs_grid_release ( rden ,error=error)
   tend  = m_cputime ( )
   t1 = tend - tstart
 
@@ -211,7 +211,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     no ( : ) = bsize ( i )
     CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
   END DO
-  CALL pw_create ( pw_b, grid, REALDATA3D )
+  CALL pw_create ( pw_b, grid, REALDATA3D ,error=error)
   CALL rs_pw_transfer ( rden, pw_b, rs2pw )
   pw_b%cr3d = pw_b%cr3d**(1.0_dp/3.0_dp)
   CALL rs_grid_zero ( rden )
@@ -225,7 +225,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
   END DO
   IF ( rden%parallel ) CALL mp_sum ( energy2, rden%group )
   memory2 = SIZE ( rden%r ) + SIZE ( pw_b%cr3d )
-  CALL rs_grid_release ( rden )
+  CALL rs_grid_release ( rden ,error=error)
   tend  = m_cputime ( )
   t2 = tend - tstart
 
@@ -258,7 +258,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
         tasks ( 1, j ) = i
         tasks ( 2, j ) = refco(dir,i)
      END DO
-     CALL rs_get_my_tasks ( rden, tasks, npme )
+     CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
      DO i = 1, npme
         j = tasks ( 1, i )
         pt = refco(:,j) - rden%lb_local(:) + 1
@@ -267,7 +267,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
      END DO
      DEALLOCATE ( tasks, STAT=ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-     CALL pw_create ( pw_c, grid, REALDATA3D )
+     CALL pw_create ( pw_c, grid, REALDATA3D ,error=error)
      CALL rs_pw_transfer ( rden, pw_c, rs2pw )
      pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
      CALL rs_grid_zero ( rden )
@@ -287,7 +287,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
         tasks ( 1, j ) = i
         tasks ( 2, j ) = refco(dir,i)
      END DO
-     CALL rs_get_my_tasks ( rden, tasks, npme )
+     CALL rs_get_my_tasks ( rden, tasks, npme ,error=error)
      energy3 = 0.0_dp
      DO i = 1, npme
         j = tasks ( 1, i )
@@ -301,7 +301,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
      IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
      memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
   END IF
-  CALL rs_grid_release ( rden )
+  CALL rs_grid_release ( rden ,error=error)
   tend  = m_cputime ( )
   t3 = tend - tstart
 
@@ -320,10 +320,10 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
   END IF
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  CALL pw_release ( pw_a )
-  CALL pw_release ( pw_b )
-  CALL pw_release ( pw_c )
-  CALL cell_release(box)
+  CALL pw_release ( pw_a ,error=error)
+  CALL pw_release ( pw_b ,error=error)
+  CALL pw_release ( pw_c ,error=error)
+  CALL cell_release(box,error=error)
 END SUBROUTINE rs_test
 
 ! *****************************************************************************
@@ -353,7 +353,7 @@ SUBROUTINE put_on_grid ( r, nc, np, val, dir )
     ii = nc(3) + i
     IF (dir/=3) ii = MODULO ( nz + nc(3) + i - 1, nz ) + 1
     DO j = nu(2), nu(2)
-      jj = nc(2) + j 
+      jj = nc(2) + j
       IF (dir/=2) jj = MODULO ( ny + nc(2) + j - 1, ny ) + 1
       DO k = nl(1), nu(1)
         kk = nc(1) + k

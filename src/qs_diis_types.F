@@ -128,8 +128,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_diis_b_retain(diis_buffer,error)
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_retain', &
       routineP = moduleN//':'//routineN
@@ -171,8 +171,8 @@ END SUBROUTINE qs_diis_b_retain
 !!*** **********************************************************************
 SUBROUTINE qs_diis_b_release(diis_buffer,error)
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_release', &
       routineP = moduleN//':'//routineN

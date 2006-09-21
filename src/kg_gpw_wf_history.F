@@ -12,7 +12,7 @@
 !!   FUNCTION
 !!     Routines to store the history of optimized wfn when the KG_GPW method is used.
 !!     The method requires that the wfn are stored in molecular blocks and not as full matrix
-!!     
+!!
 !!   AUTHOR
 !!     MI (01.04.2005)
 !!
@@ -64,10 +64,10 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     The linear extrapolation of the mos is calculated by using the two
-!!     previous steps. 
+!!     previous steps.
 !!      set_a%...%mos =  alpha*set_a%...%mos + beta*set_b%...%mos
 !!     If required the density is also calculated
-!!     
+!!
 !!   NOTE
 !!     matrix_p and matrix_s are given as input only if the density has to be calculated
 !!     i.e. when all the terms have been added to the final mos
@@ -77,7 +77,7 @@ CONTAINS
 !!     - set_a : contains the initial mos and the output mos (inout)
 !!     - beta : second multiplicative constant
 !!     - set_b : contains the mos of a previous step that will be added (in)
-!!     - matrix_p: density matrix in real sparse matrix format, optional 
+!!     - matrix_p: density matrix in real sparse matrix format, optional
 !!     - matrix_s: overlapmatrix in real sparse matrix format, optional
 !!     - error
 !!
@@ -98,8 +98,8 @@ CONTAINS
       POINTER                                :: set_b
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_p, matrix_s
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_linear', &
       routineP = moduleN//':'//routineN
@@ -121,7 +121,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !
 
-    failure = .FALSE. 
+    failure = .FALSE.
     calculate_density = .FALSE.
     IF(PRESENT(matrix_p) .AND. PRESENT(matrix_s)) calculate_density = .TRUE.
     nmolecule_kind=SIZE(set_a,1)
@@ -136,7 +136,7 @@ CONTAINS
       NULLIFY(fm_mol_a,fm_mol_b, blocks_a, blocks_b)
       fm_mol_a => set_a(imolecule_kind)
       fm_mol_b => set_b(imolecule_kind)
-      
+
       CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_a, nmolecule_local=nmol, natom=natom,&
            n_ao = n_ao, n_mo = n_mo, fm_mol_blocks=blocks_a)
       CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_b,fm_mol_blocks=blocks_b)
@@ -187,9 +187,9 @@ CONTAINS
 
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
-                                         natom,mo_coeff_a,nmo_a,s_mo)
-            ! orthogonalize the molecular orbitals 
-            CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV")
+                                         natom,mo_coeff_a,nmo_a,s_mo,error=error)
+            ! orthogonalize the molecular orbitals
+            CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
 
 
             CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
@@ -217,12 +217,12 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     The ps extrapolation of the mos is calculated by using a
-!!     number of previous steps given by the order of the extrapolation (nvec) 
+!!     number of previous steps given by the order of the extrapolation (nvec)
 !!     At each i-th step in the loop to compose the final mos, the very last
 !!     wfn are multiplied by the wfn of the (nlast - i)th step
 !!     C(next) = C(next) - beta *  C(i)[C(i)S(i)C(last)]
 !!     If required the density is also calculated
-!!     
+!!
 !!   NOTE
 !!     matrix_p and matrix_s are given as input only if the density has to be calculated
 !!     i.e. when all the terms have been added to the final mos
@@ -257,8 +257,8 @@ CONTAINS
       POINTER                                :: set_last
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_p, matrix_s
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_ps', &
       routineP = moduleN//':'//routineN
@@ -299,7 +299,7 @@ CONTAINS
       fm_mol_a => set_a(imolecule_kind)
       fm_mol_b => set_b(imolecule_kind)
       fm_mol_l => set_last(imolecule_kind)
-      
+
       CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_a, nmolecule_local=nmol, natom=natom,&
            n_ao = n_ao, n_mo = n_mo, fm_mol_blocks=blocks_a)
       CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_b,fm_mol_blocks=blocks_b)
@@ -312,7 +312,7 @@ CONTAINS
       ! Allocate the array to store the overlap matrix of step b
       ALLOCATE(ov_b_mol(n_ao,n_ao),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ! Allocate the array CSC 
+      ! Allocate the array CSC
       ldcsc = MAX(n_mo(1),n_mo(2))
       ALLOCATE(mol_csc(ldcsc,ldcsc), STAT= istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -337,7 +337,7 @@ CONTAINS
         CALL get_fm_mol_block(fm_mol_block = mol_block_l,&
              mos = mos_l)
 
-        ! Copy the right block of ov_b into the temporary space  
+        ! Copy the right block of ov_b into the temporary space
         CALL copy_sparse2mol_block(matrix=ov_b, mol_block=mol_block_b,&
              matrix_mol_block=ov_b_mol, natom=natom, nrow=n_ao, ncol=n_ao, error=error)
 
@@ -376,9 +376,9 @@ CONTAINS
           IF(calculate_density) THEN
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
-                                         natom,mo_coeff_a,nmo_a,s_mo)
-            ! orthogonalize the molecular orbitals 
-            CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV")
+                                         natom,mo_coeff_a,nmo_a,s_mo,error=error)
+            ! orthogonalize the molecular orbitals
+            CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
 
             CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
                  natom, matrix_p(ispin)%matrix, error=error)
@@ -407,11 +407,11 @@ CONTAINS
 !!****f* kg_gpw_wf_history/kg_gpw_prev_wf
 !!
 !!   NAME
-!!    kg_gpw_prev_wf 
+!!    kg_gpw_prev_wf
 !!
 !!   FUNCTION
-!!     Calculate the density from the previous wfn given in molecular blocks 
-!!     
+!!     Calculate the density from the previous wfn given in molecular blocks
+!!
 !!   NOTE
 !!
 !!   INPUTS
@@ -433,8 +433,8 @@ CONTAINS
       POINTER                                :: kg_fm_mol_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_gpw_prev_wf', &
       routineP = moduleN//':'//routineN
@@ -486,9 +486,9 @@ CONTAINS
 
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
-                                         nat_mol,mo_coeff,nmo,s_mo)
-            ! orthogonalize the molecular orbitals 
-            CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV")
+                                         nat_mol,mo_coeff,nmo,s_mo,error=error)
+            ! orthogonalize the molecular orbitals
+            CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV",error=error)
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
                                        nat_mol,matrix_p(ispin)%matrix,error=error)

@@ -81,7 +81,7 @@ MODULE force_fields_input
 !******************************************************************************
 
 CONTAINS
-  
+
 !******************************************************************************
 !!****** force_fields_input/read_force_field_section1 [1.0] *
 !!
@@ -104,8 +104,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
@@ -219,7 +219,7 @@ CONTAINS
           CALL reallocate(inp_info%bond_a,1,nbonds)
           CALL reallocate(inp_info%bond_b,1,nbonds)
           CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
-          CALL reallocate(inp_info%bond_r0,1,nbonds)        
+          CALL reallocate(inp_info%bond_r0,1,nbonds)
           CALL read_bonds_section(inp_info%bond_kind,inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
                inp_info%bond_r0, tmp_section, ntot, error)
        END IF
@@ -292,11 +292,11 @@ CONTAINS
 
     IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
        nonbonded%ipbv%rcore = 0.9_dp                  ! a.u.
-       nonbonded%ipbv%m = -1.2226442563398141E+11_dp   ! Kelvin/a.u. 
+       nonbonded%ipbv%m = -1.2226442563398141E+11_dp   ! Kelvin/a.u.
        nonbonded%ipbv%b =  1.1791292385486696E+11_dp  ! Hartree
 
        ! Hartree*a.u.^2
-       nonbonded%ipbv% a ( 2 ) = 4.786380682394_dp 
+       nonbonded%ipbv% a ( 2 ) = 4.786380682394_dp
        nonbonded%ipbv% a ( 3 ) = -1543.407053545_dp
        nonbonded%ipbv% a ( 4 ) = 88783.31188529_dp
        nonbonded%ipbv% a ( 5 ) = -2361200.155376_dp
@@ -306,7 +306,7 @@ CONTAINS
        nonbonded%ipbv% a ( 9 ) = -7654856796.383_dp
        nonbonded%ipbv% a ( 10 ) = 16195251405.65_dp
        nonbonded%ipbv% a ( 11 ) = -13140392992.18_dp
-       nonbonded%ipbv% a ( 12 ) = -9285572894.245_dp 
+       nonbonded%ipbv% a ( 12 ) = -9285572894.245_dp
        nonbonded%ipbv% a ( 13 ) = 8756947519.029_dp
        nonbonded%ipbv% a ( 14 ) = 15793297761.67_dp
        nonbonded%ipbv% a ( 15 ) = 12917180227.21_dp
@@ -314,7 +314,7 @@ CONTAINS
          ((at1(1:1) == 'H').AND.(at2 (1:1) == 'O')))  THEN
        nonbonded%ipbv%rcore = 2.95_dp       ! a.u.
 
-       nonbonded%ipbv%m = -0.004025691139759147_dp  ! Hartree/a.u. 
+       nonbonded%ipbv%m = -0.004025691139759147_dp  ! Hartree/a.u.
        nonbonded%ipbv%b =  -2.193731138097428_dp    ! Hartree
        ! Hartree*a.u.^2
        nonbonded%ipbv% a ( 2 ) = -195.7716013277_dp
@@ -329,11 +329,11 @@ CONTAINS
        nonbonded%ipbv% a ( 11 ) = 193107995718.7_dp
        nonbonded%ipbv% a ( 12 ) = -193440560940.0_dp
        nonbonded%ipbv% a ( 13 ) =-4224406093.918E0_dp
-       nonbonded%ipbv% a ( 14 ) = 217192386506.5E0_dp 
+       nonbonded%ipbv% a ( 14 ) = 217192386506.5E0_dp
        nonbonded%ipbv% a ( 15 ) = -157581228915.5_dp
     ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
        nonbonded%ipbv%rcore = 3.165_dp     ! a.u.
-       nonbonded%ipbv%m = 0.002639704108787555_dp  ! Hartree/a.u. 
+       nonbonded%ipbv%m = 0.002639704108787555_dp  ! Hartree/a.u.
        nonbonded%ipbv%b = -0.2735482611857583_dp ! Hartree
        ! Hartree*a.u.^2
        nonbonded%ipbv% a ( 2 ) = -26.29456010782_dp
@@ -347,7 +347,7 @@ CONTAINS
        nonbonded%ipbv% a ( 10 ) =-37684457778.47_dp
        nonbonded%ipbv% a ( 11 ) = 82562104256.03_dp
        nonbonded%ipbv% a ( 12 ) = -100510435213.4_dp
-       nonbonded%ipbv% a ( 13 ) = 24570342714.65E0_dp 
+       nonbonded%ipbv% a ( 13 ) = 24570342714.65E0_dp
        nonbonded%ipbv% a ( 14 ) = 88766181532.94E0_dp
        nonbonded%ipbv% a ( 15 ) = -79705131323.98_dp
     ELSE
@@ -390,7 +390,7 @@ CONTAINS
        CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
     ELSEIF(((at1(1:2) == 'NA').AND.(at2(1:2) == 'CL')).OR.&
          ((at1(1:2) == 'CL').AND.(at2(1:2) == 'NA'))) THEN
-       nonbonded%ft%a = 1256.31_dp  ! eV        
+       nonbonded%ft%a = 1256.31_dp  ! eV
        CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
        nonbonded%ft%c =    7.00_dp  ! eV * Ang^6
        CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
@@ -399,7 +399,7 @@ CONTAINS
        CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
        CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
     ELSEIF ( ( at1(1:2) == 'CL' ) .AND. ( at2 (1:2) == 'CL' ) ) THEN
-       nonbonded%ft%a = 3488.998_dp ! eV        
+       nonbonded%ft%a = 3488.998_dp ! eV
        CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
        nonbonded%ft%c =    72.50_dp ! eV * Ang^6
        CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
@@ -435,8 +435,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_section', &
       routineP = moduleN//':'//routineN
@@ -481,8 +481,8 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_lj_section', &
       routineP = moduleN//':'//routineN
@@ -532,8 +532,8 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_wl_section', &
       routineP = moduleN//':'//routineN
@@ -583,8 +583,8 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gd_section', &
       routineP = moduleN//':'//routineN
@@ -638,8 +638,8 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ipbv_section', &
       routineP = moduleN//':'//routineN
@@ -650,7 +650,7 @@ CONTAINS
     REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items         
+    DO isec = 1, n_items
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        nonbonded%pot(start+isec)%pot %type = ip_type
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
@@ -684,8 +684,8 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bmhft_section', &
       routineP = moduleN//':'//routineN
@@ -696,7 +696,7 @@ CONTAINS
     REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items         
+    DO isec = 1, n_items
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        nonbonded%pot(start+isec)%pot %type = ft_type
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
@@ -732,8 +732,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_chrg_section', &
       routineP = moduleN//':'//routineN
@@ -742,7 +742,7 @@ CONTAINS
     INTEGER                                  :: isec, n_items
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items         
+    DO isec = 1, n_items
        CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=atm_name,&
             error=error)
        charge_atm(start+isec) = atm_name
@@ -775,8 +775,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bonds_section', &
       routineP = moduleN//':'//routineN
@@ -790,7 +790,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(Kvals, atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items         
+    DO isec = 1, n_items
        CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
        bond_kind(start+isec) = atm_names(1)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
@@ -831,8 +831,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bends_section', &
       routineP = moduleN//':'//routineN
@@ -846,7 +846,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(Kvals, atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items         
+    DO isec = 1, n_items
        CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
        bend_kind(start+isec) = atm_names(1)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
@@ -868,13 +868,13 @@ CONTAINS
 !!****** force_fields_input/read_ubs_section [1.0] *
 !!
 !!   NAME
-!!   
+!!
 !!
 !!   FUNCTION
-!!    
+!!
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -886,8 +886,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_k, ub_r0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ubs_section', &
       routineP = moduleN//':'//routineN
@@ -900,7 +900,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items         
+    DO isec = 1, n_items
        CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
        ub_kind(start+isec) = atm_names(1)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
@@ -939,8 +939,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: torsion_m
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_torsions_section', &
       routineP = moduleN//':'//routineN
@@ -953,7 +953,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY( atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items         
+    DO isec = 1, n_items
        CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
        torsion_kind(start+isec) = atm_names(1)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
@@ -984,8 +984,8 @@ CONTAINS
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (30.11.2001) : moved determination of setup variables to 
-!!                        molecule_input 
+!!     JGH (30.11.2001) : moved determination of setup variables to
+!!                        molecule_input
 !!
 !!   SOURCE
 !******************************************************************************
@@ -995,8 +995,8 @@ CONTAINS
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     TYPE(section_vals_type), POINTER         :: ff_section
 
@@ -1023,19 +1023,19 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  
+
   SUBROUTINE read_force_field_gromos ( ff_type , para_env,  mm_section, error )
 
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: ekt = 2.5_dp    
+    REAL(KIND=dp), PARAMETER                 :: ekt = 2.5_dp
 
     CHARACTER(LEN=default_string_length)     :: label
     CHARACTER(LEN=default_string_length), &
@@ -1060,7 +1060,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
 
-    avail_section( 1) = "TITLE" 
+    avail_section( 1) = "TITLE"
     avail_section( 2) = "TOPPHYSCON"
     avail_section( 3) = "TOPVERSION"
     avail_section( 4) = "ATOMTYPENAME"
@@ -1070,7 +1070,7 @@ CONTAINS
     avail_section( 8) = "BONDH"
     avail_section( 9) = "BOND"
     avail_section(10) = "BONDANGLETYPE"
-    avail_section(11) = "BONDANGLEH" 
+    avail_section(11) = "BONDANGLEH"
     avail_section(12) = "BONDANGLE"
     avail_section(13) = "IMPDIHEDRALTYPE"
     avail_section(14) = "IMPDIHEDRALH"
@@ -1090,19 +1090,19 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! ATOMTYPENAME SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'    
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
     label = TRIM(avail_section(4))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype)
+      CALL parser_get_object(parser,ntype,error=error)
       CALL reallocate(namearray,1,ntype)
       !ALLOCATE(namearray(ntype),stat=stat)
       !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.)
+        CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.,error=error)
         IF(iw>0) WRITE(iw,*) "GTOP_INFO|  ",TRIM(namearray(itype))
       END DO
     END IF
@@ -1117,21 +1117,21 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! SOLVENTCONSTR SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'    
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
 
     label = TRIM(avail_section(21))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ncon)
+      CALL parser_get_object(parser,ncon,error=error)
       CALL reallocate(gro_info%solvent_k,1,ncon)
       CALL reallocate(gro_info%solvent_r0,1,ncon)
       DO icon=1,ncon
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,itemp)
-        CALL parser_get_object(parser,itemp)
-        CALL parser_get_object(parser,gro_info%solvent_r0(icon))
+        CALL parser_get_object(parser,itemp,error=error)
+        CALL parser_get_object(parser,itemp,error=error)
+        CALL parser_get_object(parser,gro_info%solvent_r0(icon),error=error)
         gro_info%solvent_k(icon)=0.0_dp
       END DO
     END IF
@@ -1140,25 +1140,25 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! BONDTYPE SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'    
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'
     label = TRIM(avail_section(7))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype)
+      CALL parser_get_object(parser,ntype,error=error)
       CALL reallocate(gro_info%bond_k,1,ntype)
       CALL reallocate(gro_info%bond_r0,1,ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%bond_k(itype))
-        CALL parser_get_object(parser,gro_info%bond_r0(itype))
+        CALL parser_get_object(parser,gro_info%bond_k(itype),error=error)
+        CALL parser_get_object(parser,gro_info%bond_r0(itype),error=error)
         IF(ff_type%ff_type=="G96") THEN
           CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
           CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
@@ -1182,18 +1182,18 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! BONDANGLETYPE SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLETYPE section'    
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLETYPE section'
     label = TRIM(avail_section(10))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype)
+      CALL parser_get_object(parser,ntype,error=error)
       CALL reallocate(gro_info%bend_k,1,ntype)
       CALL reallocate(gro_info%bend_theta0,1,ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%bend_k(itype))
-        CALL parser_get_object(parser,gro_info%bend_theta0(itype))
+        CALL parser_get_object(parser,gro_info%bend_k(itype),error=error)
+        CALL parser_get_object(parser,gro_info%bend_theta0(itype),error=error)
         IF(ff_type%ff_type=="G96") THEN
 
           CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
@@ -1226,18 +1226,18 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! IMPDIHEDRALTYPE SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRALTYPE section'    
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRALTYPE section'
     label = TRIM(avail_section(13))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype)
+      CALL parser_get_object(parser,ntype,error=error)
       CALL reallocate(gro_info%impr_k,1,ntype)
       CALL reallocate(gro_info%impr_phi0,1,ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%impr_k(itype))
-        CALL parser_get_object(parser,gro_info%impr_phi0(itype))
+        CALL parser_get_object(parser,gro_info%impr_k(itype),error=error)
+        CALL parser_get_object(parser,gro_info%impr_phi0(itype),error=error)
 
         CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_phi0(itype))
 
@@ -1257,20 +1257,20 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! DIHEDRALTYPE SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRALTYPE section'    
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRALTYPE section'
     label = TRIM(avail_section(16))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype)
+      CALL parser_get_object(parser,ntype,error=error)
       CALL reallocate(gro_info%torsion_k,1,ntype)
       CALL reallocate(gro_info%torsion_m,1,ntype)
       CALL reallocate(gro_info%torsion_cosphi0,1,ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%torsion_k(itype))
-        CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype))
-        CALL parser_get_object(parser,gro_info%torsion_m(itype))
+        CALL parser_get_object(parser,gro_info%torsion_k(itype),error=error)
+        CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype),error=error)
+        CALL parser_get_object(parser,gro_info%torsion_m(itype),error=error)
 
         CALL convert_to_cp2k_units("KJ",energy=gro_info%torsion_k(itype))
         !gro_info%torsion_cosphi0(itype)= -gro_info%torsion_cosphi0(itype)
@@ -1284,25 +1284,25 @@ CONTAINS
 
     CALL parser_release(parser,error=error)
 
-    
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! LJPARAMETERS SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
     label = TRIM(avail_section(19))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype)
+      CALL parser_get_object(parser,ntype,error=error)
       offset = 0
       IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
       ntype=SIZE(namearray)
       DO itype=1,ntype*(ntype+1)/2
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,iatom)
-        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,iatom,error=error)
+        CALL parser_get_object(parser,jatom,error=error)
         IF(iatom==jatom) THEN
           CALL reallocate(gro_info%nonbond_a,1,offset+ntype)
           CALL reallocate(gro_info%nonbond_c6,1,offset+ntype)
@@ -1312,10 +1312,10 @@ CONTAINS
           CALL reallocate(gro_info%nonbond_c12_14,1,offset+ntype)
           gro_info%nonbond_a(iatom) = namearray(iatom)
           gro_info%nonbond_a_14(iatom) = namearray(iatom)
-          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom))
-          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom))
-          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom))
-          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom),error=error)
+          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom),error=error)
+          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom),error=error)
+          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom),error=error)
 
           CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom))
           CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom),l_power=6)
@@ -1335,7 +1335,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    
+
 
 
 
@@ -1365,15 +1365,15 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  
+
   SUBROUTINE read_force_field_charmm ( ff_type, para_env, mm_section, error )
 
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm', &
       routineP = moduleN//':'//routineN
@@ -1405,8 +1405,8 @@ CONTAINS
 
     avail_section(1) = "BOND"     ; bond_section(1) = "BOND"
     avail_section(11)= "BONDS"
-    avail_section(2) = "ANGL"     ; angl_section(1) = avail_section(2)  
-    avail_section(3) = "THETA"    ; angl_section(2) = avail_section(3) 
+    avail_section(2) = "ANGL"     ; angl_section(1) = avail_section(2)
+    avail_section(3) = "THETA"    ; angl_section(2) = avail_section(3)
     avail_section(12)= "THETAS"
     avail_section(13)= "ANGLE"
     avail_section(14)= "ANGLES"
@@ -1422,7 +1422,7 @@ CONTAINS
     avail_section(17)= "NBFIX"
     avail_section(18)= "END"
 
-    chm_info => ff_type%chm_info    
+    chm_info => ff_type%chm_info
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Read in all the Bonds info from the param file here
@@ -1432,19 +1432,19 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nbond = 0
     DO ilab = 1, SIZE(bond_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
        label = TRIM(bond_section(ilab))
-       DO 
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+       DO
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
           IF (found) THEN
-             CALL parser_get_object(parser,string)
+             CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
              CALL parser_get_next_line(parser,1,error=error)
-             DO 
-                CALL parser_get_object(parser,string)
+             DO
+                CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string2,error=error)
                 CALL uppercase ( string2 )
                 nbond = nbond + 1
                 CALL reallocate(chm_info%bond_a,1,nbond)
@@ -1453,8 +1453,8 @@ CONTAINS
                 CALL reallocate(chm_info%bond_r0,1,nbond)
                 chm_info%bond_a(nbond) = string
                 chm_info%bond_b(nbond) = string2
-                CALL parser_get_object(parser,chm_info%bond_k(nbond))
-                CALL parser_get_object(parser,chm_info%bond_r0(nbond))
+                CALL parser_get_object(parser,chm_info%bond_k(nbond),error=error)
+                CALL parser_get_object(parser,chm_info%bond_r0(nbond),error=error)
                 IF(iw>0) WRITE(iw,*) "    CHM BOND ",nbond,&
                      TRIM(chm_info%bond_a(nbond))," ",&
                      TRIM(chm_info%bond_b(nbond))," ",&
@@ -1483,24 +1483,24 @@ CONTAINS
     !      Vub = Kub(S-S0)^2
     !      UNITS for Kub: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
     !      FACTOR of "2" rolled into Kub
-    !-----------------------------------------------------------------------------    
+    !-----------------------------------------------------------------------------
     nbend = 0
     nub = 0
     DO ilab = 1, SIZE(angl_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
        label = TRIM(angl_section(ilab))
-       DO 
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+       DO
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
           IF (found) THEN
-             CALL parser_get_object(parser,string)
+             CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
              CALL parser_get_next_line(parser,1,error=error)
              DO
-                CALL parser_get_object(parser,string)
+                CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2)
-                CALL parser_get_object(parser,string3)
+                CALL parser_get_object(parser,string2,error=error)
+                CALL parser_get_object(parser,string3,error=error)
                 CALL uppercase ( string2 )
                 CALL uppercase ( string3 )
                 nbend = nbend + 1
@@ -1512,8 +1512,8 @@ CONTAINS
                 chm_info%bend_a(nbend) = string
                 chm_info%bend_b(nbend) = string2
                 chm_info%bend_c(nbend) = string3
-                CALL parser_get_object(parser,chm_info%bend_k(nbend))     
-                CALL parser_get_object(parser,chm_info%bend_theta0(nbend))
+                CALL parser_get_object(parser,chm_info%bend_k(nbend),error=error)
+                CALL parser_get_object(parser,chm_info%bend_theta0(nbend),error=error)
                 IF(iw>0) WRITE(iw,*) "    CHM BEND ",nbend,&
                      TRIM(chm_info%bend_a(nbend))," ",&
                      TRIM(chm_info%bend_b(nbend))," ",&
@@ -1524,7 +1524,7 @@ CONTAINS
                 CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
                 chm_info%bend_k(nbend) = 2.0_dp * chm_info%bend_k(nbend)
-                IF (parser_test_next_token(parser) == "FLT") THEN
+                IF (parser_test_next_token(parser,error=error) == "FLT") THEN
                    nub = nub + 1
                    CALL reallocate(chm_info%ub_a,1,nub)
                    CALL reallocate(chm_info%ub_b,1,nub)
@@ -1534,8 +1534,8 @@ CONTAINS
                    chm_info%ub_a(nub) = string
                    chm_info%ub_b(nub) = string2
                    chm_info%ub_c(nub) = string3
-                   CALL parser_get_object(parser,chm_info%ub_k(nub)) 
-                   CALL parser_get_object(parser,chm_info%ub_r0(nub))
+                   CALL parser_get_object(parser,chm_info%ub_k(nub),error=error)
+                   CALL parser_get_object(parser,chm_info%ub_r0(nub),error=error)
                    IF(iw>0) WRITE(iw,*) "    CHM UB ",nub,&
                         TRIM(chm_info%ub_a(nub))," ",&
                         TRIM(chm_info%ub_b(nub))," ",&
@@ -1565,21 +1565,21 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ntorsion = 0
     DO ilab = 1, SIZE(thet_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
        label = TRIM(thet_section(ilab))
-       DO 
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+       DO
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
           IF (found) THEN
-             CALL parser_get_object(parser,string)
+             CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
              CALL parser_get_next_line(parser,1,error=error)
              DO
-                CALL parser_get_object(parser,string)
+                CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2)
-                CALL parser_get_object(parser,string3)
-                CALL parser_get_object(parser,string4)
+                CALL parser_get_object(parser,string2,error=error)
+                CALL parser_get_object(parser,string3,error=error)
+                CALL parser_get_object(parser,string4,error=error)
                 CALL uppercase ( string2 )
                 CALL uppercase ( string3 )
                 CALL uppercase ( string4 )
@@ -1595,9 +1595,9 @@ CONTAINS
                 chm_info%torsion_b(ntorsion) = string2
                 chm_info%torsion_c(ntorsion) = string3
                 chm_info%torsion_d(ntorsion) = string4
-                CALL parser_get_object(parser,chm_info%torsion_k(ntorsion))      
-                CALL parser_get_object(parser,chm_info%torsion_m(ntorsion))      
-                CALL parser_get_object(parser,chm_info%torsion_cosphi0(ntorsion))
+                CALL parser_get_object(parser,chm_info%torsion_k(ntorsion),error=error)
+                CALL parser_get_object(parser,chm_info%torsion_m(ntorsion),error=error)
+                CALL parser_get_object(parser,chm_info%torsion_cosphi0(ntorsion),error=error)
                 IF(iw>0) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
                      TRIM(chm_info%torsion_a(ntorsion))," ",&
                      TRIM(chm_info%torsion_b(ntorsion))," ",&
@@ -1629,21 +1629,21 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nimpr = 0
     DO ilab = 1, SIZE(impr_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
        label = TRIM(impr_section(ilab))
-       DO 
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+       DO
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
           IF (found) THEN
-             CALL parser_get_object(parser,string)
+             CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
              CALL parser_get_next_line(parser,1,error=error)
              DO
-                CALL parser_get_object(parser,string)
+                CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
-                CALL parser_get_object(parser,string2)
-                CALL parser_get_object(parser,string3)
-                CALL parser_get_object(parser,string4)
+                CALL parser_get_object(parser,string2,error=error)
+                CALL parser_get_object(parser,string3,error=error)
+                CALL parser_get_object(parser,string4,error=error)
                 CALL uppercase ( string2 )
                 CALL uppercase ( string3 )
                 CALL uppercase ( string4 )
@@ -1658,9 +1658,9 @@ CONTAINS
                 chm_info%impr_b(nimpr) = string2
                 chm_info%impr_c(nimpr) = string3
                 chm_info%impr_d(nimpr) = string4
-                CALL parser_get_object(parser,chm_info%impr_k(nimpr))   
-                CALL parser_get_object(parser,dummy)                    
-                CALL parser_get_object(parser,chm_info%impr_phi0(nimpr))
+                CALL parser_get_object(parser,chm_info%impr_k(nimpr),error=error)
+                CALL parser_get_object(parser,dummy,error=error)
+                CALL parser_get_object(parser,chm_info%impr_phi0(nimpr),error=error)
                 IF(iw>0) WRITE(iw,*) "    CHM IMPROPERS ",nimpr,&
                      TRIM(chm_info%impr_a(nimpr))," ",&
                      TRIM(chm_info%impr_b(nimpr))," ",&
@@ -1687,16 +1687,16 @@ CONTAINS
     nnonbond = 0
     nonfo = 0
     DO ilab = 1, SIZE(nbon_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
        label = TRIM(nbon_section(ilab))
-       DO 
-          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+       DO
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
           IF (found) THEN
-             CALL parser_get_object(parser,string)
+             CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
              CALL parser_get_next_line(parser,1,error=error)
              DO
-                CALL parser_get_object(parser,string)
+                CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
                 IF(ANY(string == avail_section)) EXIT
                 nnonbond = nnonbond + 1
@@ -1704,9 +1704,9 @@ CONTAINS
                 CALL reallocate(chm_info%nonbond_eps,1,nnonbond)
                 CALL reallocate(chm_info%nonbond_rmin2,1,nnonbond)
                 chm_info%nonbond_a(nnonbond) = string
-                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))  
-                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))  
-                CALL parser_get_object(parser,chm_info%nonbond_rmin2(nnonbond))
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond),error=error)
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond),error=error)
+                CALL parser_get_object(parser,chm_info%nonbond_rmin2(nnonbond),error=error)
                 IF(iw>0) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
                      TRIM(chm_info%nonbond_a(nnonbond))," ",&
                      chm_info%nonbond_eps(nnonbond),&
@@ -1715,15 +1715,15 @@ CONTAINS
                      length=chm_info%nonbond_rmin2(nnonbond))
                 CALL convert_to_cp2k_units("KCAL",&
                      energy=chm_info%nonbond_eps(nnonbond))
-                IF (parser_test_next_token(parser) == "FLT") THEN
+                IF (parser_test_next_token(parser,error=error) == "FLT") THEN
                    nonfo = nonfo + 1
                    CALL reallocate(chm_info%nonbond_a_14,1,nonfo)
                    CALL reallocate(chm_info%nonbond_eps_14,1,nonfo)
                    CALL reallocate(chm_info%nonbond_rmin2_14,1,nonfo)
                    chm_info%nonbond_a_14(nonfo) = chm_info%nonbond_a(nnonbond)
-                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))  
-                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))  
-                   CALL parser_get_object(parser,chm_info%nonbond_rmin2_14(nonfo))
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo),error=error)
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo),error=error)
+                   CALL parser_get_object(parser,chm_info%nonbond_rmin2_14(nonfo),error=error)
                    IF(iw>0) WRITE(iw,*) "    CHM ONFO ",nonfo,&
                         TRIM(chm_info%nonbond_a_14(nonfo))," ",&
                         chm_info%nonbond_eps_14(nonfo),&
@@ -1770,8 +1770,8 @@ CONTAINS
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_data', &
       routineP = moduleN//':'//routineN
@@ -1888,14 +1888,14 @@ CONTAINS
        CALL reallocate ( frhop, 1, 5000 )
        CALL mp_bcast ( frhop, para_env%source, para_env%group )
 
-       eam % rho    = rho 
-       eam % rhop   = rhop 
-       eam % rval   = rval 
-       eam % rhoval = rhoval 
-       eam % phi    = phi  
-       eam % phip   = phip 
-       eam % frho   = frho 
-       eam % frhop  = frhop 
+       eam % rho    = rho
+       eam % rhop   = rhop
+       eam % rval   = rval
+       eam % rhoval = rhoval
+       eam % phi    = phi
+       eam % phip   = phip
+       eam % frho   = frho
+       eam % frhop  = frhop
 
        DEALLOCATE ( rho, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1917,7 +1917,7 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)
-    
+
   END SUBROUTINE read_eam_data
 
 END MODULE force_fields_input

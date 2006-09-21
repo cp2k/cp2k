@@ -16,7 +16,7 @@
 !!   MODIFICATION HISTORY
 !!     Adapted from qs_scf_post
 !!
-!!*** 
+!!***
 !******************************************************************************
 
 MODULE kg_scf_post
@@ -90,8 +90,8 @@ CONTAINS
   SUBROUTINE scf_post_calculation(dft_section,kg_env,error)
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
@@ -296,7 +296,7 @@ CONTAINS
         END DO
       END IF
 
-      CALL deallocate_matrix_set (moments)
+      CALL deallocate_matrix_set (moments,error=error)
 
       DEALLOCATE ( ref_point, STAT=istat )
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

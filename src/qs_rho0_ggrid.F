@@ -109,8 +109,8 @@ MODULE qs_rho0_ggrid
       POINTER                                :: atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0
     REAL(dp), INTENT(OUT)                    :: tot_rs_int
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_s_on_grid', &
       routineP = moduleN//':'//routineN
@@ -157,7 +157,7 @@ MODULE qs_rho0_ggrid
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,&
-                    pw_env=pw_env,cell=cell)
+                    pw_env=pw_env,cell=cell,error=error)
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     NULLIFY(pools,pw_pools)
@@ -171,7 +171,7 @@ MODULE qs_rho0_ggrid
                         zet0_s=zet0_s,igrid_zet0_s=igrid,&
                         rho0_s_gs=rho0_s_gs, &
                         rho0_s_rs=rho0_s_rs)
-    
+
 
     ! *** set up the rs grid at level igrid
     NULLIFY(rs_grid,pool,pw_pool,coeff_rspace,coeff_gspace)
@@ -243,7 +243,7 @@ MODULE qs_rho0_ggrid
 
       END DO
 
-      CALL rs_get_my_tasks ( rs_grid, tasks, npme )
+      CALL rs_get_my_tasks ( rs_grid, tasks, npme ,error=error)
 
       ithread=0
 !$OMP parallel do &
@@ -304,7 +304,7 @@ MODULE qs_rho0_ggrid
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
 
       tot_rs_int = calculate_total_rho(rho0_s_rs)
-    
+
       CALL coeff_transform_space(rho0_s_rs,rho0_s_gs)
     END IF
 
@@ -319,8 +319,8 @@ MODULE qs_rho0_ggrid
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rho0_s_grid_create', &
       routineP = moduleN//':'//routineN
@@ -338,7 +338,7 @@ MODULE qs_rho0_ggrid
   IF(PRESENT(tddft)) my_tddft = tddft
 
   NULLIFY(new_pw_env)
-  CALL get_qs_env(qs_env, pw_env=new_pw_env)
+  CALL get_qs_env(qs_env, pw_env=new_pw_env,error=error)
   CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
 
   NULLIFY(auxbas_pw_pool)
@@ -349,11 +349,11 @@ MODULE qs_rho0_ggrid
   NULLIFY(rho_rs,rho_gs)
   CPPrecondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
   rho_rs => rho0_mpole%rho0_s_rs
-  rho_gs => rho0_mpole%rho0_s_gs 
+  rho_gs => rho0_mpole%rho0_s_gs
 
   ! rho0 density in real space
   IF (ASSOCIATED(rho_rs)) THEN
-     CALL coeff_deallocate(rho_rs)
+     CALL coeff_deallocate(rho_rs,error=error)
      DEALLOCATE(rho_rs,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   ELSE
@@ -364,11 +364,11 @@ MODULE qs_rho0_ggrid
      CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_rs,&
               use_data=REALDATA3D,in_space=REALSPACE,error=error)
      rho0_mpole%rho0_s_rs => rho_rs
-  END IF 
+  END IF
 
   ! rho0 density in reciprocal space
   IF (ASSOCIATED(rho_gs)) THEN
-     CALL coeff_deallocate(rho_gs)
+     CALL coeff_deallocate(rho_gs,error=error)
      DEALLOCATE(rho_gs,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   ELSE
@@ -398,8 +398,8 @@ MODULE qs_rho0_ggrid
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
       routineP = moduleN//':'//routineN
@@ -473,7 +473,7 @@ MODULE qs_rho0_ggrid
                     force=force,pw_env=pw_env,&
                     rho0_mpole=rho0_mpole,&
                     rho_atom_set=rho_atom_set,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,error=error)
 
     nspins = dft_control%nspins
 
@@ -508,7 +508,7 @@ MODULE qs_rho0_ggrid
     ALLOCATE(coeff_gspace, STAT=istat)
     ALLOCATE(coeff_rspace, STAT=istat)
     IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", &
-                                         "coeff_gspace,coeff_rspace") 
+                                         "coeff_gspace,coeff_rspace")
     CALL pw_pool_init_coeff(pw_pool,coeff_gspace,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
@@ -519,7 +519,7 @@ MODULE qs_rho0_ggrid
     IF (igrid /= auxbas_grid) THEN
        pw_aux => pw_pools(auxbas_grid)%pool
        ALLOCATE(coeff_gaux,STAT=istat)
-       IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",& 
+       IF ( istat /= 0 ) CALL stop_memory ("integrate_vhg0_rspace",&
                                            "coeff_gaux")
        CALL pw_pool_init_coeff(pw_aux, coeff_gaux,&
                                use_data = COMPLEXDATA1D,&
@@ -588,7 +588,7 @@ MODULE qs_rho0_ggrid
 
     DO ikind = 1,SIZE(atomic_kind_set,1)
       atom_kind => atomic_kind_set(ikind)
-      NULLIFY(orb_basis_set,atom_list,harmonics) 
+      NULLIFY(orb_basis_set,atom_list,harmonics)
       CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
                            natom=nat,paw_atom=paw_atom,&
                            orb_basis_set=orb_basis_set,&
@@ -604,9 +604,9 @@ MODULE qs_rho0_ggrid
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              lmax=lmax, maxso=maxso,&
                              nset=nset, npgf=npgf)
-                           
+
 !     Initialize the local KS integrals
-  
+
       nch_ik = ncoset(l0_ikind)
       pab = 1.0_dp
 
@@ -640,7 +640,7 @@ MODULE qs_rho0_ggrid
 
       END DO
 
-      CALL rs_get_my_tasks ( rs_v, tasks, npme )
+      CALL rs_get_my_tasks ( rs_v, tasks, npme ,error=error)
 
       ithread=0
 !$OMP parallel do &
@@ -661,7 +661,7 @@ MODULE qs_rho0_ggrid
 !$      ithread=omp_get_thread_num()
         iat =  tasks(1,j)
         iatom = atom_list(iat)
-        ra(:) = pbc(particle_set(iatom)%r,cell) 
+        ra(:) = pbc(particle_set(iatom)%r,cell)
 
         NULLIFY(Qlm)
         CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=iatom,&
@@ -682,13 +682,13 @@ MODULE qs_rho0_ggrid
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=ithread,&
-             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s)
+             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,error=error)
 
 ! Convert from cartesian to spherical
         IF (calculate_forces) THEN
           DO lshell = 0,l0_ikind
             DO is = 1,nso(lshell)
-              iso = is + nsoset(lshell-1) 
+              iso = is + nsoset(lshell-1)
               hab_sph(iso) = 0.0_dp
               hdab_sph(1:3,iso) = 0.0_dp
               DO ic = 1,nco(lshell)
@@ -696,7 +696,7 @@ MODULE qs_rho0_ggrid
                 lx = indco(1,ico)
                 ly = indco(2,ico)
                 lz = indco(3,ico)
-  
+
                 hab_sph(iso) = hab_sph(iso) + &
                     orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*&
                     norm_l(lshell)/&
@@ -715,14 +715,14 @@ MODULE qs_rho0_ggrid
         ELSE
           DO lshell = 0,l0_ikind
             DO is = 1,nso(lshell)
-              iso = is + nsoset(lshell-1) 
+              iso = is + nsoset(lshell-1)
               hab_sph(iso) = 0.0_dp
               DO ic = 1,nco(lshell)
                 ico = ic + ncoset(lshell-1)
                 lx = indco(1,ico)
                 ly = indco(2,ico)
                 lz = indco(3,ico)
-  
+
                 hab_sph(iso) = hab_sph(iso) + &
                     orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*&
                     norm_l(lshell)/&
@@ -734,7 +734,7 @@ MODULE qs_rho0_ggrid
           END DO  ! lshell
         END IF
 
-! Calculate Integrals <aVb> and forces on iatom from the gradient og g0_s 
+! Calculate Integrals <aVb> and forces on iatom from the gradient og g0_s
         rho_atom => rho_atom_set(iatom)
         CALL get_rho_atom(rho_atom=rho_atom,&
               ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
@@ -772,7 +772,7 @@ MODULE qs_rho0_ggrid
                         int_local_h(ispin)%r_coef(ig1,ig2) = &
                                   int_local_h(ispin)%r_coef(ig1,ig2) + &
                                   Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-                            
+
                         int_local_s(ispin)%r_coef(ig1,ig2) = &
                                   int_local_s(ispin)%r_coef(ig1,ig2) + &
                                   Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
@@ -781,7 +781,7 @@ MODULE qs_rho0_ggrid
                     END DO  ! icg
                   END DO  ! iso
 
-                END DO  ! ipgf2 
+                END DO  ! ipgf2
                 m2 = m2 + maxso
               END DO  ! iset2
             END DO ! ipgf1
@@ -817,7 +817,7 @@ MODULE qs_rho0_ggrid
                         int_local_h(ispin)%r_coef(ig1,ig2) = &
                                   int_local_h(ispin)%r_coef(ig1,ig2) + &
                                   Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
-                            
+
                         int_local_s(ispin)%r_coef(ig1,ig2) = &
                                   int_local_s(ispin)%r_coef(ig1,ig2) + &
                                   Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
@@ -827,7 +827,7 @@ MODULE qs_rho0_ggrid
                     END DO  ! icg
                   END DO  ! iso
 
-                END DO  ! ipgf2 
+                END DO  ! ipgf2
                 m2 = m2 + maxso
               END DO  ! iset2
             END DO ! ipgf1
@@ -837,7 +837,7 @@ MODULE qs_rho0_ggrid
         END IF
 
       END DO  ! j
-    END DO  ! ikind  
+    END DO  ! ikind
 
     CALL rs_pool_give_back_rs(rs_pool,rs_v,error=error)
 
@@ -851,7 +851,7 @@ MODULE qs_rho0_ggrid
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_vhg0_rspace
- 
+
 !******************************************************************************
 END MODULE qs_rho0_ggrid
 !******************************************************************************

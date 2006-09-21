@@ -78,16 +78,16 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
-!!*** ********************************************************************** 
+!!*** **********************************************************************
   SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,&
        gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -96,8 +96,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
@@ -115,7 +115,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: root_section
 
-    CALL timeset(routineN,"I","",handle)   
+    CALL timeset(routineN,"I","",handle)
     para_env=>force_env%para_env
     root_section=>force_env%root_section
     logger => cp_error_get_logger(error)
@@ -129,11 +129,11 @@ CONTAINS
 
        CALL force_env_get(force_env,&
                           cell=cell,&
-                          subsys=subsys)
+                          subsys=subsys,error=error)
        CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                           atomic_kinds=atomic_kinds,&
-                          particles=particles)
-       
+                          particles=particles,error=error)
+
        IF(output_unit>0)THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
           WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
@@ -141,11 +141,11 @@ CONTAINS
           WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
                "***","    CONJUGATE GRADIENTS","***"
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-          CALL m_flush(output_unit)          
+          CALL m_flush(output_unit)
        END IF
 
-       particle_set => particles%els 
-       CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
+       particle_set => particles%els
+       CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
        CALL write_structure_data(particle_set,cell,force_env_section,error)
 
@@ -153,7 +153,7 @@ CONTAINS
             globenv, force_env_section, gopt_env, error)
 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
-   
+
        CALL cp_print_key_finished_output(output_unit,logger,root_section,&
             "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
@@ -174,14 +174,14 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cg_main(force_env, x0, gopt_param, ionode, output_unit,&
@@ -194,8 +194,8 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', &
       routineP = moduleN//':'//routineN
@@ -223,7 +223,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: root_section
 
-    CALL timeset(routineN,handle)   
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     root_section=>force_env%root_section
@@ -251,7 +251,7 @@ CONTAINS
 
        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
-       
+
        g  = -xi
        h  =   g
        xi =   h
@@ -266,20 +266,20 @@ CONTAINS
           eold = opt_energy
           emin = MIN(emin, opt_energy)
           step = 1.0_dp
-          ! check for an external exit command 
+          ! check for an external exit command
           IF (use_fit) THEN
              CALL linminE(gopt_env, x0, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
-                          step, output_unit, ionode, gopt_param, globenv, error)             
+                          step, output_unit, ionode, gopt_param, globenv, error)
           ELSE
              CALL linmin(gopt_env, x0, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
                          step, output_unit, ionode, globenv, error)
           END IF
           CALL external_control(should_stop,"GEO",globenv,error)
           IF(should_stop) EXIT
-          CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section)
+          CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section,error=error)
           !
           ! Convergence check
-          !       
+          !
           IF (ionode) &
                CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin,&
                wildcard=wildcard)
@@ -291,11 +291,11 @@ CONTAINS
              IF (dataunit>0) THEN
                 CALL force_env_get(force_env,&
                      cell=cell,&
-                     subsys=subsys)           
+                     subsys=subsys,error=error)
                 CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                     particles=particles)
-                particle_set => particles%els              
-                
+                     particles=particles,error=error)
+                particle_set => particles%els
+
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",its,", E =",opt_energy
                 CALL write_particle_coordinates(particle_set,dataunit,&
                      dump_xmol,"POS",TRIM(title))
@@ -309,7 +309,7 @@ CONTAINS
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
                gopt_env%force_env%para_env, force_env_section, error)
           gg  = DOT_PRODUCT(g,g)
-          IF (Fletcher_Reeves_ON) THEN 
+          IF (Fletcher_Reeves_ON) THEN
              dgg = DOT_PRODUCT(xi,xi)
           ELSE
              dgg = DOT_PRODUCT((xi+g),xi)
@@ -333,7 +333,7 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
                   "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
              WRITE(UNIT=output_unit,FMT="(T2,A)")&
-                  "***        EXITING GEOMETRY OPTIMIZATION         ***" 
+                  "***        EXITING GEOMETRY OPTIMIZATION         ***"
              CALL m_flush(output_unit)
           END IF
        END IF
@@ -365,14 +365,14 @@ CONTAINS
 !!     with the optimal value. Enhanced Version
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
   SUBROUTINE LinMinE(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
@@ -386,8 +386,8 @@ CONTAINS
     LOGICAL                                  :: ionode
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMinE', &
       routineP = moduleN//':'//routineN
@@ -412,7 +412,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
        pcom  = xvec
-       xicom = xi       
+       xicom = xi
        xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
        step = 0.05_dp
        ax = 0.0_dp
@@ -452,7 +452,7 @@ CONTAINS
           WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
                "***","FIT LS  - NUMBER OF ENERGY EVALUATIONS : ",loc_iter,"***"
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-       END IF       
+       END IF
     END IF
     CALL timestop(handle)
 
@@ -472,14 +472,14 @@ CONTAINS
 !!     with the optimal value
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
   SUBROUTINE LinMin(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
@@ -492,8 +492,8 @@ CONTAINS
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMin', &
       routineP = moduleN//':'//routineN
@@ -518,7 +518,7 @@ CONTAINS
        xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
        step = 0.05_dp
        ax = 0.0_dp
-       xx = step       
+       xx = step
        CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode,&
             globenv=globenv, error=error)
        opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
@@ -543,19 +543,19 @@ CONTAINS
 !!     minimum
 !!
 !!   NOTES
-!!     Given two distinct initial points ax and bx this routine searches 
+!!     Given two distinct initial points ax and bx this routine searches
 !!     in the downhill direction and returns new points ax, bx, cx that
-!!     bracket the minimum of the function 
+!!     bracket the minimum of the function
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
   SUBROUTINE cg_mnbrak(gopt_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit, ionode,&
@@ -569,8 +569,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: histpoint
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak', &
       routineP = moduleN//':'//routineN
@@ -588,7 +588,7 @@ CONTAINS
        ALLOCATE(histpoint(3,3), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    gold = (1.0_dp+SQRT(5.0_dp))/2.0_dp 
+    gold = (1.0_dp+SQRT(5.0_dp))/2.0_dp
     IF (.NOT.failure) THEN
        IF (hist) THEN
           histpoint(1,1) = ax
@@ -598,8 +598,8 @@ CONTAINS
           histpoint(2,3) = cg_deval1d(gopt_env,bx,pcom,xicom,fb,error)
           histpoint(2,2) = fb
        ELSE
-          fa=cg_eval1d(gopt_env,ax,pcom,xicom,error=error) 
-          fb=cg_eval1d(gopt_env,bx,pcom,xicom,error=error) 
+          fa=cg_eval1d(gopt_env,ax,pcom,xicom,error=error)
+          fb=cg_eval1d(gopt_env,bx,pcom,xicom,error=error)
        END IF
        IF(fb.GT.fa)THEN
           dum=ax
@@ -613,7 +613,7 @@ CONTAINS
        IF (hist) THEN
           histpoint(3,1) = cx
           histpoint(3,3) = cg_deval1d(gopt_env,cx,pcom,xicom,fc,error)
-          histpoint(3,2) = fc          
+          histpoint(3,2) = fc
        ELSE
           fc=cg_eval1d(gopt_env,cx,pcom,xicom,error=error)
        END IF
@@ -741,21 +741,21 @@ CONTAINS
 !!     Extension in the use of derivatives
 !!
 !!   NOTES
-!!     Given a bracketing  triplet of abscissas ax, bx, cx (such that bx 
+!!     Given a bracketing  triplet of abscissas ax, bx, cx (such that bx
 !!     is between ax and cx and energy of bx is less than energy of ax and cx),
-!!     this routine isolates the minimum to a precision of about tol using 
+!!     this routine isolates the minimum to a precision of about tol using
 !!     Brent method. This routine implements the extension of the Brent Method
 !!     using derivatives
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
   FUNCTION cg_dbrent(gopt_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit,&
@@ -768,8 +768,8 @@ CONTAINS
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: dbrent
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_dbrent', &
@@ -833,7 +833,7 @@ CONTAINS
                 d = d2
              ENDIF
              IF (.NOT.skip0) THEN
-                IF(ABS(d).GT.ABS(0.5_dp*olde)) skip0=.TRUE. 
+                IF(ABS(d).GT.ABS(0.5_dp*olde)) skip0=.TRUE.
                 IF (.NOT.skip0) THEN
                    u=x+d
                    IF((u-a).LT.tol2 .OR. (b-u).LT.tol2) d=SIGN(tol1,xm-x)
@@ -896,10 +896,10 @@ CONTAINS
        xmin=x
        dbrent=fx
     END IF
-    CALL timestop(handle) 
+    CALL timestop(handle)
 
   END FUNCTION cg_dbrent
-  
+
 !!****f* cg_optimizer/cg_eval1d [1.0] *
 !!
 !!   NAME
@@ -913,22 +913,22 @@ CONTAINS
 !!
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
-!!*** **********************************************************************  
+!!*** **********************************************************************
   FUNCTION cg_eval1d(gopt_env,x,pcom,xicom,error) RESULT(my_val)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: my_val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d', &
@@ -969,14 +969,14 @@ CONTAINS
 !!
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
+!!     10.2005 created [tlaino]
 !!
 !!*** **********************************************************************
   FUNCTION cg_deval1d(gopt_env,x,pcom,xicom,fval,error) RESULT(my_val)
@@ -984,8 +984,8 @@ CONTAINS
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     REAL(KIND=dp)                            :: fval
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: my_val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d', &
@@ -1033,20 +1033,20 @@ CONTAINS
 !!
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     10.2005 created [fawzi] 
+!!     10.2005 created [fawzi]
 !!
 !!*** **********************************************************************
   FUNCTION FindMin(x,y,dy,error) RESULT(res)
     REAL(kind=dp), DIMENSION(:)              :: x, y, dy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FindMin', &
@@ -1109,4 +1109,4 @@ CONTAINS
     END IF
   END FUNCTION FindMin
 
-END MODULE cg_optimizer 
+END MODULE cg_optimizer

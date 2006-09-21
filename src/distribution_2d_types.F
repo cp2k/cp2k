@@ -10,9 +10,9 @@
 !!     distribution_2d_types
 !!
 !!   FUNCTION
-!!     stores a mapping of 2D info (e.g. matrix) on a 
+!!     stores a mapping of 2D info (e.g. matrix) on a
 !!     2D processor distribution (i.e. blacs grid)
-!!     where cpus in the same blacs row own the same rows of the 2D info 
+!!     where cpus in the same blacs row own the same rows of the 2D info
 !!     (and similar for the cols)
 !!
 !!   NOTES
@@ -21,7 +21,7 @@
 !!     Joost VandeVondele (2003-08)
 !!
 MODULE distribution_2d_types
-  
+
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type,&
                                              cp_1d_i_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_igsum2d
@@ -75,7 +75,7 @@ MODULE distribution_2d_types
   !!     - n_local_cols(ikind): number of local cols of kind ikind
   !!     - local_cols(ikind)%array: ordered global indexes of the local cols
   !!       of kind ikind (might be oversized)
-  !!     - local_rows(ikind)%array: ordered global indexes of the local 
+  !!     - local_rows(ikind)%array: ordered global indexes of the local
   !!       rows of kind ikind (might be oversized)
   !!     - flat_local_rows: ordered global indexes of the local rows
   !!       (allocated on request, might be oversized)
@@ -153,8 +153,8 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       OPTIONAL                               :: n_local_cols
     INTEGER, INTENT(in), OPTIONAL            :: n_row_distribution, &
                                                 n_col_distribution
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create', &
       routineP = moduleN//':'//routineN
@@ -209,7 +209,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
          END IF
          distribution_2d%n_row_distribution=n_row_distribution
       END IF
-         
+
       IF (PRESENT(local_rows_ptr)) &
            distribution_2d%local_rows => local_rows_ptr
       IF (.NOT.ASSOCIATED(distribution_2d%local_rows)) THEN
@@ -275,8 +275,8 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       END IF
 
       distribution_2d%blacs_env => blacs_env
-      CALL cp_blacs_env_retain(distribution_2d%blacs_env)
-      
+      CALL cp_blacs_env_retain(distribution_2d%blacs_env,error=error)
+
    END IF
  END SUBROUTINE distribution_2d_create
 !***************************************************************************
@@ -302,8 +302,8 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
 !!*** *********************************************************************
 SUBROUTINE distribution_2d_retain(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_retain', &
       routineP = moduleN//':'//routineN
@@ -338,8 +338,8 @@ END SUBROUTINE distribution_2d_retain
 !!*** *********************************************************************
 SUBROUTINE distribution_2d_release(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_release', &
       routineP = moduleN//':'//routineN
@@ -353,7 +353,7 @@ SUBROUTINE distribution_2d_release(distribution_2d,error)
       IF (.NOT. failure ) THEN
          distribution_2d%ref_count=distribution_2d%ref_count-1
          IF (distribution_2d%ref_count == 0 ) THEN
-            CALL cp_blacs_env_release(distribution_2d%blacs_env)
+            CALL cp_blacs_env_release(distribution_2d%blacs_env,error=error)
             IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
                DEALLOCATE(distribution_2d%col_distribution,stat=istat)
                CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
@@ -413,8 +413,8 @@ END SUBROUTINE distribution_2d_release
 !!   INPUTS
 !!     - distribution_2d: the distribution for which you want to build the global
 !!       distribution
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -425,8 +425,8 @@ END SUBROUTINE distribution_2d_release
 !!*** **********************************************************************
 SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_build_gdist', &
       routineP = moduleN//':'//routineN
@@ -609,8 +609,8 @@ END SUBROUTINE distribution_2d_build_gdist
 !!   ARGUMENTS
 !!     - distribution_2d: the distribution from which you want to remove
 !!       the global distribution
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -621,8 +621,8 @@ END SUBROUTINE distribution_2d_build_gdist
 !!*** **********************************************************************
 SUBROUTINE distribution_2d_destroy_gdist(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'distribution_2d_destroy_gdist', &
@@ -667,8 +667,8 @@ END SUBROUTINE distribution_2d_destroy_gdist
 !!       logger%para_env%mepos writes), defaults to false.
 !!     - long_description: if a long description should be given,
 !!       defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -682,8 +682,8 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: local, long_description
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_write', &
       routineP = moduleN//':'//routineN
@@ -695,13 +695,13 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
-  
+
   my_long_description=.FALSE.
   IF (PRESENT(long_description)) my_long_description=long_description
   my_local=.FALSE.
   IF (PRESENT(local)) my_local=local
   IF (.NOT.my_local) my_local=(logger%para_env%source==logger%para_env%mepos)
-  
+
   IF (ASSOCIATED(distribution_2d)) THEN
      IF (my_local) THEN
         WRITE (unit=unit_nr,&
@@ -785,7 +785,7 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
            END DO
            WRITE (unit=unit_nr,fmt="(' ),')")
         ELSE
-           WRITE (unit=unit_nr,fmt="(' local_rows=*null*,')")           
+           WRITE (unit=unit_nr,fmt="(' local_rows=*null*,')")
         END IF
 
         IF (ASSOCIATED(distribution_2d%n_local_cols)) THEN
@@ -825,7 +825,7 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
            END DO
            WRITE (unit=unit_nr,fmt="(' ),')")
         ELSE
-           WRITE (unit=unit_nr,fmt="(' local_cols=*null*,')")           
+           WRITE (unit=unit_nr,fmt="(' local_cols=*null*,')")
         END IF
 
         IF (ASSOCIATED(distribution_2d%blacs_env)) THEN
@@ -843,14 +843,14 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
 
         WRITE (unit=unit_nr,fmt="(' }')")
      END IF
-     
+
   ELSE IF (my_local) THEN
      WRITE (unit=unit_nr,&
           fmt="(' <distribution_2d *null*>')")
   END IF
-  
+
   CALL m_flush(unit_nr)
-  
+
 END SUBROUTINE distribution_2d_write
 !***************************************************************************
 
@@ -867,8 +867,8 @@ END SUBROUTINE distribution_2d_write
 !!
 !!   INPUTS
 !!     - distribution_2d: the object you want info about
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!     see distribution_2d_type attributes for a description of the other
 !!     arguments
 !!
@@ -900,8 +900,8 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_get', &
       routineP = moduleN//':'//routineN

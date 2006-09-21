@@ -74,8 +74,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fist_neighbor_deallocate(fist_neighbor,error)
     TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_deallocate', &
       routineP = moduleN//':'//routineN
@@ -126,8 +126,8 @@ CONTAINS
   SUBROUTINE fist_neighbor_init(fist_neighbor, nkind, ncell, error)
     TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
     INTEGER, INTENT(IN)                      :: nkind, ncell(3)
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_init', &
       routineP = moduleN//':'//routineN
@@ -212,8 +212,8 @@ CONTAINS
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: added
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
       routineP = moduleN//':'//routineN

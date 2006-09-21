@@ -12,10 +12,10 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     gt  SEPT-24-02 
+!!     gt  SEPT-24-02
 !!
 !!   MODIFICATION HISTORY
-!!      gt 13-11-03 rewritten           
+!!      gt 13-11-03 rewritten
 !!      JGH 20-05-04 use QS as polarization method
 !!
 !!   SOURCE
@@ -117,10 +117,10 @@ MODULE kg_environment_types
     TYPE(kg_energy_type), POINTER                         :: energy
     TYPE(kg_fm_p_type), POINTER                           :: kg_fm_set
     TYPE(kg_force_type), DIMENSION(:), POINTER            :: force
-    TYPE(kg_rho_type),POINTER                             :: rho 
-    TYPE(kg_rspw_type),POINTER                            :: rspw 
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl 
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux 
+    TYPE(kg_rho_type),POINTER                             :: rho
+    TYPE(kg_rspw_type),POINTER                            :: rspw
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux
     TYPE(kg_scf_env_type), POINTER                        :: scf_env
     TYPE(scf_control_type),POINTER                        :: scf_control
     TYPE(cp_subsystem_type), POINTER                      :: subsys
@@ -130,7 +130,7 @@ MODULE kg_environment_types
 
 ! *** Public data types ***
 
-  PUBLIC :: kg_environment_type 
+  PUBLIC :: kg_environment_type
 
 ! *** Public subroutines ***
 
@@ -209,8 +209,8 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_kg_env', &
       routineP = moduleN//':'//routineN
@@ -224,7 +224,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(atomic_kinds, particles,molecule_kinds_new, molecules_new) 
+    NULLIFY(atomic_kinds, particles,molecule_kinds_new, molecules_new)
 !    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(kg_env%subsys),cp_failure_level,routineP,error,failure)
@@ -288,8 +288,8 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -377,8 +377,8 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_kg_env', &
       routineP = moduleN//':'//routineN
@@ -416,7 +416,7 @@ CONTAINS
        CALL dft_control_release(kg_env%dft_control, error=error)
        kg_env%dft_control => dft_control
     END IF
-    IF (PRESENT(scf_control)) THEN 
+    IF (PRESENT(scf_control)) THEN
        CALL scf_c_retain(scf_control,error=error)
        CALL scf_c_release(kg_env%scf_control,error=error)
        kg_env%scf_control => scf_control
@@ -443,7 +443,7 @@ CONTAINS
       CALL kg_rspw_release(kg_env%rspw,error=error)
       kg_env%rspw => rspw
     END IF
-    IF (PRESENT(scf_env)) THEN 
+    IF (PRESENT(scf_env)) THEN
        CALL kg_scf_env_retain(scf_env,error=error)
        CALL kg_scf_env_release(kg_env%scf_env, error=error)
        kg_env%scf_env => scf_env
@@ -451,8 +451,8 @@ CONTAINS
     IF ( PRESENT ( sac_ppl ) ) kg_env % sac_ppl => sac_ppl
     IF ( PRESENT ( sac_ppl_aux ) ) kg_env % sac_ppl_aux => sac_ppl_aux
     IF (PRESENT(distribution_2d)) THEN
-       CALL distribution_2d_retain(distribution_2d)
-       CALL distribution_2d_release(kg_env%distribution_2d)
+       CALL distribution_2d_retain(distribution_2d,error=error)
+       CALL distribution_2d_release(kg_env%distribution_2d,error=error)
        kg_env%distribution_2d => distribution_2d
     ENDIF
     IF (PRESENT(subsys)) THEN
@@ -548,8 +548,8 @@ CONTAINS
 SUBROUTINE kg_env_create(kg_env,para_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
       routineP = moduleN//':'//routineN
@@ -562,7 +562,7 @@ SUBROUTINE kg_env_create(kg_env,para_env,error)
   ALLOCATE(kg_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL init_kg_env(kg_env,para_env=para_env,error=error)         
+     CALL init_kg_env(kg_env,para_env=para_env,error=error)
   END IF
 END SUBROUTINE kg_env_create
 !***************************************************************************
@@ -590,8 +590,8 @@ END SUBROUTINE kg_env_create
 !***************************************************************************
 SUBROUTINE kg_env_retain(kg_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_retain', &
       routineP = moduleN//':'//routineN
@@ -632,8 +632,8 @@ END SUBROUTINE kg_env_retain
 !!*** **********************************************************************
 SUBROUTINE kg_env_release(kg_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_release', &
       routineP = moduleN//':'//routineN
@@ -647,8 +647,8 @@ SUBROUTINE kg_env_release(kg_env,error)
      CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
      kg_env%ref_count=kg_env%ref_count-1
      IF (kg_env%ref_count<1) THEN
-        CALL cell_release(kg_env%cell)
-        CALL cell_release(kg_env%cell_ref)
+        CALL cell_release(kg_env%cell,error=error)
+        CALL cell_release(kg_env%cell_ref,error=error)
         CALL dft_control_release(kg_env%dft_control, error=error)
         IF (ASSOCIATED(kg_env%sac_ppl)) THEN
            DO i=1,SIZE(kg_env%sac_ppl)
@@ -671,10 +671,10 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF (ASSOCIATED(kg_env%force))&
              CALL deallocate_kg_force(kg_env%force)
         IF (ASSOCIATED(kg_env%distribution_2d)) THEN
-           CALL distribution_2d_release(kg_env%distribution_2d)
+           CALL distribution_2d_release(kg_env%distribution_2d,error=error)
         ENDIF
-        IF (ASSOCIATED(kg_env%kg_fm_set)) THEN 
-           CALL kg_fm_mol_set_release(kg_env%kg_fm_set)
+        IF (ASSOCIATED(kg_env%kg_fm_set)) THEN
+           CALL kg_fm_mol_set_release(kg_env%kg_fm_set,error=error)
         END IF
         IF (ASSOCIATED(kg_env%scf_env))  THEN
            CALL kg_scf_env_release(kg_env%scf_env, error=error)
@@ -682,7 +682,7 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF(ASSOCIATED(kg_env%virial)) THEN
           CALL virial_release(kg_env%virial,error=error)
         END IF
- 
+
         CALL kg_rho_release(kg_env%rho, error=error)
         CALL kg_rspw_release(kg_env%rspw, error=error)
         CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)

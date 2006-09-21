@@ -198,8 +198,8 @@ SUBROUTINE cp_1d_i_write(array, unit_nr, el_format, error)
     INTEGER, DIMENSION(:), INTENT(in)        :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: defaultFormat = "(i6)", &
       routineN = 'cp_1d_i_write', routineP = moduleN//':'//routineN
@@ -270,8 +270,8 @@ SUBROUTINE cp_2d_i_write(array, unit_nr, el_format, error)
     INTEGER, DIMENSION(:, :), INTENT(in)     :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: defaultFormat = "(i6)", &
       routineN = 'cp_2d_i_write', routineP = moduleN//':'//routineN
@@ -337,8 +337,8 @@ END SUBROUTINE cp_2d_i_write
     INTEGER, DIMENSION(:), POINTER           :: array
     INTEGER, INTENT(in)                      :: n
     INTEGER, INTENT(in), OPTIONAL            :: init
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_i_guarantee_size', &
       routineP = moduleN//':'//routineN
@@ -403,8 +403,8 @@ END SUBROUTINE cp_2d_i_write
     INTEGER, DIMENSION(:, :), POINTER        :: array
     INTEGER, INTENT(in)                      :: n_rows, n_cols
     INTEGER, INTENT(in), OPTIONAL            :: init
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_i_guarantee_size', &
       routineP = moduleN//':'//routineN
@@ -468,8 +468,8 @@ FUNCTION cp_1d_i_bsearch(array, el, l_index, u_index, error)&
     INTEGER, DIMENSION(:), INTENT(in)        :: array
     INTEGER, INTENT(in)                      :: el
     INTEGER, INTENT(in), OPTIONAL            :: l_index, u_index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_i_bsearch', &

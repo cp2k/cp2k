@@ -10,7 +10,7 @@
 !!     qs_rho_types
 !!
 !!   FUNCTION
-!!     superstucture that hold various representations of the density and 
+!!     superstucture that hold various representations of the density and
 !!     keeps track of which ones are valid
 !!
 !!   NOTES
@@ -68,7 +68,7 @@ MODULE qs_rho_types
 !!     - tau_r: grids with the kinetic energy density in real space
 !!     - rho_g: grids with rho in the g space
 !!     - tau_g: grids with the kinetic energy density in g space
-!!     - rho_g_valid, rho_r_valid, tau_r_valid, tau_g_valid: if the 
+!!     - rho_g_valid, rho_r_valid, tau_r_valid, tau_g_valid: if the
 !!       corresponding component is valid
 !!     - ref_count: the reference count, when it becomes 0 the type
 !!       is deallocated.
@@ -86,7 +86,7 @@ MODULE qs_rho_types
   TYPE qs_rho_type
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
-     TYPE(coeff_type), DIMENSION(:), POINTER :: tau_g, tau_r 
+     TYPE(coeff_type), DIMENSION(:), POINTER :: tau_g, tau_r
      LOGICAL ::  rho_g_valid, &
           rho_r_valid, &
           tau_r_valid, &
@@ -126,8 +126,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - rho_struct: the structure to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -138,8 +138,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_retain(rho_struct,error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_retain', &
       routineP = moduleN//':'//routineN
@@ -177,8 +177,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - rho_struct: the structure to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -189,8 +189,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_release(rho_struct,error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_release', &
       routineP = moduleN//':'//routineN
@@ -206,35 +206,35 @@ CONTAINS
        IF (rho_struct%ref_count<1) THEN
           IF (ASSOCIATED(rho_struct%rho_ao)) THEN
              IF(rho_struct%soft_valid) THEN
-               NULLIFY(rho_struct%rho_ao) 
+               NULLIFY(rho_struct%rho_ao)
              ELSE
-               CALL deallocate_matrix_set(rho_struct%rho_ao)
+               CALL deallocate_matrix_set(rho_struct%rho_ao,error=error)
              ENDIF
           END IF
           IF (ASSOCIATED(rho_struct%rho_r)) THEN
              DO i=1,SIZE(rho_struct%rho_r)
-                CALL coeff_deallocate(rho_struct%rho_r(i))
+                CALL coeff_deallocate(rho_struct%rho_r(i),error=error)
              END DO
              DEALLOCATE(rho_struct%rho_r,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%tau_r)) THEN
              DO i=1,SIZE(rho_struct%tau_r)
-                CALL coeff_deallocate(rho_struct%tau_r(i))
+                CALL coeff_deallocate(rho_struct%tau_r(i),error=error)
              END DO
              DEALLOCATE(rho_struct%tau_r,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%rho_g)) THEN
              DO i=1,SIZE(rho_struct%rho_g)
-                CALL coeff_deallocate(rho_struct%rho_g(i))
+                CALL coeff_deallocate(rho_struct%rho_g(i),error=error)
              END DO
              DEALLOCATE(rho_struct%rho_g,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%tau_g)) THEN
              DO i=1,SIZE(rho_struct%tau_g)
-                CALL coeff_deallocate(rho_struct%tau_g(i))
+                CALL coeff_deallocate(rho_struct%tau_g(i),error=error)
              END DO
              DEALLOCATE(rho_struct%tau_g,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -271,7 +271,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     this function should be called wehn something changes to update the
-!!     internal status 
+!!     internal status
 !!
 !!   NOTES
 !!     -
@@ -280,8 +280,8 @@ CONTAINS
 !!     - rho_struct: the density structure that changed
 !!     - rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid: actual valid
 !!       representations
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -295,8 +295,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho_struct
     LOGICAL, INTENT(in), OPTIONAL            :: rho_r_valid, rho_g_valid, &
                                                 tau_r_valid, tau_g_valid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_did_change', &
       routineP = moduleN//':'//routineN
@@ -342,8 +342,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!     For the other inputs the qs_rho_type attributes
 !!
 !!   AUTHOR
@@ -355,7 +355,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, &
        rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r,&
-       soft_valid, error) 
+       soft_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao
@@ -367,8 +367,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: tot_rho_r
     LOGICAL, INTENT(out), OPTIONAL           :: soft_valid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_get', &
       routineP = moduleN//':'//routineN

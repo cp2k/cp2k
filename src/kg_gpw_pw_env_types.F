@@ -14,10 +14,10 @@
 !!     Define the  PW environment for each molecule kind
 !!     A cubic box is given for each molecule kind, the box should
 !!     be smaller than the box containing the whole system. The size
-!!     of the box is determined by the typical size of the molecule, 
+!!     of the box is determined by the typical size of the molecule,
 !!     assuming that intra-molecular bonds are not broken during this
-!!     kind of simulations. The local grids are defined in order to be consistent 
-!!     with the global grid for the entire system.  
+!!     kind of simulations. The local grids are defined in order to be consistent
+!!     with the global grid for the entire system.
 !!     For each molecule a rho structure is defined, which is dimensioned on
 !!     the size of the local grid in the molecular-box
 !!
@@ -69,7 +69,7 @@ MODULE kg_gpw_pw_env_types
   TYPE kg_molbox_env_type
     INTEGER :: natom, nmolecule_local
     REAL(dp) :: rab_max, rad_max
-    TYPE(pw_env_type) , POINTER                 :: pw_env_mol 
+    TYPE(pw_env_type) , POINTER                 :: pw_env_mol
     TYPE(pw_poisson_type), POINTER              :: poisson_env
     TYPE(cell_type), POINTER                    :: cell_mol
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
@@ -102,8 +102,8 @@ CONTAINS
 
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), POINTER                  :: rho_mol_blocks
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_mol_blocks', &
       routineP = moduleN//':'//routineN
@@ -180,8 +180,8 @@ CONTAINS
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
     REAL(dp), INTENT(IN), OPTIONAL           :: r0_molecule(3)
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_mol
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     IF(PRESENT(r0_molecule)) rho_block%r0_molecule(1:3) = r0_molecule(1:3)
     IF (PRESENT(rho_mol)) THEN ! accepts also null pointers !
@@ -198,8 +198,8 @@ CONTAINS
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     INTEGER                                  :: nmolecule_kind
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_create', &
       routineP = moduleN//':'//routineN
@@ -227,7 +227,7 @@ CONTAINS
       END DO
 
     END IF
-  
+
   END SUBROUTINE kg_sub_pw_env_create
 
 ! *****************************************************************************
@@ -237,8 +237,8 @@ CONTAINS
     TYPE(kg_molbox_env_type), DIMENSION(:), &
       POINTER                                :: molbox_env_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_destroy', &
       routineP = moduleN//':'//routineN
@@ -253,9 +253,9 @@ CONTAINS
 
     DO ikind = 1,n
       nmol = molbox_env_set(ikind)%nmolecule_local
-      
-      CALL pw_poisson_release(molbox_env_set(ikind)%poisson_env)
-      CALL cell_release(molbox_env_set(ikind)%cell_mol)
+
+      CALL pw_poisson_release(molbox_env_set(ikind)%poisson_env,error=error)
+      CALL cell_release(molbox_env_set(ikind)%cell_mol,error=error)
 
       IF (ASSOCIATED(molbox_env_set(ikind)%pw_env_mol%cube_info)) THEN
 
@@ -287,8 +287,8 @@ CONTAINS
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_release', &
       routineP = moduleN//':'//routineN
@@ -319,8 +319,8 @@ CONTAINS
   SUBROUTINE kg_sub_pw_env_retain(kg_sub_pw_env,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_retain', &
       routineP = moduleN//':'//routineN
@@ -328,7 +328,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-  
+
     CPPrecondition(ASSOCIATED(kg_sub_pw_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
       CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -346,8 +346,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmol, natom
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rho_mol_blocks_create', &
       routineP = moduleN//':'//routineN
@@ -390,8 +390,8 @@ CONTAINS
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_mol
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rho_mol_blocks
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_molbox_env', &
       routineP = moduleN//':'//routineN

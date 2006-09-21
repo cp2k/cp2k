@@ -7,13 +7,13 @@
 
 !!****m* cp2k/qs_linres_nmr_shift *
 !!
-!!   NAME 
+!!   NAME
 !!     qs_linres_nmr_current
 !!
 !!   FUNCTION
 !!     from the response current density calculates the shift tensor
 !!     and the susceptibility
-!!     
+!!
 !!
 !!   AUTHOR
 !!     MI
@@ -118,8 +118,8 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ispin, iB
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
       routineP = moduleN//':'//routineN
@@ -168,24 +168,24 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,matrix_s=matrix_s,&
          mos=mos,&
-         para_env=para_env)
+         para_env=para_env,error=error)
     gapw = dft_control%qs_control%gapw
 
     CALL get_nmr_env(nmr_env=nmr_env, nao=nao, nstates=nstates, &
                      centers_set=centers_set,op_p_ao=op_p_ao, &
-                     psi1_p=psi1_p, psi1_rxp=psi1_rxp, psi1_D=psi1_D  )
+                     psi1_p=psi1_p, psi1_rxp=psi1_rxp, psi1_D=psi1_D  ,error=error)
 
 !   Allocate sparse matric for dipole, quadrupole and their derivatives => 9x3
 !   Remember the derivatives are antisymmetric
-    CALL allocate_matrix_set(op_mom_ao,9)
-    CALL allocate_matrix_set(op_mom_der_ao,9,3)
+    CALL allocate_matrix_set(op_mom_ao,9,error=error)
+    CALL allocate_matrix_set(op_mom_der_ao,9,3,error=error)
     CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
-          name="op_mom",error=error)    
+          name="op_mom",error=error)
     DO idir2=1,3
        CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
             op_mom_der_ao(1,idir2)%matrix,&
             "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),&
-            target_symmetry="none")
+            target_symmetry="none",error=error)
        CALL set_matrix(op_mom_der_ao(1,idir2)%matrix,0.0_dp)
     END DO
 
@@ -193,13 +193,13 @@ CONTAINS
       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
            op_mom_ao(idir)%matrix,&
            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-           target_symmetry="none")
+           target_symmetry="none",error=error)
       CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
       DO idir2=1,3
         CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
              op_mom_der_ao(idir,idir2)%matrix,&
              "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),&
-             target_symmetry="none")
+             target_symmetry="none",error=error)
         CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
       END DO
     END DO
@@ -214,20 +214,20 @@ CONTAINS
 !   Allocate full matrices for only one vector
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-         ncol_global=1,para_env=para_env,context=mo_coeff%matrix_struct%context)
-    CALL cp_fm_create (psi0_istate, tmp_fm_struct )
-    CALL cp_fm_create (psi_rxp_istate, tmp_fm_struct )
-    CALL cp_fm_create (psi_p1_istate, tmp_fm_struct )
-    CALL cp_fm_create (psi_p2_istate, tmp_fm_struct )
-    CALL cp_fm_create (momxpsi_istate, tmp_fm_struct )
-    CALL cp_fm_struct_release ( tmp_fm_struct )
+         ncol_global=1,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
+    CALL cp_fm_create (psi0_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create (psi_rxp_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create (psi_p1_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create (psi_p2_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_create (momxpsi_istate, tmp_fm_struct ,error=error)
+    CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 !dbg
 !    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
 !          ncol_global=nao,para_env=para_env,context=mo_coeff%matrix_struct%context)
 !    CALL cp_fm_create (fm_work2, tmp_fm_struct )
 !    CALL cp_fm_struct_release ( tmp_fm_struct )
 !dbg
-  
+
 
 !   Allocate buffer vectors
     NULLIFY(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d)
@@ -241,8 +241,8 @@ CONTAINS
       NULLIFY(vecbuf_1_p(idir)%array)
       ALLOCATE(vecbuf_1_p(idir)%array(1,nao),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END DO 
-    
+    END DO
+
 !   Initialize the temporary vector chi
     chi = 0.0_dp
 
@@ -265,10 +265,10 @@ CONTAINS
   WRITE(*,*) ' state ', istate, dk(1:3)
       CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
            minimum_image=.TRUE.,soft=gapw,error=error)
-!  stop 'check mom' 
+!  stop 'check mom'
 !dbg
 !dbg
-!       DO idir= 1,9      
+!       DO idir= 1,9
 !         fnum = 100+idir
 !         CALL copy_sm_to_fm(op_mom_ao(idir)%matrix,fm_work2,error=error)
 !         write(fnum,*) ' op_mom_ao', idir
@@ -286,7 +286,7 @@ CONTAINS
 !       END DO
 !       stop 'check operators'
 !dbg
-!     EXTRACT from the ground state full MOS matrix the coefficients of istate 
+!     EXTRACT from the ground state full MOS matrix the coefficients of istate
       CALL cp_fm_get_submatrix(mo_coeff,&
            vecbuf_0,1,istate,nao,1,transpose=.TRUE.,error=error)
       vecbuf_0(1,1:nao) = vecbuf_0(1,1:nao) * occupation(istate)
@@ -328,12 +328,12 @@ CONTAINS
 !     Multuply left and right by the appropriate coefficients and sum into the
 !     correct component of the chi tensor using the appropriate multiplicative factor
 !     (don't forget the occupation number)
-!     Loop over the cartesian components of the tensor 
+!     Loop over the cartesian components of the tensor
 !     The loop over the components of the external field is external, thereby
-!     only one column of the chi tensor is computed here 
+!     only one column of the chi tensor is computed here
       DO idir = 1,3
 !dbg
-   WRITE(*,*) ' chi istate ', istate, ' idir =', idir 
+   WRITE(*,*) ' chi istate ', istate, ' idir =', idir
   !     get ii and iii
         CALL set_vecp(idir,ii,iii)
 
@@ -342,7 +342,7 @@ CONTAINS
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) + 2.0_dp * contrib
 
 !dbg
@@ -352,7 +352,7 @@ CONTAINS
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) - 2.0_dp *contrib
 !dbg
   WRITE(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term b r ',iii,' der ',&
@@ -364,13 +364,13 @@ CONTAINS
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
 !
         contrib2 = 0.0_dp
         CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
 !dbg
   WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 1st correction ab ',ii,' and ',&
@@ -378,20 +378,20 @@ CONTAINS
 !dbg
 
 !       term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
-!             +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))] 
+!             +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         idir2 = ind_m2(ii,iiB)
 !        write(*,*) 'imom ', ii, iiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) - 2.0_dp * contrib
         contrib2 = 0.0_dp
         IF(iiB==iii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
                momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) - contrib2
         END IF
 !dbg
@@ -404,13 +404,13 @@ CONTAINS
 !        write(*,*) 'imom ', iii, iiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) + 2.0_dp * contrib
         contrib2 = 0.0_dp
         IF(iiB==ii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
                momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) + contrib2
         END IF
 !dbg
@@ -419,19 +419,19 @@ CONTAINS
 !dbg
 
 !       correction: -dk_ii * 2[C0|(r-dk)_iiB | d_iii(C1(piiiB))] \
-!                   +dk_iii * 2[C0|(r-dk)_iiB | d_ii(C1(piiiB))] 
+!                   +dk_iii * 2[C0|(r-dk)_iiB | d_ii(C1(piiiB))]
 !       the factor 2 should be already included in the matrix elements
 !       no additional correction terms because of the orthogonality between C0 and C1
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,iii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) - 2.0_dp*dk(ii)*contrib
 !
         contrib2 = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,ii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) + 2.0_dp*dk(iii)*contrib2
 !dbg
   WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
@@ -439,20 +439,20 @@ CONTAINS
 !dbg
 
 !       term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
-!             -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))] 
+!             -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         idir2 = ind_m2(ii,iiiB)
 !        write(*,*) 'imom ', ii, iiiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) + 2.0_dp*contrib
         contrib2 = 0.0_dp
         IF(iiiB==iii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
                momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) + contrib2
         END IF
 !dbg
@@ -464,13 +464,13 @@ CONTAINS
 !        write(*,*) 'imom ', iii, iiiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) - 2.0_dp * contrib
         contrib2 = 0.0_dp
         IF(iiiB==ii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
                momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) - contrib2
         END IF
 !dbg
@@ -479,18 +479,18 @@ CONTAINS
 !dbg
 
 !       correction: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +\
-!                   -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))] 
+!                   -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,iii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
 !
         contrib2 = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,ii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
 !dbg
   WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
@@ -501,16 +501,16 @@ CONTAINS
 
 
     END DO  ! istate
-    WRITE(*,*) "CHI TENSOR : iB =", iB 
+    WRITE(*,*) "CHI TENSOR : iB =", iB
     DO idir = 1,3
       nmr_env%chi_tensor(idir,iB) =  nmr_env%chi_tensor(idir,iB)+&
                                      chi(idir)*nmr_env%chi_factor
       WRITE(*,*)  idir, nmr_env%chi_tensor(idir,iB)
-    END DO 
+    END DO
 
 !   deallocate the sparse matrices
-    CALL deallocate_matrix_set(op_mom_ao)
-    CALL deallocate_matrix_set(op_mom_der_ao)
+    CALL deallocate_matrix_set(op_mom_ao,error=error)
+    CALL deallocate_matrix_set(op_mom_der_ao,error=error)
     CALL cp_fm_release (psi0_istate, error=error )
     CALL cp_fm_release (psi_rxp_istate, error=error )
     CALL cp_fm_release (psi_p1_istate, error=error )
@@ -521,10 +521,10 @@ CONTAINS
     DO idir = 1,3
       DEALLOCATE(vecbuf_1_p(idir)%array,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END DO 
+    END DO
 
     CALL timestop(0.0_dp,handle)
-    
+
   END SUBROUTINE chi_soft_analytic
 
 
@@ -532,15 +532,15 @@ CONTAINS
 
 !!****f* qs_linres_nmr_shift%interpolate_shift_pwgrid
 !!
-!!  NAME 
+!!  NAME
 !!      nmr_interpolate_shift_pwgrid
 !!
 !!  FUNCTION
-!!      interpolate the shift calculated on the PW grid in order to ger 
+!!      interpolate the shift calculated on the PW grid in order to ger
 !!      the value on arbitrary points in real space
 !!
 !!  ARGUMENTS
-!!      nme_env : to get the shift tensor and the list of additional points 
+!!      nme_env : to get the shift tensor and the list of additional points
 !!      particle_set : for the atomic position
 !!      cell : to take into account the pbs, and to have the volume
 !!      shift_pw_rspace : specific component of the shift tensor on the pw grid
@@ -565,8 +565,8 @@ CONTAINS
     TYPE(coeff_type)                         :: shift_pw_rspace
     INTEGER, INTENT(IN)                      :: i_B, idir
     TYPE(section_vals_type), POINTER         :: nmr_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
       routineP = moduleN//':'//routineN
@@ -611,11 +611,11 @@ CONTAINS
 !dbg
 
       ! calculate spline coefficients
-      CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool,error=error)
       CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=shiftspl, &
                              use_data=REALDATA3D,in_space=REALSPACE,&
                              error=error)
-        
+
       CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
           pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
       CALL pw_spline_do_precond(precond,shift_pw_rspace%pw,shiftspl%pw,error=error)
@@ -631,7 +631,7 @@ CONTAINS
       CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
            chemical_shift=chemical_shift,&
            chemical_shift_nics=chemical_shift_nics,&
-           n_nics=n_nics,r_nics=r_nics)
+           n_nics=n_nics,r_nics=r_nics,error=error)
 
       IF(ASSOCIATED(cs_atom_list)) THEN
         natom = SIZE(cs_atom_list,1)
@@ -651,7 +651,7 @@ CONTAINS
   !dbg
     WRITE(*,*) " CS iatom ", iatom, chemical_shift(idir,i_B,iatom)
   !dbg
-      END DO 
+      END DO
 !dbg check interpolation
 !      bo = shift_pw_rspace%pw%pw_grid%bounds_local
 !      dr = shift_pw_rspace%pw%pw_grid%dr
@@ -660,16 +660,16 @@ CONTAINS
 !        rgrid(3) = REAL(k-bo(1,3))*dr(3)
 !        DO j = bo(1,2), bo(2,2)
 !          rgrid(2) = REAL(j-bo(1,2))*dr(2)
-!          DO i =  bo(1,1), bo(2,1) 
+!          DO i =  bo(1,1), bo(2,1)
 !            rgrid(1) = REAL(i-bo(1,1))*dr(1)
 !            val_grid = shift_pw_rspace%pw%cr3d(i,j,k)
 !            val_inter = Eval_Interp_Spl3_pbc(rgrid,shiftspl%pw,error=error)
 !            ig = ig + 1
 !            write(200,'(I10,3f12.6,2f16.8,ES12.4)') ig , rgrid(1:3), &
-!                  val_grid, val_inter, (val_grid-val_inter) 
+!                  val_grid, val_inter, (val_grid-val_inter)
 !          END DO
-!        END DO 
-!      END DO 
+!        END DO
+!      END DO
 !dbg
 
       IF(nmr_env%do_nics) THEN
@@ -691,15 +691,15 @@ CONTAINS
 
 !!****f* qs_linres_nmr_shift%mult_G_ov_G2_grid
 !!
-!!  NAME 
+!!  NAME
 !!      mult_G_ov_G2_grid
 !!
 !!  FUNCTION
 !!      Given the current density on the PW grid in reciprcal space
-!!      (obtained by FFT), calculate the integral  
+!!      (obtained by FFT), calculate the integral
 !!        \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
 !!      which in reciprcal space reads  (for G/=0)
-!!         i G/|G|^2 x J(G)    
+!!         i G/|G|^2 x J(G)
 !!
 !!  ARGUMENTS
 !!
@@ -725,8 +725,8 @@ CONTAINS
     TYPE(coeff_type)                         :: funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
     REAL(dp), INTENT(IN)                     :: my_chi
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
       routineP = moduleN//':'//routineN
@@ -742,7 +742,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
 
     CALL pw_pool_create_pw ( pw_pool, influence_fn,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE )
+               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
 
     grid => influence_fn % pw_grid
     DO ig = grid % first_gne0, grid % ngpts_cut_local
@@ -753,32 +753,32 @@ CONTAINS
 
     frho => funcG_times_rho%pw
     CALL pw_transfer (rho_gspace%pw,frho)
-    
+
     ng = SIZE(grid % gsq)
     frho%cc(1:ng) = frho%cc(1:ng)*influence_fn % cc  ( 1 : ng )
-    IF ( grid % have_g0 ) frho%cc(1) = my_chi 
+    IF ( grid % have_g0 ) frho%cc(1) = my_chi
 
     CALL pw_pool_give_back_pw(pw_pool,influence_fn,&
          accept_non_compatible=.TRUE.,error=error)
- 
+
   END SUBROUTINE  mult_G_ov_G2_grid
 
 ! *****************************************************************************
 !!****f* qs_linres_nmr_shift%nmr_print_shift
 !!
-!!  NAME 
+!!  NAME
 !!      nmr_print_shift
 !!
 !!  FUNCTION
-!!      Shielding tensor and Chi are printed into a file 
+!!      Shielding tensor and Chi are printed into a file
 !!      if required from input
-!!      It is possible to print only for a subset of atoms or 
-!!      or points in non-ionic positions        
+!!      It is possible to print only for a subset of atoms or
+!!      or points in non-ionic positions
 !!
 !!  ARGUMENTS
 !!
 !!  NOTES
-!!     
+!!
 !!
 !!  AUTHOR
 !!    MI
@@ -791,8 +791,8 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: nmr_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_print_shift', &
       routineP = moduleN//':'//routineN
@@ -830,9 +830,9 @@ CONTAINS
          chemical_shift_loc=chemical_shift_loc, &
          chemical_shift_loc_nics=chemical_shift_loc_nics, &
          chi_tensor=chi_tensor, chi_tensor_loc=chi_tensor_loc,&
-         cs_atom_list=cs_atom_list, n_nics=n_nics, r_nics=r_nics)
+         cs_atom_list=cs_atom_list, n_nics=n_nics, r_nics=r_nics,error=error)
 
-    CALL get_qs_env(qs_env, dft_control=dft_control, particle_set=particle_set)
+    CALL get_qs_env(qs_env, dft_control=dft_control, particle_set=particle_set,error=error)
     natom = SIZE(particle_set,1)
     gapw = dft_control%qs_control%gapw
 
@@ -847,7 +847,7 @@ CONTAINS
           chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
           chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i)+&
                           chi_tensor_loc(i,j)+chi_tensor_loc(j,i))/2.0_dp
-        END DO 
+        END DO
       END DO
 
     ELSE
@@ -856,7 +856,7 @@ CONTAINS
       DO i = 1,3
         DO j = 1,3
           chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
-        END DO 
+        END DO
       END DO
 
       CALL  dcopy(9,chi_sym,1,chi_sym_tot,1)
@@ -888,14 +888,14 @@ CONTAINS
            WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor(2,1),&
                  ' YY=',chi_tensor(2,2),' YZ=',chi_tensor(2,3)
            WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor(3,1),&
-                 ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3) 
+                 ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3)
            WRITE(unit_atoms,'(T30,A)') " CHI from LOCAL J in 10^-30 J/T^2 units"
            WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor_loc(1,1),&
                  ' XY=',chi_tensor_loc(1,2),' XZ=',chi_tensor_loc(1,3)
            WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor_loc(2,1),&
                  ' YY=',chi_tensor_loc(2,2),' YZ=',chi_tensor_loc(2,3)
            WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor_loc(3,1),&
-                 ' ZY=',chi_tensor_loc(3,2),' ZZ=',chi_tensor_loc(3,3) 
+                 ' ZY=',chi_tensor_loc(3,2),' ZZ=',chi_tensor_loc(3,3)
 
         ELSE
 
@@ -968,13 +968,13 @@ CONTAINS
                 shift_sym(i,j) = shift_sym(i,j)+(chemical_shift_loc(i,j,iatom)+&
                                  chemical_shift_loc(j,i,iatom))/2.0_dp
               END IF
-            END DO 
-          END DO 
+            END DO
+          END DO
 
           CALL  dcopy(9,shift_sym,1,shift_tmp,1)
           CALL  diamat_all(shift_tmp,eigenv_tmp)
           eigenv_chi(1:3, iatom) = eigenv_tmp(1:3)
-          
+
           WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,name,element_symbol,rpos(1:3)
           WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_x = ',shift_nosym(1, 1:3), eigenv_tmp(1)
           WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_y = ',shift_nosym(2, 1:3), eigenv_tmp(2)
@@ -996,14 +996,14 @@ CONTAINS
           WRITE(unit_nics,'(T2,A)') title
           DO ir = 1,nat_print
             rpos(1:3) = r_nics(1:3,iatom)
-          
+
             WRITE(unit_nics,'(T2,I5,2X,3f15.6)') iatom,rpos(1:3)
             IF(gapw) THEN
-              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(1, 1:3, iatom),& 
+              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(1, 1:3, iatom),&
                     chemical_shift_loc_nics(1,1:3, iatom)
-              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(2, 1:3, iatom),& 
+              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(2, 1:3, iatom),&
                     chemical_shift_loc_nics(2,1:3, iatom)
-              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(3, 1:3, iatom),& 
+              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(3, 1:3, iatom),&
                     chemical_shift_loc_nics(3,1:3, iatom)
             ELSE
               WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(1, 1:3, iatom)
@@ -1011,7 +1011,7 @@ CONTAINS
               WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(3, 1:3, iatom)
             END  IF
           END DO
-        END IF  
+        END IF
 
         CALL cp_print_key_finished_output(unit_nics, logger,nmr_section,&
                  "PRINT%SHIELDING_TENSOR", error=error)

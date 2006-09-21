@@ -17,9 +17,9 @@
 !!     these lists are like sets.
 !!     Some operations assume that the integers represent a range of values
 !!     from 1 to a (not too big) maxval, and that an element is present just
-!!     once, and only on a processor (these assumption are marked in the 
+!!     once, and only on a processor (these assumption are marked in the
 !!     documentation of such operations).
-!!     The concrete task for which this structure was developed was 
+!!     The concrete task for which this structure was developed was
 !!     distributing atoms between the processors.
 !!
 !!   NOTES
@@ -100,9 +100,9 @@ MODULE distribution_1d_types
 !!       processor that has "i". This is allocated only with
 !!       distribution_1d_build_gdist, try to avoid it (uses more
 !!       memory)
-!!     - listbased_distribution: true if each list has its own 
+!!     - listbased_distribution: true if each list has its own
 !!       distribution
-!!       
+!!
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -182,8 +182,8 @@ CONTAINS
 !!     - listbased_distribution: if each list has its own distribution
 !!       (defaults to false)
 !!     - n_el: number of elements in each list (defaults to 0)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -200,8 +200,8 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: n_el
     INTEGER, INTENT(in), OPTIONAL            :: n_lists
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_create', &
       routineP = moduleN//':'//routineN
@@ -213,7 +213,7 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
   my_n_lists=1
   IF(PRESENT(n_el)) my_n_lists=SIZE(n_el)
   IF(PRESENT(n_lists)) my_n_lists=n_lists
-  
+
   ALLOCATE(distribution_1d,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -221,17 +221,17 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
      distribution_1d%id_nr=distribution_1d_last_id_nr
 
      distribution_1d%ref_count=1
-     
+
      distribution_1d%para_env => para_env
      CALL cp_para_env_retain(para_env,error=error)
-     
+
      NULLIFY(distribution_1d%global_distribution)
      NULLIFY(distribution_1d%list,distribution_1d%n_el)
-     
+
      distribution_1d%listbased_distribution=.FALSE.
      IF (PRESENT(listbased_distribution)) &
           distribution_1d%listbased_distribution=listbased_distribution
-     
+
      ALLOCATE(distribution_1d%n_el(my_n_lists), distribution_1d%list(my_n_lists),&
           stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -275,8 +275,8 @@ END SUBROUTINE distribution_1d_create
 !!
 !!   INPUTS
 !!     - distribution_1d: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -287,8 +287,8 @@ END SUBROUTINE distribution_1d_create
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_retain(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_retain', &
       routineP = moduleN//':'//routineN
@@ -296,7 +296,7 @@ SUBROUTINE distribution_1d_retain(distribution_1d,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP,error)
@@ -324,8 +324,8 @@ END SUBROUTINE distribution_1d_retain
 !!
 !!   INPUTS
 !!     - distribution_1d: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -336,8 +336,8 @@ END SUBROUTINE distribution_1d_retain
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_release(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_release', &
       routineP = moduleN//':'//routineN
@@ -351,7 +351,7 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
       DIMENSION(:), POINTER                  :: local_particle_set
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(distribution_1d)) THEN
      CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP,error)
      distribution_1d%ref_count=distribution_1d%ref_count-1
@@ -362,7 +362,7 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
 
         DEALLOCATE(distribution_1d%n_el,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        
+
         DO ilist=1,SIZE(distribution_1d%list)
            DEALLOCATE(distribution_1d%list(ilist)%array,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -381,9 +381,9 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
               nparticle_local = SIZE(local_particle_set(iparticle_kind)%rng)
               DO iparticle_local=1,nparticle_local
                 IF (ASSOCIATED(local_particle_set(iparticle_kind)%&
-                               &rng(iparticle_local)%stream)) THEN 
+                               &rng(iparticle_local)%stream)) THEN
                   CALL delete_rng_stream(local_particle_set(iparticle_kind)%&
-                                         &rng(iparticle_local)%stream)
+                                         &rng(iparticle_local)%stream,error=error)
                 END IF
               END DO
               DEALLOCATE (local_particle_set(iparticle_kind)%rng,STAT=stat)
@@ -411,8 +411,8 @@ END SUBROUTINE distribution_1d_release
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: nparticle_kind, nparticle
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set', &
       routineP = moduleN//':'//routineN
@@ -478,8 +478,8 @@ END SUBROUTINE distribution_1d_release
 !!     - distribution_1d: the lists to sort
 !!     - i_list: the index of the list to sort (if not specified sorts
 !!       all the lists)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -491,8 +491,8 @@ END SUBROUTINE distribution_1d_release
 SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in), OPTIONAL            :: i_list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_sort_list', &
       routineP = moduleN//':'//routineN
@@ -502,7 +502,7 @@ SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
   CPPrecondition(distribution_1d%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -519,10 +519,10 @@ SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
         DO ilist=1,SIZE(distribution_1d%n_el)
            ALLOCATE(indexes(distribution_1d%n_el(ilist)),stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           
+
            CALL sort(distribution_1d%list(ilist)%array,&
                 distribution_1d%n_el(ilist),indexes)
-           
+
            DEALLOCATE(indexes,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END DO
@@ -565,8 +565,8 @@ END SUBROUTINE distribution_1d_sort_list
 !!       the element)
 !!     - i_list: optional, returns the index of the list where the element
 !!       was found (makes sense only if an element was found)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -582,8 +582,8 @@ SUBROUTINE distribution_1d_search_el(distribution_1d, element, found, i_list_to_
     LOGICAL, INTENT(out)                     :: found
     INTEGER, INTENT(in), OPTIONAL            :: i_list_to_search
     INTEGER, INTENT(out), OPTIONAL           :: i_pos, i_list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_search_el', &
       routineP = moduleN//':'//routineN
@@ -592,7 +592,7 @@ SUBROUTINE distribution_1d_search_el(distribution_1d, element, found, i_list_to_
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
   CPPrecondition(distribution_1d%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -643,8 +643,8 @@ END SUBROUTINE distribution_1d_search_el
 !!   INPUTS
 !!     - distribution_1d: the list of which you want to build the global
 !!       distribution
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -655,8 +655,8 @@ END SUBROUTINE distribution_1d_search_el
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_build_gdist', &
       routineP = moduleN//':'//routineN
@@ -821,8 +821,8 @@ END SUBROUTINE distribution_1d_build_gdist
 !!   INPUTS
 !!     - distribution_1d: the list of which you want to destroy the global
 !!       distribution
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -833,8 +833,8 @@ END SUBROUTINE distribution_1d_build_gdist
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_destroy_gdist(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'distribution_1d_destroy_gdist', &
@@ -877,8 +877,8 @@ END SUBROUTINE distribution_1d_destroy_gdist
 !!   INPUTS
 !!     - distribution_1d: the list to describe
 !!     - unit_nr: the unit to write to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -890,8 +890,8 @@ END SUBROUTINE distribution_1d_destroy_gdist
 SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_write', &
       routineP = moduleN//':'//routineN

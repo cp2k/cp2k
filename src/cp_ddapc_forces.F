@@ -23,7 +23,7 @@ MODULE cp_ddapc_forces
 !!     08.2005 created [tlaino]
 !!
 !!   SOURCE
-!****************************************************************************  
+!****************************************************************************
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
@@ -62,7 +62,7 @@ MODULE cp_ddapc_forces
             evaluate_restraint_functional,&
             restraint_functional_force,&
             solvation_ddapc_force
-  
+
 CONTAINS
 
 !!****f* cp_ddapc_forces/ewald_ddapc_force [1.0] *
@@ -101,8 +101,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: dq
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_force', &
       routineP = moduleN//':'//routineN
@@ -159,7 +159,7 @@ CONTAINS
        fvec   = 2.0_dp * pi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
        !
        DO iparticle1 = 1, SIZE(particle_set)
-          ip1 = (iparticle1-1)*SIZE(radii)          
+          ip1 = (iparticle1-1)*SIZE(radii)
           q1t   = SUM(charges(ip1+1:ip1+SIZE(radii)))
           DO iparticle2 = 1, iparticle1
              ip2 = (iparticle2-1)*SIZE(radii)
@@ -169,9 +169,9 @@ CONTAINS
              !
              rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
              IF (iparticle1 /= iparticle2) THEN
-                ra = rvec 
+                ra = rvec
                 r2tmp  = DOT_PRODUCT(ra,ra)
-                IF (r2tmp<=rcut2) THEN 
+                IF (r2tmp<=rcut2) THEN
                    r  = SQRT(r2tmp)
                    t1 = erfc(alpha*r) / r
                    drvec = ra / r * q1t * q2t * fac2 * sfact
@@ -188,7 +188,7 @@ CONTAINS
                       ra(2) = rvec(2) + cell%hmat(2,2)*r2
                       ra(3) = rvec(3) + cell%hmat(3,3)*r3
                       r2tmp  = DOT_PRODUCT(ra,ra)
-                      IF (r2tmp<=rcut2) THEN 
+                      IF (r2tmp<=rcut2) THEN
                          r  = SQRT(r2tmp)
                          t1 = erfc(alpha*r) / r
                          drvec = ra / r * q1t * q2t * fac2 * sfact
@@ -225,13 +225,13 @@ CONTAINS
              ELSE
                 gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t / eps0 * sfact
                 d_el(1:3,iparticle1) = d_el(1:3,iparticle1) -  gvec
-                d_el(1:3,iparticle2) = d_el(1:3,iparticle2) +  gvec                
+                d_el(1:3,iparticle2) = d_el(1:3,iparticle2) +  gvec
              END IF
-             IF (iparticle1/=iparticle2) THEN 
-                ra = rvec 
+             IF (iparticle1/=iparticle2) THEN
+                ra = rvec
                 r  = SQRT(DOT_PRODUCT(ra,ra))
                 t2    = - 1.0_dp /(r*r) * sfact
-                drvec = ra / r * q1t * q2t 
+                drvec = ra / r * q1t * q2t
                 d_el(1:3,iparticle1) = d_el(1:3,iparticle1) + t2 * drvec
                 d_el(1:3,iparticle2) = d_el(1:3,iparticle2) - t2 * drvec
              END IF
@@ -241,7 +241,7 @@ CONTAINS
        IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
        CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
        DEALLOCATE(d_el, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ewald_ddapc_force
@@ -276,8 +276,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_decpl_ddapc_forces', &
       routineP = moduleN//':'//routineN
@@ -300,7 +300,7 @@ CONTAINS
        natom = SIZE(particle_set)
        CALL get_qs_env(qs_env=qs_env,&
                        atomic_kind_set=atomic_kind_set,&
-                       force=force)
+                       force=force,error=error)
        ALLOCATE (atom_of_kind(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (kind_of(natom),stat=stat)
@@ -322,7 +322,7 @@ CONTAINS
        DO iatom=1,natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
-          force(ikind)%ch_pulay(1:3,i) = force(ikind)%ch_pulay(1:3,i) + chf(1:3,iatom) + d_el(1:3,iatom) 
+          force(ikind)%ch_pulay(1:3,i) = force(ikind)%ch_pulay(1:3,i) + chf(1:3,iatom) + d_el(1:3,iatom)
        END DO
        DEALLOCATE(atom_of_kind, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -358,8 +358,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE reset_ch_pulay(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reset_ch_pulay', &
       routineP = moduleN//':'//routineN
@@ -374,7 +374,7 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
-                       force=force)
+                       force=force,error=error)
        DO ind = 1, SIZE(force)
           force(ind)%ch_pulay = 0.0_dp
        END DO
@@ -400,7 +400,7 @@ CONTAINS
 !!        - uv : derivate of energy wrt the corresponding charge entry
 !!
 !!   MODIFICATION HISTORY
-!!     02.2006 [Joost VandeVondele] 
+!!     02.2006 [Joost VandeVondele]
 !!              modified [Teo]
 !!
 !!   SOURCE
@@ -413,8 +413,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:)              :: uv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     REAL(KIND=dp), INTENT(INOUT)             :: energy_res
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'evaluate_restraint_functional', &
@@ -430,7 +430,7 @@ CONTAINS
     order_p = 0.0_dp
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-       order_p = order_p + SUM(charges(ind+1:ind+n_gauss)) 
+       order_p = order_p + SUM(charges(ind+1:ind+n_gauss))
     ENDDO
     ddapc_restraint_control%ddapc_order_p = order_p
 
@@ -457,7 +457,7 @@ CONTAINS
     CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
-    
+
   END SUBROUTINE evaluate_restraint_functional
 
 !!****f* cp_ddapc/restraint_functional_force *
@@ -491,8 +491,8 @@ CONTAINS
     INTEGER, INTENT(in)                      :: n_gauss
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restraint_functional_force', &
       routineP = moduleN//':'//routineN
@@ -516,7 +516,7 @@ CONTAINS
        natom = SIZE(particle_set)
        CALL get_qs_env(qs_env=qs_env,&
                        atomic_kind_set=atomic_kind_set,&
-                       force=force)
+                       force=force,error=error)
        ALLOCATE (atom_of_kind(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (kind_of(natom),stat=stat)
@@ -553,7 +553,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp, handle)
 
-  END SUBROUTINE restraint_functional_force 
+  END SUBROUTINE restraint_functional_force
 
 
 !!****f* cp_ddapc_methods/solvation_ddapc_force [1.0] *
@@ -589,8 +589,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: dq
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_force', &
       routineP = moduleN//':'//routineN
@@ -648,7 +648,7 @@ CONTAINS
              END SELECT
              center = R0
              DEALLOCATE(R0, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
        END IF
        CPPostcondition(n_rep1/=0.OR.n_rep2/=0,cp_failure_level,routineP,error,failure)
@@ -676,7 +676,7 @@ CONTAINS
        END DO
        ! Computes the full derivatives of the interaction energy
        DO iparticle1 = 1, SIZE(particle_set)
-          ip1 = (iparticle1-1)*SIZE(radii)          
+          ip1 = (iparticle1-1)*SIZE(radii)
           q1t = SUM(charges(ip1+1:ip1+SIZE(radii)))
           DO iparticle2 = 1, iparticle1
              ip2 = (iparticle2-1)*SIZE(radii)
@@ -687,7 +687,7 @@ CONTAINS
              pos1  = pos(iparticle1)
              pos2  = pos(iparticle2)
              factor1 = 0.0_dp
-             factor2 = 0.0_dp             
+             factor2 = 0.0_dp
              IF (pos1*pos2/=0.0_dp) THEN
                 pos1i = 1.0_dp/pos1
                 pos2i = 1.0_dp/pos1
@@ -698,7 +698,7 @@ CONTAINS
                 IF (ABS(mycos) > 1.0_dp) mycos = SIGN(1.0_dp, mycos)
                 dcos1 = (r2*(pos1*pos2)-pos2*dpos1*ptcos)/(pos1*pos2)**2
                 dcos2 = (r1*(pos1*pos2)-pos1*dpos2*ptcos)/(pos1*pos2)**2
-                
+
                 DO l = 1, lmax
                    lr =  REAL(l,KIND=dp)
                    factor1 = factor1 + lr*LocP(l,iparticle2)*pos1**(l-1)*legendre(mycos,l,0)*dpos1&
@@ -720,7 +720,7 @@ CONTAINS
        M => qs_env%cp_ddapc_env%Mr
        CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
        DEALLOCATE(d_el, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)                 
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE solvation_ddapc_force
 

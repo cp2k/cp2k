@@ -98,8 +98,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: unit_number
     REAL(KIND=dp), INTENT(IN)                :: q_max
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xray_diffraction_spectrum', &
       routineP = moduleN//':'//routineN
@@ -202,7 +201,7 @@ CONTAINS
                       particle_set=particle_set,&
                       pw_env=pw_env,&
                       rho=rho,&
-                      rho_atom_set=rho_atom_set)
+                      rho_atom_set=rho_atom_set,error=error)
 
       CALL pw_env_get(pw_env=pw_env,&
                       auxbas_pw_pool=auxbas_pw_pool,&

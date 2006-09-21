@@ -90,7 +90,7 @@ MODULE harris_force
 
   IMPLICIT NONE
   PRIVATE
-  
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_force'
 
   ! *** Public subroutines ***
@@ -116,11 +116,11 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - qs_env: The QS environment of matter
-!!     - harris_force: The harris force type in which all necessary informations 
+!!     - harris_force: The harris force type in which all necessary informations
 !!                     are stored
 !!     - globenv: The global environment from which the para_env is extracted
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -134,8 +134,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_correction', &
       routineP = moduleN//':'//routineN
@@ -224,12 +224,12 @@ CONTAINS
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
                               natom_of_kind=natom_of_kind)
       CALL zero_qs_force(force)
-      
+
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
                                          calculate_forces=.TRUE.,error=error)
-      CALL calculate_ecore_self(qs_env)
+      CALL calculate_ecore_self(qs_env,error=error)
       CALL calculate_ecore_overlap(qs_env, para_env, &
                                            calculate_forces=.TRUE.,&
                                            error=error)
@@ -268,7 +268,7 @@ CONTAINS
                               in_space=RECIPROCALSPACE, error=error)
 
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
+                              use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
       DO ispin = 1,nspins
@@ -276,7 +276,7 @@ CONTAINS
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
-                            vhartree=v_hartree_gspace%pw)
+                            vhartree=v_hartree_gspace%pw,error=error)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
 
@@ -343,8 +343,8 @@ CONTAINS
 
       DEALLOCATE(v_xc,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      
-      CALL xc_rho_set_release(rho_set)
+
+      CALL xc_rho_set_release(rho_set,error=error)
 
       ! + v_hartree[rho_out-rho_in]
       DO ispin = 1,nspins
@@ -352,7 +352,7 @@ CONTAINS
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
-                             vhartree=v_hartree_gspace%pw)
+                             vhartree=v_hartree_gspace%pw,error=error)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
 
@@ -412,14 +412,14 @@ CONTAINS
       END DO
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
-                            vhartree=v_hartree_gspace%pw)
+                            vhartree=v_hartree_gspace%pw,error=error)
 
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, error=error)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
 
-      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
 
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, error=error)
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
@@ -427,16 +427,16 @@ CONTAINS
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_core, para_env%group)
       END DO
-      
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
         harris_force%f_rho_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
-      
+
       CALL deallocate_qs_force(force)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
-      
+
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
       harris_force%f_total(:) = 0.0_dp
 
@@ -460,7 +460,7 @@ CONTAINS
         WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
         WRITE (unit_nr,*) "The Harris functional force correction is performed!"
         WRITE (unit_nr,*) ""
-      
+
         WRITE (unit_nr, *) "F_Harris"
         DO iatom = 1, natom
           WRITE (unit_nr,*) harris_force%f_harris(iatom, 1:3)
@@ -474,7 +474,7 @@ CONTAINS
 
       DEALLOCATE (kind_of,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-      
+
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -498,11 +498,11 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - qs_env: The QS environment of matter
-!!     - harris_force: The harris force type in which all necessary informations 
+!!     - harris_force: The harris force type in which all necessary informations
 !!                     are stored
 !!     - globenv: The global environment from which the para_env is extracted
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -516,8 +516,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_EVal', &
       routineP = moduleN//':'//routineN
@@ -605,7 +605,7 @@ CONTAINS
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
                               natom_of_kind=natom_of_kind)
       CALL zero_qs_force(force)
-      
+
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
@@ -643,15 +643,15 @@ CONTAINS
                               in_space=RECIPROCALSPACE, error=error)
 
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
+                              use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
       DO ispin = 1,nspins
         CALL coeff_add(rho_core, harris_env%rho%rho_g(ispin), rho_tot_gspace)
       END DO
-      
+
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
-                            vhartree=v_hartree_gspace%pw)
+                            vhartree=v_hartree_gspace%pw,error=error)
 
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, error=error)
 
@@ -684,18 +684,18 @@ CONTAINS
       ! ** Force computation of f_V  ** !
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, qs_env%rho%rho_g(ispin)%pw, ehartree=Ehartree, &
-                              vhartree=v_hartree_gspace%pw)
+                              vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
 
-      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_core, para_env%group)
       END DO
-      
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -742,13 +742,13 @@ CONTAINS
 
       DEALLOCATE(v_xc,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      
-      CALL xc_rho_set_release(rho_set)
+
+      CALL xc_rho_set_release(rho_set,error=error)
 
       ! + v_hartree[rho_out]
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, qs_env%rho%rho_g(ispin)%pw, ehartree=Ehartree, &
-                               vhartree=v_hartree_gspace%pw)
+                               vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
@@ -756,7 +756,7 @@ CONTAINS
       DO ispin = 1,nspins
         CALL coeff_add(v_rspace_new(ispin), v_hartree_rspace, v_rspace_new(ispin))
         CALL coeff_scale(v_rspace_new(ispin), v_rspace_new(ispin)%pw%pw_grid%dvol)
-      
+
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), p=harris_env%rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, calculate_forces=.TRUE., &
                                 gapw=.FALSE., error=error)
@@ -802,7 +802,7 @@ CONTAINS
         harris_force%f_integral_vxc(iatom, 1:3) = 0.0_dp
       END DO
 
-      CALL zero_qs_force(force)     
+      CALL zero_qs_force(force)
       ! *** End of force calculation due to the sum_of_eigenvalues *** !
 
 
@@ -810,17 +810,17 @@ CONTAINS
 
       ! *** The forces due to the core-core repulsion *** !
       CALL pw_poisson_solve(poisson_env, rho_core%pw, ehartree=Ehartree, &
-                            vhartree=v_hartree_gspace%pw)
+                            vhartree=v_hartree_gspace%pw,error=error)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
 
-      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+      CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_core, para_env%group)
       END DO
-      
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
@@ -828,7 +828,7 @@ CONTAINS
       END DO
 
       CALL zero_qs_force(force)
-      
+
 
       ! *** The forces due to exchange and correlation *** !
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
@@ -874,12 +874,12 @@ CONTAINS
 
       DEALLOCATE(v_xc,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      
-      CALL xc_rho_set_release(rho_set)
+
+      CALL xc_rho_set_release(rho_set,error=error)
 
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, ehartree=Ehartree, &
-                              vhartree=v_hartree_gspace%pw)
+                              vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
@@ -935,7 +935,7 @@ CONTAINS
 
       CALL deallocate_qs_force(force)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
-      
+
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
       harris_force%f_total(:) = 0.0_dp
 
@@ -965,7 +965,7 @@ CONTAINS
         WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
         WRITE (unit_nr,*) "The Harris functional force correction is performed!"
         WRITE (unit_nr,*) ""
-      
+
         WRITE (unit_nr, *) "F_Harris"
         DO iatom = 1, natom
           WRITE (unit_nr,*) harris_force%f_harris(iatom, 1:3)
@@ -979,7 +979,7 @@ CONTAINS
 
       DEALLOCATE (kind_of,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-      
+
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -1003,8 +1003,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -1015,8 +1015,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_calc_nsc_force(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_calc_nsc_force', &
       routineP = moduleN//':'//routineN
@@ -1107,12 +1107,12 @@ CONTAINS
                               use_data = COMPLEXDATA1D, &
                               in_space = RECIPROCALSPACE, error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
+                              use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, harris_env%rho_diff%rho_g(ispin)%pw, &
-                              ehartree=Ehartree, vhartree=v_hartree_gspace%pw)
+                              ehartree=Ehartree, vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
@@ -1140,7 +1140,7 @@ CONTAINS
 
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, harris_env%rho_diff%rho_g(ispin)%pw, &
-                              ehartree=Ehartree, vhartree=v_hartree_gspace%pw)
+                              ehartree=Ehartree, vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
@@ -1239,8 +1239,8 @@ CONTAINS
 
       DEALLOCATE(v_xc,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      
-      CALL xc_rho_set_release(rho_set)
+
+      CALL xc_rho_set_release(rho_set,error=error)
 
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
@@ -1288,7 +1288,7 @@ CONTAINS
 !!     harris_force_test_rho_core
 !!
 !!   FUNCTION
-!!     Performs a test if the forces in the harris functional due to 
+!!     Performs a test if the forces in the harris functional due to
 !!     rho_core sums up to force%rho_core.
 !!
 !!   NOTES
@@ -1296,10 +1296,10 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - qs_env: The QS environment of matter
-!!     - harris_force: The harris force type in which all necessary informations 
+!!     - harris_force: The harris force type in which all necessary informations
 !!                     are stored
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -1311,8 +1311,8 @@ CONTAINS
   SUBROUTINE harris_force_test_rho_core(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_force_type), POINTER         :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_test_rho_core', &
       routineP = moduleN//':'//routineN
@@ -1339,7 +1339,7 @@ CONTAINS
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
-    
+
     IF (logger%para_env%source==logger%para_env%mepos) THEN
           unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
@@ -1383,7 +1383,7 @@ CONTAINS
 
       DEALLOCATE (kind_of,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-      
+
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -1398,7 +1398,7 @@ CONTAINS
 !!     harris_force_test_rho_core
 !!
 !!   FUNCTION
-!!     Performs a test if the forces in the harris functional due to 
+!!     Performs a test if the forces in the harris functional due to
 !!     rho_elec sums up to force%rho_elec.
 !!
 !!   NOTES
@@ -1406,10 +1406,10 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - qs_env: The QS environment of matter
-!!     - harris_force: The harris force type in which all necessary informations 
+!!     - harris_force: The harris force type in which all necessary informations
 !!                     are stored
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -1421,8 +1421,8 @@ CONTAINS
   SUBROUTINE harris_force_test_rho_elec(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_force_type), POINTER         :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_test_rho_elec', &
       routineP = moduleN//':'//routineN
@@ -1449,7 +1449,7 @@ CONTAINS
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
-    
+
     IF (logger%para_env%source==logger%para_env%mepos) THEN
           unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
@@ -1488,13 +1488,13 @@ CONTAINS
              harris_force%f_cross_integrate_v(iatom,1:3)
         END DO
       END IF
-      
+
       DEALLOCATE (atom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
       DEALLOCATE (kind_of,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-      
+
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -1509,16 +1509,16 @@ CONTAINS
 !!     harris_force_test_rho_core
 !!
 !!   FUNCTION
-!!     
+!!
 !!   NOTES
 !!     Only for internal debugging purposes
 !!
 !!   INPUTS
 !!     - qs_env: The QS environment of matter
-!!     - harris_force: The harris force type in which all necessary informations 
+!!     - harris_force: The harris force type in which all necessary informations
 !!                     are stored
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -1530,8 +1530,8 @@ CONTAINS
   SUBROUTINE harris_force_test_integral_vxc(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_force_type), POINTER         :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'harris_force_test_integral_vxc', &
@@ -1575,7 +1575,7 @@ CONTAINS
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
-    
+
     IF (logger%para_env%source==logger%para_env%mepos) THEN
           unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
@@ -1603,7 +1603,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                atom_of_kind=atom_of_kind, kind_of=kind_of, &
                                natom_of_kind=natom_of_kind)
-      
+
       ! *** Debug Code: Calculate the forces of the sum of eigenvalues *** !
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
                               natom_of_kind=natom_of_kind)
@@ -1622,26 +1622,26 @@ CONTAINS
       DO ispin = 1,nspins
         CALL coeff_add(rho_core, rho%rho_g(ispin), rho_tot_gspace)
       END DO
-      
+
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree=Ehartree, &
-                            vhartree=v_hartree_gspace%pw)
+                            vhartree=v_hartree_gspace%pw,error=error)
       !CALL pw_poisson_solve(poisson_env, rho%rho_g(1)%pw, ehartree=Ehartree, &
       !                      vhartree=v_hartree_gspace%pw)
 
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
                                    error=error)
-      
+
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_rspace, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
+                              use_data=REALDATA3D, in_space=REALSPACE,error=error)
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
-      
+
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
                                    error=error)
-      
+
       NULLIFY(v_rspace_new)
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho = v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy = .FALSE., error=error)
-      
+
       ! sum-up: v_hartree_rspace = v_hartree_rspace + v_rspace_new(ispin)
       DO ispin = 1,nspins
         CALL coeff_sumup(v_rspace_new(ispin), v_hartree_rspace)
@@ -1662,7 +1662,7 @@ CONTAINS
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
-      
+
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=rho%rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, &
@@ -1670,15 +1670,15 @@ CONTAINS
       END DO
 
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
-      
+
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
         WRITE (unit_nr,*) force(ikind)%rho_elec(1:3,i)
       END DO
-      
+
       CALL deallocate_qs_force(force)
-      CALL set_qs_env(qs_env=qs_env, force=force_tmp)
+      CALL set_qs_env(qs_env=qs_env, force=force_tmp,error=error)
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
 
       IF (logger%para_env%source==logger%para_env%mepos) THEN
@@ -1714,7 +1714,7 @@ CONTAINS
                + force(ikind)%gth_ppl(1:3,i) &
                + force(ikind)%gth_ppnl(1:3,i)
         END DO
-  
+
       END IF
 
       DEALLOCATE (atom_of_kind,STAT=stat)
@@ -1722,7 +1722,7 @@ CONTAINS
 
       DEALLOCATE (kind_of,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-      
+
       DEALLOCATE (natom_of_kind,STAT=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 

@@ -12,13 +12,13 @@
 !!     H.M. Petrili, P.E. Blochl, P. Blaha, K. Schwarz, PRB 57, 14690 (1998)
 !!
 !!   NOTE
-!!  
+!!
 !!   AUTHOR
 !!     JGH (03-05-2006)
 !!
 !!   MODIFICATION HISTORY
 !!     none
-!!  
+!!
 !!****
 
 MODULE qs_electric_field_gradient
@@ -87,12 +87,12 @@ MODULE qs_electric_field_gradient
 CONTAINS
 
 !*******************************************************************************
-  
+
   SUBROUTINE qs_efg_calc(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efg_calc', &
       routineP = moduleN//':'//routineN
@@ -234,10 +234,10 @@ CONTAINS
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=rho_tot_gspace,&
                             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                             error=error)
-    CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+    CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
     CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,ehartree,&
-                          v_hartree_gspace%pw)
+                          v_hartree_gspace%pw,error=error)
 
     ! smoothing of potential
     IF ( smoothing ) CALL pw_smoothing(v_hartree_gspace%pw,ecut,sigma)
@@ -293,14 +293,14 @@ CONTAINS
       CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2rs,error=error)
     END IF
 
-    nkind = SIZE(atomic_kind_set) 
+    nkind = SIZE(atomic_kind_set)
 
-    DO ikind = 1,nkind 
+    DO ikind = 1,nkind
       atomic_kind => atomic_kind_set(ikind)
       NULLIFY(grid_atom,atom_list)
       CALL get_atomic_kind(atomic_kind=atomic_kind,grid_atom=grid_atom,&
                            atom_list=atom_list,natom=natomkind,paw_atom=paw_atom)
-      DO iat = 1,natomkind 
+      DO iat = 1,natomkind
         iatom = atom_list(iat)
         ra = particle_set(iatom)%r
         IF ( efg_interpolation ) THEN
@@ -328,7 +328,7 @@ CONTAINS
       IF( paw_atom) THEN
         CALL vlimit_atom(para_env,vh0,rho_atom_set,atomic_kind,&
                          atom_list,grid_atom,natomkind,nspins,error)
-        DO iat = 1,natomkind 
+        DO iat = 1,natomkind
           iatom = atom_list(iat)
           efg_tensor(1,1,iatom)=efg_tensor(1,1,iatom) &
                                    +f1*(vh0(iatom,2))-f2*(vh0(iatom,0))
@@ -341,10 +341,10 @@ CONTAINS
           efg_tensor(3,1,iatom)=efg_tensor(3,1,iatom)+f1*(vh0(iatom,1))
           efg_tensor(2,3,iatom)=efg_tensor(2,3,iatom)+f1*(vh0(iatom,-1))
           efg_tensor(3,2,iatom)=efg_tensor(3,2,iatom)+f1*(vh0(iatom,-1))
-        END DO 
+        END DO
       END IF
 
-      DO iat = 1,natomkind 
+      DO iat = 1,natomkind
         iatom = atom_list(iat)
         CALL diagonalise ( efg_tensor(:,:,iatom), 3, "UPPER", &
                            eigenvalues, eigenvectors )
@@ -365,7 +365,7 @@ CONTAINS
            "EFG Tensor eigenvalues",efg_diagval(:,iatom)
           WRITE (UNIT=unit_nr,FMT="(T12,A,T67,F14.7)") "EFG Tensor anisotropy",&
              (efg_diagval(1,iatom)-efg_diagval(2,iatom))/efg_diagval(3,iatom)
-          WRITE (UNIT=unit_nr,FMT=*) 
+          WRITE (UNIT=unit_nr,FMT=*)
       END IF
     ENDDO
 
@@ -409,8 +409,8 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vlimit_atom', &
       routineP = moduleN//':'//routineN
@@ -481,7 +481,7 @@ CONTAINS
             zet12 = zet(ipgf1,iset1)+zet(ipgf2,iset2)
 
             vgg = 0.0_dp
-           
+
             DO iso = 1,max_iso_not0
                l_iso = indso(1,iso)
                IF ( l_iso /= 2 ) CYCLE
@@ -511,8 +511,8 @@ CONTAINS
               ENDDO ! i
 
               DO iso = 1,max_iso_not0
-                l_iso = indso(1,iso) 
-                m_iso = indso(2,iso) 
+                l_iso = indso(1,iso)
+                m_iso = indso(2,iso)
                 IF ( l_iso /= 2 ) CYCLE
                 DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                   iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
@@ -524,10 +524,10 @@ CONTAINS
                       vgg(l/2)*CPC_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
                   END IF
                 ENDDO  ! icg
-              ENDDO  ! iso 
+              ENDDO  ! iso
 
             ENDDO  ! iat
-        
+
           ENDDO ! ipgf2
           m2s = m2s+maxso
 
@@ -557,7 +557,7 @@ CONTAINS
     DO i=1,3
       eout(i) = ein(ind(i))
     END DO
-    
+
   END SUBROUTINE efgsort
 !*******************************************************************************
 

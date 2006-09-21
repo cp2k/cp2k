@@ -10,7 +10,7 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     gloria,30.10.2004, previously in kg_rho_types 
+!!     gloria,30.10.2004, previously in kg_rho_types
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (22-Feb-03) PW grid options added
@@ -81,8 +81,8 @@ SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
       OPTIONAL, POINTER                      :: pw_pools
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_get', &
       routineP = moduleN//':'//routineN
@@ -113,8 +113,8 @@ END SUBROUTINE kg_rspw_get
 !***************************************************************************
 SUBROUTINE kg_rspw_retain(kg_rspw,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_retain', &
       routineP = moduleN//':'//routineN
@@ -122,7 +122,7 @@ SUBROUTINE kg_rspw_retain(kg_rspw,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
- 
+
   CPPrecondition(ASSOCIATED(kg_rspw),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(kg_rspw%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -137,17 +137,17 @@ END SUBROUTINE kg_rspw_retain
 !!     release_kg_rspw
 !!
 !!   FUNCTION
-!!     releases the memory used by the kg_rspw and kg_rspw 
+!!     releases the memory used by the kg_rspw and kg_rspw
 !!
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE kg_rspw_release(kg_rspw,error)               
+  SUBROUTINE kg_rspw_release(kg_rspw,error)
 
 
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_release', &
       routineP = moduleN//':'//routineN
@@ -158,7 +158,7 @@ END SUBROUTINE kg_rspw_retain
 !---------------------------------------------------------------------------
 
    CALL timeset(routineN,"I","",handle)
-   failure=.FALSE.  
+   failure=.FALSE.
    IF (ASSOCIATED(kg_rspw)) THEN
      CPPrecondition(kg_rspw%ref_count>0,cp_failure_level,routineP,error,failure)
      kg_rspw%ref_count=kg_rspw%ref_count-1
@@ -169,7 +169,7 @@ END SUBROUTINE kg_rspw_retain
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
        IF (ASSOCIATED(kg_rspw%l_info)) THEN
-         CALL destroy_l_info(kg_rspw%l_info)
+         CALL destroy_l_info(kg_rspw%l_info,error=error)
          DEALLOCATE(kg_rspw%l_info, stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -179,7 +179,7 @@ END SUBROUTINE kg_rspw_retain
          END DO
         DEALLOCATE (kg_rspw%cube_info,STAT=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF   
+      END IF
       CALL pw_pools_dealloc(kg_rspw%pw_pools,error=error)
       CALL rs_pools_dealloc(kg_rspw%rs_pools,error=error)
       CALL pw_poisson_release(kg_rspw%poisson_env,error=error)

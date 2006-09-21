@@ -71,8 +71,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_section', &
       routineP = moduleN//':'//routineN
@@ -132,8 +132,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_var_section(subsection, section, error)
     TYPE(section_type), POINTER              :: subsection, section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_var_section', &
       routineP = moduleN//':'//routineN
@@ -195,8 +195,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_coord_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_coord_section', &
       routineP = moduleN//':'//routineN
@@ -296,8 +296,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_torsion_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'create_colvar_torsion_section', &
@@ -350,8 +350,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_rot_section(section,error,description)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rot_section', &
@@ -430,8 +430,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_angle_section(section,error,description)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_angle_section', &
@@ -493,8 +493,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_dist_section(section,error,description)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dist_section', &
@@ -555,8 +555,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_colvar_d_pl_section(section,error,description)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_d_pl_section', &

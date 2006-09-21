@@ -10,10 +10,10 @@
 !!     bfgs_optimizer
 !!
 !!   FUNCTION
-!!     Routines for Geometry optimization using BFGS algorithm 
+!!     Routines for Geometry optimization using BFGS algorithm
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -87,8 +87,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'geoopt_bfgs'
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
@@ -135,16 +135,16 @@ CONTAINS
 
     CALL force_env_get(force_env,&
          cell=cell,&
-         subsys=subsys)
+         subsys=subsys,error=error)
 
     CALL cp_subsys_get(subsys=subsys(1)%subsys,&
          atomic_kinds=atomic_kinds,&
-         particles=particles)
+         particles=particles,error=error)
 
     nkind = atomic_kinds%n_els
 
-    natom = particles%n_els  
-    particle_set => particles%els    
+    natom = particles%n_els
+    particle_set => particles%els
 
     ndf = SIZE(x0)
     nfree = SIZE(particle_set)
@@ -201,7 +201,7 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
 
-    CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
+    CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
     CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
     IF(ionode)THEN
@@ -217,7 +217,7 @@ CONTAINS
             gopt_env%force_env%para_env, force_env_section, error)
     !MK Hm, it seems that here only the root process has the correct gradient for all atoms
     CALL mp_bcast(g,para_env%source,para_env%group)
-    CALL apply_fixed_atom_constraint(force_env,g)
+    CALL apply_fixed_atom_constraint(force_env,g,error=error)
 
     ! Print info at time 0
     emin = etot
@@ -225,7 +225,7 @@ CONTAINS
     IF(output_unit>0) CALL write_cycle_infos &
          (output_unit,it,etot,wildcard=" BFGS")
 
-    DO        
+    DO
        it = it + 1
        CALL cp_iterate(logger%iter_info,iter_nr=it,error=error)
        IF(it > maxiter )THEN
@@ -233,15 +233,15 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
                   "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
              WRITE(UNIT=output_unit,FMT="(T2,A)")&
-                  "***        EXITING GEOMETRY OPTIMIZATION         ***" 
+                  "***        EXITING GEOMETRY OPTIMIZATION         ***"
              CALL m_flush(output_unit)
           END IF
           EXIT
        END IF
-       ! check for an external exit command 
+       ! check for an external exit command
        CALL external_control(should_stop,"GEO",globenv,error)
        IF(should_stop) EXIT
-       CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section)
+       CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section,error=error)
 
        IF (ionode) THEN
          traj_unit = cp_print_key_unit_nr(logger,root_section,&
@@ -251,9 +251,9 @@ CONTAINS
          IF (traj_unit > 0) THEN
            CALL force_env_get(force_env,&
                               cell=cell,&
-                              subsys=subsys)
+                              subsys=subsys,error=error)
            CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                              particles=particles)
+                              particles=particles,error=error)
            particle_set => particles%els
            WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
            CALL write_particle_coordinates(particle_set,traj_unit,&
@@ -288,8 +288,8 @@ CONTAINS
              END IF
 
           END IF
-          CALL mp_bcast(hes,para_env%source,para_env%group)        
-       ELSE IF( it > 1 ) THEN        
+          CALL mp_bcast(hes,para_env%source,para_env%group)
+       ELSE IF( it > 1 ) THEN
           DO indf = 1, ndf
              dx(indf) = x0(indf) - xold(indf)
              dg(indf) =  g(indf) - gold(indf)
@@ -338,13 +338,13 @@ CONTAINS
             gopt_env%force_env%para_env, force_env_section, error)
        !MK Hm, it seems that here only the root process has the correct gradient for all atoms
        CALL mp_bcast(g,para_env%source,para_env%group)
-       CALL apply_fixed_atom_constraint(force_env,g)
+       CALL apply_fixed_atom_constraint(force_env,g,error=error)
        ediff = etot - eold
 
        IF(output_unit>0) CALL write_cycle_infos &
             (output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
 
-       IF(etot < emin ) emin = etot 
+       IF(etot < emin ) emin = etot
        CALL update_trust_rad(rat,rad,step,ediff)
        CALL check_converg(ndf,dr,g,output_unit>0,output_unit,conv,gopt_param)
        IF(conv) EXIT
@@ -366,7 +366,7 @@ CONTAINS
        CALL close_file(unit_number=hesunit)
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)     
+         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
 
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
@@ -409,9 +409,9 @@ CONTAINS
 
     set = .FALSE.
 
-    DO 
+    DO
 
-!   calculating Lamda 
+!   calculating Lamda
 
       lp = 0.0_dp
       iref = 1
@@ -419,7 +419,7 @@ CONTAINS
       IF(eigval(iref) < 0.0_dp )ln = eigval(iref) - 0.01_dp
 
       iter = 0
-      DO 
+      DO
          iter = iter + 1
          fun = 0.0_dp
          fung = 0.0_dp
@@ -454,7 +454,7 @@ CONTAINS
            lp = 0.0_dp
            fail = .TRUE.
            GOTO 300
-         END IF 
+         END IF
          fun2 = 0.0_dp
          lam2 = lam1 - iter * step
          DO indf = 1, ndf
@@ -463,7 +463,7 @@ CONTAINS
          fun2 = fun2 - lam2
          IF(fun2*fun1 < 0.0_dp )THEN
            iter = 0
-           DO 
+           DO
              iter = iter + 1
              IF(iter > maxit)THEN
                ln = 0.0_dp
@@ -477,7 +477,7 @@ CONTAINS
               fun3 = fun3 + dg(indf)**2/(step-eigval(indf))
              END DO
              fun3 = fun3 - step
-           
+
              IF( ABS(step-lam2) < stol)THEN
                ln = step
                GOTO 200
@@ -488,7 +488,7 @@ CONTAINS
              ELSE
                 lam1 = step
              END IF
-           END DO 
+           END DO
          END IF
      END DO
 
@@ -516,7 +516,7 @@ CONTAINS
         ! CALL DCOPY(ndf,1.0,0,work,1) ! bug
         work(1:ndf)=1.0_dp
      ENDIF
-      
+
      DO indf = 1, ndf
        eigval(indf) = eigval(indf) - ln
      END DO
@@ -528,7 +528,7 @@ CONTAINS
   END SUBROUTINE  rat_fun_opt
 
 ! ******************************************************************************
- 
+
   SUBROUTINE bfgs(ndf,dx,dg,hes,work)
 
 !   ** Globals **
@@ -669,7 +669,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp 
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: DDOT, scal
@@ -1012,11 +1012,12 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE apply_fixed_atom_constraint(force_env,g)
+  SUBROUTINE apply_fixed_atom_constraint(force_env,g,error)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: g
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_fixed_atom_constraint', &
       routineP = moduleN//':'//routineN
@@ -1036,13 +1037,13 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    CALL force_env_get(force_env=force_env,subsys=subsys)
+    CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
 
     DO isubsys=1,SIZE(subsys) ! Well, this loop is pretty ridiculous, since the
                               ! stuff above works only for one subsystem, currently
 
       CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-                         molecule_kinds_new=molecule_kinds)
+                         molecule_kinds_new=molecule_kinds,error=error)
 
       molecule_kind_set => molecule_kinds%els
 

@@ -102,8 +102,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: group, handle, i, ierr, &
                                                 ipart, j, jpart, n, &
@@ -131,7 +131,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
     NULLIFY( poisson_env)
   CALL timeset ( 'SPME', 'I', ' ', handle )
   CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
-                       o_spline = o_spline, group = group )
+                       o_spline = o_spline, group = group ,error=error)
   CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, &
        poisson_env=poisson_env)
   CALL pw_poisson_rebuild(poisson_env,error=error)
@@ -140,7 +140,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
   inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
   npart = SIZE ( particle_set )
- 
+
   n = o_spline
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
@@ -173,14 +173,14 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
   CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
                            use_data = REALDATA3D, &
-                           in_space = REALSPACE )
+                           in_space = REALSPACE ,error=error)
 
   CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
 
   ! transform density to G space and add charge function
   CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
                            use_data = COMPLEXDATA1D, &
-                           in_space = RECIPROCALSPACE )
+                           in_space = RECIPROCALSPACE ,error=error)
   CALL pw_transfer ( rhob_r, rhob_g )
   ! update charge function
   rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
@@ -192,15 +192,15 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      NULLIFY(dphi_g(i)%pw)
      CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
                               use_data = COMPLEXDATA1D,   &
-                              in_space = RECIPROCALSPACE )
+                              in_space = RECIPROCALSPACE ,error=error)
   END DO
   CALL pw_pool_create_pw ( pw_pool, phi_g,  &
                            use_data = COMPLEXDATA1D,   &
-                           in_space = RECIPROCALSPACE )
-  CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, h_stress )
+                           in_space = RECIPROCALSPACE ,error=error)
+  CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, h_stress ,error=error)
 
-  CALL pw_pool_give_back_pw ( pw_pool, phi_g )
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_g )
+  CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
+  CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
   vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
 !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -229,11 +229,11 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               green % p3m_charge % cr
      CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
-     CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw )
+     CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
      CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
   END DO
 
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_r )
+  CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
 
 !----------------- FORCE CALCULATION ----------------
 
@@ -263,8 +263,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
 !------------------CLEANING UP ----------------------
 
-  CALL rs_grid_release ( rden )
-  CALL rs_grid_p_release ( drpot )
+  CALL rs_grid_release ( rden ,error=error)
+  CALL rs_grid_p_release ( drpot ,error=error)
   DEALLOCATE ( rhos, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
   DEALLOCATE ( centre, STAT = ierr )
@@ -311,14 +311,14 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
 
   nbox = SIZE ( rhos, 1 )
   r = part(p)% r
-   
+
   CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, qeff=q)
 
   CALL get_delta ( box, r, npts, delta, nbox )
 
   CALL spme_get_patch ( rhos, nbox, delta, q, green % p3m_coeff )
 
-END SUBROUTINE get_patch 
+END SUBROUTINE get_patch
 
 !******************************************************************************
 !!****** spme/spme_get_patch [1.0] *

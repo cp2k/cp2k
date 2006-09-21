@@ -165,7 +165,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
 
 #if defined(__HPM)
-#include "f_hpm.h"    
+#include "f_hpm.h"
 #endif
 
 !   ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ CONTAINS
        CALL set_error_unit(6)
     ENDIF
 
-!   *** Init the default logger 
+!   *** Init the default logger
 
     IF (para_env%source==para_env%mepos) THEN
        my_output_unit=output_unit
@@ -314,8 +314,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_read', &
       routineP = moduleN//':'//routineN
@@ -330,14 +329,14 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          root_section,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
-        CALL f_hpminit(para_env%mepos,"CP2K") 
+        CALL f_hpminit(para_env%mepos,"CP2K")
         use_HPM = .TRUE.
     ENDIF
 #endif
 
 !   *** Read the CP2K section ***
 
-    CALL read_cp2k_section(root_section,para_env,globenv)
+    CALL read_cp2k_section(root_section,para_env,globenv,error=error)
 
     ! try to use better names for the local log if it is not too late
     CALL section_vals_val_get(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
@@ -365,7 +364,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
          extension=".Log",error=error)
     IF (iw>0) CALL write_physcon(iw)
     CALL cp_print_key_finished_output(iw,logger,root_section,&
-         "GLOBAL%PRINT/PHYSCON",error=error)    
+         "GLOBAL%PRINT/PHYSCON",error=error)
 
   END SUBROUTINE cp2k_read
 !***************************************************************************
@@ -384,8 +383,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 !!
 !!   INPUTS
 !!     - globenv: the global environment to initialize
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -397,8 +396,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_setup', &
       routineP = moduleN//':'//routineN
@@ -431,7 +430,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
       ! Initialize a global normally Gaussian distributed (pseudo)random number stream
 
-      CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=input_seed)
+      CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=input_seed,error=error)
       initial_seed(:,:) = REAL(input_seed,KIND=dp)
       CALL create_rng_stream(rng_stream=globenv%gaussian_rng_stream,&
                              name="Global Gaussian random numbers",&
@@ -473,7 +472,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 !!     read the global sectionof new input
 !!
 !!   NOTES
-!!     Should not be required anymore once everything is converted 
+!!     Should not be required anymore once everything is converted
 !!     to get information directly from the input structure
 !!
 !!   AUTHOR
@@ -489,8 +488,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_global_section', &
       start_section_label = "GLOBAL"
@@ -528,7 +527,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
-     
+
     IF(trace) CALL trace_debug("start",groupid=para_env%group)
 
     IF (globenv%run_type_id == 0) THEN
@@ -542,7 +541,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
              globenv%run_type_id = mol_dyn_run
           ELSE
              CALL section_vals_val_get(force_env_sections,"METHOD",i_val=method_name_id,error=error)
-             SELECT CASE (method_name_id)          
+             SELECT CASE (method_name_id)
              CASE (do_fist)
                 globenv%run_type_id = mol_dyn_run
              CASE (do_kg)
@@ -572,7 +571,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
     IF (output_unit > 0 ) THEN
-      WRITE (UNIT=output_unit,FMT=*)      
+      WRITE (UNIT=output_unit,FMT=*)
       DO iforce_eval = 1, nforce_eval
          dft_section => section_vals_get_subs_vals3(force_env_sections,"DFT",&
               i_rep_section=iforce_eval,error=error)
@@ -660,8 +659,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_cp2k_section'&
                                                 , start_section_label = "CP2K"
@@ -678,7 +677,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     was_present = .FALSE.
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_get(global_section,explicit=was_present,error=error)
-    CALL read_global_section(root_section,para_env,globenv)
+    CALL read_global_section(root_section,para_env,globenv,error=error)
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
@@ -700,7 +699,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
       globenv%default_fft_library="FFTSG"
       CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
                     alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error))
-      CALL fft3d(1,n,zz,status=stat) 
+      CALL fft3d(1,n,zz,status=stat)
       IF (stat /= 0) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
                              "The default FFT library <"//&
@@ -743,7 +742,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER :: globenv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(LEN=default_path_length) :: cwd
     CHARACTER(LEN=30)                  :: host_name,user_name
@@ -759,11 +758,11 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
     ! -------------------------------------------------------------------------
 
-    ! look if we inherited a failure, more care is needed if so 
+    ! look if we inherited a failure, more care is needed if so
     ! i.e. the input is most likely not available
 
     failure=.FALSE.
-    CALL cp_error_check(error,failure) 
+    CALL cp_error_check(error,failure)
 
     ! Clean up
 
@@ -787,7 +786,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          root_section,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
-       CALL f_hpmterminate(para_env%group) 
+       CALL f_hpmterminate(para_env%group)
        use_HPM=.FALSE.
     ENDIF
 #endif

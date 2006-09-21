@@ -145,8 +145,8 @@ CONTAINS
   SUBROUTINE tbmd_force_retain(tbmd_force, error)
 
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_retain', &
       routineP = moduleN//':'//routineN
@@ -191,8 +191,8 @@ CONTAINS
   SUBROUTINE tbmd_force_release(tbmd_force, error)
 
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_release', &
       routineP = moduleN//':'//routineN
@@ -281,8 +281,8 @@ CONTAINS
                                                 f_repulsion, f_tb
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: f_total
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_get', &
       routineP = moduleN//':'//routineN
@@ -352,8 +352,8 @@ CONTAINS
                                                 f_repulsion, f_tb
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: f_total
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_set', &
       routineP = moduleN//':'//routineN
@@ -408,8 +408,8 @@ CONTAINS
 
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     INTEGER                                  :: natom
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_clear', &
       routineP = moduleN//':'//routineN
@@ -467,8 +467,8 @@ CONTAINS
 
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     INTEGER                                  :: natom
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_create', &
       routineP = moduleN//':'//routineN

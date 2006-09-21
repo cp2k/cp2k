@@ -111,8 +111,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
       routineP = moduleN//':'//routineN
@@ -396,8 +396,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
       routineP = moduleN//':'//routineN
@@ -756,8 +756,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN), OPTIONAL            :: is_impr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'connectivity_external_control', &
@@ -935,8 +935,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: Ilist1
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
     INTEGER, INTENT(IN)                      :: nsize, ndim
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array', &
       routineP = moduleN//':'//routineN
@@ -1017,8 +1017,8 @@ CONTAINS
        ldim, istart, iend, error)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
     INTEGER, INTENT(IN)                      :: nsize, ldim, istart, iend
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array_low', &
       routineP = moduleN//':'//routineN
@@ -1379,8 +1379,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend', &
       routineP = moduleN//':'//routineN
@@ -1511,8 +1511,8 @@ CONTAINS
       OPTIONAL                               :: Ilist
     INTEGER, INTENT(IN), OPTIONAL            :: it_levl
     INTEGER, INTENT(INOUT)                   :: nvar
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'match_iterative_path', &
       routineP = moduleN//':'//routineN
@@ -1668,8 +1668,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_ub', &
       routineP = moduleN//':'//routineN
@@ -1737,8 +1737,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
       routineP = moduleN//':'//routineN
@@ -1855,8 +1855,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
       routineP = moduleN//':'//routineN
@@ -1994,8 +1994,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout) &
+ :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
       routineP = moduleN//':'//routineN

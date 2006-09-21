@@ -51,13 +51,14 @@ CONTAINS
 ! IN the case of nspin != 1 we have a gradient that is distributed over different qs_ot_env.
 ! still things remain basically the same, since there are no constraints between the different qs_ot_env
 ! we only should take care that the various scalar products are taken over the full vectors.
-! all the information needed and  collected can be stored in the fist qs_ot_env only 
+! all the information needed and  collected can be stored in the fist qs_ot_env only
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
-SUBROUTINE ot_mini(qs_ot_env,matrix_hc)
+SUBROUTINE ot_mini(qs_ot_env,matrix_hc,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_hc
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, ispin, nspin
     REAL(KIND=dp)                            :: tmp
@@ -75,20 +76,20 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc)
       DO ispin=1,nspin
          CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix,qs_ot_env(ispin)%matrix_x, &
                                      qs_ot_env(ispin)%matrix_sx, &
-                                     qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin))
+                                     qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),error=error)
         ! and also the gradient along the direction
         IF (qs_ot_env(1)%use_dx) THEN
-           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp)
+           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp,error=error)
            qs_ot_env(1)%gradient=qs_ot_env(1)%gradient+tmp
            IF (qs_ot_env(1)%settings%do_rotation) THEN
-               CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx,tmp)
+               CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx,tmp,error=error)
                qs_ot_env(1)%gradient=qs_ot_env(1)%gradient+0.5_dp*tmp
            ENDIF
         ELSE
-           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp)
+           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp,error=error)
            qs_ot_env(1)%gradient=qs_ot_env(1)%gradient-tmp
            IF (qs_ot_env(1)%settings%do_rotation) THEN
-               CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp)
+               CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp,error=error)
                qs_ot_env(1)%gradient=qs_ot_env(1)%gradient-0.5_dp*tmp
            ENDIF
         ENDIF
@@ -99,24 +100,24 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc)
    CASE ("CG")
         IF (current_point_is_fine(qs_ot_env)) THEN
            qs_ot_env(1)%OT_METHOD_FULL="OT CG"
-           CALL ot_new_cg_direction(qs_ot_env)      
+           CALL ot_new_cg_direction(qs_ot_env,error=error)
            qs_ot_env(1)%line_search_count=0
         ELSE
            qs_ot_env(1)%OT_METHOD_FULL="OT LS"
         ENDIF
-        CALL do_line_search(qs_ot_env)
+        CALL do_line_search(qs_ot_env,error=error)
    CASE ("SD")
         IF (current_point_is_fine(qs_ot_env)) THEN
            qs_ot_env(1)%OT_METHOD_FULL="OT SD"
-           CALL ot_new_sd_direction(qs_ot_env)      
+           CALL ot_new_sd_direction(qs_ot_env,error=error)
            qs_ot_env(1)%line_search_count=0
         ELSE
            qs_ot_env(1)%OT_METHOD_FULL="OT LS"
         ENDIF
-        CALL do_line_search(qs_ot_env)
+        CALL do_line_search(qs_ot_env,error=error)
    CASE ("DIIS")
            qs_ot_env(1)%OT_METHOD_FULL="OT DIIS"
-           CALL ot_diis_step(qs_ot_env)
+           CALL ot_diis_step(qs_ot_env,error=error)
    CASE DEFAULT
            CALL stop_program("ot_mini","OT_METHOD NYI")
    END SELECT
@@ -126,7 +127,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc)
 END SUBROUTINE ot_mini
 
 !
-! checks if the current point is a good point for finding a new direction 
+! checks if the current point is a good point for finding a new direction
 ! or if we should improve the line_search, if it is used
 !
 FUNCTION current_point_is_fine(qs_ot_env) RESULT(res)
@@ -134,7 +135,7 @@ FUNCTION current_point_is_fine(qs_ot_env) RESULT(res)
     LOGICAL                                  :: res
 
    res=.FALSE.
-   
+
    ! only if we have a gradient it can be fine
    IF (.NOT. qs_ot_env(1)%energy_only ) THEN
 
@@ -154,24 +155,25 @@ FUNCTION current_point_is_fine(qs_ot_env) RESULT(res)
 
 END FUNCTION current_point_is_fine
 
-! 
+!
 ! performs various kinds of line searches
 !
-SUBROUTINE do_line_search(qs_ot_env)
+SUBROUTINE do_line_search(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
    SELECT CASE(qs_ot_env(1)%settings%line_search_method)
    CASE("GOLD")
-       CALL do_line_search_gold(qs_ot_env)
+       CALL do_line_search_gold(qs_ot_env,error=error)
    CASE("3PNT")
-       CALL do_line_search_3pnt(qs_ot_env)
+       CALL do_line_search_3pnt(qs_ot_env,error=error)
    CASE("2PNT")
-       CALL do_line_search_2pnt(qs_ot_env)
+       CALL do_line_search_2pnt(qs_ot_env,error=error)
    CASE("NONE")
-       CALL do_line_search_none(qs_ot_env)
+       CALL do_line_search_none(qs_ot_env,error=error)
    CASE DEFAULT
        CALL stop_program("do_line_search","NYI")
-   END SELECT 
+   END SELECT
 END SUBROUTINE do_line_search
 
 
@@ -194,9 +196,10 @@ END SUBROUTINE do_line_search
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE take_step(ds,qs_ot_env)
+SUBROUTINE take_step(ds,qs_ot_env,error)
     REAL(KIND=dp)                            :: ds
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin, nspin
 
@@ -206,27 +209,28 @@ SUBROUTINE take_step(ds,qs_ot_env)
    ! either dx of -gx is the direction to use
    IF (qs_ot_env(1)%use_dx) THEN
        DO ispin=1,nspin
-          CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x,ds,qs_ot_env(ispin)%matrix_dx)
+          CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x,ds,qs_ot_env(ispin)%matrix_dx,error=error)
           IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-              CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x, ds,qs_ot_env(ispin)%rot_mat_dx)
+              CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x, ds,qs_ot_env(ispin)%rot_mat_dx,error=error)
           ENDIF
        ENDDO
    ELSE
        DO ispin=1,nspin
-          CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx)
+          CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x,-ds,qs_ot_env(ispin)%matrix_gx,error=error)
           IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-              CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x,-ds,qs_ot_env(ispin)%rot_mat_gx)
+              CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x,-ds,qs_ot_env(ispin)%rot_mat_gx,error=error)
           ENDIF
        ENDDO
    ENDIF
 END SUBROUTINE take_step
 
-! implements a golden ratio search as a robust way of minimizing 
-SUBROUTINE do_line_search_gold(qs_ot_env)
+! implements a golden ratio search as a robust way of minimizing
+SUBROUTINE do_line_search_gold(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp), PARAMETER                 :: gold_sec = 0.3819_dp 
+    REAL(KIND=dp), PARAMETER                 :: gold_sec = 0.3819_dp
 
     INTEGER                                  :: count
     REAL(KIND=dp)                            :: ds
@@ -259,9 +263,9 @@ SUBROUTINE do_line_search_gold(qs_ot_env)
        IF (qs_ot_env(1)%line_search_right .EQ. 0) THEN ! we do not yet have the right bracket
           IF (qs_ot_env(1)%ot_energy(count-1) .LT.  qs_ot_env(1)%ot_energy(count)) THEN
              qs_ot_env(1)%line_search_right = count
-             qs_ot_env(1)%ot_pos(count+1)  = qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)+ & 
+             qs_ot_env(1)%ot_pos(count+1)  = qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)+ &
                                   (qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right)- &
-                                   qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid))*gold_sec 
+                                   qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid))*gold_sec
           ELSE
              qs_ot_env(1)%line_search_left = qs_ot_env(1)%line_search_mid
              qs_ot_env(1)%line_search_mid  = count
@@ -271,14 +275,14 @@ SUBROUTINE do_line_search_gold(qs_ot_env)
           ! first determine where we are and construct the new triplet
           IF (qs_ot_env(1)%ot_pos(count) .LT. qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) THEN
              IF ( qs_ot_env(1)%ot_energy(count) .LT. qs_ot_env(1)%ot_energy(qs_ot_env(1)%line_search_mid))THEN
-                qs_ot_env(1)%line_search_right = qs_ot_env(1)%line_search_mid 
+                qs_ot_env(1)%line_search_right = qs_ot_env(1)%line_search_mid
                 qs_ot_env(1)%line_search_mid   = count
              ELSE
                 qs_ot_env(1)%line_search_left  = count
              ENDIF
           ELSE
              IF ( qs_ot_env(1)%ot_energy(count) .LT. qs_ot_env(1)%ot_energy(qs_ot_env(1)%line_search_mid))THEN
-                qs_ot_env(1)%line_search_left  = qs_ot_env(1)%line_search_mid 
+                qs_ot_env(1)%line_search_left  = qs_ot_env(1)%line_search_mid
                 qs_ot_env(1)%line_search_mid   = count
              ELSE
                 qs_ot_env(1)%line_search_right = count
@@ -287,21 +291,21 @@ SUBROUTINE do_line_search_gold(qs_ot_env)
           ! now find the new point in the largest section
           IF ( (qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right) &
                 -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) .GT. &
-               (qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) & 
-                -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left)) ) THEN  
-             qs_ot_env(1)%ot_pos(count+1) = & 
+               (qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) &
+                -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left)) ) THEN
+             qs_ot_env(1)%ot_pos(count+1) = &
                  qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) + &
                     gold_sec*(qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right) &
                               -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid))
           ELSE
              qs_ot_env(1)%ot_pos(count+1) = &
-                 qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left) + &             
+                 qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left) + &
                     gold_sec*(qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) &
                               -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left))
           ENDIF
           ! check for termination
           IF ( ((qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_right) &
-                -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) .LT. & 
+                -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) .LT. &
                  qs_ot_env(1)%ds_min * qs_ot_env(1)%settings%gold_target ) .AND. &
                ((qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid) &
                 -qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_left)).LT. &
@@ -314,13 +318,14 @@ SUBROUTINE do_line_search_gold(qs_ot_env)
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
    qs_ot_env(1)%ds_min=qs_ot_env(1)%OT_pos(count+1)
 
-   CALL take_step(ds,qs_ot_env)
+   CALL take_step(ds,qs_ot_env,error=error)
 
 END SUBROUTINE do_line_search_gold
 
-SUBROUTINE do_line_search_3pnt(qs_ot_env)
+SUBROUTINE do_line_search_3pnt(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: count
     REAL(KIND=dp)                            :: denom, ds, fa, fb, fc, nom, &
@@ -375,13 +380,14 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env)
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
    qs_ot_env(1)%ds_min=qs_ot_env(1)%OT_pos(count+1)
 
-   CALL take_step(ds,qs_ot_env)
+   CALL take_step(ds,qs_ot_env,error=error)
 
 END SUBROUTINE do_line_search_3pnt
 
-SUBROUTINE do_line_search_2pnt(qs_ot_env)
+SUBROUTINE do_line_search_2pnt(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: count
     REAL(KIND=dp)                            :: a, b, c, ds, pos, val, x0, x1
@@ -409,7 +415,7 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env)
       val=a*pos**2+b*pos+c
       qs_ot_env(1)%energy_only=.FALSE.
       qs_ot_env(1)%line_search_might_be_done=.TRUE.
-         IF (val.lt.qs_ot_env(1)%ot_energy(1) .AND. val.le.qs_ot_env(1)%ot_energy(2)) THEN 
+         IF (val.lt.qs_ot_env(1)%ot_energy(1) .AND. val.le.qs_ot_env(1)%ot_energy(2)) THEN
              ! we go to a minimum, but ...
              ! we take a guard against too large steps
              qs_ot_env(1)%OT_pos(count+1)=MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:2))*0.01_dp, &
@@ -423,14 +429,15 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env)
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
    qs_ot_env(1)%ds_min=qs_ot_env(1)%OT_pos(count+1)
 
-   CALL take_step(ds,qs_ot_env)
+   CALL take_step(ds,qs_ot_env,error=error)
 
 END SUBROUTINE do_line_search_2pnt
 
-SUBROUTINE do_line_search_none(qs_ot_env)
+SUBROUTINE do_line_search_none(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL take_step(qs_ot_env(1)%ds_min,qs_ot_env)
+    CALL take_step(qs_ot_env(1)%ds_min,qs_ot_env,error=error)
 
 END SUBROUTINE do_line_search_none
 
@@ -441,8 +448,8 @@ END SUBROUTINE do_line_search_none
 
 SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nspin
     REAL(KIND=dp)                            :: tmp
@@ -455,8 +462,8 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
        qs_ot_env(1)%gnorm=0.0_dp
        DO ispin=1,nspin
           CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
-                                    qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx)
-          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp)
+                                    qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx,error=error)
+          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp,error=error)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
@@ -464,39 +471,39 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
            WRITE(cp_logger_get_default_unit_nr(logger),*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-          CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env(ispin)%matrix_dx)  
+          CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env(ispin)%matrix_dx,error=error)
        ENDDO
        IF (qs_ot_env(1)%settings%do_rotation) THEN
            DO ispin=1,nspin
               ! right now no preconditioner yet
-              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx)  
-              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx,tmp)
+              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx,error=error)
+              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx,tmp,error=error)
               ! added 0.5, because we have (antisymmetry) only half the number of variables
               qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+0.5_dp*tmp
            ENDDO
            DO ispin=1,nspin
-              CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env(ispin)%rot_mat_dx)  
+              CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env(ispin)%rot_mat_dx,error=error)
            ENDDO
        ENDIF
    ELSE
        qs_ot_env(1)%gnorm=0.0_dp
        DO ispin=1,nspin
-          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp)
+          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp,error=error)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%settings%do_rotation) THEN
            DO ispin=1,nspin
-              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp)
+              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp,error=error)
               ! added 0.5, because we have (antisymmetry) only half the number of variables
               qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+0.5_dp*tmp
            ENDDO
        ENDIF
    ENDIF
 
-   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n)
+   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n,error=error)
    k=0
    DO ispin=1,nspin
-        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp)
+        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp,error=error)
         k=k+itmp
    ENDDO
    qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k))
@@ -504,14 +511,14 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
 END SUBROUTINE ot_new_sd_direction
 
 !
-! creates a new CG direction. Implements Polak-Ribierre variant 
+! creates a new CG direction. Implements Polak-Ribierre variant
 ! using the preconditioner if associated
 ! also updates the gradient for line search
 !
 SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nspin
     REAL(KIND=dp)                            :: beta_pr, gnorm_cross, &
@@ -521,14 +528,14 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
    nspin=SIZE(qs_ot_env)
    logger=>cp_error_get_logger(error)
 
-   gnorm_cross=0.0_dp 
+   gnorm_cross=0.0_dp
    DO ispin=1,nspin
-      CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old,tmp)
+      CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old,tmp,error=error)
       gnorm_cross=gnorm_cross+tmp
    ENDDO
    IF (qs_ot_env(1)%settings%do_rotation) THEN
        DO ispin=1,nspin
-          CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old,tmp)
+          CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old,tmp,error=error)
           ! added 0.5, because we have (antisymmetry) only half the number of variables
           gnorm_cross=gnorm_cross+0.5_dp*tmp
        ENDDO
@@ -537,52 +544,52 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
    IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
        DO ispin=1,nspin
           CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
-                                    qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)  
+                                    qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old,error=error)
        ENDDO
        qs_ot_env(1)%gnorm=0.0_dp
        DO ispin=1,nspin
-          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old,tmp)
+          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old,tmp,error=error)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
           WRITE(cp_logger_get_default_unit_nr(logger),*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_gx_old,qs_ot_env(ispin)%matrix_gx)
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_gx_old,qs_ot_env(ispin)%matrix_gx,error=error)
        ENDDO
        IF (qs_ot_env(1)%settings%do_rotation) THEN
            DO ispin=1,nspin
               ! right now no preconditioner yet
-              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old)
-              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old,tmp)
+              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old,error=error)
+              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old,tmp,error=error)
               ! added 0.5, because we have (antisymmetry) only half the number of variables
               qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+0.5_dp*tmp
            ENDDO
            DO ispin=1,nspin
-              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx_old,qs_ot_env(ispin)%rot_mat_gx)
+              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx_old,qs_ot_env(ispin)%rot_mat_gx,error=error)
            ENDDO
        ENDIF
    ELSE
        qs_ot_env(1)%gnorm=0.0_dp
        DO ispin=1,nspin
-          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp)
+          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp,error=error)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
-          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old)
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old,error=error)
        ENDDO
        IF (qs_ot_env(1)%settings%do_rotation) THEN
            DO ispin=1,nspin
-              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp)
+              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp,error=error)
               ! added 0.5, because we have (antisymmetry) only half the number of variables
               qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+0.5_dp*tmp
-              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old)
+              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx_old,error=error)
            ENDDO
        ENDIF
    ENDIF
 
-   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n)
+   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n,error=error)
    k=0
    DO ispin=1,nspin
-        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp)
+        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp,error=error)
         k=k+itmp
    ENDDO
    qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k))
@@ -592,12 +599,12 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
 
    test_down=0.0_dp
    DO ispin=1,nspin
-      CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_dp,qs_ot_env(ispin)%matrix_gx)  
-      CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp)
+      CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_dp,qs_ot_env(ispin)%matrix_gx,error=error)
+      CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp,error=error)
       test_down=test_down+tmp
       IF (qs_ot_env(1)%settings%do_rotation) THEN
-          CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%rot_mat_dx,-1.0_dp,qs_ot_env(ispin)%rot_mat_gx)  
-          CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx,tmp)
+          CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%rot_mat_dx,-1.0_dp,qs_ot_env(ispin)%rot_mat_gx,error=error)
+          CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_dx,tmp,error=error)
           test_down=test_down+0.5_dp*tmp
       ENDIF
    ENDDO
@@ -605,10 +612,10 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
    IF (test_down.ge.0.0_dp) THEN ! reset to SD
          beta_pr=0.0_dp
          DO ispin=1,nspin
-            CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_dp,qs_ot_env(ispin)%matrix_gx)  
+            CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%matrix_dx,-1.0_dp,qs_ot_env(ispin)%matrix_gx,error=error)
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                 CALL cp_fm_scale_and_add(beta_pr,qs_ot_env(ispin)%rot_mat_dx, &
-                                         -1.0_dp,qs_ot_env(ispin)%rot_mat_gx)  
+                                         -1.0_dp,qs_ot_env(ispin)%rot_mat_gx,error=error)
             ENDIF
          ENDDO
    ENDIF
@@ -620,8 +627,8 @@ END SUBROUTINE ot_new_cg_direction
 
 SUBROUTINE ot_diis_step(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: diis_bound, diis_m, i, info, &
                                                 ispin, itmp, j, k, n, nspin
@@ -645,10 +652,10 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
 
    DO ispin=1,nspin
       CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x, &
-                                      qs_ot_env(ispin)%matrix_h_x(j)%matrix)
+                                      qs_ot_env(ispin)%matrix_h_x(j)%matrix,error=error)
       IF (qs_ot_env(ispin)%settings%do_rotation) THEN
           CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_x, &
-                                      qs_ot_env(ispin)%rot_mat_h_x(j)%matrix)
+                                      qs_ot_env(ispin)%rot_mat_h_x(j)%matrix,error=error)
       ENDIF
    ENDDO
 
@@ -656,50 +663,50 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
        qs_ot_env(1)%gnorm=0.0_dp
        DO ispin=1,nspin
            CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
-                                     qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
+                                     qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix,error=error)
            CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                                                                           tmp)
+                                                                                           tmp,error=error)
            qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
            WRITE(cp_logger_get_default_unit_nr(logger),*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-           CALL cp_fm_scale_and_add(-qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_h_e(j)%matrix)
+           CALL cp_fm_scale_and_add(-qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_h_e(j)%matrix,error=error)
        ENDDO
        IF (qs_ot_env(1)%settings%do_rotation) THEN
            DO ispin=1,nspin
-              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_h_e(j)%matrix)
+              CALL cp_fm_to_fm(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_h_e(j)%matrix,error=error)
               CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                                                                           tmp)
+                                                                                           tmp,error=error)
               qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+0.5_dp*tmp
            ENDDO
            DO ispin=1,nspin
-              CALL cp_fm_scale_and_add(-qs_ot_env(1)%ds_min,qs_ot_env(ispin)%rot_mat_h_e(j)%matrix)
+              CALL cp_fm_scale_and_add(-qs_ot_env(1)%ds_min,qs_ot_env(ispin)%rot_mat_h_e(j)%matrix,error=error)
            ENDDO
        ENDIF
    ELSE
        qs_ot_env(1)%gnorm=0.0_dp
        DO ispin=1,nspin
-          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp)
+          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp,error=error)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
           CALL cp_fm_scale_and_add(0.0_dp,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                         -qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_gx)
+                         -qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_gx,error=error)
        ENDDO
        IF (qs_ot_env(1)%settings%do_rotation) THEN
            DO ispin=1,nspin
-              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp)
+              CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx,qs_ot_env(ispin)%rot_mat_gx,tmp,error=error)
               qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+0.5_dp*tmp
               CALL cp_fm_scale_and_add(0.0_dp,qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                      -qs_ot_env(1)%ds_min,qs_ot_env(ispin)%rot_mat_gx)
+                                      -qs_ot_env(1)%ds_min,qs_ot_env(ispin)%rot_mat_gx,error=error)
            ENDDO
        ENDIF
    ENDIF
 
-   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n)
+   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n,error=error)
    k=0
    DO ispin=1,nspin
-        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp)
+        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp,error=error)
         k=k+itmp
    ENDDO
    qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k))
@@ -709,20 +716,20 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
 
    DO i=1,diis_bound
       ! I think there are two possible options, with and without preconditioner
-      ! as a metric 
-      ! the second option seems most logical to me, and it seems marginally faster 
+      ! as a metric
+      ! the second option seems most logical to me, and it seems marginally faster
       ! in some of the tests
       IF (.FALSE.) THEN
        qs_ot_env(1)%ls_diis(i,j)=0.0_dp
        DO ispin=1,nspin
           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
                                qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                               tmp)
+                               tmp,error=error)
           qs_ot_env(1)%ls_diis(i,j)=qs_ot_env(1)%ls_diis(i,j)+tmp
           IF (qs_ot_env(ispin)%settings%do_rotation) THEN
               CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                   tmp)
+                                   tmp,error=error)
               qs_ot_env(1)%ls_diis(i,j)=qs_ot_env(1)%ls_diis(i,j)+0.5_dp*tmp
           ENDIF
        ENDDO
@@ -731,12 +738,12 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
        DO ispin=1,nspin
          CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx, &
                             qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                            tmp)
+                            tmp,error=error)
          qs_ot_env(1)%ls_diis(i,j)=qs_ot_env(1)%ls_diis(i,j)-qs_ot_env(1)%ds_min * tmp
          IF (qs_ot_env(ispin)%settings%do_rotation) THEN
               CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_gx, &
                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                   tmp)
+                                   tmp,error=error)
               qs_ot_env(1)%ls_diis(i,j)=qs_ot_env(1)%ls_diis(i,j)-qs_ot_env(1)%ds_min * 0.5_dp * tmp
          ENDIF
        ENDDO
@@ -757,24 +764,24 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
 
    DO ispin=1,nspin
       ! OK, add the vectors now
-      CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp)
+      CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp,error=error)
       DO i=1, diis_bound
          CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%c_diis(i), &
-                       qs_ot_env(ispin)%matrix_h_e(i)%matrix)
+                       qs_ot_env(ispin)%matrix_h_e(i)%matrix,error=error)
       ENDDO
       DO i=1, diis_bound
          CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x, qs_ot_env(1)%c_diis(i), &
-                       qs_ot_env(ispin)%matrix_h_x(i)%matrix)
+                       qs_ot_env(ispin)%matrix_h_x(i)%matrix,error=error)
       ENDDO
       IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-          CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp)
+          CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp,error=error)
           DO i=1, diis_bound
              CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x, qs_ot_env(1)%c_diis(i), &
-                           qs_ot_env(ispin)%rot_mat_h_e(i)%matrix)
+                           qs_ot_env(ispin)%rot_mat_h_e(i)%matrix,error=error)
           ENDDO
           DO i=1, diis_bound
              CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x, qs_ot_env(1)%c_diis(i), &
-                           qs_ot_env(ispin)%rot_mat_h_x(i)%matrix)
+                           qs_ot_env(ispin)%rot_mat_h_x(i)%matrix,error=error)
           ENDDO
       ENDIF
    ENDDO
@@ -788,17 +795,17 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
       tr_xnew_gx=0.0_dp
       DO ispin=1,nspin
            CALL cp_fm_trace(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                                  qs_ot_env(ispin)%matrix_gx, tmp)
+                                  qs_ot_env(ispin)%matrix_gx, tmp,error=error)
            tr_xold_gx=tr_xold_gx+tmp
            CALL cp_fm_trace(qs_ot_env(ispin)%matrix_x, &
-                                  qs_ot_env(ispin)%matrix_gx, tmp)
+                                  qs_ot_env(ispin)%matrix_gx, tmp,error=error)
            tr_xnew_gx=tr_xnew_gx+tmp
            IF (qs_ot_env(ispin)%settings%do_rotation) THEN
                CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                                  qs_ot_env(ispin)%rot_mat_gx, tmp)
+                                  qs_ot_env(ispin)%rot_mat_gx, tmp,error=error)
                tr_xold_gx=tr_xold_gx+0.5_dp*tmp
                CALL cp_fm_trace(qs_ot_env(ispin)%rot_mat_x, &
-                                  qs_ot_env(ispin)%rot_mat_gx, tmp)
+                                  qs_ot_env(ispin)%rot_mat_gx, tmp,error=error)
                tr_xnew_gx=tr_xnew_gx+0.5_dp*tmp
            ENDIF
       ENDDO
@@ -807,17 +814,17 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
       IF (overlap.GT.0.0_dp) THEN
          qs_ot_env(1)%OT_METHOD_FULL="OT SD"
          DO ispin=1,nspin
-            CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp)
+            CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp,error=error)
             CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x, 1.0_dp, &
-                           qs_ot_env(ispin)%matrix_h_e(j)%matrix)
+                           qs_ot_env(ispin)%matrix_h_e(j)%matrix,error=error)
             CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x, 1.0_dp, &
-                           qs_ot_env(ispin)%matrix_h_x(j)%matrix)
+                           qs_ot_env(ispin)%matrix_h_x(j)%matrix,error=error)
             IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp)
+                CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp,error=error)
                 CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x, 1.0_dp, &
-                           qs_ot_env(ispin)%rot_mat_h_e(j)%matrix)
+                           qs_ot_env(ispin)%rot_mat_h_e(j)%matrix,error=error)
                 CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%rot_mat_x, 1.0_dp, &
-                           qs_ot_env(ispin)%rot_mat_h_x(j)%matrix)
+                           qs_ot_env(ispin)%rot_mat_h_x(j)%matrix,error=error)
             ENDIF
          ENDDO
       ENDIF

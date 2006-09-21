@@ -2787,8 +2787,8 @@ END FUNCTION fftselect
 SUBROUTINE pw_write(pw, unit_nr, error)
     TYPE(pw_type), INTENT(in)                :: pw
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_write', &
       routineP = moduleN//':'//routineN
@@ -2909,8 +2909,8 @@ END FUNCTION pw_compatible
 !!*** **********************************************************************
 SUBROUTINE pw_retain(pw, error)
     TYPE(pw_type), POINTER                   :: pw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_retain', &
       routineP = moduleN//':'//routineN
@@ -2958,8 +2958,8 @@ END SUBROUTINE pw_retain
 !!*** **********************************************************************
 SUBROUTINE pw_release(pw, error)
     TYPE(pw_type), POINTER                   :: pw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_release', &
       routineP = moduleN//':'//routineN
@@ -3054,8 +3054,8 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: cr3d_ptr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_create', &
       routineP = moduleN//':'//routineN
@@ -3191,8 +3191,8 @@ END SUBROUTINE pw_create
 SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
     TYPE(pw_type), POINTER                   :: pw1, pw2
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: maxdiff
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compare_debug', &
       routineP = moduleN//':'//routineN
@@ -3281,8 +3281,8 @@ END SUBROUTINE pw_compare_debug
 !!**************************************************************************
   SUBROUTINE pw_prolongate_l_NoPBC(pw_coarse, pw_fine, error)
     TYPE(pw_type), POINTER                   :: pw_coarse, pw_fine
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_l_NoPBC', &
       routineP = moduleN//':'//routineN
@@ -3426,8 +3426,8 @@ END SUBROUTINE pw_compare_debug
 !!**************************************************************************
   SUBROUTINE pw_restrict_l_NoPBC(pw_fine, pw_coarse, error)
     TYPE(pw_type), POINTER                   :: pw_fine, pw_coarse
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_l_NoPBC', &
       routineP = moduleN//':'//routineN

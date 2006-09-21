@@ -70,8 +70,8 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
                                                 calc_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_energies', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -98,12 +98,12 @@ CONTAINS
     IF ( dft_control%qs_control%semi_empirical ) THEN
        CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
                                  calculate_forces=.FALSE.,error=error)
-       CALL qs_env_update_s_mstruct(qs_env)
+       CALL qs_env_update_s_mstruct(qs_env,error=error)
     ELSE
        CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
                                           calculate_forces=.FALSE.,error=error)
-       CALL qs_env_update_s_mstruct(qs_env)
-       CALL calculate_ecore_self(qs_env)
+       CALL qs_env_update_s_mstruct(qs_env,error=error)
+       CALL calculate_ecore_self(qs_env,error=error)
        CALL calculate_ecore_overlap(qs_env, para_env, &
                                       calculate_forces=.FALSE.,error=error)
     END IF
@@ -116,7 +116,7 @@ CONTAINS
         CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
                                 qs_env=qs_env, &
                                 calculate_forces=.FALSE., &
-                                just_energy=.TRUE.)
+                                just_energy=.TRUE.,error=error)
       END IF
     END IF
 

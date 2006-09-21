@@ -90,8 +90,8 @@ CONTAINS
   !!*** *************************************************************************
   SUBROUTINE pw_poisson_cleanup (poisson_env, error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_cleanup', &
       routineP = moduleN//':'//routineN
@@ -136,8 +136,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_check(poisson_env,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_check', &
       routineP = moduleN//':'//routineN
@@ -230,8 +230,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_rebuild(poisson_env,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild', &
       routineP = moduleN//':'//routineN
@@ -297,8 +297,8 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(3), OPTIONAL  :: dvhartree
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h_stress
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
       routineP = moduleN//':'//routineN
@@ -447,8 +447,8 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: use_level
     TYPE(pw_grid_type), OPTIONAL, POINTER    :: mt_super_ref_pw_grid
     LOGICAL, INTENT(in), OPTIONAL            :: force_rebuild
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_set', &
       routineP = moduleN//':'//routineN

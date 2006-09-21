@@ -81,8 +81,8 @@ CONTAINS
   SUBROUTINE cp_fm_cholesky_decompose(matrix,n,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_decompose', &
       routineP = moduleN//':'//routineN
@@ -155,7 +155,7 @@ CONTAINS
   SUBROUTINE cp_fm_cholesky_invert(matrix,n, error)
     TYPE(cp_fm_type), POINTER           :: matrix
     INTEGER, INTENT(in), OPTIONAL                :: n
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_invert',&
          routineP=moduleN//':'//routineN
@@ -231,7 +231,7 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_cholesky_reduce(matrix,matrixb, error)
    TYPE(cp_fm_type), POINTER           :: matrix,matrixb
-   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+   TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_reduce',&
          routineP=moduleN//':'//routineN
@@ -292,7 +292,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                         :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )        :: op
     CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: pos
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+    TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_restore',&
          routineP=moduleN//':'//routineN

@@ -8,7 +8,7 @@
 !!     xas_env_types
 !!
 !!   FUNCTION
-!!     define create destroy get and put information 
+!!     define create destroy get and put information
 !!     in xas_env to calculate the x-ray absorption spectra
 !!
 !!   AUTHOR
@@ -49,7 +49,7 @@ MODULE xas_env_types
 
 ! *** Public subroutines ***
 
-  PUBLIC :: get_xas_env, set_xas_env, xas_env_create, xas_env_release, xas_env_retain 
+  PUBLIC :: get_xas_env, set_xas_env, xas_env_create, xas_env_release, xas_env_retain
 
 
 !!***
@@ -59,7 +59,7 @@ MODULE xas_env_types
 !!
 !!   NAME
 !!     xas_environment_type
-!!   
+!!
 !!   FUNCTION
 !!
 !!   ATTRIBUTES
@@ -70,7 +70,7 @@ MODULE xas_env_types
 !!     nvirtual : number of empy states to take into account for the spectrum
 !!     state_of_atom : for each atom the state that have to be excited (global index)
 !!                     dimension is the number of atoms to be excited
-!!     atom_of_state : atom to which each state is assigned, 
+!!     atom_of_state : atom to which each state is assigned,
 !!                    dimension is the number of states occupied that might be excited
 !!     type_of_state : character of the state (1s,2s,2p...)
 !!     spectrum : for each excitation the energy and the oscillator strength
@@ -78,12 +78,12 @@ MODULE xas_env_types
 !!     groundstate_coeff : temporary storage for the original mos coefficients
 !!     ostrength_sm : sin and cos integrals computed for the contracted GTO functions
 !!     dip_fm_set : fm for the sin and cos integrals to define the pos operator
-!!     fm_work : temporary fm 
+!!     fm_work : temporary fm
 !!     qs_loc_env : environment for the localization procedure
 !!
 !!   AUTHOR
 !!     MI
-!! 
+!!
 !!   MODIFICATION HISTORY
 !!      created 05-2005
 !!
@@ -99,11 +99,11 @@ MODULE xas_env_types
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
     INTEGER, DIMENSION(:), POINTER :: type_of_state
-    INTEGER, DIMENSION(:), POINTER :: mykind_of_atom 
+    INTEGER, DIMENSION(:), POINTER :: mykind_of_atom
     INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
     REAL(dp) :: eps_diis, p_mix, unoccupied_eps
-    REAL(dp), DIMENSION(:), POINTER :: all_evals 
-    REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals 
+    REAL(dp), DIMENSION(:), POINTER :: all_evals
+    REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
     REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
     TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
@@ -180,8 +180,8 @@ CONTAINS
       POINTER                                :: qs_loc_env
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: stogto_overlap
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_xas_env', &
       routineP = moduleN//':'//routineN
@@ -234,8 +234,8 @@ CONTAINS
                                                 nvirtual1, nvirtual2
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
       routineP = moduleN//':'//routineN
@@ -247,7 +247,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
     IF(.NOT. failure) THEN
-   
+
       IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
       IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
       IF (PRESENT(nvirtual1)) xas_env%nvirtual1 = nvirtual1
@@ -257,7 +257,7 @@ CONTAINS
         IF(ASSOCIATED(xas_env%qs_loc_env)) &
             CALL qs_loc_env_release(xas_env%qs_loc_env,error=error)
         xas_env%qs_loc_env => qs_loc_env
-      END IF 
+      END IF
 
     END IF
 
@@ -283,8 +283,8 @@ CONTAINS
   SUBROUTINE xas_env_create(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_create', &
       routineP = moduleN//':'//routineN
@@ -324,8 +324,8 @@ CONTAINS
   SUBROUTINE xas_env_release(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_release', &
       routineP = moduleN//':'//routineN
@@ -396,7 +396,7 @@ CONTAINS
          END IF
 
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
-            CALL deallocate_matrix_set(xas_env%ostrength_sm)
+            CALL deallocate_matrix_set(xas_env%ostrength_sm,error=error)
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)
@@ -429,8 +429,8 @@ CONTAINS
   SUBROUTINE xas_env_retain(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_retain', &
       routineP = moduleN//':'//routineN

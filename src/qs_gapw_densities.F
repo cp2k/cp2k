@@ -14,7 +14,7 @@
 !!     -
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!
 !!   SOURCE
@@ -48,7 +48,7 @@ MODULE qs_gapw_densities
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gapw_densities'
 
-  PUBLIC :: prepare_gapw_den 
+  PUBLIC :: prepare_gapw_den
 
 
 !******************************************************************************
@@ -63,8 +63,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(local_rho_type), OPTIONAL, POINTER  :: local_rho_set
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rho0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'prepare_gapw_den'
 
@@ -122,7 +122,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     rho0_mpole=rho0_mpole,&
                     rho_atom_set=rho_atom_set,&
-                    rho0_atom_set=rho0_atom_set)
+                    rho0_atom_set=rho0_atom_set,error=error)
 
     IF (PRESENT(local_rho_set)) THEN
        rho_atom_set  => local_rho_set%rho_atom_set
@@ -150,7 +150,7 @@ CONTAINS
 !     Calculate rho1_h and rho1_s on the radial gris centered on the atomic position
       IF(paw_atom) &
         CALL calculate_rho_atom(para_env,rho_atom_set,atom_kind,atom_list,grid_atom,natom,&
-                                nspins,rho1_h_tot,rho1_s_tot)
+                                nspins,rho1_h_tot,rho1_s_tot,error=error)
 
 !     Calculate rho0_h and rho0_s on the radial gris centered on the atomic position
       IF (my_do_rho0) &
@@ -164,10 +164,10 @@ CONTAINS
     DO ispin = 1,nspins
       qs_charges%total_rho1_hard(ispin) = - rho1_h_tot(ispin)
       qs_charges%total_rho1_soft(ispin) = - rho1_s_tot(ispin)
-    END DO 
+    END DO
 
     IF (my_do_rho0) THEN
-       rho0_mpole%total_rho0_h = -rho0_h_tot 
+       rho0_mpole%total_rho0_h = -rho0_h_tot
        rho0_mpole%total_rho0_s = -rho0_s_tot
 
 !      Put the rho0_soft on the global grid
@@ -175,7 +175,7 @@ CONTAINS
        IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-3_dp) THEN
           IF (ionode) THEN
              WRITE(output_unit,'(/,72("*"))')
-             WRITE(output_unit,'(T2,A,T66,1E20.8)') & 
+             WRITE(output_unit,'(T2,A,T66,1E20.8)') &
                   "WARNING: rho0_soft calculated on the local grid is  :", -rho0_s_tot,&
                   "         rho0_soft calculated on the global grid is :", tot_rs_int
              WRITE(output_unit,'(T2,A)') &
@@ -199,5 +199,5 @@ CONTAINS
 !******************************************************************************
 
 !******************************************************************************
- END MODULE  qs_gapw_densities 
+ END MODULE  qs_gapw_densities
 !******************************************************************************

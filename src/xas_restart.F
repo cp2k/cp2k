@@ -9,7 +9,7 @@
 !!
 !!   FUNCTION
 !!      Initialize the XAS orbitals for specific core excitations
-!!      Either the GS orbitals are used as initial guess, or the 
+!!      Either the GS orbitals are used as initial guess, or the
 !!      xas mos are read from a previous calculation.
 !!      In the latter case, the core-hole potetial should be the same.
 !!
@@ -67,7 +67,7 @@ MODULE xas_restart
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_restart'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_restart'
 
 ! *** Public subroutines ***
 
@@ -87,9 +87,9 @@ CONTAINS
 !!
 !!
 !!   NOTES
-!!     this routine should notbe public, it reads only the mos 
+!!     this routine should notbe public, it reads only the mos
 !!     for an xas calculation, i.e. for each core excitation from a different
-!!     restart file. 
+!!     restart file.
 !!
 !!   ARGUMENTS
 !!     - mos: store the molecular orbitalsread fromthe restart file
@@ -111,8 +111,8 @@ CONTAINS
       POINTER                                :: mos
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: rst_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_restart_xas', &
       routineP = moduleN//':'//routineN
@@ -137,11 +137,11 @@ CONTAINS
     NULLIFY (logger, para_env, particle_set)
     NULLIFY (nset_info, nshell,l, nshell_info,nso_info, offset_info)
 
-    CALL get_qs_env(qs_env=qs_env, para_env=para_env, particle_set=particle_set)
+    CALL get_qs_env(qs_env=qs_env, para_env=para_env, particle_set=particle_set,error=error)
     group = para_env%group
     source = para_env%source
     logger => cp_error_get_logger()
-  
+
     nspin = SIZE(mos,1)
     nao = mos(1)%mo_set%nao
     natom = SIZE(particle_set,1)
@@ -156,8 +156,8 @@ CONTAINS
       IF (natom_read /= natom) THEN
         CALL stop_program(routineP,"changed natom, not possible")
       END IF
-  
-      ! Let's make it possible tochange the basis set 
+
+      ! Let's make it possible tochange the basis set
       ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
@@ -188,7 +188,7 @@ CONTAINS
 
       ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      
+
     END IF
 
     CALL mp_bcast(nspin_read,source,group)
@@ -202,7 +202,7 @@ CONTAINS
       homo=mos(ispin)%mo_set%homo
       mos(ispin)%mo_set%eigenvalues(:) = 0.0_dp
       mos(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
-      CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp)
+      CALL cp_fm_set_all(mos(ispin)%mo_set%mo_coeff,0.0_dp,error=error)
 
       IF (para_env%ionode.AND.(nmo > 0)) THEN
         READ (rst_unit) nmo_read,&
@@ -303,7 +303,7 @@ CONTAINS
 
         CALL mp_bcast(vecbuffer,source,group)
         CALL cp_fm_set_submatrix(mos(ispin)%mo_set%mo_coeff,vecbuffer,1,&
-             i,nao,1,transpose=.TRUE.)
+             i,nao,1,transpose=.TRUE.,error=error)
 
       END DO
 
@@ -335,20 +335,20 @@ CONTAINS
   END SUBROUTINE read_mo_set_restart_xas
 
   ! ***************************************************************************
-  
+
 !!****f* xas_restart/xas_read_restart [1.0] *
 !!
 !!   NAME
 !!     xas_read_restart
 !!
 !!   FUNCTION
-!!     Set up for reading the restart 
+!!     Set up for reading the restart
 !!     corresponing to the excitation of iatom
 !!     If the corresponding restart file does not exist
 !!     the GS orbitals are used as initial guess
 !!
 !!   ARGUMENTS
-!!     xas_control: control variables  
+!!     xas_control: control variables
 !!     xas_section: input section for XAS calculations
 !!     qs_env:
 !!     iatom: index of the absorbing atom
@@ -363,15 +363,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE xas_read_restart(xas_control,xas_section,qs_env,iatom,estate,error)  
+  SUBROUTINE xas_read_restart(xas_control,xas_section,qs_env,iatom,estate,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(section_vals_type), POINTER         :: xas_section
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
     INTEGER, INTENT(INOUT)                   :: estate
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_read_restart', &
       routineP = moduleN//':'//routineN
@@ -411,7 +411,7 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",&
          extension=".Log",error=error)
 
-    CALL get_qs_env( qs_env=qs_env, para_env=para_env )
+    CALL get_qs_env( qs_env=qs_env, para_env=para_env ,error=error)
     group = para_env%group
     source = para_env%source
 
@@ -435,7 +435,7 @@ CONTAINS
 
         IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T20,A,I5,/)")&
              "Read restart file for atom ", iatom
-              
+
       ELSE
         IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,/)")&
              "Restart file for atom ", iatom,&
@@ -445,9 +445,9 @@ CONTAINS
     END IF
 
     CALL mp_bcast(file_exists,source,group)
- 
+
     IF(file_exists) THEN
-      CALL get_qs_env(qs_env=qs_env, mos=mos, matrix_s=matrix_s)
+      CALL get_qs_env(qs_env=qs_env, mos=mos, matrix_s=matrix_s,error=error)
       CALL read_mo_set_restart_xas(mos,qs_env,rst_unit,error=error)
 
       ! close file
@@ -462,36 +462,36 @@ CONTAINS
           estate = istate
           EXIT
         END IF
-      END DO 
+      END DO
       IF(estate==0) THEN
         CALL stop_program(routineP,"Core-hole orbital not found,"//&
         " probably the core-hole potential of the restart file is different")
       END IF
       occupation_numbers(homo) =  xas_control%occ_homo
-    
+
       nspin = SIZE(mos,1)
       DO ispin = 1,nspin
       ! ortho so that one can restart for different positions (basis sets?)
          NULLIFY(mo_coeff)
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff,homo=homo)
-         CALL make_basis_sm(mo_coeff,homo,matrix_s(1)%matrix)
+         CALL make_basis_sm(mo_coeff,homo,matrix_s(1)%matrix,error=error)
       END DO
-    END IF  
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE xas_read_restart 
+  END SUBROUTINE xas_read_restart
 
   !*****************************************************************************
 
-  SUBROUTINE xas_write_restart(xas_control,xas_section,qs_env,iatom,error)  
+  SUBROUTINE xas_write_restart(xas_control,xas_section,qs_env,iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(section_vals_type), POINTER         :: xas_section
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_write_restart', &
       routineP = moduleN//':'//routineN
@@ -518,14 +518,14 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit = -1
-    
+
 
     output_unit = cp_print_key_unit_nr(logger,xas_section,&
          "PRINT%PROGRAM_RUN_INFO",&
          extension=".Log",error=error)
 
     CALL get_qs_env( qs_env=qs_env, mos=mos, &
-         para_env=para_env, particle_set=particle_set )
+         para_env=para_env, particle_set=particle_set ,error=error)
     group = para_env%group
     source = para_env%source
 
@@ -560,7 +560,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE xas_write_restart 
+  END SUBROUTINE xas_write_restart
 
   !*****************************************************************************
 !****f* xas_restart/xas_initialize_rho [1.0] *
@@ -583,8 +583,8 @@ CONTAINS
   SUBROUTINE xas_initialize_rho(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_initialize_rho', &
       routineP = moduleN//':'//routineN
@@ -605,7 +605,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
-         mos=mos,rho=rho)
+         mos=mos,rho=rho,error=error)
 
     DO ispin=1,SIZE(mos)
        CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
@@ -613,7 +613,7 @@ CONTAINS
     END DO
 
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
-   
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xas_initialize_rho

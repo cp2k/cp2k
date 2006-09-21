@@ -19,11 +19,11 @@
 !!     - Hockney, R.W. & Eastwood, J.W.: Computer Simulation using Particles;
 !!                                       McGraw-Hill, New York, 1981
 !!     - Verlet, L.: Phys. Rev. 1967, 159, 88
-!!     - Auerbach, D.J., et.al.: A Special Purpose Parallel Computer for 
-!!                               Molecular Dynamics: Motivation, Design, 
+!!     - Auerbach, D.J., et.al.: A Special Purpose Parallel Computer for
+!!                               Molecular Dynamics: Motivation, Design,
 !!                               Implementation, and Application;
 !!                               J. Phys. Chem., 1987, 91, 4881-4890
-!!     
+!!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
@@ -103,7 +103,7 @@ CONTAINS
 !!     tbmd_neighbor_list_control
 !!
 !!   FUNCTION
-!!     Verlet update logic, which decides if an update of the neighbor lists 
+!!     Verlet update logic, which decides if an update of the neighbor lists
 !!     has to be performed or not
 !!
 !!   NOTES
@@ -117,7 +117,7 @@ CONTAINS
 !!     - cell: The simulation cell
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!     - force_env_section: Pointer to the force environment input section
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -142,8 +142,8 @@ CONTAINS
       POINTER                                :: tbmd_neighbor_list_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tbmd_neighbor_list_control'
 
@@ -174,7 +174,7 @@ CONTAINS
                                   r_last_update=r_last_update, &
                                   num_update=num_update, &
                                   verlet_skin=verlet_skin,&
-                                  last_update=last_update)
+                                  last_update=last_update,error=error)
 
     nparticle_kind = SIZE(atomic_kind_set)
     nparticle = SIZE(particle_set)
@@ -255,7 +255,7 @@ CONTAINS
     END IF
 
     counter = counter + 1
-    CALL tbmd_neighbor_list_env_set(tbmd_neighbor_list_env, counter=counter)
+    CALL tbmd_neighbor_list_env_set(tbmd_neighbor_list_env, counter=counter,error=error)
 
     DEALLOCATE(r_max, STAT=istat)
     CPPostcondition(istat==0, cp_failure_level, routineN, error, failure)
@@ -286,7 +286,7 @@ CONTAINS
 !!     - build_from_scratch: Logical which indicates if the neighbor list can
 !!                           be updated or has to be constructed from scratch
 !!     - force_env_section: Pointer to the force environment input section
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -314,8 +314,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tbmd_neighbor_lists'
 
@@ -472,7 +472,7 @@ CONTAINS
         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                          "atom(ikind)%list_local_a_index")
       END IF
-      
+
    !   IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
    !     DEALLOCATE(atom(ikind)%list_local_b_index, STAT=istat)
    !     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
@@ -853,7 +853,7 @@ CONTAINS
                         END IF
 
                         IF (subcell(i,j,k)%natom == 0) CYCLE
- 
+
                         DO iatom_subcell = 1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
                           iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -924,8 +924,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
 
@@ -1059,8 +1059,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string

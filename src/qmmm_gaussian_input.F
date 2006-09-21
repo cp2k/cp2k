@@ -66,8 +66,8 @@ CONTAINS
   !!     -
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -84,8 +84,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: qmmm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mm_potential', &
       routineP = moduleN//':'//routineN
@@ -105,19 +105,19 @@ CONTAINS
          c_val=mm_potential_file_name,error=error)
 
     NULLIFY(parser)
-    CALL parser_create(parser,mm_potential_file_name,para_env=para_env)
+    CALL parser_create(parser,mm_potential_file_name,para_env=para_env,error=error)
 
     search_loop: DO
        Ftarget = "&MM_FIT_POT"
        IF (Ival.EQ.Nval) EXIT search_loop
-       CALL parser_search_string(parser,Ftarget,.TRUE.,found,line)
+       CALL parser_search_string(parser,Ftarget,.TRUE.,found,line,error=error)
        IF (Found) THEN
 !
 ! Structure example of the MM fit potential file:
 !
-!           &MM_FIT_POT 
+!           &MM_FIT_POT
 !           RADIUS  0.4 Angstrom
-!           7   
+!           7
 !           0.223396   0.811453  Bohr
 !           0.306814   1.01988   Bohr
 !           0.254879   1.37404   Bohr
@@ -127,13 +127,13 @@ CONTAINS
 !           0.0790169  4.82046   Bohr
 !           &END
 !
-          CALL parser_get_object  (parser,Ftarget,newline=.TRUE.)
+          CALL parser_get_object  (parser,Ftarget,newline=.TRUE.,error=error)
           CPPostcondition(TRIM(Ftarget)=="RADIUS",cp_failure_level,routineP,error,Failure)
-          CALL parser_get_object  (parser,radius)
-          CALL parser_get_object  (parser,units)
+          CALL parser_get_object  (parser,radius,error=error)
+          CALL parser_get_object  (parser,units,error=error)
           CALL uppercase (units)
           fconv = 1.0_dp
-          IF (TRIM(units).EQ."ANGSTROM") fconv = bohr 
+          IF (TRIM(units).EQ."ANGSTROM") fconv = bohr
           Found_Radius = .FALSE.
           radius = radius * fconv
           Radius_Loop: DO J=1,SIZE(qmmm_gaussian_fns)
@@ -146,14 +146,14 @@ CONTAINS
              CYCLE search_loop
           END IF
           Ival = Ival + 1
-          IRad = J          
+          IRad = J
           ! Read  Rmin, Rmax
-          CALL parser_get_object(parser,qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians,newline=.TRUE.)
+          CALL parser_get_object(parser,qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians,newline=.TRUE.,error=error)
           ! Allocate Vectors
           istart = 1
-          IF (compatibility) THEN 
+          IF (compatibility) THEN
              qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians = qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians + 1
-             istart = 2             
+             istart = 2
           END IF
           NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
@@ -166,9 +166,9 @@ CONTAINS
              qmmm_gaussian_fns(IRad)%pgf%Gk(1) = my_radius
           END IF
           DO J = istart, qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
-             CALL parser_get_object(parser,qmmm_gaussian_fns(IRad)%pgf%Ak(J),newline=.TRUE.)
-             CALL parser_get_object(parser,qmmm_gaussian_fns(IRad)%pgf%Gk(J))
-             CALL parser_get_object(parser,units)
+             CALL parser_get_object(parser,qmmm_gaussian_fns(IRad)%pgf%Ak(J),newline=.TRUE.,error=error)
+             CALL parser_get_object(parser,qmmm_gaussian_fns(IRad)%pgf%Gk(J),error=error)
+             CALL parser_get_object(parser,units,error=error)
              CALL uppercase (units)
              fconv = 1.0_dp
              IF (TRIM(units).EQ."ANGSTROM") fconv = bohr
@@ -177,10 +177,10 @@ CONTAINS
           END DO
        ELSE
 !       *** Stop program, if the end of file is reached ***
-          WRITE(*,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition." 
+          WRITE(*,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition."
           CALL stop_program(routineN,moduleN,__LINE__,"Radius Value not found in MM_POTENTIAL file",para_env)
        END IF
-       
+
     END DO search_loop
 
     CALL parser_release(parser,error=error)
@@ -199,8 +199,8 @@ CONTAINS
   !!     -
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -216,8 +216,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
     INTEGER, INTENT(IN)                      :: num_geep_gauss
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential', &
       routineP = moduleN//':'//routineN
@@ -233,7 +233,7 @@ CONTAINS
        radius = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius
        istart = 0
        ! Allocate Vectors
-       IF (compatibility) THEN 
+       IF (compatibility) THEN
           qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians + 1
           istart = 1
        END IF
@@ -272,7 +272,7 @@ CONTAINS
           rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (g16_rc*bohr)
        CASE(18)
           rc  = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius / (g16_rc*bohr)
-       END SELECT             
+       END SELECT
        NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
        ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
@@ -402,47 +402,47 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g10_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g10_b10
        CASE(11)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g11_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g11_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g11_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g11_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g11_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g11_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g11_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g11_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g11_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g11_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g11_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g11_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g11_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g11_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g11_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g11_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g11_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g11_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g11_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g11_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g11_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g11_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g11_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g11_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g11_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g11_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g11_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g11_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g11_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g11_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g11_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g11_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g11_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g11_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g11_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g11_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g11_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g11_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g11_a11
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+11)= g11_b11
        CASE(12)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g12_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g12_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g12_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g12_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g12_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g12_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g12_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g12_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g12_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g12_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g12_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g12_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g12_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g12_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g12_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g12_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g12_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g12_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g12_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g12_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g12_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g12_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g12_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g12_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g12_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g12_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g12_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g12_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g12_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g12_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g12_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g12_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g12_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g12_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g12_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g12_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g12_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g12_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g12_a11
@@ -450,24 +450,24 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+12)= g12_a12
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+12)= g12_b12
        CASE(13)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g13_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g13_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g13_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g13_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g13_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g13_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g13_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g13_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g13_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g13_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g13_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g13_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g13_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g13_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g13_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g13_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g13_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g13_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g13_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g13_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g13_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g13_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g13_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g13_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g13_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g13_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g13_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g13_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g13_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g13_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g13_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g13_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g13_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g13_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g13_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g13_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g13_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g13_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g13_a11
@@ -477,24 +477,24 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+13)= g13_a13
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+13)= g13_b13
        CASE(14)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g14_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g14_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g14_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g14_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g14_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g14_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g14_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g14_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g14_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g14_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g14_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g14_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g14_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g14_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g14_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g14_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g14_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g14_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g14_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g14_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g14_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g14_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g14_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g14_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g14_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g14_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g14_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g14_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g14_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g14_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g14_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g14_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g14_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g14_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g14_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g14_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g14_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g14_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g14_a11
@@ -506,24 +506,24 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+14)= g14_a14
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+14)= g14_b14
        CASE(15)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g15_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g15_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g15_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g15_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g15_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g15_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g15_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g15_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g15_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g15_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g15_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g15_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g15_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g15_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g15_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g15_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g15_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g15_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g15_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g15_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g15_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g15_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g15_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g15_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g15_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g15_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g15_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g15_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g15_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g15_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g15_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g15_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g15_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g15_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g15_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g15_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g15_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g15_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g15_a11
@@ -537,24 +537,24 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+15)= g15_a15
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+15)= g15_b15
        CASE(16)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g16_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g16_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g16_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g16_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g16_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g16_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g16_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g16_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g16_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g16_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g16_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g16_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g16_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g16_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g16_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g16_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g16_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g16_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g16_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g16_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g16_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g16_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g16_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g16_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g16_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g16_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g16_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g16_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g16_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g16_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g16_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g16_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g16_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g16_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g16_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g16_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g16_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g16_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g16_a11
@@ -570,24 +570,24 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+16)= g16_a16
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+16)= g16_b16
        CASE(17)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g17_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g17_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g17_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g17_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g17_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g17_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g17_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g17_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g17_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g17_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g17_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g17_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g17_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g17_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g17_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g17_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g17_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g17_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g17_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g17_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g17_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g17_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g17_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g17_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g17_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g17_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g17_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g17_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g17_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g17_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g17_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g17_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g17_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g17_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g17_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g17_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g17_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g17_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g17_a11
@@ -605,24 +605,24 @@ CONTAINS
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+17)= g17_a17
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+17)= g17_b17
        CASE(18)
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g18_a1 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g18_b1 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g18_a2 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g18_b2 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g18_a3 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g18_b3 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g18_a4 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g18_b4 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g18_a5 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g18_b5 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g18_a6 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g18_b6 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g18_a7 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g18_b7 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g18_a8 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g18_b8 
-          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g18_a9 
-          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g18_b9 
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = g18_a1
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+1) = g18_b1
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+2) = g18_a2
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+2) = g18_b2
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+3) = g18_a3
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+3) = g18_b3
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+4) = g18_a4
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+4) = g18_b4
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+5) = g18_a5
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+5) = g18_b5
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+6) = g18_a6
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+6) = g18_b6
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+7) = g18_a7
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+7) = g18_b7
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+8) = g18_a8
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+8) = g18_b8
+          qmmm_gaussian_fns(IRad)%pgf%Ak(istart+9) = g18_a9
+          qmmm_gaussian_fns(IRad)%pgf%Gk(istart+9) = g18_b9
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+10)= g18_a10
           qmmm_gaussian_fns(IRad)%pgf%Gk(istart+10)= g18_b10
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+11)= g18_a11

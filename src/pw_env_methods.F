@@ -102,8 +102,8 @@ CONTAINS
 !!   INPUTS
 !!     - pw_env: the pw_env that gets created
 !!     - qs_env: if given it is used to initialize the pw_env
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -116,8 +116,8 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create', &
       routineP = moduleN//':'//routineN
@@ -126,7 +126,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(.NOT.ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(pw_env, stat=stat)
@@ -158,8 +158,8 @@ END SUBROUTINE pw_env_create
 !!   INPUTS
 !!     - pw_env: the environment to rebuild
 !!     - qs_env: the qs_env where to get the cell, cutoffs,...
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -171,12 +171,12 @@ END SUBROUTINE pw_env_create
 SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2 
+    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
 
     INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, ikind, &
       ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, &
@@ -223,7 +223,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   NULLIFY(my_cutoff,cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
           pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, mt_super_ref_grid,&
           input,poisson_section,xc_super_ref_grid,super_ref_grid,my_cell)
- 
+
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -250,7 +250,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            ALLOCATE(pw_env%l_info_rho0,stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-        CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+        CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
         CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
                          zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
@@ -280,7 +280,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
           cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
           error=error)
-     CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
+     CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell ,error=error)
      IF (use_ref_cell) THEN
        my_cell => cell_ref
      ELSE
@@ -291,7 +291,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL section_vals_val_get(input,"DFT%XC%XC_GRID%USE_FINER_GRID",&
           l_val=uf_grid,error=error)
      ngrid_level = SIZE(cutoff)
-     
+
      ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
      !                     XXXXXXXXX same holds for radius
@@ -299,18 +299,18 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                         "PRINT%GRID_INFORMATION",error=error)
      CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff, &
-          print_section=print_section)
+          print_section=print_section,error=error)
      ! init pw_grids and pools
      ALLOCATE(pw_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
      IF (dft_control % qs_control % commensurate_mgrids) THEN
-        ncommensurate=ngrid_level 
-     ELSE 
+        ncommensurate=ngrid_level
+     ELSE
         ncommensurate=0
      ENDIF
      !
-     ! If Tuckerman is present let's perform the set-up of the super-reference-grid 
+     ! If Tuckerman is present let's perform the set-up of the super-reference-grid
      !
      IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
         cutilev = cutoff(1)
@@ -326,14 +326,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL setup_super_ref_grid(super_ref_grid,mt_super_ref_grid,&
           xc_super_ref_grid, cutilev, grid_span, my_cell, para_env, &
           qs_env%input, ncommensurate, uf_grid=uf_grid,&
-          print_section=print_section,error=error) 
+          print_section=print_section,error=error)
      old_pw_grid => super_ref_grid
      !
      ! Setup of the multi-grid pw_grid and pw_pools
      !
-     DO igrid_level=1,ngrid_level 
-        CALL pw_grid_create(pw_grid,para_env%group)
-      
+     DO igrid_level=1,ngrid_level
+        CALL pw_grid_create(pw_grid,para_env%group,error=error)
+
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(igrid_level)
            pw_grid%grid_span = HALFSPACE
@@ -350,21 +350,21 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
               CALL pw_grid_setup(my_cell,pw_grid,print_section,cutilev,&
                    ref_grid=old_pw_grid,&
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),error=error)
               old_pw_grid => pw_grid
            ELSE
               CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),error=error)
               old_pw_grid => pw_grid
            END IF
         ELSE
            CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
                 blocked=.FALSE., &
                 ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
-                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
+                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),error=error)
         END IF
-      
+
       ! init pw_pools
         NULLIFY(pw_pools(igrid_level)%pool)
         CALL pw_pool_create(pw_pools(igrid_level)%pool,&
@@ -409,7 +409,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
          DO igrid_level = 1, SIZE ( pw_pools )
            CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
            CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds,  &
-                                 cell%h_inv, my_cut )
+                                 cell%h_inv, my_cut ,error=error)
            my_cutoff (igrid_level) = my_cut
          ENDDO
          CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, error=error )
@@ -417,7 +417,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                              "PRINT%GRID_INFORMATION",error=error)
          CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
               ngrid_levels=ngrid_level,cutoff=my_cutoff,rel_cutoff=rel_cutoff, &
-              print_section=print_section)
+              print_section=print_section,error=error)
          CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
@@ -439,12 +439,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         rho0_mpole%igrid_zet0_s = igrid_zet0_s
      END IF
 
-     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,error=error)
      nkind=SIZE(atomic_kind_set)
 
      ! XXXXXXXXXXXXXX this duplicates the functionality of get_subgrid_size  XXXXXXXXXXXXXXXXXX
      ! try to predict the maximum radius of the gaussians to be mapped on the grid
-     ! up to now, it is not yet very good 
+     ! up to now, it is not yet very good
      maxradius=0.0_dp
      DO igrid_level=1,ngrid_level
         IF (.NOT. dft_control%qs_control%map_paa) maxradius=0.0_dp
@@ -458,12 +458,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           atomic_kind => atomic_kind_set(ikind)
 
           IF (qs_env%dft_control%qs_control%semi_empirical) CYCLE
-         
+
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                orb_basis_set=orb_basis_set,&
                                alpha_core_charge=alpha)
            ! this is to be sure that the core charge is mapped ok
-           ! right now, the core is mapped on the auxiliary basis, 
+           ! right now, the core is mapped on the auxiliary basis,
            ! this should, at a give point be changed
            ! so that also for the core a multigrid is used
            IF (alpha > 0.0_dp)&
@@ -516,7 +516,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ENDDO
         ! safety first, not very efficient, nor general
         ! one could possibly decide that this *is* the maximum allowed radius
-        maxradius = maxradius * safety_factor 
+        maxradius = maxradius * safety_factor
         radius(igrid_level)=maxradius
      END DO
 
@@ -527,7 +527,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 !
      ALLOCATE(rs_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     DO igrid_level=1,ngrid_level 
+     DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
         drmin = MINVAL ( pw_grid%dr )
 
@@ -553,7 +553,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-     DO igrid_level=1,ngrid_level 
+     DO igrid_level=1,ngrid_level
         pw_env%cube_info%max_rad_ga = maxradius
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_pools(igrid_level)%pool%pw_grid%dr(:),&
@@ -571,7 +571,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      cmax=MAXVAL(cmaxl)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
           maxlgto=maxlgto)
-     CALL init_l_info(pw_env%l_info,maxlgto+2,cmax)
+     CALL init_l_info(pw_env%l_info,maxlgto+2,cmax,error=error)
 
      IF( dft_control%qs_control%gapw) THEN
         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -582,7 +582,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            pw_env%l_info_rho0 => pw_env%l_info
            CALL l_info_retain(pw_env%l_info,error)
         ELSE
-           CALL init_l_info(pw_env%l_info_rho0,lmax_rho0+1,cmax,lrho0=.TRUE.)
+           CALL init_l_info(pw_env%l_info_rho0,lmax_rho0+1,cmax,lrho0=.TRUE.,error=error)
         END IF
      END IF
 
@@ -596,7 +596,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DEALLOCATE(cmaxl,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
- 
+
   END IF
 
   CALL timestop(0.0_dp,handle)

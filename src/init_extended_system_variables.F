@@ -40,7 +40,7 @@ MODULE init_extended_system_variables
 
   PRIVATE
   PUBLIC :: init_nhc_variables, init_barostat_variables, init_nhc_forces
-  
+
   CONTAINS
 !******************************************************************************
 !!****** init_extended_system_variables/init_nhc_variables [1.0] *
@@ -62,12 +62,13 @@ MODULE init_extended_system_variables
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv )
+SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv, error )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, icount, isos, j, number, &
                                                 rannumneed, tot_rn
@@ -84,7 +85,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv )
 
 
   SELECT CASE ( nhc % dis_type )
-    CASE ( 'REP_REP' )  ! for NPT 
+    CASE ( 'REP_REP' )  ! for NPT
     CASE DEFAULT
       rannumneed = nhc%num_nhc*nhc%nhc_len
       ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = isos )
@@ -108,7 +109,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv )
       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                     'failed to allocate array_of_rn')
       array_of_rn(:) = 0.0_dp
-  END SELECT 
+  END SELECT
 
   SELECT CASE ( nhc % dis_type )
     CASE ( 'REP_REP' ) ! for NPT
@@ -116,10 +117,10 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv )
 ! Map deterministically determined random number to nhc % v
         DO i = 1, nhc % num_nhc
            DO j = 1, nhc % nhc_len
-              nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream)
+              nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream,error=error)
            END DO
         END DO
-  
+
         akin = 0.0_dp
         DO i = 1, nhc % num_nhc
            DO j = 1, nhc % nhc_len
@@ -160,7 +161,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv )
 
     CASE DEFAULT
       DO i=1,tot_rn
-        array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream)
+        array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream,error=error)
       END DO
 ! Map deterministically determined random number to nhc % v
       DO i = 1, nhc % num_nhc
@@ -175,7 +176,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv )
       DEALLOCATE ( array_of_rn, STAT = isos )
       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                 'failed to deallocate array_of_rn')
-  
+
       akin = 0.0_dp
       DO i = 1, nhc % num_nhc
          DO j = 1, nhc % nhc_len
@@ -234,7 +235,7 @@ END SUBROUTINE init_nhc_variables
 !******************************************************************************
 
 SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
-                                     cmass, para_env, globenv )
+                                     cmass, para_env, globenv, error )
 
 
     TYPE(npt_info_type), DIMENSION(:, :), &
@@ -244,6 +245,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
     REAL(KIND=dp), INTENT(IN)                :: cmass
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, j, number
     REAL(KIND=dp)                            :: akin, temp, v
@@ -260,7 +262,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
           * temp_ext * tau_cell ** 2 / 3.0_dp
   CASE ( nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble )
      npt ( :, : ) % mass = cmass
-          
+
 !     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
 !          * temp_ext * tau_cell ** 2
   END SELECT
@@ -269,7 +271,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 ! initializing velocities
     DO i = 1, SIZE ( npt,1)
        DO j = i, SIZE ( npt,2)
-          v = next_random_number(globenv%gaussian_rng_stream)
+          v = next_random_number(globenv%gaussian_rng_stream,error=error)
 ! symmetrizing the initial barostat velocities to ensure
 ! no rotation of the cell under NPT_F
           npt(j,i) % v = v
@@ -300,7 +302,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 !       npt(j,i) % v = 0.0_dp
 !       npt(i,j) % v = 0.0_dp
 !       write (*, *) 'INTIAL v_eps', npt(j,i) % v
-! dbg 
+! dbg
        END DO
     END DO
 
@@ -309,7 +311,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
     CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
        npt(:,:) % v = 0.0_dp
     END SELECT
-  ENDIF 
+  ENDIF
 
 ! Broadcast
   DO i = 1, SIZE ( npt, 1 )
@@ -339,8 +341,8 @@ END SUBROUTINE init_barostat_variables
 SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef , error)
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, nhc_coef
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: i, j
 

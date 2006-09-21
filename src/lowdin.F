@@ -44,6 +44,7 @@ MODULE lowdin
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -77,11 +78,12 @@ CONTAINS
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE compute_charges(s_matrix,mos,charges)
+  SUBROUTINE compute_charges(s_matrix,mos,charges,error)
     TYPE(real_matrix_type), POINTER          :: s_matrix
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: iblock, icol, irow, ispin, n_dependent, nblock, ncol_global, &
       ncol_local, nrow_global, nrow_local, nspin
@@ -97,38 +99,38 @@ CONTAINS
     nspin=SIZE(mos)
     charges=0.0_dp
 
-    ! compute S**(1./2.) 
+    ! compute S**(1./2.)
     CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=mo_coeff)
-    CALL cp_fm_get_info(mo_coeff,para_env=para_env,context=context,nrow_global=nrow_global)
+    CALL cp_fm_get_info(mo_coeff,para_env=para_env,context=context,nrow_global=nrow_global,error=error)
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
-                                   nrow_global=nrow_global,ncol_global=nrow_global)
-    CALL cp_fm_create(matrix_shalf, fm_struct_tmp,name="matrix_shalf")
-    CALL cp_fm_create(matrix_work, fm_struct_tmp,name="matrix_work")
-    CALL cp_fm_struct_release(fm_struct_tmp)
-    CALL copy_sm_to_fm(s_matrix,matrix_shalf)
-    CALL cp_fm_power(matrix_shalf,matrix_work,0.5_dp,EPSILON(0.0_dp),n_dependent)
-    IF (n_dependent/=0) THEN 
+                                   nrow_global=nrow_global,ncol_global=nrow_global,error=error)
+    CALL cp_fm_create(matrix_shalf, fm_struct_tmp,name="matrix_shalf",error=error)
+    CALL cp_fm_create(matrix_work, fm_struct_tmp,name="matrix_work",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    CALL copy_sm_to_fm(s_matrix,matrix_shalf,error=error)
+    CALL cp_fm_power(matrix_shalf,matrix_work,0.5_dp,EPSILON(0.0_dp),n_dependent,error=error)
+    IF (n_dependent/=0) THEN
        ! ... bad luck, I'd say
-    ENDIF 
+    ENDIF
 
     DO ispin=1,nspin
       ! compute S**(1./2.)*C
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
       CALL cp_fm_get_info(mo_coeff,para_env=para_env, &
-                          context=context,nrow_global=nrow_global,ncol_global=ncol_global)
+                          context=context,nrow_global=nrow_global,ncol_global=ncol_global,error=error)
       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
-                                   nrow_global=nrow_global,ncol_global=ncol_global)
-      CALL cp_fm_create(matrix_shalfc,fm_struct_tmp,name="matrix_shalfc")
-      CALL cp_fm_struct_release(fm_struct_tmp)
+                                   nrow_global=nrow_global,ncol_global=ncol_global,error=error)
+      CALL cp_fm_create(matrix_shalfc,fm_struct_tmp,name="matrix_shalfc",error=error)
+      CALL cp_fm_struct_release(fm_struct_tmp,error=error)
       CALL cp_fm_gemm("N","N",nrow_global,ncol_global,nrow_global, &
-                           1.0_dp,matrix_shalf,mo_coeff,0.0_dp,matrix_shalfc)
+                           1.0_dp,matrix_shalf,mo_coeff,0.0_dp,matrix_shalfc,error=error)
       ! and now the matrix (shalf*C)(shalf*C)^T only the trace is really needed, but well.
       CALL cp_fm_gemm("N","T",nrow_global,nrow_global,ncol_global, &
-                           1.0_dp,matrix_shalfc,matrix_shalfc,0.0_dp,matrix_work)
-      CALL cp_fm_release(matrix_shalfc) 
+                           1.0_dp,matrix_shalfc,matrix_shalfc,0.0_dp,matrix_work,error=error)
+      CALL cp_fm_release(matrix_shalfc,error=error)
       ! Now condense on atomic charges
       CALL cp_fm_get_info(matrix_work,row_indices=row_indices,col_indices=col_indices, &
-                                      local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
+                                      local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
       CALL get_matrix_info(s_matrix,nblock_row=nblock,first_row=first_row,last_row=last_row)
       DO icol=1,ncol_local
        DO irow=1,nrow_local
@@ -148,8 +150,8 @@ CONTAINS
 
     IF (nspin.EQ.1) charges=2.0_dp*charges
 
-    CALL cp_fm_release(matrix_work)
-    CALL cp_fm_release(matrix_shalf)
+    CALL cp_fm_release(matrix_work,error=error)
+    CALL cp_fm_release(matrix_shalf,error=error)
 
   END SUBROUTINE compute_charges
 
@@ -175,7 +177,7 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE lowdin_charges(s_matrix,mos,particle_set, &
-                              scr,title)
+                              scr,title,error)
     TYPE(real_matrix_type), POINTER          :: s_matrix
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -183,6 +185,7 @@ CONTAINS
       POINTER                                :: particle_set
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
@@ -196,7 +199,7 @@ CONTAINS
     CALL get_matrix_info(s_matrix,nblock_row=nblock)
 
     ALLOCATE(charges(nblock,nspin))
-    CALL compute_charges(s_matrix,mos,charges)
+    CALL compute_charges(s_matrix,mos,charges,error=error)
 
     CALL print_atomic_charges(particle_set,scr,title,electronic_charges=charges)
 

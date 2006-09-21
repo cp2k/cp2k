@@ -187,8 +187,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_interpolate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'pw_spline2_interpolate_values_g', &
@@ -290,8 +290,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_interpolate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'pw_spline3_interpolate_values_g', &
@@ -399,8 +399,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_spline2_evaluate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_evaluate_values_g', &
       routineP = moduleN//':'//routineN
@@ -509,8 +509,8 @@ CONTAINS
   SUBROUTINE pw_nn_smear_g(spline_g,coeffs,error)
     TYPE(pw_type), POINTER                   :: spline_g
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
       routineP = moduleN//':'//routineN
@@ -616,8 +616,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_spline3_evaluate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_evaluate_values_g', &
       routineP = moduleN//':'//routineN
@@ -733,8 +733,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: scale
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_scale_deriv', &
       routineP = moduleN//':'//routineN
@@ -862,8 +862,8 @@ CONTAINS
   SUBROUTINE pw_spline3_deriv_g(spline_g,idir,error)
     TYPE(pw_type), POINTER                   :: spline_g
     INTEGER, INTENT(in)                      :: idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g', &
       routineP = moduleN//':'//routineN
@@ -1029,8 +1029,8 @@ CONTAINS
   SUBROUTINE pw_spline2_deriv_g(spline_g,idir,error)
     TYPE(pw_type), POINTER                   :: spline_g
     INTEGER, INTENT(in)                      :: idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g', &
       routineP = moduleN//':'//routineN
@@ -1422,8 +1422,8 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
     REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
       1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
       3)), INTENT(in)                        :: in_val
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_work', &
       routineP = moduleN//':'//routineN
@@ -1533,8 +1533,8 @@ END SUBROUTINE pw_nn_compose_r_work
 SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
       routineP = moduleN//':'//routineN
@@ -1603,8 +1603,8 @@ END SUBROUTINE pw_nn_compose_r
   SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_r', &
       routineP = moduleN//':'//routineN
@@ -1678,8 +1678,8 @@ END SUBROUTINE pw_nn_compose_r
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: coeffs
     INTEGER                                  :: idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_deriv_r', &
       routineP = moduleN//':'//routineN
@@ -1786,8 +1786,8 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp), DIMENSION(3), INTENT(in)  :: w_border1
     LOGICAL, INTENT(in)                      :: pbc
     LOGICAL, INTENT(in), OPTIONAL            :: safe_computation
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_coarse2fine', &
       routineP = moduleN//':'//routineN
@@ -2624,8 +2624,8 @@ CPSourceFileRef,&
     REAL(kind=dp), DIMENSION(3), INTENT(in)  :: w_border1
     LOGICAL, INTENT(in)                      :: pbc
     LOGICAL, INTENT(in), OPTIONAL            :: safe_computation
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_fine2coarse', &
       routineP = moduleN//':'//routineN
@@ -3381,8 +3381,8 @@ CPSourceFileRef,&
     INTEGER, INTENT(in)                      :: precond_kind
     TYPE(pw_pool_type), POINTER              :: pool
     LOGICAL, INTENT(in)                      :: pbc, transpose
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create', &
       routineP = moduleN//':'//routineN
@@ -3434,8 +3434,8 @@ CPSourceFileRef,&
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     INTEGER, INTENT(in)                      :: precond_kind
     LOGICAL, INTENT(in), OPTIONAL            :: pbc, transpose
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_set_kind', &
       routineP = moduleN//':'//routineN
@@ -3542,8 +3542,8 @@ CPSourceFileRef,&
   !!*** **********************************************************************
   SUBROUTINE pw_spline_precond_retain(preconditioner,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_retain', &
       routineP = moduleN//':'//routineN
@@ -3582,8 +3582,8 @@ CPSourceFileRef,&
   !!*** **********************************************************************
   SUBROUTINE pw_spline_precond_release(preconditioner,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release', &
       routineP = moduleN//':'//routineN
@@ -3631,8 +3631,8 @@ CPSourceFileRef,&
   SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     TYPE(pw_type), POINTER                   :: in_v, out_v
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_do_precond', &
       routineP = moduleN//':'//routineN
@@ -3716,7 +3716,7 @@ CPSourceFileRef,&
          USE pw_types, ONLY: pw_type
          USE cp_error_handling, ONLY: cp_error_type
          TYPE(pw_type), POINTER :: pw_in,pw_out
-         TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+         TYPE(cp_error_type), INTENT(inout)  :: error
        END SUBROUTINE linOp
     END INTERFACE
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
@@ -3725,8 +3725,8 @@ CPSourceFileRef,&
     INTEGER, INTENT(in)                      :: max_iter
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: print_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_coeffs', &
@@ -3857,8 +3857,8 @@ CPSourceFileRef,&
     TYPE(pw_type), POINTER                   :: pw_fine_in, pw_coarse_out
     TYPE(pw_pool_type), POINTER              :: coarse_pool
     TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_s3', &
       routineP = moduleN//':'//routineN
@@ -3977,8 +3977,8 @@ CPSourceFileRef,&
     TYPE(pw_type), POINTER                   :: pw_coarse_in, pw_fine_out
     TYPE(pw_pool_type), POINTER              :: coarse_pool
     TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_s3', &
       routineP = moduleN//':'//routineN
@@ -4098,8 +4098,8 @@ CPSourceFileRef,&
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     LOGICAL, INTENT(in), OPTIONAL            :: sharpen, normalize, &
                                                 transpose, smooth_boundary
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_no_pbc', &
       routineP = moduleN//':'//routineN
@@ -4442,8 +4442,8 @@ CPSourceFileRef,&
 
   SUBROUTINE spl3_nopbc(pw_in,pw_out,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CALL pw_zero(pw_out)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
@@ -4452,8 +4452,8 @@ CPSourceFileRef,&
 
   SUBROUTINE spl3_nopbct(pw_in,pw_out,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CALL pw_zero(pw_out)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
@@ -4463,8 +4463,8 @@ CPSourceFileRef,&
 
   SUBROUTINE spl3_pbc(pw_in,pw_out,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CALL pw_zero(pw_out)
     CALL pw_nn_smear_r(pw_in,pw_out,coeffs=spline3_coeffs,&
@@ -4494,8 +4494,8 @@ CPSourceFileRef,&
   FUNCTION Eval_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
     TYPE(pw_type), POINTER                   :: pw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Eval_Interp_Spl3_pbc', &
@@ -4703,8 +4703,8 @@ CPSourceFileRef,&
   FUNCTION Eval_d_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
     TYPE(pw_type), POINTER                   :: pw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(KIND=dp)                            :: val(3)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Eval_d_Interp_Spl3_pbc', &

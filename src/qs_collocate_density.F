@@ -194,8 +194,8 @@ CONTAINS
 !!     - rho_r: The G-space-grid onto which the density is collocated
 !!     - total_rho: Gives back the integral of the collocated density
 !!     - qs_env: The QS environment of matter
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -208,8 +208,8 @@ CONTAINS
 
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'collocate_atomic_charge_density', &
@@ -377,7 +377,7 @@ CONTAINS
                             pw=mgrid_rspace(igrid_level)%pw, dir=rs2pw)
       END DO
       CALL rs_pools_give_back_rs_vect(pools=rs_pools, elements=rs_rho, error=error)
-      
+
       !CALL coeff_zero(rho_gspace)
       CALL coeff_zero(qs_env%rho%rho_g(1))
       DO igrid_level=1, gridlevel_info%ngrid_levels
@@ -428,8 +428,8 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
@@ -473,7 +473,7 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env)
+                    para_env=para_env,pw_env=pw_env,error=error)
     CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
@@ -528,7 +528,7 @@ CONTAINS
 
       END DO
 
-      CALL rs_get_my_tasks ( rs_rho, tasks, npme )
+      CALL rs_get_my_tasks ( rs_rho, tasks, npme ,error=error)
 
       ithread=0
 !$OMP parallel do &
@@ -549,7 +549,7 @@ CONTAINS
              ithread=ithread,error=error)
 
       END DO
-    
+
     END DO
 
     IF (ASSOCIATED(tasks)) THEN
@@ -587,8 +587,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
@@ -649,7 +649,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, interp_section
 
 !PARATIME
-!PARATIME  REAL                                     :: time_t1,time_t2 
+!PARATIME  REAL                                     :: time_t1,time_t2
 !PARATIME  REAL(kind=dp)                            :: time_min,time_max
 !PARATIME  INTEGER                                  :: unit_nr
 !PARATIME  TYPE(cp_logger_type), POINTER            :: logger
@@ -669,11 +669,11 @@ CONTAINS
 
     ! by default, the full density is calculated
     my_soft=.FALSE.
-    IF (PRESENT(soft_valid)) my_soft = soft_valid 
+    IF (PRESENT(soft_valid)) my_soft = soft_valid
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
-    IF (PRESENT(compute_tau)) THEN 
+    IF (PRESENT(compute_tau)) THEN
        my_compute_tau = compute_tau
     ELSE
        my_compute_tau = .FALSE.
@@ -695,7 +695,7 @@ CONTAINS
                     sab_orb=sab_orb,&
                     para_env=para_env,&
                     input=input,&
-                    pw_env=pw_env)
+                    pw_env=pw_env,error=error)
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
@@ -706,7 +706,7 @@ CONTAINS
          error=error)
 !    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
 
-    ! *** set up the pw multi-grids 
+    ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
 
@@ -777,7 +777,7 @@ CONTAINS
                          last_col=matrix_p%last_col(:),&
                          matrix_name="DeltaP",&
                          sparsity_id=-1, &        ! basically unknown sparsity in parallel
-                         matrix_symmetry=matrix_p%symmetry)
+                         matrix_symmetry=matrix_p%symmetry,error=error)
     ELSE
         deltap=>matrix_p
     ENDIF
@@ -881,13 +881,13 @@ CONTAINS
 
              IF (distributed_rs_grids) THEN
                  NULLIFY ( pblock )
-                 CALL add_block_node ( deltap, brow, bcol, pblock )
+                 CALL add_block_node ( deltap, brow, bcol, pblock ,error=error)
                  pblock = p_block
              ELSE
                  pblock => p_block
              ENDIF
 
-  
+
              IF (.NOT. map_consistent) THEN
                 IF ( ALL ( 100.0_dp*ABS(pblock) < eps_rho_rspace) ) THEN
                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -901,17 +901,17 @@ CONTAINS
              DO iset=1,nseta
 
                IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
-   
+
                IF (iatom == jatom) THEN
                  first_setb = iset
                ELSE
                  first_setb = 1
                END IF
- 
+
                DO jset=first_setb,nsetb
- 
+
                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
- 
+
                  DO ipgf=1,npgfa(iset)
 
                    IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
@@ -1014,9 +1014,9 @@ CONTAINS
           npme = 0
           ! modifies deltap if distributed_rs_grids
           CALL rs_get_my_tasks ( rs_rho(igrid_level)%rs_grid, tasks_local, &
-               npme, ival=ival, rval=dab_local, pmat=deltap, pcor=latom )
+               npme, ival=ival, rval=dab_local, pmat=deltap, pcor=latom ,error=error)
           CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
- 
+
           IF ( nthread > 1 .AND. natom_pairs > 0 ) THEN
             lb => rs_rho(igrid_level)%rs_grid%lb_local
             ub => rs_rho(igrid_level)%rs_grid%ub_local
@@ -1098,7 +1098,7 @@ CONTAINS
                 na2 = ipgf*ncoset(la_max(iset))
                 nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
                 nb2 = jpgf*ncoset(lb_max(jset))
- 
+
                 IF ((iatom == jatom).AND.&
                     (iset == jset).AND.&
                     (ipgf == jpgf)) THEN
@@ -1117,7 +1117,7 @@ CONTAINS
                       l_info,eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       lgrid=lgrid,ithread=ithread, &
-                      map_consistent=map_consistent)
+                      map_consistent=map_consistent,error=error)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -1127,7 +1127,7 @@ CONTAINS
                       l_info,eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       lgrid=lgrid,ithread=ithread, &
-                      map_consistent=map_consistent)
+                      map_consistent=map_consistent,error=error)
                   END IF
                 ELSE
                   IF (iatom <= jatom) THEN
@@ -1138,7 +1138,7 @@ CONTAINS
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                       l_info,eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
-                      map_consistent=map_consistent)
+                      map_consistent=map_consistent,error=error)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -1147,14 +1147,14 @@ CONTAINS
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                       l_info,eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
-                      map_consistent=map_consistent)
+                      map_consistent=map_consistent,error=error)
                   END IF
                 END IF
- 
+
               END DO
- 
+
             END DO
- 
+
           END DO
 !$OMP end parallel
           IF ( nthread > 1 .AND. natom_pairs > 0 ) THEN
@@ -1181,7 +1181,7 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    IF (distributed_rs_grids) CALL deallocate_matrix ( deltap )
+    IF (distributed_rs_grids) CALL deallocate_matrix ( deltap ,error=error)
 
     IF ( nthread > 1 ) THEN
       DEALLOCATE (lgrid%r,STAT=istat)
@@ -1222,7 +1222,7 @@ CONTAINS
 !!     calculate_wavefunction
 !!
 !!   FUNCTION
-!!     maps a given wavefunction on the grid 
+!!     maps a given wavefunction on the grid
 !!
 !!   NOTES
 !!     modified calculate_rho_elec, should write the wavefunction represented by
@@ -1253,8 +1253,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
       routineP = moduleN//':'//routineN
@@ -1287,7 +1287,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
+    CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global,error=error)
 
     NULLIFY(eigenvector,  orb_basis_set,&
          pab,work,la_max, la_min,&
@@ -1298,10 +1298,10 @@ CONTAINS
     ALLOCATE(eigenvector(nao), stat=istat)
     IF (istat.NE.0) CALL stop_program("calculate_wavefunction","eigenvector")
 
-    ! only some processors have non-zero elements. The sum of eigenvectors on 
+    ! only some processors have non-zero elements. The sum of eigenvectors on
     ! all cpus is the real eigenvector. combined with the rs->pw this will give the
     ! real density
-    DO i=1,nao 
+    DO i=1,nao
        CALL cp_fm_get_element(mo_vectors,i,ivector,eigenvector(i),local)
        IF (.NOT. local) eigenvector(i)=0.0_dp ! some more intelligent scheme is needed
     ENDDO
@@ -1403,7 +1403,7 @@ CONTAINS
        CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
             mgrid_rspace(igrid_level)%pw,rs2pw)
     ENDDO
-    
+
     CALL rs_pools_give_back_rs_vect(rs_pools,rs_rho,error=error)
 
     CALL coeff_zero(rho_gspace)
@@ -1527,8 +1527,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
     INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
@@ -1576,12 +1576,12 @@ CONTAINS
     ELSE
        my_collocate_rho0=.FALSE.
     END IF
-    
+
     zetp      = zeta + zetb
     f         = zetb/zetp
     rap(:)    = f*rab(:)
     rbp(:)    = rap(:) - rab(:)
-    rp(:)     = ra(:) + rap(:)  
+    rp(:)     = ra(:) + rap(:)
     rb(:)     = ra(:)+rab(:)
 
     IF (my_map_consistent) THEN
@@ -1606,7 +1606,7 @@ CONTAINS
       RETURN
     END IF
 
-    ! it's a choice to compute lX_min/max, pab here, 
+    ! it's a choice to compute lX_min/max, pab here,
     ! this way we get the same radius as we use for the corresponding density
     SELECT CASE (ga_gb_function)
     CASE(FUNC_DADB)
@@ -1646,7 +1646,7 @@ CONTAINS
         lb_max_local=lb_max+1
         lb_min_local=MAX(lb_min-1,0)
         ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
-        ! is equivalent to mapping pab with  
+        ! is equivalent to mapping pab with
         !    pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
         ! ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) =
         !          pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) -
@@ -1679,10 +1679,10 @@ CONTAINS
         lb_max_local=lb_max+2
         lb_min_local=MAX(lb_min-1,0)
         ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
-        ! is equivalent to mapping pab with  
+        ! is equivalent to mapping pab with
         ! pgf_a (r-Rb)_{ir} (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) (r-Rb)_{ir}  pgf_b
-        ! ( pgf_a )(r-Rb)_{ir} (ddx pgf_b) - (ddx pgf_a) (r-Rb)_{ir} ( pgf_b ) = 
-        !                        pgf_a *(lbx pgf_{b-1x+1ir} - 2*zetb*pgf_{b+1x+1ir}) - 
+        ! ( pgf_a )(r-Rb)_{ir} (ddx pgf_b) - (ddx pgf_a) (r-Rb)_{ir} ( pgf_b ) =
+        !                        pgf_a *(lbx pgf_{b-1x+1ir} - 2*zetb*pgf_{b+1x+1ir}) -
         !                       (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_{b+1ir}
 
         ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
@@ -1718,7 +1718,7 @@ CONTAINS
     END SELECT
 
     coef_max=la_max_local+lb_max_local+1
-   
+
     IF ( .NOT. rsgrid%orthorhombic ) THEN
        CALL stop_program(routineN,"only orthorhombic grids allowd")
     END IF
@@ -1726,7 +1726,7 @@ CONTAINS
 !   *** properties of the grid ***
     dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)
-    
+
 ! WARNING: this resets the lower bounds of grid to 1 (unlike grid => rsgrid%r)
     grid => rsgrid%r(:,:,:)
     gridbounds(1,1)=LBOUND(GRID,1)
@@ -1795,7 +1795,7 @@ CONTAINS
        ENDDO
     ENDDO
     ENDDO
- 
+
 !   *** initialise the pol x,y,z terms
     DO ig=lb_cube(3),ub_cube(3)
       lxyz=0
@@ -1824,7 +1824,7 @@ CONTAINS
        ENDDO
        ENDDO
       ENDDO
-      ENDDO 
+      ENDDO
     ENDDO
 
     DO ig=lb_cube(2),ub_cube(2)
@@ -1853,7 +1853,7 @@ CONTAINS
       ENDDO
       ENDDO
     ENDDO
- 
+
 !   *** make the alpha matrix ***
     alpha(:,:)=0.0_dp
     lx=0
@@ -1894,9 +1894,9 @@ CONTAINS
               gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
     ELSE
 !   *** do the loop over the grid
-!   notice this is not the same as critical or so, since we may have 
+!   notice this is not the same as critical or so, since we may have
 !   several different rsgrids that all use the same function
-!   I guess we need a flush (of the grid) to guarantee that we are working 
+!   I guess we need a flush (of the grid) to guarantee that we are working
 !   on an uptodate copy of the grid
       CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
               polz(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
@@ -2113,15 +2113,15 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE density_on_full_grid(pw_env,rs_rho,rho,rho_gspace,interp_section,error)
-  
+
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: interp_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_on_full_grid', &
       routineP = moduleN//':'//routineN
@@ -2215,8 +2215,8 @@ CONTAINS
           CALL cp_unimplemented_error(routineN,"interpolator "//&
                cp_to_string(interp_kind),error=error)
        END SELECT
-    END IF 
-    
+    END IF
+
     ! *** give back the pw multi-grids
     IF (interp_kind==linear_interp) THEN
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&

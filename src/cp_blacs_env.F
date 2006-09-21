@@ -129,8 +129,8 @@ CONTAINS
 SUBROUTINE cp_blacs_env_create(blacs_env,para_env,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
       routineP = moduleN//':'//routineN
@@ -256,8 +256,8 @@ END SUBROUTINE cp_blacs_env_create
 !!*** **********************************************************************
 SUBROUTINE cp_blacs_env_retain(blacs_env,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_retain', &
       routineP = moduleN//':'//routineN
@@ -304,8 +304,8 @@ END SUBROUTINE cp_blacs_env_retain
 !!*** **********************************************************************
 SUBROUTINE cp_blacs_env_release(blacs_env,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release', &
       routineP = moduleN//':'//routineN
@@ -368,8 +368,8 @@ END SUBROUTINE cp_blacs_env_release
 SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_write', &
       routineP = moduleN//':'//routineN

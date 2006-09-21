@@ -93,7 +93,7 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: lb_local
      INTEGER, DIMENSION (3) :: ub_local
      REAL(KIND=dp), DIMENSION(3) :: dr                   ! grid spacing
-     REAL(KIND=dp), DIMENSION(3,3) :: dh                 ! grid matrix 
+     REAL(KIND=dp), DIMENSION(3,3) :: dh                 ! grid matrix
      LOGICAL :: orthorhombic                             ! grid symmetry
      LOGICAL :: parallel
      INTEGER :: group
@@ -101,7 +101,7 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (2) :: group_dim
      INTEGER, DIMENSION (2) :: group_coor
      INTEGER, DIMENSION (3) :: perd                      ! periodicity enforced
-     INTEGER :: direction                                ! non-periodic direction 
+     INTEGER :: direction                                ! non-periodic direction
   END TYPE realspace_grid_type
 
   TYPE realspace_grid_p_type
@@ -140,8 +140,8 @@ CONTAINS
   SUBROUTINE rs_grid_allocate_1 ( rs, error )
 
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_allocate_1', &
       routineP = moduleN//':'//routineN
@@ -195,8 +195,8 @@ CONTAINS
   SUBROUTINE rs_grid_deallocate_1 ( rs, error )
 
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_1', &
       routineP = moduleN//':'//routineN
@@ -220,8 +220,8 @@ CONTAINS
        ! release the group communicator
        CALL mp_comm_free ( rs % group )
     END IF
- 
-    CALL timestop(0.0_dp,handle)    
+
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE rs_grid_deallocate_1
 
   !******************************************************************************
@@ -230,8 +230,8 @@ CONTAINS
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_n', &
       routineP = moduleN//':'//routineN
@@ -271,8 +271,8 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
@@ -294,7 +294,7 @@ CONTAINS
     rs % id_nr = last_rs_id
     rs % ref_count = 1
     IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
-       ! The corresponding group has dimension 1 
+       ! The corresponding group has dimension 1
        ! All operations will be done localy
        rs % npts = pw_grid % npts
        rs % ngpts = PRODUCT ( rs % npts )
@@ -329,7 +329,7 @@ CONTAINS
        ELSE
           ! the minimum slice thickness is half of the small box size
           ! this way there is only overlap with direct neighbors
-          nmin = ( nsmax + 1 ) / 2 
+          nmin = ( nsmax + 1 ) / 2
           ! maximum number of slices
           ngmax = pw_grid % npts ( dir ) / nmin
           ! now we reduce this number until we find a divisor of the total number
@@ -401,7 +401,7 @@ CONTAINS
           IF ( rs % parallel ) THEN
              IF ( iounit>0) THEN
                 WRITE ( iounit, '(/,A,T71,I10)' ) &
-                     " RS_GRID: Information for grid number ", rs % grid_id 
+                     " RS_GRID: Information for grid number ", rs % grid_id
                 DO i = 1, 3
                    WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
                         i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
@@ -465,8 +465,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_n', &
       routineP = moduleN//':'//routineN
@@ -490,7 +490,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Copy a function from/to a PW grid type to/from a real
-!!     space type 
+!!     space type
 !!     dir is the named constant rs2pw or pw2rs
 !!
 !!   AUTHOR
@@ -578,7 +578,7 @@ CONTAINS
     bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
     pbo => pw % pw_grid % bounds
     group = pw % pw_grid % para % rs_group
-    mepos = pw % pw_grid % para % rs_mpo 
+    mepos = pw % pw_grid % para % rs_mpo
     ALLOCATE ( rcount ( 0 : np - 1 ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount", 2*np )
     DO ip = 1, np
@@ -607,7 +607,7 @@ CONTAINS
           DO iz = lb(3), ub(3)
            DO ix = lb(1), ub(1)
              ii= (iz-lb(3))*s(1)*s(2)+(ix-lb(1))+1
-             DO iy = lb(2), ub(2) 
+             DO iy = lb(2), ub(2)
                 sendbuf(ii) = sendbuf(ii) + grid(ix,iy,iz)
                 ii=ii+s(1)
             END DO
@@ -615,7 +615,7 @@ CONTAINS
           END DO
           IF ( ip .EQ. np ) EXIT
           CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
-                                   group,req(1),req(2),13) 
+                                   group,req(1),req(2),13)
           CALL mp_waitall(req)
           swapptr=>sendbuf
           sendbuf=>recvbuf
@@ -646,7 +646,7 @@ CONTAINS
           ! we must shift the buffer only np-1 times around
           IF (ip .NE. np-1) THEN
               CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
-                                group,req(1),req(2),13) 
+                                group,req(1),req(2),13)
           ENDIF
           lb = pbo(1,:)+bo(1,:,MODULO(mepos-ip,np)+1)-1
           ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
@@ -701,7 +701,7 @@ CONTAINS
        idir = rs % direction
        lb ( : ) = rs % lb_local ( : )
        ub ( : ) = rs % ub_local ( : )
-       ub ( idir ) = lb ( idir ) + rs % border - 1 
+       ub ( idir ) = lb ( idir ) + rs % border - 1
        ! Allocate a scratch array to receive the data
        nn = PRODUCT ( ub - lb + 1 )
        ALLOCATE ( buffer ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), STAT=ierr )
@@ -719,7 +719,7 @@ CONTAINS
        CALL mp_cart_shift ( rs % group, 0, 1, source, dest )
        lb ( : ) = rs % lb_local ( : )
        ub ( : ) = rs % ub_local ( : )
-       lb ( idir ) = ub ( idir ) - rs % border + 1 
+       lb ( idir ) = ub ( idir ) - rs % border + 1
        CALL mp_sendrecv ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), &
             dest, buffer, source, rs % group )
        lb ( : ) = rs % lb_local ( : )
@@ -825,14 +825,14 @@ SUBROUTINE send_forward ( rs, pw )
      nn = PRODUCT ( ub - lb + 1 )
      ALLOCATE ( buffer ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "send_forward", "buffer", nn )
-     ! send the data to all other processors 
+     ! send the data to all other processors
      IF ( source == rs % group_coor ( 1 ) ) THEN
        buffer ( :,:,: ) = rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) )
      END IF
      CALL mp_bcast ( buffer, source, subgroup )
      ! Pick the data needed on this processor
      ! We only have to consider the special direction, on the other direction
-     ! we know that all the data is in buffer 
+     ! we know that all the data is in buffer
      lz = lbp
      uz = ubp
      lz ( idir ) = MAX ( lb ( idir ), lbp ( idir ) )
@@ -973,8 +973,8 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
     INTEGER, INTENT(in), OPTIONAL            :: stride
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_to_cube', &
       routineP = moduleN//':'//routineN
@@ -990,8 +990,8 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
    failure=.FALSE.
    my_stride=1
    IF (PRESENT(stride)) my_stride=stride
-   CPPrecondition(my_stride>0,cp_failure_level,routineP,error,failure) 
-   CPPrecondition(rs%orthorhombic,cp_failure_level,routineP,error,failure) 
+   CPPrecondition(my_stride>0,cp_failure_level,routineP,error,failure)
+   CPPrecondition(rs%orthorhombic,cp_failure_level,routineP,error,failure)
    IF (rs%ngpts.ne.rs%ngpts_local) CALL stop_program("rs_grid_to_cube","NYI")
    IF (ionode) THEN
      ! this format seems to work for e.g. molekel and gOpenmol
@@ -1001,7 +1001,7 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
      ELSE
         WRITE(iunit,*) "No Title"
      ENDIF
-     
+
      np=0
      NULLIFY(my_particles)
      IF (PRESENT(particles)) my_particles=>particles
@@ -1055,8 +1055,8 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
     INTEGER, INTENT(in), OPTIONAL            :: stride
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, nsmax
     TYPE(realspace_grid_type), POINTER       :: rs_local
@@ -1082,7 +1082,7 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
    END IF
 
    IF (.NOT. PRESENT(rs)) THEN
-       CALL rs_grid_release(rs_local)
+       CALL rs_grid_release(rs_local,error=error)
    ENDIF
    CALL timestop(handle)
 
@@ -1104,8 +1104,8 @@ END SUBROUTINE rs_pw_to_cube
 !!   ARGUMENTS
 !!     - rs_grid: the rs grid that is created
 !!     - pw_grid: the corresponding pw_grid
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1118,8 +1118,8 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
@@ -1130,9 +1130,9 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
   failure=.FALSE.
   my_nsmax = -1
   IF (PRESENT(nsmax)) my_nsmax=nsmax
-  
+
   CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-  
+
   ALLOCATE(rs_grid,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -1155,8 +1155,8 @@ END SUBROUTINE rs_grid_create
 !!
 !!   ARGUMENTS
 !!     - rs_grid: the grid to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1167,8 +1167,8 @@ END SUBROUTINE rs_grid_create
 !!*** **********************************************************************
 SUBROUTINE rs_grid_retain(rs_grid, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain', &
       routineP = moduleN//':'//routineN
@@ -1176,7 +1176,7 @@ SUBROUTINE rs_grid_retain(rs_grid, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(rs_grid),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
@@ -1198,8 +1198,8 @@ END SUBROUTINE rs_grid_retain
 !!
 !!   ARGUMENTS
 !!     - rs_grid: the rs grid to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1210,8 +1210,8 @@ END SUBROUTINE rs_grid_retain
 !!*** **********************************************************************
 SUBROUTINE rs_grid_release(rs_grid,error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release', &
       routineP = moduleN//':'//routineN
@@ -1220,13 +1220,13 @@ SUBROUTINE rs_grid_release(rs_grid,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(rs_grid)) THEN
      CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
      rs_grid%ref_count=rs_grid%ref_count-1
      IF (rs_grid%ref_count==0) THEN
         rs_grid%ref_count=1
-        CALL rs_grid_deallocate(rs_grid)
+        CALL rs_grid_deallocate(rs_grid,error=error)
         DEALLOCATE(rs_grid, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -1248,8 +1248,8 @@ END SUBROUTINE rs_grid_release
 !!   ARGUMENTS
 !!     - rs_grid: the rs grid that is created
 !!     - pw_grid: the corresponding pw_grid
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     teo
@@ -1264,8 +1264,8 @@ SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax,  error)
     INTEGER, INTENT(in), OPTIONAL            :: ndim
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_create', &
       routineP = moduleN//':'//routineN
@@ -1276,14 +1276,14 @@ SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax,  error)
   failure=.FALSE.
   my_nsmax = -1
   IF (PRESENT(nsmax)) my_nsmax=nsmax
-  
+
   CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-  
+
   ALLOCATE(rs_p_grid(ndim),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   DO j = 1, ndim
      NULLIFY(rs_p_grid(j)%rs_grid)
-     CALL rs_grid_create(rs_p_grid(j)%rs_grid, pw_grid,my_nsmax,error=error) 
+     CALL rs_grid_create(rs_p_grid(j)%rs_grid, pw_grid,my_nsmax,error=error)
   END DO
 
 END SUBROUTINE rs_grid_p_create
@@ -1302,8 +1302,8 @@ END SUBROUTINE rs_grid_p_create
 !!
 !!   ARGUMENTS
 !!     - rs_grid: the rs grid to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     teo
@@ -1315,8 +1315,8 @@ END SUBROUTINE rs_grid_p_create
 SUBROUTINE rs_grid_p_release(rs_grid,error)
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_release', &
       routineP = moduleN//':'//routineN
@@ -1325,9 +1325,9 @@ SUBROUTINE rs_grid_p_release(rs_grid,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(rs_grid)) THEN
-     DO j = 1, SIZE(rs_grid)        
+     DO j = 1, SIZE(rs_grid)
         CALL rs_grid_release(rs_grid(j)%rs_grid,error)
      END DO
      DEALLOCATE(rs_grid, stat=stat)
@@ -1350,7 +1350,7 @@ END SUBROUTINE rs_grid_p_release
 !!     -
 !!
 !!   ARGUMENTS
-!!     - rs: the grid 
+!!     - rs: the grid
 !!     - tasks: the task set generate on this processor
 !!     - tasks_local: the task set to be processed localy
 !!     - npme: Number of tasks for local processing
@@ -1363,7 +1363,7 @@ END SUBROUTINE rs_grid_p_release
 !!
 !!*** **********************************************************************
 
-SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor ,symmetric)
+SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor ,symmetric, error)
 
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
@@ -1377,6 +1377,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: pcor
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: acol, arow, handle, i, ic, icmax, ileft, isend, j, k, lb, n1, &
       npmax, nppp, plength, plength2, plength3, stat, subgroup, subpos, &
@@ -1425,7 +1426,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor
     CALL mp_cart_sub ( rs % group, subdim, subgroup )
     CALL mp_environ ( subsize, subpos, subgroup )
 
-    ! determine maximum number of tasks 
+    ! determine maximum number of tasks
     npmax = npme
     CALL mp_max ( npmax, subgroup )
     nppp = npmax
@@ -1571,7 +1572,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor
             DO k = j, 1, -1
               IF ( pcor(1,i)==pcor(1,k) .AND. pcor(2,i)==pcor(2,k) ) EXIT
               IF ( k == 1 ) THEN
-                j = j + 1 
+                j = j + 1
                 pcor(:,j)=pcor(:,i)
               END IF
             END DO
@@ -1615,7 +1616,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor
           CALL pack_matrix ( pmat, pls, ppack, plength, subgroup ,symmetric=my_symmetric)
           CALL mp_shift ( ppack ( 1:plength ), subgroup, isend )
           CALL mp_shift ( pls ( 1:2, 1:icmax ), subgroup, isend )
-          CALL unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric=my_symmetric)
+          CALL unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric=my_symmetric,error=error)
           IF(PRESENT(pmat2)) THEN
             pls2(:,1:ic) = pcor(:,1:ic)
             pls2(:,ic+1:) = 0
@@ -1624,7 +1625,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor
             CALL pack_matrix ( pmat2, pls2, ppack2, plength2, subgroup,symmetric=my_symmetric )
             CALL mp_shift ( ppack2 ( 1:plength2 ), subgroup, isend )
             CALL mp_shift ( pls2 ( 1:2, 1:icmax ), subgroup, isend )
-            CALL unpack_matrix ( pmat2, pcor, pls2, ic, ppack2,symmetric=my_symmetric )
+            CALL unpack_matrix ( pmat2, pcor, pls2, ic, ppack2,symmetric=my_symmetric ,error=error)
           END IF
           IF(PRESENT(pmat3)) THEN
             pls3(:,1:ic) = pcor(:,1:ic)
@@ -1634,7 +1635,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor
             CALL pack_matrix ( pmat3, pls3, ppack3, plength3, subgroup,symmetric=my_symmetric )
             CALL mp_shift ( ppack3 ( 1:plength3 ), subgroup, isend )
             CALL mp_shift ( pls3 ( 1:2, 1:icmax ), subgroup, isend )
-            CALL unpack_matrix ( pmat3, pcor, pls3, ic, ppack3,symmetric=my_symmetric )
+            CALL unpack_matrix ( pmat3, pcor, pls3, ic, ppack3,symmetric=my_symmetric ,error=error)
           END IF
         END IF
       END IF
@@ -1745,9 +1746,9 @@ SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group , symmetric)
     CALL reallocate ( ppack, 1, plength )
   END IF
 
-END SUBROUTINE pack_matrix 
+END SUBROUTINE pack_matrix
 
-SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric)
+SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric, error)
 
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: pmat
@@ -1755,6 +1756,7 @@ SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric)
     INTEGER, INTENT(IN)                      :: ic
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: acol, arow, i, j, k, nc, nr, &
                                                 pl
@@ -1780,7 +1782,7 @@ SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric)
     nr = pls(1,i)
     nc = pls(2,i)
     NULLIFY ( p_block )
-    CALL add_block_node ( pmat, arow, acol, p_block )
+    CALL add_block_node ( pmat, arow, acol, p_block ,error=error)
     DO j = 1, nc
       DO k = 1, nr
         pl = pl + 1

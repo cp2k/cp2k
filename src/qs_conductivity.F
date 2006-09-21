@@ -9,7 +9,7 @@
 !!   $Id$
 !!
 !!   FUNCTION
-!! 
+!!
 !!     should be able to compute the optical conductivity
 !!
 !!   AUTHORS
@@ -38,17 +38,18 @@ MODULE qs_conductivity
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
 ! *** Public ***
-  PUBLIC :: optical_conductivity 
+  PUBLIC :: optical_conductivity
 ! *****************************************************************************
 
 CONTAINS
 
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
-                                unoccupied_orbs,unoccupied_evals,volume,ionode,scr)
+                                unoccupied_orbs,unoccupied_evals,volume,ionode,scr,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_type), POINTER                :: occupied_orbs
@@ -58,6 +59,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
     REAL(KIND=dp)                            :: volume
     LOGICAL                                  :: ionode
     INTEGER                                  :: scr
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: nbands = 4, npoints = 1000
 
@@ -75,7 +77,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 ! bands can be used to split the spectrum divinding the occupied evals in nbands
 ! CALL stop_program("optical_conductivity","NYI")
 ! very much *not* tested and most likely to be wrong
-! the core is present 
+! the core is present
 
    CALL timeset("optical_conductivity","I","",handle)
 
@@ -83,22 +85,22 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 
    NULLIFY(buf,me_struct,template,RESULT,row_indices,col_indices)
    ALLOCATE(RESULT(0:npoints-1,nbands))
-   ! 
+   !
    ! we need the matrix elements of the momentum operator.
    ! apart from minus signs and factors of i and a couple of units,
    ! these are the derivatives of S with respect to the atomic coordinates
    !
-   CALL cp_fm_get_info(occupied_orbs,ncol_global=nocc,nrow_global=nao)
-   CALL cp_fm_get_info(unoccupied_orbs,ncol_global=nunocc)
+   CALL cp_fm_get_info(occupied_orbs,ncol_global=nocc,nrow_global=nao,error=error)
+   CALL cp_fm_get_info(unoccupied_orbs,ncol_global=nunocc,error=error)
 
    template => unoccupied_orbs%matrix_struct
-   CALL cp_fm_create(buf,template,"buffer")
+   CALL cp_fm_create(buf,template,"buffer",error=error)
    CALL cp_fm_struct_create(me_struct,para_env=template%para_env,context=template%context, &
-                            nrow_global=nocc,ncol_global=nunocc)
-   CALL cp_fm_create(matrix_elements,me_struct,"matrix_elements")
+                            nrow_global=nocc,ncol_global=nunocc,error=error)
+   CALL cp_fm_create(matrix_elements,me_struct,"matrix_elements",error=error)
    CALL cp_fm_get_info(matrix_elements,nrow_local=nrow_local,ncol_local=ncol_local, &
-                       row_indices=row_indices,col_indices=col_indices)
-   CALL cp_fm_struct_release(me_struct)
+                       row_indices=row_indices,col_indices=col_indices,error=error)
+   CALL cp_fm_struct_release(me_struct,error=error)
 
    occ_min=MINVAL(occupied_evals)
    occ_max=MAXVAL(occupied_evals)
@@ -110,20 +112,20 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    ! where all transitions are computed (i.e. as soon as we start neglecting HOMO -> unoccupied,
    ! we stop recording other transitions)
    emax=MAX((unocc_max-occ_max),emin+1.0E-3_dp)
-   ! the other option is to compute the full spectrum anyway. 
+   ! the other option is to compute the full spectrum anyway.
    ! the advantage of this option is that it allows for alligning the spectrum with
    ! experiment, using features from low occupied bands.
    emax=MAX((unocc_max-occ_min),emin)+1.0E-3_dp
    dE_bin=(emax-emin)/npoints
    DO component=1,3
       RESULT=0.0_dp
-      CALL cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc)
-      CALL cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements)
+      CALL cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc,error=error)
+      CALL cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements,error=error)
       DO j=1,ncol_local
         DO i=1,nrow_local
 
            ! the energy of the transition
-           energy=-occupied_evals(row_indices(i))+unoccupied_evals(col_indices(j)) 
+           energy=-occupied_evals(row_indices(i))+unoccupied_evals(col_indices(j))
 
            ! this should be the strength of the transition.
            strength=Pi*(matrix_elements%local_data(i,j))**2 / (volume*energy)
@@ -148,8 +150,8 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
       ENDIF
    ENDDO
 
-   CALL cp_fm_release(buf)
-   CALL cp_fm_release(matrix_elements)
+   CALL cp_fm_release(buf,error=error)
+   CALL cp_fm_release(matrix_elements,error=error)
    DEALLOCATE(RESULT)
 
    CALL timestop(0.0_dp,handle)

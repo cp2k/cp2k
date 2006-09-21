@@ -100,8 +100,8 @@ CONTAINS
 FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CHARACTER(len=*), INTENT(in)             :: file_path
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(section_vals_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cp2k_input_reading', &
@@ -153,8 +153,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
   SUBROUTINE create_cp2k_root_section(root_section,error)
     TYPE(section_type), POINTER              :: root_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cp2k_root_section', &
       routineP = moduleN//':'//routineN
@@ -243,8 +243,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
   FUNCTION parsed_cp2k_input(input_file,check_this_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: input_file
     LOGICAL, INTENT(IN), OPTIONAL            :: check_this_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parsed_cp2k_input', &
@@ -294,8 +294,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
   SUBROUTINE create_global_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
       routineP = moduleN//':'//routineN
@@ -562,8 +562,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
   SUBROUTINE create_test_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_test_section', &
       routineP = moduleN//':'//routineN
@@ -687,8 +687,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
   SUBROUTINE create_debug_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_debug_section', &
       routineP = moduleN//':'//routineN
@@ -738,8 +738,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
   SUBROUTINE create_force_eval_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_eval_section', &
       routineP = moduleN//':'//routineN
@@ -834,8 +834,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
   SUBROUTINE create_ext_restart_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_restart_section', &
       routineP = moduleN//':'//routineN
@@ -959,8 +959,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
   SUBROUTINE create_vib_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_vib_section', &
       routineP = moduleN//':'//routineN
@@ -1032,8 +1032,8 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!*** **********************************************************************
 SUBROUTINE create_farming_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_farming_section', &
       routineP = moduleN//':'//routineN
@@ -1134,8 +1134,8 @@ END SUBROUTINE create_farming_section
 !!*** **********************************************************************
 SUBROUTINE create_f_env_print_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_f_env_print_section', &
       routineP = moduleN//':'//routineN
@@ -1210,8 +1210,8 @@ END SUBROUTINE create_f_env_print_section
 !!*** **********************************************************************
 SUBROUTINE create_cpot_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cpot_section', &
       routineP = moduleN//':'//routineN

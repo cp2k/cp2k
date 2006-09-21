@@ -76,8 +76,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
 
@@ -111,7 +111,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                             cell_last_update=cell_last_update,&
                             num_update=num_update,&
                             verlet_skin=verlet_skin,&
-                            last_update=last_update)
+                            last_update=last_update,error=error)
 
   nparticle_kind = SIZE(atomic_kind_set)
   nparticle = SIZE(particle_set)
@@ -171,7 +171,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
              3*nparticle*dp_size)
      END IF
   END IF
-  
+
   ! update the neighbor lists
   IF (update_neighbor_lists) THEN
 
@@ -205,7 +205,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                               nonbonded=nonbonded,&
                               num_update=num_update,&
                               last_update=last_update,&
-                              cell_last_update=cell_last_update)
+                              cell_last_update=cell_last_update,error=error)
 
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,&
@@ -240,7 +240,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   END DO
 
   counter = counter + 1
-  CALL fist_nonbond_env_set(fist_nonbond_env,counter=counter)
+  CALL fist_nonbond_env_set(fist_nonbond_env,counter=counter,error=error)
 
   CALL timestop(0.0_dp,handle)
 

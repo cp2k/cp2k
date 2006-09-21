@@ -108,8 +108,8 @@ CONTAINS
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     INTEGER, INTENT(in)                      :: nbuffer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_create', &
       routineP = moduleN//':'//routineN
@@ -178,8 +178,8 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     INTEGER, INTENT(IN)                      :: nspin
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -224,7 +224,7 @@ CONTAINS
                                  "%error("//&
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//","//&
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//")",&
-                            matrix_struct=matrix_struct)
+                            matrix_struct=matrix_struct,error=error)
         END DO
       END DO
     END IF
@@ -243,7 +243,7 @@ CONTAINS
                                  "%parameter("//&
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//","//&
                                  TRIM(ADJUSTL(cp_to_string(ibuffer)))//")",&
-                            matrix_struct=matrix_struct)
+                            matrix_struct=matrix_struct,error=error)
         END DO
       END DO
     END IF
@@ -317,8 +317,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: s_matrix
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: roks
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step', &
       routineP = moduleN//':'//routineN
@@ -404,7 +404,7 @@ CONTAINS
 
       ! Copy the Kohn-Sham matrix K to the DIIS buffer
 
-      CALL cp_fm_to_fm(kc(ispin)%matrix,parameters)
+      CALL cp_fm_to_fm(kc(ispin)%matrix,parameters,error=error)
 
       IF (my_roks) THEN
 
@@ -419,24 +419,24 @@ CONTAINS
           occ(imo) = SQRT(occa(imo) + occb(imo))
         END DO
 
-        CALL cp_fm_to_fm(c,sc)
+        CALL cp_fm_to_fm(c,sc,error=error)
         CALL cp_fm_column_scale(sc,occ(1:homo))
 
         ! KC <- K*C
-        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
+        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix,error=error)
 
         IF (PRESENT(s_matrix)) THEN
-          CALL copy_sm_to_fm(s_matrix(1)%matrix,new_errors)
+          CALL copy_sm_to_fm(s_matrix(1)%matrix,new_errors,error=error)
           ! SC <- S*C
-          CALL cp_fm_symm("L","U",nao,homo,1.0_dp,new_errors,c,0.0_dp,sc)
+          CALL cp_fm_symm("L","U",nao,homo,1.0_dp,new_errors,c,0.0_dp,sc,error=error)
           CALL cp_fm_column_scale(sc,occ(1:homo))
         END IF
 
         ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
         ! or for an orthogonal basis
         ! new_errors <- KC*C^T - C*(KC)^T = K*P - P*K with S = I
-        CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
-        CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
+        CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
+        CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors,error=error)
 
         DEALLOCATE (occ,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"occ")
@@ -450,26 +450,26 @@ CONTAINS
 !         CALL cp_fm_symm("L","U",nao,homo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
 !       ELSE
           ! KC <- K*C
-          CALL cp_fm_symm("L","U",nao,homo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix)
+          CALL cp_fm_symm("L","U",nao,homo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix,error=error)
 !       END IF
 
         IF (PRESENT(s_matrix)) THEN
           ! I guess that this copy can be avoided for LSD
-          CALL copy_sm_to_fm(s_matrix(1)%matrix,new_errors)
+          CALL copy_sm_to_fm(s_matrix(1)%matrix,new_errors,error=error)
           ! sc <- S*C
-          CALL cp_fm_symm("L","U",nao,homo,2.0_dp,new_errors,c,0.0_dp,sc)
+          CALL cp_fm_symm("L","U",nao,homo,2.0_dp,new_errors,c,0.0_dp,sc,error=error)
           ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
+          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
+          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors,error=error)
         ELSE
           ! new_errors <- KC*(C)^T - C*(KC)^T = K*P - P*K
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,c,kc(ispin)%matrix, 0.0_dp,new_errors)
-          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,c,-1.0_dp,new_errors)
+          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,c,kc(ispin)%matrix, 0.0_dp,new_errors,error=error)
+          CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,c,-1.0_dp,new_errors,error=error)
         END IF
 
       END IF
 
-      CALL cp_fm_maxabsval(new_errors,tmp)
+      CALL cp_fm_maxabsval(new_errors,tmp,error=error)
       error_max = MAX(error_max,tmp)
 
     END DO
@@ -515,7 +515,7 @@ CONTAINS
         DO ispin=1,nspin
           old_errors => diis_buffer%error(jb,ispin)%matrix
           new_errors => diis_buffer%error(ib,ispin)%matrix
-          CALL cp_fm_trace(old_errors,new_errors,tmp)
+          CALL cp_fm_trace(old_errors,new_errors,tmp,error=error)
           b(jb,ib) = b(jb,ib) + tmp
         END DO
         b(ib,jb) = b(jb,ib)
@@ -589,10 +589,10 @@ CONTAINS
       ! Update Kohn-Sham matrix
 
       DO ispin=1,nspin
-        CALL cp_fm_set_all(kc(ispin)%matrix,0.0_dp)
+        CALL cp_fm_set_all(kc(ispin)%matrix,0.0_dp,error=error)
         DO jb=1,nb
           parameters => diis_buffer%parameter(jb,ispin)%matrix
-          CALL cp_fm_scale_and_add(1.0_dp,kc(ispin)%matrix,-ev(jb),parameters)
+          CALL cp_fm_scale_and_add(1.0_dp,kc(ispin)%matrix,-ev(jb),parameters,error=error)
         END DO
       END DO
 
@@ -607,7 +607,7 @@ CONTAINS
 
       DO ispin=1,nspin
         parameters => diis_buffer%parameter(ib,ispin)%matrix
-        CALL cp_fm_to_fm(parameters,kc(ispin)%matrix)
+        CALL cp_fm_to_fm(parameters,kc(ispin)%matrix,error=error)
       END DO
 
     END IF
@@ -650,8 +650,8 @@ CONTAINS
   SUBROUTINE qs_diis_b_clear(diis_buffer,error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_clear', &
       routineP = moduleN//':'//routineN

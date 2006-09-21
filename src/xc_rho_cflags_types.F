@@ -106,8 +106,8 @@ CONTAINS
   SUBROUTINE xc_rho_cflags_setall(cflags, value, error)
     TYPE(xc_rho_cflags_type), INTENT(out)    :: cflags
     LOGICAL, INTENT(in)                      :: value
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_setall', &
       routineP = moduleN//':'//routineN
@@ -147,8 +147,8 @@ CONTAINS
   SUBROUTINE xc_rho_cflags_or(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_or', &
       routineP = moduleN//':'//routineN
@@ -190,8 +190,8 @@ CONTAINS
   SUBROUTINE xc_rho_cflags_and(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_and', &
       routineP = moduleN//':'//routineN
@@ -232,8 +232,8 @@ CONTAINS
   FUNCTION xc_rho_cflags_equal(cflags1, cflags2, error) RESULT(equal)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: equal
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_equal', &
@@ -278,8 +278,8 @@ CONTAINS
   FUNCTION xc_rho_cflags_contain(cflags1, cflags2, error) RESULT(contain)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: contain
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_contain', &
@@ -331,8 +331,8 @@ CONTAINS
   SUBROUTINE xc_rho_cflags_write(cflags,unit_nr,error)
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_write', &
       routineP = moduleN//':'//routineN

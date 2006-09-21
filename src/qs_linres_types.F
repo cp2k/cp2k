@@ -224,8 +224,8 @@ CONTAINS
   SUBROUTINE linres_control_create(linres_control,error)
  
     TYPE(linres_control_type), POINTER       :: linres_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create', &
       routineP = moduleN//':'//routineN
@@ -251,8 +251,8 @@ CONTAINS
   SUBROUTINE linres_control_release(linres_control,error)
  
     TYPE(linres_control_type), POINTER       :: linres_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release', &
       routineP = moduleN//':'//routineN
@@ -278,8 +278,8 @@ CONTAINS
   SUBROUTINE linres_control_retain(linres_control,error)
  
     TYPE(linres_control_type), POINTER       :: linres_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_retain', &
       routineP = moduleN//':'//routineN
@@ -301,8 +301,8 @@ CONTAINS
   SUBROUTINE nmr_env_create(nmr_env,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_env_create', &
       routineP = moduleN//':'//routineN
@@ -387,8 +387,8 @@ CONTAINS
       POINTER                                :: jp1_ao
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: jp2_ao
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env', &
       routineP = moduleN//':'//routineN
@@ -437,8 +437,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: jrho1_atom_set
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: jrho1_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_nmr_env', &
       routineP = moduleN//':'//routineN
@@ -495,8 +495,8 @@ CONTAINS
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho_atom_set
     INTEGER, INTENT(IN)                      :: natom
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_jrho_atom_set'
 
@@ -546,8 +546,8 @@ CONTAINS
 
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho_atom_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set'
 
@@ -675,8 +675,8 @@ CONTAINS
   
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     INTEGER, INTENT(IN)                      :: ispin, nr, max_iso_not0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -755,8 +755,8 @@ CONTAINS
   
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -805,8 +805,8 @@ CONTAINS
                                                 jrho_rad_s
     TYPE(rho_atom_coeff), &
       DIMENSION(:, :, :), OPTIONAL, POINTER  :: jrho_vec_rad_h, jrho_vec_rad_s
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_jrho_atom', &
       routineP = moduleN//':'//routineN
@@ -838,8 +838,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nspins
     LOGICAL, INTENT(IN)                      :: store_current
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_jrho_atom_set'
 

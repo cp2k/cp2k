@@ -56,8 +56,8 @@ MODULE topology_connectivity_util
 
   PRIVATE
   PUBLIC :: topology_connectivity_pack
-            
-  
+
+
 !!*****
 !******************************************************************************
 
@@ -92,8 +92,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack', &
       routineP = moduleN//':'//routineN
@@ -130,7 +130,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
@@ -174,7 +174,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1.1 Clean the temporary arrays to avoid quadratic loops around
-    !     after this fix all topology_pack will be linear scaling 
+    !     after this fix all topology_pack will be linear scaling
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_1.1",'I','',handle2)
     istart_mol = map_atom_mol (1)
@@ -198,7 +198,7 @@ CONTAINS
     ELSE
        NULLIFY(molecule_kind_set)
        i = topology%nmol_type
-       CALL allocate_molecule_kind_set(molecule_kind_set,i)
+       CALL allocate_molecule_kind_set(molecule_kind_set,i,error=error)
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_kind_set, Dimenstion of ",&
             SIZE(molecule_kind_set)
     END IF
@@ -213,7 +213,7 @@ CONTAINS
     ELSE
        NULLIFY(molecule_set)
        i = topology%nmol
-       CALL allocate_molecule_set(molecule_set,i)
+       CALL allocate_molecule_set(molecule_set,i,error=error)
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_set, dimension of ",&
             topology%nmol
     END IF
@@ -265,7 +265,7 @@ CONTAINS
           found      = .FALSE.
           found_last = .FALSE.
        END IF
-       
+
        IF (found) THEN
           ALLOCATE(molecule_list(imol-counter),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -324,7 +324,7 @@ CONTAINS
     last_list (:) = 0
     ityp=atom_info%map_mol_typ(1)
     inum=atom_info%map_mol_num(1)
-    ires=atom_info%map_mol_res(1)    
+    ires=atom_info%map_mol_res(1)
     imol          = 1
     first_list(1) = 1
     DO j = 2, natom
@@ -433,7 +433,7 @@ CONTAINS
           inter_bonds = bnd_ctype(2,i)-bnd_ctype(1,i)+1
        END IF
        ibond = intra_bonds+inter_bonds
-       IF(iw>0) THEN 
+       IF(iw>0) THEN
           WRITE(iw,*) "    Total number bonds for molecule type ",i," :",ibond
           WRITE(iw,*) "    intra (bonds inside  molecules) :: ",intra_bonds
           WRITE(iw,*) "    inter (bonds between molecules) :: ",inter_bonds
@@ -468,7 +468,7 @@ CONTAINS
                   conn_info%bond_a(jind)-first+1,&
                   conn_info%bond_b(jind)-first+1
           END IF
-       END DO       
+       END DO
        DO j=bnd_ctype(1,i),bnd_ctype(2,i)
           IF (j==0) CYCLE
           ibond = ibond + 1
@@ -536,13 +536,13 @@ CONTAINS
           j1 = map_atom_mol(conn_info%theta_a(j))
           j2 = map_atom_mol(conn_info%theta_b(j))
           j3 = map_atom_mol(conn_info%theta_c(j))
-          IF (j1/=j2.OR.j2/=j3) THEN 
+          IF (j1/=j2.OR.j2/=j3) THEN
              idim = idim + 1
           END IF
        END DO
        CALL reallocate(c_var_a,1,idim)
        CALL reallocate(c_var_b,1,idim)
-       CALL reallocate(c_var_c,1,idim) 
+       CALL reallocate(c_var_c,1,idim)
        IF (found) THEN
           CALL reallocate(c_var_type,1,idim)
        END IF
@@ -551,7 +551,7 @@ CONTAINS
           j1 = map_atom_mol(conn_info%theta_a(j))
           j2 = map_atom_mol(conn_info%theta_b(j))
           j3 = map_atom_mol(conn_info%theta_c(j))
-          IF (j1/=j2.OR.j2/=j3) THEN 
+          IF (j1/=j2.OR.j2/=j3) THEN
              idim = idim + 1
              c_var_a(idim)    = conn_info%theta_a(j)
              c_var_b(idim)    = conn_info%theta_b(j)
@@ -603,7 +603,7 @@ CONTAINS
           inter_bends = bnd_ctype(2,i)-bnd_ctype(1,i)+1
        END IF
        ibend = intra_bends+inter_bends
-       IF(iw>0) THEN 
+       IF(iw>0) THEN
           WRITE(iw,*) "    Total number of angles for molecule type ",i," :",ibend
           WRITE(iw,*) "    intra (angles inside  molecules) :: ",intra_bends
           WRITE(iw,*) "    inter (angles between molecules) :: ",inter_bends
@@ -716,7 +716,7 @@ CONTAINS
           j1 = map_atom_mol(conn_info%ub_a(j))
           j2 = map_atom_mol(conn_info%ub_b(j))
           j3 = map_atom_mol(conn_info%ub_c(j))
-          IF (j1/=j2.OR.j2/=j3) THEN 
+          IF (j1/=j2.OR.j2/=j3) THEN
              idim = idim + 1
           END IF
        END DO
@@ -728,7 +728,7 @@ CONTAINS
           j1 = map_atom_mol(conn_info%ub_a(j))
           j2 = map_atom_mol(conn_info%ub_b(j))
           j3 = map_atom_mol(conn_info%ub_c(j))
-          IF (j1/=j2.OR.j2/=j3) THEN 
+          IF (j1/=j2.OR.j2/=j3) THEN
              idim = idim + 1
              c_var_a(idim)    = conn_info%ub_a(j)
              c_var_b(idim)    = conn_info%ub_b(j)
@@ -777,7 +777,7 @@ CONTAINS
           inter_ubs = bnd_ctype(2,i)-bnd_ctype(1,i)+1
        END IF
        iub = intra_ubs+inter_ubs
-       IF(iw>0) THEN 
+       IF(iw>0) THEN
           WRITE(iw,*) "    Total number of Urey-Bradley for molecule type ",i," :",iub
           WRITE(iw,*) "    intra (UB inside  molecules) :: ",intra_ubs
           WRITE(iw,*) "    inter (UB between molecules) :: ",inter_ubs
@@ -883,7 +883,7 @@ CONTAINS
           j2 = map_atom_mol(conn_info%phi_b(j))
           j3 = map_atom_mol(conn_info%phi_c(j))
           j4 = map_atom_mol(conn_info%phi_d(j))
-          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN 
+          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN
              idim = idim + 1
           END IF
        END DO
@@ -900,7 +900,7 @@ CONTAINS
           j2 = map_atom_mol(conn_info%phi_b(j))
           j3 = map_atom_mol(conn_info%phi_c(j))
           j4 = map_atom_mol(conn_info%phi_d(j))
-          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN 
+          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN
              idim = idim + 1
              c_var_a(idim)    = conn_info%phi_a(j)
              c_var_b(idim)    = conn_info%phi_b(j)
@@ -954,7 +954,7 @@ CONTAINS
           inter_torsions = bnd_ctype(2,i)-bnd_ctype(1,i)+1
        END IF
        itorsion = intra_torsions+inter_torsions
-       IF(iw>0) THEN 
+       IF(iw>0) THEN
           WRITE(iw,*) "    Total number of torsions for molecule type ",i," :",itorsion
           WRITE(iw,*) "    intra (torsions inside  molecules) :: ",intra_torsions
           WRITE(iw,*) "    inter (torsions between molecules) :: ",inter_torsions
@@ -1084,7 +1084,7 @@ CONTAINS
           j2 = map_atom_mol(conn_info%impr_b(j))
           j3 = map_atom_mol(conn_info%impr_c(j))
           j4 = map_atom_mol(conn_info%impr_d(j))
-          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN 
+          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN
              idim = idim + 1
           END IF
        END DO
@@ -1101,7 +1101,7 @@ CONTAINS
           j2 = map_atom_mol(conn_info%impr_b(j))
           j3 = map_atom_mol(conn_info%impr_c(j))
           j4 = map_atom_mol(conn_info%impr_d(j))
-          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN 
+          IF (j1/=j2.OR.j2/=j3.OR.j3/=j4) THEN
              idim = idim + 1
              c_var_a(idim)    = conn_info%impr_a(j)
              c_var_b(idim)    = conn_info%impr_b(j)
@@ -1155,7 +1155,7 @@ CONTAINS
           inter_imprs = bnd_ctype(2,i)-bnd_ctype(1,i)+1
        END IF
        iimpr = intra_imprs+inter_imprs
-       IF(iw>0) THEN 
+       IF(iw>0) THEN
           WRITE(iw,*) "    Total number of imprs for molecule type ",i," :",iimpr
           WRITE(iw,*) "    intra (imprs inside  molecules) :: ",intra_imprs
           WRITE(iw,*) "    inter (imprs between molecules) :: ",inter_imprs
@@ -1283,7 +1283,7 @@ CONTAINS
        IF (ALL(bnd_type(:,i)>0)) THEN
           ionfo = bnd_type(2,i)-bnd_type(1,i)+1
        END IF
-       IF(iw>0) THEN 
+       IF(iw>0) THEN
           WRITE(iw,*) "    Total number onfos for molecule type ",i," :",ionfo
        END IF
        molecule_kind => molecule_kind_set(i)
@@ -1309,7 +1309,7 @@ CONTAINS
                   conn_info%onfo_a(jind)-first+1,&
                   conn_info%onfo_b(jind)-first+1
           END IF
-       END DO       
+       END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             nonfo=SIZE(onfo_list),onfo_list=onfo_list)
     END DO
@@ -1348,7 +1348,7 @@ CONTAINS
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     Teodoro Laino 
+!!     Teodoro Laino
 !!
 !!   OPTIONS
 !!
@@ -1359,8 +1359,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: map_vars, map_var_mol
     INTEGER, DIMENSION(:, :), POINTER        :: bnd_type
     INTEGER, INTENT(IN)                      :: nvar1
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_bnd_typ', &
       routineP = moduleN//':'//routineN
@@ -1390,7 +1390,7 @@ CONTAINS
        END IF
     END DO
     bnd_type(2,i) = nvar1
-    
+
   END SUBROUTINE find_bnd_typ
-    
+
 END MODULE topology_connectivity_util

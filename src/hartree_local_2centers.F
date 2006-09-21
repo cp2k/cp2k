@@ -65,8 +65,9 @@ MODULE  hartree_local_2centers
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
-                                             timestop 
+                                             timestop
   USE util,                            ONLY: get_limit
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -77,17 +78,17 @@ MODULE  hartree_local_2centers
   CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_3centers"
 
 ! Public Subroutine
- 
+
   PUBLIC :: integrate_vhg0_g0
 
 !******************************************************************************
- 
+
   CONTAINS
- 
+
 !******************************************************************************
 
     SUBROUTINE integrate_vhg0_g0(qs_env,energy_hartree_2c,just_energy,calculate_forces, &
-                               tddft, p_env)
+                               tddft, p_env, error)
 
     REAL(kind=dp), INTENT(INOUT)               :: energy_hartree_2c
     TYPE(qs_environment_type), POINTER         :: qs_env
@@ -95,6 +96,7 @@ MODULE  hartree_local_2centers
                                                   just_energy
     LOGICAL, INTENT(IN), OPTIONAL              :: tddft
     TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "integrate_vhg0_g0"
 
@@ -125,7 +127,7 @@ MODULE  hartree_local_2centers
     REAL(dp), DIMENSION(:),       ALLOCATABLE  :: nhard_a, nhard_b
     REAL(dp), DIMENSION(:),       POINTER      :: QN_h,QN_s
     REAL(dp), DIMENSION(:),       ALLOCATABLE  :: QN_h_a,QN_s_a,&
-                                                  QN_h_b,QN_s_b 
+                                                  QN_h_b,QN_s_b
     REAL(dp), DIMENSION(:),       ALLOCATABLE  :: Isum_a_sph
     REAL(dp), DIMENSION(:),       ALLOCATABLE  :: ff
     REAL(dp), DIMENSION(:,:),     ALLOCATABLE  :: Isum_a_car
@@ -157,11 +159,11 @@ MODULE  hartree_local_2centers
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    para_env=para_env,& 
+                    para_env=para_env,&
                     particle_set=particle_set,&
                     rho0_mpole=rho0_mpole,&
                     rho_atom_set=rho_atom_set,&
-                    sab_2c=sab_2c)
+                    sab_2c=sab_2c,error=error)
 
     NULLIFY(ng0_h,ng0_s)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
@@ -181,7 +183,7 @@ MODULE  hartree_local_2centers
 
     maxder = 0
     IF (calculate_forces) THEN
- 
+
       CALL timeset(routineN//" (forces)","I"," ",handle)
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -191,11 +193,11 @@ MODULE  hartree_local_2centers
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
-      CALL get_qs_env(qs_env=qs_env, force=force)
+      CALL get_qs_env(qs_env=qs_env, force=force,error=error)
 
       maxder = 1
     ELSE
-     
+
       CALL timeset(routineN,"I"," ",handle)
 
     END IF
@@ -268,7 +270,7 @@ MODULE  hartree_local_2centers
         IF(ASSOCIATED(sab_2c(ab)%neighbor_list_set)) THEN
           CALL get_neighbor_list_set(neighbor_list_set=&
                sab_2c(ab)%neighbor_list_set,nlist=nlist)
- 
+
           sab_2c_neighbor_list => first_list(sab_2c(ab)%neighbor_list_set)
         ELSE
           nlist = 0
@@ -329,7 +331,7 @@ MODULE  hartree_local_2centers
               ieqj = 1.0_dp
             ELSE
               ieqj = 2.0_dp
-            END IF 
+            END IF
 
             NULLIFY(QN_s,QN_h)
             CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=jatom,&
@@ -361,7 +363,7 @@ MODULE  hartree_local_2centers
                   force(ikind)%hartree_2c(idir,i_atom) - force_a(idir)
                 force(jkind)%hartree_2c(idir,j_atom) = &
                   force(jkind)%hartree_2c(idir,j_atom) + force_a(idir)
-              END DO 
+              END DO
 
             ELSE
 
@@ -374,7 +376,7 @@ MODULE  hartree_local_2centers
                                       rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                                       Isum_a_car(:,jatom),maxder,force_a,&
                                       vab,vv,ff(0:))
-            END IF 
+            END IF
 
 !           *** sum up in the energy of hartree local from 2 centers terms
             energy_hartree_2c = energy_hartree_2c + 0.5_dp*ieqj*ene_2c
@@ -434,7 +436,7 @@ MODULE  hartree_local_2centers
          Isum_a_sph = 0.0_dp
          DO lshell = 0,l0_a
            DO is = 1,nso(lshell)
-             iso = nsoset(lshell-1) + is 
+             iso = nsoset(lshell-1) + is
              DO ic = 1,nco(lshell)
                 ico = ncoset(lshell-1) + ic
                 lx = indco(1,ico)
@@ -455,12 +457,12 @@ MODULE  hartree_local_2centers
                 int_local_h(ispin)%r_coef(1:nsotot,is) = &
                           int_local_h(ispin)%r_coef(1:nsotot,is) + &
                           Isum_a_sph(iso)*Qlm_gg(1:nsotot,is,iso)
-                            
+
                 int_local_s(ispin)%r_coef(1:nsotot,is) = &
                           int_local_s(ispin)%r_coef(1:nsotot,is) + &
                           Isum_a_sph(iso)*Qlm_gg(1:nsotot,is,iso)
               END DO
- 
+
            END DO
          END DO
 
@@ -486,23 +488,23 @@ MODULE  hartree_local_2centers
             "atom_of_kind")
     END IF
 
-    CALL timestop(0.0_dp,handle) 
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_vhg0_g0
 
 !******************************************************************************
- 
+
   SUBROUTINE sumup_2c_integrals(z0_h_a,z0_h_b,z0_s,ng0_h_a,ng0_h_b,ng0_s,&
                        l0_a,r0_a,QN_h_a,QN_s_a,&
                        l0_b,r0_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a,Isum_b,maxder,force_a,&
-                       vab,vv,ff) 
+                       vab,vv,ff)
 !   ---------------------------------------------------------------------------
     INTEGER, INTENT(IN)                   :: l0_a, l0_b
     INTEGER, INTENT(IN)                   :: maxder
     REAL(dp), INTENT(IN)                  :: z0_h_a, z0_h_b ,z0_s
     REAL(dp), INTENT(IN)                  :: r0_a
-    REAL(dp), INTENT(IN)                  :: r0_b 
+    REAL(dp), INTENT(IN)                  :: r0_b
     REAL(dp), INTENT(IN)                  :: ieqj,rab2
     REAL(dp)                              :: ene_2c
     REAL(dp), DIMENSION(3), INTENT(IN)    :: rab
@@ -537,11 +539,11 @@ MODULE  hartree_local_2centers
            "vab_plus,I_tmp",nch_a*nch_b*dp_size+nch_a_p*dp_size)
 
       ene_2c = 0.0_dp
-      force_a(1:3) = 0.0_dp 
+      force_a(1:3) = 0.0_dp
       zet_a(1)  = z0_h_a
       zet_b(1)  = z0_h_b
       rad_a(1) = r0_a
-      rad_b(1) = r0_b      
+      rad_b(1) = r0_b
       zx2_a = z0_h_a*2.0_dp
       CALL coulomb2(l0_a+1,1,zet_a,rad_a,0,l0_b,1,zet_b,rad_b,0,&
                     rab,rab2,vab,vv,ff(0:),maxder=maxder,vac_plus=vab_plus)
@@ -571,9 +573,9 @@ MODULE  hartree_local_2centers
       DO icoa = ncoset(l0_a)+1,ncoset(l0_a+1)
         DO icob = 1,nch_b
           I_tmp(icoa) = I_tmp(icoa) + QN_h_b(icob)*vab_plus(icoa,icob)
-        END DO 
+        END DO
       END DO
-      
+
       DO idir = 1,3
         DO icoa = 1,nch_a
           la(1:3) = indco(1:3,icoa)
@@ -585,12 +587,12 @@ MODULE  hartree_local_2centers
 
           IF(lam(idir) < 0) THEN
 
-            force_a(idir) = force_a(idir) - QN_h_a(icoa)*& 
+            force_a(idir) = force_a(idir) - QN_h_a(icoa)*&
                                    zx2_a* I_tmp(icoap)
           ELSE
             icoam = coset(lam(1),lam(2),lam(3))
 
-            force_a(idir) = force_a(idir) - QN_h_a(icoa)*& 
+            force_a(idir) = force_a(idir) - QN_h_a(icoa)*&
                    (zx2_a* I_tmp(icoap)-la(idir)*I_tmp(icoam))
           END IF
 
@@ -600,7 +602,7 @@ MODULE  hartree_local_2centers
       zet_a(1)  = z0_s
       zet_b(1)  = z0_s
       rad_a(1) = r0_a
-      rad_b(1) = r0_b      
+      rad_b(1) = r0_b
       zx2 = z0_s * 2.0_dp
       CALL coulomb2(l0_a+1,1,zet_a,rad_a,0,l0_b,1,zet_b,rad_b,0,&
                     rab,rab2,vab,vv,ff(0:),maxder=maxder,vac_plus=vab_plus)
@@ -631,7 +633,7 @@ MODULE  hartree_local_2centers
       DO icoa = ncoset(l0_a)+1,ncoset(l0_a+1)
         DO icob = 1,nch_b
           I_tmp(icoa) = I_tmp(icoa) + QN_s_b(icob)*vab_plus(icoa,icob)
-        END DO 
+        END DO
       END DO
 
       DO idir = 1,3
@@ -669,7 +671,7 @@ MODULE  hartree_local_2centers
       zet_a(1)  = z0_h_a
       zet_b(1)  = z0_h_b
       rad_a(1) = r0_a
-      rad_b(1) = r0_b      
+      rad_b(1) = r0_b
       CALL coulomb2(l0_a,1,zet_a,rad_a,0,l0_b,1,zet_b,rad_b,0,&
                     rab,rab2,vab,vv,ff(0:))
 
@@ -699,7 +701,7 @@ MODULE  hartree_local_2centers
       zet_a(1)  = z0_s
       zet_b(1)  = z0_s
       rad_a(1) = r0_a
-      rad_b(1) = r0_b      
+      rad_b(1) = r0_b
       CALL coulomb2(l0_a,1,zet_a,rad_a,0,l0_b,1,zet_b,rad_b,0,&
                     rab,rab2,vab,vv,ff(0:))
 

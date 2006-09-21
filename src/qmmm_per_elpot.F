@@ -93,8 +93,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace, maxchrg
     INTEGER, INTENT(IN)                      :: ncp(3), ncpl(3)
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_potential_init', &
       routineP = moduleN//':'//routineN
@@ -301,8 +301,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: qmmm_per_section, &
                                                 print_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_create', &
       routineP = moduleN//':'//routineN

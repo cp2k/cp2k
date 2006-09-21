@@ -31,13 +31,13 @@ MODULE l_utils
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  PRIVATE 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'l_utils'
 
-  PUBLIC :: l_info_type, init_l_info, return_l_info, destroy_l_info, & 
+  PUBLIC :: l_info_type, init_l_info, return_l_info, destroy_l_info, &
             l_info_release, l_set_info_type, l_info_retain, finish_l_info
-   
+
   TYPE l_set_info_type
         INTEGER                        :: lx_max,lxy_max,lxyz_max
         INTEGER, POINTER, DIMENSION(:) :: ly_max,lz_max
@@ -77,8 +77,8 @@ CONTAINS
     INTEGER                                  :: cmax
     INTEGER, DIMENSION(:, :, :, :, :, :), &
       OPTIONAL, POINTER                      :: ipzyx
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'return_l_info', &
       routineP = moduleN//':'//routineN
@@ -150,8 +150,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx
     INTEGER, DIMENSION(:, :, :, :, :, :), &
       OPTIONAL, POINTER                      :: ipzyx
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'finish_l_info', &
       routineP = moduleN//':'//routineN
@@ -188,10 +188,10 @@ CONTAINS
 !****************************************************************************
 
 
-! needs a nthread agrument because it provides pre-allocated data streactures 
-! for the collocate routines hence, in some way, these data structures need 
+! needs a nthread agrument because it provides pre-allocated data streactures
+! for the collocate routines hence, in some way, these data structures need
 ! the 'thread-private' attribute really not so elegant...
-! the nthread argument is optional, the right number of threads should be 
+! the nthread argument is optional, the right number of threads should be
 ! determined automatically
 
   SUBROUTINE init_l_info(l_info,lmax,cmax,nthread,lrho0,error)
@@ -200,8 +200,8 @@ CONTAINS
     INTEGER                                  :: lmax, cmax
     INTEGER, OPTIONAL                        :: nthread
     LOGICAL, INTENT(in), OPTIONAL            :: lrho0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, ithread, la, la_max, &
                                                 la_min, lb, lb_max, lb_min, &
@@ -231,7 +231,7 @@ CONTAINS
     l_info%lmax=lmax
     l_info%cmax=cmax
     l_info%nthread=nthread_l
-    l_info%ref_count=1 
+    l_info%ref_count=1
 
     IF(my_lrho0) THEN
 
@@ -247,7 +247,7 @@ CONTAINS
               DO la_min=0,la_max
                 la = (la_max*(la_max+1))/2 + la_min + 1
                 CALL init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax, &
-                          l_info%data(la,lb,ithread))       
+                          l_info%data(la,lb,ithread),error=error)
               ENDDO
             ENDDO
           ENDDO
@@ -268,7 +268,7 @@ CONTAINS
               DO la_min=0,la_max
                 la = (la_max*(la_max+1))/2 + la_min + 1
                 CALL init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax, &
-                          l_info%data(la,lb,ithread))       
+                          l_info%data(la,lb,ithread),error=error)
               ENDDO
             ENDDO
           ENDDO
@@ -284,8 +284,8 @@ CONTAINS
   SUBROUTINE destroy_l_info(l_info,error)
 
     TYPE(l_info_type)                        :: l_info
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_l_info', &
       routineP = moduleN//':'//routineN
@@ -301,7 +301,7 @@ CONTAINS
         DO la_max=0,l_info%lmax
           DO la_min=0,la_max
              la = (la_max*(la_max+1))/2 + la_min + 1
-             CALL destroy_l_set_info_type(l_info%data(la,lb,ithread))
+             CALL destroy_l_set_info_type(l_info%data(la,lb,ithread),error=error)
           ENDDO
         ENDDO
       ENDDO
@@ -319,8 +319,8 @@ CONTAINS
     INTEGER                                  :: la_min, la_max, lb_min, &
                                                 lb_max, cmax
     TYPE(l_set_info_type)                    :: l_set_info
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_l_set_info_type', &
       routineP = moduleN//':'//routineN
@@ -394,8 +394,8 @@ CONTAINS
    SUBROUTINE destroy_l_set_info_type(l_set_info,error)
 
     TYPE(l_set_info_type)                    :: l_set_info
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_l_set_info_type', &
       routineP = moduleN//':'//routineN
@@ -414,8 +414,8 @@ CONTAINS
   SUBROUTINE l_info_retain(l_info,error)
 
     TYPE(l_info_type), POINTER               :: l_info
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'l_info_retain', &
       routineP = moduleN//':'//routineN
@@ -437,8 +437,8 @@ CONTAINS
   SUBROUTINE l_info_release(l_info,error)
 
     TYPE(l_info_type), POINTER               :: l_info
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'l_info_release', &
       routineP = moduleN//':'//routineN
@@ -446,12 +446,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     IF (ASSOCIATED(l_info)) THEN
        CPPreconditionNoFail(l_info%ref_count>0,cp_failure_level,routineP,error)
        l_info%ref_count=l_info%ref_count-1
        IF (l_info%ref_count==0) THEN
-          CALL destroy_l_info(l_info)
+          CALL destroy_l_info(l_info,error=error)
        END IF
     END IF
 

@@ -6,7 +6,7 @@
 !!     qs_ot_scf
 !!
 !!   FUNCTION
-!! 
+!!
 !!     basic functionality for using ot in the scf routines.
 !!
 !!   AUTHOR
@@ -77,8 +77,8 @@ CONTAINS
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &
@@ -99,10 +99,10 @@ CONTAINS
     CALL qs_ot_settings_init(qs_ot_env(1)%settings)
 
     ! use ot input new style
-    ot_section=>section_vals_get_subs_vals(scf_section,"OT")
-    CALL section_vals_get(ot_section,explicit=explicit)
+    ot_section=>section_vals_get_subs_vals(scf_section,"OT",error=error)
+    CALL section_vals_get(ot_section,explicit=explicit,error=error)
 
-       CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method)
+       CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method,error=error)
        ! compatibility
        SELECT CASE(ot_method)
        CASE (ot_mini_sd)
@@ -111,12 +111,12 @@ CONTAINS
          qs_ot_env(1)%settings%ot_method="CG"
        CASE (ot_mini_diis)
          qs_ot_env(1)%settings%ot_method="DIIS"
-         CALL section_vals_val_get(ot_section,"N_DIIS",i_val=qs_ot_env(1)%settings%diis_m)
+         CALL section_vals_val_get(ot_section,"N_DIIS",i_val=qs_ot_env(1)%settings%diis_m,error=error)
        CASE DEFAULT
          CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
        END SELECT
-       CALL section_vals_val_get(ot_section,"SAFER_DIIS",l_val=qs_ot_env(1)%settings%safer_diis)
-       CALL section_vals_val_get(ot_section,"LINESEARCH",i_val=ls_method)
+       CALL section_vals_val_get(ot_section,"SAFER_DIIS",l_val=qs_ot_env(1)%settings%safer_diis,error=error)
+       CALL section_vals_val_get(ot_section,"LINESEARCH",i_val=ls_method,error=error)
        SELECT CASE(ls_method)
        CASE (ot_ls_none)
          qs_ot_env(1)%settings%line_search_method="NONE"
@@ -126,11 +126,11 @@ CONTAINS
          qs_ot_env(1)%settings%line_search_method="3PNT"
        CASE (ot_ls_gold)
          qs_ot_env(1)%settings%line_search_method="GOLD"
-         CALL section_vals_val_get(ot_section,"GOLD_TARGET",r_val=qs_ot_env(1)%settings%gold_target)
+         CALL section_vals_val_get(ot_section,"GOLD_TARGET",r_val=qs_ot_env(1)%settings%gold_target,error=error)
        CASE DEFAULT
          CALL stop_program("READ OTSCF LS","VALUE UNKNOWN")
        END SELECT
-       CALL section_vals_val_get(ot_section,"PRECONDITIONER",i_val=qs_ot_env(1)%settings%preconditioner_type)
+       CALL section_vals_val_get(ot_section,"PRECONDITIONER",i_val=qs_ot_env(1)%settings%preconditioner_type,error=error)
        SELECT CASE(qs_ot_env(1)%settings%preconditioner_type)
        CASE(ot_precond_none)
            qs_ot_env(1)%settings%preconditioner_name="NONE"
@@ -149,11 +149,11 @@ CONTAINS
        CASE DEFAULT
          CALL stop_program("READ OTSCF PRECONDITIONER","VALUE UNKNOWN")
        END SELECT
-       CALL section_vals_val_get(ot_section,"STEPSIZE",r_val=qs_ot_env(1)%settings%ds_min)
-       CALL section_vals_val_get(ot_section,"ENERGY_GAP",r_val=qs_ot_env(1)%settings%energy_gap)
-       CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=qs_ot_env(1)%settings%eps_taylor)
-       CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=qs_ot_env(1)%settings%max_taylor)
-       CALL section_vals_val_get(ot_section,"ROTATION",l_val=qs_ot_env(1)%settings%do_rotation)
+       CALL section_vals_val_get(ot_section,"STEPSIZE",r_val=qs_ot_env(1)%settings%ds_min,error=error)
+       CALL section_vals_val_get(ot_section,"ENERGY_GAP",r_val=qs_ot_env(1)%settings%energy_gap,error=error)
+       CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=qs_ot_env(1)%settings%eps_taylor,error=error)
+       CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=qs_ot_env(1)%settings%max_taylor,error=error)
+       CALL section_vals_val_get(ot_section,"ROTATION",l_val=qs_ot_env(1)%settings%do_rotation,error=error)
 
     ! write OT output
 
@@ -199,7 +199,7 @@ CONTAINS
            "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
     CASE ("NONE")
          WRITE(output_unit,'(A)') "  preconditioner : NONE  "
-    CASE DEFAULT 
+    CASE DEFAULT
          WRITE(output_unit,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_name," : UNKNOWN"
     END SELECT
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
@@ -230,7 +230,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
-    ! copy the ot settings type so it is identical 
+    ! copy the ot settings type so it is identical
     nspin=SIZE(qs_ot_env)
     DO ispin=2,nspin
        qs_ot_env(ispin)%settings=qs_ot_env(1)%settings
@@ -248,8 +248,8 @@ CONTAINS
 !
 !
 SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
-                                     energy_only,delta,qs_ot_env)
- 
+                                     energy_only,delta,qs_ot_env,error)
+
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -260,6 +260,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     LOGICAL                                  :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'ot_scf_mini'
 
@@ -268,42 +269,42 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
 
     CALL timeset("ot_scf_mini","I","",handle)
 
-    ! we use the size of the ot_env to indicate the spin. 
+    ! we use the size of the ot_env to indicate the spin.
     ! this needs correction in case of restricted calculations
-    nspin=SIZE(qs_ot_env)  
+    nspin=SIZE(qs_ot_env)
 
     IF ( .NOT. energy_only) THEN
        IF (qs_ot_env(1)%settings%do_rotation) THEN
           DO ispin=1,nspin
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
-             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
+             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc(ispin)%matrix, &
-                             0.0_dp,qs_ot_env(ispin)%rot_mat_chcf)
+                             0.0_dp,qs_ot_env(ispin)%rot_mat_chcf,error=error)
           ENDDO
        ENDIF
     ENDIF
 
     ! notice we use (1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy
-    CALL ot_mini(qs_ot_env,matrix_dedc)
+    CALL ot_mini(qs_ot_env,matrix_dedc,error=error)
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only
 
     ! generate the orbitals using the new matrix_x
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
-       CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
+       CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
        IF (ASSOCIATED(matrix_s)) THEN
          CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
-                                       qs_ot_env(ispin)%matrix_sx, k)
+                                       qs_ot_env(ispin)%matrix_sx, k,error=error)
        ELSE
-         CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx)
+         CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,error=error)
        ENDIF
-       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
-       CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
+       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),error=error)
+       CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),error=error)
     ENDDO
     IF (qs_ot_env(1)%restricted) THEN
-       CALL mo_set_restrict(mo_array)
+       CALL mo_set_restrict(mo_array,error=error)
     ENDIF
     CALL timestop(0.0_dp,handle)
 
@@ -312,12 +313,13 @@ END SUBROUTINE ot_scf_mini
 ! initialises qs_ot_env so that mo_coeff is the current point
 ! and that the mimizization can be started.
 !
-SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
+SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(real_matrix_type), POINTER          :: matrix_s
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, ispin, k, n, nspin
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -331,44 +333,45 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
 
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
-       
-       CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k)
-   
+
+       CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k,error=error)
+
        ! allocate
-       CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct)
-   
+       CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct,error=error)
+
        ! set c0,sc0
-       CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0)
+       CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0,error=error)
        IF (ASSOCIATED(matrix_s)) THEN
           CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
-                                 qs_ot_env(ispin)%matrix_sc0,k)
+                                 qs_ot_env(ispin)%matrix_sc0,k,error=error)
        ELSE
-          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_c0,qs_ot_env(ispin)%matrix_sc0)
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_c0,qs_ot_env(ispin)%matrix_sc0,error=error)
        ENDIF
 
        ! init
-       CALL qs_ot_init(qs_ot_env(ispin))
-   
+       CALL qs_ot_init(qs_ot_env(ispin),error=error)
+
        ! set x
-       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp)
-       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_sx,0.0_dp)
+       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp,error=error)
+       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_sx,0.0_dp,error=error)
 
        IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-           CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp)
+           CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp,error=error)
        ENDIF
-   
+
        ! get c
-       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
+       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),error=error)
 
     END DO
     CALL timestop(0.0_dp,handle)
 END SUBROUTINE
 
-SUBROUTINE ot_scf_destroy(qs_ot_env)
+SUBROUTINE ot_scf_destroy(qs_ot_env,error)
 
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-   CALL qs_ot_destroy(qs_ot_env)
+   CALL qs_ot_destroy(qs_ot_env,error=error)
 
 END SUBROUTINE
 

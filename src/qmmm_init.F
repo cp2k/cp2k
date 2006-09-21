@@ -111,8 +111,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -127,8 +127,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_create_force_env', &
       routineP = moduleN//':'//routineN
@@ -203,7 +203,7 @@ CONTAINS
                                qmmm_link,&
                                error=error)
 
-       qmmm_env_mm%qm_atom_index          => qm_atom_index       
+       qmmm_env_mm%qm_atom_index          => qm_atom_index
        qmmm_env_mm%mm_link_atoms          => mm_link_atoms
        qmmm_env_mm%mm_link_scale_factor   => mm_link_scale_factor
        qmmm_env_mm%fist_scale_charge_link => fist_scale_charge_link
@@ -218,7 +218,7 @@ CONTAINS
 
        ! Compatibility with the QM/MM in CPMD code
        CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)
-       qmmm_env_qm%compatibility = .NOT.nocompatibility       
+       qmmm_env_qm%compatibility = .NOT.nocompatibility
 
        ! Periodic boundary condition calculation
        CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
@@ -231,17 +231,17 @@ CONTAINS
        END IF
 
        ! First Initialize Fist...
- 
-       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist)
+
+       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist,error=error)
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
             root_section, para_env, globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
             method_name_id=method_name_id,error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
-            cell=mm_cell,error=error) 
+            cell=mm_cell,error=error)
        CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
 
-       ! Set up QM/MM Options       
+       ! Set up QM/MM Options
        CALL setup_qmmm_vars_qm (qmmm_section,&
                                 qmmm_env_qm,&
                                 subsys_mm,&
@@ -254,7 +254,7 @@ CONTAINS
                                 eps_mm_rspace,&
                                 qmmm_link,&
                                 error)
-                               
+
        qmmm_env_qm%qm_atom_index   => qm_atom_index
        qmmm_env_qm%mm_atom_index   => mm_atom_index
        qmmm_env_qm%qm_subsys_index => qm_subsys_index
@@ -264,7 +264,7 @@ CONTAINS
        qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
        IF ( iw > 0 ) THEN
-          WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
+          WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms
           WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
           WRITE(iw,'(A)')" QM cell ::"
           CALL write_cell(qm_cell_small, force_env_section, error=error)
@@ -296,7 +296,7 @@ CONTAINS
        qmmm_env_qm%mm_el_pot_radius      => mm_el_pot_radius
        qmmm_env_qm%mm_el_pot_radius_corr => mm_el_pot_radius_corr
 
-       IF (qmmm_link) THEN 
+       IF (qmmm_link) THEN
           CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, &
                mm_el_pot_radius_corr, mm_atom_index, qm_cell_small, iw, error=error)
           qmmm_env_qm%qmmm_links    => qmmm_links
@@ -311,13 +311,13 @@ CONTAINS
           qmmm_env_qm%add_mm_charges  =  add_mm_charges
           qmmm_env_qm%added_charges   => added_charges
        END IF
-       
+
        CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
                                mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
                                qmmm_section, nocompatibility, error)
 
 
-       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs)
+       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs,error=error)
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
@@ -329,21 +329,21 @@ CONTAINS
             force_env_section=force_env_section, error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
        CALL force_env_get(sub_force_env(2)%force_env,qs_env=qs_env,error=error)
-       IF (qmmm_env_qm%periodic) THEN 
+       IF (qmmm_env_qm%periodic) THEN
           IF (.NOT.ASSOCIATED(super_cell)) THEN
              ALLOCATE (super_cell,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
-          CALL cell_clone(mm_cell, super_cell)
+          CALL cell_clone(mm_cell, super_cell,error=error)
           CALL set_qs_env(qs_env, super_cell=super_cell, qmmm_periodic=qmmm_env_qm%periodic, error=error)
           CALL cell_release(super_cell, error=error)
        END IF
        CALL cp_print_key_finished_output(iw,logger,print_gen,"", error=error)
        iw2 = cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_BANNER",&
-            extension=".qmmmLog",error=error)    
+            extension=".qmmmLog",error=error)
        CALL qmmm_header(iw2, iw2>0)
        CALL cp_print_key_finished_output(iw2,logger,qmmm_section,&
-         "PRINT%PROGRAM_BANNER",error=error)           
+         "PRINT%PROGRAM_BANNER",error=error)
        !
        ! Initialize MM Potential fitted with Gaussian
        !
@@ -396,9 +396,9 @@ CONTAINS
             dr=qs_env%pw_env%pw_pools(qs_env%pw_env%auxbas_grid)%pool%pw_grid%dr,&
             error=error)
 
-       CALL cell_release(qm_cell_small, error)                       
+       CALL cell_release(qm_cell_small, error)
 
-       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qmmm)
+       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qmmm,error=error)
        CALL force_env_create(force_env,root_section, sub_force_env=sub_force_env,&
             qmmm_env=qmmm_env_qm,para_env=para_env,globenv=globenv, force_env_section= force_env_section,&
             error=error)
@@ -421,12 +421,12 @@ CONTAINS
 !!     Assigns charges and radius to evaluate the MM electrostatic potential
 !!
 !!   NOTES
-!!     
+!!
 !!
 !!   INPUTS
 !!     - subsys: the subsystem containing the MM charges
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -445,8 +445,8 @@ CONTAINS
                                                 mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms
     REAL(dp), DIMENSION(:), POINTER          :: mm_link_scale_factor
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: I, ilink, IndMM
     REAL(dp)                                 :: qi, rc, ri
@@ -458,14 +458,14 @@ CONTAINS
 
    NULLIFY(particle_set, my_kind)
    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                      particles=particles)
+                      particles=particles,error=error)
    particle_set => particles%els
 
    DO I = 1, SIZE(mm_atom_index)
       IndMM = mm_atom_index(I)
       my_kind => particle_set(IndMM)%atomic_kind
       CALL get_atomic_kind(atomic_kind=my_kind, elp_potential=my_potential)
-      CALL get_potential  (potential=my_potential,& 
+      CALL get_potential  (potential=my_potential,&
                            qeff=qi,&
                            core_charge_radius=ri,&
                            ccore_charge_radius=rc)
@@ -495,12 +495,12 @@ CONTAINS
 !!     Print info on charges generating the qmmm potential..
 !!
 !!   NOTES
-!!     
+!!
 !!
 !!   INPUTS
 !!     - subsys: the subsystem containing the MM charges
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -518,8 +518,8 @@ CONTAINS
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(IN)                      :: nocompatibility
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: I, ind1, ind2, IndMM, iw
     REAL(KIND=dp)                            :: qi, qtot, rc, ri
@@ -535,10 +535,10 @@ CONTAINS
        WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
        DO I = 1, SIZE(mm_atom_index)
           IndMM = mm_atom_index(I)
-          qi = mm_atom_chrg(I)    
-          qtot = qtot + qi 
-          ri = mm_el_pot_radius(I) 
-          rc = mm_el_pot_radius_corr(I) 
+          qi = mm_atom_chrg(I)
+          qtot = qtot + qi
+          ri = mm_el_pot_radius(I)
+          rc = mm_el_pot_radius_corr(I)
           IF (nocompatibility) THEN
              WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
                   ' CHARGE:',qi
@@ -553,9 +553,9 @@ CONTAINS
           WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
           DO I = 1, SIZE(added_charges%mm_atom_index)
              IndMM = added_charges%mm_atom_index(I)
-             qi = added_charges%mm_atom_chrg(I)     
+             qi = added_charges%mm_atom_chrg(I)
              qtot = qtot + qi
-             ri = added_charges%mm_el_pot_radius(I) 
+             ri = added_charges%mm_el_pot_radius(I)
              ind1 = added_charges%add_env(I)%Index1
              ind2 = added_charges%add_env(I)%Index2
              IF (nocompatibility) THEN
@@ -585,12 +585,12 @@ CONTAINS
 !!     Print info on qm/mm links
 !!
 !!   NOTES
-!!     
+!!
 !!
 !!   INPUTS
 !!     - subsys: the subsystem containing the MM charges
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -602,8 +602,8 @@ CONTAINS
  SUBROUTINE print_qmmm_links( qmmm_section, qmmm_links, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: i, iw, mm_index, qm_index
     REAL(KIND=dp)                            :: alpha
@@ -639,7 +639,7 @@ CONTAINS
        ELSE
           WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
           WRITE(iw,FMT="(/,T26,A)") " NO QM/MM LINKS DETECTED"
-          WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)          
+          WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
@@ -658,8 +658,8 @@ CONTAINS
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -678,8 +678,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type', &
       routineP = moduleN//':'//routineN
@@ -753,8 +753,8 @@ CONTAINS
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -771,8 +771,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
    CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                             mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
@@ -798,7 +798,7 @@ CONTAINS
                                pw_env=qs_env%pw_env,&
                                compatibility=qmmm_env_qm%compatibility,&
                                print_section=print_section,&
-                               error=error)      
+                               error=error)
    END IF
 
  END SUBROUTINE qmmm_init_potential
@@ -815,8 +815,8 @@ CONTAINS
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -834,8 +834,8 @@ CONTAINS
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     REAL(KIND=dp)                            :: maxchrg
 
@@ -876,7 +876,7 @@ CONTAINS
                                    maxchrg=maxchrg,&
                                    ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
                                    ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
-                                   error=error)      
+                                   error=error)
    END IF
 
  END SUBROUTINE qmmm_init_periodic_potential
@@ -893,8 +893,8 @@ CONTAINS
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -919,8 +919,8 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     REAL(KIND=dp), INTENT(OUT)               :: eps_mm_rspace
     LOGICAL, INTENT(OUT)                     :: qmmm_link
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm', &
       routineP = moduleN//':'//routineN
@@ -1044,7 +1044,7 @@ CPSourceFileRef,&
        IF ( ANY(qm_atom_index == i)) THEN
          is_mm =.FALSE.
        END IF
-       IF (ASSOCIATED(mm_link_atoms)) THEN 
+       IF (ASSOCIATED(mm_link_atoms)) THEN
           IF (ANY( mm_link_atoms == i ).AND.qmmm_link) is_mm =.TRUE.
        END IF
        IF (is_mm) THEN
@@ -1053,7 +1053,7 @@ CPSourceFileRef,&
        END IF
     END DO
     CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,error,failure)
-    IF (ASSOCIATED(mm_link_atoms)) THEN 
+    IF (ASSOCIATED(mm_link_atoms)) THEN
        DEALLOCATE(mm_link_atoms, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -1072,8 +1072,8 @@ CPSourceFileRef,&
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -1093,8 +1093,8 @@ CPSourceFileRef,&
                                                 fist_scale_charge_link
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     LOGICAL, INTENT(OUT)                     :: qmmm_link
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm', &
       routineP = moduleN//':'//routineN
@@ -1121,7 +1121,7 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE setup_qmmm_vars_mm
-     
+
   !!****f* qmmm_init/read_qmmm_ff_section [1.0] *
   !!
   !!   NAME
@@ -1135,8 +1135,8 @@ CPSourceFileRef,&
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -1148,8 +1148,8 @@ CPSourceFileRef,&
   SUBROUTINE read_qmmm_ff_section(qmmm_ff_section, inp_info, error)
     TYPE(section_vals_type), POINTER         :: qmmm_ff_section
     TYPE(input_info_type), POINTER           :: inp_info
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: n_gd, n_lj, n_wl, np
     TYPE(section_vals_type), POINTER         :: gd_section, lj_section, &
@@ -1163,20 +1163,20 @@ CPSourceFileRef,&
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
-    np = n_lj 
-    IF (n_lj /= 0) THEN 
+    np = n_lj
+    IF (n_lj /= 0) THEN
        CALL pair_potential_reallocate(inp_info%nonbonded,1,np,lj_charmm=.TRUE.,error=error)
        CALL read_lj_section(inp_info%nonbonded,lj_section, start=0,      error=error)
     END IF
     CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
-    np = n_lj + n_wl 
-    IF (n_wl /= 0) THEN 
+    np = n_lj + n_wl
+    IF (n_wl /= 0) THEN
        CALL pair_potential_reallocate(inp_info%nonbonded,1,np,williams=.TRUE.,error=error)
        CALL read_wl_section(inp_info%nonbonded,wl_section, start=n_lj, error=error)
     END IF
     CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
     np = n_lj + n_wl + n_gd
-    IF (n_gd /= 0) THEN 
+    IF (n_gd /= 0) THEN
        CALL pair_potential_reallocate(inp_info%nonbonded,1,np,goodwin=.TRUE.,error=error)
        CALL read_gd_section(inp_info%nonbonded,gd_section, start=n_lj+n_wl, error=error)
     END IF
@@ -1188,19 +1188,19 @@ CPSourceFileRef,&
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GOODWIN",error=error)
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
     np = n_lj
-    IF (n_lj /= 0) THEN 
+    IF (n_lj /= 0) THEN
        CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,lj_charmm=.TRUE.,error=error)
        CALL read_lj_section(inp_info%nonbonded14,lj_section, start=0,      error=error)
     END IF
     CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
-    np = n_lj + n_wl 
-    IF (n_wl /= 0) THEN 
+    np = n_lj + n_wl
+    IF (n_wl /= 0) THEN
        CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,williams=.TRUE.,error=error)
        CALL read_wl_section(inp_info%nonbonded14,wl_section, start=n_lj, error=error)
     END IF
     CALL section_vals_get(gd_section,n_repetition=n_gd,error=error)
     np = n_lj + n_wl + n_gd
-    IF (n_gd /= 0) THEN 
+    IF (n_gd /= 0) THEN
        CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,goodwin=.TRUE.,error=error)
        CALL read_gd_section(inp_info%nonbonded14,gd_section, start=n_lj+n_wl, error=error)
     END IF
@@ -1218,8 +1218,8 @@ CPSourceFileRef,&
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -1241,8 +1241,8 @@ CPSourceFileRef,&
     LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm_link
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: fist_scale_charge_link
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qm_atom_list', &
       routineP = moduleN//':'//routineN
@@ -1267,12 +1267,12 @@ CPSourceFileRef,&
     CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
     DO ikind=1,nkind
        CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
-            error=error)       
+            error=error)
        DO k = 1, n_var
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
                i_vals=mm_indexes,error=error)
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
-       END DO             
+       END DO
     END DO
     !
     ! QM/MM LINKS
@@ -1302,7 +1302,7 @@ CPSourceFileRef,&
     IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0)) &
          ALLOCATE(mm_link_scale_factor(link_involv_mm), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0)) & 
+    IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0)) &
          ALLOCATE(fist_scale_charge_link(link_involv_mm), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0)) &
@@ -1320,7 +1320,7 @@ CPSourceFileRef,&
     num_qm_atom_tot = 1
     DO ikind=1,nkind
        CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,n_rep_val=n_var,&
-            error=error)       
+            error=error)
        DO k = 1, n_var
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_rep_val=k,&
                i_vals=mm_indexes,error=error)
@@ -1395,8 +1395,8 @@ CPSourceFileRef,&
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -1414,8 +1414,8 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links', &
       routineP = moduleN//':'//routineN
@@ -1435,7 +1435,7 @@ CPSourceFileRef,&
     n_gho   = 0
     n_pseudo= 0
     qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
-    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)    
+    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
     CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
     DO ikind= 1, nlinks
        CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type,error=error)
@@ -1523,7 +1523,7 @@ CPSourceFileRef,&
     IF ( n_gho /= 0) THEN
        ! not yet implemented
        ! still to define : type, implementation into QS
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE setup_qmmm_links
 
@@ -1540,8 +1540,8 @@ CPSourceFileRef,&
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -1562,8 +1562,8 @@ CPSourceFileRef,&
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'move_or_add_atoms', &
       routineP = moduleN//':'//routineN
@@ -1638,7 +1638,7 @@ CPSourceFileRef,&
              END DO
              mm_atom_chrg(ind1) = 0.0_dp
           END IF
-          
+
           add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
                                                     i_rep_section=ikind, error=error)
           CALL section_vals_get(add_section, explicit=explicit, n_repetition=n_adds, error=error)
@@ -1683,8 +1683,8 @@ CPSourceFileRef,&
   !!
   !!
   !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Teodoro Laino
@@ -1705,8 +1705,8 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(in), OPTIONAL            :: move
     INTEGER, INTENT(OUT), OPTIONAL           :: ind1
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_add_set_type', &
       routineP = moduleN//':'//routineN
@@ -1736,7 +1736,7 @@ CPSourceFileRef,&
 
         added_charges%add_env(icount)%Index1        = Index1
         added_charges%add_env(icount)%Index2        = Index2
-        added_charges%add_env(icount)%alpha         = alpha 
+        added_charges%add_env(icount)%alpha         = alpha
         added_charges%mm_atom_index(icount)         = icount
         added_charges%mm_atom_chrg(icount)          = my_charge
         added_charges%mm_el_pot_radius(icount)      = my_radius
@@ -1750,16 +1750,16 @@ CPSourceFileRef,&
    !!     setup_origin_mm_cell
    !!
    !!   FUNCTION
-   !!     this routine sets up the origin of the MM cell respect to the 
-   !!     origin of the QM cell. The origin of the QM cell is assumed to be 
+   !!     this routine sets up the origin of the MM cell respect to the
+   !!     origin of the QM cell. The origin of the QM cell is assumed to be
    !!     in (0.0,0.0,0.0)...
    !!
    !!   NOTES
    !!
    !!
    !!   INPUTS
-   !!     - error: variable to control error logging, stopping,... 
-   !!       see module cp_error_handling 
+   !!     - error: variable to control error logging, stopping,...
+   !!       see module cp_error_handling
    !!
    !!   AUTHOR
    !!     Teodoro Laino
@@ -1774,8 +1774,8 @@ CPSourceFileRef,&
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: dr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell', &
       routineP = moduleN//':'//routineN
@@ -1792,7 +1792,7 @@ CPSourceFileRef,&
         tmp(1) =  qm_cell_small%hmat(1,1)
         tmp(2) =  qm_cell_small%hmat(2,2)
         tmp(3) =  qm_cell_small%hmat(3,3)
-        CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,error,failure)     
+        CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,error,failure)
         qmmm_env%dOmmOqm = tmp/2.0_dp
         ! This is unit vector to translate the QM system in order to center it
         ! in QM cell

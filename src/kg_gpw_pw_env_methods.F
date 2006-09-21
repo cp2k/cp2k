@@ -13,10 +13,10 @@
 !!     Module used in a KF_GPW calculation to prepare the molecular
 !!     densities used to calculate the KE correction molecule by molecule.
 !!     Construction of cell  and pw_env for each molecule kind.
-!!     Collocation of the density of each single molecule on the grid.  
-!!     
+!!     Collocation of the density of each single molecule on the grid.
+!!
 !!   AUTHOR
-!!     MI 
+!!     MI
 !!
 !!   MODIFICATION HISTORY
 !!     Created (20.12.2004)
@@ -24,7 +24,7 @@
 !!   SOURCE
 !******************************************************************************
 
- 
+
 MODULE kg_gpw_pw_env_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -148,7 +148,7 @@ CONTAINS
 !!        Creation (MI)
 !!
 !!*** *************************************************************************
- 
+
   SUBROUTINE build_molbox_env(molbox_env,fm_mol,qs_env,poisson_section,error)
 
     TYPE(kg_molbox_env_type), TARGET         :: molbox_env
@@ -156,8 +156,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_molbox_env', &
       routineP = moduleN//':'//routineN
@@ -203,7 +203,7 @@ CONTAINS
                     dft_control=dft_control,&
                     para_env=para_env,&
                     particle_set=particle_set,&
-                    pw_env=pw_env)
+                    pw_env=pw_env,error=error)
 
     CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol,&
                            nmolecule_local=nmol_local,&
@@ -216,7 +216,7 @@ CONTAINS
     DO imol = 1,nmol_local
       NULLIFY(fm_mol_iblock,index_atom)
       fm_mol_iblock => fm_mol_blocks(imol)
-      CALL get_fm_mol_block(fm_mol_block=fm_mol_iblock,& 
+      CALL get_fm_mol_block(fm_mol_block=fm_mol_iblock,&
                             index_atom=index_atom)
       DO iat = 1,nat_mol
         iatom = index_atom(iat)
@@ -244,7 +244,7 @@ CONTAINS
     molbox_env%rab_max = rab_max
     molbox_env%rad_max = rad_max
     length = rab_max + 2._dp*rad_max
- 
+
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       IF(Li<length) THEN
@@ -255,7 +255,7 @@ CONTAINS
           "L",i,"(= ",Li,") < max L of 1 molecule (=",length,")"
         END IF
         length = Li
-      END IF 
+      END IF
     END DO
     side(1:3) = length
 
@@ -268,7 +268,7 @@ CONTAINS
     NULLIFY(cell_mol,new_pw_mol)
 
 ! create the cell structure for the molecule
-    CALL cell_create(cell_mol)
+    CALL cell_create(cell_mol,error=error)
     cell_mol%unit_of_length_name = "BOHR"
     cell_mol%deth = 0.0_dp
     cell_mol%unit_of_length = 1.0_dp
@@ -287,7 +287,7 @@ CONTAINS
        CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,&
             error=error,force_env_section=qs_env%input)
        CALL set_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol,&
-            force_env_section=qs_env%input)
+            force_env_section=qs_env%input,error=error)
        CALL pw_env_release(new_pw_mol,error=error)
     ELSE
        CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,&
@@ -295,7 +295,7 @@ CONTAINS
     END IF
 
     CALL set_molbox_env(molbox_env=molbox_env_p,cell_mol=cell_mol,&
-         force_env_section=qs_env%input)
+         force_env_section=qs_env%input,error=error)
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       length = cell_mol%hmat( i,i )
@@ -307,7 +307,7 @@ CONTAINS
           "L",i,"(= ",Li,") < max L of 1 molecule (=",length,")"
         END IF
       END IF
-    END DO    
+    END DO
 
    ! init auxbas_grid
 
@@ -323,7 +323,7 @@ CONTAINS
          error=error)
 
     CALL set_molbox_env(molbox_env=molbox_env_p,poisson_env=poisson_env,&
-         force_env_section=qs_env%input)
+         force_env_section=qs_env%input,error=error)
     CALL pw_poisson_release(poisson_env,error=error)
 
     CALL cell_release(cell_mol,error=error)
@@ -332,7 +332,7 @@ CONTAINS
     NULLIFY(rho_mol_blocks)
     CALL rho_mol_blocks_create(rho_mol_blocks,nmol_local,nat_mol,fm_mol_blocks,error=error)
     CALL set_molbox_env(molbox_env=molbox_env_p,rho_mol_blocks=rho_mol_blocks,&
-         force_env_section=qs_env%input)
+         force_env_section=qs_env%input,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -361,7 +361,7 @@ CONTAINS
 !!        Creation (MI)
 !!
 !!*** *************************************************************************
- 
+
 
   SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,&
        force_env_section, error)
@@ -373,8 +373,8 @@ CONTAINS
     REAL(dp), INTENT(INOUT)                  :: side(3)
     INTEGER, INTENT(IN)                      :: num_pe
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild', &
       routineP = moduleN//':'//routineN
@@ -456,7 +456,7 @@ CONTAINS
                        "PRINT%GRID_INFORMATION",error=error)
       CALL init_gaussian_gridlevel(pw_mol%gridlevel_info,&
            ngrid_levels=ngrid_level,cutoff=cutoff, &
-           rel_cutoff=rel_cutoff,print_section=print_section)
+           rel_cutoff=rel_cutoff,print_section=print_section,error=error)
 
       ! init pw_grids and pools
        ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)
@@ -465,17 +465,17 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        IF (dft_control % qs_control % commensurate_mgrids) THEN
-          ncommensurate=ngrid_level 
+          ncommensurate=ngrid_level
           my_icommensurate = 1
           my_ncommensurate = ncommensurate
-       ELSE 
+       ELSE
           ncommensurate=0
           my_icommensurate = 0
           my_ncommensurate = ncommensurate
        ENDIF
 
        CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
-                      auxbas_pw_pool=pw_pool_g,auxbas_grid=auxbas_grid)
+                      auxbas_pw_pool=pw_pool_g,auxbas_grid=auxbas_grid,error=error)
        IF(auxbas_grid/=1) CALL stop_program ( "pw_env_mol_rebuild", &
                           "the grid with the largest cutoff is not the first" )
 
@@ -484,15 +484,15 @@ CONTAINS
        symmetry = .TRUE.
        blocking = .FALSE.
 
-       
-       CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF)
+
+       CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
        pw_grid_mol%print_section=>print_section
-       CALL section_vals_retain(print_section)
+       CALL section_vals_retain(print_section,error=error)
 
 
 
       ! the following code duplication really sucks ........
-      
+
 
 !FM       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM       pw_grid_mol%para%rs_dims ( 2 ) = 1
@@ -505,7 +505,7 @@ CONTAINS
        ELSE
            cutilev = -cutoff(1)
            pw_grid_mol%grid_span = HALFSPACE
-       END IF 
+       END IF
 
        pw_grid_g => pw_pool_g%pw_grid
        ! we can only handle orthorhombic grids at this point
@@ -540,7 +540,7 @@ CONTAINS
           pw_grid_mol% spherical = .TRUE.
           ecut = cutilev
        END IF
-       
+
        IF ( .NOT. pw_grid_mol % spherical ) THEN
 
          IF ( SUM ( ABS ( pw_grid_mol % bounds ( :, : ) ) ) == 0 ) THEN
@@ -603,11 +603,11 @@ CONTAINS
          DO i =1,3
            pw_grid_mol% bounds ( 1, i ) = - npts_out(i) / 2
            pw_grid_mol% bounds ( 2, i ) = pw_grid_mol% bounds ( 1, i ) + npts_out(i) - 1
-           side(i) = npts_out(i) * dr_g(i) 
+           side(i) = npts_out(i) * dr_g(i)
          END DO
 
        END IF  ! not spherical
-   
+
        pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
        pw_grid_mol%dr(:) = dr_g(:)
 
@@ -626,7 +626,7 @@ CONTAINS
 
        npts_out( : ) = pw_grid_mol%npts( : )
 
-       CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking)
+       CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,error=error)
 
        pw_grid_mol%vol = ABS( cell_mol%deth )
        pw_grid_mol%dvol = pw_grid_mol%vol / REAL( pw_grid_mol%ngpts,KIND=dp )
@@ -658,7 +658,7 @@ CONTAINS
 
          DO igrid_level = 2,ngrid_level
 
-           CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF)
+           CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
 !FM           pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM           pw_grid_mol%para%rs_dims ( 2 ) = 1
            IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
@@ -672,11 +672,11 @@ CONTAINS
               pw_grid_mol%grid_span = HALFSPACE
            END IF
 
-! ncommensurate is the number of commensurate grids 
+! ncommensurate is the number of commensurate grids
   ! in order to have non-commensurate grids ncommensurate must be 0
   ! icommensurte  is the level number of communensurate grids
   ! this implies that the number of grid points in each direction
-  ! is k*2**(ncommensurate-icommensurate) 
+  ! is k*2**(ncommensurate-icommensurate)
            my_ncommensurate = ncommensurate
            IF(my_ncommensurate .GT. 0) THEN
              my_icommensurate=igrid_level
@@ -724,7 +724,7 @@ CONTAINS
              npts_tmp(:) = pw_grid_mol% bounds ( 2, : ) - pw_grid_mol% bounds ( 1, : ) + 1
 
              IF ( pw_grid_mol% grid_span == HALFSPACE .AND. symmetry ) THEN
- 
+
                CALL fft_radix_operations ( npts_tmp(1), npts_out(1), FFT_RADIX_NEXT_ODD )
                CALL fft_radix_operations ( npts_tmp(2), npts_out(2), FFT_RADIX_NEXT_ODD )
                CALL fft_radix_operations ( npts_tmp(3), npts_out(3), FFT_RADIX_NEXT_ODD )
@@ -776,8 +776,8 @@ CONTAINS
            END IF  ! NOT  spherical
 
            pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
- 
-        ! final check if all went fine 
+
+        ! final check if all went fine
            IF ( ANY( MODULO(pw_grid_mol%npts,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
              CALL stop_program ( "pw_env_mol_rebuild", &
                "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
@@ -801,8 +801,8 @@ CONTAINS
              CALL stop_program ( "pw_env_mol_rebuild", "Incompatible cutoff schemes" )
            END IF
 
-           CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,ref_grid=ref_pw_grid_mol)
-  
+           CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,ref_grid=ref_pw_grid_mol,error=error)
+
            pw_grid_mol% vol = ABS ( cell_mol% deth )
            pw_grid_mol% dvol = pw_grid_mol% vol / REAL ( pw_grid_mol% ngpts,KIND=dp)
            pw_grid_mol% dr ( 1 ) = SQRT ( SUM ( cell_mol% hmat ( :, 1 ) ** 2 ) ) &
@@ -833,7 +833,7 @@ CONTAINS
          END DO  ! igrid_level
 
       END IF  ! ngrid_level > 1
- 
+
       pw_mol%pw_pools => pw_pools_mol
       pw_mol%rs_pools => rs_pools_mol
 
@@ -842,7 +842,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineP,"cube_info",0)
 
       cmax = 0
-      
+
       pw_mol%cube_info(1)%max_radius =cube_info_g(1)%max_radius
       pw_mol%cube_info(1)%drmin =cube_info_g(1)%drmin
       pw_mol%cube_info(1)%max_rad_ga =cube_info_g(1)%max_rad_ga
@@ -873,7 +873,7 @@ CONTAINS
 
       maxlgto = l_info_g%lmax
 
-      CALL init_l_info(pw_mol%l_info,maxlgto,cmax)
+      CALL init_l_info(pw_mol%l_info,maxlgto,cmax,error=error)
 
     END IF  ! failure
 
@@ -910,8 +910,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: nspins
     LOGICAL, INTENT(IN)                      :: use_tau
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rho_mol_blocks', &
       routineP = moduleN//':'//routineN
@@ -974,7 +974,7 @@ CONTAINS
           CALL get_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol,index_atom=index_atom,&
                                  r_in_molbox=r_mbox,r_in_totbox=r_tbox)
           r0(1:3) = 0.0_dp
-          r_ref(1:3) = particle_set( index_atom(1) )%r(1:3) 
+          r_ref(1:3) = particle_set( index_atom(1) )%r(1:3)
           dref(1) = r_ref(1)-FLOOR(r_ref(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
           dref(2) = r_ref(2)-FLOOR(r_ref(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
           dref(3) = r_ref(3)-FLOOR(r_ref(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
@@ -991,16 +991,16 @@ CONTAINS
           DO i =1,3
             r0(i) = r0(i)*oonat_mol
           END DO
-          CALL set_rho_mol_block(rho_block=rho_block,r0_molecule=r0)
+          CALL set_rho_mol_block(rho_block=rho_block,r0_molecule=r0,error=error)
           dref(1) = r0(1)-FLOOR(r0(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
           dref(2) = r0(2)-FLOOR(r0(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
           dref(3) = r0(3)-FLOOR(r0(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
 
           DO iat = 1,nat_mol
-            rb(1:3) = r_tbox(1:3,iat) 
+            rb(1:3) = r_tbox(1:3,iat)
             rab_pbc(:) = pbc(r0(:),rb(:),cell)
             DO i = 1,3
-              r_mbox(i,iat) = rab_pbc(i) + Lo2(i) + dref(i) 
+              r_mbox(i,iat) = rab_pbc(i) + Lo2(i) + dref(i)
             END DO
           END DO
 
@@ -1028,7 +1028,7 @@ CONTAINS
                ALLOCATE(rho_mol%tot_rho_r(nspins),stat=istat)
                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
                IF (.NOT.failure) rho_mol%tot_rho_r=0.0_dp
-               CALL set_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol)
+               CALL set_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol,error=error)
                CALL qs_rho_release(rho_mol,error=error)
             END IF
           END IF  ! rho_mol
@@ -1040,7 +1040,7 @@ CONTAINS
             IF (.NOT.failure) THEN
               IF (ASSOCIATED(rho_mol%rho_r)) THEN
                 DO i=1,SIZE(rho_mol%rho_r)
-                   CALL coeff_deallocate(rho_mol%rho_r(i))
+                   CALL coeff_deallocate(rho_mol%rho_r(i),error=error)
                 END DO
                 DEALLOCATE(rho_mol%rho_r,stat=istat)
                 CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1061,7 +1061,7 @@ CONTAINS
             IF (.NOT.failure) THEN
               IF (ASSOCIATED(rho_mol%rho_g)) THEN
                 DO i=1,SIZE(rho_mol%rho_g)
-                   CALL coeff_deallocate(rho_mol%rho_g(i))
+                   CALL coeff_deallocate(rho_mol%rho_g(i),error=error)
                 END DO
                 DEALLOCATE(rho_mol%rho_g,STAT=istat)
                 CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1079,13 +1079,13 @@ CONTAINS
 
           ! allocate tau_r and tau_g for use_kinetic_energy_density
           IF (use_tau) THEN
-  
+
             ! tau_r
             IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%tau_r)) THEN
               IF (.NOT.failure) THEN
                 IF (ASSOCIATED(rho_mol%tau_r)) THEN
                   DO i=1,SIZE(rho_mol%tau_r)
-                     CALL coeff_deallocate(rho_mol%tau_r(i))
+                     CALL coeff_deallocate(rho_mol%tau_r(i),error=error)
                   END DO
                   DEALLOCATE(rho_mol%tau_r,stat=istat)
                   CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1106,7 +1106,7 @@ CONTAINS
               IF (.NOT.failure) THEN
                 IF (ASSOCIATED(rho_mol%tau_g)) THEN
                   DO i=1,SIZE(rho_mol%tau_g)
-                     CALL coeff_deallocate(rho_mol%tau_g(i))
+                     CALL coeff_deallocate(rho_mol%tau_g(i),error=error)
                   END DO
                   DEALLOCATE(rho_mol%tau_g,STAT=istat)
                   CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -1157,8 +1157,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_update_rho_mol', &
       routineP = moduleN//':'//routineN
@@ -1187,7 +1187,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(dft_control, rho_struct)
-    CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho_struct)
+    CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho_struct,error=error)
     nspins=dft_control%nspins
 
 
@@ -1250,7 +1250,7 @@ CONTAINS
             rho_mol%tau_r_valid=.TRUE.
             rho_mol%tau_g_valid=.TRUE.
           END IF
-       
+
         END DO  ! imol
 
       END DO  ! imolecule_kind

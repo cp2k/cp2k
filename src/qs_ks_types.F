@@ -150,8 +150,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_ks_release(ks_env,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_release', &
       routineP = moduleN//':'//routineN
@@ -208,8 +208,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_ks_retain(ks_env, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_retain', &
       routineP = moduleN//':'//routineN

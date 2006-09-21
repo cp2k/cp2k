@@ -99,14 +99,14 @@ CONTAINS
 !!
 !!   NOTES
 !!     -
-!!     
+!!
 !!   INPUTS
 !!     - derivative_set: the set where to search for the derivative
 !!     - description   : the description of the derivative you want to have
 !!     - allocate_deriv: if the derivative should be allocated when not present
 !!                       Defaults to false.
-!!     - error         : variable to control error logging, stopping,... 
-!!                       see module cp_error_handling 
+!!     - error         : variable to control error logging, stopping,...
+!!                       see module cp_error_handling
 !!
 !!*** **********************************************************************
   FUNCTION xc_dset_get_derivative(derivative_set, description, allocate_deriv, error) &
@@ -115,8 +115,8 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     CHARACTER(len=*), INTENT(in)             :: description
     LOGICAL, INTENT(in), OPTIONAL            :: allocate_deriv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(xc_derivative_type), POINTER        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_get_derivative', &
@@ -139,7 +139,7 @@ CONTAINS
     my_allocate_deriv=.FALSE.
     IF (PRESENT(allocate_deriv)) my_allocate_deriv=allocate_deriv
     NULLIFY(res)
-    CALL standardize_derivative_desc(description,std_deriv_desc)
+    CALL standardize_derivative_desc(description,std_deriv_desc,error=error)
     IF (.NOT. failure) THEN
        pos => derivative_set%derivs
        DO WHILE(cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
@@ -151,7 +151,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(res).AND.my_allocate_deriv) THEN
           CALL pw_pool_create_cr3d(derivative_set%pw_pool,cr3d_ptr,error=error)
           cr3d_ptr=0.0_dp
-          CALL xc_derivative_create(res, std_deriv_desc, & 
+          CALL xc_derivative_create(res, std_deriv_desc, &
                                     cr3d_ptr=cr3d_ptr, error=error)
           CALL cp_sll_xc_deriv_insert_ordered(derivative_set%derivs,res,&
                error=error)
@@ -179,8 +179,8 @@ CONTAINS
 !!     - derivative_set : the set where to search for the derivative
 !!     - pw_pool: pool where to get the cr3d arrays needed to store the
 !!       derivatives
-!!     - error   : variable to control error logging, stopping,... 
-!!                 see module cp_error_handling 
+!!     - error   : variable to control error logging, stopping,...
+!!                 see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_dset_create(derivative_set, pw_pool, local_bounds, error)
@@ -188,8 +188,8 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
     INTEGER, DIMENSION(2, 3), OPTIONAL       :: local_bounds
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', &
       routineP = moduleN//':'//routineN
@@ -221,7 +221,7 @@ CONTAINS
        ELSE
           !FM ugly hack, should be replaced by a pool only for 3d arrays
           CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,error,failure)
-          CALL pw_grid_create(pw_grid,MPI_COMM_SELF)
+          CALL pw_grid_create(pw_grid,MPI_COMM_SELF,error=error)
           pw_grid%bounds_local=local_bounds
           NULLIFY(derivative_set%pw_pool)
           CALL pw_pool_create(derivative_set%pw_pool, pw_grid, error=error)
@@ -248,15 +248,15 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - set     : the set to release
-!!     - error   : variable to control error logging, stopping,... 
-!!                 see module cp_error_handling 
+!!     - error   : variable to control error logging, stopping,...
+!!                 see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_dset_release(derivative_set, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
       routineP = moduleN//':'//routineN
@@ -267,7 +267,7 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
     failure=.FALSE.
-    
+
     NULLIFY(deriv_att,pos)
     CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -311,8 +311,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - deriv_set: the derivative set to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -323,8 +323,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE xc_dset_retain(deriv_set,error)
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain', &
       routineP = moduleN//':'//routineN
@@ -332,7 +332,7 @@ SUBROUTINE xc_dset_retain(deriv_set,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(deriv_set%ref_count>0,cp_failure_level,routineP,error)
@@ -342,10 +342,10 @@ END SUBROUTINE xc_dset_retain
 !***************************************************************************
 
 SUBROUTINE xc_dset_zero_all(deriv_set, error)
-  
+
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
       routineP = moduleN//':'//routineN
@@ -356,11 +356,11 @@ SUBROUTINE xc_dset_zero_all(deriv_set, error)
 
   failure = .FALSE.
   NULLIFY(pos, deriv_att)
-  
+
   CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      pos => deriv_set%derivs
-     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error)) 
+     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error))
         deriv_att%deriv_data = 0.0_dp
      END DO
   END IF
@@ -369,5 +369,5 @@ END SUBROUTINE xc_dset_zero_all
 
 !***************************************************************************
 
-  
+
 END MODULE xc_derivative_set_types

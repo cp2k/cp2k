@@ -501,8 +501,8 @@
 !!*** **********************************************************************
 SUBROUTINE dealloc_fermi_dist(fermi_dist,error)
     TYPE(fermi_distribution_type), POINTER   :: fermi_dist
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dealloc_fermi_dist', &
       routineP = moduleN//':'//routineN

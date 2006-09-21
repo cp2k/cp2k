@@ -135,8 +135,8 @@ CONTAINS
 !!   INPUTS
 !!     - matrix: the matrix to be created
 !!     - matrix_struct: the structure of matrix
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!
 !!*** **********************************************************************
@@ -144,8 +144,8 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: matrix
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_create', &
       routineP = moduleN//':'//routineN
@@ -217,14 +217,14 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     - matrix: the matrix to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_retain(matrix,error)
     TYPE(cp_cfm_type), POINTER               :: matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_retain', &
       routineP = moduleN//':'//routineN
@@ -260,15 +260,15 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     - matrix: the matrix to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cfm_release(matrix,error)
     TYPE(cp_cfm_type), POINTER               :: matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_release', &
       routineP = moduleN//':'//routineN
@@ -303,8 +303,8 @@ CPSourceFileRef,&
 
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
@@ -370,8 +370,8 @@ CPSourceFileRef,&
     TYPE(cp_cfm_type), POINTER               :: matrix
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
     COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: beta
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: i
 
@@ -380,7 +380,7 @@ CPSourceFileRef,&
     matrix%local_data(:,:) = alpha
     IF (PRESENT(beta)) THEN
       DO i=1,matrix%matrix_struct%nrow_global
-         CALL cp_cfm_set_element(matrix,i,i,beta)
+         CALL cp_cfm_set_element(matrix,i,i,beta,error=error)
       ENDDO
     ENDIF
 
@@ -406,11 +406,11 @@ CPSourceFileRef,&
 !!     , TCH, created
 !!     always return the answer
 !!   SEE ALSO
-!!     
+!!
 !!
 !!****
   SUBROUTINE cp_cfm_get_element(matrix,irow_global,icol_global,alpha)
-    
+
 
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
@@ -463,8 +463,8 @@ CPSourceFileRef,&
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
@@ -523,7 +523,7 @@ CPSourceFileRef,&
     TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
     TYPE(cp_fm_struct_type),POINTER,OPTIONAL :: matrix_struct
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(inout)  :: error
     COMPLEX(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: local_data
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_get_info',&
@@ -616,7 +616,7 @@ CPSourceFileRef,&
 !!   SYNOPSIS
 !!     SUBROUTINE cp_cfm_to_cfm(source,destination,error)
 !!       TYPE(cp_cfm_type), POINTER :: source,destination
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!       TYPE(cp_error_type), INTENT(inout)  :: error
 !!     END SUBROUTINE
 !!
 !!   FUNCTION
@@ -633,8 +633,8 @@ CPSourceFileRef,&
 !!*** *********************************************************************
   SUBROUTINE cp_cfm_to_cfm(source,destination,error)
     TYPE(cp_cfm_type), POINTER               :: source, destination
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE cp_cfm_to_cfm (MODULE cp_cfm_types)"

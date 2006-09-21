@@ -84,27 +84,27 @@ TYPE qs_outer_scf_type
    INTEGER :: iter_count
 
    ! these are the variable of outer loop.
-   ! right now, we assume that they can be easily written as 
+   ! right now, we assume that they can be easily written as
    ! small arrays, but we might want to go the cp_fm_types
    ! at a later stage
    ! also, we just store the full iteration history
    REAL(KIND=dp), DIMENSION(:), POINTER :: energy
    REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
    REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
-   
+
 END TYPE qs_outer_scf_type
 
 TYPE qs_scf_env_type
    TYPE(qs_outer_scf_type) :: outer_scf
    INTEGER :: ref_count, id_nr, print_count, iter_count
-   INTEGER :: nelectron, method, mixing_method 
+   INTEGER :: nelectron, method, mixing_method
    REAL(KIND = dp) :: iter_param, iter_delta, p_mix
    CHARACTER (len=15) :: iter_method
    LOGICAL :: print_iter_line
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho
    ! p_mix_new should only be needed for mixing methods (ao_mixing_nr)
-   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new 
+   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
@@ -143,8 +143,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_env_create(scf_env,  error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', &
       routineP = moduleN//':'//routineN
@@ -209,8 +209,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - scf_env: the environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -221,8 +221,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE scf_env_retain(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_retain', &
       routineP = moduleN//':'//routineN
@@ -230,7 +230,7 @@ SUBROUTINE scf_env_retain(scf_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -270,8 +270,8 @@ END SUBROUTINE scf_env_retain
 !!*** **********************************************************************
 SUBROUTINE scf_env_did_change(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change', &
       routineP = moduleN//':'//routineN
@@ -284,7 +284,7 @@ SUBROUTINE scf_env_did_change(scf_env,error)
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-        CALL deallocate_matrix_set(scf_env%p_mix_new)
+        CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
      END IF
   END IF
 END SUBROUTINE scf_env_did_change
@@ -308,8 +308,8 @@ END SUBROUTINE scf_env_did_change
 !!
 !!   ARGUMENTS
 !!     - scf_env: the environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -320,8 +320,8 @@ END SUBROUTINE scf_env_did_change
 !!*** **********************************************************************
 SUBROUTINE scf_env_release(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_release', &
       routineP = moduleN//':'//routineN
@@ -330,7 +330,7 @@ SUBROUTINE scf_env_release(scf_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(scf_env)) THEN
      CPPreconditionNoFail(scf_env%ref_count>0,cp_failure_level,routineP,error)
      scf_env%ref_count=scf_env%ref_count-1
@@ -340,11 +340,11 @@ SUBROUTINE scf_env_release(scf_env,error)
         CALL cp_fm_release(scf_env%ortho,error=error)
         IF (ASSOCIATED(scf_env%p_mix_new)) THEN
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
-           CALL deallocate_matrix_set(scf_env%p_mix_new) 
+           CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
         ENDIF
         IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
            DO i=1,SIZE(scf_env%ot_preconditioner)
-              CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
+              CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner,error=error)
               DEALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
            ENDDO
            DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
@@ -352,7 +352,7 @@ SUBROUTINE scf_env_release(scf_env,error)
         END IF
         IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
            DO i=1,SIZE(scf_env%qs_ot_env)
-              CALL qs_ot_destroy(scf_env%qs_ot_env(i))
+              CALL qs_ot_destroy(scf_env%qs_ot_env(i),error=error)
            END DO
            DEALLOCATE(scf_env%qs_ot_env, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

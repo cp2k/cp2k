@@ -206,8 +206,8 @@ CONTAINS
       POINTER                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                                :: error
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "core_hamiltonian"
@@ -292,8 +292,8 @@ CONTAINS
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(vtriple_type), DIMENSION(:,:),POINTER            :: VH_3c_list
     TYPE(reduced_3c_list_type), DIMENSION(:), POINTER     :: reduced_3c_oce,&
-                                                             reduced_3c_rho0 
-    TYPE(dist_list_4oce_type), DIMENSION(:), POINTER      :: dist_list 
+                                                             reduced_3c_rho0
+    TYPE(dist_list_4oce_type), DIMENSION(:), POINTER      :: dist_list
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,&
@@ -396,7 +396,7 @@ CONTAINS
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d,&
                     virial=virial,&
-                    input=input,para_env=para_env)
+                    input=input,para_env=para_env,error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -416,7 +416,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env,&
                       force=force,ep_qs_env=ep_qs_env,&
-                      matrix_w=matrix_w)
+                      matrix_w=matrix_w,error=error)
       do_ep=ASSOCIATED(ep_qs_env)
       IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
       IF (harris_flag) THEN
@@ -424,7 +424,7 @@ CONTAINS
              error=error)
         matrix_p => harris_env%rho%rho_ao
       ELSE
-        CALL get_qs_env(qs_env=qs_env, rho=rho)
+        CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
         matrix_p => rho%rho_ao
       END IF
       IF (do_ep) THEN
@@ -444,10 +444,10 @@ CONTAINS
 !     (as it should not be needed afterwards)
 
       IF (SIZE(matrix_p) == 2) THEN
-        CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,matrix_p(2)%matrix,1.0_dp)
-        CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-2.0_dp,matrix_p(1)%matrix,1.0_dp)
-        CALL cp_sm_scale_and_add(matrix_w(1)%matrix, 1.0_dp,matrix_w(2)%matrix,1.0_dp)
-        CALL cp_sm_scale_and_add(matrix_w(2)%matrix,-2.0_dp,matrix_w(1)%matrix,1.0_dp)
+        CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,matrix_p(2)%matrix,1.0_dp,error=error)
+        CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-2.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)
+        CALL cp_sm_scale_and_add(matrix_w(1)%matrix, 1.0_dp,matrix_w(2)%matrix,1.0_dp,error=error)
+        CALL cp_sm_scale_and_add(matrix_w(2)%matrix,-2.0_dp,matrix_w(1)%matrix,1.0_dp,error=error)
       END IF
 
     ELSE
@@ -476,7 +476,7 @@ CONTAINS
 
     maxder = ncoset(nder)
 
-    CALL allocate_matrix_set(matrix_s,maxder)
+    CALL allocate_matrix_set(matrix_s,maxder,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
@@ -507,14 +507,14 @@ CONTAINS
                          matrix_name="OVERLAP MATRIX",&
                          matrix_symmetry="symmetric",&
                          sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d)
+                         distribution_2d=distribution_2d,error=error)
 
 !   *** Allocate the matrix of coefficients for one center expansions
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
-      CALL create_oce_set(oce)
-      CALL allocate_oce_set(oce,natom,nkind,maxder)
+      CALL create_oce_set(oce,error=error)
+      CALL allocate_oce_set(oce,natom,nkind,maxder,error=error)
       CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
-                             first_sgf,last_sgf,distribution_2d)
+                             first_sgf,last_sgf,distribution_2d,error=error)
       ALLOCATE(dist_list(natom),STAT=istat)
       DO i = 1,natom
         dist_list(i)%ndist = 0
@@ -538,26 +538,26 @@ CONTAINS
       CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                       TARGET=matrix_s(i)%matrix,&
                                       target_name=TRIM(name),&
-                                      target_symmetry="antisymmetric")
+                                      target_symmetry="antisymmetric",error=error)
     END DO
 
 !   *** Allocate the kinetic energy integral ***
 !   *** matrix (only needed for printing or  ***
 !   *** the OT preconditioner)               ***
 
-    lr_precond = 0  
+    lr_precond = 0
     IF(globenv%run_type_id==linear_response_run) THEN
-      lr_section => section_vals_get_subs_vals(input,"PROPERTIES%LINRES")
-      CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=lr_precond)
+      lr_section => section_vals_get_subs_vals(input,"PROPERTIES%LINRES",error=error)
+      CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=lr_precond,error=error)
     END IF
 
     ! The transition potential method may need the kinetic matrix
     xas_section =>  section_vals_get_subs_vals(input, &
-                                                 "DFT%XAS")
+                                                 "DFT%XAS",error=error)
 !    call section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",l_val=xas_calculation)
-    CALL section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos)
+    CALL section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos,error=error)
     xas_calculation = (added_mos>0)
-    
+
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
                                    cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error)/=0.OR.&
@@ -570,15 +570,15 @@ CONTAINS
     IF (build_kinetic_energy_matrix) THEN
       IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
-        CALL allocate_matrix_set(matrix_t,maxder)
+        CALL allocate_matrix_set(matrix_t,maxder,error=error)
         return_t_derivatives = .TRUE.
       ELSE
-        CALL allocate_matrix_set(matrix_t,1)
+        CALL allocate_matrix_set(matrix_t,1,error=error)
         return_t_derivatives = .FALSE.
       END IF
       CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                       TARGET=matrix_t(1)%matrix,&
-                                      target_name="KINETIC ENERGY MATRIX")
+                                      target_name="KINETIC ENERGY MATRIX",error=error)
       DO i=2,SIZE(matrix_t)
         cgfsym = cgf_symbol(1,indco(1:3,i))
         name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE KINETIC ENERGY MATRIX "//&
@@ -588,17 +588,17 @@ CONTAINS
         CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                         TARGET=matrix_t(i)%matrix,&
                                         target_name=name,&
-                                        target_symmetry="antisymmetric")
+                                        target_symmetry="antisymmetric",error=error)
       END DO
     END IF
 
 !   *** Allocate the core Hamiltonian matrix ***
 
-    CALL allocate_matrix_set(matrix_h,1)
+    CALL allocate_matrix_set(matrix_h,1,error=error)
 
     CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                     TARGET=matrix_h(1)%matrix,&
-                                    target_name="CORE HAMILTONIAN MATRIX")
+                                    target_name="CORE HAMILTONIAN MATRIX",error=error)
 
 !   *** Allocate work storage ***
 
@@ -613,7 +613,7 @@ CONTAINS
                              maxsgf=maxsgf)
 
     maxl = MAX(maxlgto,maxlppl,maxlppnl)
- 
+
     CALL init_orbital_pointers(maxl+nder+1)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -662,7 +662,7 @@ CONTAINS
        oce_present = ASSOCIATED(sac_oce)
        rho0_present = ASSOCIATED(sac_3c)
        IF(rho0_present) THEN
-         CALL allocate_vtriple(VH_3c_list,nkind,natom)
+         CALL allocate_vtriple(VH_3c_list,nkind,natom,error=error)
        END IF
 
        ALLOCATE (oceht(SIZE(matrix_s),0:nthread-1),STAT=istat)
@@ -784,7 +784,7 @@ CONTAINS
             vallt(kkind,j)%zeta_c = 0.0_dp
             vallt(kkind,j)%core_charge = 0.0_dp
             vallt(kkind,j)%core_radius = 0.0_dp
-          END IF 
+          END IF
         END DO  ! j
       END DO  ! kkind
 
@@ -1290,7 +1290,7 @@ CONTAINS
                 CALL add_block_node(matrix=matrix_s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    block=sint(i)%block)
+                                    block=sint(i)%block,error=error)
               END DO
               IF (build_kinetic_energy_matrix) THEN
                 DO i=1,SIZE(matrix_t)
@@ -1298,14 +1298,14 @@ CONTAINS
                   CALL add_block_node(matrix=matrix_t(i)%matrix,&
                                       block_row=irow,&
                                       block_col=icol,&
-                                      block=tint(i)%block)
+                                      block=tint(i)%block,error=error)
                 END DO
               END IF
               NULLIFY (h_block)
               CALL add_block_node(matrix=matrix_h(1)%matrix,&
                                   block_row=irow,&
                                   block_col=icol,&
-                                  block=h_block)
+                                  block=h_block,error=error)
               IF (calculate_forces) THEN
                 CALL get_block_node(matrix=matrix_p(1)%matrix,&
                                     block_row=irow,&
@@ -1670,36 +1670,36 @@ CONTAINS
 !               *** Loop over the GTH pseudo potential atoms (non-local part) ***
 
                 IF (ppnl_present.AND.new_atom_b) THEN
-                   
+
                    DO kkind=1,nkind
-                      
+
                       IF (.NOT.ASSOCIATED(vppnl(kkind)%neighbor)) CYCLE
-                      
+
                       ibc = jkind + nkind*(kkind - 1)
-                      
+
                       IF (.NOT.ASSOCIATED(sbc_ppnl(ibc)%neighbor_list_set)) CYCLE
-                      
+
                       lppnl = vppnl(kkind)%lppnl
                       nppnl = vppnl(kkind)%nppnl
                       rprjc(1) = vppnl(kkind)%ppnl_radius
-                      
+
                       sbc_ppnl_neighbor_list =>&
                            find_neighbor_list(neighbor_list_set=&
                            sbc_ppnl(ibc)%neighbor_list_set,&
                            atom=jatom)
-                      
+
                       CALL get_neighbor_list(neighbor_list=sbc_ppnl_neighbor_list,&
                            nnode=nnode_c)
-                      
+
                       sbc_ppnl_neighbor_node => first_node(sbc_ppnl_neighbor_list)
-                      
+
                       knodeloop: DO knode=1,nnode_c
-                         
+
                          CALL get_neighbor_node(neighbor_node=sbc_ppnl_neighbor_node,&
                               neighbor=katom,&
                               cell=cell_c,&
                               r=rbc)
-                         
+
                          ! The < and > operators don't work correctly on arrays in
                          ! the openmp version
                          neighbor_att => vppnl(kkind)%neighbor
@@ -1714,7 +1714,7 @@ CONTAINS
                       sac_ppnl_neighbor => vppnl(kkind)%neighbor(cell_c(1),&
                                                                  cell_c(2),&
                                                                  cell_c(3))
-                      
+
 
                       IF (sac_ppnl_neighbor%n == 0) THEN
                         sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
@@ -1889,7 +1889,7 @@ CONTAINS
 !$OMP critical (qs_core_force_all_potential)
                     force(ikind)%all_potential(:,atom_a) = &
                         force(ikind)%all_potential(:,atom_a) + f0*force_a(:)
-                    force(jkind)%all_potential(:,atom_b) = & 
+                    force(jkind)%all_potential(:,atom_b) = &
                         force(jkind)%all_potential(:,atom_b) + f0*force_b(:)
 !$OMP end critical (qs_core_force_all_potential)
 
@@ -1900,7 +1900,7 @@ CONTAINS
                         katom = reduced_3c_rho0(kkind)%index_atom(knode)
                         atom_c = atom_of_kind(katom)
 !$OMP critical (qs_core_force_all_potential)
-                        force(kkind)%all_potential(1:3,atom_c) = & 
+                        force(kkind)%all_potential(1:3,atom_c) = &
                           force(kkind)%all_potential(1:3,atom_c) + &
                           f0*vall(kkind)%force_c(1:3,knode)
 !$OMP end critical (qs_core_force_all_potential)
@@ -2040,7 +2040,7 @@ CONTAINS
                 NULLIFY (vall(kkind)%neighbor)
                 NULLIFY (vall(kkind)%force_c)
               END IF
-            END DO 
+            END DO
           END IF
 
         END DO ! iatom => atom A
@@ -2063,7 +2063,7 @@ CONTAINS
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
-                    oce=oce)
+                    oce=oce,error=error)
 !   *** Release work storage ***
 
     IF (ppl_present) THEN
@@ -2105,10 +2105,10 @@ CONTAINS
 
 !   Maybe the vlist can be deallocated already here
     IF(ASSOCIATED(oce))THEN
-      CALL deallocate_vtriple(oce%voce)
+      CALL deallocate_vtriple(oce%voce,error=error)
     END IF
     IF(ASSOCIATED(VH_3c_list))THEN
-      CALL deallocate_vtriple(VH_3c_list)
+      CALL deallocate_vtriple(VH_3c_list,error=error)
     END IF
 
     DEALLOCATE (habt,STAT=istat)
@@ -2137,8 +2137,8 @@ CONTAINS
 !     *** in the calling force routine after leaving this routine ***
 
       IF (SIZE(matrix_p) == 2) THEN
-        CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp)
-        CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp)
+        CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp,error=error)
+        CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp,error=error)
 !FM      IF (do_ep) THEN
 !FM         IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
 !FM            ! restore ep_qs_env%dS_coeffs
@@ -2191,7 +2191,7 @@ CONTAINS
        DEALLOCATE(dist_list,STAT=istat)
        IF (istat /= 0) THEN
          CALL stop_memory(routineN,moduleN,__LINE__,"ocest")
-       END IF 
+       END IF
     ENDIF
 
 
@@ -2205,15 +2205,15 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
+      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
          DO i=2,SIZE(matrix_s)
-            CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw)
+            CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
          END DO
       END IF
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-           "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)      
+           "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
 !   *** Print the kinetic energy integral matrix, if requested ***
@@ -2222,11 +2222,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
+       CALL write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,SIZE(matrix_t)
-             CALL write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,para_env,output_unit=iw)
+             CALL write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
           END DO
        END IF
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -2239,13 +2239,13 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
             extension=".Log",error=error)
-      CALL allocate_matrix_set(matrix_v,1)
+      CALL allocate_matrix_set(matrix_v,1,error=error)
       CALL replicate_matrix_structure(source=matrix_h(1)%matrix,&
                                       TARGET=matrix_v(1)%matrix,&
-                                      target_name="POTENTIAL ENERGY MATRIX")
+                                      target_name="POTENTIAL ENERGY MATRIX",error=error)
       CALL add_matrices(matrix_v(1)%matrix,1.0_dp,matrix_h(1)%matrix,-1.0_dp,matrix_t(1)%matrix)
-      CALL write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
-      CALL deallocate_matrix_set(matrix_v)
+      CALL write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+      CALL deallocate_matrix_set(matrix_v,error=error)
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
     END IF
@@ -2256,9 +2256,9 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
+       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)       
+            "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)

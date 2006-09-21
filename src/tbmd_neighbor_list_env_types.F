@@ -161,8 +161,8 @@ CONTAINS
 
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'tbmd_neighbor_list_env_retain', &
@@ -210,8 +210,8 @@ CONTAINS
 
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'tbmd_neighbor_list_env_release', &
@@ -305,8 +305,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: r_last_update, r_cutoff
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: tbmd_neighbor_list
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_get', &
       routineP = moduleN//':'//routineN
@@ -399,8 +399,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: r_last_update, r_cutoff
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: tbmd_neighbor_list
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_set', &
       routineP = moduleN//':'//routineN
@@ -472,8 +472,8 @@ CONTAINS
 
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_clear', &
       routineP = moduleN//':'//routineN
@@ -544,8 +544,8 @@ CONTAINS
 
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'tbmd_neighbor_list_env_create', &

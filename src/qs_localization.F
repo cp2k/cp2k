@@ -8,7 +8,7 @@
 !!     qs_localization
 !!
 !!   FUNCTION
-!! 
+!!
 !!     should be able to find properties related to the position operator in PBC
 !!     e.g. location and spread of periodic orbitals
 !!          Wannier functions
@@ -121,7 +121,7 @@ MODULE qs_localization
 
        REAL (KIND = dp) :: weights ( 3 )
   END TYPE qs_loc_env_type
-  
+
   INTEGER, PARAMETER :: PIPEK_MEZEY=301, POSITION_OPERATOR=302
 
 ! *****************************************************************************
@@ -133,10 +133,11 @@ CONTAINS
 ! allocates the data, and initializes the operators
 !
 !******************************************************************************
-SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
+SUBROUTINE qs_loc_init(qs_loc_env,qs_env,error)
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, i, isos, j, natoms
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -156,8 +157,8 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,cell=qs_loc_env%cell, &
                    local_molecules=qs_loc_env%local_molecules,&
                    particle_set = qs_loc_env % particle_set, &
-                   para_env=qs_loc_env%para_env)
-  CALL cp_para_env_retain(qs_loc_env%para_env) 
+                   para_env=qs_loc_env%para_env,error=error)
+  CALL cp_para_env_retain(qs_loc_env%para_env,error=error)
 
 ! dbg
   qs_loc_env % operator_type = POSITION_OPERATOR
@@ -175,25 +176,25 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
      DO j=1, SIZE ( qs_loc_env % operator, 1 )
        NULLIFY(qs_loc_env%operator(j,i)%matrix)
        CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-            qs_loc_env%operator(j,i)%matrix,"operator")
+            qs_loc_env%operator(j,i)%matrix,"operator",error=error)
        CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
      ENDDO
   END DO
 
 
-  IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN 
-    CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights ) 
-    CALL get_boys_foster_operator ( qs_loc_env, qs_env )
+  IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
+    CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights )
+    CALL get_boys_foster_operator ( qs_loc_env, qs_env ,error=error)
   ENDIF
 
-  IF ( qs_loc_env % operator_type == PIPEK_MEZEY ) & 
+  IF ( qs_loc_env % operator_type == PIPEK_MEZEY ) &
   CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
-  
+
   qs_loc_env%molecular_states = .FALSE.
 
 ! done
   qs_loc_env%is_initialized = 777
-  CALL timestop(0.0_dp,handle) 
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_loc_init
 
 !******************************************************************************
@@ -201,11 +202,12 @@ END SUBROUTINE qs_loc_init
 ! Computes the Boys-Foster operator for periodic systems
 !
 !******************************************************************************
-SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env ) 
+SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env, error )
 
 ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ix, iy, iz, j
     REAL(KIND=dp)                            :: thearg, theval, x, y, z
@@ -219,15 +221,15 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env )
 ! analytical construction should be faster.
 !
 ! get a pw grid
-  CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-  CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool)
+  CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+  CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
   CALL pw_pool_init_coeff(auxbas_pw_pool,op_rspace,&
-                          use_data=REALDATA3D,in_space=REALSPACE)
+                          use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
   DO i=1,3
    DO j=1,2
-      ! CALL coeff_zero(op_rspace) 
-      ! the definition of the position on the PW grid has to be 
+      ! CALL coeff_zero(op_rspace)
+      ! the definition of the position on the PW grid has to be
       ! compatible with the one used in the integration procedure / collocation procedure
       ! integrate_v_rspace calculate_rho_elec
       DO iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
@@ -235,7 +237,7 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env )
       DO ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
          x=REAL(ix-op_rspace%pw%pw_grid%bounds(1,1),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(1),dp)
          y=REAL(iy-op_rspace%pw%pw_grid%bounds(1,2),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(2),dp)
-         z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),dp) 
+         z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),dp)
          SELECT CASE (i)
          CASE (1)
             thearg=x
@@ -251,17 +253,17 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env )
             theval=SIN(thearg)
          END SELECT
          ! notice the volume element, slightly ugly I think
-         op_rspace%pw%cr3d(ix,iy,iz)=theval*op_rspace%pw%pw_grid%dvol 
+         op_rspace%pw%cr3d(ix,iy,iz)=theval*op_rspace%pw%pw_grid%dvol
       ENDDO
       ENDDO
       ENDDO
 ! do the actual integration
       CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
-      CALL integrate_v_rspace(op_rspace,h=qs_loc_env%operator(j,i),qs_env=qs_env,calculate_forces=.FALSE.)
+      CALL integrate_v_rspace(op_rspace,h=qs_loc_env%operator(j,i),qs_env=qs_env,calculate_forces=.FALSE.,error=error)
    ENDDO
   ENDDO
 
-  CALL pw_pool_give_back_coeff ( auxbas_pw_pool, op_rspace )
+  CALL pw_pool_give_back_coeff ( auxbas_pw_pool, op_rspace ,error=error)
 
 END SUBROUTINE get_boys_foster_operator
 
@@ -291,8 +293,8 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     LOGICAL                                  :: ionode
     INTEGER                                  :: iunit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, i, isos, j, k, n, &
                                                 natoms, scr, sweeps
@@ -307,13 +309,13 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
   logger => cp_error_get_logger(error)
 
   ! get rows and cols of the input
-  CALL cp_fm_get_info(vectors,nrow_global=n,ncol_global=k)
+  CALL cp_fm_get_info(vectors,nrow_global=n,ncol_global=k,error=error)
   ! replicate the input kind of matrix
-  CALL cp_fm_create(opvec,vectors%matrix_struct)
+  CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
   ! create a new matrix structure k x k in size, borrowing most of info
   CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k, &
             ncol_global=k,para_env=vectors%matrix_struct%para_env, &
-            context=vectors%matrix_struct%context)
+            context=vectors%matrix_struct%context,error=error)
 
   IF (ANY(SHAPE(center).NE.(/k,6/))) CALL stop_program('centers_and_spreads','center')
 
@@ -322,7 +324,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     ALLOCATE ( ZIJ ( 2, 3 ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )
   ELSEIF ( qs_loc_env % operator_type == PIPEK_MEZEY ) THEN
-    natoms = SIZE ( qs_loc_env % operator, 2 ) 
+    natoms = SIZE ( qs_loc_env % operator, 2 )
     ALLOCATE ( ZIJ ( 1, natoms ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )
   ENDIF
@@ -330,28 +332,28 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
   DO i=1,SIZE ( ZIJ, 2 )
     DO j=1, SIZE ( ZIJ, 1 )
         NULLIFY ( ZIJ ( j, i ) % matrix )
-        CALL cp_fm_create ( ZIJ ( j, i ) % matrix, tmp_fm_struct )
+        CALL cp_fm_create ( ZIJ ( j, i ) % matrix, tmp_fm_struct ,error=error)
     ENDDO
   ENDDO
 
 ! release one instance of the fm_struct
-  CALL cp_fm_struct_release ( tmp_fm_struct ) 
+  CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 
 ! Compute zij here
   DO i=1,SIZE ( ZIJ, 2 )
     DO j=1,SIZE ( ZIJ, 1 )
        CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
-                            vectors,opvec,ncol=k )
-       CALL cp_fm_gemm("T","N",k,k,n,1.0_dp,vectors,opvec,0.0_dp,ZIJ(j,i)%matrix)
+                            vectors,opvec,ncol=k ,error=error)
+       CALL cp_fm_gemm("T","N",k,k,n,1.0_dp,vectors,opvec,0.0_dp,ZIJ(j,i)%matrix,error=error)
     ENDDO
   ENDDO
 
   IF ( qs_loc_env % wannier ) THEN
-       SELECT CASE (qs_loc_env % localization_method) 
+       SELECT CASE (qs_loc_env % localization_method)
        CASE ( do_loc_jacobi )
           CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, &
                max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, &
-                                 sweeps=sweeps ) 
+                                 sweeps=sweeps )
        CASE ( do_loc_crazy )
           CALL crazy_rotations  ( qs_loc_env % weights, zij, vectors, &
                max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, &
@@ -362,7 +364,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
                   " Crazy Wannier localization not converged after ",sweeps,&
                   " iterations, switching to jacobi rotations"
                 CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors,&
-                     max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, sweeps = sweeps ) 
+                     max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, sweeps = sweeps )
              ELSE
                 WRITE (cp_logger_get_default_unit_nr(logger,local=.FALSE.),"(A,I6,A)")&
                   " Crazy Wannier localization not converged after ",sweeps,&
@@ -370,7 +372,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
              ENDIF
           END IF
        CASE ( do_loc_direct )
-          CALL direct_mini      ( qs_loc_env % weights, zij, vectors, sweeps ) 
+          CALL direct_mini      ( qs_loc_env % weights, zij, vectors, sweeps )
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
@@ -386,24 +388,24 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
   ENDIF
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
-    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error ) 
+    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
     IF (qs_loc_env % molecular_states ) &
     CALL wfc_to_molecule ( qs_loc_env, center, molecule_set )
-  ENDIF 
+  ENDIF
 
 
 ! release results
   DO i=1,SIZE ( ZIJ, 2 )
     DO j=1, SIZE ( ZIJ, 1 )
-       CALL cp_fm_release(ZIJ(j,i)%matrix)
+       CALL cp_fm_release(ZIJ(j,i)%matrix,error=error)
     ENDDO
   ENDDO
- 
+
   DEALLOCATE(zij, STAT = isos)
   IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','zij')
-  CALL cp_fm_release(opvec)
+  CALL cp_fm_release(opvec,error=error)
 
-  CALL timestop(0.0_dp,handle) 
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_loc_compute_properties
 
@@ -420,8 +422,8 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     REAL(KIND=dp), INTENT(OUT)               :: center( :, : )
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(default_string_length)         :: iter
     COMPLEX(KIND=dp)                         :: almost_determinant, z
@@ -433,14 +435,14 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
 
 ! get nstates
 
-  CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates )
+  CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates ,error=error)
 
 ! initialize complexresult for boys-foster
   NULLIFY ( complexresult )
   logger => cp_error_get_logger(error)
-  CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct )
+  CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
 !
-  
+
 ! OK print out the centers ( center ( 1:3) )  and spreads ( center ( 4:6 ) ) of these friends
   cell => qs_loc_env % cell
   IF (ionode) THEN
@@ -457,7 +459,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
     ENDDO
     IF (ionode) WRITE(iunit,'(A,6F16.8)') "He", angstrom*center(l, 1 : 6 )
   ENDDO
-  
+
   ! now, find the spread of the orbitals
   DO i=1,3
      complexresult%local_data ( :, : ) = CMPLX (ZIJ(1,i)%matrix%local_data(:,:), &
@@ -469,18 +471,19 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
      ENDIF
   ENDDO
 
-  CALL cp_cfm_release(complexresult)
+  CALL cp_cfm_release(complexresult,error=error)
 
 END SUBROUTINE centers_and_spreads
 
 !******************************************************************************
 !
-! deallocates all data 
+! deallocates all data
 !
 !******************************************************************************
-SUBROUTINE qs_loc_destroy ( qs_loc_env )
+SUBROUTINE qs_loc_destroy ( qs_loc_env, error )
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, j
 
@@ -488,21 +491,21 @@ SUBROUTINE qs_loc_destroy ( qs_loc_env )
 
   DO i=1,SIZE ( qs_loc_env % operator, 2 )
    DO j=1,SIZE ( qs_loc_env % operator, 1 )
-     CALL deallocate_matrix(qs_loc_env%operator(j,i)%matrix)
+     CALL deallocate_matrix(qs_loc_env%operator(j,i)%matrix,error=error)
    ENDDO
   END DO
   DEALLOCATE(qs_loc_env%operator)
 
-  CALL cp_para_env_release(qs_loc_env%para_env) 
+  CALL cp_para_env_release(qs_loc_env%para_env,error=error)
 
 END SUBROUTINE qs_loc_destroy
 
 !******************************************************************************
 !
-! maps wfc's to molecules 
+! maps wfc's to molecules
 !
 !******************************************************************************
-SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set ) 
+SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
     TYPE(qs_loc_env_type), INTENT(IN)        :: qs_loc_env
     REAL(KIND=dp), INTENT(IN)                :: center( :, : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -617,12 +620,12 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
 
     !combine distance() from all procs
     local_location = MINLOC(distance,DIM=1)
-    
+
     mydist(1) = distance(local_location)
     mydist(2) = para_env%mepos
 
     CALL mp_minloc(mydist,para_env%group)
-    
+
     IF(mydist(2)==para_env%mepos) THEN
       wfc_to_atom_map(istate)  =  local_location
     ELSE
@@ -649,9 +652,9 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
           END DO
           IF(counter>=iatom) EXIT
         END DO
-       
+
 !        WRITE(*,*) "PP",para_env%mepos,istate,iatom,imol_now
-     
+
         i = molecule_set(imol_now)%lmi%nstates
         i = i + 1
         molecule_set(imol_now)%lmi%nstates = i
@@ -662,7 +665,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
   END IF
 
 !---------------------------------------------------------------------------
-! figure out dipole of the molecule. 
+! figure out dipole of the molecule.
 ! Assume it is neutral (so origin doesn't matter, we take the first atom)
 ! if the molecule is larger than half the box there might be a problem folding stuff
 ! FIXME this should be moved out of this place
@@ -698,9 +701,9 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
             charge_set(imol_now)=charge_set(imol_now)+zeff
         END DO
         ! charges of the wfc involved
-        DO istate=1,SIZE(molecule_set(imol_now)%lmi%states) 
+        DO istate=1,SIZE(molecule_set(imol_now)%lmi%states)
            i = molecule_set(imol_now)%lmi%states(istate)
-           r_pbc = center(i,1:3) - particle_set(first_atom) % r 
+           r_pbc = center(i,1:3) - particle_set(first_atom) % r
            r_pbc = pbc ( r_pbc , qs_loc_env%cell )
            dipole=dipole - 2.0_dp * r_pbc ! XXXXXXXXXXXXXXXXXXXX double occupation FIXME XXXXXXXXX (where are the spins?)
            charge_set(imol_now)=charge_set(imol_now)-2.0_dp
@@ -748,7 +751,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
   IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
-  
+
   !CALL stop_program("wfc_to_atom","checkpoint")
 
 END SUBROUTINE wfc_to_molecule

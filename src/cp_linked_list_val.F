@@ -19,24 +19,24 @@
 !!     An empty list is represented by an unassociated pointer.
 !!
 !!   NOTES
-!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
 !!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
 !!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
 !!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
 !!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!                                                       |___/                                        
-!!     ____ _                  ___                              _ _       _       _       
-!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!                                                       |___/
+!!     ____ _                  ___                              _ _       _       _
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
 !!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
 !!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
 !!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!!                                                                                  |___/ 
-!!    _____ _     _       _____ _ _      _ 
+!!                                                                                  |___/
+!!    _____ _     _       _____ _ _      _
 !!   |_   _| |__ (_)___  |  ___(_) | ___| |
 !!     | | | '_ \| / __| | |_  | | |/ _ \ |
 !!     | | | | | | \__ \ |  _| | | |  __/_|
 !!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!   
+!!
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
@@ -47,7 +47,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     1.2002 created
-!!     4.2002 changed most of the methods, by making access to the list 
+!!     4.2002 changed most of the methods, by making access to the list
 !!            always through pointers (identifying pointer, list and iterators)
 !!     6.2004 removed %initialized from list elements
 !!
@@ -180,21 +180,21 @@ MODULE cp_linked_list_val
 !!     represent a single linked list that stores pointers to the elements
 !!
 !!   NOTES
-!!     List are alway accessed through pointers, so every node of the 
+!!     List are alway accessed through pointers, so every node of the
 !!     linked list can be seen as a list, its first element
 !!     a pointer to the position before itself, in a very natural way:
-!!     all the insertions take place before the actual element, and 
+!!     all the insertions take place before the actual element, and
 !!     you still can insert an element at the end.
 !!     This way I could identify nodes, lists and pointers between the
 !!     elements of the list.
 !!     Indexing is 1 based.
 !!
 !!   ATTRIBUTES
-!!     first_el: the element that is stored in this node. 
+!!     first_el: the element that is stored in this node.
 !!     rest: the rest of the list
 !!
 !!     empty: true if the list pointer is not associated, if it points to
-!!            to a not it is always false (as there is at least the 
+!!            to a not it is always false (as there is at least the
 !!            first_el in the list)
 !!     length: the number of elements in the list
 !!
@@ -261,8 +261,8 @@ CONTAINS
 !!     sll: the single linked list to initialize
 !!     first_el: the first element of this list
 !!     rest: the following elements (if not given: empty)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -275,8 +275,8 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: sll
     TYPE(val_type), OPTIONAL, POINTER        :: first_el
     TYPE(cp_sll_val_type), OPTIONAL, POINTER :: rest
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_create', &
       routineP = moduleN//':'//routineN
@@ -317,8 +317,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     sll: the list to be deallocated
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -329,8 +329,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_val_dealloc(sll,error)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_dealloc', &
       routineP = moduleN//':'//routineN
@@ -354,8 +354,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     sll: the node to be deallocated
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -366,8 +366,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_val_dealloc_node(sll,error)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_dealloc_node', &
       routineP = moduleN//':'//routineN
@@ -391,7 +391,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     sets tha various attributes of a single linked list
-!!     It is an error to set the rest of an empty list without setting 
+!!     It is an error to set the rest of an empty list without setting
 !!     the first_el (change and make it simply a sll=>rest ?)
 !!
 !!   NOTES
@@ -401,8 +401,8 @@ CONTAINS
 !!     sll: the single linked list to change
 !!     first_el: the element to replace the first element of this list
 !!     rest: the rest of the list (can be unassociated)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -415,8 +415,8 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: sll
     TYPE(val_type), OPTIONAL, POINTER        :: first_el
     TYPE(cp_sll_val_type), OPTIONAL, POINTER :: rest
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_set', &
       routineP = moduleN//':'//routineN
@@ -454,8 +454,8 @@ CONTAINS
 !!     first_el: the first element of this list (can be unassociated)
 !!     rest: the rest of the list (can be unassociated)
 !!     length: the length of the list
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -470,8 +470,8 @@ CONTAINS
     TYPE(cp_sll_val_type), OPTIONAL, POINTER :: rest
     LOGICAL, INTENT(out), OPTIONAL           :: empty
     INTEGER, INTENT(out), OPTIONAL           :: length
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get', &
       routineP = moduleN//':'//routineN
@@ -508,8 +508,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     sll: the single linked list to get the element from
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -520,8 +520,8 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION cp_sll_val_get_first_el(sll,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(val_type), POINTER                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_first_el', &
@@ -555,8 +555,8 @@ CONTAINS
 !!     sll: the single linked list to get the rest from
 !!     iter: how many times the call to rest should be iterated,
 !!           defaults to 1; -1 means till end of the list.
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -568,8 +568,8 @@ CONTAINS
   FUNCTION cp_sll_val_get_rest(sll, iter, error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: sll
     INTEGER, OPTIONAL                        :: iter
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(cp_sll_val_type), POINTER           :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_rest', &
@@ -625,8 +625,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     sll: the single linked list to get the rest from
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -637,8 +637,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_val_get_empty(sll,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_empty', &
@@ -665,8 +665,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     sll: the list you want to know the length of
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -677,8 +677,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_val_get_length(sll,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_length', &
@@ -716,8 +716,8 @@ CPSourceFileRef,&
 !!   INPUTS
 !!     sll: the list you get the element from
 !!     index: the position of the element (stating at 1)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -729,8 +729,8 @@ CPSourceFileRef,&
   FUNCTION cp_sll_val_get_el_at(sll,index,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(val_type), POINTER                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_el_at', &
@@ -772,8 +772,8 @@ CPSourceFileRef,&
 !!     index: the position of the element (stating at 1)
 !!            -1 means at the end
 !!     value: the new element
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -786,8 +786,8 @@ CPSourceFileRef,&
     TYPE(cp_sll_val_type), POINTER           :: sll
     INTEGER, INTENT(in)                      :: index
     TYPE(val_type), POINTER                  :: value
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_set_el_at', &
       routineP = moduleN//':'//routineN
@@ -825,8 +825,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     iterator: iterator that moves along the list
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!     el_att: the actual element (valid only if the function returns true)
 !!
 !!   AUTHOR
@@ -839,8 +839,8 @@ CPSourceFileRef,&
   FUNCTION cp_sll_val_next(iterator,el_att,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: iterator
     TYPE(val_type), OPTIONAL, POINTER        :: el_att
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_next', &
@@ -874,11 +874,11 @@ CPSourceFileRef,&
 !!     fast (O(1))
 !!
 !!   INPUTS
-!!     sll: the single linked list point at the beginning of which 
+!!     sll: the single linked list point at the beginning of which
 !!          you want to add the element
 !!     el: the element to add
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -890,8 +890,8 @@ CPSourceFileRef,&
   SUBROUTINE cp_sll_val_insert_el(sll,el,error)
     TYPE(cp_sll_val_type), POINTER           :: sll
     TYPE(val_type), POINTER                  :: el
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_insert_el', &
       routineP = moduleN//':'//routineN
@@ -921,8 +921,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     sll: the list whose first element has to be removed
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -933,8 +933,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_val_rm_first_el(sll,error)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_rm_first_el', &
       routineP = moduleN//':'//routineN
@@ -970,11 +970,11 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     sll: the list you get the element from
-!!     index: the position of the element (stating at 1). 
+!!     index: the position of the element (stating at 1).
 !!            If it is -1, it means at end
 !!     el: the new element
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -987,8 +987,8 @@ CPSourceFileRef,&
     TYPE(cp_sll_val_type), POINTER           :: sll
     TYPE(val_type), POINTER                  :: el
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_insert_el_at', &
       routineP = moduleN//':'//routineN
@@ -1029,8 +1029,8 @@ CPSourceFileRef,&
 !!     sll: the list you get the element from
 !!     index: the position of the element (stating at 1)
 !!     el: the new element
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -1042,8 +1042,8 @@ CPSourceFileRef,&
   SUBROUTINE cp_sll_val_rm_el_at(sll,index,error)
     TYPE(cp_sll_val_type), POINTER           :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_rm_el_at', &
       routineP = moduleN//':'//routineN
@@ -1052,7 +1052,7 @@ CPSourceFileRef,&
     TYPE(cp_sll_val_type), POINTER           :: pos
 
     failure=.FALSE.
-    
+
     IF (cp_debug) THEN
        CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
     END IF
@@ -1085,8 +1085,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     sll: the list that should be removed
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -1097,8 +1097,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_val_rm_all_el(sll,error)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_rm_all_el', &
       routineP = moduleN//':'//routineN
@@ -1133,8 +1133,8 @@ CPSourceFileRef,&
 !!
 !!   INPUTS
 !!     - sll: the list to trasform in array
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1145,8 +1145,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 FUNCTION cp_sll_val_to_array(sll,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: sll
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(val_p_type), DIMENSION(:), POINTER  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_to_array', &
@@ -1157,7 +1157,7 @@ FUNCTION cp_sll_val_to_array(sll,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: iter
 
   failure=.FALSE.
-  
+
   len=cp_sll_val_get_length(sll,error)
   ALLOCATE(res(len),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1186,8 +1186,8 @@ END FUNCTION cp_sll_val_to_array
 !!
 !!   INPUTS
 !!     - array: the array you want to copy
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1199,8 +1199,8 @@ END FUNCTION cp_sll_val_to_array
 FUNCTION cp_sll_val_from_array(array,error) RESULT(res)
     TYPE(val_p_type), DIMENSION(:), &
       INTENT(in)                             :: array
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(cp_sll_val_type), POINTER           :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_from_array', &
@@ -1211,7 +1211,7 @@ FUNCTION cp_sll_val_from_array(array,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: last_el
 
   failure=.FALSE.
-  
+
   NULLIFY(res,last_el)
   IF (SIZE(array)>0) THEN
      CALL cp_sll_val_create(res,&
@@ -1247,8 +1247,8 @@ END FUNCTION cp_sll_val_from_array
 !!     - did_insert: true if it did insert the element
 !!     - pos: node where the element has been inserted (or of the same
 !!       element that was already in the list)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1264,8 +1264,8 @@ SUBROUTINE cp_sll_val_insert_ordered(sll,el,insert_equals,&
     LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_val_type), OPTIONAL, POINTER :: pos
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_insert_ordered', &
       routineP = moduleN//':'//routineN
@@ -1275,7 +1275,7 @@ SUBROUTINE cp_sll_val_insert_ordered(sll,el,insert_equals,&
 
   failure=.FALSE.
   i_eq=.FALSE.
-  
+
   IF (PRESENT(did_insert)) did_insert=.FALSE.
   IF (PRESENT(pos)) NULLIFY(pos)
 
@@ -1308,7 +1308,7 @@ SUBROUTINE cp_sll_val_insert_ordered(sll,el,insert_equals,&
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_val_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_val_next(iter,error=error),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
@@ -1334,8 +1334,8 @@ END SUBROUTINE cp_sll_val_insert_ordered
 !!       than the second, 0 if they are equal, otherwise a positive number
 !!     - insert_equals: if equal elements should be inserted
 !!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1358,8 +1358,8 @@ SUBROUTINE cp_sll_val_insert_ordered2(sll,el,compare_function,&
     LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_val_type), OPTIONAL, POINTER :: pos
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_insert_ordered2', &
       routineP = moduleN//':'//routineN
@@ -1370,7 +1370,7 @@ SUBROUTINE cp_sll_val_insert_ordered2(sll,el,compare_function,&
 
   failure=.FALSE.
   i_eq=.FALSE.
-  
+
   IF (PRESENT(did_insert)) did_insert=.FALSE.
   IF (PRESENT(pos)) NULLIFY(pos)
 
@@ -1406,7 +1406,7 @@ SUBROUTINE cp_sll_val_insert_ordered2(sll,el,compare_function,&
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_val_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_val_next(iter,error=error),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
@@ -1429,8 +1429,8 @@ END SUBROUTINE cp_sll_val_insert_ordered2
 !!     - el: the element to control
 !!     - ordered: if true assumes that the list is ordered in growing order.
 !!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1443,8 +1443,8 @@ FUNCTION cp_sll_val_contains(sll,el,ordered,error) RESULT(res)
     TYPE(cp_sll_val_type), POINTER           :: sll
     TYPE(val_type), POINTER                  :: el
     LOGICAL, INTENT(in), OPTIONAL            :: ordered
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_contains', &
@@ -1456,7 +1456,7 @@ FUNCTION cp_sll_val_contains(sll,el,ordered,error) RESULT(res)
 
   failure=.FALSE.; ord=.FALSE.
   res=.FALSE.
-  
+
   iter => sll
   IF (PRESENT(ordered)) ord=ordered
   IF (ord) THEN
@@ -1498,8 +1498,8 @@ END FUNCTION cp_sll_val_contains
 !!       than the second, 0 if they are equal, otherwise a positive number
 !!     - ordered: if true assumes that the list is ordered in growing order.
 !!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1520,8 +1520,8 @@ FUNCTION cp_sll_val_contains2(sll,el,compare_function,ordered,error)&
      END FUNCTION compare_function
   END INTERFACE
     LOGICAL, INTENT(in), OPTIONAL            :: ordered
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_contains2', &
@@ -1534,7 +1534,7 @@ FUNCTION cp_sll_val_contains2(sll,el,compare_function,ordered,error)&
 
   failure=.FALSE.
   res=.FALSE.
-  
+
   iter => sll
   IF (ordered) THEN
      DO
@@ -1557,7 +1557,7 @@ FUNCTION cp_sll_val_contains2(sll,el,compare_function,ordered,error)&
 END FUNCTION cp_sll_val_contains2
 !***************************************************************************
 
-! template def put here so that line numbers in template and derived 
+! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
@@ -1565,7 +1565,7 @@ END FUNCTION cp_sll_val_contains2
 !  USE = "USE input_val_types, only: val_type, val_p_type"
 !  array= = "=>"
 !  arrayEl = "%val"
-!  defines = 
+!  defines =
 !    "#define CP_SLL_VAL_LESS_Q(el1,el2) el1%id_nr<el2%id_nr
 !     #define CP_SLL_VAL_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 !     "

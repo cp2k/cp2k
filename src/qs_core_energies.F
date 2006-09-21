@@ -184,8 +184,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: molecular
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
 
@@ -257,7 +257,7 @@ CONTAINS
                     particle_set=particle_set,&
                     energy=energy,&
                     force=force,&
-                    virial = virial)
+                    virial = virial,error=error)
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
@@ -771,7 +771,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE calculate_ecore_self(qs_env,E_self_core)
+  SUBROUTINE calculate_ecore_self(qs_env,E_self_core,error)
 
     ! Purpose: Calculate the self energy of the core charge distribution.
 
@@ -781,6 +781,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_self_core
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_self'
 
@@ -798,7 +799,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    energy=energy)
+                    energy=energy,error=error)
 
     ecore_self = 0.0_dp
 

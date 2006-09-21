@@ -24,12 +24,12 @@ MODULE kg_energy_utils
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_energy_utils'
-  TYPE diis_info_type                 
-    INTEGER :: nhist, ihist 
+  TYPE diis_info_type
+    INTEGER :: nhist, ihist
     REAL (KIND=dp), DIMENSION(:,:), POINTER :: e_hist
     REAL (KIND=dp), DIMENSION(:,:), POINTER :: c_hist
     REAL (KIND=dp), DIMENSION(:), POINTER :: hess
-  END TYPE diis_info_type                 
+  END TYPE diis_info_type
 
   PUBLIC :: do_diis_step, diis_info_type, diis_info_create, diis_info_destroy
 
@@ -62,7 +62,7 @@ CONTAINS
       local_coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
       IF(ASSOCIATED(local_coeffs))THEN
         CALL get_dyn_coeff(coeffs=local_coeffs,&
-                           ncoef_of_kind=ncoef_of_kind)
+                           ncoef_of_kind=ncoef_of_kind,error=error)
         ncoef=ncoef + ncoef_of_kind
       END IF
     END DO
@@ -115,11 +115,12 @@ CONTAINS
   END SUBROUTINE diis_info_destroy
 
 !------------------------------------------------------------------------------!
-  SUBROUTINE do_diis_step ( kg_env, diis_info, maxerr)         
+  SUBROUTINE do_diis_step ( kg_env, diis_info, maxerr, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(diis_info_type), POINTER            :: diis_info
     REAL(KIND=dp), INTENT(INOUT)             :: maxerr
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_diis_step', &
       routineP = moduleN//':'//routineN
@@ -140,9 +141,9 @@ CONTAINS
           local_coeffs)
   CALL get_kg_env(kg_env=kg_env,atomic_kind_set=atomic_kind_set,&
                   local_particles=local_particles,&
-                  dyn_coeff_set=dyn_coeff_set) 
+                  dyn_coeff_set=dyn_coeff_set,error=error)
 
-  nkind = SIZE (atomic_kind_set) 
+  nkind = SIZE (atomic_kind_set)
   nhist = diis_info%nhist
   ncoef = 0
   icoef = 0
@@ -151,14 +152,14 @@ CONTAINS
   DO ikind=1,nkind
      local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
      IF(ASSOCIATED(local_coeffs))THEN
-      CALL get_dyn_coeff(coeffs=local_coeffs, ncoef_of_kind=ncoef_of_kind)
+      CALL get_dyn_coeff(coeffs=local_coeffs, ncoef_of_kind=ncoef_of_kind,error=error)
        ncoef=ncoef + ncoef_of_kind
      END IF
   END DO
 
  IF (ncoef/=0) THEN
 ! allocating the arrays
-  ALLOCATE(cg(ncoef), STAT=stat) 
+  ALLOCATE(cg(ncoef), STAT=stat)
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'cg', ncoef)
   ALLOCATE(eg(ncoef), STAT=stat)
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'eg', ncoef)
@@ -170,18 +171,18 @@ CONTAINS
 ! increment the counters for the histories and the iterations
   diis_info%ihist=diis_info%ihist+1
 
-! forming the trial vector from the natural force 
+! forming the trial vector from the natural force
   DO ikind= 1, nkind
      local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
      IF(ASSOCIATED(local_coeffs))THEN
-       CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,forces=forces,&     
-                          n_els=n_els,ncoef_atom=ncoef_atom)
+       CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,forces=forces,&
+                          n_els=n_els,ncoef_atom=ncoef_atom,error=error)
        DO i=1,n_els
-          DO icoef_atom=1,ncoef_atom 
-             icoef = icoef + 1 
+          DO icoef_atom=1,ncoef_atom
+             icoef = icoef + 1
              cg (icoef) = pos(i,icoef_atom)
              c_forces(icoef)=-forces(i,icoef_atom)
-             pos(i,icoef_atom)=0.0_dp 
+             pos(i,icoef_atom)=0.0_dp
           END DO
        END DO
      END IF
@@ -201,8 +202,8 @@ CONTAINS
      DO ikind= 1, nkind
         local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
         IF(ASSOCIATED(local_coeffs))THEN
-          CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,&     
-                             n_els=n_els,ncoef_atom=ncoef_atom)
+          CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,&
+                             n_els=n_els,ncoef_atom=ncoef_atom,error=error)
           DO i=1,n_els
              DO icoef_atom = 1, ncoef_atom
                 icoef=icoef+1
@@ -225,7 +226,7 @@ CONTAINS
     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
     IF(ASSOCIATED(local_coeffs))THEN
       CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,&
-                          n_els=n_els,ncoef_atom=ncoef_atom)
+                          n_els=n_els,ncoef_atom=ncoef_atom,error=error)
       DO i=1,n_els
          DO icoef_atom = 1, ncoef_atom
             icoef=icoef+1
@@ -335,9 +336,9 @@ CONTAINS
 ! get the solution vector
 
   CALL solve_system ( bcg, mysize, eigenvec)
- 
+
   DO j=1, ihist
-     dcg(j) =  eigenvec(j,1) 
+     dcg(j) =  eigenvec(j,1)
   END DO
 
   DEALLOCATE(bcg,STAT=stat)

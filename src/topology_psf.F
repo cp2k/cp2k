@@ -76,8 +76,8 @@ CONTAINS
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology_psf', &
       routineP = moduleN//':'//routineN
@@ -91,36 +91,36 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
-    
+
     atom_info => topology%atom_info
 
     IF (ASSOCIATED(atom_info%label_molname)) &
       DEALLOCATE(atom_info%label_molname,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(atom_info%label_molname)
-  
+
     IF (ASSOCIATED(atom_info%label_resid)) &
       DEALLOCATE(atom_info%label_resid,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(atom_info%label_resid)
-  
+
     IF (ASSOCIATED(atom_info%label_resname)) &
       DEALLOCATE(atom_info%label_resname,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(atom_info%label_resname)
-    
+
     IF (ASSOCIATED(atom_info%label_atmname)) &
       DEALLOCATE(atom_info%label_atmname,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(atom_info%label_atmname)
-  
+
     IF (ASSOCIATED(atom_info%atm_charge)) &
       DEALLOCATE(atom_info%atm_charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(atom_info%atm_charge)
-  
+
     IF (ASSOCIATED(atom_info%atm_mass)) &
       DEALLOCATE(atom_info%atm_mass,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -151,8 +151,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_psf', &
       routineP = moduleN//':'//routineN
@@ -172,10 +172,10 @@ CONTAINS
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
-    CALL parser_create(parser,filename,para_env=para_env)
-    
+    CALL parser_create(parser,filename,para_env=para_env,error=error)
+
     atom_info => topology%atom_info
     conn_info => topology%conn_info
     do_onfo = (topology%exclude_vdw/=do_skip_14).OR.(topology%exclude_ei/=do_skip_14)
@@ -183,17 +183,17 @@ CONTAINS
     natom_prev = 0
     IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
 
-    IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NATOM section'    
+    IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NATOM section'
     !
     ! ATOM section
     !
     label = '!NATOM'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
        IF(iw>0) WRITE (iw,'(T2,A)') 'PSF_INFO| No NATOM section '
        natom = 0
     ELSE
-       CALL parser_get_object  (parser,natom)
+       CALL parser_get_object  (parser,natom,error=error)
        IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| NATOM = ',natom
        !malloc the memory that we need
        CALL reallocate(atom_info%label_molname,1,natom_prev+natom)
@@ -211,7 +211,7 @@ CONTAINS
                                    atom_info%label_resid(index_now),&
                                    atom_info%label_resname(index_now),&
                                    dummy_field,&
-                                   atom_info%label_atmname(index_now),&                      
+                                   atom_info%label_atmname(index_now),&
                                    atom_info%atm_charge(index_now),&
                                    atom_info%atm_mass(index_now)
           CALL uppercase ( atom_info%label_atmname(index_now) )
@@ -225,12 +225,12 @@ CONTAINS
 
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NBOND section'
     label = '!NBOND'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
        IF(iw>0) WRITE (iw,'(T2,A)')'PSF_INFO| No NBOND section '
        nbond = 0
     ELSE
-       CALL parser_get_object  (parser,nbond)       
+       CALL parser_get_object  (parser,nbond,error=error)
        IF(iw>0) WRITE(iw,'(T2,A,I8)')'PSF_INFO| NBOND = ',nbond
        !malloc the memory that we need
        CALL reallocate(conn_info%bond_a,1,nbond_prev+nbond)
@@ -248,7 +248,7 @@ CONTAINS
     END IF
     !
     ! PARA_RES structure
-    !    
+    !
     i = 0
     IF(ASSOCIATED(conn_info%c_bond_a)) i = SIZE(conn_info%c_bond_a)
     DO ibond=1+nbond_prev,nbond+nbond_prev
@@ -274,18 +274,18 @@ CONTAINS
     END DO
     !
     ! THETA section
-    !    
+    !
     ntheta_prev = 0
     IF(ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
 
     IF(iw>0) WRITE(iw,'(T2,A)')'PSF_INFO| Parsing the NTHETA section'
     label = '!NTHETA'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
        IF(iw>0) WRITE (iw,'(T2,A)')'PSF_INFO| No NTHETA section '
        ntheta = 0
     ELSE
-       CALL parser_get_object  (parser,ntheta)
+       CALL parser_get_object  (parser,ntheta,error=error)
        IF(iw>0) WRITE(iw,'(T2,A,I8)')'PSF_INFO| NTHETA = ',ntheta
        !malloc the memory that we need
        CALL reallocate(conn_info%theta_a,1,ntheta_prev+ntheta)
@@ -309,7 +309,7 @@ CONTAINS
     END IF
     !
     ! UB structure
-    !    
+    !
     conn_info%ub_a(:) = conn_info%theta_a(:)
     conn_info%ub_b(:) = conn_info%theta_b(:)
     conn_info%ub_c(:) = conn_info%theta_c(:)
@@ -322,19 +322,19 @@ CONTAINS
     IF(do_onfo.AND.ASSOCIATED(conn_info%onfo_a)) nonfo_prev = SIZE(conn_info%onfo_a)
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NPHI section'
     label = '!NPHI'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
        IF(iw>0) WRITE (iw,'(T2,A)') 'PSF_INFO| No NPHI section '
-       nphi = 0       
+       nphi = 0
     ELSE
-       CALL parser_get_object  (parser,nphi)
+       CALL parser_get_object  (parser,nphi,error=error)
        IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| NPHI = ',nphi
        !malloc the memory that we need
        CALL reallocate(conn_info%phi_a,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_b,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_c,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_d,1,nphi_prev+nphi)
-       IF (do_onfo) THEN 
+       IF (do_onfo) THEN
           CALL reallocate(conn_info%onfo_a,1,nonfo_prev+nphi)
           CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nphi)
        END IF
@@ -378,7 +378,7 @@ CONTAINS
        ENDDO
        N = 0
        IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
-       CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)    
+       CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
        nonfo = 0
        DO ionfo=1, nphi
        ! Check if the torsion is not shared between angles or bonds
@@ -426,7 +426,7 @@ CONTAINS
           END DO
        END DO
        CALL reallocate(conn_info%onfo_a,1,nonfo_prev+nonfo)
-       CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nonfo)   
+       CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nonfo)
        DO I=1,natom
           DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -442,12 +442,12 @@ CONTAINS
 
     IF(iw>0) WRITE(iw,'(T2,A)')'PSF_INFO| Parsing the NIMPHI section'
     label = '!NIMPHI'
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
        IF(iw>0) WRITE (iw,'(T2,A)')'PSF_INFO| No NIMPHI section '
        nphi = 0
     ELSE
-       CALL parser_get_object  (parser,nphi)
+       CALL parser_get_object  (parser,nphi,error=error)
        IF(iw>0) WRITE(iw,'(T2,A,I8)')'PSF_INFO| NIMPR = ',nphi
        !malloc the memory that we need
        CALL reallocate(conn_info%impr_a,1,nphi_prev+nphi)
@@ -495,8 +495,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
       routineP = moduleN//':'//routineN
@@ -514,12 +514,12 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
-    
+
     record = "topology_dump.psf"
 
     IF(iw>0) WRITE(iw,*) "    Writing out PSF file ",TRIM(record)
@@ -534,7 +534,7 @@ CONTAINS
     WRITE(file_unit,*) " 1 !NTITLE"
     WRITE(file_unit,*) "   CP2K generated DUMP of connectivity"
     WRITE(file_unit,*) ""
-    
+
     WRITE(file_unit,*) " ",topology%natoms," !NATOM"
     DO i=1,topology%natoms
        my_tag1 = atom_info%label_molname(i)
@@ -554,7 +554,7 @@ CONTAINS
             atom_info%atm_mass(i),0
     END DO
     WRITE(file_unit,*) ""
-    
+
     WRITE(file_unit,*) " ",SIZE(conn_info%bond_a)," !NBOND"
     DO i=1,SIZE(conn_info%bond_a),4
        j=0
@@ -566,7 +566,7 @@ CONTAINS
        WRITE(file_unit,*) ""
     END DO
     WRITE(file_unit,*) ""
-    
+
     WRITE(file_unit,*) " ",SIZE(conn_info%theta_a)," !NTHETA"
     DO i=1,SIZE(conn_info%theta_a),3
        j=0
@@ -579,7 +579,7 @@ CONTAINS
        WRITE(file_unit,*) ""
     END DO
     WRITE(file_unit,*) ""
-    
+
     WRITE(file_unit,*) " ",SIZE(conn_info%phi_a)," !NPHI"
     DO i=1,SIZE(conn_info%phi_a),2
        j=0
@@ -592,7 +592,7 @@ CONTAINS
        WRITE(file_unit,*) ""
     END DO
     WRITE(file_unit,*) ""
-    
+
     WRITE(file_unit,*) " ",SIZE(conn_info%impr_a)," !NIMPHI"
     DO i=1,SIZE(conn_info%impr_a),2
        j=0
@@ -605,7 +605,7 @@ CONTAINS
        WRITE(file_unit,*) ""
     END DO
     WRITE(file_unit,*) ""
-    
+
     WRITE(file_unit,*) " 0 !NDON"
     WRITE(file_unit,*) ""
     WRITE(file_unit,*) " 0 !NACC"
@@ -616,9 +616,9 @@ CONTAINS
     CALL close_file(file_unit)
 
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
+         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
     CALL timestop(0.0_dp,handle)
-    
+
   END SUBROUTINE write_topology_psf
 
 END MODULE topology_psf

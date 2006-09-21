@@ -142,8 +142,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, OPTIONAL                        :: molecular
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_qs_neighbor_lists'
 
@@ -246,7 +246,7 @@ CONTAINS
     ! new version implies new sparsity of the matrices
 
     last_qs_neighbor_list_id_nr=last_qs_neighbor_list_id_nr+1
-    CALL set_qs_env(qs_env=qs_env,neighbor_list_id=last_qs_neighbor_list_id_nr)
+    CALL set_qs_env(qs_env=qs_env,neighbor_list_id=last_qs_neighbor_list_id_nr,error=error)
 
     ! Set Verlet skin
 
@@ -270,7 +270,7 @@ CONTAINS
                     sab_2c=sab_2c,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c,&
-                    sab_all=sab_all)
+                    sab_all=sab_all,error=error)
 
     rho0_present=ASSOCIATED(rho0_mpole)
 
@@ -596,7 +596,7 @@ CONTAINS
 
     ! Put the generated neighbor lists into the QS environment
 
-    CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb)
+    CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
     print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB"
 
@@ -634,7 +634,7 @@ CONTAINS
                                 l3c_rho0=rho0_present,&
                                 symmetric=.FALSE.)
       ! Put the generated neighbor lists into the QS environment
-      CALL set_qs_env(qs_env=qs_env,sab_all=sab_all)
+      CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
     END IF
 
     ! Build orbital GTH-PPL operator overlap list
@@ -651,7 +651,7 @@ CONTAINS
 
         ! Put the generated neighbor lists into the QS environment
 
-        CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl)
+        CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
 
         print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
 
@@ -689,7 +689,7 @@ CONTAINS
 
         ! Put the generated neighbor lists into the QS environment
 
-        CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl)
+        CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl,error=error)
 
         print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPNL"
 
@@ -758,7 +758,7 @@ CONTAINS
 
         ! Put the generated neighbor lists into the QS environment
 
-        CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce)
+        CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce,error=error)
 
         print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE"
 
@@ -826,7 +826,7 @@ CONTAINS
                                 .FALSE.,output_unit,semi_present,semi_present,&
                                 c_radius,c_radius,&
                                 name="HARTREE INTERACTIONS")
-      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c)
+      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
       print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
       IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                            print_key_path,error=error),&
@@ -869,7 +869,7 @@ CONTAINS
 
       ! Put the generated neighbor lists into the QS environment
 
-      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c)
+      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
 
       print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
 
@@ -925,7 +925,7 @@ CONTAINS
 
       ! Put the generated neighbor lists into the QS environment
 
-      CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c)
+      CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c,error=error)
 
       print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_3C"
 
@@ -2782,8 +2782,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
 
@@ -2917,8 +2917,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string

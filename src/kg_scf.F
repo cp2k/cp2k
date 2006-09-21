@@ -18,7 +18,7 @@
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
- 
+
 MODULE kg_scf
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -172,8 +172,8 @@ CONTAINS
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_create', &
       routineP = moduleN//':'//routineN
@@ -189,7 +189,7 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control,&
-                    scf_control=scf_control)
+                    scf_control=scf_control,error=error)
 
     ALLOCATE(scf_env, stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -243,8 +243,8 @@ CONTAINS
   SUBROUTINE kg_qs_scf(kg_env,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_qs_scf', &
       routineP = moduleN//':'//routineN
@@ -263,7 +263,7 @@ CONTAINS
         IF (.not.ASSOCIATED(scf_env)) THEN
            CALL kg_scf_env_create(scf_env,kg_env, error=error)
            CALL set_kg_env(kg_env,scf_env=scf_env,error=error)
-           CALL kg_scf_env_release(scf_env)
+           CALL kg_scf_env_release(scf_env,error=error)
            CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
         END IF
         CALL scf_env_do_scf(scf_env,my_kg_env,kg_env%para_env,globenv,error=error)
@@ -281,7 +281,7 @@ CONTAINS
 !!     the standard routines for a GPW calculation are called in order
 !!     to build the KS matrix (also block diagonal)
 !!     The Diagonalization is then performed block by block
-!! 
+!!
 !!   NOTE
 !!     Only the standard diagonalization is implemented (no OT or special_diago)
 !!     Read and write RESTART are not ready yet
@@ -297,7 +297,7 @@ CONTAINS
 !!     jgh (adapted from QS)
 !!
 !!   MODIFICATION HISTORY
-!!     fully activated 12-04 MI 
+!!     fully activated 12-04 MI
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,kg_env,para_env,globenv,error)
@@ -306,8 +306,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
@@ -350,11 +350,11 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     
+
      CALL get_kg_env(kg_env=kg_env,&
           sub_qs_env=qs_env,&
           dft_control=dft_control,&
-          scf_control=scf_control)
+          scf_control=scf_control,error=error)
 
     ! Quick return, if no SCF iteration is requested
     IF (scf_control%max_scf < 1) RETURN
@@ -384,17 +384,17 @@ CONTAINS
                     matrix_ks=matrix_ks,&
                     matrix_s=matrix_s,&
                     qs_charges=qs_charges,&
-                    rho=rho)
+                    rho=rho,error=error)
 
-    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
+    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm,error=error)
     nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set,1)
     nelectron_global = kg_fm%nelectron_global
     nmolecule_global = kg_fm%nmolecule_global
 
 
     matrix_p => rho%rho_ao
- 
-    ! do some assertions here on these matrices having the same structure, 
+
+    ! do some assertions here on these matrices having the same structure,
     ! as is currently required
     DO ispin=1,SIZE(matrix_s)
       id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
@@ -427,7 +427,7 @@ CONTAINS
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()    
+         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
 !   *** SCF loop ***
 
@@ -446,12 +446,12 @@ CONTAINS
                                 just_energy=energy_only)
 
        DO ispin=1,dft_control%nspins
-          
+
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                   extension=".Log",error=error)
-             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
+             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                   "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
           END IF
@@ -460,9 +460,9 @@ CONTAINS
                qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                   extension=".Log",error=error)
-             CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
+             CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                  "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)             
+                  "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
           END IF
 
        ENDDO
@@ -471,10 +471,10 @@ CONTAINS
             scf_section,"PRINT%MO_ORTHONORMALITY",error=error),cp_p_file)) THEN
          ALLOCATE(orthonormality(nmolecule_global), STAT =istat)
          IF (istat /= 0) CALL stop_memory(routineP,"orthonormality",nmolecule_global*dp_size)
- 
+
          orthonormality = 0.0_dp
          CALL fm_mol_orthonormality(orthonormality,kg_fm%kg_fm_mol_set,&
-                                    matrix_s(1)%matrix,dft_control%nspins)
+                                    matrix_s(1)%matrix,dft_control%nspins,error=error)
          CALL mp_sum(orthonormality,qs_env%para_env%group)
          iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_ORTHONORMALITY",&
               extension=".scfLog",error=error)
@@ -486,7 +486,7 @@ CONTAINS
             END DO
          ENDIF
          CALL cp_print_key_finished_output(iw,logger,scf_section,&
-               "PRINT%MO_ORTHONORMALITY", error=error)         
+               "PRINT%MO_ORTHONORMALITY", error=error)
          DEALLOCATE(orthonormality, STAT =istat)
          IF (istat /= 0) CALL stop_memory(routineP,"deall. orthonormality")
        ENDIF
@@ -501,7 +501,7 @@ CONTAINS
                routineP,"unknown scf method method:"//&
                cp_to_string(scf_env%method),error,failure)
          CASE(general_diag_method_nr) ! diagonalisation (default)
-  
+
            IF (scf_env%iter_count > 1) THEN
              ib = MODULO(scf_env%scf_diis_buffer%ncall,scf_env%scf_diis_buffer%nbuffer) + 1
              scf_env%scf_diis_buffer%ncall = scf_env%scf_diis_buffer%ncall + 1
@@ -674,16 +674,16 @@ CONTAINS
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
            DO ispin=1,dft_control%nspins
               CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                       rho%rho_ao(ispin)%matrix)
+                                       rho%rho_ao(ispin)%matrix,error=error)
            END DO
        ENDIF
 
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 ! ** Updates the molecular rho for each molecule independently ***
-       CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-       CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
+       CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
+       CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm,error=error)
        CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm%kg_fm_mol_set, error=error)
 
        CALL timestop(0.0_dp,handle2)
@@ -720,7 +720,7 @@ CONTAINS
     END IF
 
     ! Retrieve the last kg_fm_set
-    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
+    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm,error=error)
 
 !   *** add the converged wavefunction to the wavefunction history
 !   should possibly be moved down after de-mixing
@@ -729,7 +729,7 @@ CONTAINS
                         kg_fm_mol_set=kg_fm%kg_fm_mol_set,error=error)
     END IF
 
-!   *** mixing methods need to undo mixing of the density matrix 
+!   *** mixing methods need to undo mixing of the density matrix
 !       (restore original density) ***
     IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
        CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
@@ -737,11 +737,11 @@ CONTAINS
                                    qs_env=qs_env,invert=.TRUE.,error=error)
        DO ispin=1,dft_control%nspins
           CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                     rho%rho_ao(ispin)%matrix)
+                                     rho%rho_ao(ispin)%matrix,error=error)
        END DO
        DO ispin=1,dft_control%nspins
           CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                               rho%rho_ao(ispin)%matrix)
+                               rho%rho_ao(ispin)%matrix,error=error)
        END DO
     ENDIF
 !
@@ -749,7 +749,7 @@ CONTAINS
 !   *** this might not always be needed (i.e. no post calculation / no forces )
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
 ! ** Updates the molecular rho for each molecule independently ***
-    CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+    CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
     CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env,  kg_fm%kg_fm_mol_set , error=error)
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -769,7 +769,7 @@ CONTAINS
 
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
-    
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_do_scf
@@ -784,7 +784,7 @@ CONTAINS
 !!     - allocate the ks_matrix and the ks environment
 !!                which are contained in kg_env%sub_qs_env
 !!              - allocate p_mix_new  if the ao_mixing is used (in kg_env%scf_env)
-!!              - calculate the self and overlap energies (in kg_env%sub_qs_env) 
+!!              - calculate the self and overlap energies (in kg_env%sub_qs_env)
 !!              - from the overlap matrix extract the molecular blocks and
 !!                construct the corresponding ortho matrix
 !!              - Initialize the separated blocks of the density matrix
@@ -804,9 +804,9 @@ CONTAINS
 !!     jgh (adapted from QS)
 !!
 !!   MODIFICATION HISTORY
-!!     fully activated 12-04 MI 
+!!     fully activated 12-04 MI
 !!*** **********************************************************************
- 
+
   SUBROUTINE init_kgscf_run(scf_env,kg_env,para_env,globenv,scf_section,error)
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
@@ -814,8 +814,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kgscf_run', &
       routineP = moduleN//':'//routineN
@@ -845,17 +845,17 @@ CONTAINS
     failure=.FALSE.
     do_ortho = .TRUE.
     logger => cp_error_get_logger(error)
-    
+
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    
-    CALL get_kg_env(kg_env=kg_env, dft_control=dft_control, kg_fm_set=kg_fm)
+
+    CALL get_kg_env(kg_env=kg_env, dft_control=dft_control, kg_fm_set=kg_fm,error=error)
 
     IF ( dft_control % qs_control % method == "KG_GPW" ) THEN
 
-      CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env)
+      CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env,error=error)
 
       CALL get_qs_env(qs_env=qs_env,&
            dft_control=dft_control,&
@@ -875,7 +875,7 @@ CONTAINS
               "KOHN-SHAM_MATRIX",&
               error=error)
          CALL set_qs_env(qs_env=qs_env,&
-              matrix_ks=matrix_ks)
+              matrix_ks=matrix_ks,error=error)
       END IF
 
 !   *** allocate p_mix_new ***
@@ -890,13 +890,13 @@ CONTAINS
 
 !   *** allocate the ks env **
       IF (.not.ASSOCIATED(ks_env)) THEN
-         CALL qs_ks_create(ks_env,qs_env=qs_env)
-         CALL set_qs_env(qs_env, ks_env=ks_env)
-         CALL qs_ks_release(ks_env)
+         CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
+         CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
+         CALL qs_ks_release(ks_env,error=error)
       END IF
 
       ! update ecore
-      CALL calculate_ecore_self(qs_env)
+      CALL calculate_ecore_self(qs_env,error=error)
 
       CALL calculate_ecore_overlap(qs_env,para_env,dft_control%forces,molecular=.TRUE.,&
            error=error)
@@ -929,7 +929,7 @@ CONTAINS
                  routineP,"unknown scf method method:"//&
                  cp_to_string(scf_env%method),error,failure)
       CASE (general_diag_method_nr)
-         IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
+         IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
            CALL kg_diis_b_create(scf_env%scf_diis_buffer,&
                                  kg_fm%kg_fm_mol_set,&
                                  nbuffer=scf_control%max_diis,&
@@ -965,14 +965,14 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Calculate the orthogonalization matrix for each molecule separatedly.
-!!            For a given molecule the corresponding portion of the overlap 
-!!            matrix is copied in the (n_ao x n_ao) ortho matrix , 
-!!            where n_ao is restricted to the number of  atomic orbitals 
-!!            centered on the atoms of the molecule. This matrix is then passed 
-!!            to the cholesky or the canonical orthogonalization routines. 
-!!            Each molecule, and cosequently each ortho matrix, is assigned 
-!!            to one single processor, therefore the orthogonalization operations 
-!!            are not distributed further. 
+!!            For a given molecule the corresponding portion of the overlap
+!!            matrix is copied in the (n_ao x n_ao) ortho matrix ,
+!!            where n_ao is restricted to the number of  atomic orbitals
+!!            centered on the atoms of the molecule. This matrix is then passed
+!!            to the cholesky or the canonical orthogonalization routines.
+!!            Each molecule, and cosequently each ortho matrix, is assigned
+!!            to one single processor, therefore the orthogonalization operations
+!!            are not distributed further.
 !!   NOTE
 !!            I suppose omp can add further parallelization
 !!
@@ -990,7 +990,7 @@ CONTAINS
 !!     jgh (adapted from QS)
 !!
 !!   MODIFICATION HISTORY
-!!     fully activated 12-04 MI 
+!!     fully activated 12-04 MI
 !!*** **********************************************************************
 
   SUBROUTINE calculate_ortho_per_molecule(kg_fm_mol_set,s,ndep,scf_control,&
@@ -1002,8 +1002,8 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: ndep
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL, INTENT(IN)                      :: do_orthogonalization
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ortho_per_molecule', &
       routineP = moduleN//':'//routineN
@@ -1074,7 +1074,7 @@ CONTAINS
                   DO irow_ortho = row_first,   row_last
                      ortho(irow_ortho,icol_ortho) = s_block(irow,icol)
                      irow = irow + 1
-                  END DO  ! irow_ortho 
+                  END DO  ! irow_ortho
                   icol = icol + 1
                END DO   ! icol_ortho
              ELSE
@@ -1089,7 +1089,7 @@ CONTAINS
                   DO irow_ortho = row_first,   row_last
                      ortho(irow_ortho,icol_ortho) = s_block(icol,irow)
                      irow = irow + 1
-                  END DO  ! irow_ortho 
+                  END DO  ! irow_ortho
                   icol = icol + 1
                END DO   ! icol_ortho
              END IF
@@ -1104,9 +1104,9 @@ CONTAINS
 
           ELSE
 
-            CALL fm_mol_power(ortho,work,ld_work,nc_work,-0.5_dp,scf_control%eps_eigval,ndep)
+            CALL fm_mol_power(ortho,work,ld_work,nc_work,-0.5_dp,scf_control%eps_eigval,ndep,error=error)
             ! Transform the upper triangular matrix in a full matrix
-            DO irow = 1,ld_ortho 
+            DO irow = 1,ld_ortho
               DO icol = irow+1,nc_ortho
                 ortho(icol,irow) = ortho(irow,icol)
               END DO
@@ -1129,23 +1129,23 @@ CONTAINS
 !!     kgscf_first_density_matrix
 !!
 !!   FUNCTION
-!!     Calculate the very first density matrix 
+!!     Calculate the very first density matrix
 !!
 !!   NOTES
-!!  
+!!
 !!
 !!   INPUTS
-!!     - kg_fm_mol_set: the set of mos and ortho matrixes, one per each molecule 
+!!     - kg_fm_mol_set: the set of mos and ortho matrixes, one per each molecule
 !!     - qs_env: the qs env that lives in kg_env
 !!     - kg_env: general info about the environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!      MI
 !!
 !!   MODIFICATION HISTORY
-!!     11.2004 created 
+!!     11.2004 created
 !!
 !!*************************************************************************
 
@@ -1155,8 +1155,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kgscf_first_density_matrix', &
       routineP = moduleN//':'//routineN
@@ -1213,7 +1213,7 @@ CONTAINS
                     matrix_h=matrix_h,&
                     matrix_s=matrix_s,&
                     scf_control=scf_control, id_nr=qs_env_id,&
-                    dft_control=dft_control)
+                    dft_control=dft_control,error=error)
 
     nspin=dft_control%nspins
     kg_fm_mol_set => kg_fm%kg_fm_mol_set
@@ -1254,9 +1254,9 @@ CONTAINS
                                 nmo=nmo)
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
-                                         nat_mol,mo_coeff,nmo,s_mo)
-            ! orthogonalize the molecular orbitals 
-            CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV")
+                                         nat_mol,mo_coeff,nmo,s_mo,error=error)
+            ! orthogonalize the molecular orbitals
+            CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV",error=error)
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
                                        nat_mol,matrix_p(ispin)%matrix,error=error)
@@ -1294,12 +1294,12 @@ CONTAINS
             CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
                  nmo=nmo)
             ! Initialize random coefficients
-            CALL  mol_mo_random(mo_coeff,para_env%mepos,para_env%num_pe) 
+            CALL  mol_mo_random(mo_coeff,para_env%mepos,para_env%num_pe,error=error)
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
-                  nat_mol,mo_coeff,nmo,s_mo)
-            ! orthogonalize the molecular orbitals 
-            CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV")
+                  nat_mol,mo_coeff,nmo,s_mo,error=error)
+            ! orthogonalize the molecular orbitals
+            CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV",error=error)
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
                  nat_mol,matrix_p(ispin)%matrix,error=error)
@@ -1336,12 +1336,12 @@ CONTAINS
           ! Copy the core hamiltonian of this molecule in the aux_matrix
           CALL copy_sparse2mol_block(matrix_h(1)%matrix, mol_block,&
                                aux_matrix, nat_mol, n_ao_kind, n_ao_kind, error)
-  
+
           DO ispin=1,nspin
             NULLIFY(mo_set,mo_coeff)
             mo_set => mos(ispin)%mo_set
 
-            ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set 
+            ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set
             CALL fm_mol_eigensolver(aux_matrix,mo_set,ortho,work,n_ao_kind,&
                                    .FALSE.,0.0_dp,&
                                     use_cholesky=scf_control%use_cholesky, &
@@ -1382,7 +1382,7 @@ CONTAINS
 
       CALL get_kg_env(kg_env=kg_env,nao_global=nao_global,&
                       nelectron_global=nel_global,&
-                      maxocc_global=maxocc_global)
+                      maxocc_global=maxocc_global,error=error)
       IF(nspin > 1) THEN
         nelectron(1:2) = FLOOR(REAL(nel_global/nspin,dp))
         IF(nelectron(1)+nelectron(2) /= nel_global) &
@@ -1391,7 +1391,7 @@ CONTAINS
         nelectron(1) = nel_global
         nelectron(2) = 0
       END IF
-      
+
       ALLOCATE (pdiag(nao_global),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       pdiag(:) = 0.0_dp
@@ -1472,7 +1472,7 @@ CONTAINS
           END DO
         ELSE
           scale = (REAL(nelectron(ispin),dp) - trps1)/trps2
-          DO isgf=1,nao_global 
+          DO isgf=1,nao_global
             IF (pdiag(isgf) < maxocc_global(ispin)) pdiag(isgf) = scale*pdiag(isgf)
           END DO
         END IF
@@ -1508,7 +1508,7 @@ CONTAINS
 !!     kgscf_initial_rho
 !!
 !!   FUNCTION
-!!     Initializes rho and the mos for the kg_gpw method. 
+!!     Initializes rho and the mos for the kg_gpw method.
 !!     Each molecule contributes a set of mos. Each set
 !!     is generated (or read), orthogonalized and opportunely
 !!     transformed into the corresponding portion of the density matrix
@@ -1519,16 +1519,16 @@ CONTAINS
 !!     - extrapolation from previous steps of MD or GEOPT not implemented yet
 !!
 !!   INPUTS
-!!     - kg_fm: the set of mos and ortho matrixes, one per each molecule 
+!!     - kg_fm: the set of mos and ortho matrixes, one per each molecule
 !!     - qs_env: the qs env that lives in kg_env
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!      MI
 !!
 !!   MODIFICATION HISTORY
-!!     11.2004 created 
+!!     11.2004 created
 !!
 !!*************************************************************************
 
@@ -1539,8 +1539,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kgscf_initial_rho', &
       routineP = moduleN//':'//routineN
@@ -1583,7 +1583,7 @@ CONTAINS
                TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)      
+            "PRINT%PROGRAM_RUN_INFO", error=error)
 
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL kgscf_first_density_matrix(kg_fm,qs_env=qs_env,&
@@ -1592,7 +1592,7 @@ CONTAINS
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
 ! ** Updates the molecular rho for each molecule independently ***
-         CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+         CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
          CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
 
        END IF
@@ -1613,19 +1613,19 @@ CONTAINS
 !!     at the end of the kg_scf
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   MODIFICATION HISTORY
-!!     11.2004 created 
+!!     11.2004 created
 !!
 !!*** **********************************************************************
   SUBROUTINE kg_scf_env_cleanup(scf_env,qs_env,error)
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_cleanup', &
       routineP = moduleN//':'//routineN
@@ -1660,13 +1660,13 @@ CONTAINS
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
           DO ispin=1,SIZE(scf_env%ot_preconditioner)
-             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner)
+             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
              DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
           ENDDO
           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DO ispin=1,SIZE(scf_env%qs_ot_env)
-             CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
+             CALL ot_scf_destroy(scf_env%qs_ot_env(ispin),error=error)
           ENDDO
           DEALLOCATE(scf_env%qs_ot_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1705,8 +1705,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - scf_env: the scf env to inform
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!
@@ -1716,8 +1716,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE kg_scf_env_did_change(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_did_change', &
       routineP = moduleN//':'//routineN
@@ -1727,12 +1727,12 @@ SUBROUTINE kg_scf_env_did_change(scf_env,error)
 !    -------------------------------------------------------------------------
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-        CALL deallocate_matrix_set(scf_env%p_mix_new)
+        CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
      END IF
   END IF
 END SUBROUTINE kg_scf_env_did_change

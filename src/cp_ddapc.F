@@ -113,8 +113,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: dq_out
     LOGICAL, INTENT(in), OPTIONAL            :: just_charge
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_ddapc', &
       routineP = moduleN//':'//routineN
@@ -435,8 +435,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: energy, energy_res
     TYPE(coeff_type)                         :: v_hartree_gspace
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply', &
       routineP = moduleN//':'//routineN
@@ -617,8 +617,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
     TYPE(ddapc_restraint_type), &
       INTENT(INOUT)                          :: ddapc_restraint_control
     REAL(KIND=dp), INTENT(INOUT)             :: energy_res
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'restraint_functional_potential', &
@@ -713,8 +713,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M, AmI
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii, charges
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'modify_hartree_pot', &
       routineP = moduleN//':'//routineN
@@ -809,8 +809,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
     REAL(KIND=dp), INTENT(IN)                :: Vol
     TYPE(section_vals_type), POINTER         :: param_section
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_b_vector', &
       routineP = moduleN//':'//routineN
@@ -904,8 +904,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
     REAL(KIND=dp), INTENT(IN)                :: Vol
     TYPE(section_vals_type), POINTER         :: param_section
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_A_matrix', &
       routineP = moduleN//':'//routineN
@@ -996,8 +996,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_charge', &
       routineP = moduleN//':'//routineN

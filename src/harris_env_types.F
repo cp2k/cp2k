@@ -167,8 +167,8 @@ CONTAINS
   SUBROUTINE harris_env_retain(harris_env, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_retain', &
       routineP = moduleN//':'//routineN
@@ -215,8 +215,8 @@ CONTAINS
   SUBROUTINE harris_env_release(harris_env, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_release', &
       routineP = moduleN//':'//routineN
@@ -293,8 +293,8 @@ CONTAINS
     TYPE(harris_force_type), OPTIONAL, &
       POINTER                                :: harris_force
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_diff
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_get', &
       routineP = moduleN//':'//routineN
@@ -360,8 +360,8 @@ CONTAINS
     TYPE(harris_force_type), OPTIONAL, &
       POINTER                                :: harris_force
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_diff
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_set', &
       routineP = moduleN//':'//routineN
@@ -416,8 +416,8 @@ CONTAINS
 
     TYPE(harris_env_type), POINTER           :: harris_env
     INTEGER, INTENT(IN)                      :: natom, nspins
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_clear', &
       routineP = moduleN//':'//routineN
@@ -482,8 +482,8 @@ CONTAINS
 
     TYPE(harris_env_type), POINTER           :: harris_env
     INTEGER, INTENT(IN)                      :: natom, nspins
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_create', &
       routineP = moduleN//':'//routineN

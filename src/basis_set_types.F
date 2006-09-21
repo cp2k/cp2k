@@ -819,8 +819,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gto_basis_set'
 
@@ -852,9 +852,9 @@ CONTAINS
 
     gto_basis_set%name = basis_set_name
     CALL section_vals_val_get(force_env_section,"DFT%BASIS_SET_FILE_NAME",&
-         c_val=basis_set_file_name)
+         c_val=basis_set_file_name,error=error)
     NULLIFY(parser)
-    CALL parser_create(parser,basis_set_file_name,para_env=para_env)
+    CALL parser_create(parser,basis_set_file_name,para_env=para_env,error=error)
 
     ! Search for the requested basis set in the basis set file
     ! until the basis set is found or the end of file is reached
@@ -864,7 +864,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line)
+      CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line,error=error)
 
       IF (found) THEN
 
@@ -887,7 +887,7 @@ CONTAINS
 
           ! Read the basis set information
 
-          CALL parser_get_object(parser,nset,newline=.TRUE.)
+          CALL parser_get_object(parser,nset,newline=.TRUE.,error=error)
 
           CALL reallocate(npgf,1,nset)
           CALL reallocate(nshell,1,nset)
@@ -900,11 +900,11 @@ CONTAINS
           maxshell = 0
 
           DO iset=1,nset
-            CALL parser_get_object(parser,n(1,iset),newline=.TRUE.)
-            CALL parser_get_object(parser,lmin(iset))
-            CALL parser_get_object(parser,lmax(iset))
+            CALL parser_get_object(parser,n(1,iset),newline=.TRUE.,error=error)
+            CALL parser_get_object(parser,lmin(iset),error=error)
+            CALL parser_get_object(parser,lmax(iset),error=error)
             maxl = MAX(maxl,lmax(iset))
-            CALL parser_get_object(parser,npgf(iset))
+            CALL parser_get_object(parser,npgf(iset),error=error)
             IF (npgf(iset) > maxpgf) THEN
               maxpgf = npgf(iset)
               CALL reallocate(zet,1,maxpgf,1,nset)
@@ -913,7 +913,7 @@ CONTAINS
             nshell(iset) = 0
             DO lshell=lmin(iset),lmax(iset)
               nmin = n(1,iset) + lshell - lmin(iset)
-              CALL parser_get_object(parser,ishell)
+              CALL parser_get_object(parser,ishell,error=error)
               nshell(iset) = nshell(iset) + ishell
               IF (nshell(iset) > maxshell) THEN
                 maxshell = nshell(iset)
@@ -927,9 +927,9 @@ CONTAINS
               END DO
             END DO
             DO ipgf=1,npgf(iset)
-              CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.)
+              CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.,error=error)
               DO ishell=1,nshell(iset)
-                CALL parser_get_object(parser,gcc(ipgf,ishell,iset))
+                CALL parser_get_object(parser,gcc(ipgf,ishell,iset),error=error)
               END DO
             END DO
           END DO
@@ -1173,8 +1173,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1248,8 +1248,8 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: ipgf, iset, ishell
 
@@ -1291,8 +1291,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1521,8 +1521,8 @@ CONTAINS
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, OPTIONAL                        :: ngauss
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_gto_from_sto_basis'
     INTEGER, PARAMETER                       :: maxng = 6

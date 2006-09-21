@@ -69,7 +69,7 @@ MODULE ewalds
 !!   FUNCTION
 !!     computes the potential and the force from the g-space part of
 !!     the 1/r potential
-!!     Ref.: J.-P. Hansen, Enrico Fermi School, 1985         
+!!     Ref.: J.-P. Hansen, Enrico Fermi School, 1985
 !!     Note: Only the positive G-vectors are used in the sum.
 !!
 !!   AUTHOR
@@ -84,7 +84,7 @@ MODULE ewalds
 !******************************************************************************
 
 SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,  &
-                           local_particles, fg_coulomb, vg_coulomb, pv_g )
+                           local_particles, fg_coulomb, vg_coulomb, pv_g, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -96,6 +96,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
     REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_g
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: summe
@@ -125,7 +126,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
   flops = 0.0_dp
 
 ! pointing
-  CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
+  CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group ,error=error)
   CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_pool, dg = dg )
   CALL dg_get ( dg, dg_rho0=dg_rho0 )
   rho0 => dg_rho0 % density % pw % cr3d
@@ -136,8 +137,8 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
   nparticle_kind = SIZE ( atomic_kind_set )
   nnodes = 0
   DO iparticle_kind = 1, nparticle_kind
-     nnodes = nnodes + local_particles%n_el(iparticle_kind) 
-  ENDDO 
+     nnodes = nnodes + local_particles%n_el(iparticle_kind)
+  ENDDO
 
   CALL structure_factor_allocate ( pw_grid % bounds, nnodes, exp_igr)
 
@@ -168,7 +169,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
         exp_igr % ex(:,node), exp_igr % ey(:,node), exp_igr % ez(:,node) )
      END DO
   END DO
-  
+
   summe ( : ) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
 ! looping over the positive g-vectors
   DO gpt = 1, pw_grid % ngpts_cut
@@ -252,7 +253,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
   flops = flops + pw_grid % ngpts_cut * 55.0_dp &
        + pw_grid % ngpts_cut * node * 23.0_dp
 
-  pref = 1.0_dp / eps0 / pw_grid % vol 
+  pref = 1.0_dp / eps0 / pw_grid % vol
   vg_coulomb = vg_coulomb * pref
   pv_g = pv_g * pref
 
@@ -281,7 +282,7 @@ END SUBROUTINE ewald_evaluate
 !!     ewald_self
 !!
 !!   FUNCTION
-!     Computes the self interaction from g-space 
+!     Computes the self interaction from g-space
 !!     and the neutralizing background
 !!
 !!   AUTHOR
@@ -294,12 +295,13 @@ END SUBROUTINE ewald_evaluate
 !******************************************************************************
 
 SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
-                        local_particles, e_self, e_neut  )
+                        local_particles, e_self, e_neut, error  )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     REAL(KIND=dp), INTENT(OUT)               :: e_self, e_neut
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ewald_type, group, &
                                                 iparticle_kind, &
@@ -311,7 +313,7 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
 !------------------------------------------------------------------------------
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type,  &
-                       eps0 = eps0, alpha = alpha, group = group ) 
+                       eps0 = eps0, alpha = alpha, group = group ,error=error)
   q_self = 0.0_dp
   q_sum = 0.0_dp
   nparticle_kind = SIZE ( atomic_kind_set )
@@ -348,7 +350,7 @@ END SUBROUTINE ewald_self
 !!     ewald_correction
 !!
 !!   FUNCTION
-!!     computing the shift in the potential energy 
+!!     computing the shift in the potential energy
 !!     for the real space coulomb potential
 !!
 !!   AUTHOR
@@ -360,13 +362,14 @@ END SUBROUTINE ewald_self
 !!   SOURCE
 !******************************************************************************
 
-FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq ) &
+FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq, error ) &
      RESULT ( e_cutoff_coul )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     REAL(KIND=dp), INTENT(IN)                :: qi, qj, rcutsq
     REAL(KIND=dp)                            :: e_cutoff_coul
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
@@ -379,7 +382,7 @@ FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq ) &
 !------------------------------------------------------------------------------
 ! compute the value of the real-space coulomb at the cut-off
 
-  CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha )
+  CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha ,error=error)
   inv_fourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
   arg = alpha * SQRT ( rcutsq )
   e_arg_arg = EXP ( - arg ** 2 )

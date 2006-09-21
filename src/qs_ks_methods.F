@@ -170,8 +170,8 @@ CONTAINS
 !!   INPUTS
 !!     - ks_env: the ks env to be initialized
 !!     - qs_env: the qs environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -183,8 +183,8 @@ CONTAINS
   SUBROUTINE qs_ks_create(ks_env, qs_env, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
       routineP = moduleN//':'//routineN
@@ -211,10 +211,10 @@ CONTAINS
             pw_env, cell,pw_pools)
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
-            pw_env=pw_env, cell=cell)
+            pw_env=pw_env, cell=cell,error=error)
        CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
-            auxbas_grid=auxbas_grid)
-       
+            auxbas_grid=auxbas_grid,error=error)
+
        nspins=dft_control%nspins
 
        ks_env%s_mstruct_changed=.TRUE.
@@ -229,9 +229,9 @@ CONTAINS
     END IF
     IF (.NOT.failure) THEN
        ks_env%auxbas_pw_pool=>auxbas_pw_pool
-       CALL pw_pool_retain(ks_env%auxbas_pw_pool)
+       CALL pw_pool_retain(ks_env%auxbas_pw_pool,error=error)
        CALL pw_pool_init_coeff(auxbas_pw_pool,ks_env%v_hartree_rspace,&
-            use_data=REALDATA3D, in_space=REALSPACE)
+            use_data=REALDATA3D, in_space=REALSPACE,error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)
@@ -265,8 +265,8 @@ CONTAINS
 !!     - rho_xc: the soft density, only for gapw_xc , must be up to date
 !!     - energy: the place where energies are stored
 !!     - qs_charges: the place where the grids charges are stored
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Matthias Krack
@@ -301,8 +301,8 @@ CONTAINS
     TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
     LOGICAL, INTENT(IN), OPTIONAL            :: diis_step
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
@@ -392,7 +392,7 @@ CONTAINS
          ep_qs_env=ep_qs_env,&
          error=error)
 
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)    
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     do_ep=ASSOCIATED(ep_qs_env)
     IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces.and.&
          ASSOCIATED(ep_qs_env%dH_coeffs)
@@ -495,17 +495,17 @@ CONTAINS
        IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
             "PRINT%DETAILED_ENERGY",error=error),cp_p_file).AND.(.NOT.gapw).AND.(.NOT.gapw_xc)) THEN
           CALL coeff_zero(rho_tot_gspace)
-          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.)
+          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.,error=error)
           CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%e_hartree,&
-               v_hartree_gspace%pw)
+               v_hartree_gspace%pw,error=error)
           CALL coeff_zero(rho_tot_gspace)
           CALL coeff_zero(v_hartree_gspace)
        END IF
 
-       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-            extension=".scfLog",error=error)       
+            extension=".scfLog",error=error)
        CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%TOTAL_DENSITIES", error=error)
@@ -513,17 +513,17 @@ CONTAINS
        IF (use_virial .AND. calculate_forces) THEN
          h_stress(:,:) = 0.0_dp
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
-                             v_hartree_gspace%pw,h_stress=h_stress)
+                             v_hartree_gspace%pw,h_stress=h_stress,error=error)
          DO dir=1,3
            h_stress(dir,dir) = h_stress(dir,dir)/REAL(para_env%num_pe,dp)
            virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) + h_stress(dir,dir)
-         END DO 
+         END DO
        ELSE
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
-                             v_hartree_gspace%pw)
+                             v_hartree_gspace%pw,error=error)
        END IF
-       
-      
+
+
        ! In case decouple periodic images and/or apply restraints to charges
        CALL cp_ddapc_apply(qs_env,&
                            rho_tot_gspace,&
@@ -547,15 +547,15 @@ CONTAINS
 
        CALL calc_v_sic_rspace(v_sic_rspace,energy,&
                               qs_env,dft_control,rho,poisson_env,just_energy,&
-                              auxbas_pw_pool)
+                              auxbas_pw_pool,error=error)
 
-       IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c)
+       IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
 
        ! *** Add the QM/MM potential ***
        IF (qs_env%qmmm) THEN
           output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
                extension=".qmmmLog",error=error)
-          IF (output_unit>0) &          
+          IF (output_unit>0) &
                WRITE (UNIT=output_unit,FMT="(T3,A)")&
                "Adding QM/MM electrostatic potential to the Kohn-Sham potential.."
            CALL qmmm_calculate_energy (qs_env=qs_env,&
@@ -574,7 +574,7 @@ CONTAINS
            END IF
        END IF
 
-       ! *** calculate the xc potential on the pw density ***       
+       ! *** calculate the xc potential on the pw density ***
        ! *** associates v_rspace_new if the xc potential needs to be computed.
 
 !
@@ -604,7 +604,7 @@ CONTAINS
                      use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
 
                 CALL pw_poisson_solve(poisson_env,ep_rho_g%pw,ep_qs_env%core_energy,&
-                     ep_pot_g)
+                     ep_pot_g,error=error)
 
                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,ep_rho_g,error=error)
                 CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_r,&
@@ -615,18 +615,18 @@ CONTAINS
                 CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_g,error=error)
 
                 CALL coeff_init(ep_pot_r_coeff,pw=ep_pot_r,error=error)
-                CALL integrate_v_core_rspace(ep_pot_r_coeff, qs_env)
+                CALL integrate_v_core_rspace(ep_pot_r_coeff, qs_env,error=error)
 
                 CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
              ELSE
-                CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
+                CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
              END IF
           END IF
 
           ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
 
           DO ispin=1,nspins
-            CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
+            CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
           END DO
 
           IF (ASSOCIATED(v_rspace_new)) THEN
@@ -665,9 +665,9 @@ CONTAINS
                        v_rspace_new(ispin)%pw%pw_grid%dvol * &
                        v_rspace_new(ispin)%pw%cr3d + &
                        ks_env%v_hartree_rspace%pw%cr3d
- 
+
                   ! the electrostatic sic contribution
-                  SELECT CASE (dft_control%sic_method_id) 
+                  SELECT CASE (dft_control%sic_method_id)
                   CASE (sic_none)
                      !
                   CASE (sic_mauri_us,sic_mauri_spz )
@@ -680,7 +680,7 @@ CONTAINS
                      ENDIF
                   CASE ( sic_ad )
                     v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
-                 END SELECT 
+                 END SELECT
                  ! add the part due to v_rspace
                  IF (do_ep) THEN
                     my_rho => ep_qs_env%dH_coeffs
@@ -705,11 +705,11 @@ CONTAINS
                        error=error)
                END DO
              END IF
-             SELECT CASE (dft_control%sic_method_id) 
+             SELECT CASE (dft_control%sic_method_id)
              CASE (sic_none)
              CASE (sic_mauri_us,sic_mauri_spz, sic_ad )
                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_sic_rspace,error=error)
-             END SELECT 
+             END SELECT
              DEALLOCATE(v_rspace_new,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           ELSE
@@ -744,7 +744,7 @@ CONTAINS
              DO ispin=1,nspins
                  v_tau_rspace(ispin)%pw%cr3d =&
                       v_tau_rspace(ispin)%pw%pw_grid%dvol*&
-                      v_tau_rspace(ispin)%pw%cr3d 
+                      v_tau_rspace(ispin)%pw%cr3d
 
                  IF (ASSOCIATED(matrix_dv)) THEN
                     CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
@@ -762,14 +762,14 @@ CONTAINS
                          error=error)
                  END IF
                  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
-                      error=error)                 
+                      error=error)
 
               END DO
               DEALLOCATE(v_tau_rspace, stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
        END IF  ! .NOT. just energy
-  
+
        IF(my_kg_gpw) THEN
          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
          CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
@@ -783,7 +783,7 @@ CONTAINS
                               calculate_forces=calculate_forces,&
                               just_energy=just_energy,error=error)
        ! Change sign : it is the correction due to the double counting
-         energy%kg_gpw_ekin_mol = -energy%kg_gpw_ekin_mol 
+         energy%kg_gpw_ekin_mol = -energy%kg_gpw_ekin_mol
        END IF
 
        IF(gapw) THEN
@@ -794,7 +794,7 @@ CONTAINS
 !      ***  Energy, Integrals and Forces coming from the 2-centers terms
 !      ***  Inizialize the energy
           energy%hartree_2c = 0.0_dp
-          CALL integrate_vhg0_g0(qs_env,energy%hartree_2c,.FALSE.,calculate_forces)
+          CALL integrate_vhg0_g0(qs_env,energy%hartree_2c,.FALSE.,calculate_forces,error=error)
 
 !      ***  Energy, Integrals and Forces coming from the 3-centers terms
 !      *** Initialize energy
@@ -809,8 +809,8 @@ CONTAINS
           CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,&
                calculate_forces,error=error)
        ENDIF
-!      
-  
+!
+
        energy%mulliken = 0.0_dp
        IF (dft_control%qs_control%mulliken_restraint) THEN
            IF (just_energy) THEN
@@ -825,36 +825,36 @@ CONTAINS
        ENDIF
 
        ! **** right now we can compute the orbital derivative here, as it depends currently only on the available
-       ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled 
+       ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
        ! **** from this routine, notice that this part of the calculation in not linear scaling
        ! **** right now this operation is only non-trivial because of occupation numbers and the restricted keyword
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
-          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
-          DO ispin=1,SIZE(mo_derivs)          
+          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
+          DO ispin=1,SIZE(mo_derivs)
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
                              occupation_numbers=occupation_numbers )
-             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
+             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                          mo_derivs(ispin)%matrix, k)
+                                          mo_derivs(ispin)%matrix, k,error=error)
              ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
              scaling_factor=2.0_dp*occupation_numbers
              CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
              DEALLOCATE(scaling_factor)
 
-             IF (dft_control%restricted) THEN 
+             IF (dft_control%restricted) THEN
                  ! only the first mo_set are actual variables, but we still need both
-                 CPPrecondition(ispin==1, cp_failure_level, routineP, error, failure)  
-                 CPPrecondition(SIZE(mo_array)==2, cp_failure_level, routineP, error, failure)  
+                 CPPrecondition(ispin==1, cp_failure_level, routineP, error, failure)
+                 CPPrecondition(SIZE(mo_array)==2, cp_failure_level, routineP, error, failure)
                  ! use a temporary array with the same size as the first spin for the second spin
-                 CALL cp_fm_create(hc_tmp,mo_derivs(1)%matrix%matrix_struct)
-                 CALL cp_fm_set_all(hc_tmp,0.0_dp)
-                 CALL cp_fm_get_info(hc_tmp,ncol_global=k2)
+                 CALL cp_fm_create(hc_tmp,mo_derivs(1)%matrix%matrix_struct,error=error)
+                 CALL cp_fm_set_all(hc_tmp,0.0_dp,error=error)
+                 CALL cp_fm_get_info(hc_tmp,ncol_global=k2,error=error)
 
                  CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, &
                                  occupation_numbers=occupation_numbers )
-                 CALL cp_fm_get_info(mo_coeff,ncol_global=k)
+                 CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
                  CALL cp_sm_fm_multiply(ks_matrix(2)%matrix,mo_coeff,&
-                                        hc_tmp, k)
+                                        hc_tmp, k,error=error)
                  ALLOCATE(scaling_factor(k2))
                  scaling_factor=0.0_dp
                  scaling_factor(1:k)=2.0_dp*occupation_numbers(1:k)
@@ -862,8 +862,8 @@ CONTAINS
                  DEALLOCATE(scaling_factor)
 
                  ! sum the corresponding columns (relies on the final columns of hc_tmp being zero)
-                 CALL cp_fm_scale_and_add(1.0_dp, mo_derivs(1)%matrix, 1.0_dp, hc_tmp)
-                 CALL cp_fm_release(hc_tmp)
+                 CALL cp_fm_scale_and_add(1.0_dp, mo_derivs(1)%matrix, 1.0_dp, hc_tmp,error=error)
+                 CALL cp_fm_release(hc_tmp,error=error)
              ENDIF
 
           ENDDO
@@ -874,10 +874,10 @@ CONTAINS
            CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
            CPPrecondition(qs_env%requires_mo_derivs,cp_failure_level,routineP,error,failure)
            ! forces are not implemented (not difficult, but ... )
-           CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,error,failure) 
-           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
+           CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,error,failure)
+           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
            CALL s2_restraint(mo_array, matrix_s, mo_derivs, energy%s2_restraint, &
-                             dft_control%qs_control%s2_restraint_control, just_energy, error) 
+                             dft_control%qs_control%s2_restraint_control, just_energy, error)
        ELSE
           energy%s2_restraint = 0.0_dp
        ENDIF
@@ -964,8 +964,8 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     LOGICAL, INTENT(IN)                      :: just_energy
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(*), PARAMETER :: routineN = 'calc_v_sic_rspace', &
       routineP = moduleN//':'//routineN
@@ -984,7 +984,7 @@ CONTAINS
     CALL cp_assert(.NOT. dft_control%qs_control%gapw, cp_failure_level,cp_assertion_failed,routineP,&
                    "sic and GAPW not yet compatible",error,failure)
 
-    ! OK, right now we like two spins to do sic, could be relaxed for AD 
+    ! OK, right now we like two spins to do sic, could be relaxed for AD
     CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
 
     CALL pw_pool_init_coeff(auxbas_pw_pool, work_rho, &
@@ -993,23 +993,23 @@ CONTAINS
     CALL pw_pool_init_coeff(auxbas_pw_pool, work_v,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE, error=error)
-    
+
     ! Hartree sic corrections
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
        CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),work_rho)
-       CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw)
+       CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
        energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
     CASE ( sic_ad )
        ! find out how many elecs we have
-       CALL get_qs_env(qs_env,mos=mo_array)
+       CALL get_qs_env(qs_env,mos=mo_array,error=error)
        CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_a)
        CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_b)
        nelec = nelec_a + nelec_b
        CALL coeff_add(rho%rho_g(1),rho%rho_g(2),work_rho)
        scaling = 1.0_dp / REAL(nelec,KIND=dp)
        CALL coeff_scale(work_rho,scaling)
-       CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw)
+       CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
        energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
@@ -1018,7 +1018,7 @@ CONTAINS
 
     IF (.NOT. just_energy) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
-                               use_data=REALDATA3D, in_space=REALSPACE)
+                               use_data=REALDATA3D, in_space=REALSPACE,error=error)
        CALL coeff_transform_space(work_v, v_sic_rspace)
        ! also take into account the scaling (in addition to the volume element)
        CALL coeff_scale(v_sic_rspace, &
@@ -1037,8 +1037,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_nuclear_density
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(*), PARAMETER :: routineN = 'calc_rho_tot_gspace', &
       routineP = moduleN//':'//routineN
@@ -1054,8 +1054,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     rho_core=rho_core,&
                     rho0_s_gs=rho0_s_gs,&
-                    qs_charges=qs_charges)
-    
+                    qs_charges=qs_charges,error=error)
+
     IF (.NOT.my_skip) THEN
        IF(qs_env%dft_control%qs_control%gapw) THEN
           CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
@@ -1081,8 +1081,8 @@ CONTAINS
     TYPE(coeff_type), INTENT(IN)             :: rho_tot_gspace
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     INTEGER                                  :: ispin, n_electrons
     REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r
@@ -1094,11 +1094,11 @@ CONTAINS
     NULLIFY(qs_charges, atomic_kind_set, cell)
     CALL get_qs_env(qs_env=qs_env, &
          atomic_kind_set=atomic_kind_set, &
-         cell=cell,qs_charges=qs_charges)
+         cell=cell,qs_charges=qs_charges,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
          nelectron=n_electrons)
     n_electrons = n_electrons - qs_env%dft_control%charge
-    
+
     tot_rho_r = accurate_sum(rho%tot_rho_r)
     IF(output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -1145,11 +1145,11 @@ CONTAINS
               tot1_h, tot1_s
          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-              accurate_sum(rho_xc%tot_rho_r)+ tot1_h - tot1_s 
+              accurate_sum(rho_xc%tot_rho_r)+ tot1_h - tot1_s
        END IF
        qs_charges%background=tot_rho_r+ &
                                     qs_charges%total_rho_core_rspace
-    ELSE  
+    ELSE
        IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
               "Total charge density (r-space):     ",&
@@ -1162,7 +1162,7 @@ CONTAINS
                                     qs_charges%total_rho_core_rspace
     END IF
     qs_charges%background=qs_charges%background/cell%deth
-           
+
   END SUBROUTINE print_densities
 
 ! *****************************************************************************
@@ -1186,8 +1186,8 @@ CONTAINS
 !!       to calculate the forces. Defaults to false.
 !!     - just_energy: if true updates the energies but not the
 !!       ks matrix. Defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1204,8 +1204,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
       POINTER                                :: kg_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
                                                 just_energy, diis_step
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
       routineP = moduleN//':'//routineN
@@ -1231,7 +1231,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
 
   IF (c_forces) THEN
      CALL timeset(routineN//" (forces)","I","",handle)
-  ELSE 
+  ELSE
      CALL timeset(routineN,"I","",handle)
   ENDIF
 
@@ -1270,8 +1270,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
                calculate_forces=c_forces,just_energy=energy_only,&
                error=error)
         ELSEIF (PRESENT(kg_env)) THEN
-          CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-          CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set)
+          CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
+          CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set,error=error)
           CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
           CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
@@ -1333,8 +1333,8 @@ END SUBROUTINE qs_ks_update_qs_env
 !!       (atoms have moved)
 !!     - rho_changed: if true it means that the density has changed
 !!     - full_reset: if true everything has changed
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1348,8 +1348,8 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
                                                 rho_changed, &
                                                 potential_changed, full_reset
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
       routineP = moduleN//':'//routineN
@@ -1357,7 +1357,7 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1390,7 +1390,7 @@ END SUBROUTINE qs_ks_did_change
 !!     qs_vxc_create
 !!
 !!   FUNCTION
-!!     calculates and allocates the xc potential, already reducing it to 
+!!     calculates and allocates the xc potential, already reducing it to
 !!     the dependence on rho and the one on tau
 !!
 !!   NOTES
@@ -1407,21 +1407,21 @@ END SUBROUTINE qs_ks_did_change
 !!     - calculate_forces: if the forces should be calculated (so that you
 !!       might be able to add forces to the atoms is you do strange stuff in
 !!       the xc
-!!     - just_energy: if true calculates just the energy, and does not 
+!!     - just_energy: if true calculates just the energy, and does not
 !!       allocate v_*_rspace
 !!     - harris: If true uses the rho structure of the Harris environment
 !!     - nsc_force: Uses rho_diff in case the non-self-consistent force should be
 !!                  calculated. Works only in combination with the Harris functional!
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
 !!     - 05.2002 modified to use the mp_allgather function each pe
-!!       computes only part of the grid and this is broadcasted to all 
-!!       instead of summed. 
+!!       computes only part of the grid and this is broadcasted to all
+!!       instead of summed.
 !!       This scales significantly better (e.g. factor 3 on 12 cpus
 !!       32 H2O) [Joost VdV]
 !!     - moved to qs_ks_methods [fawzi]
@@ -1435,8 +1435,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
                                                 nsc_force, gapw_xc
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
@@ -1515,10 +1515,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "nspins must be 1 or 2",error,failure)
 
-  ! there are some options related to SIC here. 
+  ! there are some options related to SIC here.
   ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
-  ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta)) 
-  ! or compute          E(rho_alpha,rho_beta)-b*E(rho_alpha-rho_beta,0) 
+  ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta))
+  ! or compute          E(rho_alpha,rho_beta)-b*E(rho_alpha-rho_beta,0)
 
   ! my_scaling is the scaling needed of the standard E(rho_alpha,rho_beta) term
   my_scaling=1.0_dp
@@ -1547,7 +1547,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool,auxbas_pw_pool=auxbas_pw_pool,&
           error=error)
      uf_grid=(auxbas_pw_pool%pw_grid%id_nr/=xc_pw_pool%pw_grid%id_nr)
-     
+
      ALLOCATE(rho_r(dft_control%nspins),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      IF (.not.uf_grid) THEN
@@ -1686,7 +1686,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         rho_g(2)%pw => rho_m_gspace(2)%pw
         rho_r(1)%pw => rho_m_rspace(1)%pw
         rho_r(2)%pw => rho_m_rspace(2)%pw
-        
+
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                 rho_g=rho_g, xc_section=xc_section,&
@@ -1699,35 +1699,35 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                 cell=cell, pw_pool=xc_pw_pool,&
                 error=error)
         END IF
- 
+
         exc = exc - dft_control % sic_scaling_b * exc_m
-  
+
         ! and take care of the potential only vxc_rho is taken into account
         IF (.NOT. my_just_energy) THEN
            vxc_rho(1)%pw%cr3d=vxc_rho(1)%pw%cr3d-dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d
            vxc_rho(2)%pw%cr3d=vxc_rho(2)%pw%cr3d+dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d ! 1=m
-           CALL pw_release(my_vxc_rho(1)%pw) 
-           CALL pw_release(my_vxc_rho(2)%pw) 
+           CALL pw_release(my_vxc_rho(1)%pw,error=error)
+           CALL pw_release(my_vxc_rho(2)%pw,error=error)
            DEALLOCATE(my_vxc_rho,stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ENDIF
 
         DO ispin=1,2
            CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_rspace(ispin),&
-                                        error=error)                 
+                                        error=error)
            CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_gspace(ispin),&
-                                        error=error)                 
+                                        error=error)
         ENDDO
         DEALLOCATE(rho_m_rspace)
         DEALLOCATE(rho_m_gspace)
-        
+
      ENDIF
 
      ! now we have - sum_s N_s * Exc(rho_s/N_s,0)
      IF ( dft_control % sic_method_id .EQ. sic_ad  .AND. .NOT. sic_scaling_b_zero ) THEN
 
         ! find out how many elecs we have
-        CALL get_qs_env(qs_env,mos=mo_array)
+        CALL get_qs_env(qs_env,mos=mo_array,error=error)
         CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_spin(1))
         CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_spin(2))
 
@@ -1774,12 +1774,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            END IF
 
            exc = exc - dft_control % sic_scaling_b * nelec_spin(ispin) * exc_m
- 
+
            ! and take care of the potential only vxc_rho is taken into account
            IF (.NOT. my_just_energy) THEN
               vxc_rho(ispin)%pw%cr3d=vxc_rho(ispin)%pw%cr3d-dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d
-              CALL pw_release(my_vxc_rho(1)%pw)
-              CALL pw_release(my_vxc_rho(2)%pw)
+              CALL pw_release(my_vxc_rho(1)%pw,error=error)
+              CALL pw_release(my_vxc_rho(2)%pw,error=error)
               DEALLOCATE(my_vxc_rho,stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            ENDIF
@@ -1796,7 +1796,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
      ENDIF
 
-     ! compute again the xc but now for Exc(n_down,n_down) 
+     ! compute again the xc but now for Exc(n_down,n_down)
      IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero ) THEN
         rho_r(1)%pw => rho_struct%rho_r(2)%pw
         rho_r(2)%pw => rho_struct%rho_r(2)%pw
@@ -1804,7 +1804,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            rho_g(1)%pw => rho_struct%rho_g(2)%pw
            rho_g(2)%pw => rho_struct%rho_g(2)%pw
         ENDIF
-        
+
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                 rho_g=rho_g, xc_section=xc_section,&
@@ -1817,16 +1817,16 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                 cell=cell, pw_pool=xc_pw_pool,&
                 error=error)
         END IF
- 
+
         exc = exc + dft_control % sic_scaling_b * exc_m
-  
-        ! and take care of the potential 
+
+        ! and take care of the potential
         IF (.NOT. my_just_energy) THEN
            ! both go to minority spin
-           vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d + & 
-                                2.0_dp * dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d 
-           CALL pw_release(my_vxc_rho(1)%pw) 
-           CALL pw_release(my_vxc_rho(2)%pw) 
+           vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d + &
+                                2.0_dp * dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d
+           CALL pw_release(my_vxc_rho(1)%pw,error=error)
+           CALL pw_release(my_vxc_rho(2)%pw,error=error)
            DEALLOCATE(my_vxc_rho)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ENDIF
@@ -1844,7 +1844,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            DO ispin=1,SIZE(vxc_rho)
               CALL pw_pool_create_pw(auxbas_pw_pool,tmp_pw,&
                    in_space=REALSPACE,use_data=REALDATA3D,error=error)
-              
+
               CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
                    in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
               CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
@@ -1884,7 +1884,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
               NULLIFY(tmp_pw)
            END DO
         END IF
-        
+
      END IF
      DEALLOCATE(rho_r,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1928,7 +1928,7 @@ END SUBROUTINE qs_vxc_create
 !!
 !!    INPUTS
 !!       mo_set : type containing the full matrix of the MO and the eigenvalues
-!!       w_matrix : sparse matrix 
+!!       w_matrix : sparse matrix
 !!       error
 !!
 !!    AUTHOR
@@ -1936,7 +1936,7 @@ END SUBROUTINE qs_vxc_create
 !!
 !!    MODIFICATION HISTORY
 !!        Creation (03.03.03,MK)
-!!        Modification that computes it as a full block, several times (e.g. 20) 
+!!        Modification that computes it as a full block, several times (e.g. 20)
 !!              faster at the cost of some additional memory
 !!
 !!*** *************************************************************************
@@ -1944,8 +1944,8 @@ END SUBROUTINE qs_vxc_create
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: w_matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -1962,8 +1962,8 @@ END SUBROUTINE qs_vxc_create
     NULLIFY(weighted_vectors)
 
     CALL set_matrix(w_matrix,0.0_dp)
-    CALL cp_fm_create(weighted_vectors,mo_set%mo_coeff%matrix_struct,"weighted_vectors")
-    CALL cp_fm_to_fm(mo_set%mo_coeff,weighted_vectors)
+    CALL cp_fm_create(weighted_vectors,mo_set%mo_coeff%matrix_struct,"weighted_vectors",error=error)
+    CALL cp_fm_to_fm(mo_set%mo_coeff,weighted_vectors,error=error)
 
     ! scale every column with the occupation
     ALLOCATE(eigocc(mo_set%homo),stat=istat)
@@ -1978,9 +1978,9 @@ END SUBROUTINE qs_vxc_create
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%mo_coeff,&
                             matrix_g=weighted_vectors,&
-                            ncol=mo_set%homo)
+                            ncol=mo_set%homo,error=error)
 
-    CALL cp_fm_release(weighted_vectors)
+    CALL cp_fm_release(weighted_vectors,error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_w_matrix_1
@@ -1992,7 +1992,7 @@ END SUBROUTINE qs_vxc_create
 !!      calculate_w_matrix_2
 !!
 !!    FUNCTION
-!!      Calculate the W matrix from the MO coefs, MO derivs 
+!!      Calculate the W matrix from the MO coefs, MO derivs
 !!       could overwrite the mo_derivs for increased memory efficiency
 !!
 !!    NOTE
@@ -2001,7 +2001,7 @@ END SUBROUTINE qs_vxc_create
 !!    INPUTS
 !!       mo_set : type containing the full matrix of the MO coefs
 !!       mo_deriv:
-!!       w_matrix : sparse matrix 
+!!       w_matrix : sparse matrix
 !!       s_matrix: sparse matrix for the overlap
 !!       error
 !!
@@ -2012,14 +2012,14 @@ END SUBROUTINE qs_vxc_create
 !!        Creation (JV)
 !!
 !!*** *************************************************************************
-  
+
   SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,s_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_deriv
     TYPE(real_matrix_type), POINTER          :: w_matrix, s_matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     LOGICAL, PARAMETER                       :: check_gradient = .FALSE., &
                                                 do_symm = .FALSE.
@@ -2042,49 +2042,49 @@ END SUBROUTINE qs_vxc_create
                         ncol_global=ncol_global,&
                         nrow_global=nrow_global,&
                         nrow_block=nrow_block,&
-                        ncol_block=ncol_block)
+                        ncol_block=ncol_block,error=error)
 
-    CALL cp_fm_create(weighted_vectors,mo_set%mo_coeff%matrix_struct,"weighted_vectors")
+    CALL cp_fm_create(weighted_vectors,mo_set%mo_coeff%matrix_struct,"weighted_vectors",error=error)
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
                                             para_env=mo_set%mo_coeff%matrix_struct%para_env, &
-                                            context=mo_set%mo_coeff%matrix_struct%context)
-    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
-    IF (do_symm) CALL cp_fm_create(h_block_t,fm_struct_tmp, name="h block t")
-    CALL cp_fm_struct_release(fm_struct_tmp)
+                                            context=mo_set%mo_coeff%matrix_struct%context,error=error)
+    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
+    IF (do_symm) CALL cp_fm_create(h_block_t,fm_struct_tmp, name="h block t",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    ! the convention seems to require the half here, the factor of two is presumably taken care of 
+    ! the convention seems to require the half here, the factor of two is presumably taken care of
     ! internally in qs_core_hamiltonian
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
-                    mo_set%mo_coeff,mo_deriv,0.0_dp,h_block)
+                    mo_set%mo_coeff,mo_deriv,0.0_dp,h_block,error=error)
 
     IF (do_symm) THEN
        ! at the minimum things are anyway symmetric, but numerically it might not be the case
        ! needs some investigation to find out if using this is better
-       CALL cp_fm_transpose(h_block,h_block_t)
-       CALL cp_fm_scale_and_add(0.5_dp,h_block,0.5_dp,h_block_t)
+       CALL cp_fm_transpose(h_block,h_block_t,error=error)
+       CALL cp_fm_scale_and_add(0.5_dp,h_block,0.5_dp,h_block_t,error=error)
     ENDIF
 
     ! this could overwrite the mo_derivs to save the weighted_vectors
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                    mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors)
+                    mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors,error=error)
 
     CALL set_matrix(w_matrix,0.0_dp)
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%mo_coeff,&
                             matrix_g=weighted_vectors,&
-                            ncol=mo_set%homo)
+                            ncol=mo_set%homo,error=error)
 
     IF (check_gradient) THEN
-       CALL cp_fm_create(gradient,mo_set%mo_coeff%matrix_struct,"gradient")
+       CALL cp_fm_create(gradient,mo_set%mo_coeff%matrix_struct,"gradient",error=error)
        CALL cp_sm_fm_multiply(s_matrix,weighted_vectors,&
-                                          gradient, ncol_global)
+                                          gradient, ncol_global,error=error)
        WRITE(6,*) " maxabs difference ", MAXVAL(ABS(mo_deriv%local_data-2.0_dp*gradient%local_data))
-       CALL cp_fm_release(gradient)
+       CALL cp_fm_release(gradient,error=error)
     ENDIF
 
-    IF (do_symm) CALL cp_fm_release(h_block_t)
-    CALL cp_fm_release(weighted_vectors)
-    CALL cp_fm_release(h_block)
+    IF (do_symm) CALL cp_fm_release(h_block_t,error=error)
+    CALL cp_fm_release(weighted_vectors,error=error)
+    CALL cp_fm_release(h_block,error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_w_matrix_2
@@ -2100,8 +2100,8 @@ END SUBROUTINE qs_vxc_create
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: matrix_ks, matrix_p, matrix_w
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
 
@@ -2135,13 +2135,13 @@ END SUBROUTINE qs_vxc_create
     CALL copy_sm_to_fm(matrix_ks,ks,error=error)
     CALL copy_sm_to_fm(matrix_p,p,error=error)
     CALL cp_fm_upper_to_full(p,work,error)
-    CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,p,0.0_dp,work)
-    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks)
+    CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,p,0.0_dp,work,error=error)
+    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks,error=error)
     CALL set_matrix(matrix_w,0.0_dp)
     CALL copy_fm_to_sm(ks,matrix_w)
-    CALL cp_fm_release(work)
-    CALL cp_fm_release(p)
-    CALL cp_fm_release(ks)
+    CALL cp_fm_release(work,error=error)
+    CALL cp_fm_release(p,error=error)
+    CALL cp_fm_release(ks,error=error)
 
     CALL timestop(0.0_dp,handle)
 

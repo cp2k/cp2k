@@ -387,8 +387,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: exit_fname = "EXIT", &
       routineN = 'external_control', routineP = moduleN//':'//routineN

@@ -83,8 +83,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_env_setup(tbmd_env, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_setup', &
       routineP = moduleN//':'//routineN

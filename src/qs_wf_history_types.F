@@ -10,7 +10,7 @@
 !!     qs_wf_history_types
 !!
 !!   FUNCTION
-!!     interpolate the wavefunctions to speed up the convergence when 
+!!     interpolate the wavefunctions to speed up the convergence when
 !!     doing MD
 !!
 !!   NOTES
@@ -97,7 +97,7 @@ MODULE qs_wf_history_types
 !***************************************************************************
   TYPE qs_wf_snapshot_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
-     TYPE(kg_fm_p_type),  POINTER              :: wf_mol 
+     TYPE(kg_fm_p_type),  POINTER              :: wf_mol
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
@@ -225,8 +225,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - snapshot: the snapshot to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -237,8 +237,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE wfs_retain(snapshot,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_retain', &
       routineP = moduleN//':'//routineN
@@ -246,7 +246,7 @@ SUBROUTINE wfs_retain(snapshot,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(snapshot),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      snapshot%ref_count=snapshot%ref_count+1
@@ -273,8 +273,8 @@ END SUBROUTINE wfs_retain
 !!
 !!   ARGUMENTS
 !!     - snapshot: the snapshot to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -286,8 +286,8 @@ END SUBROUTINE wfs_retain
 !!*** **********************************************************************
 SUBROUTINE wfs_release(snapshot,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_release', &
       routineP = moduleN//':'//routineN
@@ -296,7 +296,7 @@ SUBROUTINE wfs_release(snapshot,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(snapshot)) THEN
      CPPreconditionNoFail(snapshot%ref_count>0,cp_failure_level,routineP,error)
      snapshot%ref_count=snapshot%ref_count-1
@@ -314,13 +314,13 @@ SUBROUTINE wfs_release(snapshot,error)
         ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
         ! of qs_wf_history_methods, in case you wonder about it.
         IF (ASSOCIATED(snapshot%rho_ao)) THEN
-           CALL deallocate_matrix_set(snapshot%rho_ao)
+           CALL deallocate_matrix_set(snapshot%rho_ao,error=error)
         END IF
         IF (ASSOCIATED(snapshot%overlap)) THEN
-           CALL deallocate_matrix(snapshot%overlap)
+           CALL deallocate_matrix(snapshot%overlap,error=error)
         END IF
         IF (ASSOCIATED(snapshot%rho_frozen)) THEN
-           CALL qs_rho_release(snapshot%rho_frozen)
+           CALL qs_rho_release(snapshot%rho_frozen,error=error)
         END IF
         DEALLOCATE(snapshot,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -349,8 +349,8 @@ END SUBROUTINE wfs_release
 !!
 !!   ARGUMENTS
 !!     - wf_history: the wf_history to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -361,8 +361,8 @@ END SUBROUTINE wfs_release
 !!*** **********************************************************************
 SUBROUTINE wfi_retain(wf_history,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_retain', &
       routineP = moduleN//':'//routineN
@@ -370,7 +370,7 @@ SUBROUTINE wfi_retain(wf_history,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      wf_history%ref_count=wf_history%ref_count+1
@@ -390,7 +390,7 @@ END SUBROUTINE wfi_retain
 !!     End Subroutine wfi_release
 !!
 !!   FUNCTION
-!!     releases a wf_history of a wavefunction 
+!!     releases a wf_history of a wavefunction
 !!     (see doc/ReferenceCounting.html)
 !!
 !!   NOTES
@@ -398,8 +398,8 @@ END SUBROUTINE wfi_retain
 !!
 !!   ARGUMENTS
 !!     - wf_history: the wf_history to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -410,8 +410,8 @@ END SUBROUTINE wfi_retain
 !!*** **********************************************************************
 SUBROUTINE wfi_release(wf_history,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_release', &
       routineP = moduleN//':'//routineN
@@ -420,7 +420,7 @@ SUBROUTINE wfi_release(wf_history,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(wf_history)) THEN
      CPPreconditionNoFail(wf_history%ref_count>0,cp_failure_level,routineP,error)
      wf_history%ref_count=wf_history%ref_count-1
@@ -463,8 +463,8 @@ END SUBROUTINE wfi_release
 !!   ARGUMENTS
 !!     - wf_history: the plage where to get the snapshot
 !!     - index: the index of the snapshot you want
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -476,8 +476,8 @@ END SUBROUTINE wfi_release
 FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(qs_wf_snapshot_type), POINTER       :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_snapshot', &
@@ -487,7 +487,7 @@ FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
 
   failure=.FALSE.
   NULLIFY(res)
-  
+
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(ASSOCIATED(wf_history%past_states),cp_failure_level,routineP,error,failure)
@@ -518,8 +518,8 @@ END FUNCTION wfi_get_snapshot
 !!     - wf_history: the history to clear
 !!     - flush_buffer: if the memory of the buffer should be released
 !!       defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -531,8 +531,8 @@ END FUNCTION wfi_get_snapshot
 SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     LOGICAL, INTENT(in), OPTIONAL            :: flush_buffer
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_clear_history', &
       routineP = moduleN//':'//routineN
@@ -543,7 +543,7 @@ SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
   failure=.FALSE.
   my_flush_buffer=.FALSE.
   IF (PRESENT(flush_buffer)) my_flush_buffer=flush_buffer
-  
+
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN

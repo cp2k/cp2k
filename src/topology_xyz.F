@@ -36,7 +36,7 @@ MODULE topology_xyz
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"  
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -69,8 +69,8 @@ CONTAINS
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &
       routineP = moduleN//':'//routineN
@@ -85,21 +85,21 @@ CONTAINS
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
-    
+
     atom_info => topology%atom_info
 
     IF(iw>0) WRITE(iw,*) "    Reading in XYZ file ",TRIM(topology%coord_file_name)
     CALL parser_create(parser,topology%coord_file_name,&
-         para_env=para_env,error=error)      
+         para_env=para_env,error=error)
 
     natom = 0
     frame = 0
     CALL parser_get_next_line(parser,1,error=error)
-    Frames: DO 
+    Frames: DO
        ! Atom numbers
-       CALL parser_get_object  (parser,natom)
+       CALL parser_get_object  (parser,natom,error=error)
        topology%natoms = natom
        frame = frame + 1
        IF (frame == 1) THEN

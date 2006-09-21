@@ -102,7 +102,7 @@ MODULE force_fields_util
 !******************************************************************************
 
 CONTAINS
-  
+
 !******************************************************************************
 !!****** force_fields_util/force_field_pack [1.0] *
 !!
@@ -122,7 +122,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!*****************************************************************************
-  
+
   SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,ff_type,root_section,&
@@ -144,8 +144,8 @@ CONTAINS
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
       routineP = moduleN//':'//routineN
@@ -951,7 +951,7 @@ CONTAINS
           CALL uppercase(name_atm_c)
 
           ! loop over params from GROMOS
-          ! ikuo - None that I know... 
+          ! ikuo - None that I know...
 
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%ub_a)) THEN
@@ -1372,7 +1372,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
             elp_potential=elp_potential,&
             atom_list=my_atom_list,&
-            name=atmname) 
+            name=atmname)
        CALL get_potential(potential=elp_potential,&
             qeff=charge(i))
 
@@ -1380,7 +1380,7 @@ CONTAINS
        only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
        IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
-       ! loop over params from charmm  
+       ! loop over params from charmm
        IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
           DO j=1,SIZE(ff_type%chm_info%charge_atm)
              IF((ff_type%chm_info%charge_atm(j))==atmname) THEN
@@ -1402,13 +1402,13 @@ CONTAINS
                 found = .TRUE.
              END IF
           END DO
-       END IF       
+       END IF
        IF (ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
           IF (ASSOCIATED(ff_type%inp_info%nonbonded%pot)) THEN
              ! Let's find the nonbonded potential where this atom is involved
              DO j = 1, SIZE(ff_type%inp_info%nonbonded%pot)
                 IF (atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
-                     atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN                
+                     atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN
                    SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
                    CASE (ea_type)
                       ! Nothing to complain.. we don't need charges
@@ -1427,7 +1427,7 @@ CONTAINS
        ! QM/MM modifications
        !
        IF (only_qm.AND.my_qmmm) THEN
-          IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN 
+          IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN
              scale_factor = 0.0_dp
              IF (is_link_atom) THEN
                 !
@@ -1478,7 +1478,7 @@ CONTAINS
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
-             ii = 0 
+             ii = 0
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a_14)
                 IF((name_atm_a)==(gro_info%nonbond_a_14(k))) THEN
@@ -1513,7 +1513,7 @@ CONTAINS
 
           ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
-             ii = 0 
+             ii = 0
              jj = 0
              DO k=1,SIZE(chm_info%nonbond_a_14)
                 IF((name_atm_a)==(chm_info%nonbond_a_14(k))) THEN
@@ -1620,11 +1620,11 @@ CONTAINS
 
           IF(.NOT.found) THEN
              CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                       atm2=TRIM(name_atm_b),& 
+                                       atm2=TRIM(name_atm_b),&
                                        type_name="Spline_Bond_Env",&
                                        array=Ainfo,&
                                        error=error)
-             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot )
+             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot ,error=error)
              potparm_bond%pot(i,j)%pot%type       = nn_type
              potparm_bond%pot(i,j)%pot%at1        = name_atm_a
              potparm_bond%pot(i,j)%pot%at2        = name_atm_b
@@ -1636,7 +1636,7 @@ CONTAINS
              potparm_bond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
           IF (only_qm) THEN
-             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot )
+             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot ,error=error)
           END IF
        END DO
     END DO
@@ -1724,7 +1724,7 @@ CONTAINS
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a)) THEN
-             ii = 0 
+             ii = 0
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a)
                 IF((name_atm_a)==(gro_info%nonbond_a(k))) THEN
@@ -1759,7 +1759,7 @@ CONTAINS
 
           ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-             ii = 0 
+             ii = 0
              jj = 0
              DO k=1,SIZE(chm_info%nonbond_a)
                 IF((name_atm_a)==(chm_info%nonbond_a(k))) THEN
@@ -1845,7 +1845,7 @@ CONTAINS
           END IF
           IF(.NOT.found) THEN
              CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                       atm2=TRIM(name_atm_b),& 
+                                       atm2=TRIM(name_atm_b),&
                                        type_name="Spline_Non_Bond_Env",&
                                        fatal=fatal,&
                                        array=Ainfo,&
@@ -1856,7 +1856,7 @@ CONTAINS
              potparm_nonbond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
           IF (only_qm) THEN
-             CALL pair_potential_single_clean( potparm_nonbond%pot(i,j)%pot )
+             CALL pair_potential_single_clean( potparm_nonbond%pot(i,j)%pot ,error=error)
           END IF
        END DO
     END DO
@@ -1953,8 +1953,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: array
     INTEGER, INTENT(IN)                      :: output_unit, iw
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_FF_missing_par', &
       routineP = moduleN//':'//routineN
@@ -2010,8 +2010,8 @@ CONTAINS
     LOGICAL, INTENT(INOUT), OPTIONAL         :: fatal
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: array
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'store_FF_missing_par', &
       routineP = moduleN//':'//routineN
@@ -2041,7 +2041,7 @@ CONTAINS
           DO i = 1, nsize
              SELECT CASE (type_name)
              CASE("Bond")
-                IF (INDEX(array(i)(21:39),"Bond")==0)     CYCLE 
+                IF (INDEX(array(i)(21:39),"Bond")==0)     CYCLE
                 my_atm1 = array(i)(41:44)
                 my_atm2 = array(i)(46:49)
                 CALL compress(my_atm1,.TRUE.)
@@ -2049,7 +2049,7 @@ CONTAINS
     IF  (((atm1==my_atm1).AND.(atm2==my_atm2)).OR.&
          ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
              CASE("Angle")
-                IF (INDEX(array(i)(21:39),"Angle")==0)    CYCLE 
+                IF (INDEX(array(i)(21:39),"Angle")==0)    CYCLE
                 my_atm1 = array(i)(41:44)
                 my_atm2 = array(i)(46:49)
                 my_atm3 = array(i)(51:54)
@@ -2060,7 +2060,7 @@ CONTAINS
          ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
          found = .TRUE.
              CASE("Urey-Bradley")
-                IF (INDEX(array(i)(21:39),"Urey-Bradley")==0)    CYCLE 
+                IF (INDEX(array(i)(21:39),"Urey-Bradley")==0)    CYCLE
                 my_atm1 = array(i)(41:44)
                 my_atm2 = array(i)(46:49)
                 my_atm3 = array(i)(51:54)
@@ -2071,7 +2071,7 @@ CONTAINS
          ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
          found = .TRUE.
              CASE("Torsion")
-                IF (INDEX(array(i)(21:39),"Torsion")==0)  CYCLE 
+                IF (INDEX(array(i)(21:39),"Torsion")==0)  CYCLE
                 my_atm1 = array(i)(41:44)
                 my_atm2 = array(i)(46:49)
                 my_atm3 = array(i)(51:54)
@@ -2084,7 +2084,7 @@ CONTAINS
          ((atm1==my_atm4).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm1)))&
          found = .TRUE.
              CASE("Improper")
-                IF (INDEX(array(i)(21:39),"Improper")==0) CYCLE 
+                IF (INDEX(array(i)(21:39),"Improper")==0) CYCLE
                 my_atm1 = array(i)(41:44)
                 my_atm2 = array(i)(46:49)
                 my_atm3 = array(i)(51:54)
@@ -2101,12 +2101,12 @@ CONTAINS
          ((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm4).AND.(atm4==my_atm3)))&
          found = .TRUE.
              CASE("Charge")
-                IF (INDEX(array(i)(21:39),"Charge")==0)   CYCLE 
+                IF (INDEX(array(i)(21:39),"Charge")==0)   CYCLE
                 my_atm1 = array(i)(41:44)
                 CALL compress(my_atm1,.TRUE.)
     IF  (atm1==my_atm1) found = .TRUE.
              CASE("Spline_Bond_Env","Spline_Non_Bond_Env")
-                IF (INDEX(array(i)(21:39),"Spline_")==0)  CYCLE 
+                IF (INDEX(array(i)(21:39),"Spline_")==0)  CYCLE
                 fmt = 0
                 my_atm1 = array(i)(41:44)
                 my_atm2 = array(i)(46:49)
@@ -2148,7 +2148,7 @@ CONTAINS
 !!   SYNOPSIS
 !!
 !!   FUNCTION
-!!     Compute the total qeff charges for each molecule kind and total system 
+!!     Compute the total qeff charges for each molecule kind and total system
 !!
 !!   AUTHOR
 !!
@@ -2170,8 +2170,8 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
       routineP = moduleN//':'//routineN
@@ -2258,8 +2258,8 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
       routineP = moduleN//':'//routineN
@@ -2362,7 +2362,7 @@ CONTAINS
                       IF ( atm2_b == atm_b ) central = atm2_b
                    ENDIF
                    ! If so, check the other two atoms for a match
-                   IF ( atm2_a == central ) THEN 
+                   IF ( atm2_a == central ) THEN
                       IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
                       ! If so, check the other two atoms for a match
                    ELSEIF ( atm2_b == central ) THEN
@@ -2534,7 +2534,7 @@ CONTAINS
              DO ibond=1,SIZE(bond_kind_set)
                 IF(bad1(ibond)==0) THEN
                    counter=counter+1
-                   new_bond_kind_set(counter)= bond_kind_set(ibond)     
+                   new_bond_kind_set(counter)= bond_kind_set(ibond)
                 END IF
              END DO
              counter=0
@@ -2623,7 +2623,7 @@ CONTAINS
              DO ibend=1,SIZE(bend_kind_set)
                 IF(bad1(ibend)==0) THEN
                    counter=counter+1
-                   new_bend_kind_set(counter)= bend_kind_set(ibend)     
+                   new_bend_kind_set(counter)= bend_kind_set(ibend)
                 END IF
              END DO
              counter=0
@@ -2713,7 +2713,7 @@ CONTAINS
              DO iub=1,SIZE(ub_kind_set)
                 IF(bad1(iub)==0) THEN
                    counter=counter+1
-                   new_ub_kind_set(counter)= ub_kind_set(iub)     
+                   new_ub_kind_set(counter)= ub_kind_set(iub)
                 END IF
              END DO
              counter=0
@@ -2750,7 +2750,7 @@ CONTAINS
              END IF
              DEALLOCATE(bad2,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL ub_kind_dealloc_ref(ub_kind_set)
+             CALL ub_kind_dealloc_ref(ub_kind_set,error=error)
              DEALLOCATE(ub_list,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
@@ -2803,7 +2803,7 @@ CONTAINS
              DO itorsion=1,SIZE(torsion_kind_set)
                 IF(bad1(itorsion)==0) THEN
                    counter=counter+1
-                   new_torsion_kind_set(counter)= torsion_kind_set(itorsion)     
+                   new_torsion_kind_set(counter)= torsion_kind_set(itorsion)
                    i = SIZE(torsion_kind_set(itorsion)%m)
                    j = SIZE(torsion_kind_set(itorsion)%k)
                    k = SIZE(torsion_kind_set(itorsion)%cosphi0)
@@ -2815,7 +2815,7 @@ CONTAINS
                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    new_torsion_kind_set(counter)%m= torsion_kind_set(itorsion)%m
                    new_torsion_kind_set(counter)%k= torsion_kind_set(itorsion)%k
-                   new_torsion_kind_set(counter)%cosphi0= torsion_kind_set(itorsion)%cosphi0     
+                   new_torsion_kind_set(counter)%cosphi0= torsion_kind_set(itorsion)%cosphi0
                 END IF
              END DO
              counter=0
@@ -2853,7 +2853,7 @@ CONTAINS
              DEALLOCATE(bad2,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO itorsion=1,SIZE(torsion_kind_set)
-                CALL torsion_kind_dealloc_ref(torsion_kind_set(itorsion))
+                CALL torsion_kind_dealloc_ref(torsion_kind_set(itorsion),error=error)
              END DO
              DEALLOCATE(torsion_kind_set,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2908,7 +2908,7 @@ CONTAINS
              DO iimpr=1,SIZE(impr_kind_set)
                 IF(bad1(iimpr)==0) THEN
                    counter=counter+1
-                   new_impr_kind_set(counter)= impr_kind_set(iimpr)     
+                   new_impr_kind_set(counter)= impr_kind_set(iimpr)
                 END IF
              END DO
              counter=0
@@ -2946,7 +2946,7 @@ CONTAINS
              DEALLOCATE(bad2,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO iimpr=1,SIZE(impr_kind_set)
-                CALL impr_kind_dealloc_ref(impr_kind_set(iimpr))
+                CALL impr_kind_dealloc_ref(impr_kind_set(iimpr),error=error)
              END DO
              DEALLOCATE(impr_kind_set,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -17,7 +17,7 @@
 !!     Properties that can be calculated : none
 !!
 !!   AUTHOR
-!!      MI 
+!!      MI
 !!
 !!   MODIFICATION HISTORY
 !!      created 06-2005 [MI]
@@ -105,8 +105,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
       routineP = moduleN//':'//routineN
@@ -121,9 +121,9 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(section_vals_type), POINTER         :: lr_section, prop_section
 
-    CALL timeset(routineN,"I"," ",handle)    
-    failure = .FALSE. 
-    lr_calculation = .FALSE. 
+    CALL timeset(routineN,"I"," ",handle)
+    failure = .FALSE.
+    lr_calculation = .FALSE.
     was_present = .FALSE.
 
     NULLIFY(dft_control,p_env,linres_control,logger,lr_section,prop_section)
@@ -134,15 +134,15 @@ CONTAINS
 
     ! The transition potential method to calculate XAS needs LSD
     lr_section =>  section_vals_get_subs_vals(qs_env%input, &
-                                          "PROPERTIES%LINRES")
+                                          "PROPERTIES%LINRES",error=error)
     CALL section_vals_get(lr_section,explicit=lr_calculation,error=error)
     CALL linres_init(lr_section,p_env,qs_env,globenv,error=error)
 
     IF (lr_calculation) THEN
        output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-            extension=".linresLog",error=error)    
+            extension=".linresLog",error=error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
-            linres_control=linres_control)
+            linres_control=linres_control,error=error)
 
        !The type of perturbation has not been defined yet
        linres_control%property = lr_none
@@ -175,8 +175,8 @@ CONTAINS
        END IF
 
       ! Other possible LR calculations can be introduced here
-      
-       CALL p_env_release(p_env)
+
+       CALL p_env_release(p_env,error=error)
 
        IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
@@ -187,16 +187,16 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
             "PRINT%PROGRAM_RUN_INFO",error=error)
     ELSE
-       IF(ionode) THEN 
+       IF(ionode) THEN
           output_unit = cp_logger_get_default_unit_nr(logger)
           WRITE (output_unit, "(2X,A)") "",&
                "-----------------------------------------------------------------------------",&
                "-              No LR calculation has been specified in the input            -",&
                "                        cp2k is going to stop, bye bye                       ",&
                "-----------------------------------------------------------------------------",&
-               ""    
+               ""
        END IF
-    END IF 
+    END IF
 
     CALL timestop(0.0_dp, handle)
 
@@ -229,8 +229,8 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
       routineP = moduleN//':'//routineN
@@ -254,7 +254,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)    
+         extension=".linresLog",error=error)
     NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks, &
          matrix_s)
 
@@ -263,15 +263,15 @@ CONTAINS
 
 
        CALL linres_control_create(linres_control,error=error)
-       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
+       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control,error=error)
        CALL linres_control_release(linres_control,error=error)
        CALL get_qs_env(qs_env=qs_env, linres_control=linres_control,&
-                       dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho)
-  
+                       dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho,error=error)
+
        ! Localized Psi0 are required when the position operator has to be defined (nmr)
        CALL section_vals_val_get(lr_section,"LOCALIZE_PSI0",&
            l_val=linres_control%localized_psi0,error=error)
- 
+
        IF(linres_control%localized_psi0) THEN
          IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&
@@ -295,14 +295,14 @@ CONTAINS
        CALL section_vals_val_get(lr_section,"OPT_METHOD",i_val=linres_control%opt_method,error=error)
        CALL section_vals_val_get(lr_section,"MAX_SCF",i_val=linres_control%max_scf,error=error)
        CALL section_vals_val_get(lr_section,"EPS_SCF",r_val=linres_control%eps_scf,error=error)
-       CALL section_vals_val_get(lr_section,"LINESEARCH",i_val=linres_control%ls_method)
-       CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min)
+       CALL section_vals_val_get(lr_section,"LINESEARCH",i_val=linres_control%ls_method,error=error)
+       CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min,error=error)
 
-       CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type)
-       CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap)
+       CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type,error=error)
+       CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap,error=error)
        CALL section_vals_val_get(lr_section,"CHECK_ORTHO",&
             l_val=linres_control%check_ortho,error=error)
-       
+
        IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
             REPEAT("=",77),&
@@ -310,14 +310,14 @@ CONTAINS
             REPEAT("=",77)
 
          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-            "Properties to be Calulated:" 
+            "Properties to be Calulated:"
          CALL section_vals_val_get(lr_section,"NMR%_SECTION_PARAMETERS_",&
             l_val=do_it,error=error)
          IF(do_it) WRITE (UNIT=output_unit,FMT="(T45,A)") &
              "NMR Chemical Shift"
 
          IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
-            "LINRES|","LOCALIZED PSI0" 
+            "LINRES|","LOCALIZED PSI0"
          IF(linres_control%opt_method==lr_cg) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|     Optimization algorithm","Conjugate Gradients"
          IF(linres_control%opt_method==lr_sd) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
@@ -354,7 +354,7 @@ CONTAINS
             "LINRES|    Max number of iterations per SCF cycle",linres_control%max_scf
        END IF
 
-       
+
       !------------------!
       ! create the p_env !
       !------------------!
@@ -368,17 +368,17 @@ CONTAINS
        IF(linres_control%preconditioner_type/= lr_precond_none) THEN
          p_env%new_preconditioner = .TRUE.
          CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,&
-              matrix_s=matrix_s,mos=mos)
+              matrix_s=matrix_s,mos=mos,error=error)
          nspins = SIZE(p_env%preconditioner,1)
          DO ispin = 1,nspins
            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
            p_env%ev_h0(ispin)%matrix => mo_coeff
-!           CALL cp_fm_to_fm(mo_coeff,p_env%ev_h0(ispin)%matrix,p_env%n_mo(ispin),1,1) 
+!           CALL cp_fm_to_fm(mo_coeff,p_env%ev_h0(ispin)%matrix,p_env%n_mo(ispin),1,1)
            ALLOCATE(p_env%preconditioner(ispin)%occ_evals(p_env%n_mo(ispin)),STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
            CALL calculate_subspace_eigenvalues(p_env%ev_h0(ispin)%matrix,&
                 matrix_ks(ispin)%matrix,evals_arg=p_env%preconditioner(ispin)%occ_evals,&
-                para_env=mo_coeff%matrix_struct%para_env, do_rotation = .FALSE.)
+                para_env=mo_coeff%matrix_struct%para_env, do_rotation = .FALSE.,error=error)
 
            IF(output_unit>0) THEN
              DO i = 1,p_env%n_mo(ispin),4
@@ -395,11 +395,11 @@ CONTAINS
                END SELECT
              END DO
            END IF
-         END DO 
+         END DO
        END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)    
+         "PRINT%PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE linres_init
 

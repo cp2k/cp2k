@@ -191,8 +191,8 @@ CONTAINS
 !!                  the various force evaluation methods.
 !!     - globenv: The global environment which contains the initially parsed
 !!                file and the parallel environment.
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -205,8 +205,8 @@ CONTAINS
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_mc_ld', &
       routineP = moduleN//':'//routineN
@@ -261,11 +261,11 @@ CONTAINS
       PRINT *, "The default DFT/QS-method is used for the MC energy evaluation."
      force_env%method_name_id = do_qs
     END SELECT
-    
+
     IF (mc_prog_name_id .NE. force_env%method_name_id) THEN
       SELECT CASE (force_env%method_name_id)
       CASE (do_fist)
-        CALL fist_env_create(fist_env, para_env = para_env)
+        CALL fist_env_create(fist_env, para_env = para_env,error=error)
         CALL set_fist_env(fist_env, qmmm=.FALSE., error=error)
 
         ! *** Read the input and the database files and perform further  ***
@@ -277,12 +277,12 @@ CONTAINS
         CALL cp_subsys_release(subsys=subsystem, error=error)
 
         CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
-        CALL set_fist_env(fist_env=fist_env, subsys=subsys(1)%subsys)
+        CALL set_fist_env(fist_env=fist_env, subsys=subsys(1)%subsys,error=error)
 
         !force_env%in_use=use_fist_force
         force_env%fist_env => fist_env
         CALL fist_env_retain(fist_env, error = error)
-        CALL virial_create(force_env%virial, virial_in_use = .TRUE.)
+        CALL virial_create(force_env%virial, virial_in_use = .TRUE.,error=error)
 
         CALL fist_env_release (fist_env, error = error)
       CASE (do_kg)
@@ -299,14 +299,14 @@ CONTAINS
         !force_env%in_use = use_kg_force
         force_env%kg_env => kg_env
         CALL kg_env_retain(kg_env, error=error)
-        CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+        CALL virial_create(force_env%virial, virial_in_use = .FALSE.,error=error)
         kg_env%virial => force_env%virial
-        CALL virial_retain(kg_env%virial)
+        CALL virial_retain(kg_env%virial,error=error)
 
         CALL kg_env_release(kg_env, error=error)
       CASE (do_qs)
-        CALL qs_env_create(qs_env, para_env)
-         
+        CALL qs_env_create(qs_env, para_env,error=error)
+
         !   *** Read the input and the database files and perform further  ***
         !   *** initializations for the setup of the QUICKSTEP environment ***
         CALL qs_init(qs_env, root_section, globenv, force_env_section=force_env_section, error=error)
@@ -319,9 +319,9 @@ CONTAINS
         !force_env%in_use = use_qs_force
         force_env%qs_env => qs_env
         CALL qs_env_retain(qs_env,error=error)
-        CALL virial_create(force_env%virial, virial_in_use = .TRUE.)
+        CALL virial_create(force_env%virial, virial_in_use = .TRUE.,error=error)
         qs_env%virial => force_env%virial
-        CALL virial_retain(qs_env%virial)
+        CALL virial_retain(qs_env%virial,error=error)
 
         CALL qs_env_release(qs_env, error=error)
       CASE (do_tbmd)
@@ -337,9 +337,9 @@ CONTAINS
         !force_env%in_use = use_tbmd_force
         force_env%tbmd_env => tbmd_env
         CALL tbmd_env_retain(tbmd_env, error=error)
-        CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+        CALL virial_create(force_env%virial, virial_in_use = .FALSE.,error=error)
         tbmd_env%virial => force_env%virial
-        CALL virial_retain(tbmd_env%virial)
+        CALL virial_retain(tbmd_env%virial,error=error)
 
         CALL tbmd_env_release(tbmd_env, error=error)
       CASE (do_eip)
@@ -355,9 +355,9 @@ CONTAINS
         !force_env%in_use = use_eip_force
         force_env%eip_env => eip_env
         CALL eip_env_retain(eip_env, error=error)
-        CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+        CALL virial_create(force_env%virial, virial_in_use = .FALSE.,error=error)
         eip_env%virial => force_env%virial
-        CALL virial_retain(eip_env%virial)
+        CALL virial_retain(eip_env%virial,error=error)
 
         CALL eip_env_release(eip_env, error=error)
       CASE DEFAULT
@@ -394,13 +394,13 @@ CONTAINS
 !!     Driver routine for the Langevin Dynamics Monte Carlo simulation
 !!
 !!   NOTES
-!!     By using the default values a hybrid Monte Carlo (HMC) simulation is 
+!!     By using the default values a hybrid Monte Carlo (HMC) simulation is
 !!     performed.
 !!     For a high-level quick-start to following references are suggested:
 !!
 !!     S.Duane, A.D. Kennedy, et.al.: Hybrid Monte Carlo
-!!     A.Brass, B.J. Pendleton, et.al.: Hybrid Monte Carlo Simulations Theory 
-!!                                      and Initial Comparison with Molecular 
+!!     A.Brass, B.J. Pendleton, et.al.: Hybrid Monte Carlo Simulations Theory
+!!                                      and Initial Comparison with Molecular
 !!                                      Dynamics
 !!
 !!   INPUTS
@@ -408,28 +408,28 @@ CONTAINS
 !!                  the various force evaluation methods.
 !!     - globenv: The global environment which contains the initially parsed
 !!                file and the parallel environment.
-!!     - total_energy: If TRUE the differences of the total energies are used, 
+!!     - total_energy: If TRUE the differences of the total energies are used,
 !!                     instead of the potential energies.
 !!     - external_temp: If TRUE the external temperature is used, instead of
 !!                      the computed current temperature.
-!!     - qs_accept: If TRUE the QS energies are used for the MC acceptance 
+!!     - qs_accept: If TRUE the QS energies are used for the MC acceptance
 !!                  criterion, otherwise Harris or KG energies are used.
-!!     - random_velocities: Activates random velocities to perform hybrid MC 
+!!     - random_velocities: Activates random velocities to perform hybrid MC
 !!                          simulations.
-!!     - velocity_scaling: The velocities are scaled, such that the current 
+!!     - velocity_scaling: The velocities are scaled, such that the current
 !!                         temperature is equivalent with the external temperature
-!!     - qs_start: Denotes if a fully converged QS energy evaluation is performed 
+!!     - qs_start: Denotes if a fully converged QS energy evaluation is performed
 !!                 at the start-up or not.
 !!     - restore_wf_history: If switched on the WF history is fully restored in
 !!                           case a MD approach is rejected.
 !!     - restore_velocitites: Causes that the momentas are recovered in case a MD
 !!                            approach is rejected.
-!!     - semi_hybrid: Results that the momenta are choosen at random, only in case 
+!!     - semi_hybrid: Results that the momenta are choosen at random, only in case
 !!                    a MD approach is rejected.
-!!     - soft_start: Flushes the wavefunction history after each metropolis 
-!!                   criterion evaluation and iterates to convergence afterwards, 
+!!     - soft_start: Flushes the wavefunction history after each metropolis
+!!                   criterion evaluation and iterates to convergence afterwards,
 !!                   until it's refilled again.
-!!     - fill_wf_history: Iterates to convergence until the wavefunction 
+!!     - fill_wf_history: Iterates to convergence until the wavefunction
 !!                        extrapolation pipeline is filled.
 !!     - interMMC_interpolation: Interpolates between the Metropolis energy evaluations.
 !!     - always_accepted: Accept all MD approaches
@@ -439,8 +439,8 @@ CONTAINS
 !!     - lpsc: Langevin Dynamics phase space correction
 !!     - md_method: Indicates which method is used for the MD approach.
 !!     - mc_method: Indicates according to which method the MC criterion is evaluated.
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -454,8 +454,8 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md', &
       routineP = moduleN//':'//routineN
@@ -601,7 +601,7 @@ CONTAINS
     md_method = simpar%md_method
     mc_method = simpar%mc_method
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-    
+
 
     iw=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
                                                   extension=".log",error=error)
@@ -720,7 +720,7 @@ CONTAINS
        CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
 
        !
-       ! Always initialize velocities 
+       ! Always initialize velocities
        ! and possibly restart them
        !
        DO isubsys=1,SIZE(subsys)
@@ -739,7 +739,7 @@ CONTAINS
                                      work_section=work_section,&
                                      error=error)
        END DO
-       
+
        DO isubsys=1,SIZE(subsys)
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
                particles=particles,&
@@ -757,10 +757,10 @@ CONTAINS
          nhc_baro=extended_type%nhc_baro, &
          npt=extended_type%npt_info, &
          cell=cell, &
-         force_env_p=force_env_p)
+         force_env_p=force_env_p,error=error)
 
     IF (ASSOCIATED(dyn_coeff_set)) THEN
-       CALL set_md_env(md_env, nhc_coef=extended_type%nhc_coef)
+       CALL set_md_env(md_env, nhc_coef=extended_type%nhc_coef,error=error)
     END IF
 
     IF (simpar%ensemble == langevin_ensemble) THEN
@@ -824,17 +824,17 @@ CONTAINS
          i_val=myi,error=error)
     md_approach_nr = myi
     CALL section_vals_val_get(motion_section,"MD%HMC%ACCEPTED_MD_START_VAL",&
-         i_val=myi,error=error)    
+         i_val=myi,error=error)
     accepted_md = myi
 
-    CALL md_energy(md_env) ! inits the print env at itimes == 0
+    CALL md_energy(md_env,error=error) ! inits the print env at itimes == 0
 
     root_section=>force_env_p(1)%force_env%root_section
     CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
 
     IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
-      ! Save the wavefunction history to be able to restore it in case the 
+      ! Save the wavefunction history to be able to restore it in case the
       ! first MD approach is rejected
       IF (restore_wf_past) THEN
          CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
@@ -905,7 +905,7 @@ CONTAINS
        IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
          IF (force_env%method_name_id == do_kg) THEN
             Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
-            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
+            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev,error=error)
             IF (.NOT. tot_energy) THEN
                prev_ldmc_energy = Epot_prev
             ELSE
@@ -924,7 +924,7 @@ CONTAINS
               END IF
             ELSE
               Epot_prev = force_env_p(1)%force_env%qs_env%energy%total
-              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
+              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev,error=error)
               IF (.NOT. tot_energy) THEN
                  prev_ldmc_energy = Epot_prev
               ELSE
@@ -1067,7 +1067,7 @@ CONTAINS
          ! new energy
          IF (force_env%method_name_id == do_kg) THEN
             Epot_new = force_env_p(1)%force_env%kg_env%energy%total
-            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
+            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new,error=error)
             IF (.NOT. tot_energy) THEN
                new_ldmc_energy = Epot_new
             ELSE
@@ -1086,7 +1086,7 @@ CONTAINS
               END IF
             ELSE
               Epot_new = force_env_p(1)%force_env%qs_env%energy%total
-              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
+              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new,error=error)
               IF (.NOT. tot_energy) THEN
                  new_ldmc_energy = Epot_new
               ELSE
@@ -1331,7 +1331,7 @@ CONTAINS
 
          ! New maxwell distributed momenta
 
-         IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN         
+         IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN
 
             DO isubsys=1,SIZE(subsys)
 
@@ -1397,11 +1397,11 @@ CONTAINS
                      ELSE
                         sigma = simpar%temp_ext/mass
                         particles%els(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,&
-                                                                   variance=sigma)
+                                                                   variance=sigma,error=error)
                         particles%els(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,&
-                                                                   variance=sigma)
+                                                                   variance=sigma,error=error)
                         particles%els(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,&
-                                                                   variance=sigma)
+                                                                   variance=sigma,error=error)
                         vcom(1) = vcom(1) + mass * particles%els(i)%v(1)
                         vcom(2) = vcom(2) + mass * particles%els(i)%v(2)
                         vcom(3) = vcom(3) + mass * particles%els(i)%v(3)
@@ -1479,7 +1479,7 @@ CONTAINS
           CALL m_flush(hmc)
        END IF
        CALL cp_print_key_finished_output(hmc,logger,motion_section,&
-            "MD%PRINT%HMC", error=error) 
+            "MD%PRINT%HMC", error=error)
 
        IF (accepted) THEN
           istep = istep + simpar%ld_steps
@@ -1509,7 +1509,7 @@ CONTAINS
                END DO
             END IF
           END IF
- 
+
           CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
 
@@ -1524,7 +1524,7 @@ CONTAINS
                (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
              dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
              CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, para_env, &
-                  id_nr=1,multiplicity=dft_control%multiplicity,dft_section=dft_section)
+                  id_nr=1,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
           END IF
 
           ! If not accepted, set back velocities and positions
@@ -1561,7 +1561,7 @@ CONTAINS
     END DO
     time_iter_stop = m_walltime()
     used_time = time_iter_stop - time_iter_start
-    CALL md_energy(md_env)
+    CALL md_energy(md_env,error=error)
 
     CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
@@ -1581,7 +1581,7 @@ CONTAINS
 
     CALL md_env_release (md_env, error)
 
-    ! just deallocate this stuff ?? 
+    ! just deallocate this stuff ??
     ! seem to need proper init / destroy subroutines ... to be fixed
     CALL lnhc_dealloc(extended_type%nhc_part)
     CALL lnhc_dealloc(extended_type%nhc_baro)
@@ -1617,8 +1617,8 @@ CONTAINS
 !!                  the various force evaluation methods.
 !!     - globenv: The global environment which contains the initially parsed
 !!                file and the parallel environment.
-!!     - error: variable to control error logging, stopping,... 
-!!              see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!              see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -1636,8 +1636,8 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: lpsc_prev_energy, &
                                                 lpsc_new_energy, &
                                                 lpsc_diff_energy
@@ -1681,7 +1681,7 @@ CONTAINS
     max_scf_tmp = qs_env%scf_control%max_scf
     max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
     harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     tot_energy = simpar%tot_energy
 
     DO iter = 1, simpar%ld_steps
@@ -1728,7 +1728,7 @@ CONTAINS
       IF (simpar%multiple_scf) THEN
         IF (simpar%ld_steps == iter) THEN
           qs_env%scf_control%max_scf = max_scf_tmp
-          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp 
+          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
           qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
         END IF
       END IF
@@ -1737,7 +1737,7 @@ CONTAINS
         IF (iter==1) THEN
           IF (method_name_id == do_kg) THEN
             Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
-            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
+            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev,error=error)
             IF (.NOT. tot_energy) THEN
               prev_lpsc_energy = Epot_prev
             ELSE
@@ -1756,7 +1756,7 @@ CONTAINS
               END IF
             ELSE
               Epot_prev = force_env_p(1)%force_env%qs_env%energy%total
-              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
+              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev,error=error)
               IF (.NOT. tot_energy) THEN
                 prev_lpsc_energy = Epot_prev
               ELSE
@@ -1791,7 +1791,7 @@ CONTAINS
         ELSE IF (iter==simpar%ld_steps) THEN
           IF (method_name_id == do_kg) THEN
             Epot_new = force_env_p(1)%force_env%kg_env%energy%total
-            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
+            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new,error=error)
             IF (.NOT. tot_energy) THEN
               new_lpsc_energy = Epot_new
             ELSE
@@ -1810,7 +1810,7 @@ CONTAINS
               END IF
             ELSE
               Epot_new = force_env_p(1)%force_env%qs_env%energy%total
-              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
+              CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new,error=error)
               IF (.NOT. tot_energy) THEN
                 new_lpsc_energy = Epot_new
               ELSE

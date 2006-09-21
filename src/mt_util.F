@@ -27,11 +27,11 @@ MODULE mt_util
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  
+
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mt_util'
-  
+
   PUBLIC :: MTin_create_screen_fn
 CONTAINS
 !!*****
@@ -42,7 +42,7 @@ CONTAINS
 !!     MTin_create_screen_fn
 !!
 !!   FUNCTION
-!!    Initialize the Martyna && Tuckerman Poisson Solver 
+!!    Initialize the Martyna && Tuckerman Poisson Solver
 !!
 !!   AUTHOR
 !!     Teodoro Laino (16.06.2004)
@@ -61,8 +61,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: special_dimension
     REAL(KIND=dp), INTENT(in)                :: slab_size
     TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn', &
       routineP = moduleN//':'//routineN
@@ -81,8 +81,8 @@ CONTAINS
     ! For Martyna-Tuckerman we set up an auxiliary pw_pool at an higher cutoff
     !
     IF (ASSOCIATED(super_ref_pw_grid)) THEN
-       CALL pw_pool_create ( pw_pool_aux, pw_grid = super_ref_pw_grid )
-    END IF       
+       CALL pw_pool_create ( pw_pool_aux, pw_grid = super_ref_pw_grid ,error=error)
+    END IF
     CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
          in_space=RECIPROCALSPACE,error=error)
     CALL pw_zero( screen_function )
@@ -110,16 +110,16 @@ CONTAINS
           CALL pw_pool_give_back_pw(pw_pool, Vlocg, error=error)
        END IF
        !
-       ! Get rid of the analytical FT of the erf(a*r)/r 
+       ! Get rid of the analytical FT of the erf(a*r)/r
        !
        alpha2  = alpha * alpha
        DO ig = screen_function % pw_grid % first_gne0, screen_function % pw_grid % ngpts_cut_local
-          g2  = screen_function % pw_grid % gsq ( ig ) 
+          g2  = screen_function % pw_grid % gsq ( ig )
           g3d = fourpi / g2
           screen_function%cc(ig) = screen_function%cc(ig) - g3d * EXP( - g2 / (4.0E0_dp * alpha2) )
        END DO
        IF ( screen_function % pw_grid % have_g0 ) &
-            screen_function%cc(1) = screen_function%cc(1) + fourpi / (4.0E0_dp*alpha2)      
+            screen_function%cc(1) = screen_function%cc(1) + fourpi / (4.0E0_dp*alpha2)
     CASE(MT2D)
        iz = special_dimension ! iz is the direction with NO PBC
        zlength = slab_size    ! zlength is the thickness of the cell
@@ -137,7 +137,7 @@ CONTAINS
        CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
     END SELECT
     CALL pw_pool_release ( pw_pool_aux, error=error )
-    CALL timestop(0.0_dp,handle) 
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE MTin_create_screen_fn
 
 !******************************************************************************
@@ -149,8 +149,8 @@ CONTAINS
 !!   FUNCTION
 !!     Calculates the Tuckerman Green's function in reciprocal space
 !!     according the scheme published on:
-!!     Martyna and Tuckerman, J. Chem. Phys. Vol. 110, No. 6, 2810-2821 
-!!     
+!!     Martyna and Tuckerman, J. Chem. Phys. Vol. 110, No. 6, 2810-2821
+!!
 !!
 !!   AUTHOR
 !!     Teodoro Laino (09.03.2005)
@@ -226,7 +226,7 @@ CONTAINS
 !!     Calculates the Tuckerman Green's function in reciprocal space
 !!     according the scheme published on:
 !!     Martyna and Tuckerman, J. Chem. Phys. Vol. 121, No. 23, 11949
-!!     
+!!
 !!
 !!   AUTHOR
 !!     Teodoro Laino (11.2005)
@@ -238,8 +238,8 @@ CONTAINS
   SUBROUTINE mt1din(screen_function,iz,error)
     TYPE(pw_type), POINTER                   :: screen_function
     INTEGER, INTENT(IN)                      :: iz
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mt1din', &
       routineP = moduleN//':'//routineN

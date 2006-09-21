@@ -66,7 +66,7 @@ MODULE cp_subsystem_methods
   USE topology_util,                   ONLY: check_subsys_element
 #include "cp_common_uses.h"
 
-  IMPLICIT NONE 
+  IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
@@ -97,8 +97,8 @@ CONTAINS
   SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(section_vals_type), POINTER         :: colvar_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar', &
       routineP = moduleN//':'//routineN
@@ -137,8 +137,8 @@ CONTAINS
 !!     - sub_atom_index: indexes of the atoms that should be in small_subsys
 !!     - sub_subsys_index: indexes of the subsys of big_subsys from which
 !!       the corresponding atom should be taken
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed, Teodoro Laino
@@ -162,8 +162,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsystem', &
       routineP = moduleN//':'//routineN
@@ -250,7 +250,7 @@ CONTAINS
           IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
           CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,root_section,&
                subsys_section,error)
-          topology%atom_info%element(iat)=my_element 
+          topology%atom_info%element(iat)=my_element
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
        END DO
@@ -284,7 +284,7 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 12. Cleanup the topology structure type
        !-----------------------------------------------------------------------------
-       CALL deallocate_topology(topology)
+       CALL deallocate_topology(topology,error=error)
 
 
        CALL cp_subsys_create(small_subsystem,para_env=small_para_env,error=error)

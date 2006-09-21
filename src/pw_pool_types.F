@@ -91,7 +91,7 @@ MODULE pw_pool_types
 !!   FUNCTION
 !!     Manages a pool of grids (to be used for example as tmp objects),
 !!     but can also be used to intantiate grids that are never given back.
-!!     
+!!
 !!
 !!   NOTES
 !!     As of now I would like replace the linked lists by arrays
@@ -166,8 +166,8 @@ CONTAINS
 !!   INPUTS
 !!     - pw_pool: the pool to create
 !!     - pw_grid: the grid that is used to create the pw
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -180,8 +180,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, OPTIONAL                        :: max_cache
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create', &
       routineP = moduleN//':'//routineN
@@ -228,8 +228,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -240,8 +240,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_pool_retain(pool,error)
     TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_retain', &
       routineP = moduleN//':'//routineN
@@ -280,8 +280,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to flush
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -292,8 +292,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_pool_flush_cache(pool, error)
     TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -308,7 +308,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw_el
 
     failure=.FALSE.
- 
+
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -355,7 +355,7 @@ CONTAINS
           pw_el%ref_count=1
           CALL pw_release(pw_el, error=error)
        END DO
-       CALL cp_sll_pw_dealloc(pool%complex3d_pw)
+       CALL cp_sll_pw_dealloc(pool%complex3d_pw,error=error)
 
        array_iterator => pool%real3d_array
        DO
@@ -364,7 +364,7 @@ CONTAINS
           DEALLOCATE(array_att,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END DO
-       CALL cp_sll_3d_r_dealloc(pool%real3d_array)
+       CALL cp_sll_3d_r_dealloc(pool%real3d_array,error=error)
 
     END IF
   END SUBROUTINE pw_pool_flush_cache
@@ -383,8 +383,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -395,8 +395,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_pool_release(pool,error)
     TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_release', &
       routineP = moduleN//':'//routineN
@@ -455,13 +455,14 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  FUNCTION try_pop(list) RESULT(res)
+  FUNCTION try_pop(list,error) RESULT(res)
     TYPE(cp_sll_pw_type), POINTER            :: list
     TYPE(pw_type), POINTER                   :: res
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF (ASSOCIATED(list)) THEN
-       res => cp_sll_pw_get_first_el(list)
-       CALL cp_sll_pw_rm_first_el(list)
+       res => cp_sll_pw_get_first_el(list,error=error)
+       CALL cp_sll_pw_rm_first_el(list,error=error)
     ELSE
        NULLIFY(res)
     END IF
@@ -487,8 +488,8 @@ CONTAINS
 !!     - in_space: in which space it is: REALSPACE, RECIPROCALSPACE
 !!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
 !!       defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -503,8 +504,8 @@ CONTAINS
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create_pw', &
       routineP = moduleN//':'//routineN
@@ -526,19 +527,19 @@ CONTAINS
 
     SELECT CASE(use_data)
     CASE (REALDATA1D)
-       pw => try_pop(pool%real1d_pw)
+       pw => try_pop(pool%real1d_pw,error=error)
     CASE (REALDATA3D)
-       pw => try_pop(pool%real3d_pw)
+       pw => try_pop(pool%real3d_pw,error=error)
        IF (.NOT.ASSOCIATED(pw)) THEN
           IF (ASSOCIATED(pool%real3d_array)) THEN
-             cr3d_ptr => cp_sll_3d_r_get_first_el(pool%real3d_array)
-             CALL cp_sll_3d_r_rm_first_el(pool%real3d_array)
+             cr3d_ptr => cp_sll_3d_r_get_first_el(pool%real3d_array,error=error)
+             CALL cp_sll_3d_r_rm_first_el(pool%real3d_array,error=error)
           END IF
        END IF
     CASE (COMPLEXDATA1D)
-       pw => try_pop(pool%complex1d_pw)
+       pw => try_pop(pool%complex1d_pw,error=error)
     CASE (COMPLEXDATA3D)
-       pw => try_pop(pool%complex3d_pw)
+       pw => try_pop(pool%complex3d_pw,error=error)
     CASE default
 ! unknown use_data
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -546,7 +547,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(pw)) THEN
        CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
-            mass_flag=mass_flag, cr3d_ptr=cr3d_ptr)
+            mass_flag=mass_flag, cr3d_ptr=cr3d_ptr,error=error)
        IF (debug_this_module) THEN
           IF (ASSOCIATED(cr3d_ptr)) THEN
              WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
@@ -582,7 +583,7 @@ CONTAINS
                routineP,"mass not cached in pool"//&
 CPSourceFileRef,&
                error=error)
-          
+
           IF (use_data==REALDATA1D) THEN
              IF (.NOT.ASSOCIATED(pw%mass_cr)) THEN
                 ALLOCATE(pw%mass_cr(pw % pw_grid % ngpts_cut_local),&
@@ -598,7 +599,7 @@ CPSourceFileRef,&
           END IF
        END IF
     END IF
-    
+
     pw%in_space=0
     IF (PRESENT(in_space)) pw%in_space=in_space
 
@@ -624,8 +625,8 @@ CPSourceFileRef,&
 !!     - accept_non_compatible: if non compatible pw should be accepted
 !!       (they will be destroied). Defaults to false (and thus stops with
 !!       an error)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -638,8 +639,8 @@ CPSourceFileRef,&
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_type), POINTER                   :: pw
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw', &
       routineP = moduleN//':'//routineN
@@ -709,10 +710,10 @@ CPSourceFileRef,&
           IF (cp_sll_pw_get_length(pool%real1d_pw,error=error)<pool%max_cache) THEN
              IF (cp_debug) THEN
                 CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
+                     insert_equals=.FALSE., did_insert=did_insert,error=error)
                 CPAssert(did_insert,cp_failure_level,routineP,error,failure)
              ELSE
-                CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
+                CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw,error=error)
              END IF
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
@@ -726,7 +727,7 @@ CPSourceFileRef,&
              IF (cp_sll_pw_get_length(pool%real3d_pw,error=error)<pool%max_cache) THEN
                 IF (cp_debug) THEN
                    CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
-                        insert_equals=.FALSE., did_insert=did_insert)
+                        insert_equals=.FALSE., did_insert=did_insert,error=error)
                    CPAssert(did_insert,cp_failure_level,routineP,error,failure)
                 ELSE
                    CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
@@ -752,10 +753,10 @@ CPSourceFileRef,&
           IF (cp_sll_pw_get_length(pool%complex1d_pw,error=error)<pool%max_cache) THEN
              IF (cp_debug) THEN
                 CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
+                     insert_equals=.FALSE., did_insert=did_insert,error=error)
                 CPAssert(did_insert,cp_failure_level,routineP,error,failure)
              ELSE
-                CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
+                CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw,error=error)
              END IF
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
@@ -768,10 +769,10 @@ CPSourceFileRef,&
           IF (cp_sll_pw_get_length(pool%complex3d_pw,error=error)<pool%max_cache) THEN
              IF (cp_debug) THEN
                 CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
+                     insert_equals=.FALSE., did_insert=did_insert,error=error)
                 CPAssert(did_insert,cp_failure_level,routineP,error,failure)
              ELSE
-                CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
+                CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw,error=error)
              END IF
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
@@ -808,8 +809,8 @@ CPSourceFileRef,&
 !!   ARGUMENTS
 !!     - pw_pool: the pool that caches the cr3d
 !!     - cr3d: the pointer that will contain the array
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -822,8 +823,8 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
     TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create_cr3d', &
       routineP = moduleN//':'//routineN
@@ -836,16 +837,16 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
   failure=.FALSE.
   NULLIFY(pw)
   logger => cp_error_get_logger(error)
-  
+
   CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_pool%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(cr3d),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (ASSOCIATED(pw_pool%real3d_array)) THEN
-        cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array)
-        CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array)
+        cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array,error=error)
+        CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array,error=error)
      ELSE
-        pw => try_pop(pw_pool%real3d_pw)
+        pw => try_pop(pw_pool%real3d_pw,error=error)
         IF (ASSOCIATED(pw)) THEN
            CPPrecondition(pw%ref_count==0,cp_failure_level,routineP,error,failure)
            pw%ref_count=1
@@ -892,8 +893,8 @@ END SUBROUTINE pw_pool_create_cr3d
 !!     - cr3d: the pointer that will contain the array
 !!     - accept_non_compatible: if true deallocates the non compatible
 !!       arrays passed in, if false (the default) stops with an error
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -907,8 +908,8 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_cr3d', &
       routineP = moduleN//':'//routineN
@@ -936,7 +937,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
         compatible=ALL( MERGE( pw_pool%pw_grid%bounds_local(1,:)==LBOUND(cr3d).AND. &
                                pw_pool%pw_grid%bounds_local(2,:)==UBOUND(cr3d), &
                         pw_pool%pw_grid%bounds_local(2,:)<pw_pool%pw_grid%bounds_local(1,:), &
-                        UBOUND(cr3d)>=LBOUND(cr3d) ) ) 
+                        UBOUND(cr3d)>=LBOUND(cr3d) ) )
         CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
         IF (compatible) THEN
            IF (cp_sll_3d_r_get_length(pw_pool%real3d_array,error=error)<pw_pool%max_cache) THEN
@@ -991,8 +992,8 @@ END SUBROUTINE pw_pool_give_back_cr3d
 !!       REALDATA3D, COMPLEXDATA3D
 !!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
 !!       defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1007,8 +1008,8 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_init_coeff', &
       routineP = moduleN//':'//routineN
@@ -1016,10 +1017,10 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-  
+
   IF (.NOT. failure) THEN
      NULLIFY(coeff%pw)
      CALL pw_pool_create_pw(pool,coeff%pw,use_data,mass_flag=mass_flag,&
@@ -1043,8 +1044,8 @@ END SUBROUTINE pw_pool_init_coeff
 !!   INPUTS
 !!     - pool: the pool that will cache coeff%pw
 !!     - coeff: the coefficent to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1057,8 +1058,8 @@ SUBROUTINE pw_pool_give_back_coeff(pool,coeff,accept_non_compatible,error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(coeff_type), INTENT(INOUT)          :: coeff
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_coeff', &
       routineP = moduleN//':'//routineN
@@ -1066,7 +1067,7 @@ SUBROUTINE pw_pool_give_back_coeff(pool,coeff,accept_non_compatible,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (coeff%in_use/=NOTHING) THEN
      CALL pw_pool_give_back_pw(pool,coeff%pw,&
           accept_non_compatible=accept_non_compatible,error=error)
@@ -1093,8 +1094,8 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!       REALDATA3D, COMPLEXDATA3D
 !!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
 !!       defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1111,8 +1112,8 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
     INTEGER, INTENT(in)                      :: use_data
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     INTEGER, INTENT(in), OPTIONAL            :: in_space
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_create_pws', &
       routineP = moduleN//':'//routineN
@@ -1121,7 +1122,7 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   ALLOCATE(pws(SIZE(pools)),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1149,8 +1150,8 @@ END SUBROUTINE pw_pools_create_pws
 !!   INPUTS
 !!     - pools: the pools that will cache the pws %pw
 !!     - pws: the coefficents to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1163,8 +1164,8 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: pws
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_pws', &
       routineP = moduleN//':'//routineN
@@ -1205,8 +1206,8 @@ END SUBROUTINE pw_pools_give_back_pws
 !!       REALDATA3D, COMPLEXDATA3D
 !!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
 !!       defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1224,8 +1225,8 @@ SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
     INTEGER, INTENT(in)                      :: use_data
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     INTEGER, INTENT(in), OPTIONAL            :: in_space
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_init_coeffs', &
       routineP = moduleN//':'//routineN
@@ -1234,7 +1235,7 @@ SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(pools)==SIZE(coeffs),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1260,8 +1261,8 @@ END SUBROUTINE pw_pools_init_coeffs
 !!   INPUTS
 !!     - pools: the pools that will cache the coeffs %pw
 !!     - coeffs: the coefficents to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1274,8 +1275,8 @@ SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(coeff_type), DIMENSION(:), POINTER  :: coeffs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_coeffs', &
       routineP = moduleN//':'//routineN
@@ -1309,8 +1310,8 @@ END SUBROUTINE pw_pools_give_back_coeffs
 !!   INPUTS
 !!     - source_pool: the pool to copy
 !!     - target_pool: will hold the copy of the pool
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1322,8 +1323,8 @@ END SUBROUTINE pw_pools_give_back_coeffs
 SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_copy', &
       routineP = moduleN//':'//routineN
@@ -1332,7 +1333,7 @@ SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(target_pools(SIZE(source_pools)), stat=stat)
@@ -1361,8 +1362,8 @@ END SUBROUTINE pw_pools_copy
 !!
 !!   INPUTS
 !!     - pools: the pols to deallocate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1374,8 +1375,8 @@ END SUBROUTINE pw_pools_copy
 SUBROUTINE pw_pools_dealloc(pools,error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_dealloc', &
       routineP = moduleN//':'//routineN
@@ -1384,7 +1385,7 @@ SUBROUTINE pw_pools_dealloc(pools,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
         CALL pw_pool_release(pools(i)%pool, error=error)
@@ -1409,8 +1410,8 @@ END SUBROUTINE pw_pools_dealloc
 !!
 !!   INPUTS
 !!     - pools: the pools to flush
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1422,8 +1423,8 @@ END SUBROUTINE pw_pools_dealloc
 SUBROUTINE pw_pools_flush_cache(pools,error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -1432,7 +1433,7 @@ SUBROUTINE pw_pools_flush_cache(pools,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
@@ -1454,8 +1455,8 @@ END SUBROUTINE pw_pools_flush_cache
 !!     -
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -1467,8 +1468,8 @@ END SUBROUTINE pw_pools_flush_cache
 SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER                                  :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_write', &
       routineP = moduleN//':'//routineN
@@ -1478,7 +1479,7 @@ SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
     TYPE(pw_type), POINTER                   :: pw_att
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pw_pool)) THEN
      WRITE (unit=unit_nr, &
           fmt="(' <pw_pool>{ id_nr=',i8,', ref_count=',i8,', max_cache=',i8,',')")&
@@ -1511,7 +1512,7 @@ SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
         WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
      END DO
      WRITE (unit=unit_nr, fmt="(')')")
-     
+
      WRITE (unit=unit_nr, fmt="('}')")
   ELSE
      WRITE (unit=unit_nr, fmt="('<pw_pool *null*>')")

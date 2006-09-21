@@ -12,7 +12,7 @@
 !!   FUNCTION
 !!     Some utilities to handle the molecular blocks of the full matrix
 !!     of the molecular orbitals
-!!     
+!!
 !!   AUTHOR
 !!     MI (29.11.2004)
 !!
@@ -78,7 +78,7 @@ CONTAINS
 !!   FUNCTION
 !!     Create the sparse matrix W =  fE*MO by MO^T, where fE is the
 !!     diagonal matrix of the eigenvalues multiplied by the occupation numbers
-!!     Here each molecular block of the MO is treated independently and the 
+!!     Here each molecular block of the MO is treated independently and the
 !!     result is copied inthe right part of the sparse W matrix.
 !!     Therefore everything is done in a loop over the molecules
 !!
@@ -100,8 +100,8 @@ CONTAINS
       POINTER                                :: fm_mol_set
     TYPE(real_matrix_type), POINTER          :: w_matrix
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'calculate_w_matrix_per_molecule', &
@@ -164,13 +164,13 @@ CONTAINS
         mo_set => mos_mol(ispin)%mo_set
         CALL get_mol_mo_set(mo_set, homo = homo, mo = mo ,&
                             eigenvalues = eigenvalues,&
-                            occupation_numbers = occupation ) 
+                            occupation_numbers = occupation )
 
         DO imo = 1,homo
           eigocc = eigenvalues(imo)*occupation(imo)
           CALL DCOPY(nao_mol,mo(1,imo),1,wmo(1,imo),1)
           CALL DSCAL(nao_mol,eigocc,wmo(1,imo),1)
-        END DO 
+        END DO
         CALL DGEMM('N','T',nao_mol,nao_mol,homo,1.0_dp,wmo(1,1),ldao,&
                    mo(1,1),ldao,0.0_dp,wmo_x_mot,SIZE(wmo_x_mot,1))
 
@@ -185,7 +185,7 @@ CONTAINS
             jfs = ifirst_ao(jat_mol)
             jls = ilast_ao(jat_mol)
             jnao = jls - jfs + 1
- 
+
 
             NULLIFY(w_block)
             IF(iatom <= jatom) THEN
@@ -240,7 +240,7 @@ CONTAINS
 !!     fm_mol_cholesky_restore
 !!
 !!   FUNCTION
-!!     Multiply one block (molecular block for KG_GPW) of the MO full matrix by the 
+!!     Multiply one block (molecular block for KG_GPW) of the MO full matrix by the
 !!     corresponding cholesky decomposition of the overlap matrix, U
 !!
 !!   INPUTS
@@ -266,8 +266,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: upper_dec, vectors_out
     CHARACTER(LEN=*), INTENT(IN)             :: op
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: pos
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_cholesky_restore', &
       routineP = moduleN//':'//routineN
@@ -325,11 +325,11 @@ CONTAINS
 !!     Raise the real symmetric n by n matrix to the power given by
 !!     exponent. All eigenvectors with a corresponding eigenvalue lower
 !!     than threshold are quenched. Here the n by n matrix is the block of
-!!     the overlap matrix corresponding to one molecule 
+!!     the overlap matrix corresponding to one molecule
 !!
 !!   INPUTS
 !!     -matrix: block of the overlap matrix
-!!     -eigenvectors: 
+!!     -eigenvectors:
 !!     -ldv: leading dimension of the matrix
 !!     -ncv: number of vectors
 !!     -exponent
@@ -343,13 +343,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE fm_mol_power(matrix,eigenvectors,ldv,ncv,exponent,threshold,n_dependent)
+  SUBROUTINE fm_mol_power(matrix,eigenvectors,ldv,ncv,exponent,threshold,n_dependent,error)
 
     REAL(dp), DIMENSION(:, :), POINTER       :: matrix
     REAL(dp), DIMENSION(:, :)                :: eigenvectors
     INTEGER, INTENT(IN)                      :: ldv, ncv
     REAL(dp), INTENT(IN)                     :: exponent, threshold
     INTEGER, INTENT(OUT)                     :: n_dependent
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_power', &
       routineP = moduleN//':'//routineN
@@ -372,12 +373,12 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues",ncol*dp_size)
     eigenvalues(:) = 0.0_dp
 
-    CALL fm_mol_syevx(matrix,eigenvectors,ldv,ncv,eigenvalues,ncol)
+    CALL fm_mol_syevx(matrix,eigenvectors,ldv,ncv,eigenvalues,ncol,error=error)
 
     p = 0.5_dp*exponent
 
     DO icol = 1,ncol
-       IF(eigenvalues(icol) < threshold) THEN 
+       IF(eigenvalues(icol) < threshold) THEN
          n_dependent = n_dependent + 1
          eigenvectors(1:nrow,icol) = 0.0_dp
        ELSE
@@ -405,7 +406,7 @@ CONTAINS
 !!     fm_mol_syevd
 !!
 !!   FUNCTION
-!!     computes all eigenvalues and vectors of a real symmetric matrix    
+!!     computes all eigenvalues and vectors of a real symmetric matrix
 !!
 !!   INPUTS
 !!     -matrix: block of the full matrix
@@ -428,8 +429,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nrow
     REAL(dp), DIMENSION(:)                   :: eigenvalues
     REAL(dp), DIMENSION(:, :)                :: matrix_out
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_syevd', &
       routineP = moduleN//':'//routineN
@@ -476,9 +477,9 @@ CONTAINS
 !!     fm_mol_syevx
 !!
 !!   FUNCTION
-!!     Diagonalise the symmetric n by n matrix using the LAPACK library 
+!!     Diagonalise the symmetric n by n matrix using the LAPACK library
 !!     Compute ncol egenvalues and eigenvectors
-!!     
+!!
 !!   INPUTS
 !!     -matrix: block of the full matrix
 !!     -eigenvetors
@@ -502,12 +503,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ldv, ncv
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: eigenvalues
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_syevx', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: vl = 0.0_dp, vu = 0.0_dp 
+    REAL(KIND=dp), PARAMETER                 :: vl = 0.0_dp, vu = 0.0_dp
 
     INTEGER                                  :: info, istat, ldb, liwork, &
                                                 lwork, m, nb, nrow
@@ -560,7 +561,7 @@ CONTAINS
     DEALLOCATE(w,ifail,iwork,work,STAT =istat)
     IF (istat /= 0) CALL stop_memory(routineP,"w,ifail,iwork,work")
 
-  END SUBROUTINE fm_mol_syevx 
+  END SUBROUTINE fm_mol_syevx
 
 !***************************************************************************
 !!****f* kg_gpw_fm_mol_utils/mol_mo_random
@@ -570,7 +571,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Assign a random value to the MO block matrix
-!!     
+!!
 !!   INPUTS
 !!     -mo: block of the full matrix
 !!     -mepos
@@ -591,8 +592,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: mo
     INTEGER, INTENT(IN)                      :: mepos, num_pe
     INTEGER, INTENT(IN), OPTIONAL            :: ncol, start_col
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER              :: routineN = 'mol_mo_random'
 
@@ -626,7 +627,7 @@ CONTAINS
     nrow = SIZE(mo,1)
     DO icol = my_start ,my_start + my_ncol - 1
       CALL dlarnv(1,iseed,nrow,mo(1,icol))
-    END DO 
+    END DO
 
   END SUBROUTINE mol_mo_random
 
@@ -639,7 +640,7 @@ CONTAINS
 !!   FUNCTION
 !!     Copy a block of a sparse matrix into the right part of the
 !!     molecular block of a full matrix (full for one molecule not the whole system)
-!!     
+!!
 !!   INPUTS
 !!     -matrix
 !!     -mol_block
@@ -663,8 +664,8 @@ CONTAINS
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     REAL(dp), DIMENSION(:, :)                :: matrix_mol_block
     INTEGER, INTENT(IN)                      :: natom, nrow, ncol
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_sparse2mol_block', &
       routineP = moduleN//':'//routineN
@@ -705,13 +706,13 @@ CONTAINS
                               block_row=iatom,&
                               block_col=jatom,&
                               BLOCK=s_block)
-          icol =  1 
+          icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1
             DO irow_mol_s = row_first, row_last
               matrix_mol_block(irow_mol_s,icol_mol_s) = s_block(irow,icol)
               irow = irow + 1
-            END DO  ! irow_mol_s 
+            END DO  ! irow_mol_s
             icol = icol + 1
           END DO   ! icol_mol_s
         ELSE
@@ -719,16 +720,16 @@ CONTAINS
                               block_row=jatom,&
                               block_col=iatom,&
                               BLOCK=s_block)
-          icol =  1 
+          icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1
             DO irow_mol_s = row_first, row_last
               matrix_mol_block(irow_mol_s,icol_mol_s) = s_block(icol,irow)
               irow = irow + 1
-            END DO  ! irow_mol_s 
+            END DO  ! irow_mol_s
             icol = icol + 1
           END DO  ! icol_mol_s
-        END IF      
+        END IF
       END DO  ! jat
     END DO  ! iat
 
@@ -747,7 +748,7 @@ CONTAINS
 !!     to one molecule
 !!     Since the molecule are distributed over the projectors, some commuication
 !!     is required to write the list in the correct order (order of the molecule)
-!!     
+!!
 !!   NOTE
 !!     The KG_GPW RESTART file has a special form. It should be read and written only
 !!     in a KG_GPW calculation. However the defoult name is still RESTART.
@@ -770,8 +771,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_mol_restart', &
       routineP = moduleN//':'//routineN
@@ -854,7 +855,7 @@ CONTAINS
                                 n_ao = nao_molkind(imolecule_kind),&
                                 natom = natom_molkind(imolecule_kind), &
                                 nelectron_spin=nel_molkind(1:2,imolecule_kind) )
-      END DO 
+      END DO
 
       WRITE (restart_unit) method, nmolecule_kind, nmolecule_global, nelectron_global, nspins
       WRITE (restart_unit) nmol_molkind
@@ -875,7 +876,7 @@ CONTAINS
     END IF  ! ionode
 
     ! The following is done by all the processor
-    ! The MOs etc are communicated to all the processor, one molecule at a time 
+    ! The MOs etc are communicated to all the processor, one molecule at a time
 
     ALLOCATE(mo_buffer(nao_max,nmo_max,nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -897,7 +898,7 @@ CONTAINS
         CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,  &
                                nmolecule_local = nmolecule_local,&
                                n_ao=n_ao, n_mo=n_mo,nelectron_spin=nelectron_spin,&
-                               fm_mol_blocks=mol_blocks) 
+                               fm_mol_blocks=mol_blocks)
         DO imol_local = 1,nmolecule_local
            mol_block => mol_blocks(imol_local)
            IF(imol_global == mol_block%imol_global) THEN
@@ -923,7 +924,7 @@ CONTAINS
                 END DO
              END DO
            END IF
-                      
+
         END DO  ! imol_local
 
       END DO  ! imolecule_kind
@@ -938,7 +939,7 @@ CONTAINS
         IF(output_unit>0) &
              WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
         CALL stop_program (routineP,"Error ")
-      ELSE 
+      ELSE
 
         CALL mp_sum(mo_buffer,group)
         CALL mp_sum(eig_buffer,group)
@@ -961,7 +962,7 @@ CONTAINS
       END IF
 
     END DO ! imol_global
- 
+
     DEALLOCATE(mo_buffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(eig_buffer,STAT=istat)
@@ -987,7 +988,7 @@ CONTAINS
 !!     to one molecule
 !!     Since the molecule are distributed over the projectors, some commuication
 !!     is required to write the list in the correct order (order of the molecule)
-!!     
+!!
 !!   NOTE
 !!     The KG_GPW RESTART file has a special form. It should be read and written only
 !!     in a KG_GPW calculation. However the defoult name is still RESTART.
@@ -1012,8 +1013,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_mol_restart', &
       routineP = moduleN//':'//routineN
@@ -1090,7 +1091,7 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       READ (restart_unit) method, nmolecule_kind_read, nmolecule_global_read, nelectron_global_read, nspins_read
- 
+
       IF (.NOT. (method=="KG_GPW")) THEN
         CALL stop_program(routineP,"READ RESTART: this is not a KG_GPW restart file")
       END IF
@@ -1106,7 +1107,7 @@ CONTAINS
       IF (nspins_read /= nspins) THEN
         CALL stop_program(routineP,"READ RESTART: nspin is not equal (program this !!)")
       END IF
-      
+
       READ (restart_unit) nmol_molkind_read
       READ (restart_unit) nao_molkind_read
       READ (restart_unit) natom_molkind_read
@@ -1120,7 +1121,7 @@ CONTAINS
                                 nmol_kind_global=nmol_kind_global,&
                                 n_ao = n_ao,&
                                 natom = natom, &
-                                nelectron_spin=nelectron_spin) 
+                                nelectron_spin=nelectron_spin)
         CPPostcondition(nmol_kind_global==nmol_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
         CPPostcondition(n_ao==nao_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
         CPPostcondition(natom==natom_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
@@ -1128,7 +1129,7 @@ CONTAINS
          WRITE(output_unit,*) " READ RESTART : molecule kind ",imolecule_kind , " is not consistent "
          CALL stop_program(routineP,"error")
         END IF
-      END DO 
+      END DO
 
       DEALLOCATE(nmol_molkind_read,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1154,7 +1155,7 @@ CONTAINS
       CALL dcopy(nao_max*nmo_max*nspins,0.0_dp,0,mo_buffer(1,1,1),1)
       CALL dcopy(nmo_max*nspins,0.0_dp,0,eig_buffer(1,1),1)
       CALL dcopy(nmo_max*nspins,0.0_dp,0,occ_buffer(1,1),1)
- 
+
       IF(para_env%ionode) THEN
         DO ispin = 1,nspins
           READ (restart_unit) imol_global_read , ispin_read
@@ -1181,7 +1182,7 @@ CONTAINS
         CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,  &
                                nmolecule_local = nmolecule_local,&
                                n_ao=n_ao, n_mo=n_mo,nelectron_spin=nelectron_spin,&
-                               fm_mol_blocks=mol_blocks) 
+                               fm_mol_blocks=mol_blocks)
         DO imol_local = 1,nmolecule_local
            mol_block => mol_blocks(imol_local)
            IF(imol_global == mol_block%imol_global) THEN
@@ -1200,7 +1201,7 @@ CONTAINS
                 mo_set => mos(ispin)%mo_set
                 CALL get_mol_mo_set(mo_set=mo_set,mo=mo,eigenvalues=eigenvalues,&
                                     occupation_numbers=occupation_numbers)
-                nmo_min = MIN( n_mo(ispin),n_mo_read(ispin)) 
+                nmo_min = MIN( n_mo(ispin),n_mo_read(ispin))
 
                 DO imo = 1 , nmo_min
                   CALL DCOPY(n_ao,mo_buffer(1,imo,ispin),1,mo(1,imo),1)
@@ -1214,7 +1215,7 @@ CONTAINS
                 END DO
              END DO
            END IF
-                      
+
         END DO  ! imol_local
 
       END DO  ! imolecule_kind

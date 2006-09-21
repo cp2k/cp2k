@@ -10,7 +10,7 @@
 !!   FUNCTION
 !!     contains miscellaneous subroutines used in the Monte Carlo runs,
 !!     mostly I/O stuff
-!! 
+!!
 !!   AUTHOR
 !!     MJM
 !!
@@ -181,7 +181,7 @@ SUBROUTINE mc_averages_release ( averages  )
 
       CALL timeset(routineN,'I','',handle)
 
-! deallocate 
+! deallocate
       DEALLOCATE (averages,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "averages")
@@ -564,11 +564,11 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     WRITE(iw,*) '****************************************************',&
                    '***************************'
     WRITE(iw,*)
- 
+
 ! end the timing
     CALL timestop(0.0E0_dp,handle)
 
- 
+
 END SUBROUTINE final_mc_write
 
 !******************************************************************************
@@ -666,24 +666,24 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 ! grab some of the structures we're gonna need
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
-         CALL force_env_get(force_env,fist_env=fist_env,subsys=subsys)
+         CALL force_env_get(force_env,fist_env=fist_env,subsys=subsys,error=error)
          CALL get_fist_env(fist_env,cell=cell,ewald_env=ewald_env,&
             input=input,atomic_kind_set=atomic_kind_set,&
             fist_nonbond_env=fist_nonbond_env,error=error)
          CALL ewald_env_get(ewald_env,unit_type=unit_type,&
             ewald_type=ewald_type,alpha=alpha,gmax=gmax,o_spline=o_spline,&
-            ns_max=ns_max,epsilon=epsilon)
+            ns_max=ns_max,epsilon=epsilon,error=error)
          CALL get_cell(cell,abc=abc)
       CASE ( use_qs_force )
-         CALL force_env_get(force_env,qs_env=qs_env,subsys=subsys)
+         CALL force_env_get(force_env,qs_env=qs_env,subsys=subsys,error=error)
          CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
-           input=input,atomic_kind_set=atomic_kind_set)
+           input=input,atomic_kind_set=atomic_kind_set,error=error)
          CALL get_cell(cell_ref,abc=abc)
 
       CASE ( use_kg_force )
-         CALL force_env_get(force_env,kg_env=kg_env,subsys=subsys)
+         CALL force_env_get(force_env,kg_env=kg_env,subsys=subsys,error=error)
          CALL get_kg_env(kg_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
-           input=input,atomic_kind_set=atomic_kind_set)
+           input=input,atomic_kind_set=atomic_kind_set,error=error)
          CALL get_cell(cell_ref,abc=abc)
 
       CASE default
@@ -697,7 +697,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CALL get_molecule_kind(molecule_kind,atom_list=atom_list,&
          natom=natoms,bond_list=bond_list,bend_list=bend_list,&
          torsion_list=torsion_list,nbond=nbond,nbend=nbend,ntorsion=ntorsion)
-      
+
 ! find out how many atom types we have
       ntypes=SIZE(atomic_kind_set(:))
 
@@ -724,7 +724,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "    &POISSON"
          WRITE(unit,10000) "      &EWALD"
          CALL convert_to_cp2k_units ( 'BOHR', length = alpha,&
-            l_power = -1 )  
+            l_power = -1 )
          SELECT CASE ( ewald_type )
          CASE ( do_ewald_ewald )
             WRITE(unit,10000) "       EWALD_TYPE ewald"
@@ -750,7 +750,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 
 ! rcut
-         CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm)
+         CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm,error=error)
 
 ! now some of the force field stuff
          WRITE(unit,10000) "    &FORCEFIELD"
@@ -760,13 +760,13 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          spline_section => section_vals_get_subs_vals(input,&
               "MM%FORCEFIELD%SPLINE",error=error)
          CALL section_vals_val_get(spline_section,"EMAX_SPLINE",&
-              r_val=r_val)
-         WRITE(unit,10000) "      &SPLINE"       
+              r_val=r_val,error=error)
+         WRITE(unit,10000) "      &SPLINE"
          WRITE(unit,20002) "        EMAX_SPLINE ",r_val
          CALL section_vals_val_get(spline_section,"EPS_SPLINE",&
-              r_val=r_val)
+              r_val=r_val,error=error)
          WRITE(unit,20002) "        EPS_SPLINE ",r_val
-         WRITE(unit,10000) "      &END SPLINE"       
+         WRITE(unit,10000) "      &END SPLINE"
 
 ! charges
          DO itype=1,ntypes
@@ -888,7 +888,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
                WRITE(unit,20002) "        PHI0 ",torsion_list(itorsion)%torsion_kind%cosphi0(imul)
                WRITE(unit,10000) "      &END TORSION"
             ENDDO
-               
+
          ENDDO outer_torsion
          DEALLOCATE(atom_a_done)
          DEALLOCATE(atom_b_done)
@@ -922,24 +922,24 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CASE ( use_qs_force )
          WRITE(unit,10000) "  &DFT"
          WRITE(unit,10000) "    &MGRID"
-         CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val)
+         CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val,error=error)
          WRITE(unit,20000) "      CUTOFF  ",2.0E0_dp*r_val
-         CALL section_vals_val_get(input,"DFT%MGRID%NGRIDS",i_val=i_val)
+         CALL section_vals_val_get(input,"DFT%MGRID%NGRIDS",i_val=i_val,error=error)
          WRITE(unit,20003) "      NGRIDS  ",i_val
          WRITE(unit,10000) "    &END MGRID"
          WRITE(unit,10000) "    &QS"
          WRITE(unit,10000) "      EXTRAPOLATION USE_PREV_WF"
          WRITE(unit,10000) "    &END QS"
          WRITE(unit,10000) "    &SCF"
-         CALL section_vals_val_get(input,"DFT%SCF%SCF_GUESS",c_val=c_val)
+         CALL section_vals_val_get(input,"DFT%SCF%SCF_GUESS",c_val=c_val,error=error)
          WRITE(unit,20001) "      SCF_GUESS  ",TRIM(ADJUSTL(c_val))
          WRITE(unit,10000) "    &END SCF"
          WRITE(unit,10000) "    &XC"
          xc_fun_section => section_vals_get_subs_vals(input,&
-            "DFT%XC%XC_FUNCTIONAL")
+            "DFT%XC%XC_FUNCTIONAL",error=error)
          WRITE(unit,10000) "      &XC_FUNCTIONAL"
          DO ifunct=1,4
-            xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct)
+            xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct,error=error)
             IF(ASSOCIATED(xc_fun)) THEN
                WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
                WRITE(unit,20001) "        &END ",TRIM(xc_fun%section%name)
@@ -948,10 +948,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "      &END XC_FUNCTIONAL"
          WRITE(unit,10000) "      &XC_GRID"
          CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_SMOOTH_RHO",&
-           c_val=c_val)
+           c_val=c_val,error=error)
          WRITE(unit,20001) "        XC_SMOOTH_RHO ",TRIM(ADJUSTL(c_val))
          CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_DERIV",&
-           c_val=c_val)
+           c_val=c_val,error=error)
          WRITE(unit,20001) "        XC_DERIV ",TRIM(ADJUSTL(c_val))
          WRITE(unit,10000) "      &END XC_GRID"
          WRITE(unit,10000) "    &END XC"
@@ -959,44 +959,44 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CASE ( use_kg_force )
          WRITE(unit,10000) "  &DFT"
          WRITE(unit,10000) "    &MGRID"
-         CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val)
+         CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val,error=error)
          WRITE(unit,20000) "      CUTOFF  ",2.0E0_dp*r_val
-         CALL section_vals_val_get(input,"DFT%MGRID%NGRIDS",i_val=i_val)
+         CALL section_vals_val_get(input,"DFT%MGRID%NGRIDS",i_val=i_val,error=error)
          WRITE(unit,20003) "      NGRIDS  ",i_val
          WRITE(unit,10000) "    &END MGRID"
          WRITE(unit,10000) "    &QS"
-         CALL section_vals_val_get(input,"DFT%QS%EXTRAPOLATION",c_val=c_val)
+         CALL section_vals_val_get(input,"DFT%QS%EXTRAPOLATION",c_val=c_val,error=error)
          WRITE(unit,20001) "      EXTRAPOLATION  ",TRIM(ADJUSTL(c_val))
-         CALL section_vals_val_get(input,"DFT%QS%EPS_CORE_CHARGE",r_val=r_val)
+         CALL section_vals_val_get(input,"DFT%QS%EPS_CORE_CHARGE",r_val=r_val,error=error)
          WRITE(unit,20004) "      EPS_CORE_CHARGE  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_PPL",r_val=r_val)
+         CALL section_vals_val_get(input,"DFT%QS%EPS_PPL",r_val=r_val,error=error)
          WRITE(unit,20004) "      EPS_PPL  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_PGF_ORB",r_val=r_val)
+         CALL section_vals_val_get(input,"DFT%QS%EPS_PGF_ORB",r_val=r_val,error=error)
          WRITE(unit,20004) "      EPS_PGF_ORB  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_GVG_RSPACE",r_val=r_val)
+         CALL section_vals_val_get(input,"DFT%QS%EPS_GVG_RSPACE",r_val=r_val,error=error)
          WRITE(unit,20004) "      EPS_GVG_RSPACE  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_RHO",r_val=r_val)
+         CALL section_vals_val_get(input,"DFT%QS%EPS_RHO",r_val=r_val,error=error)
          WRITE(unit,20004) "      EPS_RHO  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%METHOD",c_val=c_val)
+         CALL section_vals_val_get(input,"DFT%QS%METHOD",c_val=c_val,error=error)
          WRITE(unit,20001) "      METHOD  ",TRIM(ADJUSTL(c_val))
          WRITE(unit,10000) "    &END QS"
          WRITE(unit,10000) "    &SCF"
-         CALL section_vals_val_get(input,"DFT%SCF%SCF_GUESS",c_val=c_val)
+         CALL section_vals_val_get(input,"DFT%SCF%SCF_GUESS",c_val=c_val,error=error)
          WRITE(unit,20001) "      SCF_GUESS  ",TRIM(ADJUSTL(c_val))
          WRITE(unit,10000) "    &END SCF"
          WRITE(unit,10000) "    &XC"
          xc_fun_section => section_vals_get_subs_vals(input,&
-            "DFT%XC%XC_FUNCTIONAL")
+            "DFT%XC%XC_FUNCTIONAL",error=error)
 ! take care of the functionals...I had to put the extra if statement in for the kinetic
 ! energy functional, as that doesn't just use the section name
          WRITE(unit,10000) "      &XC_FUNCTIONAL"
          DO ifunct=1,4
-            xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct)
+            xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct,error=error)
             IF(ASSOCIATED(xc_fun)) THEN
                WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
                IF(TRIM(xc_fun%section%name) == "KE_GGA") THEN
                   CALL section_vals_val_get(input,"DFT%XC%XC_FUNCTIONAL%KE_GGA%FUNCTIONAL",&
-                       c_val=c_val)
+                       c_val=c_val,error=error)
                   WRITE(unit,20001) "          FUNCTIONAL ",TRIM(c_val)
                ENDIF
                WRITE(unit,20001) "        &END ",TRIM(xc_fun%section%name)
@@ -1005,10 +1005,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "      &END XC_FUNCTIONAL"
          WRITE(unit,10000) "      &XC_GRID"
          CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_SMOOTH_RHO",&
-           c_val=c_val)
+           c_val=c_val,error=error)
          WRITE(unit,20001) "        XC_SMOOTH_RHO ",TRIM(ADJUSTL(c_val))
          CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_DERIV",&
-           c_val=c_val)
+           c_val=c_val,error=error)
          WRITE(unit,20001) "        XC_DERIV ",TRIM(ADJUSTL(c_val))
          WRITE(unit,10000) "      &END XC_GRID"
          WRITE(unit,10000) "    &END XC"
@@ -1066,12 +1066,12 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             CALL get_atomic_kind(atomic_kind=atomic_kind,&
             element_symbol=element_symbol,gth_potential=gth_potential,&
             orb_basis_set=orb_basis_set,elp_potential=elp_potential)
-            
+
             CALL get_gto_basis_set(orb_basis_set,name=name)
-            
+
             WRITE(unit,20001) "    &KIND ",element_symbol
             WRITE(unit,20001) "      BASIS_SET    ",TRIM(ADJUSTL(name))
-            
+
             IF(ASSOCIATED(gth_potential)) THEN
                CALL get_potential(gth_potential,name=name)
                WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
@@ -1080,7 +1080,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
                WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
             ENDIF
             WRITE(unit,10000) "    &END KIND"
-         ENDDO      
+         ENDDO
       ENDIF
 ! write the topology section
       WRITE(unit,10000) "    &TOPOLOGY"

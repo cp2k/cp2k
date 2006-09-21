@@ -192,8 +192,8 @@ CONTAINS
   SUBROUTINE cp_unit_create(unit, string, error)
     TYPE(cp_unit_type), POINTER              :: unit
     CHARACTER(len=*), INTENT(in)             :: string
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create', &
       routineP = moduleN//':'//routineN
@@ -458,8 +458,8 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
     INTEGER, DIMENSION(:), INTENT(in)        :: kind_id, unit_id
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: power
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create2', &
       routineP = moduleN//':'//routineN
@@ -575,8 +575,8 @@ END SUBROUTINE cp_unit_create2
 !!*** **********************************************************************
 SUBROUTINE cp_unit_retain(unit,error)
     TYPE(cp_unit_type), POINTER              :: unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_retain', &
       routineP = moduleN//':'//routineN
@@ -615,8 +615,8 @@ END SUBROUTINE cp_unit_retain
 !!*** **********************************************************************
 SUBROUTINE cp_unit_release(unit,error)
     TYPE(cp_unit_type), POINTER              :: unit
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_release', &
       routineP = moduleN//':'//routineN
@@ -665,8 +665,8 @@ FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
      RESULT(res)
     INTEGER, INTENT(in)                      :: basic_kind, basic_unit
     INTEGER, INTENT(in), OPTIONAL            :: error_level
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_check', &
@@ -791,8 +791,8 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
     REAL(kind=dp), INTENT(in)                :: value
     INTEGER, INTENT(in)                      :: basic_kind, basic_unit
     INTEGER, INTENT(in), OPTIONAL            :: power
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_to_cp2k', &
@@ -962,8 +962,8 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
     INTEGER, INTENT(in)                      :: basic_kind, basic_unit
     INTEGER, INTENT(in), OPTIONAL            :: power
     LOGICAL, INTENT(in), OPTIONAL            :: accept_undefined
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(len=cp_unit_basic_desc_length) :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_desc', &
@@ -1181,8 +1181,8 @@ FUNCTION cp_unit_desc(unit,defaults,accept_undefined,error)&
     TYPE(cp_unit_set_type), OPTIONAL, &
       POINTER                                :: defaults
     LOGICAL, INTENT(in), OPTIONAL            :: accept_undefined
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     CHARACTER(len=cp_unit_desc_length)       :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_desc', &
@@ -1253,8 +1253,8 @@ FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
     TYPE(cp_unit_set_type), OPTIONAL, &
       POINTER                                :: defaults
     INTEGER, INTENT(in), OPTIONAL            :: power
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_to_cp2k1', &
@@ -1323,8 +1323,8 @@ FUNCTION cp_unit_from_cp2k1(value,unit,defaults,power,error) RESULT(res)
     TYPE(cp_unit_set_type), OPTIONAL, &
       POINTER                                :: defaults
     INTEGER, INTENT(in), OPTIONAL            :: power
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_from_cp2k1', &
@@ -1375,8 +1375,8 @@ FUNCTION cp_unit_to_cp2k(value,unit_str,defaults,power,error) RESULT(res)
     TYPE(cp_unit_set_type), OPTIONAL, &
       POINTER                                :: defaults
     INTEGER, INTENT(in), OPTIONAL            :: power
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_to_cp2k', &
@@ -1426,8 +1426,8 @@ FUNCTION cp_unit_from_cp2k(value,unit_str,defaults,power,error) RESULT(res)
     TYPE(cp_unit_set_type), OPTIONAL, &
       POINTER                                :: defaults
     INTEGER, INTENT(in), OPTIONAL            :: power
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_from_cp2k', &
@@ -1477,8 +1477,8 @@ FUNCTION cp_unit_transform(value,unit_from,unit_to,defaults,power,error) &
     TYPE(cp_unit_set_type), OPTIONAL, &
       POINTER                                :: defaults
     INTEGER, INTENT(in), OPTIONAL            :: power
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_transform', &
@@ -1526,8 +1526,8 @@ END FUNCTION cp_unit_transform
 !!*** **********************************************************************
 FUNCTION cp_unit_compatible(unit1,unit2,error) RESULT(res)
     TYPE(cp_unit_type), POINTER              :: unit1, unit2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_compatible', &
@@ -1568,8 +1568,8 @@ END FUNCTION cp_unit_compatible
 SUBROUTINE cp_unit_set_create(unit_set,name,error)
     TYPE(cp_unit_set_type), POINTER          :: unit_set
     CHARACTER(len=*), INTENT(in)             :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_create', &
       routineP = moduleN//':'//routineN
@@ -1665,8 +1665,8 @@ END SUBROUTINE cp_unit_set_create
 !!*** **********************************************************************
 SUBROUTINE cp_unit_set_retain(unit_set,error)
     TYPE(cp_unit_set_type), POINTER          :: unit_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_retain', &
       routineP = moduleN//':'//routineN
@@ -1705,8 +1705,8 @@ END SUBROUTINE cp_unit_set_retain
 !!*** **********************************************************************
 SUBROUTINE cp_unit_set_release(unit_set,error)
     TYPE(cp_unit_set_type), POINTER          :: unit_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_release', &
       routineP = moduleN//':'//routineN

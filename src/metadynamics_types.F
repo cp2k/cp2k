@@ -16,7 +16,7 @@
 !!
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!   MODIFICATION HISTORY
 !!     01.2005 created [fawzi and ale]
@@ -33,7 +33,7 @@ MODULE metadynamics_types
 
   IMPLICIT NONE
 
-  PRIVATE 
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
 
@@ -74,7 +74,7 @@ MODULE metadynamics_types
   END TYPE meta_env_type
 
 CONTAINS
-  
+
 !!****f* metadynamics/meta_env_retain *
 !!
 !!   NAME
@@ -87,8 +87,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     alessandro laio and fawzi mohamed
@@ -96,8 +96,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE meta_env_retain(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_retain', &
       routineP = moduleN//':'//routineN
@@ -105,7 +105,7 @@ SUBROUTINE meta_env_retain(meta_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPreconditionNoFail(ASSOCIATED(meta_env),cp_failure_level,routineP,error)
   CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
   meta_env%ref_count=meta_env%ref_count+1
@@ -124,8 +124,8 @@ END SUBROUTINE meta_env_retain
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     alessandro laio and fawzi mohamed
@@ -133,8 +133,8 @@ END SUBROUTINE meta_env_retain
 !!*** **********************************************************************
 SUBROUTINE meta_env_release(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_release', &
       routineP = moduleN//':'//routineN
@@ -148,7 +148,7 @@ SUBROUTINE meta_env_release(meta_env,error)
      CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
      meta_env%ref_count=meta_env%ref_count-1
      IF (meta_env%ref_count==0) THEN
-        CALL cp_para_env_release(meta_env%para_env)
+        CALL cp_para_env_release(meta_env%para_env,error=error)
         IF (ASSOCIATED(meta_env%metavar)) THEN
            DEALLOCATE(meta_env%metavar,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)

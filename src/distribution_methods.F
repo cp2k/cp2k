@@ -111,8 +111,8 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_1d'
 
@@ -236,7 +236,7 @@ CONTAINS
           local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
           DO iatom=1,natom
             atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
-   
+
             CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
                                  kind_number=kind_a)
             nparticle_local(kind_a) = nparticle_local(kind_a) + 1
@@ -251,13 +251,13 @@ CONTAINS
 
     CALL distribution_1d_create(local_molecules,&
                                 n_el=nmolecule_local,&
-                                para_env=logger%para_env)
+                                para_env=logger%para_env,error=error)
 
 !   *** Create the local particle structure ***
 
     CALL distribution_1d_create(local_particles,&
                                 n_el=nparticle_local,&
-                                para_env=logger%para_env)
+                                para_env=logger%para_env,error=error)
 
 !   *** Store the generated local molecule and particle distributions ***
 
@@ -295,10 +295,10 @@ CONTAINS
 
        output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION1D",&
             extension=".Log",error=error)
-       
+
        iw = output_unit
        IF (output_unit<0) iw = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
-      
+
 !     *** Print molecule distribution ***
 
       ALLOCATE (work(npe),STAT=istat)
@@ -309,7 +309,7 @@ CONTAINS
       work(mype) = SUM(nmolecule_local)
       CALL mp_sum(work,group)
 
-      IF (output_unit>0) THEN    
+      IF (output_unit>0) THEN
          WRITE (UNIT=output_unit,&
               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T24,I8))")&
               "DISTRIBUTION OF THE MOLECULES",&
@@ -319,9 +319,9 @@ CONTAINS
               "Sum",SUM(work)
          CALL m_flush(output_unit)
       END IF
-      
+
       CALL mp_sync(group)
-      
+
       DO ipe=1,npe
          IF (ipe == mype) THEN
             WRITE (UNIT=iw,FMT="(/,T3,A)")&
@@ -343,7 +343,7 @@ CONTAINS
          CALL m_flush(iw)
          CALL mp_sync(group)
       END DO
-      
+
 !     *** Print particle distribution ***
 
       work(:) = 0
@@ -361,9 +361,9 @@ CONTAINS
               "Sum",SUM(work)
          CALL m_flush(output_unit)
       END IF
-      
+
       CALL mp_sync(group)
-      
+
       DO ipe=1,npe
          IF (ipe == mype) THEN
             WRITE (UNIT=iw,FMT="(/,T3,A)")&
@@ -389,7 +389,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-           "PRINT%DISTRIBUTION1D",error=error)           
+           "PRINT%DISTRIBUTION1D",error=error)
    END IF
 !   *** Release work storage ***
 
@@ -475,8 +475,8 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_2d'
 
@@ -875,12 +875,12 @@ CONTAINS
       END IF
 
       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-           "PRINT%DISTRIBUTION",error=error)      
+           "PRINT%DISTRIBUTION",error=error)
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          force_env_section,"PRINT%DISTRIBUTION2D",error=error),cp_p_file)) THEN
-         
+
          iw = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
          CALL distribution_2d_write(distribution_2d,&
                                     unit_nr=iw,&

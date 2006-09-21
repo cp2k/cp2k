@@ -128,8 +128,8 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
       routineP = moduleN//':'//routineN
@@ -146,7 +146,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: complexresult
     TYPE(cp_logger_type), POINTER            :: logger
 
-     NULLIFY(centers,complexresult,logger) 
+     NULLIFY(centers,complexresult,logger)
      failure = .FALSE.
      logger => cp_error_get_logger(error)
      ionode = logger%para_env%mepos==logger%para_env%source
@@ -173,7 +173,7 @@ CONTAINS
 
 !  It should be the step at which the property localization is calculated
 
-     CALL  cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates )
+     CALL  cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates ,error=error)
      CPPrecondition(nstates>=nmoloc,cp_failure_level,routineP,error,failure)
 
      centers => localized_wfn_control%centers_set(ispin)%array
@@ -204,7 +204,7 @@ CONTAINS
      ENDDO
 
 ! now, find the spread of the orbitals
-     CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct )
+     CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
 
      DO idir=1,3
         complexresult%local_data ( :, : ) = CMPLX (zij(1,idir)%matrix%local_data(:,:), &
@@ -213,7 +213,7 @@ CONTAINS
         spreadtot(idir) =  SQRT(-2.0*nmoloc*LOG(ABS(almost_determinant)))
      ENDDO
 
-     CALL cp_cfm_release(complexresult)
+     CALL cp_cfm_release(complexresult,error=error)
 
      IF (ionode) THEN
        WRITE(output_unit,'(T4,A,/10x,3F16.10)') " Total Spread of the selected mos (Berry) x,y,z ",&
@@ -221,7 +221,7 @@ CONTAINS
      END IF
      IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
                "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) &
-                WRITE(unit_out_s,'(A,3F16.10)')  " Total ",  spreadtot(1:3) 
+                WRITE(unit_out_s,'(A,3F16.10)')  " Total ",  spreadtot(1:3)
 
      IF(BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
                "PRINT%WANNIER_CENTERS",error=error),cp_p_file)) THEN
@@ -247,12 +247,12 @@ CONTAINS
 !!      as given by silvestrelli et al
 !!      If required the centers and the spreads for each mos selected
 !!      are calculated from z_ij and printed in the proper files.
-!!      The files should be appended if already exist, in this way 
+!!      The files should be appended if already exist, in this way
 !!      it would be possible to follow the evlution of the localization
 !!      e.g. along a MD trajectory
 !!
 !!   NOTES
-!!      This definition need the use of complex numbers, therefore the 
+!!      This definition need the use of complex numbers, therefore the
 !!      optimization routines are specific for this case
 !!      The file for the centers and the spreads have a xyz format
 !!
@@ -261,11 +261,11 @@ CONTAINS
 !!     - qs_loc_env: new environment for the localization calculations
 !!     - vectors: selected mos to be localized
 !!     - op_sm_set: sparse matrices containing the integrals of the kind <mi e{iGr} nu>
-!!     - zij_fm_set: set of full matrix of size nmoloc x nmoloc, will contain the z_ij numbers 
+!!     - zij_fm_set: set of full matrix of size nmoloc x nmoloc, will contain the z_ij numbers
 !!                   as defined by Silvestrelli et al
 !!     - ionode: logical that indicates the node responsable for the i/o
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     MI
@@ -290,8 +290,8 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
       routineP = moduleN//':'//routineN
@@ -315,34 +315,34 @@ CONTAINS
     NULLIFY(opvec)
 
     ! get rows and cols of the input
-    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc)
+    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc,error=error)
     ! replicate the input kind of matrix
-    CALL cp_fm_create(opvec,vectors%matrix_struct)
+    CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
 
 
 ! Compute zij here
     DO i=1,SIZE ( zij_fm_set, 2 )
       DO j=1,SIZE ( zij_fm_set, 1 )
          CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
-         CALL cp_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc )
+         CALL cp_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
          CALL cp_fm_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
-              zij_fm_set(j,i)%matrix)
+              zij_fm_set(j,i)%matrix,error=error)
       ENDDO
     ENDDO
 
 !      CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
-!           cell, weights, ispin, ionode, error=error ) 
+!           cell, weights, ispin, ionode, error=error )
 
-    SELECT CASE ( method ) 
+    SELECT CASE ( method )
     CASE ( do_loc_jacobi )
        CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=100000,&
-            eps_localization=1.0E-4_dp, sweeps=sweeps ) 
+            eps_localization=1.0E-4_dp, sweeps=sweeps )
     CASE ( do_loc_crazy )
        CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=200, &
-            eps_localization=1.0E-4_dp, iterations= sweeps ) 
+            eps_localization=1.0E-4_dp, iterations= sweeps ,error=error)
     CASE ( do_loc_direct )
-       CALL direct_mini( weights, zij_fm_set, vectors, sweeps ) 
-    CASE ( do_loc_none ) 
+       CALL direct_mini( weights, zij_fm_set, vectors, sweeps )
+    CASE ( do_loc_none )
       IF (ionode) THEN
           WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
       ENDIF
@@ -355,11 +355,11 @@ CONTAINS
     ENDIF
 
     CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
-           cell, weights, ispin, loc_section, error=error ) 
+           cell, weights, ispin, loc_section, error=error )
 
-    CALL cp_fm_release(opvec)
- 
-    CALL timestop(0.0_dp,handle) 
+    CALL cp_fm_release(opvec,error=error)
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE optimize_loc_berry
 
@@ -377,8 +377,8 @@ CONTAINS
       POINTER                                :: zij_fm_set
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
       routineP = moduleN//':'//routineN
@@ -401,8 +401,8 @@ CONTAINS
 
     CALL timeset(routineP,"I",'',handle)
 
-    failure = .FALSE. 
-    
+    failure = .FALSE.
+
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) THEN
@@ -413,12 +413,12 @@ CONTAINS
 
     NULLIFY(particle_set)
     ! get rows and cols of the input
-    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc)
+    CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc,error=error)
     ! replicate the input kind of matrix
-    CALL cp_fm_create(opvec,vectors%matrix_struct)
+    CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
     CALL cp_fm_set_all(opvec, 0.0_dp, error=error)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, particle_set=particle_set) 
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, particle_set=particle_set,error=error)
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -427,19 +427,19 @@ CONTAINS
     ALLOCATE (nsgf(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!   construction of 
+!   construction of
     CALL get_particle_set(particle_set=particle_set,&
          first_sgf=first_sgf,last_sgf=last_sgf,nsgf=nsgf)
 
 !   Copy the overlap sparse matrix in a full matrix
-    CALL mpools_get(qs_env%mpools,ao_ao_fm_pools=ao_ao_fm_pools)
+    CALL mpools_get(qs_env%mpools,ao_ao_fm_pools=ao_ao_fm_pools,error=error)
     CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, ov_fm, name=" ", error=error)
-    CALL copy_sm_to_fm(matrix_s(1)%matrix,ov_fm)
+    CALL copy_sm_to_fm(matrix_s(1)%matrix,ov_fm,error=error)
 
 !   Compute zij here
     DO iatom = 1, natom
       CALL cp_fm_set_all(zij_fm_set(iatom,1)%matrix, 0.0_dp, error=error)
-      CALL cp_fm_get_info(zij_fm_set(iatom,1)%matrix,ncol_global=ldz)
+      CALL cp_fm_get_info(zij_fm_set(iatom,1)%matrix,ncol_global=ldz,error=error)
       isgf = first_sgf(iatom)
       ncol = nsgf(iatom)
       ! multiply fmxfm, using only part of the ao : Ct x S
@@ -457,14 +457,14 @@ CONTAINS
     END DO  ! iatom
 
 !   And now perform the optimization and rotate the orbitals
-    SELECT CASE ( method ) 
+    SELECT CASE ( method )
     CASE ( do_loc_jacobi )
-       CALL jacobi_rotation_pipek (  zij_fm_set, vectors, sweeps ) 
+       CALL jacobi_rotation_pipek (  zij_fm_set, vectors, sweeps ,error=error)
     CASE ( do_loc_crazy )
-!       CALL crazy_rotations_pipek ( zij_fm_set, vectors, sweeps ) 
+!       CALL crazy_rotations_pipek ( zij_fm_set, vectors, sweeps )
     CASE ( do_loc_direct )
-!       CALL direct_mini_pipek     ( zij_fm_set, vectors, sweeps ) 
-    CASE ( do_loc_none ) 
+!       CALL direct_mini_pipek     ( zij_fm_set, vectors, sweeps )
+    CASE ( do_loc_none )
       IF (ionode) THEN
           WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
       ENDIF
@@ -477,15 +477,15 @@ CONTAINS
     ENDIF
 
     CALL centers_spreads_pipek( localized_wfn_control, zij_fm_set,&
-           particle_set, ispin, loc_section, error=error ) 
+           particle_set, ispin, loc_section, error=error )
 
 
     DEALLOCATE (first_sgf, last_sgf, nsgf, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL cp_fm_release(opvec)
+    CALL cp_fm_release(opvec,error=error)
 
-    CALL timestop(0.0_dp,handle) 
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE optimize_loc_pipek
 
@@ -504,7 +504,7 @@ CONTAINS
 !!      localized_wfn_control: control parameter for a localization calculation
 !!      ispin: spin 1 or 2
 !!      ionode: i/o proc. should write the output if required
-!!      error: 
+!!      error:
 !!
 !!   MODIFICATION HISTORY
 !!     05.2005 created [MI]
@@ -523,8 +523,8 @@ CONTAINS
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
       routineP = moduleN//':'//routineN
@@ -541,7 +541,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(centers,logger) 
+    NULLIFY(centers,logger)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -553,7 +553,7 @@ CONTAINS
 
     file_exists = .FALSE.
 
-    CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_global = nstate)
+    CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_global = nstate,error=error)
     natom = SIZE(zij_fm_set,1)
 
     centers => localized_wfn_control%centers_set(ispin)%array
@@ -574,10 +574,10 @@ CONTAINS
                      file_form="FORMATTED",&
                      file_position="APPEND",&
                      file_status="OLD",&
-                     unit_number=out_c)  
+                     unit_number=out_c)
          WRITE(out_c,'(I8)') nstate
          WRITE(out_c,'(A,I10)') " Iteration Step ", iter
-         
+
          CALL open_file(file_name=TRIM(filename2),&
                      file_action="READWRITE",&
                      file_form="FORMATTED",&
@@ -602,7 +602,7 @@ CONTAINS
                      unit_number=out_s)
          WRITE(out_s,'(A,I10)') " Iteration Step ", iter
 
-       END IF 
+       END IF
      END IF
 
 
@@ -618,7 +618,7 @@ CONTAINS
       DO istate = 1,nstate
         CALL cp_fm_get_element(zij_fm_set(iatom,1)%matrix,istate,istate,diag(istate,iatom))
       END DO
-    END DO 
+    END DO
 
     ALLOCATE (Qii(nstate),ziimax(nstate),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -632,7 +632,7 @@ CONTAINS
            ziimax(istate) = ABS(diag(istate,iatom))
            atom_of_state(istate) = iatom
         END IF
-      END DO 
+      END DO
     END DO
 
     DO istate = 1,nstate
@@ -650,7 +650,7 @@ CONTAINS
       CLOSE(out_c)
       CLOSE(out_s)
     END IF
-  
+
     DEALLOCATE(Qii,ziimax,atom_of_state,diag,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -679,8 +679,8 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section
     LOGICAL, INTENT(IN), OPTIONAL            :: onlyspin1
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
@@ -719,14 +719,14 @@ CONTAINS
                         localized_wfn_control=localized_wfn_control,&
                         moloc_coeff=moloc_coeff,&
                         op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
-                        cell=cell, weights=weights)
+                        cell=cell, weights=weights,error=error)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos,error=error)
 
     localized_wfn_control%iter_count = localized_wfn_control%iter_count + 1
     my_nspins = dft_control%nspins
     IF(my_one_spin) my_nspins = 1
- 
+
     DO ispin = 1,my_nspins
        loc_method = localized_wfn_control%localization_method
        SELECT CASE (localized_wfn_control%operator_type)
@@ -734,13 +734,13 @@ CONTAINS
          CALL optimize_loc_berry(loc_method, localized_wfn_control, &
               moloc_coeff(ispin)%matrix, op_sm_set, &
               op_fm_set, cell, weights, ispin, loc_section, error=error)
- 
-       CASE(op_loc_boys) 
+
+       CASE(op_loc_boys)
 
        CASE(op_loc_pipek)
          CALL  optimize_loc_pipek(qs_env, loc_method, localized_wfn_control,&
                moloc_coeff(ispin)%matrix, op_fm_set,  ispin, loc_section, error=error)
-       END SELECT 
+       END SELECT
 
        ! give back the localized orbitals
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
@@ -792,17 +792,17 @@ CONTAINS
              ENDIF
              centers(1:6,i) = 0.0_dp
            END DO
-         
-         END DO ! ncubes 
+
+         END DO ! ncubes
          CALL qs_print_cubes(qs_env,moloc_coeff(ispin)%matrix,&
               ncubes,localized_wfn_control%list_cubes,&
               centers,ionode,"loc",stride=section_get_ival(loc_section,&
-              "PRINT%WANNIER_CUBES%STRIDE"),iter=iter,ispin=ispin,error=error)
+              "PRINT%WANNIER_CUBES%STRIDE",error=error),iter=iter,ispin=ispin,error=error)
 
          DEALLOCATE(centers,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
-       
+
     END DO  ! ispin
 
   END SUBROUTINE qs_loc_driver
@@ -850,8 +850,8 @@ CONTAINS
     CHARACTER(LEN=*)                         :: root
     INTEGER, INTENT(IN), OPTIONAL            :: iter, ispin, idir
     INTEGER, OPTIONAL                        :: stride, state0
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
       routineP = moduleN//':'//routineN
@@ -877,8 +877,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(auxbas_pw_pool, pw_env)
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
 
     CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
          use_data = REALDATA3D,&
@@ -912,7 +912,7 @@ CONTAINS
                           cell=cell,&
                           dft_control=dft_control,&
                           particle_set=particle_set,&
-                          pw_env=pw_env)
+                          pw_env=pw_env,error=error)
 
       CALL calculate_wavefunction(mo_coeff, ivector,&
            wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
@@ -949,7 +949,7 @@ CONTAINS
       END IF
       CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,stride=my_stride,error=error)
       IF (ionode) CLOSE(21)
-    END DO 
+    END DO
 
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g, error=error)
@@ -960,8 +960,8 @@ CONTAINS
 !  SUBROUTINE loc_initialize_rho(qs_env,error)
 !
 !    TYPE(qs_environment_type), POINTER       :: qs_env
-!    TYPE(cp_error_type), INTENT(inout), &
-!      OPTIONAL                               :: error
+!    TYPE(cp_error_type), INTENT(inout)  &
+!                                             :: error
 !
 !    CHARACTER(LEN=*), PARAMETER :: routineN = 'loc_initialize_rho', &
 !      routineP = moduleN//':'//routineN
@@ -990,7 +990,7 @@ CONTAINS
 !    END DO
 !
 !    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
-!   
+!
 !    CALL timestop(0.0_dp,handle)
 !
 !  END SUBROUTINE loc_initialize_rho

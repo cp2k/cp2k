@@ -9,7 +9,7 @@
 !!
 !!   FUNCTION
 !!     preps the system for a Monte Carlo run (sets up some environments,
-!!     calls the routines to read in the MC parameters)...converted 
+!!     calls the routines to read in the MC parameters)...converted
 !!     from qs_mc.F
 !!
 !!   AUTHOR
@@ -32,7 +32,7 @@
 !!
 !!   Configurational bias Monte Carlo (CBMC):
 !!      Siepmann, J.I.; Frenkel, D.  Mol. Phys. 1992, 75, 59.
-!!      
+!!
 !!   Gibbs ensemble Monte Carlo (GEMC):
 !!      Panagiotopoulos, A.Z.  Mol. Phys. 1987, 61, 813.
 !!      Panagiotopoulos et al.  Mol. Phys. 1988, 63, 527.
@@ -43,8 +43,8 @@
 !!
 !!   Original Monte Carlo paper:
 !!      Metropolis et al.  J. Chem. Phys. 1953, 21, 1087.
-!!   
-!!   
+!!
+!!
 !******************************************************************************
 
 MODULE mc_run
@@ -95,7 +95,7 @@ MODULE mc_run
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_run'
 
   PUBLIC :: do_mon_car
-  
+
 !!***
 !-----------------------------------------------------------------------------!
 
@@ -138,8 +138,8 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*)                         :: input_file_name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mon_car', &
       routineP = moduleN//':'//routineN
@@ -185,11 +185,11 @@ CONTAINS
 ! allocating or nullifying local pointers
       ALLOCATE ( mc_par, STAT = isos )
       IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par', 0 )
- 
+
 ! initialize the random numbers
       CALL create_rng_stream(rng_stream=rng_stream,&
                              name="first",&
-                             distribution_type=UNIFORM)
+                             distribution_type=UNIFORM,error=error)
 
 ! read the input of the Monte Carlo section
       CALL read_mc_section ( mc_par, para_env, globenv ,input_file_name,&
@@ -220,7 +220,7 @@ CONTAINS
 ! stuff that info into mc_par
       CALL set_mc_par(mc_par,nchain=nchain,nunits=nunits,&
          nunits_tot=nunits_tot)
-      
+
 ! write out the data
       IF (ionode) THEN
          WRITE (iw,'( A,T71,I10 )') ' MC| number of molecules', &
@@ -271,7 +271,7 @@ CONTAINS
          CALL read_mc_restart(mc_par,force_env,iw,rng_stream)
 ! release the old force env and make the new one
          in_use=force_env%in_use
-         CALL force_env_release(force_env)
+         CALL force_env_release(force_env,error=error)
          CALL mc_create_force_env(force_env, para_env, dat_file,error=error)
       ENDIF
 
@@ -301,10 +301,10 @@ CONTAINS
          IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
 
 ! read the input of the Monte Carlo section
-         
+
          CALL mc_create_force_env(force_env_2, para_env,&
               box2_file,globenv_new=globenv_2,error=error)
-         CALL section_vals_release(force_env_2%root_section)
+         CALL section_vals_release(force_env_2%root_section,error=error)
 
          IF (ionode) THEN
             WRITE(iw,*)
@@ -315,7 +315,7 @@ CONTAINS
             WRITE(iw,*) '******************************************',&
             '*************************************'
          ENDIF
-         
+
          CALL read_mc_section ( mc_par_2, para_env, globenv ,box2_file,&
               root_section,force_env_section,error)
 
@@ -359,7 +359,7 @@ CONTAINS
             WRITE (iw,'( A,T75,F6.2 )') &
                ' MC| Percent of dihedral moves tried',conf_prob(3)*100.0d0
 ! make sure things are consistent between the two environments
-            WRITE(iw,* ) 
+            WRITE(iw,* )
             WRITE(iw,'( A,A )' ) 'Ignoring some input for box 2, and ',&
               'using the values for box 1 for the following variables:'
             WRITE(iw,'( A,A )' ) 'nstep,iupvolume,iuptrans,nmoves,',&
@@ -384,7 +384,7 @@ CONTAINS
          CALL get_mc_par(mc_par_2,lrestart=lrestart,dat_file=dat_file)
          IF ( lrestart ) THEN
             CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
-            CALL force_env_release(force_env_2)
+            CALL force_env_release(force_env_2,error=error)
             CALL mc_create_force_env(force_env_2, para_env, dat_file,error=error)
          ENDIF
 
@@ -403,7 +403,7 @@ CONTAINS
 
          CALL get_mc_par(mc_par_2,box2_file=box2_file)
          CALL mc_env_release ( mc_env(2)%mc_env, error )
-         CALL force_env_release(force_env_2)
+         CALL force_env_release(force_env_2,error=error)
          DEALLOCATE ( mc_par_2, STAT = isos )
          CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
 
@@ -425,7 +425,7 @@ CONTAINS
       CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
 
 ! delete the random numbers
-      CALL delete_rng_stream(rng_stream)
+      CALL delete_rng_stream(rng_stream,error=error)
 
 END SUBROUTINE do_mon_car
 

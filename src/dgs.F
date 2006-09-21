@@ -12,7 +12,7 @@
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (15-Mar-2001) : Update small grid when cell changes 
+!!     JGH (15-Mar-2001) : Update small grid when cell changes
 !!                         with dg_grid_change
 !!
 !!   SOURCE
@@ -101,20 +101,20 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
-    TYPE(cp_error_type), OPTIONAL            :: error
+    TYPE(cp_error_type), INTENT(INOUT) :: error
 
     REAL(KIND=dp)                            :: cutoff, ecut
     TYPE(cell_type), POINTER                 :: box_s, unit_box
 
   NULLIFY(box_s, unit_box)
-  CALL cell_create(box_s)
-  CALL cell_create(unit_box)
-  
-  CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
-  
+  CALL cell_create(box_s,error=error)
+  CALL cell_create(unit_box,error=error)
+
+  CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff ,error=error)
+
   ecut = 0.5_dp * cutoff * cutoff
 !  ecut = cutoff
-  
+
   IF ( PRESENT ( grid_ref ) ) THEN
      CALL pw_grid_setup ( box_b, grid_b, print_section, cutoff = ecut, &
           fft_usage = .TRUE.,  ref_grid = grid_ref, rs_dims=rs_dims, error=error )
@@ -122,25 +122,26 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
      CALL pw_grid_setup ( box_b, grid_b, print_section, cutoff = ecut, &
           fft_usage = .TRUE., rs_dims=rs_dims , error=error )
   ENDIF
-  
+
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
-  
+
   CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
-  
+
   CALL pw_grid_setup ( box_s, grid_s, print_section, symm_usage=.FALSE. , error=error )
-  CALL cell_release(box_s)
-  CALL cell_release(unit_box)
+  CALL cell_release(box_s,error=error)
+  CALL cell_release(unit_box,error=error)
 END SUBROUTINE dg_pme_grid_setup
 
 !******************************************************************************
 SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
-                            grid_b, cutoff )
+                            grid_b, cutoff, error)
 
     TYPE(cell_type), POINTER                 :: box_b
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
     REAL(KIND=dp), INTENT(OUT)               :: cutoff
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: nout( 3 )
     REAL(KIND=dp)                            :: cell_lengths( 3 ), dr( 3 )
@@ -158,15 +159,15 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
 
 ! In-line code to set grid_b % npts = npts_s if necessary
   IF ( nout ( 1 ) > grid_b % npts ( 1 ) ) THEN
-    grid_b % npts ( 1 ) = nout ( 1 ) 
+    grid_b % npts ( 1 ) = nout ( 1 )
     dr ( 1 ) = cell_lengths ( 1 ) / REAL ( nout ( 1 ),KIND=dp)
   ENDIF
   IF ( nout ( 2 ) > grid_b % npts ( 2 ) ) THEN
-    grid_b % npts ( 2 ) = nout ( 2 ) 
+    grid_b % npts ( 2 ) = nout ( 2 )
     dr ( 2 ) = cell_lengths ( 2 ) / REAL ( nout ( 2 ),KIND=dp)
   ENDIF
   IF ( nout ( 3 ) > grid_b % npts ( 3 ) ) THEN
-    grid_b % npts ( 3 ) = nout ( 3 ) 
+    grid_b % npts ( 3 ) = nout ( 3 )
     dr ( 3 ) = cell_lengths ( 3 ) / REAL ( nout ( 3 ),KIND=dp)
   ENDIF
 
@@ -180,10 +181,10 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   grid_s % grid_span = HALFSPACE
   grid_s % npts = nout
 
-  CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff )
+  CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff ,error=error)
   !CALL pw_find_cutoff ( grid_b % bounds, box_b % h_inv, cutoff )
 
-END SUBROUTINE  dg_find_cutoff 
+END SUBROUTINE  dg_find_cutoff
 !******************************************************************************
 
 SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
@@ -195,27 +196,28 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
 !------------------------------------------------------------------------------
 
-  dr ( : ) = cutoff_radius  / ( REAL ( npts ( : ),KIND=dp) / 2.0_dp )                                           
-          
+  dr ( : ) = cutoff_radius  / ( REAL ( npts ( : ),KIND=dp) / 2.0_dp )
+
  END SUBROUTINE dg_get_spacing
 
 !******************************************************************************
 
 
-SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s )
+SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s, error)
     TYPE(cell_type), POINTER                 :: box_b
     TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cell_type), POINTER                 :: box_s, unit_box
 
   NULLIFY(box_s, unit_box)
-  CALL cell_create(unit_box )
-  CALL cell_create(box_s)
+  CALL cell_create(unit_box ,error=error)
+  CALL cell_create(box_s,error=error)
   CALL dg_find_basis  ( grid_b % npts, box_b, unit_box )
   CALL dg_set_cell    ( grid_s % npts, unit_box, box_s )
   CALL pw_grid_change ( box_s, grid_s )
-  CALL cell_release(unit_box)
-  CALL cell_release(box_s)
+  CALL cell_release(unit_box,error=error)
+  CALL cell_release(box_s,error=error)
 END SUBROUTINE dg_grid_change
 
 !******************************************************************************
@@ -271,9 +273,9 @@ SUBROUTINE dg_set_cell (npts, unit_box, box )
   box % hmat ( :, 1 ) = unit_box % hmat ( :, 1 ) * npts ( 1 )
   box % hmat ( :, 2 ) = unit_box % hmat ( :, 2 ) * npts ( 2 )
   box % hmat ( :, 3 ) = unit_box % hmat ( :, 3 ) * npts ( 3 )
-  
+
   CALL get_hinv ( box )
-  
+
 END SUBROUTINE dg_set_cell
 
 !******************************************************************************
@@ -906,7 +908,7 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
       CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cri ( n, cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )
-  
+
   DEALLOCATE(zs, stat=ierr)
   IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
   DEALLOCATE(cd, stat=ierr)

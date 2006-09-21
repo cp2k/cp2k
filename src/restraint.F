@@ -68,15 +68,15 @@ CONTAINS
 !!     Teodoro Laino 08.2006 [tlaino]
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE restraint_control( force_env, error )
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_control', &
       routineP = moduleN//':'//routineN
@@ -110,7 +110,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset ( routineN, 'I', ' ', handle )
     IF (.NOT. failure) THEN
-       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
+       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
        energy_4x6  = 0.0_dp
        energy_3x3  = 0.0_dp
        energy_colv = 0.0_dp
@@ -122,7 +122,7 @@ CONTAINS
                molecules_new=molecules, &
                local_particles=local_particles,&
                local_molecules_new=local_molecules,&
-               molecule_kinds_new=molecule_kinds )
+               molecule_kinds_new=molecule_kinds ,error=error)
 
           nkind             =  molecule_kinds % n_els
           particle_set      => particles%els
@@ -133,7 +133,7 @@ CONTAINS
           force = 0.0_dp
           MOL:  DO ikind = 1, nkind
              ! Fixed Atoms restraint
-             
+
              molecule_kind => molecule_kind_set(ikind)
              CALL get_molecule_kind ( molecule_kind, nfixd=nfixd_restraint,&
                   fixd_list=fixd_list )
@@ -166,26 +166,26 @@ CONTAINS
              nmol_per_kind = local_molecules % n_el ( ikind )
              DO imol = 1, nmol_per_kind
                 i = local_molecules % list ( ikind ) % array ( imol )
-                molecule => molecule_set ( i ) 
+                molecule => molecule_set ( i )
                 molecule_kind => molecule % molecule_kind
 
                 CALL get_molecule_kind ( molecule_kind,&
                                          ncolv = ncolv,  &
                                          ng3x3_restraint = n3x3con_restraint,&
                                          ng4x6_restraint=n4x6con_restraint )
-                
+
                 ! 3x3
                 IF ( n3x3con_restraint /= 0 ) THEN
                       n_restraint=n_restraint+n3x3con_restraint
                       CALL restraint_3x3( molecule, particle_set, energy_3x3, force, error )
                 ENDIF
-                
+
                 ! 4x6
                 IF ( n4x6con_restraint /= 0 ) THEN
                      n_restraint=n_restraint+n4x6con_restraint
                      CALL restraint_4x6( molecule, particle_set, energy_4x6, force, error )
                 ENDIF
-                
+
                 ! collective variables
                 IF ( ncolv%nrestraint /= 0 ) THEN
                      n_restraint=n_restraint+ncolv%nrestraint
@@ -197,7 +197,7 @@ CONTAINS
           IF (n_restraint>0) THEN
               CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
           ENDIF
-             
+
           DEALLOCATE(force,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
@@ -227,7 +227,7 @@ CONTAINS
 !!     Teodoro Laino 08.2006 [tlaino]
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -238,8 +238,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_3x3', &
       routineP = moduleN//':'//routineN
@@ -260,9 +260,9 @@ CONTAINS
        index_a = g3x3_list ( iconst ) % a + first_atom -1
        index_b = g3x3_list ( iconst ) % b + first_atom -1
        index_c = g3x3_list ( iconst ) % c + first_atom -1
-       r0_12 ( : ) = particle_set ( index_a )%r - particle_set ( index_b )%r 
-       r0_13 ( : ) = particle_set ( index_a )%r - particle_set ( index_c )%r 
-       r0_23 ( : ) = particle_set ( index_b )%r - particle_set ( index_c )%r 
+       r0_12 ( : ) = particle_set ( index_a )%r - particle_set ( index_b )%r
+       r0_13 ( : ) = particle_set ( index_a )%r - particle_set ( index_c )%r
+       r0_23 ( : ) = particle_set ( index_b )%r - particle_set ( index_c )%r
 
        rab = SQRT(DOT_PRODUCT(r0_12,r0_12))
        rac = SQRT(DOT_PRODUCT(r0_13,r0_13))
@@ -293,7 +293,7 @@ CONTAINS
 !!     Teodoro Laino 08.2006 [tlaino]
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -304,8 +304,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_4x6', &
       routineP = moduleN//':'//routineN
@@ -330,12 +330,12 @@ CONTAINS
        index_b = g4x6_list ( iconst ) % b + first_atom -1
        index_c = g4x6_list ( iconst ) % c + first_atom -1
        index_d = g4x6_list ( iconst ) % d + first_atom -1
-       r0_12 ( : ) = particle_set( index_a )%r - particle_set( index_b )%r 
-       r0_13 ( : ) = particle_set( index_a )%r - particle_set( index_c )%r 
-       r0_14 ( : ) = particle_set( index_a )%r - particle_set( index_d )%r 
-       r0_23 ( : ) = particle_set( index_b )%r - particle_set( index_c )%r 
-       r0_24 ( : ) = particle_set( index_b )%r - particle_set( index_d )%r 
-       r0_34 ( : ) = particle_set( index_c )%r - particle_set( index_d )%r 
+       r0_12 ( : ) = particle_set( index_a )%r - particle_set( index_b )%r
+       r0_13 ( : ) = particle_set( index_a )%r - particle_set( index_c )%r
+       r0_14 ( : ) = particle_set( index_a )%r - particle_set( index_d )%r
+       r0_23 ( : ) = particle_set( index_b )%r - particle_set( index_c )%r
+       r0_24 ( : ) = particle_set( index_b )%r - particle_set( index_d )%r
+       r0_34 ( : ) = particle_set( index_c )%r - particle_set( index_d )%r
 
        rab = SQRT(DOT_PRODUCT(r0_12,r0_12))
        rac = SQRT(DOT_PRODUCT(r0_13,r0_13))
@@ -358,7 +358,7 @@ CONTAINS
        force(:,index_a) = force(:,index_a)-2.0_dp*k*( r0_12/rab*tab+r0_13/rac*tac+r0_14/rad*tad)
        force(:,index_b) = force(:,index_b)-2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc+r0_24/rbd*tbd)
        force(:,index_c) = force(:,index_c)-2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc+r0_34/rcd*tcd)
-       force(:,index_d) = force(:,index_d)-2.0_dp*k*(-r0_14/rad*tad-r0_24/rbd*tbd-r0_34/rcd*tcd)       
+       force(:,index_d) = force(:,index_d)-2.0_dp*k*(-r0_14/rad*tad-r0_24/rbd*tbd-r0_34/rcd*tcd)
     END DO
 
   END SUBROUTINE restraint_4x6
@@ -375,7 +375,7 @@ CONTAINS
 !!     Teodoro Laino 08.2006 [tlaino]
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -387,8 +387,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv', &
       routineP = moduleN//':'//routineN

@@ -136,8 +136,8 @@ CONTAINS
 !!   INPUTS
 !!     - kpp1_env: the environement to initialize
 !!     - qs_env: the qs environment in which this environment lives
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -149,8 +149,8 @@ CONTAINS
   SUBROUTINE kpp1_create(kpp1_env,qs_env, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', &
       routineP = moduleN//':'//routineN
@@ -195,12 +195,12 @@ CONTAINS
 !!       with with its grid representations, that must be valid)
 !!     - rho1: the density that represent the first direction along which
 !!       you should evaluate the derivatives
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, p_env, qs_env, k_p_p1, rho, rho1, rho1_xc, error)
-    
+
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -209,8 +209,8 @@ CONTAINS
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho1_xc
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1', &
       routineP = moduleN//':'//routineN
@@ -267,8 +267,8 @@ CONTAINS
             input=input,&
             error=error)
 
-       gapw=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw)
-       gapw_xc=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw_xc)
+       gapw=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw)
+       gapw_xc=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw_xc)
        IF(gapw_xc) THEN
           CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
        END IF
@@ -335,7 +335,7 @@ CONTAINS
             CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-            extension=".scfLog",error=error)       
+            extension=".scfLog",error=error)
        IF (output_unit>0) THEN
           CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error=error)
        END IF
@@ -345,8 +345,8 @@ CONTAINS
        IF (.NOT.(nspins==1 .AND. excitations==tddfpt_excitations .AND. &
                  res_etype /= tddfpt_singlet )) THEN
           CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
-                                 energy_hartree, & 
-                                 v_hartree_gspace%pw)
+                                 energy_hartree, &
+                                 v_hartree_gspace%pw,error=error)
           CALL coeff_transform_space(v_hartree_gspace,&
                                      v_hartree_rspace)
        END IF
@@ -354,13 +354,13 @@ CONTAINS
        CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho1_tot_gspace,&
             error=error)
 
-! *** calculate the xc potential ***       
+! *** calculate the xc potential ***
        IF(gapw_xc) THEN
          CALL qs_rho_get(rho1_xc, rho_r=rho1_r, error=error)
        ELSE
          CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
        END IF
-       
+
        IF (nspins == 1 .AND. excitations==tddfpt_excitations .AND. &
            (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
 
@@ -369,7 +369,7 @@ CONTAINS
           DO ispin=1, 2
              NULLIFY(rho1_r_pw(ispin)%pw)
              CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
-                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
+                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space,error=error)
              CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
           END DO
 
@@ -391,9 +391,9 @@ CONTAINS
        bo = rho1_r(1)%pw%pw_grid%bounds_local
        ! create the place where to store the argument for the functionals
        CALL xc_rho_set_create(rho1_set, bo, &
-                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                              tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"), &
+                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF",error=error), &
+                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF",error=error), &
+                              tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF",error=error), &
                               error=error)
 
        xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
@@ -401,9 +401,9 @@ CONTAINS
        needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
 
        ! calculate the agruments needed by the functionals
-       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
-                             section_get_ival(xc_section,"XC_GRID%XC_DERIV"),&
-                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO"),&
+       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
+                             section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
+                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
                              cell, auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
@@ -431,13 +431,13 @@ CONTAINS
        END DO
        DEALLOCATE(v_xc,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
+
        IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, error)
 
-       CALL xc_rho_set_release(rho1_set)
+       CALL xc_rho_set_release(rho1_set,error=error)
 
        DO ispin=1,SIZE(rho1_r_pw)
-          CALL pw_release(rho1_r_pw(ispin)%pw)
+          CALL pw_release(rho1_r_pw(ispin)%pw,error=error)
        END DO
        DEALLOCATE(rho1_r_pw, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -448,11 +448,11 @@ CONTAINS
        DO ispin=1,nspins
 
           IF(gapw_xc) THEN
-          ! XC and Hartree are integrated separatedly 
+          ! XC and Hartree are integrated separatedly
           ! XC uses the sofft basis set only
             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
                                         v_rspace_new(ispin)%pw%pw_grid%dvol
-            
+
             IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
 
                 IF (.NOT.(lsd_singlets .OR. &
@@ -505,16 +505,16 @@ CONTAINS
           ELSE
             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
                                           v_rspace_new(ispin)%pw%pw_grid%dvol
-  
+
             IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
-  
+
                IF (.NOT.(lsd_singlets .OR. &
                          res_etype == tddfpt_triplet)) THEN
-  
+
                   v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
-  
+
                END IF
-  
+
                ! add hartree only for SINGLETS
                IF (res_etype == tddfpt_singlet) THEN
                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
@@ -542,19 +542,19 @@ CONTAINS
           END IF
 
           CALL transfer_matrix(kpp1_env%v_ao(ispin)%matrix,&
-               k_p_p1(ispin)%matrix)
-          
+               k_p_p1(ispin)%matrix,error=error)
+
        END DO
 
        IF (gapw) THEN
           IF (.NOT. (excitations==tddfpt_excitations .AND. (nspins == 1 .AND. &
                res_etype == tddfpt_triplet))) THEN
-             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
+             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env,error=error)
              CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
                                         .FALSE., .TRUE., p_env, error=error)
 
              CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
-                                    .TRUE., p_env)
+                                    .TRUE., p_env,error=error)
              CALL integrate_a_vhg0_b(qs_env,k_p_p1,rho1%rho_ao,&
                                         energy_hartree_3c,.FALSE.,.FALSE.,&
                                         .TRUE.,p_env,error)
@@ -603,8 +603,8 @@ CONTAINS
 !!     - rho1: the density that represent the first direction along which
 !!       you should evaluate the derivatives
 !!     - diff: the amount of the finite difference step
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -621,8 +621,8 @@ CONTAINS
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: diff
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1_fdiff', &
       routineP = moduleN//':'//routineN
@@ -648,7 +648,7 @@ CONTAINS
     my_diff=my_diff/2.0_dp
     DO ispin=1,SIZE(k_p_p1)
        CALL cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
-            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff)
+            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&
@@ -665,14 +665,14 @@ CONTAINS
     DO ispin=1,nspins
        NULLIFY(ks_2(ispin)%matrix)
        CALL replicate_matrix_structure(matrix_s(1)%matrix,ks_2(ispin)%matrix,&
-            target_name="tmp_ks2-"//ADJUSTL(cp_to_string(ispin)))
+            target_name="tmp_ks2-"//ADJUSTL(cp_to_string(ispin)),error=error)
     END DO
 
     ! rho = rho0-h/2*rho1
     my_diff=-2.0_dp*my_diff
     DO ispin=1,nspins
        CALL cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
-            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff)
+            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&
@@ -688,7 +688,7 @@ CONTAINS
     my_diff=-0.5_dp*my_diff
     DO ispin=1,nspins
        CALL cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
-            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff)
+            matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&
@@ -699,12 +699,12 @@ CONTAINS
     DO ispin=1,nspins
        CALL cp_sm_scale_and_add(matrix_a=k_p_p1(ispin)%matrix, &
             matrix_b=ks_2(ispin)%matrix,&
-            beta=-1.0_dp)
+            beta=-1.0_dp,error=error)
        CALL cp_sm_scale_and_add(alpha=0.5_dp/my_diff,&
-            matrix_a=k_p_p1(ispin)%matrix)
+            matrix_a=k_p_p1(ispin)%matrix,error=error)
     END DO
 
-    CALL deallocate_matrix_set(ks_2)
+    CALL deallocate_matrix_set(ks_2,error=error)
     CALL deallocate_qs_energy(qs_energy)
   END SUBROUTINE kpp1_calc_k_p_p1_fdiff
 
@@ -722,8 +722,8 @@ CONTAINS
 !!   INPUTS
 !!     - kpp1_env: the environment to check
 !!     - qs_env: the qs environment this kpp1_env lives in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -734,8 +734,8 @@ CONTAINS
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -793,11 +793,11 @@ CONTAINS
                 NULLIFY(kpp1_env%v_ao(ispin)%matrix)
                 CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                      kpp1_env%v_ao(ispin)%matrix,&
-                     "kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
+                     "kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
              END DO
           END IF
        END IF
-       
+
        IF (.not.ASSOCIATED(kpp1_env%deriv_set)) THEN
 
           CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
@@ -877,8 +877,8 @@ CONTAINS
 !!     - grid_changed: true if the grids have changed and have to be rebuilt
 !!     - s_struct_changed: true if the structure of the s matrix has changed
 !!     - psi0_changed: true if the value of psi0 (qs_env%rho) has changed
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -892,8 +892,8 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_struct_changed, &
                                                 grid_changed, psi0_changed
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_did_change', &
       routineP = moduleN//':'//routineN
@@ -916,7 +916,7 @@ CONTAINS
     IF (.not.failure) THEN
        IF (my_s_struct_changed) THEN
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
-             CALL deallocate_matrix_set(kpp1_env%v_ao)
+             CALL deallocate_matrix_set(kpp1_env%v_ao,error=error)
           END IF
        END IF
        IF (my_s_struct_changed.or.my_psi0_changed) THEN
@@ -943,7 +943,7 @@ CONTAINS
           IF (grid_changed) THEN
              IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
                 DO i=1,SIZE(kpp1_env%v_rspace)
-                   CALL coeff_deallocate(kpp1_env%v_rspace(i))
+                   CALL coeff_deallocate(kpp1_env%v_rspace(i),error=error)
                 END DO
                 DEALLOCATE(kpp1_env%v_rspace,stat=stat)
                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -955,13 +955,13 @@ CONTAINS
 ! ***************************************************************************
 
   SUBROUTINE print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error)
-    
+
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_rho_type), POINTER               :: rho1
     TYPE(coeff_type), INTENT(IN)             :: rho1_tot_gspace
     INTEGER                                  :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_densities', &
       routineP = moduleN//':'//routineN

@@ -112,8 +112,8 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_env_release(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_release', &
       routineP = moduleN//':'//routineN
@@ -139,7 +139,7 @@ CONTAINS
           NULLIFY ( spline_env % spltab )
           NULLIFY ( spline_env % spline_data_p )
           DEALLOCATE (  spline_env , stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)        
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
     NULLIFY ( spline_env )
@@ -155,7 +155,7 @@ CONTAINS
   !!
   !!   FUNCTION
   !!     releases spline_data
-  !!    
+  !!
   !!
   !!   AUTHOR
   !!     CJM
@@ -166,8 +166,8 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_data_release (spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_release', &
       routineP = moduleN//':'//routineN
@@ -211,7 +211,7 @@ CONTAINS
   !!
   !!   FUNCTION
   !!     retains spline_env
-  !!    
+  !!
   !!
   !!   AUTHOR
   !!     CJM
@@ -222,8 +222,8 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_data_retain(spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_retain', &
       routineP = moduleN//':'//routineN
@@ -231,7 +231,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    !!  
+    !!
     CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -248,7 +248,7 @@ CONTAINS
   !!
   !!   FUNCTION
   !!     retains spline_env
-  !!    
+  !!
   !!
   !!   AUTHOR
   !!     unknown
@@ -260,8 +260,8 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_env_retain(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_retain', &
       routineP = moduleN//':'//routineN
@@ -269,7 +269,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    !!  
+    !!
     CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -300,8 +300,8 @@ CONTAINS
     TYPE(spline_environment_type), POINTER   :: spline_env
     INTEGER, INTENT(IN)                      :: ntype
     INTEGER, INTENT(IN), OPTIONAL            :: ntab_in
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
       routineP = moduleN//':'//routineN
@@ -320,7 +320,7 @@ CONTAINS
        last_spline_env_id_nr=last_spline_env_id_nr+1
        spline_env%id_nr=last_spline_env_id_nr
        ! Allocate the number of spline data tables (upper triangular)
-       IF (PRESENT(ntab_in)) THEN 
+       IF (PRESENT(ntab_in)) THEN
           ntab = ntab_in
        ELSE
           ntab = ( ntype * ntype + ntype ) / 2
@@ -333,7 +333,7 @@ CONTAINS
 
        DO i = 1, ntab
           NULLIFY ( spline_env % spline_data_p ( i ) % spline_data )
-          CALL spline_data_create ( spline_env % spline_data_p ( i ) % spline_data )
+          CALL spline_data_create ( spline_env % spline_data_p ( i ) % spline_data ,error=error)
        END DO
     END IF
   END SUBROUTINE spline_env_create
@@ -357,8 +357,8 @@ CONTAINS
   SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
     TYPE(spline_data_type), POINTER          :: spline_data_source, &
                                                 spline_data_dest
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_copy', &
       routineP = moduleN//':'//routineN
@@ -375,10 +375,10 @@ CONTAINS
        spline_data_dest%id_nr     = spline_data_source%id_nr
        spline_data_dest%n         = spline_data_source%n
        spline_data_dest%pos       = spline_data_source%pos
-       spline_data_dest%h         = spline_data_source%h   
+       spline_data_dest%h         = spline_data_source%h
        spline_data_dest%invh      = spline_data_source%invh
-       spline_data_dest%h26       = spline_data_source%h26 
-       spline_data_dest%x1        = spline_data_source%x1  
+       spline_data_dest%h26       = spline_data_source%h26
+       spline_data_dest%x1        = spline_data_source%x1
        spline_data_dest%xn        = spline_data_source%xn
        spline_data_dest%ei_scale14  = spline_data_source%ei_scale14
        spline_data_dest%ei_cutoff14 = spline_data_source%ei_cutoff14
@@ -418,8 +418,8 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_data_create ( spline_data, error )
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_create', &
       routineP = moduleN//':'//routineN
@@ -500,7 +500,7 @@ CONTAINS
   !!     init_spline
   !!
   !!   FUNCTION
-  !!     allocates storage for y2 table 
+  !!     allocates storage for y2 table
   !!     calculates y2 table and other spline parameters
   !!
   !!   AUTHOR

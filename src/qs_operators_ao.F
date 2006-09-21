@@ -69,7 +69,7 @@ CONTAINS
 !!****f* qs_operators_ao/p_xyz_ao [1.0] *
 !!
 !!   NAME
-!!     p_xyz_op 
+!!     p_xyz_op
 !!
 !!   FUNCTION
 !!     Calculation of the components of the dipole operator in the velocity form
@@ -100,8 +100,8 @@ CONTAINS
       POINTER                                :: op_sm
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_xyz_ao', &
       routineP = moduleN//':'//routineN
@@ -158,7 +158,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-         sab_orb=sab_orb)
+         sab_orb=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -168,7 +168,7 @@ CONTAINS
     my_minimum_image = .FALSE.
     IF(PRESENT(minimum_image)) THEN
        my_minimum_image=minimum_image
-       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp 
+       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
        Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
        Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
     END IF
@@ -435,7 +435,7 @@ CONTAINS
 
     DEALLOCATE(difabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
- 
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_xyz_ao
@@ -445,10 +445,10 @@ CONTAINS
 !!****f* qs_operators_ao/rmc_x_p_xyz_ao [1.0] *
 !!
 !!   NAME
-!!     rmc_x_p_xyz_op 
+!!     rmc_x_p_xyz_op
 !!
 !!   FUNCTION
-!!     Calculation of the components of the (r-c)xp operator 
+!!     Calculation of the components of the (r-c)xp operator
 !!     where p is the gradient and c is the center of the primitive
 !!     function multiplied from the .
 !!     The resulting sparse matrix is not symmetric, therefore all_pair
@@ -461,7 +461,7 @@ CONTAINS
 !!   NOTES
 !!
 !!   ARGUMENTS
-!!     - op_sm: matrix representation of the (r-c)xp operator 
+!!     - op_sm: matrix representation of the (r-c)xp operator
 !!              in terms of the contracted basis functions
 !!     - qs_env: enviroment for the lists and the basis sets
 !!     - minimum_image : take into account only the first neighbors in the lists
@@ -482,8 +482,8 @@ CONTAINS
       POINTER                                :: op_sm
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rmc_x_p_xyz_ao', &
       routineP = moduleN//':'//routineN
@@ -539,7 +539,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-         sab_all=sab_orb)
+         sab_all=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -549,7 +549,7 @@ CONTAINS
     my_minimum_image = .FALSE.
     IF(PRESENT(minimum_image)) THEN
        my_minimum_image=minimum_image
-       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp 
+       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
        Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
        Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
     END IF
@@ -747,7 +747,7 @@ CONTAINS
                           work(1,1),ldwork,&
                           1.0_dp,op_angij(i)%block(sgfa,sgfb),&
                           SIZE(op_angij(i)%block,1))
-                  END DO 
+                  END DO
 
                 END IF  !  >= dab
 
@@ -786,12 +786,12 @@ CONTAINS
 !!****f* qs_operators_ao/rRc_xyz_ao [1.0] *
 !!
 !!   NAME
-!!     rRc_xyz_op 
+!!     rRc_xyz_op
 !!
 !!   FUNCTION
 !!     Calculation of the components of the dipole operator in the length form
 !!     by taking the relative position operator r-Rc, with respect a reference point Rc
-!!     Probably it does not work for PBC, or maybe yes if the wfn are 
+!!     Probably it does not work for PBC, or maybe yes if the wfn are
 !!     sufficiently localized
 !!     The elements of the  sparse matrices are the integrals in the
 !!     basis functions
@@ -803,7 +803,7 @@ CONTAINS
 !!              calculated in terms of the contracted basis functions
 !!     - qs_env: enviroment for the lists and the basis sets
 !!     - rc: reference vector position
-!!     - order: maximum order of the momentum, for the doipole order = 1 
+!!     - order: maximum order of the momentum, for the doipole order = 1
 !!     - minimum_image : take into account only the first neighbors in the lists
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
@@ -824,8 +824,8 @@ CONTAINS
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image, soft
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_ao', &
       routineP = moduleN//':'//routineN
@@ -880,7 +880,7 @@ CONTAINS
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-         cell=cell,particle_set=particle_set,sab_orb=sab_orb)
+         cell=cell,particle_set=particle_set,sab_orb=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -890,7 +890,7 @@ CONTAINS
     my_minimum_image = .FALSE.
     IF(PRESENT(minimum_image)) THEN
        my_minimum_image=minimum_image
-       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp 
+       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
        Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
        Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
     END IF
@@ -1079,7 +1079,7 @@ CONTAINS
 
                   rac = pbc(rc,ra,cell)
                   rbc = pbc(rc,rb,cell)
- 
+
 !            *** Calculate the primitive overlap integrals ***
                   CALL moment(la_max(iset),npgfa(iset),zeta(:,iset),&
                     rpgfa(:,iset),la_min(iset),&
@@ -1135,7 +1135,7 @@ CONTAINS
 
     DEALLOCATE(mabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
- 
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE   rRc_xyz_ao
@@ -1144,35 +1144,35 @@ CONTAINS
 !!****f* qs_operators_ao/rRc_xyz_der_ao [1.0] *
 !!
 !!   NAME
-!!     rRc_xyz_der_op 
+!!     rRc_xyz_der_op
 !!
 !!   FUNCTION
 !!     Calculation of the  multipole operators integrals
 !!     and of its derivatives of the type
 !!     [\mu | op | d(\nu)/dR(\nu)]-[d(\mu)/dR(\mu)| op | \nu]
 !!     by taking the relative position operator r-Rc, with respect a reference point Rc
-!!     The derivative are with respect to the primitive position, 
+!!     The derivative are with respect to the primitive position,
 !!     The multipole operator is symmetric and if it does not depend on R(\mu) or R(\nu)
 !!     therefore  [\mu | op | d(\nu)/dR(\nu)] = -[d(\mu)/dR(\mu)| op | \nu]
 !!       [\mu|op|d(\nu)/dR]-[d(\mu)/dR|op|\nu]=2[\mu|op|d(\nu)/dR]
 !!     When it is not the case a correction term is needed
-!!   
-!!    The momentum operator [\mu|M|\nu] is symmetric, the number of components is 
+!!
+!!    The momentum operator [\mu|M|\nu] is symmetric, the number of components is
 !!    detrermined by the order: 3 for order 1 (x,y,x), 9 for order 2(xx,xy,xz,yy,yz,zz)
-!!    The derivative of the type [\mu | op | d(\nu)/dR_i(\nu)], where 
+!!    The derivative of the type [\mu | op | d(\nu)/dR_i(\nu)], where
 !!    i indicates the cartesian direction, is antisymmetric only when
-!!    the no component M =(r_i) or (r_i r_j) is in the same cartesian 
+!!    the no component M =(r_i) or (r_i r_j) is in the same cartesian
 !!    direction of the derivative,  indeed
 !!  d([\mu|M|\nu])/dr_i = [d(\mu)/dr_i|M|\nu] + [\mu|M|d(\nu)/dr_i] + [\mu |d(M)/dr_i|\nu]
 !!  d([\mu|M|\nu])/dr_i = -[d(\mu)/dR_i(\mu)|M|\nu] -[\mu|M|d(\nu)/dR_i(\nu)] + [\mu |d(M)/dr_i|\nu]
 !!    Therefore we cannot use an antisymmetric matrix
-!!    
+!!
 !!
 !!    The same holds for the derivative with respect to the electronic position r
 !!    taking into account that [\mu|op|d(\nu)/dR] = -[\mu|op|d(\nu)/dr]
 !!
 !!   NOTES
-!!     Probably it does not work for PBC, or maybe yes if the wfn are 
+!!     Probably it does not work for PBC, or maybe yes if the wfn are
 !!     sufficiently localized
 !!     The elements of the  sparse matrices are the integrals in the
 !!     basis functions
@@ -1182,7 +1182,7 @@ CONTAINS
 !!              calculated in terms of the contracted basis functions
 !!     - qs_env: enviroment for the lists and the basis sets
 !!     - rc: reference vector position
-!!     - order: maximum order of the momentum, for the dipole order = 1 
+!!     - order: maximum order of the momentum, for the dipole order = 1
 !!     - minimum_image : take into account only the first neighbors in the lists
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
@@ -1205,8 +1205,8 @@ CONTAINS
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image, soft
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_der_ao', &
       routineP = moduleN//':'//routineN
@@ -1277,7 +1277,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-         sab_all=sab_orb)
+         sab_all=sab_orb,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -1287,7 +1287,7 @@ CONTAINS
     my_minimum_image = .FALSE.
     IF(PRESENT(minimum_image)) THEN
        my_minimum_image=minimum_image
-       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp 
+       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
        Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
        Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
     END IF
@@ -1475,7 +1475,7 @@ CONTAINS
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = SQRT(rab2)
- 
+
             DO iset=1,nseta
 
               ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -1490,7 +1490,7 @@ CONTAINS
 
                   rac = pbc(rc,ra,cell)
                   rbc = pbc(rc,rb,cell)
- 
+
                   ALLOCATE(mab_tmp(npgfa(iset)*ncoset(la_max(iset)+1),&
                            npgfb(jset)*ncoset(lb_max(jset)+1),ncoset(order)-1),STAT=istat)
                   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1545,7 +1545,7 @@ CONTAINS
 !   write(num1,*) ' imom ', imom,' iset ' , iset, nsgfa(iset), sgfa, ' jset ', jset,  nsgfb(jset), sgfb
 !   do i = sgfa,sgfa+nsgfa(iset)-1
 !      write(num1,'(I4,50f12.6)') i, op_dip(imom)%block(i,sgfb:sgfb+nsgfb(jset)-1)
-!   end do 
+!   end do
 !dbg
 
                     alpha = -1.0_dp!-alpha_der
@@ -1564,7 +1564,7 @@ CONTAINS
 !        sgfa, ' jset ', jset,  nsgfb(jset), sgfb
 !   do i = sgfa,sgfa+nsgfa(iset)-1
 !      write(num1,'(I4,50f12.6)') i, op_dip_der(imom,idir)%block(i,sgfb:sgfb+nsgfb(jset)-1)
-!   end do 
+!   end do
 !dbg
 
                     END DO  ! idir
@@ -1601,7 +1601,7 @@ CONTAINS
 
     DEALLOCATE(mabt,difmabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
- 
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE   rRc_xyz_der_ao
@@ -1633,8 +1633,8 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(LEN=*)                         :: symmetry, name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_up_op_sm', &
       routineP = moduleN//':'//routineN
@@ -1665,14 +1665,14 @@ CONTAINS
          atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,&
          distribution_2d=distribution_2d,&
-         neighbor_list_id=neighbor_list_id)
+         neighbor_list_id=neighbor_list_id,error=error)
 
     IF(symmetry=="none") THEN
       CALL get_qs_env(qs_env=qs_env,&
-           sab_all=sab_orb)
+           sab_all=sab_orb,error=error)
     ELSE
       CALL get_qs_env(qs_env=qs_env,&
-           sab_orb=sab_orb)
+           sab_orb=sab_orb,error=error)
     END IF
 
     nkind = SIZE(atomic_kind_set,1)
@@ -1701,7 +1701,7 @@ CONTAINS
                          matrix_name=name,&
                          matrix_symmetry=symmetry,&
                          sparsity_id=neighbor_list_id, &
-                         distribution_2d=distribution_2d)
+                         distribution_2d=distribution_2d,error=error)
 
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1758,7 +1758,7 @@ CONTAINS
               CALL add_block_node(matrix=matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=block)
+                                  block=block,error=error)
             ELSE
               IF(iatom<=jatom) THEN
                 irow = iatom
@@ -1770,7 +1770,7 @@ CONTAINS
               CALL add_block_node(matrix=matrix,&
                                   block_row=irow,&
                                   block_col=icol,&
-                                  block=block)
+                                  block=block,error=error)
             END IF
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           END DO  ! inode

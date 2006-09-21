@@ -82,7 +82,7 @@ CONTAINS
 !!      REAL(KIND = dp), INTENT(IN)                         :: alpha
 !!      REAL(KIND = dp), INTENT(in), OPTIONAL               :: beta
 !!      TYPE(cp_fm_type), POINTER, OPTIONAL :: matrix_b
-!!      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!      TYPE(cp_error_type), INTENT(inout)  :: error
 !!
 !!****
   SUBROUTINE cp_fm_scale_and_add(alpha,matrix_a,beta,matrix_b,error)
@@ -92,8 +92,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: matrix_a
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: beta
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_b
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_scale_and_add', &
       routineP = moduleN//':'//routineN
@@ -296,8 +296,8 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(cp_fm_type), POINTER                :: matrix_c
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER, INTENT(IN), OPTIONAL            :: b_first_col, a_first_row, &
                                                 b_first_row, c_first_col, &
                                                 c_first_row
@@ -416,8 +416,8 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(cp_fm_type), POINTER                :: matrix_c
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, lda, ldb, ldc, &
                                                 mypcol, myprow, npcol, nprow
@@ -506,8 +506,8 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: ia, ja
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(cp_fm_type), POINTER                :: matrix_c
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, lda, ldc, mypcol, &
                                                 myprow, n, npcol, nprow
@@ -577,8 +577,8 @@ CPSourceFileRef,&
   SUBROUTINE cp_fm_schur_product(matrix_a,matrix_b,matrix_c,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b, matrix_c
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, icol_local, &
                                                 irow_local, mypcol, myprow, &
@@ -652,8 +652,8 @@ CPSourceFileRef,&
 
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
     REAL(KIND=dp), INTENT(OUT)               :: trace
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: group, handle, mypcol, &
                                                 myprow, ncol_local, npcol, &
@@ -761,8 +761,8 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     LOGICAL, INTENT(in), OPTIONAL            :: unit_diag_tr
     INTEGER, INTENT(in), OPTIONAL            :: n_rows, n_cols
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_triangular_multiply', &
       routineP = moduleN//':'//routineN
@@ -870,8 +870,8 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
   SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(cp_fm_type), POINTER                :: matrix_a
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_scale', &
       routineP = moduleN//':'//routineN
@@ -928,8 +928,8 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   SUBROUTINE cp_fm_transpose(matrix,matrixt,error)
     TYPE(cp_fm_type), POINTER                :: matrix, matrixt
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_transpose', &
       routineP = moduleN//':'//routineN
@@ -1011,7 +1011,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
   SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
 
     TYPE(cp_fm_type), POINTER          :: matrix,work
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(inout)  :: error
 
 !   *** Local variables ***
 

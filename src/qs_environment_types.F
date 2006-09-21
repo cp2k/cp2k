@@ -219,13 +219,13 @@ MODULE qs_environment_types
 !!       by qs
 !!     - kg_sub_pw_env : it contains the set of pw_env for the different molecule kind
 !!       to be used in the KG_GPW method in order to construct the molecular desities
-!!       on different grids. The grids are built in the small box containing the single molecule. 
+!!       on different grids. The grids are built in the small box containing the single molecule.
 !!     - para_env: parallel environement that should be  used to do the qs
 !!       related calculations
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
 !!     - rho_core: a grid with the charges of the cores of the atoms in the
 !!       reciprocal (g) space
-!!     - qs_charges: an object where to put the charges that are present on 
+!!     - qs_charges: an object where to put the charges that are present on
 !!       the various grids
 !!     - ks_env: environement for the calculation of the Kohn Sham matrix
 !!     - wf_history: place where the snapshots of the previous states are
@@ -236,8 +236,8 @@ MODULE qs_environment_types
 !!     - subsys: the particles, molecules,... of this environment
 !!     - local_rho_set: contains the atomic, compensations and core densities
 !!                      and the local parts of the xc terms
-!!     - hartree_local: contains the 1, 2 and 3 centers coulomb terms 
-!!     - requires_mo_derivs: logical, true if dE/dC is required (e.g. OT) 
+!!     - hartree_local: contains the 1, 2 and 3 centers coulomb terms
+!!     - requires_mo_derivs: logical, true if dE/dC is required (e.g. OT)
 !!     - mo_derivs: the actual derivatives of the total energy wrt to MO coeffs
 !!     - neighbor_list_id: the current version of the neighbor_list
 !!     - xas_env: temporary information for xas calculation
@@ -251,13 +251,13 @@ MODULE qs_environment_types
 !!     - local_molecules: which molecules are local to this processor
 !!     - molecule_kind_set: description of the molecule kinds
 !!     - molecule_set: all the molecule description
-!!     - use_harris: LOGICAL which indicates, if the Harris energy functional 
+!!     - use_harris: LOGICAL which indicates, if the Harris energy functional
 !!                   should be used.
 !!     - harris_env: The harris environment, which consist of the harris energy
 !!                   and force type and the rho structure to pass the density of
 !!                   the harris energy functional to the force calculation
 !!     - ep_qs_env: environment to perform an ep calculation
-!!     
+!!
 !!   AUTHOR
 !!     Matthias Krack & fawzi
 !!
@@ -274,7 +274,7 @@ MODULE qs_environment_types
     LOGICAL :: qmmm, qmmm_periodic
     LOGICAL :: requires_mo_derivs
     LOGICAL :: use_harris
-    TYPE(cell_type), POINTER                              :: cell, super_cell 
+    TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos
@@ -475,8 +475,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -550,7 +550,7 @@ CONTAINS
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
     IF (PRESENT(virial)) virial => qs_env%virial
-    
+
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
     IF (PRESENT(rho0_atom_set)) &
@@ -559,7 +559,7 @@ CONTAINS
          CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_mpole)
     IF (PRESENT(nddo_mpole)) &
          CALL get_local_rho(qs_env%local_rho_set,  nddo_mpole=nddo_mpole)
-    IF (PRESENT(rhoz_set)) & 
+    IF (PRESENT(rhoz_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
     IF (PRESENT(ecoul_1c)) &
          CALL get_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
@@ -573,7 +573,7 @@ CONTAINS
     END IF
     IF (PRESENT(rho0_s_gs)) THEN
        CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_m)
-       IF(ASSOCIATED(rho0_m)) THEN      
+       IF(ASSOCIATED(rho0_m)) THEN
          rho0_s_gs => rho0_m%rho0_s_gs
        END IF
     END IF
@@ -597,7 +597,7 @@ CONTAINS
     IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
     IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
     IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
-    
+
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
@@ -612,8 +612,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -770,8 +770,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: ecoul_1c
     TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: VH_3c_list
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
@@ -928,23 +928,23 @@ CONTAINS
      END IF
     IF (PRESENT(mpools)) THEN
        CALL mpools_retain(mpools,error=error)
-       CALL mpools_release(qs_env%mpools, error=error) 
+       CALL mpools_release(qs_env%mpools, error=error)
        qs_env%mpools => mpools
     END IF
     IF (PRESENT(rho_atom_set)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rho_atom_set=rho_atom_set)
+        CALL set_local_rho(qs_env%local_rho_set,rho_atom_set=rho_atom_set,error=error)
      END IF
     IF (PRESENT(rho0_atom_set)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rho0_atom_set=rho0_atom_set)
+        CALL set_local_rho(qs_env%local_rho_set,rho0_atom_set=rho0_atom_set,error=error)
     END IF
     IF (PRESENT(rho0_mpole)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rho0_mpole=rho0_mpole)
+        CALL set_local_rho(qs_env%local_rho_set,rho0_mpole=rho0_mpole,error=error)
     END IF
     IF (PRESENT(nddo_mpole)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,nddo_mpole=nddo_mpole)
+        CALL set_local_rho(qs_env%local_rho_set,nddo_mpole=nddo_mpole,error=error)
     END IF
     IF (PRESENT(rhoz_set)) THEN
-        CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set)
+        CALL set_local_rho(qs_env%local_rho_set,rhoz_set=rhoz_set,error=error)
     END IF
     IF (PRESENT(rhoz_tot)) qs_env%local_rho_set%rhoz_tot = rhoz_tot
     IF (PRESENT(ecoul_1c)) THEN
@@ -960,8 +960,8 @@ CONTAINS
        qs_env%subsys => subsys
     END IF
     IF (PRESENT(distribution_2d)) THEN
-       CALL distribution_2d_retain(distribution_2d)
-       CALL distribution_2d_release(qs_env%distribution_2d)
+       CALL distribution_2d_retain(distribution_2d,error=error)
+       CALL distribution_2d_release(qs_env%distribution_2d,error=error)
        qs_env%distribution_2d => distribution_2d
     ENDIF
     IF (PRESENT(input)) THEN
@@ -999,8 +999,8 @@ CONTAINS
 !!     - para_env: the parallel environement for the qs_env
 !!     - blacs_env: the blacs env for the qs_env (for full matrixes,
 !!       it must be coerent with the para_env)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1012,8 +1012,8 @@ CONTAINS
 SUBROUTINE qs_env_create(qs_env,para_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', &
       routineP = moduleN//':'//routineN
@@ -1022,7 +1022,7 @@ SUBROUTINE qs_env_create(qs_env,para_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   ALLOCATE(qs_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1045,8 +1045,8 @@ END SUBROUTINE qs_env_create
 !!
 !!   ARGUMENTS
 !!     - qs_env: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1057,8 +1057,8 @@ END SUBROUTINE qs_env_create
 !!*** **********************************************************************
 SUBROUTINE qs_env_retain(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_retain', &
       routineP = moduleN//':'//routineN
@@ -1066,7 +1066,7 @@ SUBROUTINE qs_env_retain(qs_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1088,8 +1088,8 @@ END SUBROUTINE qs_env_retain
 !!
 !!   ARGUMENTS
 !!     - qs_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1100,8 +1100,8 @@ END SUBROUTINE qs_env_retain
 !!*** **********************************************************************
 SUBROUTINE qs_env_release(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_release', &
       routineP = moduleN//':'//routineN
@@ -1118,20 +1118,20 @@ SUBROUTINE qs_env_release(qs_env,error)
      CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      qs_env%ref_count=qs_env%ref_count-1
      IF (qs_env%ref_count<1) THEN
-        CALL cell_release(qs_env%cell)
-        CALL cell_release(qs_env%super_cell)
-        CALL cell_release(qs_env%cell_ref)
+        CALL cell_release(qs_env%cell,error=error)
+        CALL cell_release(qs_env%super_cell,error=error)
+        CALL cell_release(qs_env%cell_ref,error=error)
         CALL dft_control_release(qs_env%dft_control, error=error)
         IF (ASSOCIATED(qs_env%mos)) THEN
            DO i=1,SIZE(qs_env%mos)
-              CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
+              CALL deallocate_mo_set(qs_env%mos(i)%mo_set,error=error)
            END DO
            DEALLOCATE(qs_env%mos, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(qs_env%mo_derivs)) THEN
            DO I=1,SIZE(qs_env%mo_derivs)
-              CALL cp_fm_release(qs_env%mo_derivs(I)%matrix)
+              CALL cp_fm_release(qs_env%mo_derivs(I)%matrix,error=error)
            ENDDO
            DEALLOCATE(qs_env%mo_derivs, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1236,25 +1236,25 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF (ASSOCIATED(qs_env%harris_env)) THEN
             CALL harris_env_release(qs_env%harris_env, error=error)
         END IF
-        IF (ASSOCIATED(qs_env%matrix_h)) CALL deallocate_matrix_set(qs_env%matrix_h)
+        IF (ASSOCIATED(qs_env%matrix_h)) CALL deallocate_matrix_set(qs_env%matrix_h,error)
 
         IF (ASSOCIATED(qs_env%matrix_ks)) THEN
             CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
             CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
-        ENDIF 
-        IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s)
-        IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w)
-        IF (ASSOCIATED(qs_env%matrix_dv)) CALL deallocate_matrix_set(qs_env%matrix_dv)
-        IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
+        ENDIF
+        IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s,error)
+        IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w,error)
+        IF (ASSOCIATED(qs_env%matrix_dv)) CALL deallocate_matrix_set(qs_env%matrix_dv,error)
+        IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce,error)
 
-        IF (ASSOCIATED(qs_env%local_rho_set)) THEN 
-           CALL local_rho_set_release(qs_env%local_rho_set)
+        IF (ASSOCIATED(qs_env%local_rho_set)) THEN
+           CALL local_rho_set_release(qs_env%local_rho_set,error=error)
         END IF
-        IF (ASSOCIATED(qs_env%hartree_local)) THEN 
-           CALL hartree_local_release(qs_env%hartree_local)
+        IF (ASSOCIATED(qs_env%hartree_local)) THEN
+           CALL hartree_local_release(qs_env%hartree_local,error=error)
         END IF
         IF (ASSOCIATED(qs_env%kinetic))&
-             CALL deallocate_matrix_set(qs_env%kinetic)
+             CALL deallocate_matrix_set(qs_env%kinetic,error=error)
 
         IF(ASSOCIATED(qs_env%rho_xc)) THEN
           NULLIFY(qs_env%rho_xc%rho_ao)
@@ -1283,7 +1283,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
         IF (ASSOCIATED(qs_env%rho_core)) THEN
-             CALL coeff_deallocate(qs_env%rho_core)
+             CALL coeff_deallocate(qs_env%rho_core,error=error)
              DEALLOCATE(qs_env%rho_core)
         ENDIF
         CALL qs_charges_release(qs_env%qs_charges, error=error)
@@ -1293,7 +1293,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL scf_env_release(qs_env%scf_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)
         IF (ASSOCIATED(qs_env%distribution_2d)) THEN
-           CALL distribution_2d_release(qs_env%distribution_2d)
+           CALL distribution_2d_release(qs_env%distribution_2d,error=error)
         ENDIF
         CALL cp_subsys_release(qs_env%subsys,error=error)
         CALL section_vals_release(qs_env%input,error=error)
@@ -1322,11 +1322,11 @@ END SUBROUTINE qs_env_release
 !!   INPUTS
 !!     - qs_env: the qs_env in which to orthogonalize
 !!     - v: the vectors to orthogonalize
-!!     - ispin: the spin of the vector to orthogonalize (unused at the 
+!!     - ispin: the spin of the vector to orthogonalize (unused at the
 !!       moment)
 !!     - n_col: number of column of v to orthogonalize
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -1341,8 +1341,8 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
     TYPE(cp_fm_type), POINTER                :: v_matrix
     INTEGER, INTENT(in)                      :: ispin
     INTEGER, INTENT(in), OPTIONAL            :: n_col
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'qs_env_reorthogonalize_vectors', &
@@ -1361,10 +1361,10 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
   failure=.FALSE.
   NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
   CALL timeset(routineN,'I',' ',handle)
-  
+
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
-  
+
   IF (.NOT. failure) THEN
 
      CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
@@ -1386,9 +1386,9 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
 
      IF (ortho_contains_cholesky) THEN
         CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
-             ortho=scf_env%ortho)
+             ortho=scf_env%ortho,error=error)
      ELSE
-        CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix )
+        CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix ,error=error)
      END IF
   END IF
   CALL timestop(0.0_dp,handle)

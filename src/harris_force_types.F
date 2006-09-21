@@ -181,8 +181,8 @@ CONTAINS
   SUBROUTINE harris_force_retain(harris_force, error)
 
     TYPE(harris_force_type), POINTER         :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_retain', &
       routineP = moduleN//':'//routineN
@@ -235,8 +235,8 @@ CONTAINS
   SUBROUTINE harris_force_release(harris_force, error)
 
     TYPE(harris_force_type), POINTER         :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_release', &
       routineP = moduleN//':'//routineN
@@ -417,8 +417,8 @@ CONTAINS
       f_cross_integrate_v_core, f_kinetic, f_gth_pp, f_overlap, f_nsc
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: f_total
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_get', &
       routineP = moduleN//':'//routineN
@@ -544,8 +544,8 @@ CONTAINS
       f_cross_integrate_v_core, f_kinetic, f_gth_pp, f_overlap, f_nsc
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: f_total
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_set', &
       routineP = moduleN//':'//routineN
@@ -625,8 +625,8 @@ CONTAINS
 
     TYPE(harris_force_type), POINTER         :: harris_force
     INTEGER                                  :: natom
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_clear', &
       routineP = moduleN//':'//routineN
@@ -706,8 +706,8 @@ CONTAINS
 
     TYPE(harris_force_type), POINTER         :: harris_force
     INTEGER                                  :: natom
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_create', &
       routineP = moduleN//':'//routineN

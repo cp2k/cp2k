@@ -77,7 +77,7 @@ CONTAINS
 !!     To this end special lists are used
 !!
 !!   INPUTS
-!!     qs_env : qs enviroment, for the lists, the contraction coefficients and the 
+!!     qs_env : qs enviroment, for the lists, the contraction coefficients and the
 !!              pre calculated integrals of the potential with the atomic orbitals
 !!      ks : KS matrix, sparse matrix
 !!      p : density matrix, sparse matrix, needed only for the forces
@@ -104,8 +104,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
 
@@ -168,7 +168,7 @@ CONTAINS
            oce=oce, &
            para_env=para_env,&
            rho_atom_set=rho_atom,&
-           sab_orb=sab_orb)
+           sab_orb=sab_orb,error=error)
 
     IF (my_tddft) THEN
        rho_atom   => p_env%local_rho_set%rho_atom_set
@@ -226,7 +226,7 @@ CONTAINS
             END DO
          END DO
        END IF
-    END DO 
+    END DO
 
 
     DO ikind=1,nkind
@@ -358,34 +358,34 @@ CONTAINS
                   ka_kind = atom_of_kind(katom)
                   IF(iatom <= jatom) THEN
                     rho_at => rho_atom(katom)
-                    force_tmp(1:3,1:3) = 0.0_dp 
+                    force_tmp(1:3,1:3) = 0.0_dp
                     CALL add_vhxca_forces(mat_p,oce,rho_at,force_tmp,&
                                     nspins,iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
-                                          force_tmp(1:3,3) 
+                                          force_tmp(1:3,3)
                     force(ikind)%vhxc_atom(1:3,ia_kind) = &
                                          force(ikind)%vhxc_atom(1:3,ia_kind) + &
-                                         force_tmp(1:3,1) 
+                                         force_tmp(1:3,1)
                     force(jkind)%vhxc_atom(1:3,ja_kind) = &
                                          force(jkind)%vhxc_atom(1:3,ja_kind) + &
-                                         force_tmp(1:3,2) 
+                                         force_tmp(1:3,2)
                   ELSE
                     rho_at => rho_atom(katom)
-                    force_tmp(1:3,1:3) = 0.0_dp 
+                    force_tmp(1:3,1:3) = 0.0_dp
                     CALL add_vhxca_forces(mat_p,oce,rho_at,force_tmp,&
                                     nspins,jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
                                     dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
-                                          force_tmp(1:3,3) 
+                                          force_tmp(1:3,3)
                     force(ikind)%vhxc_atom(1:3,ia_kind) = &
                                           force(ikind)%vhxc_atom(1:3,ia_kind) + &
-                                          force_tmp(1:3,2) 
+                                          force_tmp(1:3,2)
                     force(jkind)%vhxc_atom(1:3,ja_kind) = &
                                           force(jkind)%vhxc_atom(1:3,ja_kind) + &
-                                          force_tmp(1:3,1) 
+                                          force_tmp(1:3,1)
                   END IF
                 END IF
 
@@ -395,7 +395,7 @@ CONTAINS
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           ENDDO    ! inode
-        ENDDO    ! ilist 
+        ENDDO    ! ilist
       ENDDO    ! jkind
     ENDDO    ! ikind
 
@@ -405,7 +405,7 @@ CONTAINS
 
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
-    END DO 
+    END DO
     DEALLOCATE(mat_h,mat_p, STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                               "mat_h,mat_p")
@@ -494,7 +494,7 @@ CONTAINS
                  factor,C_hh,SIZE(C_hh,1),&
                  C_int_h(1,1,ispin),SIZE(C_int_h,1),1.0_dp,&
                  h_block,SIZE(h_block,1))
-       
+
         CALL dgemm("T","N",na,nb,nsp,&
                  -factor,C_ss,SIZE(C_ss,1),&
                  C_int_s(1,1,ispin),SIZE(C_int_s,1),1.0_dp,&
@@ -543,7 +543,7 @@ CONTAINS
 
       DO ispin = 1,nspins
         h_block => mat_h(ispin)%array
- 
+
         CALL dgemm("T","N",nb,na,nsp,&
                  factor,C_hh,SIZE(C_hh,1),&
                  C_int_h(1,1,ispin),SIZE(C_int_h,1),1.0_dp,&
@@ -721,7 +721,7 @@ CONTAINS
          trace = trace_r_AxB(dCPC_h,ldCPC,int_hard,nsp,nsp,nsp)
 
          force(dir-1,3) = force(dir-1,3) +  ieqj * trace
-         force(dir-1,2) = force(dir-1,2) -  ieqj * trace 
+         force(dir-1,2) = force(dir-1,2) -  ieqj * trace
 
 
          CALL dgemm("T","T",nsp,nsp,nb,&

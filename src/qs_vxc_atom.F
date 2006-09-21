@@ -8,14 +8,14 @@
 !!     qs_vxc_atom
 !!
 !!   FUNCTION
-!!     routines that build the integrals of the Vxc potential calculated  
-!!     for the atomic density in the basis set of spherical primitives 
+!!     routines that build the integrals of the Vxc potential calculated
+!!     for the atomic density in the basis set of spherical primitives
 !!
 !!   NOTES
 !!     -
 !!
 !!   AUTHOR
-!!     
+!!
 !!
 !!
 !!   SOURCE
@@ -89,8 +89,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: energy_only
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
@@ -152,7 +152,7 @@ CONTAINS
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
                     input=input,&
-                    rho_atom_set=rho_atom_set)
+                    rho_atom_set=rho_atom_set,error=error)
 
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
@@ -175,7 +175,7 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
 
-    ! Put to 0 the energy contribution from the one center XC terms 
+    ! Put to 0 the energy contribution from the one center XC terms
 
     energy%exc1 = 0.0_dp
 
@@ -220,13 +220,13 @@ CONTAINS
       ! allocate the required 3d arrays where to store rho and drho
       CALL xc_rho_set_atom_update(rho_set_h,needs,nspins,bounds)
       CALL xc_rho_set_atom_update(rho_set_s,needs,nspins,bounds)
-     
+
       CALL reallocate(rho_h,1,na,1,nspins)
       CALL reallocate(rho_s,1,na,1,nspins)
       weight => grid_atom%weight
       CALL reallocate(vxc_h,1,na,1,nr,1,nspins)
       CALL reallocate(vxc_s,1,na,1,nr,1,nspins)
-  
+
       IF (gradient_f) THEN
         CALL reallocate(drho_h,1,4,1,na,1,nr,1,nspins)
         CALL reallocate(drho_s,1,4,1,na,1,nr,1,nspins)
@@ -285,7 +285,7 @@ CONTAINS
                           lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, error=error)
         rho_atom%exc_s = rho_atom%exc_s + exc_s
 
-        ! Add contributions to the exc energy 
+        ! Add contributions to the exc energy
 
         energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
 
@@ -297,9 +297,9 @@ CONTAINS
           atom_kind => atomic_kind_set(ikind)
           IF (gradient_f) THEN
             CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
-                            rho_atom,drho_h,drho_s,nspins)
+                            rho_atom,drho_h,drho_s,nspins,error=error)
           ELSE
-            CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins)
+            CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error=error)
           END IF
         END IF  ! energy_only
         NULLIFY (r_h,r_s,dr_h,dr_s)
@@ -377,8 +377,8 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
       routineP = moduleN//':'//routineN
@@ -433,7 +433,7 @@ CONTAINS
                    para_env=para_env,&
                    energy=energy,&
                    input=input,&
-                   atomic_kind_set=atomic_kind_set)
+                   atomic_kind_set=atomic_kind_set,error=error)
    rho_atom_set => qs_env%local_rho_set%rho_atom_set
    rho1_atom_set => p_env%local_rho_set%rho_atom_set
 
@@ -471,14 +471,14 @@ CONTAINS
 
 !  Here starts the loop over all the atoms
    DO ikind = 1,nkind
-      
+
       NULLIFY(atom_kind, atom_list, harmonics, grid_atom)
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
                            natom=natom,paw_atom=paw_atom,&
                            harmonics=harmonics,grid_atom=grid_atom)
       IF (.NOT.paw_atom) CYCLE
-      
+
       nr = grid_atom%nr
       na = grid_atom%ng_sphere
 
@@ -529,7 +529,7 @@ CONTAINS
 !      ALLOCATE (weight(1:na,1:nr),STAT=stat)
 !      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       weight => grid_atom%weight
-      
+
       IF (gradient_functional) THEN
          ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho1_h(1:4,1:na,1:nr,1:nspins), &
                   drho_s(1:4,1:na,1:nr,1:nspins), drho1_s(1:4,1:na,1:nr,1:nspins), stat=stat)
@@ -607,11 +607,11 @@ CONTAINS
          atom_kind => atomic_kind_set(ikind)
          IF(gradient_functional) THEN
             CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
-                            rho1_atom, drho_h, drho_s, nspins)
+                            rho1_atom, drho_h, drho_s, nspins,error=error)
          ELSE
-            CALL gaVxcgb_noGC(vxc_h, vxc_s, atom_kind, rho1_atom, nspins)
+            CALL gaVxcgb_noGC(vxc_h, vxc_s, atom_kind, rho1_atom, nspins,error=error)
          ENDIF
-         
+
          NULLIFY(r_h,r_s,dr_h,dr_s)
 
       END DO
@@ -658,8 +658,8 @@ CONTAINS
       POINTER                                :: r_h_d, r_s_d
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: drho_h, drho_s
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rho_angular', &
       routineP = moduleN//':'//routineN
@@ -681,7 +681,7 @@ CONTAINS
       CPPostcondition(ASSOCIATED(drho_h),cp_failure_level,routineP,error,failure)
       CPPostcondition(ASSOCIATED(drho_s),cp_failure_level,routineP,error,failure)
    END IF
-   
+
    IF (failure) RETURN
 
    na = grid_atom%ng_sphere
@@ -692,10 +692,10 @@ CONTAINS
    DO ispin = 1,nspins
       DO iso = 1,harmonics%max_iso_not0
          DO ia = 1,na
-            rho_h(ia,ispin) = rho_h(ia,ispin) + & 
+            rho_h(ia,ispin) = rho_h(ia,ispin) + &
                               r_h(ispin)%r_coef(ir,iso)*&
                               harmonics%slm(ia,iso)
-            rho_s(ia,ispin) = rho_s(ia,ispin) + & 
+            rho_s(ia,ispin) = rho_s(ia,ispin) + &
                               r_s(ispin)%r_coef(ir,iso)*&
                               harmonics%slm(ia,iso)
          END DO  ! ia
@@ -707,39 +707,39 @@ CONTAINS
          DO iso = 1,harmonics%max_iso_not0
             DO ia = 1,na
 
-!              components of the gradient of rho1 hard 
-               drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + & 
+!              components of the gradient of rho1 hard
+               drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + &
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
                                        r_h_d(1,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
-               drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + & 
+               drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + &
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
                                        r_h_d(2,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
-               drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + & 
+               drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + &
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
                                        r_h_d(3,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
-!              components of the gradient of rho1 soft 
-               drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + & 
+!              components of the gradient of rho1 soft
+               drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + &
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
                                        r_s_d(1,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
-               drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + & 
+               drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + &
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
                                        r_s_d(2,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
-               drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + & 
+               drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + &
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
                                       r_s_d(3,ispin)%r_coef(ir,iso)*&
@@ -747,12 +747,12 @@ CONTAINS
 
 
                drho_h(4,ia,ir,ispin) = SQRT(&
-                    drho_h(1,ia,ir,ispin)*drho_h(1,ia,ir,ispin)+& 
+                    drho_h(1,ia,ir,ispin)*drho_h(1,ia,ir,ispin)+&
                     drho_h(2,ia,ir,ispin)*drho_h(2,ia,ir,ispin)+&
                     drho_h(3,ia,ir,ispin)*drho_h(3,ia,ir,ispin))
 
                drho_s(4,ia,ir,ispin) = SQRT(&
-                    drho_s(1,ia,ir,ispin)*drho_s(1,ia,ir,ispin)+& 
+                    drho_s(1,ia,ir,ispin)*drho_s(1,ia,ir,ispin)+&
                     drho_s(2,ia,ir,ispin)*drho_s(2,ia,ir,ispin)+&
                     drho_s(3,ia,ir,ispin)*drho_s(3,ia,ir,ispin))
 
@@ -771,8 +771,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(rho_atom_type), POINTER             :: rho_atom
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_noGC'
 
@@ -797,7 +797,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom) 
+    NULLIFY (lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom)
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
                          harmonics=harmonics,&
@@ -808,7 +808,7 @@ CONTAINS
                            nset=nset,zet=zet)
 
     nr = grid_atom%nr
-    na = grid_atom%ng_sphere 
+    na = grid_atom%ng_sphere
     my_CG => harmonics%my_CG
     max_iso_not0 = harmonics%max_iso_not0
     lmax_expansion = indso(1,max_iso_not0)
@@ -844,9 +844,9 @@ CONTAINS
       m2 = 0
       DO iset2 = 1,nset
 
-        n2 = nsoset(lmax(iset2)) 
+        n2 = nsoset(lmax(iset2))
         DO ipgf1  = 1,npgf(iset1)
-          ngau1  = n1*(ipgf1-1)+m1 
+          ngau1  = n1*(ipgf1-1)+m1
           size1  = nsoset(lmax(iset1))-nsoset(lmin(iset1)-1)
           nngau1 = nsoset(lmin(iset1)-1)+ngau1
 
@@ -899,11 +899,11 @@ CONTAINS
 
                   CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
                   DO ia = 1,na
-                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + & 
+                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
                             gVg_h(ia,l)*&
                             my_CG(iso1,iso2,iso)*&
                             harmonics%slm(ia,iso)
-                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + & 
+                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
                             gVg_s(ia,l)*&
                             my_CG(iso1,iso2,iso)*&
                             harmonics%slm(ia,iso)
@@ -949,8 +949,8 @@ CONTAINS
     TYPE(rho_atom_type), POINTER             :: rho_atom
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_GC'
 
@@ -978,7 +978,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom) 
+    NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom)
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
                          harmonics=harmonics,&
@@ -989,7 +989,7 @@ CONTAINS
                            nset=nset,zet=zet)
 
     nr = grid_atom%nr
-    na = grid_atom%ng_sphere 
+    na = grid_atom%ng_sphere
     my_CG => harmonics%my_CG
     my_CG_dxyz => harmonics%my_CG_dxyz
     max_iso_not0 = harmonics%max_iso_not0
@@ -1014,10 +1014,10 @@ CONTAINS
                        "matso_h,matso_s",2*nsoset(maxl)*nsoset(maxl)*dp_size)
 
     CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
-    
+
 
     DO ispin=1,nspins
-       
+
     g1 = 0.0_dp
     g2 = 0.0_dp
     m1 = 0
@@ -1026,7 +1026,7 @@ CONTAINS
       m2 = 0
       DO iset2 = 1,nset
 
-        n2 = nsoset(lmax(iset2)) 
+        n2 = nsoset(lmax(iset2))
         DO ipgf1  = 1,npgf(iset1)
           ngau1  = n1*(ipgf1-1)+m1
           size1  = nsoset(lmax(iset1))-nsoset(lmin(iset1)-1)
@@ -1133,11 +1133,11 @@ CONTAINS
                IF(.NOT. failure) THEN
 
                   DO ia = 1,na
-                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + & 
+                    matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
                                          gVXCg_h(ia,l)*&
                                          harmonics%slm(ia,iso)*&
                                          my_CG(iso1,iso2,iso)
-                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + & 
+                    matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
                                          gVXCg_s(ia,l)*&
                                          harmonics%slm(ia,iso)*&
                                          my_CG(iso1,iso2,iso)

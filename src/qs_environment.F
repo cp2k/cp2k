@@ -185,8 +185,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
@@ -221,7 +221,7 @@ CONTAINS
          "SUBSYS%CELL",error=error)
     harris_section => section_vals_get_subs_vals(force_env_section, &
          "DFT%QS%HARRIS", error=error)
-    
+
     my_qmmm     = .FALSE.
     IF (PRESENT(qmmm)) my_qmmm=qmmm
     my_qmmm_periodic = .FALSE.
@@ -260,7 +260,7 @@ CONTAINS
 !   Kind section
     kind_section => section_vals_get_subs_vals(force_env_section,&
             "SUBSYS%KIND",error=error)
-    IF (PRESENT(subsystem)) THEN 
+    IF (PRESENT(subsystem)) THEN
        my_subsystem => subsystem
        CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els,kind_section,para_env,&
             force_env_section,error)
@@ -281,9 +281,9 @@ CONTAINS
 
        CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
             force_env_section,error)
-       
+
        CALL num_ao_el_per_molecule(molecule_kind_set)
-       
+
        CALL particle_list_create(particles,els_ptr=particle_set,error=error)
        CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
        CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
@@ -325,8 +325,8 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'qs_init_subsys'
 
@@ -407,14 +407,14 @@ CONTAINS
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
-         extension=".Log",error=error)    
+         extension=".Log",error=error)
     CALL qs_header(iw, iw>0)
     CALL cp_print_key_finished_output(iw,logger,dft_section,&
-         "PRINT%PROGRAM_BANNER",error=error)    
+         "PRINT%PROGRAM_BANNER",error=error)
 
 !   *** Read the input section with the DFT control parameters ***
 
-    CALL read_dft_control(dft_control,root_section,dft_section)
+    CALL read_dft_control(dft_control,root_section,dft_section,error=error)
 
     CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, dft_section,error)
 
@@ -435,7 +435,7 @@ CONTAINS
     IF(all_potential_present .AND. .NOT.(dft_control%qs_control%semi_empirical)) THEN
       IF (.NOT.(dft_control%qs_control%method == "GAPW"))&
           CALL stop_program(routineN,moduleN,__LINE__,&
-                        "all-el calculations with GPW and GAPW_XC are not implemented ")      
+                        "all-el calculations with GPW and GAPW_XC are not implemented ")
     END IF
 
 !   *** Initialize the spherical harmonics and ***
@@ -460,7 +460,7 @@ CONTAINS
 
 !   *** Initialise the atomic kind set ***
 
-    CALL init_atomic_kind_set(atomic_kind_set,para_env,qs_env%input)
+    CALL init_atomic_kind_set(atomic_kind_set,para_env,qs_env%input,error=error)
 
 !   *** Initialise GAPW soft basis and projectors
 
@@ -497,7 +497,7 @@ CONTAINS
 
 !   *** SCF parameters ***
 
-    CALL scf_c_create(scf_control)
+    CALL scf_c_create(scf_control,error=error)
     CALL scf_c_read_parameters(scf_control,root_section,qs_env%input,error=error)
 
 !   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
@@ -524,7 +524,7 @@ CONTAINS
                     error=error)
 
 !   *** Set the actual Harris environment ***
-    
+
     IF (harris_flag) THEN
       CALL harris_env_create(harris_env=harris_env, natom=natom, &
                              nspins=dft_control%nspins, error=error)
@@ -544,7 +544,7 @@ CONTAINS
                     energy=energy,&
                     force=force,&
                     scf_control=scf_control,&
-                    wf_history=wf_history)
+                    wf_history=wf_history,error=error)
 
     IF (harris_flag) THEN
       CALL set_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
@@ -562,26 +562,26 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
-                    scf_control=scf_control)
+                    scf_control=scf_control,error=error)
 
     ! decide what conditions need mo_derivs
     ! right now, this only appears to be OT
     IF (scf_control%use_ot) THEN
-      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.)
+      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.,error=error)
     ELSE
-      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
+      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
     ENDIF
 
 !   Initialize the GAPW local densities and potentials
     IF(dft_control%qs_control%method_id == do_method_gapw .OR. &
       dft_control%qs_control%method_id == do_method_gapw_xc) THEN
 !     *** Allocate and initialize the set of atomic densities ***
-      CALL init_rho_atom(qs_env,gapw_control)
+      CALL init_rho_atom(qs_env,gapw_control,error=error)
       IF(dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
 !       *** Allocate and initialize the compensation density rho0 ***
         CALL init_rho0(qs_env,gapw_control,cell,error=error)
 !       *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
-        CALL init_coulomb_local(qs_env,gapw_control)
+        CALL init_coulomb_local(qs_env,gapw_control,error=error)
       END IF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       se_control => dft_control%qs_control%se_control
@@ -605,7 +605,7 @@ CONTAINS
       SELECT CASE ( dft_control%qs_control%method )
         CASE DEFAULT
         CASE ("AM1","PM3","MNDO")
-          ! Neighbor lists have to be  
+          ! Neighbor lists have to be
           ! MAX(interaction range, orbital range)
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,&
@@ -749,13 +749,13 @@ CONTAINS
                        "mos",dft_control%nspins*int_size)
     END IF
 
-    ! in principle the restricted calculation could be performed 
+    ! in principle the restricted calculation could be performed
     ! using just one set of MOs and special casing most of the code
     ! right now we'll just take care of what is effectively an additional constraint
     ! at as few places as possible, just duplicating the beta orbitals
     IF (dft_control%restricted) THEN
        ! it is really not yet tested till the end ! Joost
-       iw = cp_logger_get_default_unit_nr(logger) 
+       iw = cp_logger_get_default_unit_nr(logger)
        WRITE(iw,*) ""
        WRITE(iw,*) " **************************************"
        WRITE(iw,*) " restricted calculation cutting corners"
@@ -795,7 +795,7 @@ CONTAINS
            nmoloc,n_mo,dft_control%nspins,error=error)
       CALL set_loc_centers(dft_control%qs_control%localized_wfn_control,nmoloc,&
            dft_control%nspins,globenv,qs_env%input,error=error)
-    END IF 
+    END IF
 
     ! Print the DFT control parameters
 
@@ -849,8 +849,8 @@ CONTAINS
 
     ! Allocate and Initialie rho0 soft on the global grid
 
-    IF(dft_control%qs_control%method == "GAPW") THEN 
-      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+    IF(dft_control%qs_control%method == "GAPW") THEN
+      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
       CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
     END IF
 
@@ -876,8 +876,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &
@@ -893,7 +893,7 @@ CONTAINS
     IF (output_unit>0) THEN
        natom = SIZE(particle_set)
        nkind = SIZE(atomic_kind_set)
-       
+
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 maxlgto=maxlgto,&
                                 maxlppl=maxlppl,&
@@ -903,10 +903,10 @@ CONTAINS
                                 nset=nset,&
                                 nsgf=nsgf,&
                                 nshell=nshell)
-       
+
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "TOTAL NUMBERS AND MAXIMUM NUMBERS"
-       
+
        WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
             "Total number of",&
             "- Atomic kinds:                  ",nkind,&

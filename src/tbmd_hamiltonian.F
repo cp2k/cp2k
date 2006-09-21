@@ -12,11 +12,11 @@
 !!     Tight-Binding Hamiltonian built-up
 !!
 !!   NOTES
-!!     Builds the sparse orthogonal tight-binding Hamiltonian matrix. For the 
+!!     Builds the sparse orthogonal tight-binding Hamiltonian matrix. For the
 !!     underlying basis set an orthogonal and minimal sp-basis is assumed.
-!!     The linear scaling FIST neighbor-lists of "Professore Krack" are 
+!!     The linear scaling FIST neighbor-lists of "Professore Krack" are
 !!     heavily used :-)
-!!     
+!!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
@@ -83,7 +83,7 @@ CONTAINS
 !!     Builds up the orthogonal tight-binding Hamiltonian.
 !!
 !!   REFERENCES
-!!     J.C. Slater & G.F. Koster: Simplified LCAO Method for Periodic Potential 
+!!     J.C. Slater & G.F. Koster: Simplified LCAO Method for Periodic Potential
 !!                                Problem; Phys. Rev. 94, 1498-1524 (1954)
 !!     Mike Finnis: Interatomic Forces in Condensed Matter; Oxford University
 !!                  Press (2004)
@@ -96,9 +96,9 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment to retain
-!!     - derivative: Logical which indicates if the dH/dR has to be build-up on-the 
+!!     - derivative: Logical which indicates if the dH/dR has to be build-up on-the
 !!                   fly for the force calculation.
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -112,8 +112,8 @@ CONTAINS
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: derivative
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
 ! *** Local types *** !
 
@@ -211,9 +211,9 @@ CONTAINS
             tbmd_force)
 
     failure = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
 
       CALL tbmd_env_get(tbmd_env=tbmd_env, subsystem=subsystem, &
@@ -236,14 +236,14 @@ CONTAINS
 
       CALL tbmd_neighbor_list_env_get(tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                                       r_last_update=r_last_update, error=error)
-      
+
       CALL tbmd_model_get(tbmd_model=tbmd_model, E_s=Es, dEpsilon=dEpsilon, h_ssS=ssS, &
                           h_spS=spS, h_ppS=ppS, h_ppP=ppP, error=error)
 
 
       ALLOCATE(first_index_vec(natoms), STAT=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-      
+
       ALLOCATE(last_index_vec(natoms), STAT=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
@@ -257,7 +257,7 @@ CONTAINS
                            matrix_name="Tight-Binding Hamiltonian Matrix", &
                            matrix_symmetry="symmetric", &
                            sparsity_id=tbmd_neighbor_list_env%id_nr, &
-                           distribution_2d=distribution_2d)
+                           distribution_2d=distribution_2d,error=error)
 
       DEALLOCATE(first_index_vec, STAT=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -266,20 +266,20 @@ CONTAINS
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
       IF (derivative) THEN
-        CALL allocate_matrix_set(tbmd_env%matrix_dh,3)
+        CALL allocate_matrix_set(tbmd_env%matrix_dh,3,error=error)
 
         DO i_dim = 1,3
           CALL replicate_matrix_structure(source=tbmd_env%matrix_h, &
                                           TARGET=tbmd_env%matrix_dh(i_dim)%matrix, &
                                           target_name="Derivative of the Tight-Binding " //&
                                           "Hamiltonian Matrix with respect to the nuclear "//&
-                                          "coordinates", target_symmetry="antisymmetric") ! symmetric?
+                                          "coordinates", target_symmetry="antisymmetric",error=error) ! symmetric?
         END DO
 
         ALLOCATE(sint(4), STAT=stat)
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-        DO i = 1,4        
+        DO i = 1,4
           NULLIFY(sint(i)%block)
         END DO
 
@@ -367,7 +367,7 @@ CONTAINS
 
               CALL scaled_to_real(s2r,r_last_update(:,atom_b),cell)
               drb(:) = particle_set(atom_b)%r(:) - s2r
-  
+
               CALL scaled_to_real(s2r,rab(:),cell)
               rab(:) = s2r - dra(:) + drb(:)
 
@@ -605,12 +605,12 @@ CONTAINS
 !!     tbmd_init_index_vec
 !!
 !!   FUNCTION
-!!     Correctly initializes the first and last index vectors, nedded for 
+!!     Correctly initializes the first and last index vectors, nedded for
 !!     the sparse H & dH/dR matrix allocation.
 !!
 !!   NOTES
-!!     In this first orthogonal tight-binding implementation I'm only constructing a 
-!!     s-p orbitals Hamiltonian matrix, which I consider as sufficient for my purposes 
+!!     In this first orthogonal tight-binding implementation I'm only constructing a
+!!     s-p orbitals Hamiltonian matrix, which I consider as sufficient for my purposes
 !!     in mind. The resulting matrix blocks are therefore of dimensionality 4x4.
 !!
 !!   INPUTS
@@ -618,7 +618,7 @@ CONTAINS
 !!                        blocks of the sparse tight-binding Hamiltonian matrix.
 !!     - last_index_vec: Vector consisting of the last indices of the individual
 !!                       blocks of the sparse tight-binding Hamiltonian matrix.
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -632,8 +632,8 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: first_index_vec, &
                                                 last_index_vec
     INTEGER, INTENT(IN)                      :: natoms
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init_index_vec', &
       routineP = moduleN//':'//routineN
@@ -746,7 +746,7 @@ CONTAINS
 !!     tbmd_dsm_st
 !!
 !!   FUNCTION
-!!     Calculates the scaling function for the derivative with respect to the 
+!!     Calculates the scaling function for the derivative with respect to the
 !!     coordinates.
 !!
 !!   NOTES

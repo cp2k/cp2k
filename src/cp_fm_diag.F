@@ -69,8 +69,8 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_fm_syevd'
 
@@ -157,7 +157,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "iwork",liwork*int_size)
     CALL dsyevd('V','U', n, m(1,1), n, eigenvalues(1), work(1), lwork, iwork(1), liwork, info)
-    CALL cp_fm_to_fm(matrix,eigenvectors)
+    CALL cp_fm_to_fm(matrix,eigenvectors,error=error)
 #endif
 
     IF (info /= 0) THEN
@@ -193,7 +193,7 @@ CONTAINS
     REAL(KIND = dp), INTENT(IN)                  :: work_syevx
     INTEGER, INTENT(IN)                          :: neig
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx",&
                                    routineP = moduleN//":"//routineN
@@ -403,7 +403,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent)
+  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,error)
 
    ! Raise the real symmetric n by n matrix to the power given by
    ! exponent. All eigenvectors with a corresponding eigenvalue lower
@@ -417,6 +417,7 @@ CONTAINS
    TYPE(cp_fm_type), POINTER                 :: matrix,work
    REAL(KIND = dp), INTENT(IN)               :: exponent,threshold
    INTEGER, INTENT(OUT)                      :: n_dependent
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_power"
 
@@ -456,7 +457,7 @@ CONTAINS
 
     ! Compute the eigenvectors and eigenvalues
 
-    CALL cp_fm_syevd(matrix,work,eigenvalues)
+    CALL cp_fm_syevd(matrix,work,eigenvalues,error=error)
 
 #if defined(__SCALAPACK)
     nrow_block = work%matrix_struct%nrow_block
@@ -543,8 +544,8 @@ CONTAINS
     END DO
 
 #endif
-    CALL cp_fm_syrk("U","N",ncol_global,1.0_dp,work,1,1,0.0_dp,matrix)
-    CALL cp_fm_upper_to_full(matrix,work)
+    CALL cp_fm_syrk("U","N",ncol_global,1.0_dp,work,1,1,0.0_dp,matrix,error=error)
+    CALL cp_fm_upper_to_full(matrix,work,error=error)
 
     ! Print some warnings/notes
 
@@ -625,8 +626,8 @@ CONTAINS
     ! Umgebung fuer die Kohn-Sham-Matrix und die Eigenvektoren uebernehmen
 
     context =>  matrix%matrix_struct%context
-    source =    matrix%matrix_struct%para_env%source 
-    allgrp =    matrix%matrix_struct%para_env%group 
+    source =    matrix%matrix_struct%para_env%source
+    allgrp =    matrix%matrix_struct%para_env%group
 
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
@@ -649,8 +650,8 @@ CONTAINS
     block_dim_col = N - block_dim_row
     ALLOCATE(A_loc(block_dim_row,block_dim_col))
 
-    mype=matrix%matrix_struct%para_env%mepos 
-    npe=matrix%matrix_struct%para_env%num_pe 
+    mype=matrix%matrix_struct%para_env%mepos
+    npe=matrix%matrix_struct%para_env%num_pe
     ictxt    =matrix%matrix_struct%context%group
     ! get a new context
     ictxt_loc=matrix%matrix_struct%para_env%group

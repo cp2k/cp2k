@@ -77,8 +77,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_rspace'
 
@@ -140,7 +140,7 @@ CONTAINS
                     distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
                     energy=energy,&
-                    force=force)
+                    force=force,error=error)
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
@@ -627,7 +627,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE calculate_eself(kg_env,ecore_self)
+  SUBROUTINE calculate_eself(kg_env,ecore_self,error)
 
     ! Purpose: Calculate the self energy of the core charge distribution.
 
@@ -637,6 +637,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(OUT)               :: ecore_self
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ikind, natom
     REAL(KIND=dp)                            :: alpha_core_charge, &
@@ -648,7 +649,7 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     CALL get_kg_env(kg_env=kg_env,&
-                    atomic_kind_set=atomic_kind_set)
+                    atomic_kind_set=atomic_kind_set,error=error)
 
     ecore_self = 0.0_dp
 

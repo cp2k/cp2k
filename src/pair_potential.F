@@ -63,12 +63,12 @@ CONTAINS
   !!
   !!   FUNCTION
   !!     Evaluates the nonbond potential energy for the implemented FF kinds
-  !!     
+  !!
   !!   AUTHOR
-  !!    
+  !!
   !!
   !!   MODIFICATION HISTORY
-  !!     
+  !!
   !!
   !!   SOURCE
   !******************************************************************************
@@ -92,10 +92,10 @@ CONTAINS
        ener_pot = 0._dp
        IF ( r > pot % ipbv % rcore ) THEN
           DO i = 2, 15
-             ener_pot = ener_pot + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp)) 
+             ener_pot = ener_pot + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp))
           END DO
        ELSE
-          ! use a linear potential  
+          ! use a linear potential
           ener_pot = pot % ipbv % m * r + pot % ipbv % b
        ENDIF
        ener_pot=ener_pot - pot % energy_cutoff
@@ -120,7 +120,7 @@ CONTAINS
        pp =  pot % eam % phi ( index ) + &
             qq * pot % eam % phip ( index )
        ener_pot = pp - pot % energy_cutoff
-    ELSE 
+    ELSE
        ener_pot = 0.0_dp
     END IF
 
@@ -134,13 +134,13 @@ CONTAINS
   !!     ener_coul
   !!
   !!   FUNCTION
-  !!     Evaluates the Coulomb electrostatic energy 
+  !!     Evaluates the Coulomb electrostatic energy
   !!
   !!   AUTHOR
-  !!    
+  !!
   !!
   !!   MODIFICATION HISTORY
-  !!     
+  !!
   !!
   !!   SOURCE
   !******************************************************************************
@@ -182,7 +182,7 @@ CONTAINS
   !!     creates the splines for the potentials
   !!
   !!   AUTHOR
-  !!    
+  !!
   !!
   !!   MODIFICATION HISTORY
   !!     Teo 2006.05 : Improved speed and accuracy. Linear scaling of the setup
@@ -205,8 +205,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
     LOGICAL, INTENT(IN), OPTIONAL            :: do_14
     LOGICAL, INTENT(IN)                      :: scale_cutoff
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
@@ -240,7 +240,7 @@ CONTAINS
              IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
           ENDIF
           IF (.NOT.potparm%pot(i,j)%pot%undef) CYCLE
-          CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0)
+          CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
           ncount = ncount + 1
           potparm%pot(i,j)%pot%undef = .FALSE.
           atomic_kind=> atomic_kind_set(j)
@@ -295,7 +295,7 @@ CONTAINS
                 x2 = x2 + dx2
              END DO ! jx: loop over distance
              IF (my_do_14) THEN
-                myfac1 = my_ei_scale14 * ifourpi / eps0 * qi * qj 
+                myfac1 = my_ei_scale14 * ifourpi / eps0 * qi * qj
                 myfac2 = 0.0_dp
                 IF (scale_cutoff) THEN
                    myfac2 = my_ei_scale14 * ifourpi / eps0 * qi * qj / hicut
@@ -361,8 +361,8 @@ CONTAINS
              END DO
              WRITE(1000+n,*)
           END IF
-       END DO 
-    END DO 
+       END DO
+    END DO
     IF (iw3>0) THEN
        WRITE(iw3,'()')
     ENDIF
@@ -392,7 +392,7 @@ CONTAINS
   !!     Teodoro Laino [tlaino] 2006.05
   !!
   !!   MODIFICATION HISTORY
-  !!     
+  !!
   !!
   !!   SOURCE
   !******************************************************************************
@@ -404,8 +404,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nonbond_storage', &
       routineP = moduleN//':'//routineN
@@ -430,14 +430,14 @@ CONTAINS
     my_vdw_scale14= 1.0_dp ; IF (PRESENT(vdw_scale14)) my_vdw_scale14 = vdw_scale14
     DO i = 1, ntype
        DO j = 1, i
-          potparm%pot(i,j)%pot%undef = .FALSE. 
+          potparm%pot(i,j)%pot%undef = .FALSE.
        END DO
     END DO
     ALLOCATE(tmp_index(ntype,ntype),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     nunique = 0
-    tmp_index = HUGE(0)    
+    tmp_index = HUGE(0)
     DO pot_target = MINVAL(list_pot), MAXVAL(list_pot)
        ndim  = 0
        first_val = .FALSE.
@@ -446,7 +446,7 @@ CONTAINS
           DO j = 1, i
              n = n + 1
              IF (potparm%pot(i,j)%pot%type==pot_target) THEN
-                IF (.NOT.first_val) THEN 
+                IF (.NOT.first_val) THEN
                    min_val = n
                    first_val = .TRUE.
                 END IF
@@ -508,12 +508,12 @@ CONTAINS
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%willis%c
                    CASE (gw_type)
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%goodwin%vr0
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%goodwin%m  
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%goodwin%mc 
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%goodwin%d  
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%goodwin%dc 
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%goodwin%m
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%goodwin%mc
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%goodwin%d
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%goodwin%dc
                    CASE (ea_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%eam%drar  
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%eam%drar
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%eam%drhoar
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%eam%acutal
                    CASE (ft_type)
@@ -530,7 +530,7 @@ CONTAINS
                    CASE DEFAULT
                       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                    END SELECT
-                   IF (my_ei_scale14 /=0.0_dp) THEN 
+                   IF (my_ei_scale14 /=0.0_dp) THEN
                       pot_par(nk,nvar-1)=qi
                       pot_par(nk,nvar  )=qj
                    END IF
@@ -571,7 +571,7 @@ CONTAINS
                 iend   = j - 1
                 wtmp(1:k-1) = pot_par(j,1:k-1)
                 ! If the ordered array has no two same consecutive elements
-                ! does not make any sense to proceed ordering the others 
+                ! does not make any sense to proceed ordering the others
                 ! related parameters..
                 idim = iend-istart+1
                 CALL sort(Rwork(istart:iend),idim,Iwork1(istart:iend))
@@ -579,7 +579,7 @@ CONTAINS
                 IF (idim/=1) at_least_one = .TRUE.
                 istart = j
              END DO
-             iend = ndim 
+             iend = ndim
              idim = iend-istart+1
              CALL sort(Rwork(istart:iend),idim,Iwork1(istart:iend))
              Iwork1(istart:iend)=Iwork1(istart:iend)-1+istart
@@ -610,7 +610,7 @@ CONTAINS
           ! Let's determine the number of unique potentials and tag them
           !
           ALLOCATE(Cwork(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Cwork = pot_par(1,:)
           locij = my_index(1)
           CALL get_indexes(locij,ntype,tmpij0)
@@ -652,7 +652,7 @@ CONTAINS
           END DO
           nunique = nunique + 1
           iend    = ndim
-          min_val = MINVAL(my_index(istart:iend)) 
+          min_val = MINVAL(my_index(istart:iend))
           CALL get_indexes(min_val,ntype,tmpij)
           potparm%pot(tmpij(1),tmpij(2))%pot%undef =.TRUE.
           potparm%pot(tmpij(2),tmpij(1))%pot%undef =.TRUE.
@@ -693,7 +693,7 @@ CONTAINS
   !!     Teodoro Laino [tlaino] 2006.05
   !!
   !!   MODIFICATION HISTORY
-  !!     
+  !!
   !!
   !!   SOURCE
   !******************************************************************************
@@ -705,9 +705,9 @@ CONTAINS
 
     tmp = 0
     ij  = HUGE(0)
-    DO i = 1, ndim       
+    DO i = 1, ndim
        tmp = tmp + i
-       IF (tmp >= Inind) THEN 
+       IF (tmp >= Inind) THEN
           ij(1) = i
           ij(2) = Inind - tmp + i
           EXIT
@@ -729,11 +729,11 @@ CONTAINS
   !!     Teodoro Laino [tlaino] 2006.05
   !!
   !!   MODIFICATION HISTORY
-  !!     
+  !!
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, ewald_env )
+  SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, ewald_env, error )
     REAL(KIND=dp), INTENT(IN)                :: rijsq
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     REAL(KIND=dp), INTENT(IN)                :: qi, qj
@@ -741,6 +741,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: energy
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ewald_type
     REAL(KIND=dp)                            :: alpha, eps0, rij
@@ -752,7 +753,7 @@ CONTAINS
 
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
-       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0)
+       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
        energy = energy &
             + ener_coul ( potparm%pot(iatom,jatom )%pot, qi, qj, rij, ewald_type,alpha,eps0, 1.0_dp,&
             my_do_14=.FALSE.)

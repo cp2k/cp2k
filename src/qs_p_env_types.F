@@ -65,7 +65,7 @@ MODULE qs_p_env_types
 !!
 !!   FUNCTION
 !!     Represent a qs system that is perturbed.
-!!     Can calculate the linear operator and the rhs of the system 
+!!     Can calculate the linear operator and the rhs of the system
 !!     of equations that needs to be solved for the perturbation.
 !!
 !!   NOTES
@@ -111,7 +111,7 @@ MODULE qs_p_env_types
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: ev_h0
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: d_psi1, g_psi1, g_psi1_old
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: buf1, buf2, os_psi0 
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: buf1, buf2, os_psi0
 !     TYPE(cp_fm_type), POINTER :: sinv_test
 
      ! preconditioner matrix should be symmetric and positive definite
@@ -179,8 +179,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - p_env: the p_env to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -191,8 +191,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE p_env_retain(p_env,error)
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_retain', &
       routineP = moduleN//':'//routineN
@@ -200,7 +200,7 @@ SUBROUTINE p_env_retain(p_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -228,8 +228,8 @@ END SUBROUTINE p_env_retain
 !!
 !!   INPUTS
 !!     - p_env: the environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -241,8 +241,8 @@ END SUBROUTINE p_env_retain
   SUBROUTINE p_env_release(p_env, error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
       routineP = moduleN//':'//routineN
@@ -263,36 +263,36 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
           IF(ASSOCIATED(p_env%rho1_xc)) THEN
             NULLIFY(p_env%rho1_xc%rho_ao)
-            CALL qs_rho_release(p_env%rho1_xc)
+            CALL qs_rho_release(p_env%rho1_xc,error=error)
           ENDIF
-          CALL qs_rho_release(p_env%rho1)
-          IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
-          IF (ASSOCIATED(p_env%p1)) CALL deallocate_matrix_set(p_env%p1)
+          CALL qs_rho_release(p_env%rho1,error=error)
+          IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1,error)
+          IF (ASSOCIATED(p_env%p1)) CALL deallocate_matrix_set(p_env%p1,error)
           IF (ASSOCIATED(p_env%local_rho_set)) THEN
-             CALL local_rho_set_release(p_env%local_rho_set)
+             CALL local_rho_set_release(p_env%local_rho_set,error=error)
           END IF
           IF (ASSOCIATED(p_env%hartree_local)) THEN
              NULLIFY(p_env%hartree_local%vtriple) ! we must not deallocate this
-             CALL hartree_local_release(p_env%hartree_local)
+             CALL hartree_local_release(p_env%hartree_local,error=error)
           END IF
           IF(ASSOCIATED(p_env%PS_psi0)) THEN
-            CALL cp_fm_vect_dealloc(p_env%PS_psi0, error=error)  
+            CALL cp_fm_vect_dealloc(p_env%PS_psi0, error=error)
           END IF
           IF(ASSOCIATED(p_env%ev_h0)) THEN
             DO ip = 1,SIZE(p_env%ev_h0,1)
               NULLIFY(p_env%ev_h0(ip)%matrix)
-            END DO 
+            END DO
             DEALLOCATE(p_env%ev_h0, STAT=stat)
-            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)  
+            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
           END IF
           IF(ASSOCIATED(p_env%g_psi1_old)) THEN
-            CALL cp_fm_vect_dealloc(p_env%g_psi1_old, error=error)  
+            CALL cp_fm_vect_dealloc(p_env%g_psi1_old, error=error)
           END IF
           IF(ASSOCIATED(p_env%g_psi1)) THEN
-            CALL cp_fm_vect_dealloc(p_env%g_psi1, error=error)  
+            CALL cp_fm_vect_dealloc(p_env%g_psi1, error=error)
           END IF
           IF(ASSOCIATED(p_env%d_psi1)) THEN
-            CALL cp_fm_vect_dealloc(p_env%d_psi1, error=error)  
+            CALL cp_fm_vect_dealloc(p_env%d_psi1, error=error)
           END IF
           IF(ASSOCIATED(p_env%buf1)) THEN
             CALL cp_fm_vect_dealloc(p_env%buf1, error=error)
@@ -305,7 +305,7 @@ END SUBROUTINE p_env_retain
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
             DO ip=1,SIZE(p_env%preconditioner,1)
-              CALL destroy_preconditioner(p_env%preconditioner(ip))
+              CALL destroy_preconditioner(p_env%preconditioner(ip),error=error)
             END DO
             DEALLOCATE(p_env%preconditioner,STAT=stat)
             CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
@@ -359,8 +359,8 @@ END SUBROUTINE p_env_retain
     TYPE(qs_p_env_type), POINTER             :: p_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write', &
       routineP = moduleN//':'//routineN

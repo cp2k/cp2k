@@ -13,8 +13,8 @@
 !!
 !!   NOTES
 !!     Stefan Goedecker's OpenMP implementation of Bazant's EDIP & Lenosky's
-!!     empirical interatomic potentials for Silicon. 
-!!     
+!!     empirical interatomic potentials for Silicon.
+!!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
@@ -75,18 +75,18 @@ CONTAINS
 !!
 !!   REFERENCES
 !!     http://www-math.mit.edu/~bazant/EDIP
-!!     M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by 
+!!     M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
 !!                               Inversion of Cohesive Energy Curves;
 !!                               Phys. Rev. Lett. 77, 4370 (1996)
-!!     M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic 
+!!     M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic
 !!                                             potential for bulk silicon;
 !!                                             Phys. Rev. B 56, 8542-8552 (1997)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon 
+!!     S. Goedecker: Optimization and parallelization of a force field for silicon
 !!                   using OpenMP; CPC 148, 1 (2002)
 !!
 !!   INPUTS
 !!     - force_env: The force environment
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -98,8 +98,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE eip_bazant(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_bazant', &
       routineP = moduleN//':'//routineN
@@ -147,7 +147,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(force_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
 
       CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
@@ -175,7 +175,7 @@ CONTAINS
                               coord_var=eip_env%coord_var, count=eip_env%count)
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
+      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
 
       nparticle_kind = atomic_kinds%n_els
 
@@ -286,12 +286,12 @@ CONTAINS
 !!   REFERENCES
 !!     T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
 !!                          Modelling Simul. Sci. Eng., 8 (2000)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon 
+!!     S. Goedecker: Optimization and parallelization of a force field for silicon
 !!                   using OpenMP; CPC 148, 1 (2002)
 !!
 !!   INPUTS
 !!     - force_env: The force environment
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -303,8 +303,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE eip_lenosky(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_lenosky', &
       routineP = moduleN//':'//routineN
@@ -349,10 +349,10 @@ CONTAINS
     ekin = 0.0_dp
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)  
-  
+    logger => cp_error_get_logger(error)
+
     CPPrecondition(ASSOCIATED(force_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
 
       CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
@@ -380,7 +380,7 @@ CONTAINS
                                coord_var=eip_env%coord_var, count=eip_env%count)
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
+      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
 
       nparticle_kind = atomic_kinds%n_els
 
@@ -495,7 +495,7 @@ CONTAINS
 !!   INPUTS
 !!     - eip_env: The eip environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -508,8 +508,8 @@ CONTAINS
   SUBROUTINE eip_print_energies(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energies', &
       routineP = moduleN//':'//routineN
@@ -540,7 +540,7 @@ CONTAINS
 !!   INPUTS
 !!     - eip_env: The eip environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -553,8 +553,8 @@ CONTAINS
   SUBROUTINE eip_print_energy_var(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energy_var', &
       routineP = moduleN//':'//routineN
@@ -591,7 +591,7 @@ CONTAINS
 !!   INPUTS
 !!     - eip_env: The eip environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -604,8 +604,8 @@ CONTAINS
   SUBROUTINE eip_print_forces(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_forces', &
       routineP = moduleN//':'//routineN
@@ -653,7 +653,7 @@ CONTAINS
 !!   INPUTS
 !!     - eip_env: The eip environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -666,8 +666,8 @@ CONTAINS
   SUBROUTINE eip_print_coord_avg(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_avg', &
       routineP = moduleN//':'//routineN
@@ -704,7 +704,7 @@ CONTAINS
 !!   INPUTS
 !!     - eip_env: The eip environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -717,8 +717,8 @@ CONTAINS
   SUBROUTINE eip_print_coord_var(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_var', &
       routineP = moduleN//':'//routineN
@@ -755,7 +755,7 @@ CONTAINS
 !!   INPUTS
 !!     - eip_env: The eip environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -768,8 +768,8 @@ CONTAINS
   SUBROUTINE eip_print_count(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_count', &
       routineP = moduleN//':'//routineN
@@ -798,18 +798,18 @@ CONTAINS
 !!     eip_bazant_silicon
 !!
 !!   FUNCTION
-!!     Bazant's EDIP (environment-dependent interatomic potential) for Silicon 
+!!     Bazant's EDIP (environment-dependent interatomic potential) for Silicon
 !!     by Stefan Goedecker
 !!
 !!   REFERENCES
 !!     http://www-math.mit.edu/~bazant/EDIP
-!!     M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by 
+!!     M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
 !!                               Inversion of Cohesive Energy Curves;
 !!                               Phys. Rev. Lett. 77, 4370 (1996)
-!!     M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic 
+!!     M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic
 !!                                             potential for bulk silicon;
 !!                                             Phys. Rev. B 56, 8542-8552 (1997)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon 
+!!     S. Goedecker: Optimization and parallelization of a force field for silicon
 !!                   using OpenMP; CPC 148, 1 (2002)
 !!
 !!   INPUTS
@@ -819,14 +819,14 @@ CONTAINS
 !!
 !!   OUTPUTS
 !!     - rxyz0: rxyz0 may be modified on output.
-!!              If an atom is outside the box the program will bring it back 
+!!              If an atom is outside the box the program will bring it back
 !!              into the box by translations through alat
 !!     - fxyz: forces in eV/A
 !!     - ener: total energy in eV
 !!     - coord: average coordination number
 !!     - ener_var: variance of the energy/atom
 !!     - coord_var: variance of the coordination number
-!!     - count: count is increased by one per call, has to be initialized 
+!!     - count: count is increased by one per call, has to be initialized
 !               to 0.d0 before first call of eip_bazant
 !!
 !!   AUTHOR
@@ -880,7 +880,7 @@ CONTAINS
 !$omp parallel private(iam)  shared (npr)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
-!$omp end parallel 
+!$omp end parallel
 
 ! linear scaling calculation of verlet list
 
@@ -1318,7 +1318,7 @@ CONTAINS
         rxyz(2,il)=rxyz(2,i)+alat(2)
         rxyz(3,il)=rxyz(3,i)-alat(3)
         enddo
-        
+
         in=icell(0,ll1-1,0,ll3-1)
         icell(0,-1,ll2,-1)=in
         do ii=1,in
@@ -1367,7 +1367,7 @@ CONTAINS
 
 !$omp parallel  &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
-!$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, & 
+!$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
 
 
@@ -1378,7 +1378,7 @@ CONTAINS
 
         cut2=cut**2
 ! assign contiguous portions of the arrays lstb and rel to the threads
-        myspace=(nat*nnbrx)/npr  
+        myspace=(nat*nnbrx)/npr
         if (iam.eq.0) myspaceout=myspace
 ! Verlet list, relative positions
         indlst=0
@@ -1390,11 +1390,11 @@ CONTAINS
         if ( ((iat-1)*npr)/nat .eq. iam) then
 !       write(6,*) 'sublstiat:iam,iat',iam,iat
         lsta(1,iat)=iam*myspace+indlst+1
-        call sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, & 
+        call sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
              rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
         lsta(2,iat)=iam*myspace+indlst
-!        write(6,'(a,4(x,i3),100(x,i2))') & 
-!               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), & 
+!        write(6,'(a,4(x,i3),100(x,i2))') &
+!               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
 !                    (lstb(j),j=lsta(1,iat),lsta(2,iat))
         endif
 
@@ -1405,7 +1405,7 @@ CONTAINS
 !$omp critical
         indlstx=max(indlstx,indlst)
 !$omp end critical
-!$omp end parallel  
+!$omp end parallel
 
            if (indlstx.ge.myspaceout) then
                write(10,*) count,'NNBRX too  small', nnbrx
@@ -1414,7 +1414,7 @@ CONTAINS
            endif
 
 !$omp parallel  &
-!$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, & 
+!$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
 !$omp tener,tener2,txyz,s2,s3,sz,num2,num3,numz,max_nbrs) &
 !$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
 
@@ -1426,12 +1426,12 @@ CONTAINS
          max_nbrs=30
          istopg=0
 
-        if (npr.ne.1) then 
+        if (npr.ne.1) then
 ! PARALLEL CASE
-! create temporary private scalars for reduction sum on energies and 
+! create temporary private scalars for reduction sum on energies and
 !        temporary private array for reduction sum on forces
 !$omp critical
-        allocate(txyz(3,nat),s2(max_nbrs,8),s3(max_nbrs,7),sz(max_nbrs,6),  & 
+        allocate(txyz(3,nat),s2(max_nbrs,8),s3(max_nbrs,7),sz(max_nbrs,6),  &
                  num2(max_nbrs),num3(max_nbrs),numz(max_nbrs))
 !$omp end critical
         if (iam.eq.0) then
@@ -1477,7 +1477,7 @@ CONTAINS
 ! SERIAL CASE
         iat1=1
         iat2=nat
-        allocate(s2(max_nbrs,8),s3(max_nbrs,7),sz(max_nbrs,6),  & 
+        allocate(s2(max_nbrs,8),s3(max_nbrs,7),sz(max_nbrs,6),  &
                  num2(max_nbrs),num3(max_nbrs),numz(max_nbrs))
         call subfeniat_b(iat1,iat2,nat,lsta,lstb,rel,ener,ener2,  &
           coord,coord2,nnbrx,fxyz,max_nbrs,istopg,  &
@@ -1489,12 +1489,12 @@ CONTAINS
         endif
 !$omp end parallel
 
-!         write(6,*) 'ener,norm force', & 
+!         write(6,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
-        if (istopg.gt.0) stop 'DIMENSION ERROR (see WARNING above)' 
-        ener_var=ener2/nat-(ener/nat)**2 
+        if (istopg.gt.0) stop 'DIMENSION ERROR (see WARNING above)'
+        ener_var=ener2/nat-(ener/nat)**2
         coord=coord/nat
-        coord_var=coord2/nat-coord**2 
+        coord_var=coord2/nat-coord**2
 
         deallocate(rxyz,icell,lay,lsta,lstb,rel)
 
@@ -1507,12 +1507,12 @@ CONTAINS
           s2_t0,s2_t1,s2_t2,s2_t3,s2_dx,s2_dy,s2_dz,s2_r,  &
           num2,s3_g,s3_dg,s3_rinv,s3_dx,s3_dy,s3_dz,s3_r,  &
           num3,sz_df,sz_sum,sz_dx,sz_dy,sz_dz,sz_r,numz)
-! This subroutine is a modification of a subroutine that is available at 
-! http://www-math.mit.edu/~bazant/EDIP/ and for which Martin Z. Bazant 
+! This subroutine is a modification of a subroutine that is available at
+! http://www-math.mit.edu/~bazant/EDIP/ and for which Martin Z. Bazant
 ! and Harvard University have a 1997 copyright.
-! The modifications were done by S. Goedecker on April 10, 2002. 
+! The modifications were done by S. Goedecker on April 10, 2002.
 ! The routines are included with the permission of M. Bazant into this package.
-        
+
         implicit none
 !  ------------------------- VARIABLE DECLARATIONS -------------------------
           integer       iat1,iat2,nat
@@ -1542,7 +1542,7 @@ CONTAINS
           REAL(KIND=dp) dEdrl,dEdrlx,dEdrly,dEdrlz
           REAL(KIND=dp) bmc,cmbinv
           REAL(KIND=dp) fjx,fjy,fjz,fkx,fky,fkz
-        
+
           REAL(KIND=dp) s2_t0(max_nbrs)
           REAL(KIND=dp) s2_t1(max_nbrs)
           REAL(KIND=dp) s2_t2(max_nbrs)
@@ -1551,11 +1551,11 @@ CONTAINS
           REAL(KIND=dp) s2_dy(max_nbrs)
           REAL(KIND=dp) s2_dz(max_nbrs)
           REAL(KIND=dp) s2_r(max_nbrs)
-          integer       n2                
+          integer       n2
 !   size of s2[]
-          integer       num2(max_nbrs)  
+          integer       num2(max_nbrs)
 !   atom ID numbers for s2[]
-        
+
           REAL(KIND=dp) s3_g(max_nbrs)
           REAL(KIND=dp) s3_dg(max_nbrs)
           REAL(KIND=dp) s3_rinv(max_nbrs)
@@ -1563,12 +1563,12 @@ CONTAINS
           REAL(KIND=dp) s3_dy(max_nbrs)
           REAL(KIND=dp) s3_dz(max_nbrs)
           REAL(KIND=dp) s3_r(max_nbrs)
-        
-          integer       n3                
+
+          integer       n3
 !   size of s3[]
-          integer       num3(max_nbrs)  
+          integer       num3(max_nbrs)
 !   atom ID numbers for s3[]
-        
+
           REAL(KIND=dp) sz_df(max_nbrs)
           REAL(KIND=dp) sz_sum(max_nbrs)
           REAL(KIND=dp) sz_dx(max_nbrs)
@@ -1577,12 +1577,12 @@ CONTAINS
           REAL(KIND=dp) sz_r(max_nbrs)
           integer       nz
 !   size of sz[]
-          integer       numz(max_nbrs)  
+          integer       numz(max_nbrs)
 !   atom ID numbers for sz[]
-        
-          integer       nj,nk,nl         
+
+          integer       nj,nk,nl
 !   indices for the store arrays
-        
+
 !   EDIP parameters
           par_cap_A = 5.6714030d0
           par_cap_B = 2.0002804d0
@@ -1613,46 +1613,46 @@ CONTAINS
             ff(2,i) = 0.0d0
             ff(3,i) = 0.0d0
           end do
-        
+
           coord=0.d0
           coord2=0.d0
           ener=0.d0
           ener2=0.d0
           istop=0
-        
-          
+
+
 !   COMBINE COEFFICIENTS
-        
+
           Qort = sqrt(par_Qo)
           muhalf = par_mu*0.5D0
           u5 = u2*u4
           bmc = par_b-par_c
           cmbinv = 1.0D0/(par_c-par_b)
-        
-        
-          
+
+
+
 !  --- LEVEL 1: OUTER LOOP OVER ATOMS ---
-        
+
           do 1000, i= iat1, iat2
-            
+
 !   RESET COORDINATION AND NEIGHBOR NUMBERS
-        
+
             coord_iat=0.d0
             ener_iat=0.d0
             Z = 0.0d0
             n2 = 1
             n3 = 1
             nz = 1
-        
-            
+
+
 !  --- LEVEL 2: LOOP PREPASS OVER PAIRS ---
-        
+
             do n=lsta(1,i),lsta(2,i)
               j=lstb(n)
-        
-                
+
+
 !   PARTS OF TWO-BODY INTERACTION r<par_a
-        
+
                 num2(n2) = j
                 dx = -rel(1,n)
                 dy = -rel(2,n)
@@ -1675,7 +1675,7 @@ CONTAINS
                 return
                 endif
 
-! coordination number calculated with soft cutoff between first 
+! coordination number calculated with soft cutoff between first
 ! nearest neighbor and midpoint of first and second nearest neighbor
         if (r.le.2.36d0) then
         coord_iat=coord_iat+1.d0
@@ -1685,11 +1685,11 @@ CONTAINS
         coord_iat=coord_iat+(2*xarg+1.d0)*(xarg-1.d0)**2
         endif
 
-                
+
 !   RADIAL PARTS OF THREE-BODY INTERACTION r<par_b
-        
+
                 if(r .lt. par_bg)  then
-        
+
                   num3(n3) = j
                   rmbinv = 1.d0/(r-par_bg)
                   temp1 = par_gam*rmbinv
@@ -1707,10 +1707,10 @@ CONTAINS
                   istop=1
                   return
                   endif
-        
-                  
+
+
 !   COORDINATION AND NEIGHBOR FUNCTION par_c<r<par_b
-        
+
                   if(r .lt. par_b) then
                     if(r .lt. par_c) then
                     Z = Z + 1.d0
@@ -1722,7 +1722,7 @@ CONTAINS
                     fZ = exp(temp1)
                     Z = Z + fZ
                     numz(nz) = j
-                    sz_df(nz) = fZ*temp1*den*3.d0*xinv3*xinv*cmbinv   
+                    sz_df(nz) = fZ*temp1*den*3.d0*xinv3*xinv*cmbinv
 !   df/dr
                     sz_dx(nz) = dx
                     sz_dy(nz) = dy
@@ -1733,47 +1733,47 @@ CONTAINS
                     write(6,*) 'WARNING enlarge max_nbrs'
                     istop=1
                     return
-                    endif      
-                   end if 
+                    endif
+                   end if
 !  r < par_C
-                  end if 
+                  end if
 !  r < par_b
-                  end if 
+                  end if
 !  r < par_bg
               end do
-        
-              
+
+
 !   ZERO ACCUMULATION ARRAY FOR ENVIRONMENT FORCES
-        
+
               do nl=1, nz-1
                 sz_sum(nl)=0.d0
               end do
-        
-              
+
+
 !   ENVIRONMENT-DEPENDENCE OF PAIR INTERACTION
-        
+
               temp0 = par_bet*Z
-              pZ = par_palp*exp(-temp0*Z)         
+              pZ = par_palp*exp(-temp0*Z)
 !   bond order
-              dp1 = -2.d0*temp0*pZ         
+              dp1 = -2.d0*temp0*pZ
 !   derivative of bond order
-        
-        
-            
+
+
+
 !  --- LEVEL 2: LOOP FOR PAIR INTERACTIONS ---
-        
+
             do nj=1, n2-1
-        
+
               temp0 = s2_t1(nj) - pZ
-        
-              
+
+
 !   two-body energy V2(rij,Z)
-        
+
               ener_iat = ener_iat + temp0*s2_t0(nj)
-              
+
 !   two-body forces
-        
-              dV2j = - s2_t0(nj) * (s2_t1(nj)*s2_t2(nj) + temp0 * s2_t3(nj))   
+
+              dV2j = - s2_t0(nj) * (s2_t1(nj)*s2_t2(nj) + temp0 * s2_t3(nj))
 !   dV2/dr
               dV2ijx = dV2j * s2_dx(nj)
               dV2ijy = dV2j * s2_dy(nj)
@@ -1785,66 +1785,66 @@ CONTAINS
               ff(1,j) = ff(1,j) - dV2ijx
               ff(2,j) = ff(2,j) - dV2ijy
               ff(3,j) = ff(3,j) - dV2ijz
-        
-              
-              
+
+
+
 !  --- LEVEL 3: LOOP FOR PAIR COORDINATION FORCES ---
-        
+
               dV2dZ = - dp1 * s2_t0(nj)
               do nl=1, nz-1
                  sz_sum(nl) =  sz_sum(nl) + dV2dZ
               end do
-        
+
             end do
-        
-              
+
+
 !   COORDINATION-DEPENDENCE OF THREE-BODY INTERACTION
-        
-              winv = Qort*exp(-muhalf*Z) 
+
+              winv = Qort*exp(-muhalf*Z)
 !   inverse width of angular function
-              dwinv = -muhalf*winv       
+              dwinv = -muhalf*winv
 !   its derivative
               temp0 = exp(-u4*Z)
-              tau = u1+u2*temp0*(u3-temp0) 
+              tau = u1+u2*temp0*(u3-temp0)
 !   -cosine of angular minimum
-              dtau = u5*temp0*(2*temp0-u3) 
+              dtau = u5*temp0*(2*temp0-u3)
 !   its derivative
-        
-            
+
+
 !  --- LEVEL 2: FIRST LOOP FOR THREE-BODY INTERACTIONS ---
-        
+
             do nj=1, n3-2
-        
+
               j=num3(nj)
-        
-              
+
+
 !  --- LEVEL 3: SECOND LOOP FOR THREE-BODY INTERACTIONS ---
-        
+
               do nk=nj+1, n3-1
-        
+
                 k=num3(nk)
-        
-                
+
+
 !   angular function h(l,Z)
-        
+
                 lcos=s3_dx(nj)*s3_dx(nk)+s3_dy(nj)*s3_dy(nk)+s3_dz(nj)*s3_dz(nk)
                 x = (lcos + tau)*winv
                 temp0 = exp(-x*x)
-        
+
                 H = par_lam*(1 - temp0 + par_eta*x*x)
                 dHdx = 2*par_lam*x*(temp0 + par_eta)
-        
+
                 dhdl = dHdx*winv
-        
-                
+
+
 !   three-body energy
-        
+
                 temp1 = s3_g(nj) * s3_g(nk)
                 ener_iat = ener_iat + temp1*H
-        
-                
+
+
 !   (-) radial force on atom j
-        
+
                 dV3rij = s3_dg(nj) * s3_g(nk) * H
                 dV3rijx = dV3rij * s3_dx(nj)
                 dV3rijy = dV3rij * s3_dy(nj)
@@ -1852,10 +1852,10 @@ CONTAINS
                 fjx = dV3rijx
                 fjy = dV3rijy
                 fjz = dV3rijz
-        
-                
+
+
 !   (-) radial force on atom k
-        
+
                 dV3rik = s3_g(nj) * s3_dg(nk) * H
                 dV3rikx = dV3rik * s3_dx(nk)
                 dV3riky = dV3rik * s3_dy(nk)
@@ -1863,10 +1863,10 @@ CONTAINS
                 fkx = dV3rikx
                 fky = dV3riky
                 fkz = dV3rikz
-        
-                
+
+
 !   (-) angular force on j
-        
+
                 dV3l = temp1*dhdl
                 dV3ljx = dV3l * (s3_dx(nk) - lcos * s3_dx(nj)) * s3_rinv(nj)
                 dV3ljy = dV3l * (s3_dy(nk) - lcos * s3_dy(nj)) * s3_rinv(nj)
@@ -1874,20 +1874,20 @@ CONTAINS
                 fjx = fjx + dV3ljx
                 fjy = fjy + dV3ljy
                 fjz = fjz + dV3ljz
-        
-                
+
+
 !   (-) angular force on k
-        
+
                 dV3lkx = dV3l * (s3_dx(nj) - lcos * s3_dx(nk)) * s3_rinv(nk)
                 dV3lky = dV3l * (s3_dy(nj) - lcos * s3_dy(nk)) * s3_rinv(nk)
                 dV3lkz = dV3l * (s3_dz(nj) - lcos * s3_dz(nk)) * s3_rinv(nk)
                 fkx = fkx + dV3lkx
                 fky = fky + dV3lky
                 fkz = fkz + dV3lkz
-        
-                
+
+
 !   apply radial + angular forces to i, j, k
-        
+
                 ff(1,j) = ff(1,j) - fjx
                 ff(2,j) = ff(2,j) - fjy
                 ff(3,j) = ff(3,j) - fjz
@@ -1897,27 +1897,27 @@ CONTAINS
                 ff(1,i) = ff(1,i) + fjx + fkx
                 ff(2,i) = ff(2,i) + fjy + fky
                 ff(3,i) = ff(3,i) + fjz + fkz
-                
-        
-                
+
+
+
 !   prefactor for 4-body forces from coordination
                   dxdZ = dwinv*(lcos + tau) + winv*dtau
                   dV3dZ = temp1*dHdx*dxdZ
-        
-                
+
+
 !  --- LEVEL 4: LOOP FOR THREE-BODY COORDINATION FORCES ---
-        
+
                   do nl=1, nz-1
                     sz_sum(nl) = sz_sum(nl) + dV3dZ
                   end do
               end do
             end do
-        
-            
+
+
 !  --- LEVEL 2: LOOP TO APPLY COORDINATION FORCES ---
-        
+
             do nl=1, nz-1
-        
+
                 dEdrl = sz_sum(nl) * sz_df(nl)
                 dEdrlx = dEdrl * sz_dx(nl)
                 dEdrly = dEdrl * sz_dy(nl)
@@ -1929,24 +1929,24 @@ CONTAINS
                 ff(1,l) = ff(1,l) - dEdrlx
                 ff(2,l) = ff(2,l) - dEdrly
                 ff(3,l) = ff(3,l) - dEdrlz
-        
-                
+
+
             end do
 
         coord=coord+coord_iat
         coord2=coord2+coord_iat**2
         ener = ener + ener_iat
         ener2 = ener2 + ener_iat**2
-        
+
 1000      continue
-        
+
 
         return
         end subroutine subfeniat_b
 
 
 
-        subroutine sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, & 
+        subroutine sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
@@ -1962,7 +1962,7 @@ CONTAINS
           if (jat.eq.iat) goto 6000
           xrel= rxyz(1,iat)-rxyz(1,jat)
           yrel= rxyz(2,iat)-rxyz(2,jat)
-          zrel= rxyz(3,iat)-rxyz(3,jat)  
+          zrel= rxyz(3,iat)-rxyz(3,jat)
           rr2=xrel**2 + yrel**2 + zrel**2
           if ( rr2 .le. cut2 ) then
            indlst=min(indlst,myspace-1)
@@ -1992,13 +1992,13 @@ CONTAINS
 !!     eip_lenosky_silicon
 !!
 !!   FUNCTION
-!!     Lenosky's "highly optimized empirical potential model of silicon" 
+!!     Lenosky's "highly optimized empirical potential model of silicon"
 !!     by Stefan Goedecker
 !!
 !!   REFERENCES
 !!     T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
 !!                          Modelling Simul. Sci. Eng., 8 (2000)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon 
+!!     S. Goedecker: Optimization and parallelization of a force field for silicon
 !!                   using OpenMP; CPC 148, 1 (2002)
 !!
 !!   INPUTS
@@ -2008,14 +2008,14 @@ CONTAINS
 !!
 !!   OUTPUTS
 !!     - rxyz0: rxyz0 may be modified on output.
-!!              If an atom is outside the box the program will bring it back 
+!!              If an atom is outside the box the program will bring it back
 !!              into the box by translations through alat
 !!     - fxyz: forces in eV/A
 !!     - ener: total energy in eV
 !!     - coord: average coordination number
 !!     - ener_var: variance of the energy/atom
 !!     - coord_var: variance of the coordination number
-!!     - count: count is increased by one per call, has to be initialized 
+!!     - count: count is increased by one per call, has to be initialized
 !               to 0.d0 before first call of eip_bazant
 !!
 !!   AUTHOR
@@ -2068,7 +2068,7 @@ CONTAINS
 !$omp parallel private(iam)  shared (npr)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
-!$omp end parallel 
+!$omp end parallel
 
 ! linear scaling calculation of verlet list
 
@@ -2505,7 +2505,7 @@ CONTAINS
         rxyz(2,il)=rxyz(2,i)+alat(2)
         rxyz(3,il)=rxyz(3,i)-alat(3)
         enddo
-        
+
         in=icell(0,ll1-1,0,ll3-1)
         icell(0,-1,ll2,-1)=in
         do ii=1,in
@@ -2554,7 +2554,7 @@ CONTAINS
 
 !$omp parallel  &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
-!$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, & 
+!$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
 
 
@@ -2565,7 +2565,7 @@ CONTAINS
 
         cut2=cut**2
 ! assign contiguous portions of the arrays lstb and rel to the threads
-        myspace=(nat*nnbrx)/npr  
+        myspace=(nat*nnbrx)/npr
         if (iam.eq.0) myspaceout=myspace
 ! Verlet list, relative positions
         indlst=0
@@ -2577,11 +2577,11 @@ CONTAINS
         if ( ((iat-1)*npr)/nat .eq. iam) then
 !       write(6,*) 'sublstiat:iam,iat',iam,iat
         lsta(1,iat)=iam*myspace+indlst+1
-        call sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, & 
+        call sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
              rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
         lsta(2,iat)=iam*myspace+indlst
-!        write(6,'(a,4(x,i3),100(x,i2))') & 
-!               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), & 
+!        write(6,'(a,4(x,i3),100(x,i2))') &
+!               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
 !                    (lstb(j),j=lsta(1,iat),lsta(2,iat))
         endif
 
@@ -2592,7 +2592,7 @@ CONTAINS
 !$omp critical
         indlstx=max(indlstx,indlst)
 !$omp end critical
-!$omp end parallel  
+!$omp end parallel
 
            if (indlstx.ge.myspaceout) then
                write(10,*) count,'NNBRX too  small', nnbrx
@@ -2601,7 +2601,7 @@ CONTAINS
            endif
 
 !$omp parallel  &
-!$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, & 
+!$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
 !$omp tener,tener2,txyz,f2ij,f3ij,f3ik,npjx,npjkx) &
 !$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
 
@@ -2613,9 +2613,9 @@ CONTAINS
         npjx=300 ; npjkx=6000
         istopg=0
 
-        if (npr.ne.1) then 
+        if (npr.ne.1) then
 ! PARALLEL CASE
-! create temporary private scalars for reduction sum on energies and 
+! create temporary private scalars for reduction sum on energies and
 !        temporary private array for reduction sum on forces
 !$omp critical
         allocate(txyz(3,nat),f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx))
@@ -2632,7 +2632,7 @@ CONTAINS
         fxyz(2,iat)=0.d0
         fxyz(3,iat)=0.d0
 121     continue
-!$omp barrier    
+!$omp barrier
 
 ! Each thread treats at most lot atoms
         lot=int(float(nat)/float(npr)+.999999999999d0)
@@ -2667,12 +2667,12 @@ CONTAINS
         endif
 !$omp end parallel
 
-!         write(6,*) 'ener,norm force', & 
+!         write(6,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
         if (istopg.gt.0) stop 'DIMENSION ERROR (see WARNING above)'
-        ener_var=ener2/nat-(ener/nat)**2 
+        ener_var=ener2/nat-(ener/nat)**2
         coord=coord/nat
-        coord_var=coord2/nat-coord**2 
+        coord_var=coord2/nat-coord**2
 
         deallocate(rxyz,icell,lay,lsta,lstb,rel)
 
@@ -2689,10 +2689,10 @@ CONTAINS
         implicit REAL(KIND=dp) (a-h,o-z)
         dimension lsta(2,nat),lstb(nnbrx*nat),rel(5,nnbrx*nat),txyz(3,nat)
         dimension f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx)
-        REAL(KIND=dp) :: tmin_phi= 0.1500000d+01  
-        REAL(KIND=dp) :: tmax_phi= 0.4500000d+01 
-        REAL(KIND=dp) :: hi_phi= 3.00000000000d0 
-        REAL(KIND=dp) :: hsixth_phi=5.55555555555556D-002 
+        REAL(KIND=dp) :: tmin_phi= 0.1500000d+01
+        REAL(KIND=dp) :: tmax_phi= 0.4500000d+01
+        REAL(KIND=dp) :: hi_phi= 3.00000000000d0
+        REAL(KIND=dp) :: hsixth_phi=5.55555555555556D-002
         REAL(KIND=dp) :: h2sixth_phi=1.85185185185185D-002
         REAL(KIND=dp), dimension(0:9) :: cof_phi  = &
                      (/ 0.69299400000000d+01, -0.43995000000000d+00, &
@@ -2706,10 +2706,10 @@ CONTAINS
                         0.15347960162782d+01, -0.63347591535331d+01, &
                        -0.17987794021458d+01,  0.47429676211617d+00, &
                        -0.40087646318907d-01, -0.23942617684055d+00 /)
-        REAL(KIND=dp) :: tmin_rho= 0.1500000d+01  
-        REAL(KIND=dp) :: tmax_rho= 0.3500000d+01 
-        REAL(KIND=dp) :: hi_rho= 5.00000000000d0 
-        REAL(KIND=dp) :: hsixth_rho=3.33333333333333D-002 
+        REAL(KIND=dp) :: tmin_rho= 0.1500000d+01
+        REAL(KIND=dp) :: tmax_rho= 0.3500000d+01
+        REAL(KIND=dp) :: hi_rho= 5.00000000000d0
+        REAL(KIND=dp) :: hsixth_rho=3.33333333333333D-002
         REAL(KIND=dp) :: h2sixth_rho=6.66666666666667D-003
         REAL(KIND=dp), dimension(0:10) :: cof_rho =  &
                      (/ 0.13747000000000d+00, -0.14831000000000d+00, &
@@ -2725,10 +2725,10 @@ CONTAINS
                         0.47189016693543d+00,  0.20569572748420d+01, &
                         0.23192807336964d+01, -0.24908020962757d+00, &
                        -0.12371959895186d+02 /)
-        REAL(KIND=dp) :: tmin_fff= 0.1500000d+01  
-        REAL(KIND=dp) :: tmax_fff= 0.3500000d+01 
-        REAL(KIND=dp) :: hi_fff= 4.50000000000d0 
-        REAL(KIND=dp) :: hsixth_fff=3.70370370370370D-002 
+        REAL(KIND=dp) :: tmin_fff= 0.1500000d+01
+        REAL(KIND=dp) :: tmax_fff= 0.3500000d+01
+        REAL(KIND=dp) :: hi_fff= 4.50000000000d0
+        REAL(KIND=dp) :: hsixth_fff=3.70370370370370D-002
         REAL(KIND=dp) :: h2sixth_fff=8.23045267489712D-003
         REAL(KIND=dp), dimension(0:9) :: cof_fff  = &
                      (/ 0.12503100000000d+01,  0.86821000000000d+00, &
@@ -2742,10 +2742,10 @@ CONTAINS
                        -0.66693699112098d+00, -0.89430653829079d+00, &
                        -0.50891685571587d+00,  0.66278396115427d+00, &
                         0.73976101109878d+00,  0.25795319944506d+01 /)
-        REAL(KIND=dp) :: tmin_uuu= -0.1770930d+01  
-        REAL(KIND=dp) :: tmax_uuu= 0.7908520d+01 
-        REAL(KIND=dp) :: hi_uuu= 0.723181585730594d0 
-        REAL(KIND=dp) :: hsixth_uuu=0.230463095238095d0 
+        REAL(KIND=dp) :: tmin_uuu= -0.1770930d+01
+        REAL(KIND=dp) :: tmax_uuu= 0.7908520d+01
+        REAL(KIND=dp) :: hi_uuu= 0.723181585730594d0
+        REAL(KIND=dp) :: hsixth_uuu=0.230463095238095d0
         REAL(KIND=dp) :: h2sixth_uuu=0.318679429600340d0
         REAL(KIND=dp), dimension(0:7) :: cof_uuu  = &
                     (/ -0.10749300000000d+01, -0.20045000000000d+00, &
@@ -2757,10 +2757,10 @@ CONTAINS
                        -0.70113224223509d-01, -0.39449020349230d-01, &
                        -0.15815242579643d-01,  0.26112640061855d-01, &
                        -0.13786974745095d+00,  0.74941595372657d+00 /)
-        REAL(KIND=dp) :: tmin_ggg= -0.1000000d+01  
-        REAL(KIND=dp) :: tmax_ggg= 0.8001400d+00 
-        REAL(KIND=dp) :: hi_ggg= 3.88858644327663d0 
-        REAL(KIND=dp) :: hsixth_ggg=4.28604761904762D-002 
+        REAL(KIND=dp) :: tmin_ggg= -0.1000000d+01
+        REAL(KIND=dp) :: tmax_ggg= 0.8001400d+00
+        REAL(KIND=dp) :: hi_ggg= 3.88858644327663d0
+        REAL(KIND=dp) :: hsixth_ggg=4.28604761904762D-002
         REAL(KIND=dp) :: h2sixth_ggg=1.10221225156463D-002
         REAL(KIND=dp), dimension(0:7) :: cof_ggg  = &
                      (/ 0.52541600000000d+01,  0.23591500000000d+01, &
@@ -2773,7 +2773,7 @@ CONTAINS
                         0.90887216383860d+01,  0.54902279653967d+01, &
                        -0.18823313223755d+02, -0.77183416481005d+01 /)
 
-! initialize temporary private scalars for reduction sum on energies and 
+! initialize temporary private scalars for reduction sum on energies and
 ! private workarray txyz for forces forces
         tener=0.d0
         tener2=0.d0
@@ -2800,8 +2800,8 @@ CONTAINS
         do 2000,jbr=lsta(1,iat),lsta(2,iat)
         jat=lstb(jbr)
         jcnt=jcnt+1
-        if (jcnt.gt.npjx) then 
-            write(6,*) 'WARNING: enlarge npjx'  
+        if (jcnt.gt.npjx) then
+            write(6,*) 'WARNING: enlarge npjx'
             istop=1
             return
         endif
@@ -2822,7 +2822,7 @@ CONTAINS
         coord_iat=coord_iat+(2*xarg+1.d0)*(xarg-1.d0)**2
         endif
 
-! pairpotential term        
+! pairpotential term
         call splint(cof_phi,dof_phi,tmin_phi,tmax_phi, &
            hsixth_phi,h2sixth_phi,hi_phi,10,rij,e_phi,ep_phi)
         ener_iat=ener_iat+(e_phi*.5d0)
@@ -2833,7 +2833,7 @@ CONTAINS
         txyz(2,jat)=txyz(2,jat)+fyij*(ep_phi*.5d0)
         txyz(3,jat)=txyz(3,jat)+fzij*(ep_phi*.5d0)
 
-! 2 body embedding term        
+! 2 body embedding term
         call splint(cof_rho,dof_rho,tmin_rho,tmax_rho, &
              hsixth_rho,h2sixth_rho,hi_rho,11,rij,rho,rhop)
         dens2=dens2+rho
@@ -2841,16 +2841,16 @@ CONTAINS
         f2ij(2,jcnt)=fyij*rhop
         f2ij(3,jcnt)=fzij*rhop
 
-! 3 body embedding term        
-        call splint(cof_fff,dof_fff,tmin_fff,tmax_fff, & 
+! 3 body embedding term
+        call splint(cof_fff,dof_fff,tmin_fff,tmax_fff, &
              hsixth_fff,h2sixth_fff,hi_fff,10,rij,fij,fijp)
 
         do 3000,kbr=lsta(1,iat),lsta(2,iat)
         kat=lstb(kbr)
         if (kat.lt.jat) then
         jkcnt=jkcnt+1
-        if (jkcnt.gt.npjkx) then 
-            write(6,*) 'WARNING: enlarge npjkx',npjkx 
+        if (jkcnt.gt.npjkx) then
+            write(6,*) 'WARNING: enlarge npjkx',npjkx
             istop=1
             return
         endif
@@ -2881,12 +2881,12 @@ CONTAINS
         fzik=rel(3,kbr)
         costheta=fxij*fxik+fyij*fyik+fzij*fzik
         sik=rel(5,kbr)
-        fikp=hi_fff*(cof_fff(1)-cof_fff(0)) -  & 
+        fikp=hi_fff*(cof_fff(1)-cof_fff(0)) -  &
              ( dof_fff(1)+2.d0*dof_fff(0) )*hsixth_fff
         fik=cof_fff(0) + (rik-tmin_fff)*fikp
         tt_ggg=(costheta-tmin_ggg)*hi_ggg
         if (costheta.gt.tmax_ggg) then
-           gjikp=hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2)) + & 
+           gjikp=hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2)) + &
                 ( 2.d0*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
                  gjik=cof_ggg(8-1) + (costheta-tmax_ggg)*gjikp
         else
@@ -2900,7 +2900,7 @@ CONTAINS
            dof_ggg_khi=dof_ggg(khi_ggg)
            b2_ggg=b_ggg*b_ggg
            gjik=a_ggg*cof_ggg_klo
-           gjikp=cof_ggg_khi-cof_ggg_klo 
+           gjikp=cof_ggg_khi-cof_ggg_klo
            a2_ggg=a_ggg*a_ggg
            cof1_ggg=a2_ggg-1.d0
            cof2_ggg=b2_ggg-1.d0
@@ -2932,7 +2932,7 @@ CONTAINS
         sik=rel(5,kbr)
         tt_ggg=(costheta-tmin_ggg)*hi_ggg
         if (costheta.gt.tmax_ggg) then
-          gjikp=hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2)) + & 
+          gjikp=hi_ggg*(cof_ggg(8-1)-cof_ggg(8-2)) + &
                 ( 2.d0*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
                 gjik=cof_ggg(8-1) + (costheta-tmax_ggg)*gjikp
           khi_fff=klo_fff+1
@@ -2944,7 +2944,7 @@ CONTAINS
           dof_fff_khi=dof_fff(khi_fff)
           b2_fff=b_fff*b_fff
           fik=a_fff*cof_fff_klo
-          fikp=cof_fff_khi-cof_fff_klo 
+          fikp=cof_fff_khi-cof_fff_klo
           a2_fff=a_fff*a_fff
           cof1_fff=a2_fff-1.d0
           cof2_fff=b2_fff-1.d0
@@ -2982,8 +2982,8 @@ CONTAINS
            b2_fff=b_fff*b_fff
               gjik=a_ggg*cof_ggg_klo
            fik=a_fff*cof_fff_klo
-              gjikp=cof_ggg_khi-cof_ggg_klo 
-           fikp=cof_fff_khi-cof_fff_klo 
+              gjikp=cof_ggg_khi-cof_ggg_klo
+           fikp=cof_fff_khi-cof_fff_klo
               a2_ggg=a_ggg*a_ggg
            a2_fff=a_fff*a_fff
               cof1_ggg=a2_ggg-1.d0
@@ -3040,7 +3040,7 @@ CONTAINS
 3000        continue
 2000        continue
         dens=dens2+dens3
-        call splint(cof_uuu,dof_uuu,tmin_uuu,tmax_uuu, & 
+        call splint(cof_uuu,dof_uuu,tmin_uuu,tmax_uuu, &
              hsixth_uuu,h2sixth_uuu,hi_uuu,8,dens,e_uuu,ep_uuu)
         ener_iat=ener_iat+e_uuu
 
@@ -3056,8 +3056,8 @@ CONTAINS
         txyz(1,jat)=txyz(1,jat)+ep_uuu*f2ij(1,jcnt)
         txyz(2,jat)=txyz(2,jat)+ep_uuu*f2ij(2,jcnt)
         txyz(3,jat)=txyz(3,jat)+ep_uuu*f2ij(3,jcnt)
-        
-! 3 body embedding term        
+
+! 3 body embedding term
         do 3300,kbr=lsta(1,iat),lsta(2,iat)
         kat=lstb(kbr)
         if (kat.lt.jat) then
@@ -3078,7 +3078,7 @@ CONTAINS
 3300        continue
 2200        continue
 
-!        write(6,'(a,i4,x,e19.12,x,e10.3)') 'iat,ener_iat,coord_iat', & 
+!        write(6,'(a,i4,x,e19.12,x,e10.3)') 'iat,ener_iat,coord_iat', &
 !                                       iat,ener_iat,coord_iat
         tener=tener+ener_iat
         tener2=tener2+ener_iat**2
@@ -3091,7 +3091,7 @@ CONTAINS
         end subroutine subfeniat_l
 
 
-        subroutine sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, & 
+        subroutine sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
@@ -3107,7 +3107,7 @@ CONTAINS
           if (jat.eq.iat) goto 6363
           xrel= rxyz(1,iat)-rxyz(1,jat)
           yrel= rxyz(2,iat)-rxyz(2,jat)
-          zrel= rxyz(3,iat)-rxyz(3,jat)  
+          zrel= rxyz(3,iat)-rxyz(3,jat)
           rr2=xrel**2 + yrel**2 + zrel**2
           if ( rr2 .le. cut2 ) then
            indlst=min(indlst,myspace-1)
@@ -3133,7 +3133,7 @@ CONTAINS
         subroutine splint(ya,y2a,tmin,tmax,hsixth,h2sixth,hi,n,x,y,yp)
         implicit REAL(KIND=dp) (a-h,o-z)
         dimension y2a(0:n-1),ya(0:n-1)
-      
+
 ! interpolate if the argument is outside the cubic spline interval [tmin,tmax]
         tt=(x-tmin)*hi
         if (x.lt.tmin) then
@@ -3156,7 +3156,7 @@ CONTAINS
           y2a_khi=y2a(khi)
           b2=b*b
           y=a*ya_klo
-          yp=ya_khi-ya_klo 
+          yp=ya_khi-ya_klo
           a2=a*a
           cof1=a2-1.d0
           cof2=b2-1.d0

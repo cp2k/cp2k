@@ -88,8 +88,8 @@ CONTAINS
   SUBROUTINE check_cp2k_input(input_file,para_env,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
       routineP = moduleN//':'//routineN
@@ -168,8 +168,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE xc_functionals_expand(functionals,error)
     TYPE(section_vals_type), POINTER         :: functionals
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_expand', &
       routineP = moduleN//':'//routineN
@@ -262,8 +262,8 @@ END SUBROUTINE xc_functionals_expand
 SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart', &
       routineP = moduleN//':'//routineN

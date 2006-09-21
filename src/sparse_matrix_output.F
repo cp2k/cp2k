@@ -75,7 +75,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,para_env,&
-                                      first_row,last_row,first_col,last_col,output_unit)
+                                      first_row,last_row,first_col,last_col,output_unit,error)
 
 !   Purpose: Print a spherical matrix of blacs type.
 
@@ -91,6 +91,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
     INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_fm_with_basis_info'
 
@@ -107,15 +108,15 @@ CONTAINS
     group = para_env%group
     IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,&
-            nrow_global=nrow_global,ncol_global=ncol_global)
+            nrow_global=nrow_global,ncol_global=ncol_global,error=error)
 
     ALLOCATE(matrix(nrow_global,ncol_global))
-    CALL cp_fm_get_submatrix(blacs_matrix,matrix)
+    CALL cp_fm_get_submatrix(blacs_matrix,matrix,error=error)
 
 
 !   *** Get the matrix dimension and check the optional arguments ***
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
     IF (PRESENT(first_row)) THEN
@@ -143,7 +144,7 @@ CONTAINS
     END IF
 
     CALL write_matrix(matrix,matrix_name,before,after,qs_env,para_env,&
-                      row1,row2,col1,col2,output_unit)
+                      row1,row2,col1,col2,output_unit,error=error)
 
 !   *** Release work storage ***
 
@@ -158,7 +159,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_matrix(matrix,matrix_name,before,after,qs_env,para_env,&
-                          first_row,last_row,first_col,last_col,output_unit)
+                          first_row,last_row,first_col,last_col,output_unit,error)
 
 !   Purpose: Write a matrix or a sub-matrix to the output unit.
 
@@ -174,6 +175,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
                                                 first_col, last_col, &
                                                 output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_matrix'
 
@@ -200,7 +202,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env,&
                       atomic_kind_set=atomic_kind_set,&
-                      particle_set=particle_set)
+                      particle_set=particle_set,error=error)
 
       natom = SIZE(particle_set)
 
@@ -217,7 +219,7 @@ CONTAINS
 
 !     *** Write the variable format strings ***
 
-      ndigits = after 
+      ndigits = after
 
       width = before + ndigits + 3
       ncol = INT(56/width)
@@ -292,8 +294,8 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_matrix_distribution'
 
@@ -389,7 +391,7 @@ CONTAINS
 
   SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
                                  first_row,last_row,first_col,last_col,scale,&
-                                 output_unit)
+                                 output_unit,error)
 
 !   Purpose: Print a spherical matrix of sparse_matrix_type.
 
@@ -406,6 +408,7 @@ CONTAINS
                                                 first_col, last_col
     REAL(dp), INTENT(IN), OPTIONAL           :: scale
     INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_sparse_matrix'
 
@@ -442,7 +445,7 @@ CONTAINS
 
 !   *** Get the matrix dimension and check the optional arguments ***
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
     IF (PRESENT(first_row)) THEN
@@ -474,7 +477,7 @@ CONTAINS
     END IF
 
     CALL write_matrix(matrix,matrix_name,before,after,qs_env,para_env,&
-                      row1,row2,col1,col2, output_unit)
+                      row1,row2,col1,col2, output_unit,error=error)
 
     IF (ASSOCIATED(matrix)) THEN
       DEALLOCATE (matrix,STAT=istat)

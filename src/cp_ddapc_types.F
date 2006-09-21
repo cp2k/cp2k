@@ -54,7 +54,7 @@ MODULE cp_ddapc_types
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER          :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'
   INTEGER, PRIVATE, SAVE               :: last_cp_ddapc_id=0
   INTEGER, PARAMETER, PUBLIC           :: cp_ddapc_decoupling  =0,&
                                           cp_ddapc_qmmmperiodic=1,&
@@ -67,7 +67,7 @@ MODULE cp_ddapc_types
 !!     cp_ddapc_type
 !!
 !!   FUNCTION
-!!     
+!!
 !!
 !!   NOTES
 !!     -
@@ -79,7 +79,7 @@ MODULE cp_ddapc_types
 !!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!   SOURCE
 !!***************************************************************************
@@ -87,19 +87,19 @@ MODULE cp_ddapc_types
      INTEGER :: ref_count, id_nr
      REAL(KIND=dp) :: c0
      REAL(KIND=dp), DIMENSION(:,:), POINTER     :: AmI, Md, Mr, Mt
-     REAL(KIND=dp)   , POINTER, DIMENSION(:,:)  :: gfunc     
+     REAL(KIND=dp)   , POINTER, DIMENSION(:,:)  :: gfunc
      REAL(KIND=dp)   , POINTER, DIMENSION(:)    :: w
   END TYPE cp_ddapc_type
-  
+
   TYPE cp_ddapc_ewald_type
      INTEGER                                    :: task
      TYPE ( pw_pool_type ),             POINTER :: pw_pool_qm, pw_pool_mm
-     TYPE ( pw_grid_type ),             POINTER :: pw_grid_qm, pw_grid_mm 
+     TYPE ( pw_grid_type ),             POINTER :: pw_grid_qm, pw_grid_mm
      TYPE ( pw_type ),                  POINTER :: coeff_qm,   coeff_mm
   END TYPE cp_ddapc_ewald_type
 
 CONTAINS
-  
+
 !!****f* cp_ddapc_types/cp_ddapc_create [1.0] *
 !!
 !!   NAME
@@ -118,7 +118,7 @@ CONTAINS
 !!     Tedoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, &
@@ -137,8 +137,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: param_section
     LOGICAL, INTENT(in)                      :: only_charge
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_create', &
       routineP = moduleN//':'//routineN
@@ -147,7 +147,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: solvation_section
 
-    failure=.FALSE.    
+    failure=.FALSE.
     IF (ASSOCIATED(cp_ddapc_env)) RETURN
 
     CALL timeset(routineN,"I","",handle)
@@ -164,7 +164,7 @@ CONTAINS
                cp_ddapc_env%gfunc,&
                cp_ddapc_env%w)
        !
-       ! Evaluates gfunc and AmI 
+       ! Evaluates gfunc and AmI
        !
        CALL ddapc_eval_gfunc(cp_ddapc_env%gfunc, cp_ddapc_env%w, gcut, rho_tot_g, radii, error)
        CALL ddapc_eval_AmI(cp_ddapc_env%AmI, cp_ddapc_env%c0, &
@@ -184,15 +184,15 @@ CONTAINS
              CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_mm,-1.0_dp, super_cell, param_section,&
                   particle_set, cp_ddapc_env%Mr, radii, error)
              cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
-          CASE (cp_ddapc_solvationSph) 
+          CASE (cp_ddapc_solvationSph)
              ! Spherical Solvation model
              solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF",&
                   error=error)
              CALL solvation_ddapc_pot(cp_ddapc_ewald%coeff_mm, cell, solvation_section,&
-                  particle_set, cp_ddapc_env%Mr,  radii, error) 
+                  particle_set, cp_ddapc_env%Mr,  radii, error)
              cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
           CASE (cp_ddapc_decoupling)
-             cp_ddapc_env%Mt = cp_ddapc_env%Md 
+             cp_ddapc_env%Mt = cp_ddapc_env%Md
           CASE DEFAULT
              ! never reach this point
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -225,8 +225,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_retain(cp_ddapc_env, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_retain', &
       routineP = moduleN//':'//routineN
@@ -263,8 +263,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_release(cp_ddapc_env, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_release', &
       routineP = moduleN//':'//routineN
@@ -272,7 +272,7 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    failure=.FALSE.    
+    failure=.FALSE.
     IF (ASSOCIATED(cp_ddapc_env)) THEN
        CPPreconditionNoFail(cp_ddapc_env%ref_count>0,cp_failure_level,routineP,error)
        cp_ddapc_env%ref_count=cp_ddapc_env%ref_count-1
@@ -305,7 +305,7 @@ CONTAINS
                   cp_ddapc_env%Md,&
                   cp_ddapc_env%Mr,&
                   cp_ddapc_env%gfunc,&
-                  cp_ddapc_env%w)          
+                  cp_ddapc_env%w)
           DEALLOCATE(cp_ddapc_env, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           NULLIFY(cp_ddapc_env)
@@ -341,8 +341,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: qm_cell
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_create', &
       routineP = moduleN//':'//routineN
@@ -386,7 +386,7 @@ CONTAINS
        ELSE
           output_unit = -1
        END IF
-       
+
        CALL section_vals_get(poisson_section,explicit=explicit, error=error)
        IF (explicit.AND.output_unit>0) THEN
           WRITE(output_unit,'(A)')"A calculation with the QMMM periodic model or with an implicit"//&
@@ -408,7 +408,7 @@ CONTAINS
        ! Simple decoupling technique
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        SELECT CASE (my_val)
-       CASE (use_multipole)       
+       CASE (use_multipole)
           multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
        CASE DEFAULT
           RETURN
@@ -426,9 +426,9 @@ CONTAINS
     ! Do we do the calculation analytically or interpolating the g-space factor?
     CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
     IF (analyt) RETURN
-    CALL section_vals_val_get(multipole_section,"ngrids", i_vals=ngrids, error=error)       
+    CALL section_vals_val_get(multipole_section,"ngrids", i_vals=ngrids, error=error)
     npts =  ngrids
-    
+
     NULLIFY(LG, gx, gy, gz)
     hmat = qm_cell%hmat
     CALL eval_lg(multipole_section, hmat, qm_cell%deth, LG, gx, gy, gz, error)
@@ -448,7 +448,7 @@ CONTAINS
     SELECT CASE(cp_ddapc_ewald%task)
     CASE (cp_ddapc_qmmmperiodic)
        NULLIFY(mm_cell, dummy_cell)
-       cell_section => section_vals_get_subs_vals(force_env_section,"SUBSYS%CELL",error=error)       
+       cell_section => section_vals_get_subs_vals(force_env_section,"SUBSYS%CELL",error=error)
        CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, error=error)
        hmat = mm_cell%hmat
        CALL eval_lg(multipole_section, hmat, mm_cell%deth, LG, gx, gy, gz, error)
@@ -456,7 +456,7 @@ CONTAINS
        CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_mm,pw_pool=cp_ddapc_ewald%pw_pool_mm,&
             coeff=cp_ddapc_ewald%coeff_mm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
             param_section=multipole_section,tag="ddapc",para_env=para_env, &
-            print_section=grid_print_section, error=error) 
+            print_section=grid_print_section, error=error)
        DEALLOCATE(LG, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(gx, stat=stat)
@@ -477,8 +477,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: multipole_section
     REAL(KIND=dp), INTENT(IN)                :: hmat(3,3), deth
     REAL(KIND=dp), DIMENSION(:), POINTER     :: LG, gx, gy, gz
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_lg', &
       routineP = moduleN//':'//routineN
@@ -520,7 +520,7 @@ CONTAINS
        DO k2 = -nmax2, nmax2
           DO k3 = -nmax3, nmax3
              IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
-             i = i + 1             
+             i = i + 1
              fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
              gx(i) = fvec(1) * REAL(k1,KIND=dp)
              gy(i) = fvec(2) * REAL(k2,KIND=dp)
@@ -558,8 +558,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_ewald_release(cp_ddapc_ewald, error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_release', &
       routineP = moduleN//':'//routineN
@@ -570,10 +570,10 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(cp_ddapc_ewald)) THEN
        IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN
-          CALL pw_pool_give_back_pw ( cp_ddapc_ewald%pw_pool_qm, cp_ddapc_ewald%coeff_qm )
+          CALL pw_pool_give_back_pw ( cp_ddapc_ewald%pw_pool_qm, cp_ddapc_ewald%coeff_qm ,error=error)
        END IF
        IF (ASSOCIATED(cp_ddapc_ewald%coeff_mm)) THEN
-          CALL pw_pool_give_back_pw ( cp_ddapc_ewald%pw_pool_mm, cp_ddapc_ewald%coeff_mm )
+          CALL pw_pool_give_back_pw ( cp_ddapc_ewald%pw_pool_mm, cp_ddapc_ewald%coeff_mm ,error=error)
        END IF
        IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_qm)) THEN
           CALL pw_pool_release ( cp_ddapc_ewald%pw_pool_qm, error=error)
@@ -590,10 +590,10 @@ CONTAINS
        IF (ASSOCIATED(cp_ddapc_ewald%pw_grid_mm)) THEN
           CALL pw_grid_release ( cp_ddapc_ewald%pw_grid_mm, error=error)
           CPPostconditionNoFail(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_grid_mm),cp_failure_level,routineP,error)
-       END IF       
+       END IF
        DEALLOCATE(cp_ddapc_ewald, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(cp_ddapc_ewald)       
+       NULLIFY(cp_ddapc_ewald)
     END IF
 
   END SUBROUTINE cp_ddapc_ewald_release

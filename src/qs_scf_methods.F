@@ -101,8 +101,8 @@ CONTAINS
 !!     -
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -121,8 +121,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: invert
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing', &
       routineP = moduleN//':'//routineN
@@ -200,8 +200,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, homo, imo, lfomo, &
                                                 nao, nelectron, nmo
@@ -233,26 +233,26 @@ CONTAINS
     ENDIF
 
     IF (use_cholesky) THEN
-       CALL cp_fm_cholesky_reduce(matrix_ks,ortho)
+       CALL cp_fm_cholesky_reduce(matrix_ks,ortho,error=error)
 
        IF (use_jacobi) THEN
-          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues)
+          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
           use_cholesky = .FALSE.
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
-          CALL cp_fm_to_fm(mo_coeff,ortho)
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+          CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
        ELSE IF (nmo==nao) THEN
-          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
+          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
        ELSE
-          CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx)
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
+          CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx,error=error)
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
        END IF
 
     ELSE IF (use_jacobi) THEN
 
-       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work)
+       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work,error=error)
        CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
-                       0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1)
+                       0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1,error=error)
 
        ! Block Jacobi (pseudo-diagonalization, only one sweep)
 
@@ -261,15 +261,15 @@ CONTAINS
 
     ELSE ! full S^(-1/2) has been computed
 
-       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks,ortho,0.0_dp,work)
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks)
+       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks,ortho,0.0_dp,work,error=error)
+       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks,error=error)
 
        IF (do_level_shift) THEN
           DO imo=homo+1,nmo
              ! now unnecessary broadcast of element
              CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
              alpha=alpha+level_shift
-             CALL cp_fm_set_element(matrix_ks,imo,imo,alpha)
+             CALL cp_fm_set_element(matrix_ks,imo,imo,alpha,error=error)
           END DO
        END IF
 
@@ -280,7 +280,7 @@ CONTAINS
        END IF
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
-                       mo_coeff)
+                       mo_coeff,error=error)
 
        IF (do_level_shift) THEN
          CALL correct_mo_eigenvalues(mo_set,level_shift)
@@ -313,8 +313,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx, smear
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: handle, homo, imo, istat, &
                                                 lfomo, nao, nelectron, nmo
@@ -345,10 +345,10 @@ CONTAINS
          ! now unnecessary broadcast of element
          CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
          alpha=alpha+level_shift
-         CALL cp_fm_set_element(matrix_ks,imo,imo,alpha)
+         CALL cp_fm_set_element(matrix_ks,imo,imo,alpha,error=error)
       END DO
     END IF
-    
+
     ALLOCATE(eigvals(nao),STAT=istat)
     IF (istat.NE.0) CALL stop_memory("simple_eigensolver","eigvals",nao)
 
@@ -393,7 +393,7 @@ CONTAINS
 !!     m1 = m2 + p_mix (m1-m2)
 !!
 !!   NOTES
-!!     if you what to store the result in m2 swap m1 and m2 an use 
+!!     if you what to store the result in m2 swap m1 and m2 an use
 !!     (1-pmix) as pmix
 !!     para_env should be removed (embedded in matrix)
 !!
@@ -402,8 +402,8 @@ CONTAINS
 !!     - m2: the second (old) matrix
 !!     - p_mix:how much m1 is conserved (0: none, 1: all)
 !!     - delta: maximum norm of m1-m2
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -418,8 +418,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: p_mix
     REAL(KIND=dp), INTENT(OUT)               :: delta
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
       routineP = moduleN//':'//routineN
@@ -498,8 +498,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: occa, occb
     REAL(KIND=dp), &
       DIMENSION(0:2, 0:2, 1:2), INTENT(IN)   :: roks_parameter
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_1', &
       routineP = moduleN//':'//routineN
@@ -574,8 +574,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: occa, occb
     REAL(KIND=dp), INTENT(IN)                :: f
     INTEGER, INTENT(IN)                      :: nalpha, nbeta
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_2', &
       routineP = moduleN//':'//routineN

@@ -66,13 +66,13 @@ MODULE topology_constraint_util
 
   PRIVATE
   PUBLIC :: topology_constraint_pack
-            
-  
+
+
 !!*****
 !******************************************************************************
 
 CONTAINS
- 
+
 !******************************************************************************
 !!****** topology_constraint_util/topology_constraint_pack [1.0] *
 !!
@@ -108,8 +108,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
       routineP = moduleN//':'//routineN
@@ -159,9 +159,9 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
-    
+
     cons_info => topology%cons_info
     hbonds_section => section_vals_get_subs_vals(input_file,&
          "MOTION%CONSTRAINT%HBONDS",error=error)
@@ -202,7 +202,7 @@ CONTAINS
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                bond_list=bond_list, nbond=nbond, atom_list=atom_list,&
                molecule_list=molecule_list)
-          ! Let's tag all requested atoms involving Hydrogen 
+          ! Let's tag all requested atoms involving Hydrogen
           ! on the first molecule of this kind
           molecule => molecule_set(molecule_list(1))
           CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
@@ -210,7 +210,7 @@ CONTAINS
           DO j =  1, natom
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name,element_symbol=element_symbol) 
+                  name=name,element_symbol=element_symbol)
              IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
                    IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
@@ -224,7 +224,7 @@ CONTAINS
        cons_info%nconst_colv = nhdist + n_start_colv
        CALL reallocate(cons_info%const_colv_mol,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%const_colv_target,1,cons_info%nconst_colv)
-       CALL colvar_p_reallocate(cons_info%colvar_set,1,cons_info%nconst_colv)
+       CALL colvar_p_reallocate(cons_info%colvar_set,1,cons_info%nconst_colv,error=error)
        ! Fill in Restraints info
        CALL reallocate(cons_info%colv_restraint,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%colv_k0,1,cons_info%nconst_colv)
@@ -244,7 +244,7 @@ CONTAINS
           DO j =  1, natom
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name,element_symbol=element_symbol) 
+                  name=name,element_symbol=element_symbol)
              IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
                    IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
@@ -255,7 +255,7 @@ CONTAINS
                             IF (bond_list(k)%a==j) atomic_kind => atom_list(bond_list(k)%b)%atomic_kind
                             IF (bond_list(k)%b==j) atomic_kind => atom_list(bond_list(k)%a)%atomic_kind
                             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 name=name,element_symbol=element_symbol) 
+                                 name=name,element_symbol=element_symbol)
                             DO m = 1, SIZE(hdist)
                                IF (TRIM(name)==TRIM(atom_typeh(m))) EXIT
                                IF (TRIM(element_symbol)==TRIM(atom_typeh(m))) EXIT
@@ -270,14 +270,14 @@ CONTAINS
                       cons_info%const_colv_target(nhdist+n_start_colv)  = rmod
                       CALL colvar_create(cons_info%colvar_set(nhdist+n_start_colv)%colvar,&
                            dist_colvar_id, error)
-                      cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a  
+                      cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a
                       cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%j_at = bond_list(k)%b
                       CALL colvar_setup(cons_info%colvar_set(nhdist+n_start_colv)%colvar, error)
                    END IF
                 END DO
              END IF
           END DO
-       END DO      
+       END DO
     END IF
 
     !-----------------------------------------------------------------------------
@@ -350,7 +350,7 @@ CONTAINS
                            "This could be very probable due to a wrong connectivity, or an error",&
                            " in the constraint specification in the input file.",&
                            " Please check it carefully!"
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)                   
+                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                    END IF
                 END IF
              END DO
@@ -411,10 +411,10 @@ CONTAINS
                 lg3x3(k)%vc        = 0.0_dp
                 lg3x3(k)%lambda    = 0.0_dp
                 IF  ((g3x3_list(k)%a+first_atom-1 < first_atom).OR.&
-                     (g3x3_list(k)%b+first_atom-1 < first_atom).OR.& 
-                     (g3x3_list(k)%c+first_atom-1 < first_atom).OR.& 
+                     (g3x3_list(k)%b+first_atom-1 < first_atom).OR.&
+                     (g3x3_list(k)%c+first_atom-1 < first_atom).OR.&
                      (g3x3_list(k)%a+first_atom-1 > last_atom ).OR.&
-                     (g3x3_list(k)%b+first_atom-1 > last_atom ).OR.& 
+                     (g3x3_list(k)%b+first_atom-1 > last_atom ).OR.&
                      (g3x3_list(k)%c+first_atom-1 > last_atom )) THEN
                    WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
                    WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
@@ -423,7 +423,7 @@ CONTAINS
                         "This could be very probable due to a wrong connectivity, or an error",&
                         " in the constraint specification in the input file.",&
                         " Please check it carefully!"
-                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)                   
+                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END IF
              END DO
              CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
@@ -496,12 +496,12 @@ CONTAINS
                 lg4x6(k)%vf        = 0.0_dp
                 lg4x6(k)%lambda    = 0.0_dp
                 IF  ((g4x6_list(k)%a+first_atom-1 < first_atom).OR.&
-                     (g4x6_list(k)%b+first_atom-1 < first_atom).OR.& 
-                     (g4x6_list(k)%c+first_atom-1 < first_atom).OR.& 
-                     (g4x6_list(k)%d+first_atom-1 < first_atom).OR.& 
+                     (g4x6_list(k)%b+first_atom-1 < first_atom).OR.&
+                     (g4x6_list(k)%c+first_atom-1 < first_atom).OR.&
+                     (g4x6_list(k)%d+first_atom-1 < first_atom).OR.&
                      (g4x6_list(k)%a+first_atom-1 > last_atom ).OR.&
-                     (g4x6_list(k)%b+first_atom-1 > last_atom ).OR.& 
-                     (g4x6_list(k)%c+first_atom-1 > last_atom ).OR.& 
+                     (g4x6_list(k)%b+first_atom-1 > last_atom ).OR.&
+                     (g4x6_list(k)%c+first_atom-1 > last_atom ).OR.&
                      (g4x6_list(k)%d+first_atom-1 > last_atom )) THEN
                    WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
                    WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
@@ -510,7 +510,7 @@ CONTAINS
                         "This could be very probable due to a wrong connectivity, or an error",&
                         " in the constraint specification in the input file.",&
                         " Please check it carefully!"
-                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)                   
+                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END IF
              END DO
              CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
@@ -552,14 +552,14 @@ CONTAINS
              ENDIF
              DO k = first, last
                 IF  (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
-                        nfixed_atoms = nfixed_atoms + 1 
+                        nfixed_atoms = nfixed_atoms + 1
                 END IF
              END DO
           END DO
           ALLOCATE(fixd_list(nfixed_atoms),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           kk = 0
-          nfixd_restraint = 0 
+          nfixd_restraint = 0
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
@@ -603,7 +603,7 @@ CONTAINS
                       fixd_list(kk)%restraint%k0     = cons_info%fixed_mm_k0
                    ELSEIF (fix_atom_molname) THEN
                       fixd_list(kk)%restraint%active = cons_info%fixed_mol_restraint(k1loc)
-                      fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)        
+                      fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)
                    ELSE
                       ! should never reach this point
                       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

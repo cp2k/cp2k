@@ -82,7 +82,7 @@ MODULE qs_kpp1_env_types
 !!     - print_count: counter to create unique filename
 !!     - iter: number of iterations
 !!     - drho_r(idir,ispin): the derivative of rho wrt. x,y,z in the real space
-!!     - deriv_xc(ii,ipot): the second derivative of the xc potential at psi0 
+!!     - deriv_xc(ii,ipot): the second derivative of the xc potential at psi0
 !!       (qs_env%c), if grad pot is true it should already be divised
 !!       by the gradient
 !!     - spin_pot(1:2,ipot): information about wrt. to which spins the
@@ -90,7 +90,7 @@ MODULE qs_kpp1_env_types
 !!        xc_create_2nd_deriv_info)
 !!     - grad_pot(1:2,ipot): if the derivative spin_pot was wrt. to
 !!       the gradient (see xc_create_2nd_deriv_info)
-!!     - ndiag_term(ipot): it the term is an off diagonal term (see 
+!!     - ndiag_term(ipot): it the term is an off diagonal term (see
 !!       xc_create_2nd_deriv_info)
 !!
 !!
@@ -159,8 +159,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - kpp1_env: the environement to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -171,8 +171,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_release(kpp1_env,error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_release', &
       routineP = moduleN//':'//routineN
@@ -188,7 +188,7 @@ CONTAINS
        IF (kpp1_env%ref_count<1) THEN
           IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
              DO ispin=1,SIZE(kpp1_env%v_rspace)
-                CALL coeff_deallocate(kpp1_env%v_rspace(ispin))
+                CALL coeff_deallocate(kpp1_env%v_rspace(ispin),error=error)
              END DO
              DEALLOCATE(kpp1_env%v_rspace,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -196,7 +196,7 @@ CONTAINS
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
              DO ispin=1,SIZE(kpp1_env%v_ao)
                 IF (ASSOCIATED(kpp1_env%v_ao(ispin)%matrix)) THEN
-                   CALL deallocate_matrix(kpp1_env%v_ao(ispin)%matrix)
+                   CALL deallocate_matrix(kpp1_env%v_ao(ispin)%matrix,error=error)
                 END IF
              END DO
              DEALLOCATE(kpp1_env%v_ao, stat=stat)
@@ -250,8 +250,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - kpp1_env: the environement to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -262,8 +262,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_retain(kpp1_env,error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_retain', &
       routineP = moduleN//':'//routineN
@@ -296,10 +296,10 @@ CONTAINS
 !!     - unit_nr: the unit where to output
 !!     - long_description: if a long description should be written
 !!       (defaults to false)
-!!     - local: if the unit is a local unit or a global unit 
+!!     - local: if the unit is a local unit or a global unit
 !!       (defaults to false, i.e. global)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -313,8 +313,8 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN
@@ -331,7 +331,7 @@ CONTAINS
 
     IF (PRESENT(local)) my_local=local
     IF (PRESENT(long_description)) my_long_description=long_description
-    logger=>cp_error_get_logger(error) 
+    logger=>cp_error_get_logger(error)
     para_env=>logger%para_env
     should_w=my_local .OR. para_env%mepos==para_env%source
     my_unit_nr=unit_nr

@@ -105,8 +105,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
       routineP = moduleN//':'//routineN
@@ -172,7 +172,7 @@ CONTAINS
                     particle_set=particle_set,&
                     scf_control=scf_control,&
                     virial=virial,&
-                    energy=energy)
+                    energy=energy,error=error)
 
 
     natom = SIZE(particle_set)
@@ -229,7 +229,7 @@ CONTAINS
                     matrix_s=matrix_s,&
                     mo_derivs=mo_derivs,&
                     mos=mos,&
-                    rho=rho)
+                    rho=rho,error=error)
 
     IF (.NOT.obasis) THEN
 
@@ -237,13 +237,13 @@ CONTAINS
 
       nspin = SIZE(mos)
 
-      CALL allocate_matrix_set(matrix_w,nspin)
+      CALL allocate_matrix_set(matrix_w,nspin,error=error)
 
       DO ispin=1,nspin
 
         CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                                         matrix_w(ispin)%matrix,&
-                                        "W MATRIX")
+                                        "W MATRIX",error=error)
 
         mo_set => mos(ispin)%mo_set
 
@@ -254,7 +254,7 @@ CONTAINS
               CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
             ELSE
               CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
-                                      matrix_w(ispin)%matrix,matrix_s(1)%matrix)
+                                      matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
             END IF
           ELSE
             CALL calculate_w_matrix(mo_set=mo_set,&
@@ -266,9 +266,9 @@ CONTAINS
         ELSE
           IF (scf_control%use_ot) THEN
             CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
-                                    matrix_w(ispin)%matrix,matrix_s(1)%matrix)
+                                    matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
           ELSE
-            CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
+            CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
           END IF
         END IF
 
@@ -276,7 +276,7 @@ CONTAINS
              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
                 extension=".Log",error=error)
-           CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
+           CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                 "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
         END IF
@@ -290,7 +290,7 @@ CONTAINS
         CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
                                 para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
     ENDIF
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
 
     IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly
@@ -302,7 +302,7 @@ CONTAINS
         CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                            globenv=globenv,&
                                            calculate_forces=.TRUE.,error=error)
-        CALL calculate_ecore_self(qs_env)
+        CALL calculate_ecore_self(qs_env,error=error)
         CALL calculate_ecore_overlap(qs_env, para_env, &
                                              calculate_forces=.TRUE.,&
                                              error=error)
@@ -312,7 +312,7 @@ CONTAINS
       ! *** compute grid-based forces ***
       CALL qs_ks_update_qs_env(ks_env=ks_env,&
                                qs_env=qs_env,&
-                               calculate_forces=.TRUE.)
+                               calculate_forces=.TRUE.,error=error)
 
 
       !  *** replicate forces ***
@@ -366,12 +366,12 @@ CONTAINS
             virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc  &
                                                                   - 2.0_dp*energy%hartree
             ! The factor 2 is a hack. It compensates the plus sign in h_stress/pw_poisson_solve.
-            ! The sign in pw_poisson_solve is correct for FIST, but not for QS. 
+            ! The sign in pw_poisson_solve is correct for FIST, but not for QS.
             ! There should be a more elegant solution to that...
           END DO
-        END IF 
+        END IF
       END IF
-      
+
       output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
            extension=".Log",error=error)
       print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
@@ -389,9 +389,9 @@ CONTAINS
              print_section=print_section,error=error)
       END IF
       CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
-           "DFT%PRINT%DERIVATIVES",error=error)  
+           "DFT%PRINT%DERIVATIVES",error=error)
     ELSE
-      CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
+      CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,error=error)
       CALL harris_force_correction(qs_env=qs_env, harris_env=harris_env, &
                                    globenv=globenv,error=error)
       DO iatom = 1,natom
@@ -400,8 +400,8 @@ CONTAINS
       END DO
     END IF
 
-    CALL deallocate_matrix_set(matrix_w)
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
+    CALL deallocate_matrix_set(matrix_w,error=error)
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
@@ -432,8 +432,8 @@ CONTAINS
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_forces', &
       routineP = moduleN//':'//routineN
@@ -468,42 +468,42 @@ CONTAINS
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             atom_of_kind=atom_of_kind,&
             kind_of=kind_of)
-       
+
        IF (PRESENT(virial)) THEN
           CALL virial_get(virial, pv_virial=pv_virial,&
                pv_availability=virial_present)
        ELSE
           virial_present=.FALSE.
        END IF
-       
-       
+
+
        !   *** Variable precision output of the forces ***
        CALL section_vals_val_get(print_section,"NDIGITS",&
             i_val=ndigits,error=error)
-       
+
        fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
        WRITE (UNIT=fmtstr1(41:42),FMT="(I2)") ndigits + 5
-       
+
        fmtstr2 = "(/,(T2,I5,4X,I4,T18,A,T34,3F  .  ))"
        WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
        WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") ndigits + 6
-       
+
        fmtstr3 = "(/,T3,A,T34,3F  .  )"
        WRITE (UNIT=fmtstr3(18:19),FMT="(I2)") ndigits
        WRITE (UNIT=fmtstr3(15:16),FMT="(I2)") ndigits + 6
-       
+
        fmtstr4 = "((T34,3F  .  ))"
        WRITE (UNIT=fmtstr4(12:13),FMT="(I2)") ndigits
        WRITE (UNIT=fmtstr4(9:10),FMT="(I2)") ndigits + 6
-       
+
        fmtstr5 = "(/T2,A//T3,A)"
-       
-       
+
+
        WRITE (UNIT=output_unit,FMT=fmtstr1)&
             "FORCES","Atom","Kind","Component","X","Y","Z"
-       
+
        grand_total(:) = 0.0_dp
-       
+
        my_ftype = ftype
 
        SELECT CASE (my_ftype)
@@ -546,8 +546,8 @@ CONTAINS
                   iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
-                  iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),& 
-                  iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),& 
+                  iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),&
+                  iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),&
                   iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
@@ -582,17 +582,17 @@ CONTAINS
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
        END SELECT
-       
+
        WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
-       
+
        IF (virial_present) THEN
           WRITE (UNIT=output_unit,FMT=fmtstr5) "STRESS","pv_virial"
           WRITE (UNIT=output_unit,FMT=fmtstr4) (pv_virial(i,1:3), i=1,3)
        END IF
-       
+
        DEALLOCATE (atom_of_kind,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
-       
+
        DEALLOCATE (kind_of,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"kind_of")
     END IF

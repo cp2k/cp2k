@@ -10,7 +10,7 @@
 !!     xc_rho_set_types
 !!
 !!   FUNCTION
-!!     contains the structure 
+!!     contains the structure
 !!
 !!   NOTES
 !!     -
@@ -88,7 +88,7 @@ MODULE xc_rho_set_types
 !!   ATTRIBUTES
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
 !!     - id_nr: identification number (unique)
-!!     - local_bounds: the part of the 3d array on which the functional is 
+!!     - local_bounds: the part of the 3d array on which the functional is
 !!       computed
 !!     - owns: which components are owned by this structure (and should
 !!       be deallocated
@@ -152,8 +152,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - rho_set: the structure to allocate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_create(rho_set,local_bounds,rho_cutoff,drho_cutoff,&
@@ -162,8 +162,8 @@ CONTAINS
     INTEGER, DIMENSION(2, 3), INTENT(in)     :: local_bounds
     REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff, &
                                                 tau_cutoff
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_create', &
       routineP = moduleN//':'//routineN
@@ -215,14 +215,14 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - rho_set: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_retain(rho_set, error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_retain', &
       routineP = moduleN//':'//routineN
@@ -249,15 +249,15 @@ CONTAINS
 !!   ARGUMENTS
 !!     - rho_set: the structure to release
 !!     - pw_pool: the plae where to give back the arrays
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_release(rho_set, pw_pool, error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release', &
       routineP = moduleN//':'//routineN
@@ -384,8 +384,8 @@ CONTAINS
 !!     - can_return_null: if true the object returned can be null,
 !!       if false (the default) it stops with an error if a requested
 !!       component is not associated
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!     for the other components see the attributes of xc_rho_set
 !!
@@ -413,8 +413,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: tau, tau_a, tau_b
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: local_bounds
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_get', &
       routineP = moduleN//':'//routineN
@@ -528,8 +528,8 @@ CONTAINS
 !!   INPUTS
 !!     - rho_set: the rho_set to be cleaned
 !!     - pw_pool: place to give back 3d arrays,...
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -538,8 +538,8 @@ CONTAINS
   SUBROUTINE xc_rho_set_clean(rho_set,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_clean', &
       routineP = moduleN//':'//routineN
@@ -665,8 +665,8 @@ CONTAINS
 !!     - needs: the components of rho that are needed
 !!     - cell: cell parameters (to rescale the derivative)
 !!     - pw_pool: pool for the allocation of pw and cr3d
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
@@ -678,8 +678,8 @@ CONTAINS
                                                 xc_rho_smooth_id
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_update', &
       routineP = moduleN//':'//routineN
@@ -1187,7 +1187,7 @@ CONTAINS
        rho_set%has%tau_spin=.TRUE.
     END IF
 
-    CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs),cp_failure_level,routineP,error,failure)
+    CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs,error=error),cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE xc_rho_set_update
   !***************************************************************************

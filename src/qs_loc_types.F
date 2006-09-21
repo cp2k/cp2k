@@ -19,7 +19,7 @@
 !!     This operations can be required irrespective of the printing requirements
 !!     It would be highly desirable to do all this along a MD run every N steps,
 !!     and have a trajectory of the centeroids of the localized wfn
-!!     In addition these functions can be used for properties calculations 
+!!     In addition these functions can be used for properties calculations
 !!     like NMR and XAS. Therefore it is necessary that the rotated wfn are then copied
 !!     in the mos fm matrix to be available for next use.
 !!
@@ -89,9 +89,9 @@ MODULE qs_loc_types
 !!     is_initialized : logical control variable
 !!     para_env: info for the distribution of the calculations
 !!     mo_coeff: full matrix containing only the selected subset of orbitals
-!!     local_molecules: molecules distributed 
+!!     local_molecules: molecules distributed
 !!     cell : box that contains the system
-!!     localized_wfn_control: variables and parameter that define the spread 
+!!     localized_wfn_control: variables and parameter that define the spread
 !!                            functional and the optimization algorithm
 !!     particle_set: position, type, ao_indexes etc for each atom
 !!     op_sm_set: set of sparse matrices used to define the spread operator
@@ -103,7 +103,7 @@ MODULE qs_loc_types
 !!                when the functional has to be defined directly using the products of MOS
 !!                as in the case of the Pipek-Mezek definition.
 !!     weights: for a spread defined as extension of the orbitral in the box, these
-!!              factors renormilize with respect to the box size 
+!!              factors renormilize with respect to the box size
 !!get_qs_loc_env
 !!   NOTE
 !!     this type should replace the previous set up for the localization of the wfn
@@ -132,13 +132,13 @@ MODULE qs_loc_types
        TYPE ( localized_wfn_control_type ), &
          POINTER                                :: localized_wfn_control
        TYPE (particle_type), DIMENSION(:),&
-         POINTER                                :: particle_set 
+         POINTER                                :: particle_set
        TYPE (real_matrix_p_type), DIMENSION(:,:),&
          POINTER                                :: op_sm_set
 
        REAL (KIND = dp)                         :: weights ( 6 )
   END TYPE qs_loc_env_new_type
-  
+
 
 ! *****************************************************************************
 
@@ -150,8 +150,8 @@ CONTAINS
   SUBROUTINE qs_loc_env_create(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_create', &
       routineP = moduleN//':'//routineN
@@ -189,8 +189,8 @@ CONTAINS
   SUBROUTINE qs_loc_env_destroy(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_destroy', &
       routineP = moduleN//':'//routineN
@@ -209,11 +209,11 @@ CONTAINS
          CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,&
                                             error=error)
        END IF
-       IF(ASSOCIATED(qs_loc_env%para_env)) CALL cp_para_env_release(qs_loc_env%para_env)
+       IF(ASSOCIATED(qs_loc_env%para_env)) CALL cp_para_env_release(qs_loc_env%para_env,error)
        IF(ASSOCIATED(qs_loc_env%particle_set))  NULLIFY(qs_loc_env%particle_set)
 
        IF(ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
-         DO i=1,SIZE ( qs_loc_env % moloc_coeff,1) 
+         DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
            CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix,error=error)
          END DO
          DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
@@ -221,7 +221,7 @@ CONTAINS
        END IF
 
        IF(ASSOCIATED(qs_loc_env%op_fm_set)) THEN
-         DO i=1,SIZE ( qs_loc_env % op_fm_set,2) 
+         DO i=1,SIZE ( qs_loc_env % op_fm_set,2)
            DO j=1,SIZE ( qs_loc_env % op_fm_set,1)
              CALL cp_fm_release(qs_loc_env%op_fm_set(j,i)%matrix,error=error)
            END DO
@@ -233,24 +233,24 @@ CONTAINS
        IF(ASSOCIATED(qs_loc_env%op_sm_set)) THEN
          DO i=1,SIZE ( qs_loc_env % op_sm_set, 2 )
            DO j=1,SIZE ( qs_loc_env % op_sm_set, 1 )
-             CALL deallocate_matrix(qs_loc_env%op_sm_set(j,i)%matrix)
+             CALL deallocate_matrix(qs_loc_env%op_sm_set(j,i)%matrix,error=error)
            ENDDO
          END DO
          DEALLOCATE(qs_loc_env%op_sm_set,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
-       
+
        DEALLOCATE(qs_loc_env,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF 
+    END IF
 
   END SUBROUTINE qs_loc_env_destroy
 
   SUBROUTINE qs_loc_env_release(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_release', &
       routineP = moduleN//':'//routineN
@@ -264,15 +264,15 @@ CONTAINS
       qs_loc_env%ref_count = qs_loc_env%ref_count -1
       IF (qs_loc_env%ref_count==0) THEN
         CALL qs_loc_env_destroy(qs_loc_env,error)
-      END IF 
+      END IF
     END IF
   END SUBROUTINE qs_loc_env_release
 
   SUBROUTINE qs_loc_env_retain(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_retain', &
       routineP = moduleN//':'//routineN
@@ -312,8 +312,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_loc_env', &
       routineP = moduleN//':'//routineN
@@ -322,7 +322,7 @@ CONTAINS
 
      failure =.FALSE.
      CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
- 
+
      IF(.NOT.failure) THEN
        IF (PRESENT(cell)) cell =>  qs_loc_env%cell
        IF (PRESENT(moloc_coeff)) moloc_coeff => qs_loc_env%moloc_coeff
@@ -335,7 +335,7 @@ CONTAINS
        IF (PRESENT(particle_set)) particle_set =>  qs_loc_env%particle_set
        IF (PRESENT(weights)) weights(1:6)=  qs_loc_env%weights(1:6)
      END IF
- 
+
   END SUBROUTINE get_qs_loc_env
 
 !******************************************************************************
@@ -362,8 +362,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env', &
       routineP = moduleN//':'//routineN
@@ -393,8 +393,8 @@ CONTAINS
        qs_loc_env % localized_wfn_control => localized_wfn_control
      END IF
      IF(PRESENT(para_env)) THEN
-      CALL cp_para_env_retain(para_env)
-      CALL cp_para_env_release(qs_loc_env%para_env)
+      CALL cp_para_env_retain(para_env,error=error)
+      CALL cp_para_env_release(qs_loc_env%para_env,error=error)
       qs_loc_env%para_env => para_env
      END IF
      IF (PRESENT(particle_set)) qs_loc_env%particle_set => particle_set
@@ -411,7 +411,7 @@ CONTAINS
        qs_loc_env%weights = weights
      END IF
      END IF
-   
+
   END SUBROUTINE set_qs_loc_env
 !******************************************************************************
 

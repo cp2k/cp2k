@@ -98,7 +98,7 @@ MODULE dynamical_coeff_types
             dyn_coeff_type, dyn_coeff_p_type
 
 ! *** Public Subroutines ***
- 
+
   PUBLIC :: dyn_coeff_set_create, dyn_coeff_set_initialize,&
             dyn_coeff_set_release, dyn_coeff_set_retain,&
             get_dyn_coeff_set, dyn_coeff_create, setup_dyn_coeff, &
@@ -119,8 +119,8 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: distribution
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_create', &
       routineP = moduleN//':'//routineN
@@ -147,13 +147,13 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
          ALLOCATE(dyn_coeff_set%coeffs_of_kind(nkind), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          dyn_coeff_set%distribution_method=dyn_coeff_distributed
-         DO ikind=1,nkind 
+         DO ikind=1,nkind
             NULLIFY(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)
             atomic_kind => atomic_kind_set(ikind)
             CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
             n_els = distribution%n_el(ikind)
             IF ((.NOT.ASSOCIATED(aux_basis_set)).OR.(n_els ==0)) CYCLE
-!dbg           write(6,*) 'dyncoeffsetcreate: n_els, ikind', n_els, ikind 
+!dbg           write(6,*) 'dyncoeffsetcreate: n_els, ikind', n_els, ikind
             CALL dyn_coeff_create(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
                              error=error)
             CALL setup_dyn_coeff(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
@@ -163,7 +163,7 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
          CALL distribution_1d_release(dyn_coeff_set%distribution,error=error)
          dyn_coeff_set%distribution => distribution
        END IF
-     ELSE 
+     ELSE
        dyn_coeff_set%distribution_method=dyn_coeff_replicated
        CALL stop_program ('dyn_coeff_set_create','replicated coefs NYI')
      END IF
@@ -175,8 +175,8 @@ END SUBROUTINE dyn_coeff_set_create
 SUBROUTINE dyn_coeff_set_retain(dyn_coeff_set, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_retain', &
       routineP = moduleN//':'//routineN
@@ -198,8 +198,8 @@ END SUBROUTINE dyn_coeff_set_retain
 SUBROUTINE dyn_coeff_set_release(dyn_coeff_set, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_release', &
       routineP = moduleN//':'//routineN
@@ -244,8 +244,8 @@ SUBROUTINE get_dyn_coeff_set(dyn_coeff_set,distribution, coeffs_of_kind,&
     INTEGER, INTENT(out), OPTIONAL           :: ncoefs, mass_storage
     REAL(kind=dp), INTENT(OUT), OPTIONAL     :: global_mass
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_dyn_coeff_set', &
       routineP = moduleN//':'//routineN
@@ -268,23 +268,23 @@ SUBROUTINE get_dyn_coeff_set(dyn_coeff_set,distribution, coeffs_of_kind,&
      IF (PRESENT(ncoefs))THEN
        ncoefs=0
        nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
-       DO ikind=1, nkind                         
+       DO ikind=1, nkind
          coeffs_att=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
          IF(ASSOCIATED(coeffs_att))THEN
-           CALL get_dyn_coeff(coeffs=coeffs_att,ncoef_of_kind=ncoef_of_kind)
+           CALL get_dyn_coeff(coeffs=coeffs_att,ncoef_of_kind=ncoef_of_kind,error=error)
            ncoefs=ncoefs+ncoef_of_kind
-         END IF 
+         END IF
        END DO
      END IF
   END IF
-END SUBROUTINE get_dyn_coeff_set         
+END SUBROUTINE get_dyn_coeff_set
 
 !***************************************************************************
 SUBROUTINE dyn_coeff_create(coeffs, error)
 
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_create', &
       routineP = moduleN//':'//routineN
@@ -309,8 +309,8 @@ END SUBROUTINE dyn_coeff_create
 SUBROUTINE dyn_coeff_release(coeffs, error)
 
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_release', &
       routineP = moduleN//':'//routineN
@@ -323,19 +323,19 @@ SUBROUTINE dyn_coeff_release(coeffs, error)
      CPPreconditionNoFail(coeffs%ref_count>0,cp_failure_level,routineP,error)
      coeffs%ref_count=coeffs%ref_count-1
      IF (coeffs%ref_count==0) THEN
-       IF (ASSOCIATED(coeffs%pos)) THEN 
+       IF (ASSOCIATED(coeffs%pos)) THEN
          DEALLOCATE(coeffs%pos,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF (ASSOCIATED(coeffs%masses)) THEN 
+       IF (ASSOCIATED(coeffs%masses)) THEN
          DEALLOCATE(coeffs%masses,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF (ASSOCIATED(coeffs%vel)) THEN 
+       IF (ASSOCIATED(coeffs%vel)) THEN
          DEALLOCATE(coeffs%vel,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF (ASSOCIATED(coeffs%forces)) THEN 
+       IF (ASSOCIATED(coeffs%forces)) THEN
          DEALLOCATE(coeffs%forces,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -354,8 +354,8 @@ SUBROUTINE setup_dyn_coeff(coeffs,aux_basis_set,&
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     INTEGER, INTENT(in)                      :: n_els
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_dyn_coeff', &
       routineP = moduleN//':'//routineN
@@ -367,35 +367,35 @@ SUBROUTINE setup_dyn_coeff(coeffs,aux_basis_set,&
   CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=ncgf)
   coeffs%ncoef_atom=ncgf
   coeffs%n_els=n_els
-  IF(.NOT.ASSOCIATED(coeffs%pos)) THEN          
+  IF(.NOT.ASSOCIATED(coeffs%pos)) THEN
     ALLOCATE(coeffs%pos(n_els,ncgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     coeffs%pos(:,:)=1.0_dp
   END IF
-  IF(.NOT.ASSOCIATED(coeffs%vel)) THEN          
+  IF(.NOT.ASSOCIATED(coeffs%vel)) THEN
     ALLOCATE(coeffs%vel(n_els,ncgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     coeffs%vel(:,:)=0.0_dp
   END IF
-  IF(.NOT.ASSOCIATED(coeffs%forces)) THEN          
+  IF(.NOT.ASSOCIATED(coeffs%forces)) THEN
     ALLOCATE(coeffs%forces(n_els,ncgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     coeffs%forces(:,:)=0.0_dp
   END IF
-   
+
 END SUBROUTINE setup_dyn_coeff
 !***************************************************************************
 SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
                          ncoef_atom,ncoef_of_kind,id_nr,ref_count,error)
-   
+
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pos, vel, forces, masses
     INTEGER, INTENT(OUT), OPTIONAL           :: n_els, ncoef_atom, &
                                                 ncoef_of_kind, id_nr, &
                                                 ref_count
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_dyn_coeff', &
       routineP = moduleN//':'//routineN
@@ -426,8 +426,8 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: work_section
     LOGICAL, INTENT(IN), OPTIONAL            :: skipvel
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_initialize', &
       routineP = moduleN//':'//routineN
@@ -454,7 +454,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
   ! initialize to default values
 
   dyn_coeff_set%mass_storage=dyn_coeff_mass_global
-  dyn_coeff_set%global_mass=100._dp              
+  dyn_coeff_set%global_mass=100._dp
 
   nel_tot=0
   ncoef_tot=0
@@ -463,11 +463,11 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
   ! get the kg coefficients' parameters from input structure
 
   NULLIFY(coeff_section)
-  coeff_section => section_vals_get_subs_vals(root_section,"MOTION%MD%KG_COEFF")
-  storage_section =>  section_vals_get_subs_vals(coeff_section,"STORAGE")
-  CALL section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage)
-  CALL section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
-  CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+  coeff_section => section_vals_get_subs_vals(root_section,"MOTION%MD%KG_COEFF",error=error)
+  storage_section =>  section_vals_get_subs_vals(coeff_section,"STORAGE",error=error)
+  CALL section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage,error=error)
+  CALL section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass,error=error)
+  CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
 
   ! get total numbers
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
@@ -475,7 +475,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
      coeffs=> dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
      IF(.not.ASSOCIATED(coeffs)) CYCLE
      CALL get_dyn_coeff(coeffs,n_els=n_els,ncoef_atom=ncoef_atom,&
-          ncoef_of_kind=ncoef_of_kind)
+          ncoef_of_kind=ncoef_of_kind,error=error)
      IF(dyn_coeff_set%mass_storage/=dyn_coeff_mass_global) THEN
         IF(.NOT.ASSOCIATED(coeffs%masses)) THEN
            ALLOCATE(coeffs%masses(n_els,ncoef_atom),STAT=stat)
@@ -491,13 +491,13 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
   CALL mp_sum(ncoef_tot,group)
   CALL mp_max(ncoef_atom_max,group)
 
-  dyn_coeff_set%nel_tot=nel_tot 
-  dyn_coeff_set%ncoef_tot=ncoef_tot 
+  dyn_coeff_set%nel_tot=nel_tot
+  dyn_coeff_set%ncoef_tot=ncoef_tot
   dyn_coeff_set%ncoef_atom_max=ncoef_atom_max
 
-  ALLOCATE(mbuffer(nel_tot,ncoef_atom_max),stat=stat) 
+  ALLOCATE(mbuffer(nel_tot,ncoef_atom_max),stat=stat)
   IF(stat/=0) CALL stop_memory('routineP','mbuffer',nel_tot*ncoef_atom_max)
-  mbuffer(:,:)=0.0_dp 
+  mbuffer(:,:)=0.0_dp
   CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,para_env,error)
 
 
@@ -515,7 +515,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
               CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,&
                    i_rep_val=i,error=error)
               DO icoef=1,coeffs%ncoef_atom
-                 coeffs%pos(iel,icoef)=buffer(icoef)   
+                 coeffs%pos(iel,icoef)=buffer(icoef)
               END DO
            END DO
         END IF
@@ -535,18 +535,18 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
                  i=locate(ibuffer,iatom)
                  CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
                  DO icoef=1,coeffs%ncoef_atom
-                    coeffs%vel(iel,icoef)=buffer(icoef)  
+                    coeffs%vel(iel,icoef)=buffer(icoef)
                  END DO
               END DO
            END IF
         END DO
      ELSE
         CALL dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
-                                    mbuffer,root_section,para_env,globenv)   
+                                    mbuffer,root_section,para_env,globenv,error=error)
      END IF
   END IF
 
-  DEALLOCATE(mbuffer,stat=stat) 
+  DEALLOCATE(mbuffer,stat=stat)
   IF(stat/=0) CALL stop_memory('routineP','mbuffer')
 
 END SUBROUTINE dyn_coeff_set_initialize
@@ -560,8 +560,8 @@ END SUBROUTINE dyn_coeff_set_initialize
       INTENT(INOUT)                          :: mbuffer
     TYPE(section_vals_type), POINTER         :: storage_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_masses', &
       routineP = moduleN//':'//routineN
@@ -593,11 +593,11 @@ END SUBROUTINE dyn_coeff_set_initialize
        SELECT CASE (dyn_coeff_set%mass_storage)
        CASE (dyn_coeff_mass_kind)
           IF(.NOT.ALLOCATED(ckind)) THEN
-             ALLOCATE(ckind(nkind),stat=stat) 
+             ALLOCATE(ckind(nkind),stat=stat)
              IF(stat/=0) CALL stop_memory('routineP','ckind',nkind)
           END IF
           IF(.NOT.ALLOCATED(nel_kind)) THEN
-             ALLOCATE(nel_kind(nkind),stat=stat) 
+             ALLOCATE(nel_kind(nkind),stat=stat)
              IF(stat/=0) CALL stop_memory('routineP','nel_kind',nkind)
           END IF
           IF (para_env%ionode) THEN
@@ -617,7 +617,7 @@ END SUBROUTINE dyn_coeff_set_initialize
                 ifin=ioff+nel_kind(ikind)
                 coeffs=> dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
                 IF(ASSOCIATED(coeffs)) THEN
-                   mbuffer(istart:ifin,:)=ckind(ikind)  
+                   mbuffer(istart:ifin,:)=ckind(ikind)
                    ioff =ioff+nel_kind(ikind)
                 END IF
              END DO
@@ -628,7 +628,7 @@ END SUBROUTINE dyn_coeff_set_initialize
           IF (stat /= 0) CALL stop_memory(routineP,"nel_kind")
        CASE (dyn_coeff_mass_atom)
           IF (para_env%ionode) THEN
-             DO i=1,dyn_coeff_set%nel_tot 
+             DO i=1,dyn_coeff_set%nel_tot
                 READ (cmass_unit,*) INDEX(i),mbuffer(i,1:1)
              END DO
           END IF
@@ -686,8 +686,8 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_vel', &
       routineP = moduleN//':'//routineN
@@ -708,7 +708,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
   gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
   group = para_env%group
 
-  nkind=SIZE(dyn_coeff_set%coeffs_of_kind)      
+  nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
   vcom=0._dp
   denom=0._dp
 
@@ -725,7 +725,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
   IF (para_env%ionode) THEN
     DO iel=1,dyn_coeff_set%nel_tot
       DO icoef=1,dyn_coeff_set%ncoef_atom_max
-        vbuffer(iel,icoef) = next_random_number(globenv%gaussian_rng_stream)
+        vbuffer(iel,icoef) = next_random_number(globenv%gaussian_rng_stream,error=error)
         IF (gmass) THEN
           vcom=vcom+dyn_coeff_set%global_mass*vbuffer(iel,icoef)
           denom=denom+dyn_coeff_set%global_mass
@@ -738,7 +738,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
     vcom=vcom/denom
     ekin=0._dp
 
-    DO iel=1,dyn_coeff_set%nel_tot 
+    DO iel=1,dyn_coeff_set%nel_tot
       DO icoef=1,dyn_coeff_set%ncoef_atom_max
         vbuffer(iel,icoef)=vbuffer(iel,icoef)-vcom
         IF (gmass) THEN
@@ -754,7 +754,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
     temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )
 
 ! scale velocties to get the correct initial coefficent temperature
- 
+
     scale= SQRT ( kg_coeff_target_temp / temp_coefs )
     DO iel=1,dyn_coeff_set%nel_tot
       DO icoef=1,dyn_coeff_set%ncoef_atom_max
@@ -786,7 +786,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
     n_els_of_kind(ikind) = dyn_coeff_set%distribution%n_el(ikind)
   END DO
   CALL mp_sum(n_els_of_kind,group)
-   
+
   offset=0
   DO ikind=1, nkind
     coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
@@ -812,7 +812,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
   logger => cp_error_get_logger(error)
   output_unit=cp_print_key_unit_nr(logger,root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
-   
+
   IF ( output_unit>0 ) THEN
      CALL get_cp2k_units ( unit )
      temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )

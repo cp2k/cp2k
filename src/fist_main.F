@@ -15,7 +15,7 @@
 !!   MODIFICATION HISTORY
 !!     gt SEPT-23-2002: part is allocated/deallocated/initialized in
 !!                      read_coord_vel
-!!     CJM rewrite 
+!!     CJM rewrite
 !!   SOURCE
 !******************************************************************************
 
@@ -49,7 +49,7 @@ MODULE fist_main
   TYPE(fist_environment_type), POINTER :: fist_env
 
   PUBLIC :: fist_create_force_env
-  
+
 !!***
 !!-----------------------------------------------------------------------------!
 
@@ -96,8 +96,8 @@ SUBROUTINE fist_create_force_env ( force_env, root_section, para_env,globenv, qm
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in), OPTIONAL            :: method_name_id
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
       routineP = moduleN//':'//routineN
@@ -114,7 +114,7 @@ SUBROUTINE fist_create_force_env ( force_env, root_section, para_env,globenv, qm
      myqmmm=qmmm
   END IF
 
-  CALL fist_env_create( fist_env, para_env = para_env )
+  CALL fist_env_create( fist_env, para_env = para_env ,error=error)
   IF (PRESENT(qmmm_env)) THEN
      CALL set_fist_env (fist_env, qmmm=myqmmm, qmmm_env=qmmm_env, error=error)
   ELSE
@@ -132,7 +132,7 @@ SUBROUTINE fist_create_force_env ( force_env, root_section, para_env,globenv, qm
                           force_env_section=force_env_section, error = error )
 
   CALL fist_env_release ( fist_env, error = error )
-    
+
   CALL timestop ( 0.0_dp, handle )
 
   END SUBROUTINE fist_create_force_env

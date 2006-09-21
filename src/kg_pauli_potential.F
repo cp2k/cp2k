@@ -88,8 +88,8 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: do_potential, do_forces, &
                                                 do_overlap
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_pauli', &
       routineP = moduleN//':'//routineN

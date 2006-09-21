@@ -14,7 +14,7 @@
 !!     JGH  6-NOV-2000
 !!
 !!   MODIFICATION HISTORY
-!!     30-Nov-2000 (JGH) added input 
+!!     30-Nov-2000 (JGH) added input
 !!     02-Jan-2001 (JGH) Parallel FFT
 !!     28-Feb-2002 (JGH) Clebsch-Gordon Coefficients
 !!     06-Jun-2003 (JGH) Real space grid test
@@ -24,7 +24,7 @@
 !******************************************************************************
 
 MODULE library_tests
-  
+
   USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
@@ -125,7 +125,7 @@ CONTAINS
 !!     none
 !!
 !!*** *************************************************************************
-  
+
   SUBROUTINE lib_test ( root_section, para_env, globenv, error )
 
     TYPE(section_vals_type), POINTER         :: root_section
@@ -145,7 +145,7 @@ CONTAINS
        WRITE ( iw, '(T2,79("*"))' )
     END IF
     !
-    CALL test_input ( root_section, para_env, iw,globenv )
+    CALL test_input ( root_section, para_env, iw,globenv ,error=error)
     !
     IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( para_env, iw,globenv )
     !
@@ -153,7 +153,7 @@ CONTAINS
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw,globenv )
     !
-    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, para_env, iw,globenv )
+    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, para_env, iw,globenv, error )
     !
     IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( error )
     !
@@ -218,8 +218,8 @@ SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     TYPE(section_vals_type), POINTER         :: test_section
@@ -728,12 +728,13 @@ END SUBROUTINE fft_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
+SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv, error )
 
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
@@ -749,7 +750,7 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
 !..the unit cell
 
   NULLIFY(box,grid)
-  CALL cell_create(box)
+  CALL cell_create(box,error=error)
   box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
                            0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
   CALL get_hinv ( box )
@@ -766,20 +767,20 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
   np ( 3 ) = NINT ( r * 0.666_dp )
 
 !..Test 1
-  CALL pw_grid_create ( grid, para_env%group )
+  CALL pw_grid_create ( grid, para_env%group ,error=error)
   grid % grid_span = FULLSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
   print_section=>section_vals_get_subs_vals(root_section, &
-                        "TEST%PRINT%GRID_INFORMATION")
+                        "TEST%PRINT%GRID_INFORMATION",error=error)
   CALL pw_grid_setup ( box, grid, print_section, &
-                       rs_dims=(/para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) ,error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
-  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D )
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
+  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D ,error=error)
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
   CALL coeff_zero ( ca )
   CALL coeff_zero ( cb )
   CALL coeff_zero ( cc )
@@ -815,11 +816,11 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
     CALL coeff_transform_space ( cb, cc, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca )
-  CALL coeff_deallocate ( cb )
-  CALL coeff_deallocate ( cc )
- 
-  CALL pw_grid_release ( grid )
+  CALL coeff_deallocate ( ca ,error=error)
+  CALL coeff_deallocate ( cb ,error=error)
+  CALL coeff_deallocate ( cc ,error=error)
+
+  CALL pw_grid_release ( grid ,error=error)
 
   IF ( para_env%ionode ) THEN
     WRITE ( iw, * )
@@ -831,18 +832,18 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
   END IF
 
 !..Test 2
-  CALL pw_grid_create ( grid, para_env%group )
+  CALL pw_grid_create ( grid, para_env%group ,error=error)
   grid % grid_span = HALFSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
   CALL pw_grid_setup ( box, grid, print_section, &
-                       rs_dims=(/para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) ,error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
-  CALL coeff_allocate ( cb, grid, REALDATA3D )
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
+  CALL coeff_allocate ( cb, grid, REALDATA3D ,error=error)
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
   CALL coeff_zero ( ca )
   CALL coeff_zero ( cb )
   CALL coeff_zero ( cc )
@@ -878,11 +879,11 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
     CALL coeff_transform_space ( cb, cc, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca )
-  CALL coeff_deallocate ( cb )
-  CALL coeff_deallocate ( cc )
- 
-  CALL pw_grid_release ( grid )
+  CALL coeff_deallocate ( ca ,error=error)
+  CALL coeff_deallocate ( cb ,error=error)
+  CALL coeff_deallocate ( cc ,error=error)
+
+  CALL pw_grid_release ( grid ,error=error)
 
   IF ( para_env%ionode ) THEN
     WRITE ( iw, * )
@@ -894,20 +895,20 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
   END IF
 
 !..Test 3
-  CALL pw_grid_create ( grid, para_env%group )
+  CALL pw_grid_create ( grid, para_env%group ,error=error)
   grid % grid_span = FULLSPACE
 
-  CALL pw_find_cutoff ( np, box, cutoff )
+  CALL pw_find_cutoff ( np, box, cutoff ,error=error)
   cutoff = 0.5_dp * cutoff * cutoff
  ! CALL pw_find_cutoff ( grid % bounds, box % h_inv, cutoff )
 
   CALL pw_grid_setup ( box, grid, print_section, cutoff = cutoff, &
-                       rs_dims=(/para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) ,error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
-  CALL coeff_allocate ( cb, grid, REALDATA3D )
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
+  CALL coeff_allocate ( cb, grid, REALDATA3D ,error=error)
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
   CALL coeff_zero ( ca )
   CALL coeff_zero ( cb )
   CALL coeff_zero ( cc )
@@ -943,11 +944,11 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
     CALL coeff_transform_space ( cb, cc, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca )
-  CALL coeff_deallocate ( cb )
-  CALL coeff_deallocate ( cc )
- 
-  CALL pw_grid_release ( grid )
+  CALL coeff_deallocate ( ca ,error=error)
+  CALL coeff_deallocate ( cb ,error=error)
+  CALL coeff_deallocate ( cc ,error=error)
+
+  CALL pw_grid_release ( grid ,error=error)
 
   IF ( para_env%ionode ) THEN
     WRITE ( iw, * )
@@ -959,19 +960,19 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
   END IF
 
 !..Test 4
-  CALL pw_grid_create ( grid , para_env%group )
+  CALL pw_grid_create ( grid , para_env%group ,error=error)
   grid % grid_span = HALFSPACE
-  CALL pw_find_cutoff ( np, box, cutoff )
+  CALL pw_find_cutoff ( np, box, cutoff ,error=error)
   cutoff = cutoff * cutoff
 !  CALL pw_find_cutoff ( grid%bounds, box%h_inv, cutoff )
 
   CALL pw_grid_setup ( box, grid, print_section,  &
-                       rs_dims=(/para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) ,error=error)
   no = grid % npts
 
-  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
-  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D )
-  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D )
+  CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
+  CALL coeff_allocate ( cb, grid, COMPLEXDATA3D ,error=error)
+  CALL coeff_allocate ( cc, grid, COMPLEXDATA1D ,error=error)
   CALL coeff_zero ( ca )
   CALL coeff_zero ( cb )
   CALL coeff_zero ( cc )
@@ -1007,11 +1008,11 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
     CALL coeff_transform_space ( cb, cc, .TRUE. )
   ENDIF
 
-  CALL coeff_deallocate ( ca )
-  CALL coeff_deallocate ( cb )
-  CALL coeff_deallocate ( cc )
- 
-  CALL pw_grid_release ( grid )
+  CALL coeff_deallocate ( ca ,error=error)
+  CALL coeff_deallocate ( cb ,error=error)
+  CALL coeff_deallocate ( cc ,error=error)
+
+  CALL pw_grid_release ( grid ,error=error)
 
   IF ( para_env%ionode ) THEN
     WRITE ( iw, * )
@@ -1021,7 +1022,7 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
       " Parallel FFT Tests: Performance [Mflops] ", perf
     WRITE ( iw, * )
   END IF
-  CALL cell_release(box)
+  CALL cell_release(box,error=error)
 END SUBROUTINE pw_fft_test
 
 !
@@ -1070,7 +1071,7 @@ SUBROUTINE mpi_test(comm)
     Nloc=Ngrid/nprocs
     Ntot=Nprocs*Nloc
     nbufmax=10**npow
-    ! 
+    !
     ALLOCATE(rcount(nprocs))
     ALLOCATE(scount(nprocs))
     ALLOCATE(sdispl(nprocs))
@@ -1155,10 +1156,10 @@ SUBROUTINE mpi_test(comm)
         IF (taskid.EQ. jtask) THEN
            CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm, status, ierror)
         ENDIF
-        send_timings(itask,jtask)=MPI_WTIME()-t1+threshold  
+        send_timings(itask,jtask)=MPI_WTIME()-t1+threshold
      ENDDO
     ENDDO
-    send_timings2=send_timings 
+    send_timings2=send_timings
     CALL MPI_REDUCE(send_timings2, send_timings, nprocs**2, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
     IF (ionode) THEN
        DO itask=0,nprocs-1
@@ -1341,17 +1342,17 @@ SUBROUTINE mpi_test(comm)
        ! 0 will only need parts 0,2,4,... correctly summed
        ! 1 will only need parts 1,3,5,... correctly summed
        ! *** could nicely be generalised ****
-       IF (MODULO(taskid,2)==0) THEN 
+       IF (MODULO(taskid,2)==0) THEN
           partner=taskid+1
           DO i=1,Nprocs,2 ! sum the full grid with the partner
-              CALL MPI_SENDRECV(grid3(1,i+1),nloc,MPI_DOUBLE_PRECISION,partner,17, & 
+              CALL MPI_SENDRECV(grid3(1,i+1),nloc,MPI_DOUBLE_PRECISION,partner,17, &
                                 lgrid3,nloc,MPI_DOUBLE_PRECISION,partner,19,comm,status,ierr)
              grid3(:,i)=grid3(:,i)+lgrid3(:)
           ENDDO
        ELSE
           partner=taskid-1
-          DO i=1,Nprocs,2  
-              CALL MPI_SENDRECV(grid3(1,i),nloc,MPI_DOUBLE_PRECISION,partner,19, & 
+          DO i=1,Nprocs,2
+              CALL MPI_SENDRECV(grid3(1,i),nloc,MPI_DOUBLE_PRECISION,partner,19, &
                                 lgrid3,nloc,MPI_DOUBLE_PRECISION,partner,17,comm,status,ierr)
              grid3(:,i+1)=grid3(:,i+1)+lgrid3(:)
           ENDDO
@@ -1448,7 +1449,7 @@ END SUBROUTINE simple_copy
     CALL create_rng_stream(rng_stream=rng_stream,&
                            name="Test uniform distribution [0,1]",&
                            distribution_type=UNIFORM,&
-                           extended_precision=.TRUE.)
+                           extended_precision=.TRUE.,error=error)
 
     IF (ionode) THEN
       CALL write_rng_stream(rng_stream,output_unit,write_all=.TRUE.,error=error)
@@ -1461,7 +1462,7 @@ END SUBROUTINE simple_copy
 
     tstart = m_cputime()
     DO i=1,n
-      t = next_random_number(rng_stream)
+      t = next_random_number(rng_stream,error=error)
       tsum = tsum + t
       tsum2 = tsum2 + t*t
       IF (t > tmax) tmax = t
@@ -1478,14 +1479,14 @@ END SUBROUTINE simple_copy
         "Time [s]:",tend - tstart
     END IF
 
-    CALL delete_rng_stream(rng_stream)
+    CALL delete_rng_stream(rng_stream,error=error)
 
     ! Test normal Gaussian distribution
 
     CALL create_rng_stream(rng_stream=rng_stream,&
                            name="Test normal Gaussian distribution",&
                            distribution_type=GAUSSIAN,&
-                           extended_precision=.TRUE.)
+                           extended_precision=.TRUE.,error=error)
 
     tmax = -HUGE(0.0_dp)
     tmin = +HUGE(0.0_dp)
@@ -1494,7 +1495,7 @@ END SUBROUTINE simple_copy
 
     tstart = m_cputime()
     DO i=1,n
-      t = next_random_number(rng_stream)
+      t = next_random_number(rng_stream,error=error)
       tsum = tsum + t
       tsum2 = tsum2 + t*t
       IF (t > tmax) tmax = t
@@ -1512,7 +1513,7 @@ END SUBROUTINE simple_copy
         "Time [s]:",tend - tstart
     END IF
 
-    CALL delete_rng_stream(rng_stream)
+    CALL delete_rng_stream(rng_stream,error=error)
 
   END SUBROUTINE rng_test
 
@@ -1583,21 +1584,21 @@ END SUBROUTINE simple_copy
                       matrix_struct=fmstruct,&
                       name="MATRIX",&
                       error=error)
-    CALL cp_fm_set_all(matrix,0.0_dp)
+    CALL cp_fm_set_all(matrix,0.0_dp,error=error)
 
     NULLIFY (eigenvectors)
     CALL cp_fm_create(matrix=eigenvectors,&
                       matrix_struct=fmstruct,&
                       name="EIGENVECTORS",&
                       error=error)
-    CALL cp_fm_set_all(eigenvectors,0.0_dp)
+    CALL cp_fm_set_all(eigenvectors,0.0_dp,error=error)
 
     NULLIFY (work)
     CALL cp_fm_create(matrix=work,&
                       matrix_struct=fmstruct,&
                       name="WORK",&
                       error=error)
-    CALL cp_fm_set_all(matrix,0.0_dp)
+    CALL cp_fm_set_all(matrix,0.0_dp,error=error)
 
     ALLOCATE (eigenvalues(n),STAT=istat)
     eigenvalues = 0.0_dp
@@ -1610,7 +1611,7 @@ END SUBROUTINE simple_copy
         CALL create_rng_stream(rng_stream=rng_stream,&
                                name="rng_stream",&
                                distribution_type=UNIFORM,&
-                               extended_precision=.TRUE.)
+                               extended_precision=.TRUE.,error=error)
       ELSE
         CALL open_file(file_name="MATRIX",&
                        file_action="READ",&
@@ -1672,7 +1673,7 @@ END SUBROUTINE simple_copy
 
     IF (ionode) THEN
       IF (nrow_global > 0) THEN
-        CALL delete_rng_stream(rng_stream=rng_stream)
+        CALL delete_rng_stream(rng_stream=rng_stream,error=error)
         WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
           n," x ",n," matrix generated using random numbers [-0.5,+0.5]"
       ELSE
@@ -1703,7 +1704,7 @@ END SUBROUTINE simple_copy
     ! Expert driver
 
     eigenvalues = 0.0_dp
-    CALL cp_fm_set_all(eigenvectors,0.0_dp)
+    CALL cp_fm_set_all(eigenvectors,0.0_dp,error=error)
     CALL cp_fm_to_fm(source=matrix,&
                      destination=work,&
                      error=error)

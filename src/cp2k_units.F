@@ -80,8 +80,8 @@ CONTAINS
 
 SUBROUTINE init_cp2k_units (error)
 
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k_units', &
       routineP = moduleN//':'//routineN
@@ -131,8 +131,8 @@ END SUBROUTINE init_cp2k_units
 
 SUBROUTINE rm_cp2k_units (error)
 
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rm_cp2k_units', &
       routineP = moduleN//':'//routineN

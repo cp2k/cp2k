@@ -153,8 +153,8 @@ CONTAINS
 !!     - pool: the pool to create
 !!     - matrix_struct: the structure of the matrixes that are stored in
 !!       this pool
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -166,8 +166,8 @@ CONTAINS
   SUBROUTINE sm_pool_create(pool, matrix_struct, error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(cp_sm_struct_type), POINTER         :: matrix_struct
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create', &
       routineP = moduleN//':'//routineN
@@ -203,8 +203,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -215,8 +215,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_pool_retain(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_retain', &
       routineP = moduleN//':'//routineN
@@ -247,8 +247,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to flush
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -259,8 +259,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_pool_flush_cache(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -276,9 +276,9 @@ CONTAINS
     IF (.NOT. failure) THEN
        iterator => pool%cache
        DO
-          IF (.NOT.cp_sll_sm_next(iterator,el_att=m_att)) EXIT
+          IF (.NOT.cp_sll_sm_next(iterator,el_att=m_att,error=error)) EXIT
 !FM          CALL cp_sm_release(m_att,error=error)
-          CALL deallocate_matrix(m_att)
+          CALL deallocate_matrix(m_att,error=error)
        END DO
        CALL cp_sll_sm_dealloc(pool%cache,error=error)
     END IF
@@ -298,8 +298,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -310,8 +310,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_pool_release(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_release', &
       routineP = moduleN//':'//routineN
@@ -362,8 +362,8 @@ CONTAINS
 !!     - pool: the pool from where you get the matrix
 !!     - matrix: will contain the new matrix
 !!     - name: the name for the new matrix (optional)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -376,8 +376,8 @@ CONTAINS
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create_matrix', &
       routineP = moduleN//':'//routineN
@@ -400,8 +400,8 @@ CONTAINS
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (ASSOCIATED(pool%cache)) THEN
-          matrix => cp_sll_sm_get_first_el(pool%cache)
-          CALL cp_sll_sm_rm_first_el(pool%cache)
+          matrix => cp_sll_sm_get_first_el(pool%cache,error=error)
+          CALL cp_sll_sm_rm_first_el(pool%cache,error=error)
        ELSE
           NULLIFY(matrix)
           CALL sm_struct_get(pool%matrix_struct,n_rows=n_rows,n_cols=n_cols,&
@@ -416,7 +416,7 @@ CONTAINS
                first_col=first_col,last_col=last_col,&
                distribution_2d=distribution_2d,&
                sparsity_id=pool%matrix_struct%id_nr,&
-               matrix_name="tmpName",matrix_symmetry=symmetry)
+               matrix_name="tmpName",matrix_symmetry=symmetry,error=error)
 
           ! allocate blocks
           pos_att => pool%matrix_struct%local_blocks
@@ -425,7 +425,7 @@ CONTAINS
              DO WHILE (ASSOCIATED(pos_att))
                 IF (pos_att%row>0 .AND. pos_att%col>0) THEN
                    CALL add_block_node(matrix,block_row=pos_att%row,&
-                        block_col=pos_att%col)
+                        block_col=pos_att%col,error=error)
                 END IF
                 pos_att => pos_att%next_col
              END DO
@@ -473,8 +473,8 @@ CONTAINS
 !!     - pool: the pool from where you get the matrix
 !!     - n_matrixes: the number of matrixes in the vector
 !!     - matrixes: will contain the new matrix vector
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -490,8 +490,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create_matrix_vect', &
       routineP = moduleN//':'//routineN
@@ -543,8 +543,8 @@ CONTAINS
 !!   INPUTS
 !!     - pool: the pool where to cache the matrix
 !!     - matrix: the matrix to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -556,8 +556,8 @@ CONTAINS
   SUBROUTINE sm_pool_give_back_matrix(pool, matrix, error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_give_back_matrix', &
       routineP = moduleN//':'//routineN
@@ -581,10 +581,10 @@ CONTAINS
        CPPreconditionNoFail(matrix%ref_count==1,cp_warning_level,routineP,error)
        IF (cp_debug) THEN
           CALL cp_sll_sm_insert_ordered(pool%cache, el=matrix,&
-               insert_equals=.FALSE., did_insert=did_insert)
+               insert_equals=.FALSE., did_insert=did_insert,error=error)
           CPAssert(did_insert,cp_failure_level,routineP,error,failure)
        ELSE
-          CALL cp_sll_sm_insert_el(pool%cache, el=matrix)
+          CALL cp_sll_sm_insert_el(pool%cache, el=matrix,error=error)
        END IF
     END IF
     NULLIFY(matrix)
@@ -615,8 +615,8 @@ CONTAINS
 !!   INPUTS
 !!     - pool: the pool where to cache the matrix
 !!     - matrixes: the matrixes to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -629,8 +629,8 @@ CONTAINS
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'sm_pool_give_back_matrix_vect', &
@@ -678,8 +678,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool you are interested in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -690,8 +690,8 @@ CONTAINS
 !!*** **********************************************************************
 FUNCTION sm_pool_get_mstruct(pool,error) RESULT(res)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     TYPE(cp_sm_struct_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_get_mstruct', &
@@ -700,7 +700,7 @@ FUNCTION sm_pool_get_mstruct(pool,error) RESULT(res)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -734,8 +734,8 @@ END FUNCTION sm_pool_get_mstruct
 !!   INPUTS
 !!     - source_pools: the pools to copy
 !!     - target_pools: allocated, will contains the new pools
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -747,8 +747,8 @@ END FUNCTION sm_pool_get_mstruct
 SUBROUTINE sm_pools_copy(source_pools, target_pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_copy', &
       routineP = moduleN//':'//routineN
@@ -757,7 +757,7 @@ SUBROUTINE sm_pools_copy(source_pools, target_pools, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(target_pools(SIZE(source_pools)),stat=stat)
@@ -791,8 +791,8 @@ END SUBROUTINE sm_pools_copy
 !!
 !!   INPUTS
 !!     - pools: the pools to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -804,8 +804,8 @@ END SUBROUTINE sm_pools_copy
 SUBROUTINE sm_pools_dealloc(pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_dealloc', &
       routineP = moduleN//':'//routineN
@@ -814,7 +814,7 @@ SUBROUTINE sm_pools_dealloc(pools, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
         CALL sm_pool_release(pools(i)%pool,error=error)
@@ -844,8 +844,8 @@ END SUBROUTINE sm_pools_dealloc
 !!
 !!   INPUTS
 !!     - pools: the pools to flush
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -857,8 +857,8 @@ END SUBROUTINE sm_pools_dealloc
 SUBROUTINE sm_pools_flush_cache(pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -867,7 +867,7 @@ SUBROUTINE sm_pools_flush_cache(pools, error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      DO i=1,SIZE(pools)
@@ -900,8 +900,8 @@ END SUBROUTINE sm_pools_flush_cache
 !!     - pools: the pools to create the matrix from
 !!     - matrixes: will contain the vector of matrixes
 !!     - name: optionally a name for the matrixes
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -916,8 +916,8 @@ SUBROUTINE sm_pools_create_matrix_vect(pools,matrixes,name,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_create_matrix_vect', &
       routineP = moduleN//':'//routineN
@@ -926,7 +926,7 @@ SUBROUTINE sm_pools_create_matrix_vect(pools,matrixes,name,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ALLOCATE(matrixes(SIZE(pools)),stat=stat)
@@ -969,8 +969,8 @@ END SUBROUTINE sm_pools_create_matrix_vect
 !!   INPUTS
 !!     - pools: the pool where to give back the matrix vector
 !!     - matrixes: the matrixes to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -984,8 +984,8 @@ SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
       POINTER                                :: pools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'sm_pools_give_back_matrix_vect', &
@@ -995,7 +995,7 @@ SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(matrixes),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(matrixes)==SIZE(pools),cp_failure_level,routineP,error,failure)

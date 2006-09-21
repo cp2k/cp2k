@@ -187,8 +187,8 @@ CONTAINS
   SUBROUTINE colvar_create(colvar,colvar_id,error)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(in)                      :: colvar_id
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create', &
       routineP = moduleN//':'//routineN
@@ -262,8 +262,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE colvar_setup(colvar,error)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_setup', &
       routineP = moduleN//':'//routineN
@@ -367,8 +367,8 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE colvar_release(colvar,error)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_release', &
       routineP = moduleN//':'//routineN
@@ -451,8 +451,8 @@ CONTAINS
   SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
     TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
     INTEGER, INTENT(IN), OPTIONAL            :: i_atom_offset
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone', &
       routineP = moduleN//':'//routineN
@@ -538,8 +538,8 @@ CONTAINS
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_set
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'colvar_p_reallocate'
 

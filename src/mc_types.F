@@ -53,7 +53,7 @@ MODULE mc_types
 
   IMPLICIT NONE
 
-  PRIVATE 
+  PRIVATE
 ! *** Global parameters ***
 
  PUBLIC :: mc_simulation_parameters_type,&
@@ -200,7 +200,7 @@ CONTAINS
 !!     accesses the private elements of the mc_parameters_type
 !!
 !!   ARGUMENTS
-!!     - mc_par: the structure mc parameters you want 
+!!     - mc_par: the structure mc parameters you want
 !!
 !!   Suitable for parallel.
 !!
@@ -320,7 +320,7 @@ CONTAINS
 !!     changes the private elements of the mc_parameters_type
 !!
 !!   ARGUMENTS
-!!     - mc_par: the structure mc parameters you want 
+!!     - mc_par: the structure mc parameters you want
 !!
 !!   Suitable for parallel.
 !!
@@ -425,7 +425,7 @@ CONTAINS
 !!I avbmc_rmax:                           the maximum distance used in AVBMC
 !!I avbmc_atom:                           the atom used to calculate distances
 !!                          between for the AVBMC swap move
-!!I lbias:  (yes,no)                      pre-bias moves..requires an 
+!!I lbias:  (yes,no)                      pre-bias moves..requires an
 !!                                        additional file
 !!I nmoves:                               number of moves between Quickstep
 !!                                        calculations
@@ -450,7 +450,7 @@ CONTAINS
 !!I iupvolume:                            every iupvolume step, update maximum
 !!                                        volume displacement
 !!I conf_prob:                            holds the probabilities of doing a
-!!                                        bond langth change (1), 
+!!                                        bond langth change (1),
 !!                                  angle change (2), or dihedral change(3)
 !!I pmswap:                               probability of doing a swap move
 !!I pmvolume:                             probability of doing a volume move
@@ -497,7 +497,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineN,error,failure)
 
-    
+
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(mc_section)
@@ -531,14 +531,14 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
       SELECT CASE (method_name_id)
       CASE (do_fist)
-         mc_par % iprint = 100 
+         mc_par % iprint = 100
       CASE (do_kg)
          mc_par % iprint = 10
       CASE (do_qs)
          mc_par % iprint = 1
       END SELECT
 
-      logger=>cp_error_get_logger(error) 
+      logger=>cp_error_get_logger(error)
       iw = cp_logger_get_default_unit_nr(logger)
       IF(para_env%ionode) WRITE ( iw, * )
 
@@ -721,7 +721,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             'before a Quickstep energy calculation'
             WRITE( iw, '(A)' ) ' MC|      takes place.'
          ENDIF
-         
+
          WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nswapmoves,&
               ' swap insertions will be attempted ',&
               'per molecular swap move'
@@ -806,12 +806,12 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
       NULLIFY(cell,potparm,fist_nonbond_env,fist_env)
 
       lterminate=.FALSE.
-      CALL force_env_get(force_env,fist_env=fist_env)
+      CALL force_env_get(force_env,fist_env=fist_env,error=error)
       CALL get_fist_env(fist_env,cell=cell,&
          fist_nonbond_env=fist_nonbond_env,error=error)
-      CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm)
+      CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm,error=error)
       CALL get_cell(cell,abc=abc)
-      
+
 ! find the largest value of rcutsq
       rcutsq_max=0.0d0
       DO itype=1,SIZE(potparm%pot,1)
@@ -839,8 +839,8 @@ END SUBROUTINE find_mc_rcut
 !!     determine_conf_prob
 !!
 !!   FUNCTION
-!!     determines the probabilities of doing interal conformational moves 
-!!     in the system, based on how many of each type there are...the 
+!!     determines the probabilities of doing interal conformational moves
+!!     in the system, based on how many of each type there are...the
 !!     result is stored in mc_par % conf_prob
 !!
 !!   ARGUMENTS

@@ -77,7 +77,7 @@ CONTAINS
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!    
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -93,8 +93,8 @@ CONTAINS
       POINTER                                :: npt_info
     TYPE(cell_type), INTENT(inout)           :: box
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt', &
       routineP = moduleN//':'//routineN
@@ -176,7 +176,7 @@ CONTAINS
     ELSE
        CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
             box % deth, simpar % nfree, simpar % ensemble, &
-            simpar % cmass, para_env, globenv )
+            simpar % cmass, para_env, globenv ,error=error)
     END IF
   END SUBROUTINE initialize_npt
 
@@ -192,7 +192,7 @@ CONTAINS
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!    
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -207,8 +207,8 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
       routineP = moduleN//':'//routineN
@@ -300,12 +300,12 @@ CONTAINS
        ! Chain variables
        SELECT CASE (simpar % ensemble )
        CASE DEFAULT
-          temp = simpar % temp_ext 
+          temp = simpar % temp_ext
        END SELECT
 
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-            temp, para_env, globenv )
+            temp, para_env, globenv ,error=error)
     END IF
 
   END SUBROUTINE initialize_nhc_baro
@@ -341,8 +341,8 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: print_section, nose_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
       routineP = moduleN//':'//routineN
@@ -443,7 +443,7 @@ CONTAINS
        ! Chain variables
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-            simpar % temp_ext, para_env, globenv )
+            simpar % temp_ext, para_env, globenv ,error=error)
 
     ENDIF
 
@@ -501,8 +501,8 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
       routineP = moduleN//':'//routineN
@@ -518,18 +518,18 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-    NULLIFY(coeff_section,nose_section,buffer,work_section2) 
+    NULLIFY(coeff_section,nose_section,buffer,work_section2)
     explicit  =.FALSE.
     restart = .FALSE.
-    md_new_section => section_vals_get_subs_vals(root_section,"MOTION%MD")
-    coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF")
-    nose_section => section_vals_get_subs_vals(coeff_section,"nose")
-    CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
-    CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
-    CALL section_vals_val_get(md_new_section,"timestep",r_val=dt)
+    md_new_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
+    coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF",error=error)
+    nose_section => section_vals_get_subs_vals(coeff_section,"nose",error=error)
+    CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc,error=error)
+    CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
+    CALL section_vals_val_get(md_new_section,"timestep",r_val=dt,error=error)
 
     ! fire up the thermostats
-    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, para_env )
+    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, para_env ,error=error)
 
     IF (ASSOCIATED(work_section)) THEN
        work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
@@ -596,7 +596,7 @@ CONTAINS
        ELSE
           ! Initializing thermostat forces and velocities for the Nose-Hoover
           ! Chain variables
-          CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, para_env, globenv)
+          CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, para_env, globenv,error=error)
           ! Set up the Yoshida weights
           IF ( nhc % nyosh > 0 ) THEN
              ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )

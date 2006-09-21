@@ -55,7 +55,7 @@ MODULE qmmm_types
   PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
-  PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type 
+  PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type
   PUBLIC :: qmmm_pseudo_link_type, qmmm_pseudo_link_p_type
   PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
   PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
@@ -127,15 +127,15 @@ MODULE qmmm_types
      INTEGER  :: qm_index, mm_index
      REAL(KIND=dp) :: alpha
   END TYPE qmmm_imomm_link_type
-  
+
   TYPE qmmm_imomm_link_p_type
      TYPE(qmmm_imomm_link_type), POINTER :: link
   END TYPE qmmm_imomm_link_p_type
   ! PSEUDO
   TYPE qmmm_pseudo_link_type
-     INTEGER  :: qm_index, mm_index     
+     INTEGER  :: qm_index, mm_index
   END TYPE qmmm_pseudo_link_type
-  
+
   TYPE qmmm_pseudo_link_p_type
      TYPE(qmmm_pseudo_link_type), POINTER :: link
   END TYPE qmmm_pseudo_link_p_type
@@ -162,7 +162,7 @@ MODULE qmmm_types
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
      TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials
-     TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs     
+     TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
   END TYPE add_set_type
 
   TYPE qmmm_env_qm_type
@@ -224,8 +224,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -233,8 +233,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_create(qmmm_env, error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create', &
       routineP = moduleN//':'//routineN
@@ -264,7 +264,7 @@ CONTAINS
        CALL init_inp_info(qmmm_env%inp_info)
     END IF
   END SUBROUTINE qmmm_env_mm_create
-  
+
 !!****f* qmmm_types/qmmm_env_mm_retain [1.0] *
 !!
 !!   NAME
@@ -277,17 +277,17 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
 !!
-!!*** **********************************************************************  
+!!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_retain(qmmm_env,error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_retain', &
       routineP = moduleN//':'//routineN
@@ -295,7 +295,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    
+
     CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
@@ -315,8 +315,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -325,8 +325,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_release(qmmm_env,error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release', &
       routineP = moduleN//':'//routineN
@@ -371,7 +371,7 @@ CONTAINS
     END IF
     NULLIFY(qmmm_env)
   END SUBROUTINE qmmm_env_mm_release
-  
+
 !!****f* qmmm_types/qmmm_env_qm_create [1.0] *
 !!
 !!   NAME
@@ -384,8 +384,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -393,8 +393,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_create', &
       routineP = moduleN//':'//routineN
@@ -446,8 +446,8 @@ END SUBROUTINE qmmm_env_qm_create
 !!
 !!   INPUTS
 !!     - qmmm_env: the qmmm_env to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -455,8 +455,8 @@ END SUBROUTINE qmmm_env_qm_create
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_retain', &
       routineP = moduleN//':'//routineN
@@ -464,7 +464,7 @@ SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
@@ -487,8 +487,8 @@ END SUBROUTINE qmmm_env_qm_retain
 !!
 !!   INPUTS
 !!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -497,8 +497,8 @@ END SUBROUTINE qmmm_env_qm_retain
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
       routineP = moduleN//':'//routineN
@@ -518,11 +518,11 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
         IF (ASSOCIATED(qmmm_env%maxradius)) THEN
            DEALLOCATE(qmmm_env%maxradius,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-        END IF 
+        END IF
         IF (ASSOCIATED(qmmm_env%mm_atom_index)) THEN
            DEALLOCATE(qmmm_env%mm_atom_index,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-        END IF        
+        END IF
         IF (ASSOCIATED(qmmm_env%mm_atom_chrg)) THEN
            DEALLOCATE(qmmm_env%mm_atom_chrg,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -545,12 +545,12 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%Potentials)) THEN
-           CALL qmmm_pot_type_dealloc(qmmm_env%Potentials)
+           CALL qmmm_pot_type_dealloc(qmmm_env%Potentials,error=error)
            DEALLOCATE(qmmm_env%Potentials,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%Per_Potentials)) THEN
-           CALL qmmm_per_pot_type_dealloc(qmmm_env%Per_Potentials)
+           CALL qmmm_per_pot_type_dealloc(qmmm_env%Per_Potentials,error=error)
            DEALLOCATE(qmmm_env%Per_Potentials,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
@@ -583,8 +583,8 @@ END SUBROUTINE qmmm_env_qm_release
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -593,8 +593,8 @@ END SUBROUTINE qmmm_env_qm_release
 SUBROUTINE pgfs_release(pgfs, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release', &
       routineP = moduleN//':'//routineN
@@ -638,8 +638,8 @@ END SUBROUTINE pgfs_release
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -647,8 +647,8 @@ END SUBROUTINE pgfs_release
 !!*** **********************************************************************
 SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc', &
       routineP = moduleN//':'//routineN
@@ -658,21 +658,21 @@ SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
   IF (ASSOCIATED(qmmm_links%imomm)) THEN
      DO i = 1, SIZE(qmmm_links%imomm)
         IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END DO
      DEALLOCATE(qmmm_links%imomm, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
+     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
   END IF
   IF (ASSOCIATED(qmmm_links%pseudo)) THEN
      DO i = 1, SIZE(qmmm_links%pseudo)
         IF (ASSOCIATED(qmmm_links%pseudo(i)%link)) DEALLOCATE(qmmm_links%pseudo(i)%link, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END DO
      DEALLOCATE(qmmm_links%pseudo, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
+     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
   END IF
   DEALLOCATE(qmmm_links, stat=stat)
-  CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
+  CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 END SUBROUTINE qmmm_links_dealloc
 
 
@@ -690,8 +690,8 @@ END SUBROUTINE qmmm_links_dealloc
 !!
 !!   INPUTS
 !!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -700,8 +700,8 @@ END SUBROUTINE qmmm_links_dealloc
 SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc', &
       routineP = moduleN//':'//routineN
@@ -710,13 +710,13 @@ SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
 
   DO I = 1, SIZE(Potentials)
      IF (ASSOCIATED(Potentials(I)%Pot)) THEN
-        IF (ASSOCIATED(Potentials(I)%Pot%pot0_2)) THEN   
+        IF (ASSOCIATED(Potentials(I)%Pot%pot0_2)) THEN
            DEALLOCATE(Potentials(I)%Pot%pot0_2,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
-        IF (ASSOCIATED(Potentials(I)%Pot%mm_atom_index)) THEN   
+        IF (ASSOCIATED(Potentials(I)%Pot%mm_atom_index)) THEN
            DEALLOCATE(Potentials(I)%Pot%mm_atom_index,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)              
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         DEALLOCATE(Potentials(I)%Pot,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -740,8 +740,8 @@ END SUBROUTINE qmmm_pot_type_dealloc
 !!
 !!   INPUTS
 !!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -750,8 +750,8 @@ END SUBROUTINE qmmm_pot_type_dealloc
 SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: Per_Potentials
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc', &
       routineP = moduleN//':'//routineN
@@ -760,28 +760,28 @@ SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
 
   DO I = 1, SIZE(Per_Potentials)
      IF (ASSOCIATED(Per_Potentials(I)%Pot)) THEN
-        IF (ASSOCIATED(Per_Potentials(I)%Pot%LG)) THEN   
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%LG)) THEN
            DEALLOCATE(Per_Potentials(I)%Pot%LG,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
-        IF (ASSOCIATED(Per_Potentials(I)%Pot%gx)) THEN   
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%gx)) THEN
            DEALLOCATE(Per_Potentials(I)%Pot%gx,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
-        IF (ASSOCIATED(Per_Potentials(I)%Pot%gy)) THEN   
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%gy)) THEN
            DEALLOCATE(Per_Potentials(I)%Pot%gy,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
-        IF (ASSOCIATED(Per_Potentials(I)%Pot%gz)) THEN   
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%gz)) THEN
            DEALLOCATE(Per_Potentials(I)%Pot%gz,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
-        IF (ASSOCIATED(Per_Potentials(I)%Pot%mm_atom_index)) THEN   
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%mm_atom_index)) THEN
            DEALLOCATE(Per_Potentials(I)%Pot%mm_atom_index,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)              
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(Per_Potentials(I)%Pot%TabLR)) THEN
-           CALL pw_pool_give_back_pw ( Per_Potentials(I)%Pot%pw_pool,  Per_Potentials(I)%Pot%TabLR)
+           CALL pw_pool_give_back_pw ( Per_Potentials(I)%Pot%pw_pool,  Per_Potentials(I)%Pot%TabLR,error=error)
         END IF
         IF (ASSOCIATED(Per_Potentials(I)%Pot%pw_pool)) THEN
            CALL pw_pool_release ( Per_Potentials(I)%Pot%pw_pool, error=error)
@@ -810,8 +810,8 @@ END SUBROUTINE qmmm_per_pot_type_dealloc
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -819,8 +819,8 @@ END SUBROUTINE qmmm_per_pot_type_dealloc
 !!*** **********************************************************************
 SUBROUTINE add_set_release(added_charges, error)
     TYPE(add_set_type), POINTER              :: added_charges
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_set_release', &
       routineP = moduleN//':'//routineN
@@ -833,7 +833,7 @@ SUBROUTINE add_set_release(added_charges, error)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
      IF (ASSOCIATED(added_charges%added_particles)) THEN
-        CALL deallocate_particle_set(added_charges%added_particles)        
+        CALL deallocate_particle_set(added_charges%added_particles)
      END IF
      IF (ASSOCIATED(added_charges%mm_atom_index)) THEN
         DEALLOCATE(added_charges%mm_atom_index, stat=stat)
@@ -870,7 +870,7 @@ SUBROUTINE add_set_release(added_charges, error)
      CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
   END IF
 END SUBROUTINE add_set_release
- 
+
 
 !!****f* qmmm_types/create_add_set_type [1.0] *
 !!
@@ -884,8 +884,8 @@ END SUBROUTINE add_set_release
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -894,8 +894,8 @@ END SUBROUTINE add_set_release
 SUBROUTINE create_add_set_type(added_charges, ndim, error)
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, INTENT(IN)                      :: ndim
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type', &
       routineP = moduleN//':'//routineN

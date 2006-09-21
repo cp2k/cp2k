@@ -11,10 +11,10 @@
 !!     fist_environment
 !!
 !!   FUNCTION
-!!    initialize fist environment             
+!!    initialize fist environment
 !!   AUTHOR
 !!     CJM
-!!   HISTORY 
+!!   HISTORY
 !!   SOURCE
 !******************************************************************************
 
@@ -89,14 +89,14 @@ MODULE fist_environment
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_environment'
   PUBLIC :: fist_init
-  
+
 !!*****
 !-----------------------------------------------------------------------------!
 
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-! FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST 
+! FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST
 !-----------------------------------------------------------------------------!
 !!
 !!   NAME
@@ -123,8 +123,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init'
 
@@ -155,7 +155,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
   CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.
-  logger => cp_error_get_logger(error)  
+  logger => cp_error_get_logger(error)
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
@@ -173,10 +173,10 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL set_fist_env(fist_env,input=force_env_section,error=error)
 
   iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
-       extension=".mmLog",error=error)    
+       extension=".mmLog",error=error)
   CALL fist_header(iw, iw>0)
   CALL cp_print_key_finished_output(iw,logger,mm_section,&
-       "PRINT%PROGRAM_BANNER",error=error)             
+       "PRINT%PROGRAM_BANNER",error=error)
 
   CALL cp_subsys_create ( subsystem, para_env = para_env, error = error )
 
@@ -223,7 +223,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-  
+
   CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
                           fist_nonbond_env, ewald_env, force_env_section,&
                           error )
@@ -256,8 +256,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init_subsys'
 
@@ -289,7 +289,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 ! Print the molecule kind set
   CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
 
-! Print the atomic coordinates 
+! Print the atomic coordinates
   CALL write_fist_particle_coordinates(particle_set,cell,force_env_section,error)
   CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
@@ -314,7 +314,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
 ! Initialize self-interaction and neutralizing background
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &
-                    thermo % e_self, thermo % e_neut )
+                    thermo % e_self, thermo % e_neut ,error=error)
 
 ! set the fist_env
   CALL set_fist_env ( fist_env = fist_env, subsys = subsystem, error = error )
@@ -323,8 +323,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
                       local_molecules=local_molecules,&
                       local_particles=local_particles,&
                       ewald_env=ewald_env, ewald_pw=ewald_pw, &
-                      fist_nonbond_env=fist_nonbond_env, thermo=thermo )  
-    
+                      fist_nonbond_env=fist_nonbond_env, thermo=thermo ,error=error)
+
   CALL distribution_1d_release ( local_particles, error = error )
   CALL distribution_1d_release ( local_molecules, error = error )
   CALL ewald_pw_release ( ewald_pw, error )

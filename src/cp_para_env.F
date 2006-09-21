@@ -84,8 +84,8 @@ CONTAINS
     INTEGER, INTENT(in)                      :: group
     INTEGER, INTENT(in), OPTIONAL            :: source, mepos, num_pe
     LOGICAL, INTENT(in), OPTIONAL            :: owns_group
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_create', &
       routineP = moduleN//':'//routineN
@@ -145,8 +145,8 @@ CONTAINS
   SUBROUTINE cp_para_env_duplicate(para_env, TEMPLATE, source,error)
     TYPE(cp_para_env_type), POINTER          :: para_env, TEMPLATE
     INTEGER, INTENT(in), OPTIONAL            :: source
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_duplicate', &
       routineP = moduleN//':'//routineN
@@ -202,8 +202,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_retain(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_retain', &
       routineP = moduleN//':'//routineN
@@ -247,8 +247,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_release(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_release', &
       routineP = moduleN//':'//routineN
@@ -298,8 +298,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_para_env_update(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_update', &
       routineP = moduleN//':'//routineN
@@ -346,8 +346,8 @@ CONTAINS
 SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_write', &
       routineP = moduleN//':'//routineN
@@ -410,8 +410,8 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
     TYPE(cp_para_cart_type), POINTER         :: cart
     INTEGER, INTENT(in)                      :: group, ndims
     LOGICAL, INTENT(in), OPTIONAL            :: owns_group
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_create', &
       routineP = moduleN//':'//routineN
@@ -466,8 +466,8 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
 !!*** **********************************************************************
 SUBROUTINE cp_cart_update(cart,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_update', &
       routineP = moduleN//':'//routineN
@@ -508,8 +508,8 @@ END SUBROUTINE cp_cart_update
 !!*** **********************************************************************
 SUBROUTINE cp_cart_release(cart,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_release', &
       routineP = moduleN//':'//routineN
@@ -557,8 +557,8 @@ END SUBROUTINE cp_cart_release
 !!*** **********************************************************************
 SUBROUTINE cp_cart_retain(cart,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_retain', &
       routineP = moduleN//':'//routineN
@@ -599,8 +599,8 @@ END SUBROUTINE cp_cart_retain
 SUBROUTINE cp_cart_write(cart,unit_nr,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_write', &
       routineP = moduleN//':'//routineN

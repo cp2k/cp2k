@@ -13,7 +13,7 @@
 !!
 !!   NOTES
 !!     -
-!!     
+!!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 !!
@@ -110,7 +110,7 @@ CONTAINS
 !!     - tbmd_env: The tbmd environment of matter
 !!     - orthogonal_basis: Logical which indicates in the underlying
 !!                         basis-set is assumed to be orthogonal or not.
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -124,8 +124,8 @@ CONTAINS
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN), OPTIONAL            :: orthogonal_basis
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energies', &
       routineP = moduleN//':'//routineN
@@ -179,9 +179,9 @@ CONTAINS
 
     use_cholesky = .TRUE.
     use_jacobi   = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
- 
+
     IF (.NOT. failure) THEN
       force_env_section => tbmd_env%force_env_input
 
@@ -239,7 +239,7 @@ CONTAINS
 
       CALL replicate_matrix_structure(source=tbmd_env%matrix_h, TARGET=tbmd_env%matrix_p, &
                                       target_name="Density-Matrix", &
-                                      target_symmetry="symmetric")
+                                      target_symmetry="symmetric",error=error)
 
       CALL calculate_density_matrix(mo_set=mos, density_matrix=tbmd_env%matrix_p, &
                                     error=error)
@@ -253,7 +253,7 @@ CONTAINS
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
       CALL tbmd_env_get(tbmd_env=tbmd_env, subsystem=subsys, error=error)
-      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
+      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
 
       nparticle_kind = atomic_kinds%n_els
 
@@ -375,7 +375,7 @@ CONTAINS
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -388,8 +388,8 @@ CONTAINS
   SUBROUTINE tbmd_print_energies(tbmd_env, output_unit, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_energies', &
       routineP = moduleN//':'//routineN
@@ -421,7 +421,7 @@ CONTAINS
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -435,8 +435,8 @@ CONTAINS
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_hamiltonian', &
       routineP = moduleN//':'//routineN
@@ -524,7 +524,7 @@ CONTAINS
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -538,8 +538,8 @@ CONTAINS
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'tbmd_print_hamiltonian_pattern', &
@@ -644,7 +644,7 @@ CONTAINS
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -657,8 +657,8 @@ CONTAINS
   SUBROUTINE tbmd_print_eigenvalues(tbmd_env, output_unit, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_eigenvalues', &
       routineP = moduleN//':'//routineN
@@ -673,7 +673,7 @@ CONTAINS
 
       WRITE (unit_nr,*) ""
       WRITE (unit_nr,*) "The eigenvalues of the H-Matrix!"
-      WRITE (unit_nr,*) "nmo=", tbmd_env%mos%nmo 
+      WRITE (unit_nr,*) "nmo=", tbmd_env%mos%nmo
       WRITE (unit_nr,*) "nao=", tbmd_env%mos%nao
       WRITE (unit_nr,*) ""
       DO i = 1,SIZE(tbmd_env%mos%eigenvalues)
@@ -699,7 +699,7 @@ CONTAINS
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -712,8 +712,8 @@ CONTAINS
   SUBROUTINE tbmd_print_occupation(tbmd_env, output_unit, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_occupation', &
       routineP = moduleN//':'//routineN
@@ -752,7 +752,7 @@ CONTAINS
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
@@ -765,8 +765,8 @@ CONTAINS
   SUBROUTINE tbmd_print_eigenvectors(tbmd_env, output_unit, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_eigenvectors', &
       routineP = moduleN//':'//routineN

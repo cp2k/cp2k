@@ -17,7 +17,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     10.2005 created [JCS]
-!!             
+!!
 !!
 !!   SOURCE
 !****************************************************************************
@@ -54,8 +54,8 @@ MODULE qs_numerical_pressure
 
   SUBROUTINE qs_calc_numerical_pressure(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_numerical_pressure', &
       routineP = moduleN//':'//routineN
@@ -85,10 +85,10 @@ MODULE qs_numerical_pressure
        !
        ! Copy atomic positions into pos_ref
        !
-       CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)       
+       CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)
        para_env=>force_env%para_env
        iw = cp_logger_get_default_unit_nr(logger)
- 
+
        IF (iw>0) THEN
        WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
            'NUMERICAL STRESS ********************************'
@@ -109,8 +109,8 @@ MODULE qs_numerical_pressure
        END DO
        CALL force_env_get(force_env,cell=cell,cell_ref=cell_ref,&
                           virial=virial, error=error)
-       CALL cell_create(cell_local)
-       CALL cell_clone(cell,cell_local)
+       CALL cell_create(cell_local,error=error)
+       CALL cell_clone(cell,cell_local,error=error)
        !
        ! First change box.
        !
@@ -120,8 +120,8 @@ MODULE qs_numerical_pressure
            cell%hmat(ip,ip) = cell_local%hmat(ip,ip)  - (-1.0_dp)**k * Dx
            CALL get_hinv( cell )
            iseq = 0
-           !          
-           ! Then scale positions.   
+           !
+           ! Then scale positions.
            !
            DO  isubsys = 1, SIZE(subsys)
              particles => subsys(isubsys)%subsys%particles%els
@@ -144,9 +144,9 @@ MODULE qs_numerical_pressure
            CALL set_qs_env(force_env%qs_env,&
                            cell=cell,error=error)
            CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
-           CALL qs_ks_create ( new_ks_env, force_env % qs_env )
-           CALL set_qs_env(force_env % qs_env, ks_env=new_ks_env )
-           CALL qs_ks_release ( new_ks_env )
+           CALL qs_ks_create ( new_ks_env, force_env % qs_env ,error=error)
+           CALL set_qs_env(force_env % qs_env, ks_env=new_ks_env ,error=error)
+           CALL qs_ks_release ( new_ks_env ,error=error)
            !
            ! Compute energies
            !
@@ -157,7 +157,7 @@ MODULE qs_numerical_pressure
            cell%hmat(ip,ip) = cell_local%hmat(ip,ip)
          END DO
          CALL get_hinv( cell )
-         numer_stress(ip) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)                
+         numer_stress(ip) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)
          virial%pv_virial(ip,ip) = (-1.0_dp)*numer_stress(ip) * cell_local%hmat(ip,ip)
          IF (globenv%run_type_id.EQ.qs_debug_run) THEN
            IF (para_env%ionode) THEN
@@ -168,7 +168,7 @@ MODULE qs_numerical_pressure
        END DO
        !
        ! Reset postions and rebuild environment.
-       ! 
+       !
        iseq = 0
        DO isubsys=1, SIZE(subsys)
          particles => subsys(isubsys)%subsys%particles%els
@@ -186,9 +186,9 @@ MODULE qs_numerical_pressure
        CALL set_qs_env(force_env%qs_env,&
                        cell=cell,error=error)
        CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
-       CALL qs_ks_create ( new_ks_env, force_env % qs_env )
-       CALL set_qs_env (force_env % qs_env, ks_env=new_ks_env )
-       CALL qs_ks_release ( new_ks_env )
+       CALL qs_ks_create ( new_ks_env, force_env % qs_env ,error=error)
+       CALL set_qs_env (force_env % qs_env, ks_env=new_ks_env ,error=error)
+       CALL qs_ks_release ( new_ks_env ,error=error)
 
        IF (para_env%ionode) THEN
        WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
@@ -196,7 +196,7 @@ MODULE qs_numerical_pressure
        END IF
 
        IF (ASSOCIATED( pos_ref )) DEALLOCATE( pos_ref )
-       IF (ASSOCIATED( cell_local )) CALL cell_release( cell_local )
+       IF (ASSOCIATED( cell_local )) CALL cell_release( cell_local ,error=error)
     END IF
   END SUBROUTINE qs_calc_numerical_pressure
 

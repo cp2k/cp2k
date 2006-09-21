@@ -10,10 +10,10 @@
 !!
 !!   FUNCTION
 !!     used for all operations involving cp_fm_types and sparse matrices
-!!     (real_matrix) 
+!!     (real_matrix)
 !!
 !!   NOTES
-!!     first version : most routines imported 
+!!     first version : most routines imported
 !!
 !!   AUTHOR
 !!     Joost VandeVondele (2003-08)
@@ -62,7 +62,7 @@ MODULE cp_sm_fm_interactions
        cp_sm_plus_fm_fm_t
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_sm_fm_interactions'
-  
+
   !****************************************************************************
 
 CONTAINS
@@ -71,7 +71,7 @@ CONTAINS
 
   SUBROUTINE copy_fm_to_sm(fm,real_matrix,alpha,beta)
 
-    !   Purpose: Copy a BLACS matrix to a sparse matrix. 
+    !   Purpose: Copy a BLACS matrix to a sparse matrix.
     !   real_matrix=beta*real_matrix+alpha*fm
     !   beta defaults to 0, beta to 1
     !   History: - Creation (06.06.2001, Matthias Krack)
@@ -109,7 +109,7 @@ CONTAINS
     !   ---------------------------------------------------------------------------
 
     CALL timeset("copy_fm_to_sm","I","",handle)
-    
+
     my_beta=0._dp
     my_alpha=1._dp
     IF (PRESENT(alpha)) my_alpha=alpha
@@ -264,7 +264,7 @@ CONTAINS
   SUBROUTINE copy_sm_to_fm(real_matrix,fm,error)
 
     !   Purpose: Copy a real_matrix to a fm. It assumes that a block is at most
-    !   present once in the real_matrix. 
+    !   present once in the real_matrix.
     !   Rewrite of the original routines for improved efficiency (Joost VandeVondele, 2003-08)
     !   imported from qs_blacs
 
@@ -272,7 +272,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER    :: real_matrix ! the matrix to copy FROM
     TYPE(cp_fm_type), POINTER :: fm ! the matrix to copy TO
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(inout)  :: error
 
     !   *** Local parameters ***
 
@@ -299,10 +299,10 @@ CONTAINS
     INTEGER :: i,j,k
     INTEGER, DIMENSION(:), POINTER   ::  number_of_blocks_row, cum_num_of_blocks_row
     INTEGER, DIMENSION(:,:), POINTER :: block_info_row
-    INTEGER                          :: total_number_of_blocks_row 
+    INTEGER                          :: total_number_of_blocks_row
     INTEGER, DIMENSION(:), POINTER   ::  number_of_blocks_col, cum_num_of_blocks_col
     INTEGER, DIMENSION(:,:), POINTER :: block_info_col
-    INTEGER                          :: total_number_of_blocks_col 
+    INTEGER                          :: total_number_of_blocks_col
     INTEGER, DIMENSION(:,:), POINTER :: number_of_blocks
     INTEGER, DIMENSION(:,:), POINTER :: total_size_of_blocks
     INTEGER :: total_send_blocks,total_recv_blocks
@@ -358,7 +358,7 @@ CONTAINS
          block_info_col,number_of_blocks,total_size_of_blocks,block_send,block_recv,data_send,data_recv,block_offset, &
          data_offset,send_offset,send_count,recv_offset,recv_count)
 
-    ! find the blocks that are commensurate with both sparse_matrix and cp_fm blocks 
+    ! find the blocks that are commensurate with both sparse_matrix and cp_fm blocks
     ! (i.e. they fully live on just one cpu in both the layouts)
 
     ! rows
@@ -385,11 +385,11 @@ CONTAINS
     total_number_of_blocks_row=SUM(number_of_blocks_row)
     cum_num_of_blocks_row(1)=0
     DO iblock=2,nblock_row
-       cum_num_of_blocks_row(iblock)=cum_num_of_blocks_row(iblock-1)+number_of_blocks_row(iblock-1) 
+       cum_num_of_blocks_row(iblock)=cum_num_of_blocks_row(iblock-1)+number_of_blocks_row(iblock-1)
     ENDDO
 
     ! collect properties
-    ALLOCATE(block_info_row(3,total_number_of_blocks_row),STAT=istat) !start,end,blacs_pe 
+    ALLOCATE(block_info_row(3,total_number_of_blocks_row),STAT=istat) !start,end,blacs_pe
     IF (istat /= 0) CALL stop_memory(routine,"block_info_row",3*total_number_of_blocks_row)
     iblock=1
     isblock=0
@@ -412,7 +412,7 @@ CONTAINS
     ENDDO
     block_info_row(1,1)=1
     DO iblock=2,total_number_of_blocks_row
-       block_info_row(1,iblock)=block_info_row(2,iblock-1)+1 
+       block_info_row(1,iblock)=block_info_row(2,iblock-1)+1
     ENDDO
 
     ! cols
@@ -439,11 +439,11 @@ CONTAINS
     total_number_of_blocks_col=SUM(number_of_blocks_col)
     cum_num_of_blocks_col(1)=0
     DO iblock=2,nblock_col
-       cum_num_of_blocks_col(iblock)=cum_num_of_blocks_col(iblock-1)+number_of_blocks_col(iblock-1) 
+       cum_num_of_blocks_col(iblock)=cum_num_of_blocks_col(iblock-1)+number_of_blocks_col(iblock-1)
     ENDDO
 
     ! collect properties
-    ALLOCATE(block_info_col(3,total_number_of_blocks_col),STAT=istat) !start,end,blacs_pe 
+    ALLOCATE(block_info_col(3,total_number_of_blocks_col),STAT=istat) !start,end,blacs_pe
     IF (istat /= 0) CALL stop_memory(routine,"block_info_col",3*total_number_of_blocks_col)
     iblock=1
     isblock=0
@@ -466,7 +466,7 @@ CONTAINS
     ENDDO
     block_info_col(1,1)=1
     DO iblock=2,total_number_of_blocks_col
-       block_info_col(1,iblock)=block_info_col(2,iblock-1)+1 
+       block_info_col(1,iblock)=block_info_col(2,iblock-1)+1
     ENDDO
 
     ! now count how much / what data has to go to what cpu
@@ -548,7 +548,7 @@ CONTAINS
                 sb_offset_j = block_info_col(1,smblock_col) - first_col(iblock_col)
                 DO j=1,block_info_col(2,smblock_col)-block_info_col(1,smblock_col)+1
                    DO i=1,block_info_row(2,smblock_row)-block_info_row(1,smblock_row)+1
-                      data_offset(ipe)=data_offset(ipe)+1 
+                      data_offset(ipe)=data_offset(ipe)+1
                       data_send(data_offset(ipe))=real_matrix_block(sb_offset_i+i,sb_offset_j+j)
                    ENDDO
                 ENDDO
@@ -663,7 +663,7 @@ CONTAINS
 
   !******************************************************************************
   !
-  ! new version of the cp_sm_fm_multiply, optimized communication, 
+  ! new version of the cp_sm_fm_multiply, optimized communication,
   ! imported from cp_fm_basic_linalg
   !
   !*******************************************************************************
@@ -675,7 +675,7 @@ CONTAINS
     TYPE(cp_fm_type) , POINTER :: v_out
     INTEGER, INTENT(IN)               :: ncol
     REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(cp_error_type), INTENT(inout)  :: error
 
     TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
 
@@ -714,10 +714,10 @@ CPSourceFileRef,&
     CPPrecondition(ncol.ge.0,cp_failure_level,routineP,error,failure)
     IF (ncol .EQ. 0) RETURN
     CALL timeset(routineN,"I","",handle)
-    ! 
+    !
     ! para_env of the sparse and the full matrices should be compatible
-    ! 
-    para_env => v_in%matrix_struct%para_env 
+    !
+    para_env => v_in%matrix_struct%para_env
 
     IF (PRESENT(alpha)) THEN
        alpha_l=alpha
@@ -733,7 +733,7 @@ CPSourceFileRef,&
     failure=.FALSE.
     NULLIFY(local_v_in,local_v_out)
 
-    CALL cp_fm_get_info(v_in,nrow_global=nrow_global)
+    CALL cp_fm_get_info(v_in,nrow_global=nrow_global,error=error)
     num_pe=para_env%num_pe
     mepos =para_env%mepos
     rb=nrow_global
@@ -847,7 +847,7 @@ CPSourceFileRef,&
   END SUBROUTINE cp_sm_fm_multiply_general
 
   ! *****************************************************************************
-  ! computes sparse=sparse+alpha*v*g^T 
+  ! computes sparse=sparse+alpha*v*g^T
   ! imported from cp_fm_basic_linalg
   ! *****************************************************************************
   SUBROUTINE cp_sm_plus_fm_fm_t_general(sparse_matrix,matrix_v,matrix_g,ncol,&
@@ -857,7 +857,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type) , POINTER, OPTIONAL :: matrix_g
     INTEGER, INTENT(IN), OPTIONAL :: ncol
     REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: loc_v,loc_g,newdat
     REAL(KIND = dp) :: prefactor
@@ -894,11 +894,11 @@ CPSourceFileRef,&
     IF (PRESENT(matrix_g)) THEN
        CPPrecondition(ASSOCIATED(matrix_g),cp_failure_level,routineP,error,failure)
        CPPrecondition(matrix_g%ref_count>0,cp_failure_level,routineP,error,failure)
-       g_present=.TRUE. 
+       g_present=.TRUE.
     END IF
     ! we start with te easiest case
 
-    CALL cp_fm_get_info(matrix_v,nrow_global=nrow_global, ncol_global=my_ncol)
+    CALL cp_fm_get_info(matrix_v,nrow_global=nrow_global, ncol_global=my_ncol,error=error)
     IF (PRESENT(ncol)) my_ncol=ncol
     num_pe=matrix_v%matrix_struct%para_env%num_pe
     mepos =matrix_v%matrix_struct%para_env%mepos
@@ -952,7 +952,7 @@ CPSourceFileRef,&
        loc_g=>loc_v
     ENDIF
     DEALLOCATE(newdat)
-    ! EXIT THE GRID 
+    ! EXIT THE GRID
     CALL cp_blacs_gridexit(ictxt_loc)
 #else
     in=my_ncol
@@ -1028,8 +1028,8 @@ CPSourceFileRef,&
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed & Joost VandeVondele
@@ -1045,8 +1045,8 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: v_in, v_out
     INTEGER, INTENT(IN)                      :: ncol
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_fm_multiply', &
       routineP = moduleN//':'//routineN
@@ -1143,8 +1143,8 @@ END SUBROUTINE cp_sm_fm_multiply
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed & Joost VandeVondele
@@ -1160,8 +1160,8 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
     INTEGER, INTENT(IN)                      :: ncol
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_plus_fm_fm_t', &
       routineP = moduleN//':'//routineN
@@ -1234,8 +1234,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Joost VandeVondele & Fawzi Mohamed
@@ -1254,8 +1254,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                                                 do_diagonal_blocks, &
                                                 antisymmetric
     INTEGER, INTENT(in), OPTIONAL            :: ncol
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_fm_multiply_2d', &
       routineP = moduleN//':'//routineN
@@ -1307,7 +1307,7 @@ CPSourceFileRef,&
        myprow        =fm_in%matrix_struct%context%mepos(1)
        mypcol        =fm_in%matrix_struct%context%mepos(2)
        blacs2mpi     => fm_in%matrix_struct%context%blacs2mpi
-       
+
        CALL distribution_2d_get(sm%distribution_2d,&
             row_distribution=atomic_row_distribution,&
             col_distribution=atomic_col_distribution,&
@@ -1334,7 +1334,7 @@ CPSourceFileRef,&
              blacs2mpi(iprow,ipcol)=fm_in%matrix_struct%context%blacs2mpi(ipcol,iprow)
           END DO
        END DO
-       
+
     CALL distribution_2d_get(sm%distribution_2d,&
          col_distribution=atomic_row_distribution,&
          row_distribution=atomic_col_distribution,&
@@ -1427,7 +1427,7 @@ CPSourceFileRef,&
     row_src=blacs2mpi(MODULO(myprow+1,nprow),mypcol)
     col_dest=blacs2mpi(myprow,MODULO(mypcol-1,npcol))
     col_src=blacs2mpi(myprow,MODULO(mypcol+1,npcol))
-    
+
     ! let the magic of the distribution play the game
     DO ijunk=1,njunk
        ! go circular
@@ -1451,7 +1451,7 @@ CPSourceFileRef,&
              CALL get_block_node(block_node=block_node,&
                   block_col=iblock_col,&
                   BLOCK=sparse_block)
-             
+
              IF (iblock_col/=iblock_row.OR.do_diagonal_blocks) THEN
                 sbnrow=sm%last_row(iblock_row)- &
                      sm%first_row(iblock_row)+1
@@ -1471,7 +1471,7 @@ CPSourceFileRef,&
                         sparse_block(1,1),SIZE(sparse_block,1), &
                         1.0_dp,v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1), &
                         junk_size)
-                   
+
                 ELSE
                    CALL DGEMM('N','N',ncol_global_of_junk(gindex),sbncol,sbnrow,alpha_ji, &
                         v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
@@ -1544,14 +1544,14 @@ CPSourceFileRef,&
 !!     cp_sm_plus_fm_fm_t_2d
 !!
 !!   FUNCTION
-!!     computes sparse=sparse+alpha*v*g^T  
+!!     computes sparse=sparse+alpha*v*g^T
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Joost VandeVondele & Fawzi Mohamed
@@ -1567,8 +1567,8 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
     INTEGER, INTENT(IN), OPTIONAL            :: ncol
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_plus_fm_fm_t_2d', &
       routineP = moduleN//':'//routineN
@@ -1618,11 +1618,11 @@ CPSourceFileRef,&
          cp_failure_level, cp_assertion_failed, routineP, "input and output matrixes must be compatible "//&
 CPSourceFileRef,&
          error,failure)
-    
+
     CALL cp_assert(sm%symmetry=="none".OR.sm%symmetry=="symmetric",cp_failure_level,&
          cp_assertion_failed,routineP,"matrix symmetry incorrect in "//&
 CPSourceFileRef,&
-         error,failure) 
+         error,failure)
 
     nprow         =matrix_v%matrix_struct%context%num_pe(1)
     npcol         =matrix_v%matrix_struct%context%num_pe(2)
@@ -1661,7 +1661,7 @@ CPSourceFileRef,&
          sm_last_row(SIZE(sm_last_row))==g_matrix_nrow_g, cp_failure_level,&
          cp_assertion_failed,routineP,"unacceptable matrix sizes in "//&
 CPSourceFileRef,&
-         error,failure) 
+         error,failure)
 
     njunk        =lcm(nprow,npcol)
     IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
@@ -1777,23 +1777,23 @@ CPSourceFileRef,&
                 transpose_block=.FALSE.
              END IF
              IF (.NOT.transpose_block) THEN
-                
+
                 CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_dp, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1),&
                      junk_size,&
                      v_in(junk_in)%array(1,col_offset_in_junk(iblock_col)+1), &
                      junk_size, &
                      1.0_dp,sparse_block(1,1),SIZE(sparse_block,1))
-                
+
              ELSE
-                
+
                 CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_dp, &
                      v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
                      junk_size, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
                      junk_size,&
                      1.0_dp,sparse_block(1,1),SIZE(sparse_block,1))
-                
+
              END IF
 
              block_node => next_block_node(block_node)
@@ -1859,8 +1859,8 @@ CPSourceFileRef,&
 !!     - fm_index: index of the full matrix (1 based)
 !!     - fm_size: number of elements of the full matrix
 !!     - njunk: number of junks you want
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Joost VandeVondele & Fawzi Mohamed
@@ -1871,8 +1871,8 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION junk_of_fm_index(fm_index,fm_size,njunk,error) RESULT(res)
     INTEGER, INTENT(in)                      :: fm_index, fm_size, njunk
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'junk_of_fm_index', &
@@ -1909,8 +1909,8 @@ CPSourceFileRef,&
 !!     aloocates the arrays
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Joost VandeVondele & Fawzi Mohamed
@@ -1932,7 +1932,7 @@ CPSourceFileRef,&
          pcol_of_fm_row, f2c_send_count, f2c_recv_count
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow,&
          ipcol_of_junk_col
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='fm_reshuffle_create_layout',&
@@ -1978,7 +1978,7 @@ CPSourceFileRef,&
             nblock_col=sm_nblock_col, last_row=sm_last_row,&
             last_col=sm_last_col, first_row=sm_first_row,&
             first_col=sm_first_col)
-       
+
     ELSE
        npcol         =fm%matrix_struct%context%num_pe(1)
        nprow         =fm%matrix_struct%context%num_pe(2)
@@ -2031,13 +2031,13 @@ CPSourceFileRef,&
                sm_first_col(local_atomic_cols(ikind)%array(iblock))+1
        END DO
     END DO
-       
+
     njunk        =lcm(nprow,npcol)
     IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
     junk_size = (fm_ncol_global+njunk-1)/ njunk
     njunk_local_in = njunk / nprow
     njunk_local_out= njunk / npcol
-    
+
     ! tells you on which processor row is the junk, depending on pcol
     ALLOCATE(junk_on_prow(njunk,0:npcol-1), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2138,7 +2138,7 @@ CPSourceFileRef,&
     ALLOCATE(f2c_send_count(0:fm_para_env%num_pe-1),&
          f2c_recv_count(0:fm_para_env%num_pe-1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+
     f2c_send_count=0
     DO ijunk=1,njunk
        DO irow=1,fm_nrow_local
@@ -2148,7 +2148,7 @@ CPSourceFileRef,&
                f2c_send_count(blacs2mpi(iprow,ipcol))+ncol_local_of_junk(ijunk)
        END DO
     END DO
- 
+
     CALL timeset(routineN//"_c","I","",handle1)
     CALL mp_alltoall( sb=f2c_send_count, rb=f2c_recv_count, count=1, group=fm_para_env%group )
     CALL timestop(0.0_dp,handle1)
@@ -2174,8 +2174,8 @@ CPSourceFileRef,&
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Joost VandeVondele & Fawzi Mohamed
@@ -2193,7 +2193,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(in) :: shift, hole_pos,ncol
     LOGICAL,INTENT(in) :: sm_transposed
     REAL(KIND = dp), INTENT(in) :: alpha
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     INTEGER :: fm_ncol_global, ijunk_in_junks
     INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local, irow2,bsize
@@ -2254,14 +2254,14 @@ CPSourceFileRef,&
        nprow         =fm%matrix_struct%context%num_pe(1)
        npcol         =fm%matrix_struct%context%num_pe(2)
        blacs2mpi     => fm%matrix_struct%context%blacs2mpi
-       
+
        CALL distribution_2d_get(sm%distribution_2d,&
             row_distribution=atomic_row_distribution,&
             col_distribution=atomic_col_distribution,&
             flat_local_cols=ordered_local_atomic_cols,&
             n_flat_local_cols=n_ordered_local_atomic_cols,&
             error=error)
-       
+
        CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
             nblock_col=sm_nblock_col, last_row=sm_last_row,&
             last_col=sm_last_col, first_row=sm_first_row,&
@@ -2278,20 +2278,20 @@ CPSourceFileRef,&
              blacs2mpi(iprow,ipcol)=fm%matrix_struct%context%blacs2mpi(ipcol,iprow)
           END DO
        END DO
-       
+
        CALL distribution_2d_get(sm%distribution_2d,&
             col_distribution=atomic_row_distribution,&
             row_distribution=atomic_col_distribution,&
             flat_local_rows=ordered_local_atomic_cols,&
             n_flat_local_rows=n_ordered_local_atomic_cols,&
             error=error)
-       
+
        CALL get_matrix_info(sm,nblock_col=sm_nblock_row,&
             nblock_row=sm_nblock_col, last_col=sm_last_row,&
             last_row=sm_last_col, first_col=sm_first_row,&
             first_row=sm_first_col)
     END IF
-    
+
     myprow        =fm%matrix_struct%context%mepos(1)
     mypcol        =fm%matrix_struct%context%mepos(2)
 
@@ -2299,7 +2299,7 @@ CPSourceFileRef,&
     fm_npcol=fm%matrix_struct%context%num_pe(2)
     fm_blacs2mpi => fm%matrix_struct%context%blacs2mpi
     fm_first_prow=fm%matrix_struct%first_p_pos(1)
-    fm_first_pcol=fm%matrix_struct%first_p_pos(2)   
+    fm_first_pcol=fm%matrix_struct%first_p_pos(2)
     CALL cp_fm_get_info(fm,ncol_global=fm_ncol_global,&
          ncol_local=fm_ncol_local, nrow_local=fm_nrow_local,&
          row_indices=fm_row_indices, col_indices=fm_col_indices,&
@@ -2307,7 +2307,7 @@ CPSourceFileRef,&
          para_env=fm_para_env,error=error)
     CPPrecondition(fm_ncol_global>=ncol,cp_failure_level,routineP,error,failure)
     fm_ncol_global=ncol
-    
+
     njunk        =lcm(nprow,npcol)
     IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
     junk_size = (fm_ncol_global+njunk-1)/ njunk
@@ -2387,7 +2387,7 @@ CPSourceFileRef,&
     ALLOCATE(rcv_pos(0:fm_para_env%num_pe-1), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rcv_pos=rcv_offsets
-    
+
     IF (gindex_of_junk(1)+njunk_local_in > njunk) THEN
        ijunk_offset=njunk-(gindex_of_junk(1)-1)
     ELSE
@@ -2429,7 +2429,7 @@ CPSourceFileRef,&
                    rcv_c(ip)=rcv_c(ip)-1
                    rcv_pos(ip)=rcv_pos(ip)+1
                    junks(ijunk_in_junks)%array(icol,irow_junk)=&
-                        rcv_buffer(rcv_pos(ip))                      
+                        rcv_buffer(rcv_pos(ip))
                 END DO
              END DO
           END DO
@@ -2467,8 +2467,8 @@ CPSourceFileRef,&
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Joost VandeVondele & Fawzi Mohamed
@@ -2485,7 +2485,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(in) :: shift, hole_pos,ncol
     LOGICAL,INTENT(in) :: sm_transposed
     REAL(KIND = dp), INTENT(in) :: beta
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     INTEGER :: fm_ncol_global, ijunk_in_junks
     INTEGER :: nprow,npcol,fm_ncol_local, fm_nrow_local
@@ -2544,14 +2544,14 @@ CPSourceFileRef,&
        nprow         =fm%matrix_struct%context%num_pe(1)
        npcol         =fm%matrix_struct%context%num_pe(2)
        blacs2mpi     => fm%matrix_struct%context%blacs2mpi
-       
+
        CALL distribution_2d_get(sm%distribution_2d,&
             row_distribution=atomic_row_distribution,&
             col_distribution=atomic_col_distribution,&
             flat_local_cols=ordered_local_atomic_cols,&
             n_flat_local_cols=n_ordered_local_atomic_cols,&
             error=error)
-       
+
        CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
             nblock_col=sm_nblock_col, last_row=sm_last_row,&
             last_col=sm_last_col, first_row=sm_first_row,&
@@ -2568,14 +2568,14 @@ CPSourceFileRef,&
              blacs2mpi(iprow,ipcol)=fm%matrix_struct%context%blacs2mpi(ipcol,iprow)
           END DO
        END DO
-       
+
        CALL distribution_2d_get(sm%distribution_2d,&
             col_distribution=atomic_row_distribution,&
             row_distribution=atomic_col_distribution,&
             flat_local_rows=ordered_local_atomic_cols,&
             n_flat_local_rows=n_ordered_local_atomic_cols,&
             error=error)
-       
+
        CALL get_matrix_info(sm,nblock_col=sm_nblock_row,&
             nblock_row=sm_nblock_col, last_col=sm_last_row,&
             last_row=sm_last_col, first_col=sm_first_row,&
@@ -2589,7 +2589,7 @@ CPSourceFileRef,&
     fm_npcol=fm%matrix_struct%context%num_pe(2)
     fm_blacs2mpi => fm%matrix_struct%context%blacs2mpi
     fm_first_prow=fm%matrix_struct%first_p_pos(1)
-    fm_first_pcol=fm%matrix_struct%first_p_pos(2)    
+    fm_first_pcol=fm%matrix_struct%first_p_pos(2)
     CALL cp_fm_get_info(fm,ncol_global=fm_ncol_global,&
          ncol_local=fm_ncol_local, nrow_local=fm_nrow_local,&
          row_indices=fm_row_indices, col_indices=fm_col_indices,&
@@ -2597,7 +2597,7 @@ CPSourceFileRef,&
          para_env=fm_para_env,error=error)
     CPPrecondition(fm_ncol_global>=ncol,cp_failure_level,routineP,error,failure)
     fm_ncol_global=ncol
-    
+
     njunk        =lcm(nprow,npcol)
     IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
     junk_size = (fm_ncol_global+njunk-1)/ njunk
@@ -2677,7 +2677,7 @@ CPSourceFileRef,&
                      junks(ijunk_in_junks)%array(icol,irow_junk)
                 END DO
              END DO
-             
+
           END DO
        END DO
     END DO

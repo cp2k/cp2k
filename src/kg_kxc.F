@@ -7,13 +7,13 @@
 !!****** cp2k/kg_force [1.0] *
 !!
 !!   NAME
-!!     kg_kxc 
+!!     kg_kxc
 !!
 !!   FUNCTION
 !!     calculation of the Kinetic + Exchange correlation
 !!
 !!   AUTHOR
-!!     gloria,30.09.2002 
+!!     gloria,30.09.2002
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -65,14 +65,14 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Calculates the K-XC energy  and potential, and potentials associated
-!!     to  second and third derivatives of the KXC kernel 
+!!     to  second and third derivatives of the KXC kernel
 !!     V1_r = dvol* rhop_r * (partial^2  (E_kxc) / partial^2 rho0)
 !!     V2_r = dvol**2 * rhop_r**2 * (partial ^3 (E_kxc) /partial^3 rho0 )
 !!     Full gradient functional for Exc and Vxc, only lda functional
 !!     for higher order derivatives.
 !!
 !!   AUTHOR
-!!     gt         
+!!     gt
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -89,8 +89,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(out)               :: e1_xc, e2_xc
     TYPE(section_vals_type), POINTER         :: xc_section
     LOGICAL, INTENT(in)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "calc_kxc_derivatives (MODULE kg_kxc)"
@@ -114,13 +114,13 @@ CONTAINS
 
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
                              v2_r%pw, e1_xc, e2_xc, order, xc_section, pw_pool, error)
- 
+
   IF ( rho_r%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
     CALL mp_sum ( e1_xc, rho_r%pw%pw_grid%para%group )
     CALL mp_sum ( e2_xc, rho_r%pw%pw_grid%para%group )
   END IF
 
-  e2_xc =  0.5_dp*rho_r%pw%pw_grid%dvol*e2_xc      
+  e2_xc =  0.5_dp*rho_r%pw%pw_grid%dvol*e2_xc
 
   v1xc (:,:,:) =  v1xc(:,:,:) *rho_r%pw%pw_grid%dvol
   IF (calculate_forces)THEN
@@ -149,8 +149,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: order
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_derivatives', &
       routineP = moduleN//':'//routineN
@@ -190,15 +190,15 @@ CONTAINS
         deriv_order=order,&
         rho_r=my_rho_r,rho_g=my_rho_g,tau=my_tau,xc_section=xc_section,&
         cell=cell,pw_pool=pw_pool,&
-        needs_basic_components=.FALSE.)
+        needs_basic_components=.FALSE.,error=error)
 
    DEALLOCATE(my_rho_r,stat=stat)
    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    ! check for unsupported derivatives
    pos => derivative_set%derivs
-   DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv))
+   DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv,error=error))
       CALL xc_derivative_get(deriv,order=deriv_order,&
-           desc=desc)
+           desc=desc,error=error)
       IF (deriv_order==2.AND.desc/="(rho)(rho)".OR.&
            order==3.and.deriv_order==3.AND.desc/="(rho)(rho)(rho)") THEN
          CALL stop_program(routine=routineP,&
@@ -207,10 +207,10 @@ CONTAINS
       END IF
    END DO
 
-   CALL xc_rho_set_release(rho_set)
-   deriv => xc_dset_get_derivative(derivative_set,"(rho)(rho)")
+   CALL xc_rho_set_release(rho_set,error=error)
+   deriv => xc_dset_get_derivative(derivative_set,"(rho)(rho)",error=error)
    IF (ASSOCIATED(deriv)) THEN
-      CALL xc_derivative_get(deriv,deriv_data=pot)
+      CALL xc_derivative_get(deriv,deriv_data=pot,error=error)
       DO k = bo(1,3), bo(2,3)
          DO j = bo(1,2), bo(2,2)
             DO i = bo(1,1), bo(2,1)
@@ -222,9 +222,9 @@ CONTAINS
       CALL pw_zero(v1)
    END IF
    IF(order==3)THEN
-      deriv => xc_dset_get_derivative(derivative_set,"(rho)(rho)(rho)")
+      deriv => xc_dset_get_derivative(derivative_set,"(rho)(rho)(rho)",error=error)
       IF (ASSOCIATED(deriv)) THEN
-         CALL xc_derivative_get(deriv,deriv_data=pot)
+         CALL xc_derivative_get(deriv,deriv_data=pot,error=error)
          DO k = bo(1,3), bo(2,3)
             DO j = bo(1,2), bo(2,2)
                DO i = bo(1,1), bo(2,1)
@@ -247,7 +247,7 @@ CONTAINS
          END DO
       END DO
    END DO
-   CALL xc_dset_release(derivative_set)
+   CALL xc_dset_release(derivative_set,error=error)
 
  END SUBROUTINE xc_calculate_derivatives
 

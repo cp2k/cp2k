@@ -108,8 +108,8 @@ CONTAINS
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn1', &
       routineP = moduleN//':'//routineN
@@ -122,7 +122,7 @@ CONTAINS
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
     CALL qs_mol_dyn2 ( force_env_p, globenv, error )
-  
+
   END SUBROUTINE qs_mol_dyn1
 
 ! *****************************************************************************
@@ -138,8 +138,8 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
       routineP = moduleN//':'//routineN
@@ -201,7 +201,7 @@ CONTAINS
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
-    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)    
+    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
     CALL read_md_section ( simpar, root_section, para_env, globenv, subsys_section, error )
     simpar%info_constraint = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
@@ -312,7 +312,7 @@ CONTAINS
        IF ( ASSOCIATED ( cell_ref ) ) THEN
           IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
        ENDIF
-       
+
        CALL init_nhc_forces ( nhc_part=extended_type%nhc_part(ibead),error=error)
        CALL init_nhc_forces ( nhc_baro=extended_type%nhc_baro(ibead),error=error)
 
@@ -326,10 +326,10 @@ CONTAINS
                     nhc_baro=extended_type%nhc_baro,&
                     npt=extended_type%npt_info,&
                     cell=cell,&
-                    force_env_p=force_env_p)
+                    force_env_p=force_env_p,error=error)
 
     IF (ASSOCIATED(dyn_coeff_set)) THEN
-       CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef)
+       CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef,error=error)
     END IF
 
     ! loop over number of beads
@@ -340,7 +340,7 @@ CONTAINS
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
-                      t = t, used_time = used_time ) 
+                      t = t, used_time = used_time )
 
     DO ibead = 1, nbeads
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
@@ -386,14 +386,14 @@ CONTAINS
 
       CALL md_output(md_env,force_env_section,motion_section,root_section,error)
 
-    END DO 
+    END DO
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)
 
     CALL md_env_release ( md_env, error )
 
-    ! just deallocate this stuff ?? 
+    ! just deallocate this stuff ??
     ! seem to need proper init / destroy subroutines ... to be fixed
     CALL lnhc_dealloc(extended_type%nhc_part)
     CALL lnhc_dealloc(extended_type%nhc_baro)
@@ -411,7 +411,7 @@ CONTAINS
 !!****f* md_run/md_output *
 !!
 !!   NAME
-!!     md_output 
+!!     md_output
 !!
 !!   FUNCTION
 !!     collects the part of the MD that, basically, does the output
@@ -428,8 +428,8 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 motion_section, root_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', &
       routineP = moduleN//':'//routineN
@@ -462,8 +462,8 @@ END SUBROUTINE md_output
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
       routineP = moduleN//':'//routineN

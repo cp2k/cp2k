@@ -8,10 +8,10 @@
 !!     kg_rho_methods
 !!
 !!   FUNCTION
-!!     rho_methods    
+!!     rho_methods
 !!
 !!   AUTHOR
-!!     gloria,30.09.2002, previously in kg_force 
+!!     gloria,30.09.2002, previously in kg_force
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (22-Feb-03) PW grid options added
@@ -57,8 +57,8 @@ CONTAINS
 SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_create', &
       routineP = moduleN//':'//routineN
@@ -79,7 +79,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
   CALL get_kg_env(kg_env,rspw=kg_rspw,dft_control=dft_control,error=error)
   kgpol = dft_control % qs_control % polarization
   CALL kg_rspw_get(kg_rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
- 
+
   IF (.NOT.ASSOCIATED(kg_rho)) THEN
     ALLOCATE(kg_rho, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -95,7 +95,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 !rho_r
   IF(.NOT.failure) THEN
     IF(ASSOCIATED(kg_rho%rho_r)) THEN
-      CALL coeff_deallocate(kg_rho%rho_r)
+      CALL coeff_deallocate(kg_rho%rho_r,error=error)
       DEALLOCATE(kg_rho%rho_r,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -110,7 +110,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 !rho_g
   IF(.NOT.failure) THEN
     IF(ASSOCIATED(kg_rho%rho_g)) THEN
-      CALL coeff_deallocate(kg_rho%rho_g)
+      CALL coeff_deallocate(kg_rho%rho_g,error=error)
       DEALLOCATE(kg_rho%rho_g,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -125,7 +125,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 !rho_core
   IF(.NOT.failure) THEN
     IF(ASSOCIATED(kg_rho%rho_core)) THEN
-      CALL coeff_deallocate(kg_rho%rho_core)
+      CALL coeff_deallocate(kg_rho%rho_core,error=error)
       DEALLOCATE(kg_rho%rho_core,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -141,7 +141,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 !rhop_r
     IF(.NOT.failure) THEN
       IF(ASSOCIATED(kg_rho%rhop_r)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_r)
+        CALL coeff_deallocate(kg_rho%rhop_r,error=error)
         DEALLOCATE(kg_rho%rhop_r,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
@@ -155,7 +155,7 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
 !rhop_g
     IF(.NOT.failure) THEN
       IF(ASSOCIATED(kg_rho%rhop_g)) THEN
-        CALL coeff_deallocate(kg_rho%rhop_g)
+        CALL coeff_deallocate(kg_rho%rhop_g,error=error)
         DEALLOCATE(kg_rho%rhop_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF

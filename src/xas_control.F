@@ -136,8 +136,8 @@ CONTAINS
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_xas_control', &
       routineP = moduleN//':'//routineN
@@ -341,8 +341,8 @@ CONTAINS
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xas_control', &
       routineP = moduleN//':'//routineN
@@ -423,8 +423,8 @@ CONTAINS
   SUBROUTINE xas_control_create(xas_control,error)
 
     TYPE(xas_control_type), POINTER          :: xas_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_create', &
       routineP = moduleN//':'//routineN
@@ -468,8 +468,8 @@ CONTAINS
   SUBROUTINE xas_control_release(xas_control,error)
 
     TYPE(xas_control_type), POINTER          :: xas_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_release', &
       routineP = moduleN//':'//routineN
@@ -503,8 +503,8 @@ CONTAINS
   SUBROUTINE xas_control_retain(xas_control,error)
 
     TYPE(xas_control_type), POINTER          :: xas_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_retain', &
       routineP = moduleN//':'//routineN

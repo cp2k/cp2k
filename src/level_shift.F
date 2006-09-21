@@ -70,8 +70,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_rho_type)                        :: rho
     TYPE(coeff_type), POINTER                :: rho_core
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     INTEGER                                  :: handle, ispin, power
     REAL(KIND=dp)                            :: core_eshift, &
@@ -90,10 +90,10 @@ CONTAINS
     WRITE(6,*) "eval shift in a.u. ", &
                    (core_eshift+electronic_eshift)*twopi / ( 3.0_dp * cell%deth )
 
-    ! realspace based approach 
+    ! realspace based approach
     ! generate total density in real space
     NULLIFY(auxbas_pw_pool)
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool) 
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL pw_pool_init_coeff(auxbas_pw_pool,rho_tot_rspace,&
             use_data = REALDATA3D, in_space = REALSPACE, error=error )
     CALL pw_pool_init_coeff(auxbas_pw_pool,rho_tot_gspace,&
@@ -115,11 +115,11 @@ CONTAINS
     CALL  gspace_approach(rho_tot_gspace,pw_env,cell)
 
     ! give back coeffs and pools
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_rspace)
-    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_rspace,error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,error=error)
 
     CALL timestop(0.0_dp,handle)
- 
+
   END SUBROUTINE level_shift_testing
 
   SUBROUTINE wannier_part(centers,electronic_eshift)
@@ -191,7 +191,7 @@ CONTAINS
        ENDIF
     ENDDO
   END FUNCTION get_value
- 
+
   SUBROUTINE gspace_approach(rho_g,pw_env,cell)
     TYPE(coeff_type)                         :: rho_g
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -212,7 +212,7 @@ CONTAINS
        rest=rest+cell%deth*(resp+resm)/(twopi/cell%hmat(i,i))**2
     ENDDO
     WRITE(6,*) "gspace number",rest
-    
+
   END SUBROUTINE
 
   SUBROUTINE realspace_approach(rho_r,pw_env,cell,center,power,ionode, error)
@@ -222,8 +222,8 @@ CONTAINS
     REAL(KIND=dp)                            :: center(3)
     INTEGER                                  :: power
     LOGICAL                                  :: ionode
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     INTEGER                                  :: i, j, k, m, n
     REAL(KIND=dp)                            :: boxl(3), dipole(3), monopole, &
@@ -232,7 +232,7 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     NULLIFY(rs_rho,auxbas_rs_pool)
-    CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
+    CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,error=error)
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho, error=error)
     CALL rs_pw_transfer(rs_rho,rho_r%pw,pw2rs)
 

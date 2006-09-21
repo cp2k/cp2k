@@ -175,7 +175,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   INTEGER,OPTIONAL, DIMENSION(2)               :: first_p_pos
   TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
   LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout) :: error
  
   INTEGER ::  dumblock
 #if defined(__SCALAPACK)
@@ -355,8 +355,8 @@ END SUBROUTINE cp_fm_struct_create
 !!*** **********************************************************************
 SUBROUTINE cp_fm_struct_retain(fmstruct,error)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_retain', &
       routineP = moduleN//':'//routineN
@@ -398,8 +398,8 @@ END SUBROUTINE cp_fm_struct_retain
 !!*** **********************************************************************
 SUBROUTINE cp_fm_struct_release(fmstruct,error)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_release', &
       routineP = moduleN//':'//routineN
@@ -466,8 +466,8 @@ END SUBROUTINE cp_fm_struct_release
 !!*** **********************************************************************
 FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_equivalent', &
@@ -526,8 +526,8 @@ END FUNCTION cp_fm_struct_equivalent
 !!*** **********************************************************************
 FUNCTION cp_fm_struct_compatible(fmstruct1,fmstruct2,error) RESULT(res)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_compatible', &
@@ -579,8 +579,8 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_write', &
       routineP = moduleN//':'//routineN
@@ -718,7 +718,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices,&
        nrow_locals, ncol_locals
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+  TYPE(cp_error_type), INTENT(inout)  :: error
 
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_get',&

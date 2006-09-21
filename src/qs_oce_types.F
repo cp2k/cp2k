@@ -74,7 +74,7 @@ MODULE qs_oce_types
 
   TYPE oce_matrix_type
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
-    TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce 
+    TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce
     TYPE(oce_couple), DIMENSION(:,:), POINTER        :: couple
   END TYPE
 
@@ -100,7 +100,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_oce_set(oce_set,natom,nkind,ndim)
+  SUBROUTINE allocate_oce_set(oce_set,natom,nkind,ndim,error)
 
 !   Purpose: Allocate and initialize the matrix set of oce coefficients.
 
@@ -110,6 +110,7 @@ CONTAINS
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
     INTEGER, INTENT(IN)                      :: natom, nkind, ndim
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE allocate_oce_set (MODULE oce_types)"
@@ -118,30 +119,31 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL allocate_matrix_set(oce_set%hardo,ndim)
-    CALL allocate_matrix_set(oce_set%softo,ndim)
+    CALL allocate_matrix_set(oce_set%hardo,ndim,error=error)
+    CALL allocate_matrix_set(oce_set%softo,ndim,error=error)
 
-    CALL allocate_vtriple(oce_set%voce,nkind,natom)
+    CALL allocate_vtriple(oce_set%voce,nkind,natom,error=error)
 
     ALLOCATE(oce_set%couple(natom,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"couple",natom*natom)
     oce_set%couple(1:natom,1:natom)%block_created = .FALSE.
-  
+
   END SUBROUTINE allocate_oce_set
 
 !******************************************************************************
 
-  SUBROUTINE allocate_vtriple(vtriple,nkind,natom)
+  SUBROUTINE allocate_vtriple(vtriple,nkind,natom,error)
 
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: vtriple
     INTEGER, INTENT(IN)                      :: nkind, natom
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_vtriple'
 
     INTEGER                                  :: iat, ikind, istat
 
-    IF(ASSOCIATED(vtriple)) CALL deallocate_vtriple(vtriple)
+    IF(ASSOCIATED(vtriple)) CALL deallocate_vtriple(vtriple,error=error)
 
     ALLOCATE (vtriple(nkind,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,"vtriple",nkind*natom)
@@ -155,16 +157,17 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE create_oce_set(oce_set)
+  SUBROUTINE create_oce_set(oce_set,error)
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE create_oce_set (MODULE oce_types)"
 
     INTEGER                                  :: istat
 
-    IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
+    IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set,error=error)
 
     ALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"oce_set",0)
@@ -178,13 +181,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_oce_set(oce_set)
+  SUBROUTINE deallocate_oce_set(oce_set,error)
 
 !   Purpose: Deallocate the matrix set of oce coefficients
 
 ! *****************************************************************************
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE deallocate_oce_set (MODULE oce_types)"
@@ -195,9 +199,9 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(oce_set)) RETURN
 
-    IF(ASSOCIATED(oce_set%hardo)) CALL deallocate_matrix_set(oce_set%hardo)
-    IF(ASSOCIATED(oce_set%softo)) CALL deallocate_matrix_set(oce_set%softo)
-    IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce)
+    IF(ASSOCIATED(oce_set%hardo)) CALL deallocate_matrix_set(oce_set%hardo,error=error)
+    IF(ASSOCIATED(oce_set%softo)) CALL deallocate_matrix_set(oce_set%softo,error=error)
+    IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce,error=error)
     IF(ASSOCIATED(oce_set%couple)) THEN
        DEALLOCATE(oce_set%couple,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine,"deallocate_couple",0)
@@ -213,8 +217,8 @@ CONTAINS
 
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: vtriple
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_vtriple', &
       routineP = moduleN//':'//routineN
@@ -270,8 +274,8 @@ CONTAINS
   END SUBROUTINE deallocate_vtriple
 ! *****************************************************************************
 
-  SUBROUTINE prepare_oce_coeff(particle_set,oce,natom,nsgf, & 
-                               first_sgf,last_sgf,distribution_2d)
+  SUBROUTINE prepare_oce_coeff(particle_set,oce,natom,nsgf, &
+                               first_sgf,last_sgf,distribution_2d, error)
 
 !   Purpose: Create the structure for the matrix for oce coefficients
 
@@ -285,6 +289,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: natom, nsgf
     INTEGER, DIMENSION(natom)                :: first_sgf, last_sgf
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'prepare_oce_coeff'
 
@@ -322,7 +327,7 @@ CONTAINS
                          matrix_name="HARD OCE COEFF",&
                          matrix_symmetry="non symmetric",&
                          sparsity_id=-1,& ! XXXXXXXXXX unknown, could presumably also be defined
-                         distribution_2d=distribution_2d)
+                         distribution_2d=distribution_2d,error=error)
 
     DEALLOCATE (first_nso,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -338,7 +343,7 @@ CONTAINS
     CALL replicate_matrix_structure(source=oce%hardo(1)%matrix,&
                                     TARGET=oce%softo(1)%matrix,&
                                     target_name=TRIM(name),&
-                                    target_symmetry="non symmetric")
+                                    target_symmetry="non symmetric",error=error)
 
     maxder = SIZE(oce%hardo,1)
 
@@ -352,8 +357,8 @@ CONTAINS
       CALL replicate_matrix_structure(source=oce%hardo(1)%matrix,&
                                       TARGET=oce%hardo(i)%matrix,&
                                       target_name=TRIM(name),&
-                                      target_symmetry="non symmetric")
-      
+                                      target_symmetry="non symmetric",error=error)
+
       name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE SOFT OCE COEFF "//&
              "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
@@ -361,7 +366,7 @@ CONTAINS
       CALL replicate_matrix_structure(source=oce%softo(1)%matrix,&
                                       TARGET=oce%softo(i)%matrix,&
                                       target_name=TRIM(name),&
-                                      target_symmetry="non symmetric")
+                                      target_symmetry="non symmetric",error=error)
     END DO
 
 !   Initialize the control variable couple
@@ -387,8 +392,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: reduced_3c_list
     LOGICAL                                  :: pippo
     REAL(dp), INTENT(IN)                     :: eps_rho
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
 
@@ -484,7 +489,7 @@ CONTAINS
           sac_list_neighbor => vlist(kkind,iatom)%neighbor(cell_c(1),&
                                                            cell_c(2),&
                                                            cell_c(3))
-   
+
           IF (sac_list_neighbor%n == 0) THEN
               sbc_list_neighbor_node => next(sbc_list_neighbor_node)
               CYCLE
@@ -530,7 +535,7 @@ CONTAINS
        END DO  knodeloop ! kneighbor
 
        ! Copy the reduced list data in the reduced list array
-       reduced_3c_list(kkind)%nnode = nblock_kkind 
+       reduced_3c_list(kkind)%nnode = nblock_kkind
        IF(nblock_kkind .GT. 0) THEN
          ALLOCATE(reduced_3c_list(kkind)%rac(3,nblock_kkind),STAT=istat)
          ALLOCATE(reduced_3c_list(kkind)%rac2(nblock_kkind),STAT=istat)
@@ -637,7 +642,7 @@ CONTAINS
            zetamin = MIN(zetamin,zeta(iexp,iset))
            iexp_zmin = iexp
          END IF
-       END DO 
+       END DO
        DO ishell = 1,nshella(iset)
          lshella = lsha(ishell,iset)
          gcca_zmin = gcca(iexp_zmin,ishell,iset)
@@ -689,13 +694,13 @@ CONTAINS
          END DO  ! jset
        END DO  ! lshella
     END DO  ! iset
-        
+
     maxab = max_overlap_ab
 
   END SUBROUTINE
 
 ! *****************************************************************************
- 
+
   SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,error)
 
     TYPE(vtriple_type), DIMENSION(:, :), &
@@ -703,8 +708,8 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_list
     INTEGER, INTENT(IN)                      :: iatom, ikind, nkind
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'retrieve_sac_list', &
       routineP = moduleN//':'//routineN
