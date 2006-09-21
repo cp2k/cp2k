@@ -59,7 +59,7 @@ MODULE topology_coordinate_util
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: atom_bond_list_type,&
+  USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
 #include "cp_common_uses.h"
 
@@ -139,7 +139,7 @@ CONTAINS
     LOGICAL                                  :: failure, found, my_qmmm
     REAL(KIND=dp)                            :: alpha_core_charge, qeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), POINTER                  :: ex_bend_list, ex_bond_list, &
                                                 ex_onfo_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -374,7 +374,7 @@ CONTAINS
     ALLOCATE(ex_bond_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO I=1,natom
-       ALLOCATE(ex_bond_list(I)%bonds(0),stat=stat)
+       ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
@@ -386,7 +386,7 @@ CONTAINS
     ALLOCATE(ex_bend_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO I=1,natom
-       ALLOCATE(ex_bend_list(I)%bonds(0),stat=stat)
+       ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
@@ -398,7 +398,7 @@ CONTAINS
     ALLOCATE(ex_onfo_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO I=1,natom
-       ALLOCATE(ex_onfo_list(I)%bonds(0),stat=stat)
+       ALLOCATE(ex_onfo_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
@@ -414,21 +414,21 @@ CONTAINS
        dim3 = 0
        IF  (topology%exclude_vdw==do_skip_12.OR. &
             topology%exclude_vdw==do_skip_13.OR. &
-            topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%bonds)
+            topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%array1)
        dim1 = dim0 + dim1
        IF  (topology%exclude_vdw==do_skip_13.OR. &
-            topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
+            topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
        dim2 = dim1 + dim2
-       dim3 = SIZE(ex_onfo_list(iatom)%bonds)    ! Always exclude 1-4 
+       dim3 = SIZE(ex_onfo_list(iatom)%array1)    ! Always exclude 1-4 
        dim3 = dim2 + dim3                        ! They're treated in a different way..
        IF (dim3 /= 0) THEN
           NULLIFY(list, wlist)
           ALLOCATE(wlist(dim3),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           wlist(  dim0:dim0) = iatom
-          IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list(iatom)%bonds
-          IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
-          IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%bonds
+          IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list(iatom)%array1
+          IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
+          IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
           ! Get a unique list
           DO i = 1, SIZE(wlist)-1
              IF (wlist(i)==0)CYCLE
@@ -458,20 +458,20 @@ CONTAINS
              dim3 = 0
              IF  (topology%exclude_ei==do_skip_12.OR. &
                   topology%exclude_ei==do_skip_13.OR. &
-                  topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%bonds)
+                  topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%array1)
              dim1 = dim0 + dim1
              IF  (topology%exclude_ei==do_skip_13.OR. &
-                  topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
+                  topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
              dim2 = dim1 + dim2
-             dim3 = SIZE(ex_onfo_list(iatom)%bonds)    ! Always exclude 1-4 
+             dim3 = SIZE(ex_onfo_list(iatom)%array1)    ! Always exclude 1-4 
              dim3 = dim2 + dim3                        ! They're treated in a different way..
              IF (dim3 /= 0) THEN
                 ALLOCATE(wlist(dim3),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 wlist(     1:   1) = iatom
-                wlist(     2:dim1) = ex_bond_list(iatom)%bonds
-                wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
-                wlist(dim2+1:dim3) = ex_onfo_list(iatom)%bonds
+                wlist(     2:dim1) = ex_bond_list(iatom)%array1
+                wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
+                wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
                 ! Get a unique list
                 DO i = 1, SIZE(wlist)-1
                    IF (wlist(i)==0)CYCLE
@@ -497,9 +497,9 @@ CONTAINS
        particle_set(iatom)%list_exclude_vdw => list
        particle_set(iatom)%list_exclude_ei  => list2
        ! The onfo must always be excluded to avoid double counting
-       DO i=1,SIZE(ex_onfo_list(iatom)%bonds)
-          CPPostcondition(ANY(list==ex_onfo_list(iatom)%bonds(i)),cp_failure_level,routineP,error,failure)
-          CPPostcondition(ANY(list2==ex_onfo_list(iatom)%bonds(i)),cp_failure_level,routineP,error,failure)
+       DO i=1,SIZE(ex_onfo_list(iatom)%array1)
+          CPPostcondition(ANY(list==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ANY(list2==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
        END DO
        IF (iw>0) THEN 
           IF (ASSOCIATED(list)) &
@@ -516,21 +516,21 @@ CONTAINS
     END DO
     ! deallocate onfo
     DO I=1,natom
-       DEALLOCATE(ex_onfo_list(I)%bonds,stat=stat)
+       DEALLOCATE(ex_onfo_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     DEALLOCATE(ex_onfo_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! deallocate bends
     DO I=1,natom
-       DEALLOCATE(ex_bend_list(I)%bonds,stat=stat)
+       DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     DEALLOCATE(ex_bend_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! deallocate bonds
     DO I=1,natom
-       DEALLOCATE(ex_bond_list(I)%bonds,stat=stat)
+       DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     DEALLOCATE(ex_bond_list,stat=stat)

@@ -57,7 +57,7 @@ MODULE topology_generate_util
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: atom_bond_list_type,&
+  USE topology_util,                   ONLY: array1_list_type,&
                                              array2_list_type,&
                                              find_molecule,&
                                              reorder_structure
@@ -122,7 +122,7 @@ CONTAINS
       mol_num, mol_res, mol_typ, myind, N, natom, ntype, stat
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: do_again, failure, my_qmmm
-    TYPE(atom_bond_list_type), ALLOCATABLE, &
+    TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -189,7 +189,7 @@ CONTAINS
     ALLOCATE(atom_bond_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO I=1,natom
-       ALLOCATE(atom_bond_list(I)%bonds(0),stat=stat)
+       ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
@@ -197,7 +197,7 @@ CONTAINS
     CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
     CALL find_molecule(atom_bond_list,atom_info%map_mol_num)   
     DO I=1,natom
-       DEALLOCATE(atom_bond_list(I)%bonds,stat=stat)
+       DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
@@ -1389,7 +1389,7 @@ CONTAINS
                                                 natom, nbond, nsize, ntheta, &
                                                 output_unit, stat
     LOGICAL                                  :: failure, ionode
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), POINTER                  :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1428,7 +1428,7 @@ CONTAINS
        ALLOCATE(bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I = 1, natom
-          ALLOCATE(bond_list(I)%bonds(0),stat=stat)
+          ALLOCATE(bond_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
@@ -1444,7 +1444,7 @@ CONTAINS
                                  error=error)
        CALL timestop(0.0_dp,handle2)
        DO I = 1, natom
-          DEALLOCATE(bond_list(I)%bonds,stat=stat)
+          DEALLOCATE(bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        DEALLOCATE(bond_list,stat=stat)
@@ -1500,9 +1500,9 @@ CONTAINS
   RECURSIVE SUBROUTINE match_iterative_path(Iarray1, Iarray2, Iarray3,&
        max_levl, Oarray1, Oarray2, Oarray3, Oarray4, Ilist, it_levl, nvar,&
        error)
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), POINTER                  :: Iarray1
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: Iarray2, Iarray3
     INTEGER, INTENT(IN)                      :: max_levl
     INTEGER, DIMENSION(:), POINTER           :: Oarray1, Oarray2
@@ -1521,7 +1521,7 @@ CONTAINS
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_list
     LOGICAL                                  :: check, failure
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), POINTER                  :: wrk
 
     failure = .FALSE.
@@ -1581,8 +1581,8 @@ CONTAINS
              wrk => Iarray3
           END SELECT
           i = Ilist(it_levl-1)
-          DO j = 1, SIZE(Iarray1(i)%bonds)
-             ind = wrk(i)%bonds(j)
+          DO j = 1, SIZE(Iarray1(i)%array1)
+             ind = wrk(i)%array1(j)
              IF (ANY(Ilist==ind)) CYCLE
              IF (it_levl<max_levl) THEN
                 Ilist(it_levl) = ind
@@ -1747,7 +1747,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iw, natom, nbond, &
                                                 nphi, nsize, output_unit, stat
     LOGICAL                                  :: failure, ionode
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), POINTER                  :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1779,7 +1779,7 @@ CONTAINS
        ALLOCATE(bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I = 1, natom
-          ALLOCATE(bond_list(I)%bonds(0),stat=stat)
+          ALLOCATE(bond_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        nbond = SIZE(conn_info%bond_a)
@@ -1796,7 +1796,7 @@ CONTAINS
                                  Oarray4 =conn_info%phi_d,&
                                  error=error)
        DO I = 1, natom
-          DEALLOCATE(bond_list(I)%bonds,stat=stat)
+          DEALLOCATE(bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        DEALLOCATE(bond_list,stat=stat)
@@ -1866,7 +1866,7 @@ CONTAINS
                                                 nbond, nimpr, nsize, &
                                                 output_unit, stat
     LOGICAL                                  :: accept_impr, failure, ionode
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), POINTER                  :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -1901,14 +1901,14 @@ CONTAINS
        ALLOCATE(bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I = 1, natom
-          ALLOCATE(bond_list(I)%bonds(0),stat=stat)
+          ALLOCATE(bond_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        nbond = SIZE(conn_info%bond_a)
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
        DO I = 1, natom
           ! Count all atoms with three bonds
-          IF (SIZE(bond_list(I)%bonds)==3) THEN
+          IF (SIZE(bond_list(I)%array1)==3) THEN
              ! Problematic cases::
              ! Nitrogen
              accept_impr = .TRUE.
@@ -1919,8 +1919,8 @@ CONTAINS
                 ! Impropers on Nitrogen only when there is another atom close to it
                 ! with other 3 bonds 
                 DO j = 1, 3
-                   ind = bond_list(I)%bonds(j)
-                   IF (SIZE(bond_list(ind)%bonds)==3) accept_impr = .TRUE.
+                   ind = bond_list(I)%array1(j)
+                   IF (SIZE(bond_list(ind)%array1)==3) accept_impr = .TRUE.
                 END DO
              END IF
              IF (.NOT.accept_impr) CYCLE
@@ -1933,13 +1933,13 @@ CONTAINS
                 CALL reallocate(conn_info%impr_d,1,nsize)
              END IF
              conn_info%impr_a(nimpr) = i
-             conn_info%impr_b(nimpr) = bond_list(I)%bonds(1)
-             conn_info%impr_c(nimpr) = bond_list(I)%bonds(2)
-             conn_info%impr_d(nimpr) = bond_list(I)%bonds(3)
+             conn_info%impr_b(nimpr) = bond_list(I)%array1(1)
+             conn_info%impr_c(nimpr) = bond_list(I)%array1(2)
+             conn_info%impr_d(nimpr) = bond_list(I)%array1(3)
           END IF
        END DO
        DO I = 1, natom
-          DEALLOCATE(bond_list(I)%bonds,stat=stat)
+          DEALLOCATE(bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        DEALLOCATE(bond_list,stat=stat)

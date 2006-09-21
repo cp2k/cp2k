@@ -47,9 +47,9 @@ MODULE topology_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_util'
 
-  TYPE atom_bond_list_type
-     INTEGER, POINTER, DIMENSION(:) :: bonds => NULL()
-  END TYPE atom_bond_list_type
+  TYPE array1_list_type
+     INTEGER, POINTER, DIMENSION(:) :: array1 => NULL()
+  END TYPE array1_list_type
 
   TYPE array2_list_type
      INTEGER, POINTER, DIMENSION(:) :: array1 => NULL()
@@ -63,7 +63,7 @@ MODULE topology_util
             check_subsys_element,&
             reorder_structure,&
             find_molecule,&
-            atom_bond_list_type,&
+            array1_list_type,&
             array2_list_type
 
   INTERFACE reorder_structure
@@ -267,12 +267,13 @@ CONTAINS
 !!****** topology_util [1.0] *
 !!
 !!   NAME
-!!    reorder_structure 
+!!    reorder_structure1d
 !!
 !!   SYNOPSIS
 !!
 !!   FUNCTION
-!!     each atom will be assigned a molecule number based on bonded fragments
+!!     Given two lists of corresponding element a complex type is built in 
+!!     which each element of the type has a list of mapping elements
 !!
 !!   AUTHOR
 !!     Teodoro Laino 08.2006
@@ -283,7 +284,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE reorder_structure1d(work, list1, list2, N, error)
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), INTENT(INOUT)            :: work
     INTEGER, DIMENSION(:), INTENT(IN)        :: list1, list2
     INTEGER, INTENT(IN)                      :: N
@@ -293,30 +294,30 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, I, Nbond, stat
+    INTEGER                                  :: index1, index2, I, Nsize, stat
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     DO I=1,N
-       atom_a=list1(I)
-       atom_b=list2(I)
+       index1=list1(I)
+       index2=list2(I)
 
-       wrk_tmp => work(atom_a)%bonds
-       Nbond=SIZE(wrk_tmp)
-       ALLOCATE(work(atom_a)%bonds(Nbond+1),stat=stat)
+       wrk_tmp => work(index1)%array1
+       Nsize=SIZE(wrk_tmp)
+       ALLOCATE(work(index1)%array1(Nsize+1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       work(atom_a)%bonds(1:Nbond) = wrk_tmp
-       work(atom_a)%bonds(Nbond+1) = atom_b
+       work(index1)%array1(1:Nsize) = wrk_tmp
+       work(index1)%array1(Nsize+1) = index2
        DEALLOCATE(wrk_tmp,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        
-       wrk_tmp => work(atom_b)%bonds
-       Nbond=SIZE(wrk_tmp)
-       ALLOCATE(work(atom_b)%bonds(Nbond+1),stat=stat)
+       wrk_tmp => work(index2)%array1
+       Nsize=SIZE(wrk_tmp)
+       ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       work(atom_b)%bonds(1:Nbond) = wrk_tmp
-       work(atom_b)%bonds(Nbond+1) = atom_a
+       work(index2)%array1(1:Nsize) = wrk_tmp
+       work(index2)%array1(Nsize+1) = index1
        DEALLOCATE(wrk_tmp,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO    
@@ -327,15 +328,16 @@ CONTAINS
 !!****** topology_util [1.0] *
 !!
 !!   NAME
-!!    reorder_structure 
+!!    reorder_structure2d
 !!
 !!   SYNOPSIS
 !!
 !!   FUNCTION
-!!     each atom will be assigned a molecule number based on bonded fragments
+!!     Given two lists of corresponding element a complex type is built in 
+!!     which each element of the type has a list of mapping elements
 !!
 !!   AUTHOR
-!!     Joost 05.2006
+!!    Teodoro Laino 09.2006
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -422,7 +424,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE find_molecule(atom_bond_list,mol_info)
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), INTENT(IN)               :: atom_bond_list
     INTEGER, DIMENSION(:), POINTER           :: mol_info
 
@@ -458,7 +460,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   RECURSIVE SUBROUTINE spread_mol(atom_bond_list,mol_info,iatom,imol)
-    TYPE(atom_bond_list_type), &
+    TYPE(array1_list_type), &
       DIMENSION(:), INTENT(IN)               :: atom_bond_list
     INTEGER, DIMENSION(:), POINTER           :: mol_info
     INTEGER, INTENT(IN)                      :: iatom, imol
@@ -466,8 +468,8 @@ CONTAINS
     INTEGER                                  :: atom_b, i
 
     mol_info(iatom)=imol
-    DO I=1,SIZE(atom_bond_list(iatom)%bonds)
-       atom_b=atom_bond_list(iatom)%bonds(I)
+    DO I=1,SIZE(atom_bond_list(iatom)%array1)
+       atom_b=atom_bond_list(iatom)%array1(I)
        IF (mol_info(atom_b)==-1) &
             CALL spread_mol(atom_bond_list,mol_info,atom_b,imol)
        IF (mol_info(atom_b)/=imol) STOP "internal error"
@@ -602,7 +604,7 @@ CONTAINS
                                                 mol_typ, n, natom, stat
     LOGICAL                                  :: failure, icheck_num, &
                                                 icheck_typ
-    TYPE(atom_bond_list_type), ALLOCATABLE, &
+    TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -625,7 +627,7 @@ CONTAINS
     ALLOCATE(atom_bond_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO I=1,natom
-       ALLOCATE(atom_bond_list(I)%bonds(0),stat=stat)
+       ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
@@ -681,17 +683,17 @@ CONTAINS
           !-----------------------------------------------------------------------------
           ! 3. Check that each molecule have the same bond sequences
           !-----------------------------------------------------------------------------
-          IF (SIZE(atom_bond_list(iatom)%bonds)/=SIZE(atom_bond_list(iatom)%bonds)) failure = .TRUE.
+          IF (SIZE(atom_bond_list(iatom)%array1)/=SIZE(atom_bond_list(iatom)%array1)) failure = .TRUE.
           IF (.NOT.failure) THEN
-             DO k = 1,SIZE(atom_bond_list(iatom)%bonds)
-                IF (ALL(atom_bond_list(first+loc_counter-1)%bonds-first/=&
-                     atom_bond_list(iatom)%bonds(k)-first_loc)) THEN
+             DO k = 1,SIZE(atom_bond_list(iatom)%array1)
+                IF (ALL(atom_bond_list(first+loc_counter-1)%array1-first/=&
+                     atom_bond_list(iatom)%array1(k)-first_loc)) THEN
                    CALL stop_program ("topology_molecules_check",&
                         "different bonds for same molecule kind"//&
                         " molecule type  = "//cp_to_string(mol_typ)//&
                         " molecule number= "//cp_to_string(mol_num)//&
                         " expected bonds="//cp_to_string(iatom-first_loc+1)//" - "//&
-                        cp_to_string(atom_bond_list(iatom)%bonds(k)-first_loc)//&
+                        cp_to_string(atom_bond_list(iatom)%array1(k)-first_loc)//&
                         " NOT FOUND! Check the connectivity of your system.")
                 END IF
              END DO
@@ -706,7 +708,7 @@ CONTAINS
     IF (iw>0) WRITE(iw,'(A)')"End of Molecule_Check"
 
     DO I=1,natom
-       DEALLOCATE(atom_bond_list(I)%bonds,stat=stat)
+       DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
