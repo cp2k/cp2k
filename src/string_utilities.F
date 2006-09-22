@@ -316,12 +316,7 @@ END FUNCTION
     INTEGER, INTENT(IN)                      :: inumber
     CHARACTER(LEN=*), INTENT(OUT)            :: string
 
-!   ---------------------------------------------------------------------------
-
-    string = ""
-    WRITE (UNIT=string,FMT=*) inumber
-    string = ADJUSTL(string)
-
+    WRITE (UNIT=string,FMT='(I0)') inumber
   END SUBROUTINE integer_to_string
 
 ! *****************************************************************************
