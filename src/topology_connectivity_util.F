@@ -105,12 +105,12 @@ CONTAINS
       intra_ubs, inum, ionfo, ires, istart_mol, istart_typ, itorsion, ityp, &
       iub, iw, j, j1, j2, j3, j4, jind, last, min_index, natom, nbond, &
       nelectron, nhcopt, nimpr, nmol, nonfo, nsgf, nub, nval_tot1, nval_tot2, &
-      nvar1, nvar2, stat
+      nvar1, nvar2, stat, output_unit
     INTEGER, DIMENSION(:), POINTER :: c_var_a, c_var_b, c_var_c, c_var_d, &
       c_var_type, first_list, last_list, map_atom_mol, map_atom_type, &
       map_cvar_mol, map_cvars, map_var_mol, map_vars, molecule_list
     INTEGER, DIMENSION(:, :), POINTER        :: bnd_ctype, bnd_type
-    LOGICAL                                  :: failure, found, found_last
+    LOGICAL                                  :: failure, found, found_last, ionode
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
@@ -129,6 +129,12 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF    
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -499,6 +505,16 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             nbond=SIZE(bond_list),bond_list=bond_list)
     END DO
+    IF ((nval_tot1/=nval_tot2).AND.(output_unit>0)) THEN
+       WRITE(output_unit,'(/)')
+       WRITE(output_unit,'(T5,A)')"ERROR| Mismatching found between the total number  of atoms"
+       WRITE(output_unit,'(T5,A)')"ERROR| and the number of atoms computed multiplying the Nr."
+       WRITE(output_unit,'(T5,A)')"ERROR| of molecules by the  number of atoms  building  that"
+       WRITE(output_unit,'(T5,A)')"ERROR| kind of molecule."
+       WRITE(output_unit,'(T5,A)')"ERROR| This happens when the connectivity is wrongly  built"
+       WRITE(output_unit,'(T5,A)')"ERROR| One example could be two same kind of molecules have"
+       WRITE(output_unit,'(T5,A)')"ERROR| a different number of atoms. Check the connectivity!"
+    END IF
     CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
     DEALLOCATE(map_var_mol,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
