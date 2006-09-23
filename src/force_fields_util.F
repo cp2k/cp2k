@@ -1965,11 +1965,13 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(array)) THEN
        IF (output_unit>0) THEN
+          WRITE(output_unit,*)
           WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
                " WARNING: Non Critical ForceField Parameter missing!   Calculation proceeding.",&
                " Non Critical Parameters are:   Urey-Bradley,   Torsions,  Impropers  and  1-4",&
                " All missing parameters will give a zero contribution to the potential energy!"
           IF (fatal.OR.iw>0) THEN
+             WRITE(output_unit,*)
              DO i = 1,SIZE(array)
                 WRITE(output_unit,'(A)')array(i)
              END DO
@@ -1977,6 +1979,7 @@ CONTAINS
           IF (.NOT.fatal.AND.iw<0) THEN
              WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
                   " Activate the print key FF_INFO to have a list of missing parameters."
+             WRITE(output_unit,*)
           END IF
        END IF
        DEALLOCATE(array,stat=stat)

@@ -65,6 +65,7 @@ MODULE topology_generate_util
                                              sort
   USE cell_types,                      ONLY: pbc
   USE mathlib,                         ONLY: matvec_3x3
+  USE string_table,                    ONLY: str2id, s2s, id2str
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -262,7 +263,8 @@ CONTAINS
        CPPostcondition(ALL(qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
        DO myind = 1, SIZE(qm_atom_index)
           IF (qm_atom_index(myind) ==0) CYCLE
-          CALL find_boundary(atom_info%map_mol_typ,natom,ifirst,ilast,atom_info%map_mol_typ(qm_atom_index(myind)))
+          CALL find_boundary(atom_info%map_mol_typ,natom,ifirst,ilast,&
+               atom_info%map_mol_typ(qm_atom_index(myind)))
           CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,natom,ifirst,ilast,&
                atom_info%map_mol_typ(qm_atom_index(myind)),atom_info%map_mol_num(qm_atom_index(myind)))
           IF (iw>0) WRITE(iw,*)"qm fragment:: ifirst, ilast",ifirst,ilast
@@ -357,7 +359,8 @@ CONTAINS
           !
           DO j = 1, max_mol_num
              IF (COUNT(atom_info%map_mol_num(first:last)==j) /= atom_in_mol) THEN
-                WRITE(iw,*)"molecule type:",i,"molecule num:",j," has ",COUNT(atom_info%map_mol_num(first:last)==j),&
+                WRITE(iw,*)"molecule type:",i,"molecule num:",j," has ",&
+                     COUNT(atom_info%map_mol_num(first:last)==j),&
                      " atoms instead of ",atom_in_mol," ."
                 CALL stop_program ("topology_generate_molecule","Two molecules of the same kind"//&
                      " have been created with different numbers of atoms!")
@@ -396,8 +399,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
       routineP = moduleN//':'//routineN
@@ -411,7 +413,8 @@ CONTAINS
     LOGICAL                                  :: element_found, failure, ionode
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
     REAL(KIND=dp)                            :: dr(3), r2, r2_min, ksign, &
-                                                rbond, rbond2, tmp, cell_v(3)
+                                                rbond, rbond2, tmp, cell_v(3),&
+                                                bondparm_factor, my_maxrad
     REAL(KIND=dp), DIMENSION(1, 1)           :: r_max, r_minsq
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
     TYPE(array2_list_type), &
@@ -427,6 +430,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: bond_section
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pbc_coord
+    LOGICAL                                  :: connectivity_ok
 
     failure = .FALSE.    
     NULLIFY(logger, particle_set, atomic_kind_set, nonbonded)
@@ -442,7 +446,8 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
        atom_info => topology%atom_info
-       conn_info => topology%conn_info       
+       conn_info => topology%conn_info
+       bondparm_factor = topology%bondparm_factor
        cbond = 0    
        natom = topology%natoms    
        NULLIFY(atm_symbol,radius)
@@ -510,12 +515,23 @@ CONTAINS
        CALL allocate_atomic_kind_set(atomic_kind_set,1)
        CALL allocate_particle_set(particle_set,natom)
        !
+       my_maxrad = MAXVAL(radius)*2.0_dp
        atomic_kind => atomic_kind_set(1)
        CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=1,&
             name="XXX",element_symbol="XXX",mass=0.0_dp,atom_list=list)
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MAX",r_val=tmp,&
             error=error)
        r_max     = tmp
+       IF (my_maxrad*bondparm_factor>r_max(1,1)) THEN
+          WRITE(output_unit,'(T2,"GENERATE|",A)')&
+               " ERROR in connectivity generation!",&
+               " The THRESHOLD to select possible bonds is bigger than the MAX bondlength",&
+               " used to build the neighbors lists. Increase the BONDLENGTH_MAX patameter"
+          WRITE(output_unit,'(T2,"GENERATE|",2(A,F11.6),A)')&
+               " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
+               " Present BONDLENGTH_MAX (",r_max(1,1)," )"
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
        DO i=1,natom
           particle_set(i)%atomic_kind => atomic_kind_set(1)
           particle_set(i)%r(1) = atom_info%r(1,i)
@@ -585,90 +601,116 @@ CONTAINS
        ! Heavy atoms loop
        CALL reallocate(conn_info%bond_a,1,1)
        CALL reallocate(conn_info%bond_b,1,1)
-       n_heavy_bonds = 0
-       n_bonds       = 0
-       DO iatm1 = 1, natom
-          IF (h_list(iatm1)) CYCLE
-          DO j = 1,SIZE(bond_list(iatm1)%array1)
-             iatm2 = bond_list(iatm1)%array1(j)
-             IF(h_list(iatm2).OR.(iatm2<=iatm1)) CYCLE
-             k     = bond_list(iatm1)%array2(j)
-             ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
-             k     = ABS(k)
-             CALL matvec_3x3(cell_v,topology%cell%hmat,REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
-             dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
-             r2 = DOT_PRODUCT(dr,dr)
-             IF(r2 <= 0.01_dp) THEN
-                CALL stop_program ("topology_generate_bond",&
-                     "bond distance between atoms less then 0.01")
-             END IF
-             
-             ! Screen neighbors
-             IF(topology%bondparm_type==do_bondparm_covalent) THEN
-                rbond = radius(iatm1) + radius(iatm2)
-             ELSE IF(topology%bondparm_type==do_bondparm_vdw) THEN
-                rbond = MAX(radius(iatm1),radius(iatm2))
-             END IF
-             rbond2 = rbond*rbond
-             rbond2 = rbond2*(topology%bondparm_factor)**2
-             !Test the distance to the sum of the covalent radius
-             IF(r2 <= rbond2) THEN
-                n_heavy_bonds = n_heavy_bonds + 1
-                CALL add_bonds_list(conn_info, iatm1, iatm2, n_heavy_bonds)
-             END IF
+       connectivity_ok =.FALSE.
+       ! It may happen that the connectivity created is fault for the missing
+       ! of one bond.. this external loop ensures that everything was created
+       ! fits exactly with the definition of molecules..
+       DO WHILE (.NOT.connectivity_ok)
+          n_heavy_bonds = 0
+          n_bonds       = 0
+          DO iatm1 = 1, natom
+             IF (h_list(iatm1)) CYCLE
+             DO j = 1,SIZE(bond_list(iatm1)%array1)
+                iatm2 = bond_list(iatm1)%array1(j)
+                IF(h_list(iatm2).OR.(iatm2<=iatm1)) CYCLE
+                k     = bond_list(iatm1)%array2(j)
+                ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
+                k     = ABS(k)
+                CALL matvec_3x3(cell_v,topology%cell%hmat,&
+                     REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
+                dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
+                r2 = DOT_PRODUCT(dr,dr)
+                IF(r2 <= 0.01_dp) THEN
+                   CALL stop_program ("topology_generate_bond",&
+                        "bond distance between atoms less then 0.01")
+                END IF
+                
+                ! Screen neighbors
+                IF(topology%bondparm_type==do_bondparm_covalent) THEN
+                   rbond = radius(iatm1) + radius(iatm2)
+                ELSE IF(topology%bondparm_type==do_bondparm_vdw) THEN
+                   rbond = MAX(radius(iatm1),radius(iatm2))
+                END IF
+                rbond2 = rbond*rbond
+                rbond2 = rbond2*(bondparm_factor)**2
+                !Test the distance to the sum of the covalent radius
+                IF(r2 <= rbond2) THEN
+                   n_heavy_bonds = n_heavy_bonds + 1
+                   CALL add_bonds_list(conn_info, iatm1, iatm2, n_heavy_bonds)
+                END IF
+             END DO
           END DO
-       END DO
-       n_hydr_bonds  = 0
-       n_bonds       = n_heavy_bonds
-       ! Now check bonds formed by hydrogens...
-       ! The hydrogen valence is 1 so we can choose the closest atom..
-       DO iatm1 = 1, natom
-          IF (.NOT.h_list(iatm1)) CYCLE
-          r2_min = HUGE(0.0_dp)
-          ibond  = -1
-          DO j = 1,SIZE(bond_list(iatm1)%array1)
-             iatm2 = bond_list(iatm1)%array1(j)
-             k     = bond_list(iatm1)%array2(j)
-             ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
-             k     = ABS(k)
-             CALL matvec_3x3(cell_v,topology%cell%hmat,REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
-             dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
-             r2 = DOT_PRODUCT(dr,dr)
-             IF(r2 <= 0.01_dp) THEN
-                CALL stop_program ("topology_generate_bond",&
-                     "bond distance between atoms less then 0.01")
+          n_hydr_bonds  = 0
+          n_bonds       = n_heavy_bonds
+          ! Now check bonds formed by hydrogens...
+          ! The hydrogen valence is 1 so we can choose the closest atom..
+          DO iatm1 = 1, natom
+             IF (.NOT.h_list(iatm1)) CYCLE
+             r2_min = HUGE(0.0_dp)
+             ibond  = -1
+             DO j = 1,SIZE(bond_list(iatm1)%array1)
+                iatm2 = bond_list(iatm1)%array1(j)
+                k     = bond_list(iatm1)%array2(j)
+                ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
+                k     = ABS(k)
+                CALL matvec_3x3(cell_v,topology%cell%hmat,&
+                     REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
+                dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
+                r2 = DOT_PRODUCT(dr,dr)
+                IF(r2 <= 0.01_dp) THEN
+                   CALL stop_program ("topology_generate_bond",&
+                        "bond distance between atoms less then 0.01")
+                END IF
+                IF (r2 <= r2_min) THEN
+                   r2_min = r2
+                   ibond  = iatm2
+                END IF
+             END DO
+             IF (ibond == -1) THEN
+                WRITE(output_unit,'(T2,"GENERATE|",1X,A,I10,A)')&
+                     "WARNING:: Hydrogen - Atom Nr:",iatm1," has no connectivity!"
+             ELSE
+                n_hydr_bonds = n_hydr_bonds + 1
+                n_bonds      = n_bonds + 1
+                CALL add_bonds_list(conn_info, MIN(iatm1, ibond), MAX(iatm1, ibond), n_bonds)
              END IF
-             IF (r2 <= r2_min) THEN
-                r2_min = r2
-                ibond  = iatm2
-             END IF
-          END DO
-          IF (ibond == -1) THEN
-             WRITE(output_unit,'(T2,"GENERATE|",1X,A,I10,A)')&
-                  "WARNING:: Hydrogen - Atom Nr:",iatm1," has no connectivity!"
-          ELSE
-             n_hydr_bonds = n_hydr_bonds + 1
-             n_bonds      = n_bonds + 1
-             CALL add_bonds_list(conn_info, MIN(iatm1, ibond), MAX(iatm1, ibond), n_bonds)
+          END DO          
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')&
+                  " Preliminary Number of Bonds generated:",n_bonds
+          END IF
+          ! External defined bonds (useful for complex connectivity)
+          bond_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%BOND",&
+               error=error)
+          CALL connectivity_external_control(section=bond_section,&
+                                             Iarray1=conn_info%bond_a,&
+                                             Iarray2=conn_info%bond_b,&
+                                             nvar=n_bonds,&
+                                             topology=topology,&
+                                             output_unit=output_unit,&
+                                             error=error)
+          ! Resize arrays to their proper size..
+          CALL reallocate(conn_info%bond_a,1,n_bonds)
+          CALL reallocate(conn_info%bond_b,1,n_bonds)
+          ! Check created connectivity and possibly give the OK to proceed
+          connectivity_ok = check_generate_mol(conn_info%bond_a,conn_info%bond_b,&
+               atom_info, bondparm_factor, output_unit, error)
+          IF (my_maxrad*bondparm_factor>r_max(1,1)) THEN
+             WRITE(output_unit,'(T2,"GENERATE|",A)')&
+                  " ERROR in connectivity generation!",&
+                  " The THRESHOLD to select possible bonds is bigger than the MAX bondlength",&
+                  " used to build the neighbors lists. Increase the BONDLENGTH_MAX patameter"
+             WRITE(output_unit,'(T2,"GENERATE|",2(A,F11.6),A)')&
+                  " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
+                  " Present BONDLENGTH_MAX (",r_max(1,1)," )"
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
        END DO
-       CALL fist_neighbor_deallocate(nonbonded,error)
-       IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Bonds generated:",&
-               n_bonds
+       IF (connectivity_ok) THEN
+          WRITE(output_unit,'(T2,"GENERATE|",A)')&
+               "  Achieved consistency in connectivity generation."
        END IF
-       ! External defined bonds (useful for complex connectivity)
-       bond_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%BOND",error=error)
-       CALL connectivity_external_control(section=bond_section,&
-                                          Iarray1=conn_info%bond_a,&
-                                          Iarray2=conn_info%bond_b,&
-                                          nvar=n_bonds,&
-                                          topology=topology,&
-                                          output_unit=output_unit,&
-                                          error=error)
-       ! Resize arrays to their proper size..
-       CALL reallocate(conn_info%bond_a,1,n_bonds)
-       CALL reallocate(conn_info%bond_b,1,n_bonds)
+       CALL fist_neighbor_deallocate(nonbonded,error)
        CALL timestop(0.0_dp,handle2)
        CALL timeset(TRIM(routineN)//"_6",'I','',handle2)
        ! Deallocate temporary working arrays
@@ -678,9 +720,9 @@ CONTAINS
           DEALLOCATE(bond_list(I)%array2,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
-       DEALLOCATE(pbc_coord,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(bond_list,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(pbc_coord,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(atm_symbol,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -728,6 +770,202 @@ CONTAINS
   END SUBROUTINE topology_generate_bond
 
 !******************************************************************************
+!!****** check_generate_mol [1.0] *
+!!
+!!   NAME
+!!     check_generate_mol
+!!
+!!   SYNOPSIS
+!!
+!!
+!!   FUNCTION
+!!     Performs a check on the generated connectivity
+!!
+!!   AUTHOR
+!!     Teodoro Laino 09.2006
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  FUNCTION check_generate_mol(bond_a,bond_b,atom_info,bondparm_factor,output_unit,error) &
+       RESULT(conn_ok)
+    INTEGER, DIMENSION(:), POINTER           :: bond_a, bond_b
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), INTENT(INOUT)             :: bondparm_factor
+    INTEGER , INTENT(IN)                     :: output_unit
+    LOGICAL   :: conn_ok
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_generate_mol', &
+      routineP = moduleN//':'//routineN
+    TYPE(array1_list_type), &
+         DIMENSION(:), POINTER               :: bond_list
+    INTEGER :: natom, i, j, stat, handle, itype, nsize, idim, mol_natom
+    INTEGER, DIMENSION(:,:), POINTER           :: mol_info
+    INTEGER, DIMENSION(:), POINTER             :: mol_map, mol_map_o, wrk
+    LOGICAL :: failure, found
+    LOGICAL, POINTER, DIMENSION(:)             :: icheck
+    CHARACTER(LEN=10) :: ctmp1, ctmp2, ctmp3
+
+    CALL timeset(routineN,'I','',handle)
+    conn_ok = .TRUE.
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       natom   = SIZE(atom_info%label_atmname)
+       ALLOCATE(bond_list(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I = 1, natom
+          ALLOCATE(bond_list(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       CALL reorder_structure(bond_list, bond_a, bond_b, SIZE(bond_a),&
+            error=error)    
+       ALLOCATE(mol_map(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(mol_map_o(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(wrk(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, natom
+          mol_map(i) = str2id(s2s(TRIM(atom_info%label_resname(i))))
+       END DO
+       mol_map_o = mol_map
+       CALL sort(mol_map,natom,wrk)
+       !
+       ! mol(i,1) : stores id of the molecule
+       ! mol(i,2) : stores the total number of atoms forming that kind of molecule
+       ! mol(i,3) : contains the number of molecules generated for that kind
+       ! mol(i,4) : contains the number of atoms forming one molecule of that kind
+       ! Connectivity will be considered correct only if for each i:
+       !
+       !               mol(i,2) = mol(i,3)*mol(i,4)
+       !
+       ! If not, very probably, a bond is missing increase bondparm by 10% and let's
+       ! check if the newest connectivity is bug free..
+       !
+       ALLOCATE(mol_info(1,4),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       itype = mol_map(1)
+       idim  = 1
+       mol_info(1,1) = itype
+       DO i = 2, natom
+          IF (mol_map(i)/=itype) THEN
+             nsize = SIZE(mol_info,1)+1
+             itype = mol_map(i)
+             CALL reallocate(mol_info,1,nsize,1,SIZE(mol_info,2))
+             mol_info(nsize,  1) = itype
+             mol_info(nsize-1,2) = idim
+             idim  = 1             
+          ELSE
+             idim  = idim + 1
+          END IF
+       END DO
+       nsize = SIZE(mol_info,1)
+       mol_info(nsize,2) = idim
+       DO i =1, nsize
+          mol_info(i,3) = 0
+          mol_info(i,4) = 0
+       END DO
+       ! 
+       ALLOCATE(icheck(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       icheck = .FALSE.
+       DO i = 1, natom
+          IF (icheck(i)) CYCLE
+          itype     = mol_map_o(i)
+          mol_natom = 0
+          CALL give_back_molecule(icheck,bond_list,i,mol_natom)
+          DO j = 1, SIZE(mol_info)
+             IF (itype==mol_info(j,1)) EXIT
+          END DO
+          mol_info(j,3) = mol_info(j,3) + 1
+          IF (mol_info(j,4)==0) mol_info(j,4) = mol_natom
+          IF (mol_info(j,4)/=mol_natom) THEN
+             ! Two same molecules have been found with different number
+             ! of atoms. This usually indicates a missing bond in the
+             ! generated connectivity
+             ! Set connectivity to .false. EXIT and increase bondparm_factor by 1.05
+             conn_ok = .FALSE.
+             bondparm_factor = bondparm_factor * 1.05_dp
+             WRITE(output_unit,'(/,T2,"GENERATE|",A)')" WARNING in connectivity generation!"
+             WRITE(output_unit,'(T2,"GENERATE|",A)')&
+                  ' Two molecules/residues named ('//TRIM(id2str(itype))//') have different '//&
+                  ' number of atoms.'
+             CALL integer_to_string(i, ctmp1)
+             CALL integer_to_string(mol_natom, ctmp2)
+             CALL integer_to_string(mol_info(j,4), ctmp3)
+             WRITE(output_unit,'(T2,"GENERATE|",A)')' Molecule starting at position ('//&
+                  TRIM(ctmp1)//') has Nr. <'//TRIM(ctmp2)//&
+                  '> of atoms.',' while the other same molecules have Nr. <'//&
+                  TRIM(ctmp3)//'> of atoms!' 
+             WRITE(output_unit,'(T2,"GENERATE|",A)')&
+                  ' Increasing bondparm_factor by 1.05.. An error was found in the generated',&
+                  ' connectivity. Retry...'
+             WRITE(output_unit,'(T2,"GENERATE|",A,F11.6,A,/)')&
+                  " Present value of BONDPARM_FACTOR (",bondparm_factor," )."
+             EXIT
+          END IF
+       END DO
+       DEALLOCATE(icheck,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mol_info,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mol_map,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(mol_map_o,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(wrk,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I = 1, natom
+          DEALLOCATE(bond_list(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(bond_list,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL timestop(0.0_dp,handle)
+    END IF
+  END FUNCTION check_generate_mol
+
+!******************************************************************************
+!!****** topology_generate_util [1.0] *
+!!
+!!   NAME
+!!     give_back_molecule
+!!
+!!   SYNOPSIS
+!!
+!!
+!!   FUNCTION
+!!     
+!!
+!!   AUTHOR
+!!     Teodoro Laino 09.2006
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  RECURSIVE SUBROUTINE give_back_molecule(icheck, bond_list,i,mol_natom)
+    LOGICAL, POINTER, DIMENSION(:)           :: icheck
+    TYPE(array1_list_type), &
+         DIMENSION(:), POINTER               :: bond_list    
+    INTEGER, INTENT(IN)                      :: i
+    INTEGER, INTENT(INOUT)                   :: mol_natom
+
+    INTEGER :: j, k
+    
+    icheck(i) = .TRUE.
+    DO j = 1, SIZE(bond_list(i)%array1)
+       k = bond_list(i)%array1(j)
+       IF (icheck(k)) CYCLE
+       mol_natom = mol_natom + 1
+       CALL give_back_molecule(icheck, bond_list, k, mol_natom)
+    END DO
+
+  END SUBROUTINE give_back_molecule
+
+!******************************************************************************
 !!****** topology_generate_util [1.0] *
 !!
 !!   NAME
@@ -756,8 +994,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN), OPTIONAL            :: is_impr
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'connectivity_external_control', &

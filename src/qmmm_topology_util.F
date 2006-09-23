@@ -154,10 +154,10 @@ CONTAINS
 
     INTEGER                                  :: first_atom, handle, i, &
                                                 imolecule, iw, last_atom, &
-                                                natom, qm_mol_num, stat
+                                                natom, qm_mol_num, stat, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
                                                 qm_molecule_index
-    LOGICAL                                  :: detected_link, failure
+    LOGICAL                                  :: detected_link, failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -166,6 +166,12 @@ CONTAINS
     failure = .FALSE.
     detected_link = .FALSE.
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -204,6 +210,11 @@ CONTAINS
                 IF (iw>0) WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
                 IF (.NOT.qmmm_env%qmmm_link) THEN 
                    IF (iw>0) WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
+                   WRITE(output_unit,'(T2,"QMMM_CONNECTIVITY|",A)')&
+                        " ERROR in the QM/MM connectivity. A QM/MM LINK was detected but",&
+                        " no LINK section was provided in the Input file!",&
+                        " This very probably can be identified as an error in the specified QM",&
+                        " indexes or in a missing LINK section. Check your structure!"  
                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END IF
              END IF
