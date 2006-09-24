@@ -199,7 +199,7 @@ CONTAINS
       energy%total = energy%total +  energy%qmmm_nu
     END IF
     IF (iw>0) THEN
-       IF(.NOT. gapw) WRITE(iw,'(T2"QMMM|",1X,A,T66,F15.9)')&
+       IF(.NOT. gapw) WRITE(iw,'(T2,"QMMM|",1X,A,T66,F15.9)')&
             "QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
        WRITE(iw,'(T2,"QMMM|",1X,A,T66,F15.9)')&
             "QMMM Total Energy (QM + QMMM electronic + QMMM nuclear):",energy%total
