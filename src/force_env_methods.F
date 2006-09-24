@@ -266,12 +266,6 @@ CONTAINS
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-       ! Dump force_eval energy..
-       IF (output_unit>0) THEN
-          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T66,F15.9,/)')&
-               ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
-       END IF
        IF (.NOT.my_skip) THEN
           ! Metadynamics
           IF (ASSOCIATED(force_env%meta_env)) THEN
@@ -290,7 +284,6 @@ CONTAINS
           ! All Restraints
           CALL restraint_control(force_env, error=error)
        END IF
-
        IF (ASSOCIATED(force_env%cpot_env)) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
           nat=force_env_get_natom(force_env,error=error)
@@ -300,6 +293,12 @@ CONTAINS
           DEALLOCATE(pos,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
+       END IF
+       ! Dump force_eval energy..
+       IF (output_unit>0) THEN
+          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
+          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T66,F15.9,/)')&
+               ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
        END IF
     END IF
   END SUBROUTINE force_env_calc_energy_force
