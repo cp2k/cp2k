@@ -199,8 +199,13 @@ CONTAINS
       energy%total = energy%total +  energy%qmmm_nu
     END IF
     IF (iw>0) THEN
-       IF(.NOT. gapw) WRITE(iw,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
-       WRITE(iw,'(T3,A,F15.9)')" Total Energy after the QM/MM Calculation :",energy%total
+       IF(.NOT. gapw) WRITE(iw,'(T2"QMMM|",1X,A,T66,F15.9)')&
+            "QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
+       WRITE(iw,'(T2,"QMMM|",1X,A,T66,F15.9)')&
+            "QMMM Total Energy (QM + QMMM electronic + QMMM nuclear):",energy%total
+       WRITE(iw,'(T2,"QMMM|",1X,A)')"MM energy NOT included in the above term!"//&
+            " Check for:  FORCE_EVAL ( QMMM )" 
+       WRITE(iw,'(T2,"QMMM|",1X,A)')"that includes both QM, QMMM and MM energy terms!" 
     END IF
     IF (need_f) THEN
        ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
@@ -211,7 +216,7 @@ CONTAINS
        DO ispin=1,SIZE(rho%rho_r)
           CALL pw_sumup(rho%rho_r(ispin)%pw,rho_tot_r)
        END DO
-       IF (iw>0) WRITE(iw,'(T3,A)')" Evaluating forces on MM atoms due to the:"
+       IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Evaluating forces on MM atoms due to the:"
        !
        ! Electrostatic Interaction type...
        !
@@ -220,7 +225,7 @@ CONTAINS
        !
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_grid)
-          IF (iw>0) WRITE(iw,'(T3,A)')"QM/MM Coupling computed on GRID."
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- QM/MM Coupling computed on GRID."
           ! Compute the MM electrostatic potential on GRID
           CALL qmmm_forces_on_grid     ( rho=rho_tot_r,&
                v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
@@ -232,7 +237,7 @@ CONTAINS
                mm_cell=mm_cell,&
                error=error)
        CASE(do_qmmm_gauss)
-          IF (iw>0) WRITE(iw,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- QM/MM Coupling computed collocating the Gaussian Potential Functions."
           CALL qmmm_forces_with_gaussian(rho=rho_tot_r,&
                qmmm_env=qmmm_env,&
                mm_particles=mm_particles,&
@@ -250,9 +255,9 @@ CONTAINS
                mm_cell=mm_cell,&
                error=error)
        CASE(do_qmmm_none)
-          IF (iw>0) WRITE(iw,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
-          IF (iw>0) WRITE(iw,'(T3,A)')"Unknown Coupling..."
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        !ikuo Temporary change to alleviate compiler problems on Intel with

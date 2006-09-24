@@ -90,7 +90,19 @@ MODULE force_env_types
                                 use_qmmm       = 505, &
                                 use_tbmd_force = 506, &
                                 use_eip_force  = 507,&
-                                use_ep_force=508
+                                use_ep_force   = 508
+
+  CHARACTER(LEN=10), DIMENSION(501:508), PARAMETER, PUBLIC :: &
+       use_prog_name = (/&
+       "FIST  ", &
+       "QS    ", &
+       "KG    ", &
+       "KG-POL", &
+       "QMMM  ", &
+       "TBMD  ", &
+       "EIP   ",&
+       "EP    "/)
+
   PUBLIC :: force_env_type,&
             force_env_p_type
   PUBLIC :: force_env_retain,&

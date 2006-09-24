@@ -148,7 +148,7 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
             extension=".qmmmLog",error=error)
        IF (iw>0) &
-            WRITE(iw,'(T3,A)')"Information on the QM/MM Electrostatic Potential:"
+            WRITE(iw,'(T2,"QMMM|",1X,A)')"Information on the QM/MM Electrostatic Potential:"
        !
        ! Initializing vectors:
        !        Zeroing v_qmmm_rspace 
@@ -159,7 +159,7 @@ CONTAINS
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_grid)
           IF (iw>0) &
-               WRITE(iw,'(T3,A)')"QM/MM Coupling computed on GRID."
+               WRITE(iw,'(T2,"QMMM|",1X,A)')"QM/MM Coupling computed on GRID."
           ! Compute the MM electrostatic potential on GRID
           CALL qmmm_electrostatic_on_grid(qmmm_env=qmmm_env,&
                                           v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
@@ -168,7 +168,7 @@ CONTAINS
                                           error=error)
        CASE(do_qmmm_gauss)
           IF (iw>0) &
-               WRITE(iw,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
+               WRITE(iw,'(T2,"QMMM|",1X,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
           interp_section => section_vals_get_subs_vals(input_section,&
                "QMMM%INTERPOLATOR",error=error)
           CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
@@ -186,10 +186,10 @@ CONTAINS
                                           error=error)
        CASE(do_qmmm_none)
           IF (iw>0)&
-               WRITE(iw,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+               WRITE(iw,'(T2,"QMMM|",1X,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
           IF (iw>0) &
-               WRITE(iw,'(T3,A)')"Unknown Coupling..."
+               WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 

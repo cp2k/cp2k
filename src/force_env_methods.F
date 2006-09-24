@@ -58,13 +58,14 @@ MODULE force_env_methods
        force_env_get, force_env_get_natom, force_env_p_type, &
        force_env_pos_get, force_env_type, use_eip_force, use_ep_force, &
        use_fist_force, use_kg_force, use_pol_force, use_qmmm, use_qs_force, &
-       use_tbmd_force
+       use_tbmd_force, use_prog_name
   USE fp_methods,                      ONLY: fp_eval
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
   USE input_constants,                 ONLY: qs_debug_run,&
                                              use_bazant_eip,&
-                                             use_lenosky_eip
+                                             use_lenosky_eip,&
+                                             method_names
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -163,133 +164,145 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
-     calc_force, consistent_energies, skip_external_control, error)
+  RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
+       calc_force, consistent_energies, skip_external_control, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
-                                                consistent_energies, &
-                                                skip_external_control
+         consistent_energies, &
+         skip_external_control
     TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+         :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nat, stat
+    INTEGER                                  :: nat, stat, output_unit
     LOGICAL                                  :: energy_consistency, failure, &
-                                                my_skip, need_f
+         my_skip, need_f, ionode
     REAL(kind=dp)                            :: e_pot
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!------------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
+    failure=.FALSE.
+    need_f=.TRUE.
+    my_skip=.FALSE.
+    IF (PRESENT(skip_external_control)) my_skip = skip_external_control
 
-  failure=.FALSE.
-  need_f=.TRUE.
-  my_skip=.FALSE.
-  IF (PRESENT(skip_external_control)) my_skip = skip_external_control
+    IF (PRESENT(calc_force)) need_f=calc_force
+    IF (PRESENT(consistent_energies)) THEN
+       energy_consistency = consistent_energies
+    ELSE
+       energy_consistency = .FALSE.
+    END IF
 
-  IF (PRESENT(calc_force)) need_f=calc_force
-  IF (PRESENT(consistent_energies)) THEN
-    energy_consistency = consistent_energies
-  ELSE
-    energy_consistency = .FALSE.
-  END IF
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL force_env_get(force_env,virial=virial,error=error)
+    IF (virial%pv_availability) THEN
+       CALL zero_virial(force_env%virial,force_env%virial%pv_availability,&
+            force_env%virial%pv_numer)
+    END IF
+    IF (.NOT.failure) THEN
 
-  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  END IF
-  CALL force_env_get(force_env,virial=virial,error=error)
-  IF (virial%pv_availability) THEN
-    CALL zero_virial(force_env%virial,force_env%virial%pv_availability,&
-                   force_env%virial%pv_numer)
-  END IF
-  IF (.NOT.failure) THEN
+       SELECT CASE ( force_env%in_use )
+       CASE ( use_fist_force )
+          CALL fist_force_control( force_env%fist_env,force_env%virial, force_env%para_env, &
+               force_env_section=force_env%force_env_section, error=error)
+       CASE (use_ep_force)
+          CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
+       CASE ( use_qs_force )
+          IF (.NOT.need_f) THEN
+             CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
+                  consistent_energies=energy_consistency, &
+                  calc_forces=calc_force, error=error)
+             IF (virial%pv_availability.AND.virial%pv_numer) THEN
+                CALL qs_calc_numerical_pressure(force_env,error=error)
+             END IF
+          ELSE
+             CALL qs_forces(force_env%qs_env,force_env%globenv,&
+                  error=error)
+             IF (virial%pv_availability.AND.virial%pv_numer) THEN
+                CALL qs_calc_numerical_pressure(force_env,error=error)
+             END IF
+          END IF
 
-     SELECT CASE ( force_env%in_use )
-     CASE ( use_fist_force )
-        CALL fist_force_control( force_env%fist_env,force_env%virial, force_env%para_env, &
-                                 force_env_section=force_env%force_env_section, error=error)
-     CASE (use_ep_force)
-        CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
-     CASE ( use_qs_force )
-        IF (.NOT.need_f) THEN
-           CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
-                            consistent_energies=energy_consistency, &
-                            calc_forces=calc_force, error=error)
-           IF (virial%pv_availability.AND.virial%pv_numer) THEN
-             CALL qs_calc_numerical_pressure(force_env,error=error)
-           END IF
-        ELSE
-           CALL qs_forces(force_env%qs_env,force_env%globenv,&
-                          error=error)
-           IF (virial%pv_availability.AND.virial%pv_numer) THEN
-             CALL qs_calc_numerical_pressure(force_env,error=error)
-           END IF
-        END IF
+       CASE ( use_pol_force )
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       CASE ( use_kg_force )
+          IF (.NOT.need_f) THEN
+             root_section=>force_env%root_section
+             CALL kg_energies ( force_env%kg_env,root_section, force_env%globenv, error=error )
+          ELSE
+             CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
+          END IF
+       CASE (use_tbmd_force)
+          IF (.NOT. need_f) THEN
+             CALL tbmd_energies(force_env%tbmd_env, force_env%para_env, error=error)
+          ELSE
+             CALL tbmd_forces(force_env%tbmd_env, force_env%para_env, error=error)
+          END IF
+       CASE (use_eip_force)
+          IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
+             CALL eip_lenosky(force_env, error=error)
+          ELSE IF (force_env%eip_env%eip_model == use_bazant_eip) THEN
+             CALL eip_bazant(force_env, error=error)
+          END IF
+       CASE ( use_qmmm )
+          CALL qmmm_energy_and_forces(force_env,need_f,error=error)
+       CASE default
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       ! Dump force_eval energy..
+       IF (output_unit>0) THEN
+          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
+          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T66,F15.9,/)')&
+               ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
+       END IF
+       IF (.NOT.my_skip) THEN
+          ! Metadynamics
+          IF (ASSOCIATED(force_env%meta_env)) THEN
+             CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
+          END IF
+          ! Flexible Partitioning
+          IF (ASSOCIATED(force_env%fp_env)) THEN
+             IF (force_env%fp_env%use_fp) THEN
+                CALL force_env_get(force_env,cell=cell,error=error)
+                CALL fp_eval(force_env%fp_env,force_env%subsys, &
+                     cell,error=error)
+             ENDIF
+          ENDIF
+          ! Constraints ONLY of Fixed Atom type
+          CALL fix_atom_control(force_env, error=error)
+          ! All Restraints
+          CALL restraint_control(force_env, error=error)
+       END IF
 
-     CASE ( use_pol_force )
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-     CASE ( use_kg_force )
-        IF (.NOT.need_f) THEN
-           root_section=>force_env%root_section
-           CALL kg_energies ( force_env%kg_env,root_section, force_env%globenv, error=error )
-        ELSE
-           CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
-        END IF
-     CASE (use_tbmd_force)
-        IF (.NOT. need_f) THEN
-          CALL tbmd_energies(force_env%tbmd_env, force_env%para_env, error=error)
-        ELSE
-          CALL tbmd_forces(force_env%tbmd_env, force_env%para_env, error=error)
-        END IF
-     CASE (use_eip_force)
-        IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
-          CALL eip_lenosky(force_env, error=error)
-        ELSE IF (force_env%eip_env%eip_model == use_bazant_eip) THEN
-          CALL eip_bazant(force_env, error=error)
-        END IF
-     CASE ( use_qmmm )
-        CALL qmmm_energy_and_forces(force_env,need_f,error=error)
-     CASE default
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-     END SELECT
-
-     IF (.NOT.my_skip) THEN
-        ! Metadynamics
-        IF (ASSOCIATED(force_env%meta_env)) THEN
-           CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
-        END IF
-        ! Flexible Partitioning
-        IF (ASSOCIATED(force_env%fp_env)) THEN
-           IF (force_env%fp_env%use_fp) THEN
-              CALL force_env_get(force_env,cell=cell,error=error)
-              CALL fp_eval(force_env%fp_env,force_env%subsys, &
-                   cell,error=error)
-           ENDIF
-        ENDIF
-        ! Constraints ONLY of Fixed Atom type
-        CALL fix_atom_control(force_env, error=error)
-        ! All Restraints
-        CALL restraint_control(force_env, error=error)
-     END IF
-
-     IF (ASSOCIATED(force_env%cpot_env)) THEN
-        CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-        nat=force_env_get_natom(force_env,error=error)
-        ALLOCATE(pos(3*nat),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        CALL force_env_pos_get(force_env, pos, 3*nat, error=error)
-        DEALLOCATE(pos,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
-     END IF
-  END IF
-END SUBROUTINE force_env_calc_energy_force
+       IF (ASSOCIATED(force_env%cpot_env)) THEN
+          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
+          nat=force_env_get_natom(force_env,error=error)
+          ALLOCATE(pos(3*nat),stat=stat)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CALL force_env_pos_get(force_env, pos, 3*nat, error=error)
+          DEALLOCATE(pos,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
+       END IF
+    END IF
+  END SUBROUTINE force_env_calc_energy_force
 !******************************************************************************
 
 !!****f* force_env_types/force_env_create [1.0] *
