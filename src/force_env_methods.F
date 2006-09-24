@@ -295,7 +295,7 @@ CONTAINS
           CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
        END IF
        ! Dump force_eval energy..
-       IF (output_unit>0) THEN
+       IF (output_unit>0.AND.(.NOT.need_f)) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
           WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T66,F15.9,/)')&
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
