@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003, 2004 CP2K developers group                           !
+!   Copyright (C) 2000 - 2003, 2004, 2006 CP2K developers group               !
 !-----------------------------------------------------------------------------!
-
 !!****** cp2k/qs_collocate_density [1.0] *
 !!
 !!   NAME
@@ -154,7 +153,7 @@ MODULE qs_collocate_density
             collocate_pgf_product_gspace,&
             collocate_pgf_product_rspace,&
             collocate_atomic_charge_density,&
-            density_on_full_grid
+            density_rs2pw
 
 ! *** Public functions ***
 
@@ -208,8 +207,7 @@ CONTAINS
 
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'collocate_atomic_charge_density', &
@@ -421,15 +419,27 @@ CONTAINS
 
   END SUBROUTINE collocate_atomic_charge_density
 
-! *****************************************************************************
-
+!!****f* qs_collocate_density/calculate_rho_core *
+!!
+!!   NAME
+!!     calculate_rho_core
+!!
+!!   FUNCTION
+!!     computes the density of the core charges on the grid
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
@@ -574,11 +584,23 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_core
-
-! *****************************************************************************
-! both rho,rho_gspace are the new rho,
-! *****************************************************************************
-
+!!****f* qs_collocate_density/calculate_rho_elec *
+!!
+!!   NAME
+!!     calculate_rho_elec
+!!
+!!   FUNCTION
+!!     computes the density corresponding to a given density matrix on the grid
+!!
+!!   NOTES
+!!     both rho and rho_gspace contain the new rho
+!!     (in real and g-space respectively)
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p,rho,rho_gspace, total_rho,&
                                 qs_env, soft_valid,  compute_tau, error)
 
@@ -587,8 +609,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
@@ -1208,7 +1229,7 @@ CONTAINS
     !PARATIME                                            time_max," , minimum time: ",time_min
     !PARATIME END IF
 
-    CALL density_on_full_grid(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
+    CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
 
     total_rho = calculate_total_rho(rho)
 
@@ -1253,8 +1274,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
       routineP = moduleN//':'//routineN
@@ -1437,8 +1457,21 @@ CONTAINS
 
   END SUBROUTINE calculate_wavefunction
 
-! *****************************************************************************
-
+!!****f* qs_collocate_density/calculate_total_rho *
+!!
+!!   NAME
+!!     calculate_total_rho
+!!
+!!   FUNCTION
+!!     given a pw density compute the total density
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   FUNCTION calculate_total_rho(rho) RESULT(total_rho)
 
     TYPE(coeff_type), INTENT(IN)             :: rho
@@ -1471,9 +1504,21 @@ CONTAINS
     END IF
 
   END FUNCTION calculate_total_rho
-
-! *****************************************************************************
-
+!!****f* qs_collocate_density/calculate_total_abs_rho *
+!!
+!!   NAME
+!!     calculate_total_abs_rho
+!!
+!!   FUNCTION
+!!     computes the integral of the absolute value of the density
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   FUNCTION calculate_total_abs_rho(rho) RESULT(total_abs_rho)
 
     TYPE(coeff_type), INTENT(IN)             :: rho
@@ -1495,9 +1540,21 @@ CONTAINS
     END IF
 
   END FUNCTION calculate_total_abs_rho
-
-! *****************************************************************************
-
+!!****f* qs_collocate_density/collocate_pgf_product_rspace *
+!!
+!!   NAME
+!!     collocate_pgf_product_rspace
+!!
+!!   FUNCTION
+!!     low level collocation of primitive gaussian functions
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
@@ -1527,8 +1584,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
     INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
@@ -1912,8 +1968,21 @@ CONTAINS
 
   END SUBROUTINE collocate_pgf_product_rspace
 
-! *****************************************************************************
-
+!!****f* qs_collocate_density/collocate_pgf_product_gspace *
+!!
+!!   NAME
+!!     collocate_pgf_product_gspace
+!!
+!!   FUNCTION
+!!     low level collcation of primitive gaussian functions in g-space
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE collocate_pgf_product_gspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,na,nb,&
@@ -2110,9 +2179,26 @@ CONTAINS
 
   END SUBROUTINE collocate_pgf_product_gspace
 
-! *****************************************************************************
-
-  SUBROUTINE density_on_full_grid(pw_env,rs_rho,rho,rho_gspace,interp_section,error)
+!!****f* qs_collocate_density/density_rs2pw *
+!!
+!!   NAME
+!!     density_rs2pw
+!!
+!!   FUNCTION
+!!     given partial densities on the realspace multigrids, 
+!!     computes the full density on the plane wave grids, both in real and 
+!!     gspace
+!!
+!!   NOTES
+!!     should contain the all communication in the collocation of the density
+!!     in the case of replicated grids
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+  SUBROUTINE density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section,error)
 
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_p_type), &
@@ -2120,13 +2206,13 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: interp_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'density_on_full_grid', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: igrid_level, interp_kind, stat
+    INTEGER                                  :: handle, igrid_level, &
+                                                interp_kind, stat
     LOGICAL                                  :: failure
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
                                                 mgrid_temp_rspace
@@ -2136,6 +2222,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
 
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(gridlevel_info,mgrid_gspace, mgrid_rspace,mgrid_temp_rspace,rs_pools,pw_pools)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
@@ -2233,10 +2320,8 @@ CONTAINS
          error=error)
     DEALLOCATE(mgrid_rspace,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CALL timestop(handle)
 
-
-  END SUBROUTINE density_on_full_grid
-
-! *****************************************************************************
+  END SUBROUTINE density_rs2pw
 
 END MODULE qs_collocate_density

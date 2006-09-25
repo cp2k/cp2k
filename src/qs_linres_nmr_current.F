@@ -99,7 +99,7 @@ MODULE qs_linres_nmr_current
                                              RECIPROCALSPACE
   USE qs_collocate_density,            ONLY: calculate_wavefunction,&
                                              collocate_pgf_product_rspace,&
-                                             density_on_full_grid,&
+                                             density_rs2pw,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -1445,7 +1445,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"jpabt,workt,ntasks,"//&
         "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
-    CALL density_on_full_grid(pw_env,rs_rho,rho_rs,rho_gs,&
+    CALL density_rs2pw(pw_env,rs_rho,rho_rs,rho_gs,&
          interp_section=interp_section,error=error)
 
     CALL timestop(0.0_dp,handle)

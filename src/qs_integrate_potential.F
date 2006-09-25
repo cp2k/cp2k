@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003 CP2K developers group                           !
+!   Copyright (C) 2000 - 2003, 2006 CP2K developers group                     !
 !-----------------------------------------------------------------------------!
-
 !!****** cp2k/qs_integrate_potential [1.0] *
 !!
 !!   NAME
@@ -34,7 +33,6 @@
 !!
 !!   SOURCE
 !***********************************************************************
-
 MODULE qs_integrate_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -135,13 +133,26 @@ MODULE qs_integrate_potential
 
 CONTAINS
 
-! **********************************************************************
-
+!!****f* qs_integrate_potential/integrate_v_core_rspace *
+!!
+!!   NAME
+!!     integrate_v_core_rspace
+!!
+!!   FUNCTION
+!!     computes the forces/virial due to the ionic cores with a potential on
+!!     grid
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env,error)
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
@@ -277,21 +288,31 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_v_core_rspace
-
-! **********************************************************************
-! integrates a given potential (or other object on a real
-! space grid) = v_rspace using a multi grid technique (mgrid_*)
-! over the basis set producing a number for every element of h
-! (should have the same sparsity structure of S)
-! additional screening is available using the magnitude of the
-! elements in p (? I'm not sure this is a very good idea)
-! this argument is optional
-! derivatives of these matrix elements with respect to the ionic
-! coordinates can be computed as well
-! ***********************************************************************
-
-  SUBROUTINE integrate_v_rspace(v_rspace,&
-                                p,h,qs_env,calculate_forces,compute_tau,gapw,&
+!!****f* qs_integrate_potential/integrate_v_rspace *
+!!
+!!   NAME
+!!     integrate_v_rspace
+!!
+!!   FUNCTION
+!!     computes matrix elements corresponding to a given potential
+!!
+!!   NOTES
+!!    integrates a given potential (or other object on a real
+!!    space grid) = v_rspace using a multi grid technique (mgrid_*)
+!!    over the basis set producing a number for every element of h
+!!    (should have the same sparsity structure of S)
+!!    additional screening is available using the magnitude of the
+!!    elements in p (? I'm not sure this is a very good idea)
+!!    this argument is optional
+!!    derivatives of these matrix elements with respect to the ionic
+!!    coordinates can be computed as well
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+  SUBROUTINE integrate_v_rspace(v_rspace, p,h,qs_env,calculate_forces,compute_tau,gapw,&
                                 matrix_dv,error)
 
     TYPE(coeff_type)                         :: v_rspace
@@ -303,8 +324,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, TARGET                       :: matrix_dv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
@@ -312,13 +332,12 @@ CONTAINS
                                                 max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, atom_a, atom_b, auxbas_grid, bcol, brow, curr_tasks, dir, &
-      handle, i, iatom, idir, igrid_level, ijatoms, ijsets, ikind, ilist, &
-      inode, interp_kind, ipgf, iset, istat, itask, ithread, jatom, jkind, &
-      jpgf, jset, maxco, maxsgf_set, n, na1, na2, nalimit(2), natom, &
-      natom_pairs, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, &
-      nsetb, nthread, offs_dv, omp_get_max_threads, omp_get_thread_num, sgfa, &
-      sgfb, stat, tp
+    INTEGER :: ab, atom_a, atom_b, bcol, brow, curr_tasks, dir, handle, i, &
+      iatom, idir, igrid_level, ijatoms, ijsets, ikind, ilist, inode, ipgf, &
+      iset, istat, itask, ithread, jatom, jkind, jpgf, jset, maxco, &
+      maxsgf_set, n, na1, na2, nalimit(2), natom, natom_pairs, nb1, nb2, &
+      ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, offs_dv, &
+      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -330,8 +349,7 @@ CONTAINS
     LOGICAL :: failure, h_duplicated, has_dv, map_consistent, my_compute_tau, &
       my_gapw, p_duplicated, use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
-                                                kind_radius_b, rab2, scale, &
-                                                zetp
+                                                kind_radius_b, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, &
                                                 my_virial_a, my_virial_b, ra, &
                                                 rab, rb, rp
@@ -349,8 +367,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
-                                                mgrid_temp_rspace
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
@@ -368,8 +384,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -383,34 +397,23 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
+    NULLIFY(pw_env, rs_pools, ntasks, tasks, dist_ab, tasks_local, ival, &
+         latom, dab_local, asets, atasks)
 
     debug_count=debug_count+1
 
-! default, if compute_tau is not present we assume it is false
-    has_dv=.FALSE.
     offs_dv=0
     has_dv=PRESENT(matrix_dv)
-    IF (PRESENT(compute_tau)) THEN
-        my_compute_tau = compute_tau
-    ELSE
-        my_compute_tau = .FALSE.
-    ENDIF
-
-    IF (PRESENT(gapw)) THEN
-      my_gapw = gapw
-    ELSE
-      my_gapw = .FALSE.
-    ENDIF
+    my_compute_tau = .FALSE.
+    my_gapw = .FALSE.
+    IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
+    IF (PRESENT(gapw)) my_gapw = gapw
 
     IF (my_compute_tau) THEN
       CALL timeset("integrate_v_tau","I","",handle)
     ELSE
       CALL timeset("integrate_v_rspace","I","",handle)
     END IF
-
-    NULLIFY(pw_env,rs_pools,ntasks,tasks,dist_ab,tasks_local,&
-            ival,latom,dab_local,asets,atasks,mgrid_rspace,mgrid_gspace,pw_pools)
-    NULLIFY(mgrid_temp_rspace)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -423,110 +426,23 @@ CONTAINS
                     force=force,pw_env=pw_env,&
                     virial=virial,error=error)
 
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-
-    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-         error=error)
-    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
-
-    ! *** set up of the potential on the multigrids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
-
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
-                use_data = REALDATA3D,&
-                in_space = REALSPACE, error=error)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
 
     ! *** assign from pw_env
-    auxbas_grid=pw_env%auxbas_grid
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
 
-    ! use either realspace or fft techniques to get the potential on the rs multigrids
-    SELECT CASE(interp_kind)
-    CASE(linear_interp)
-       ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-       CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
-                                 use_data = REALDATA3D,&
-                                 in_space = REALSPACE, error=error)
-       CALL coeff_copy(v_rspace,mgrid_temp_rspace(1))
-       CALL coeff_copy(v_rspace,mgrid_rspace(1))
-       DO igrid_level=2,gridlevel_info%ngrid_levels
-          CALL pw_restrict_l(mgrid_temp_rspace(igrid_level-1)%pw,mgrid_rspace(igrid_level)%pw)
-          CALL coeff_copy(mgrid_rspace(igrid_level),mgrid_temp_rspace(igrid_level))
-       ENDDO
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
-                                      error=error)
-       DEALLOCATE(mgrid_temp_rspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CASE (pw_interp)
-       ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-       CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-                                 use_data = COMPLEXDATA1D,&
-                                 in_space = RECIPROCALSPACE, error=error)
-       CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
-       DO igrid_level=1,gridlevel_info%ngrid_levels
-         IF ( igrid_level /= auxbas_grid ) THEN
-              CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
-              CALL coeff_transform_space(mgrid_gspace(igrid_level),&
-                                             mgrid_rspace(igrid_level))
-         ELSE
-              IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
-                  CALL coeff_transform_space(mgrid_gspace(auxbas_grid),&
-                                             mgrid_rspace(auxbas_grid))
-              ELSE ! fft forward + backward should be identical
-                  CALL coeff_copy(v_rspace,mgrid_rspace(auxbas_grid))
-              ENDIF
-         ENDIF
-         ! *** Multiply by the grid volume element ratio ***
-         IF ( igrid_level /= auxbas_grid ) THEN
-            scale = mgrid_rspace(igrid_level)%pw%pw_grid%dvol/&
-                    mgrid_rspace(auxbas_grid)%pw%pw_grid%dvol
-            mgrid_rspace(igrid_level)%pw%cr3d = &
-                                      scale*mgrid_rspace(igrid_level)%pw%cr3d
-         END IF
-       END DO
-       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-                                      error=error)
-       DEALLOCATE(mgrid_gspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CASE(spline3_pbc_interp)
-       CALL pw_copy(v_rspace%pw,mgrid_rspace(1)%pw)
-       DO igrid_level=1,gridlevel_info%ngrid_levels-1
-          CALL pw_zero(mgrid_rspace(igrid_level+1)%pw)
-          CALL pw_restrict_s3(mgrid_rspace(igrid_level)%pw,&
-               mgrid_rspace(igrid_level+1)%pw,pw_pools(igrid_level+1)%pool,&
-               interp_section,error=error)
-          ! *** Multiply by the grid volume element ratio
-          workt => mgrid_rspace(igrid_level+1) % pw % cr3d
-          workt = workt * 8._dp
-       END DO
-    CASE default
-       CALL cp_unimplemented_error(routine,"interpolation not supported "//&
-            cp_to_string(interp_kind),error=error)
-    END SELECT
-
-    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
-                           mgrid_rspace(igrid_level)%pw,pw2rs)
-    ENDDO
-
-    ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
-    DEALLOCATE(mgrid_rspace,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
 
 !   *** having the potential on the rs_multigrids, just integrate ...
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -881,6 +797,7 @@ CONTAINS
           END IF
           CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
 
+
 !$OMP parallel &
 !$OMP default(none) &
 !$OMP private(ijatoms,ithread,nalimit,itask,iatom,jatom,ra,brow,bcol) &
@@ -1221,13 +1138,162 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
     END IF
 
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_v_rspace
 
-! *****************************************************************************
+!!****f* qs_integrate_potential/potential_pw2rs *
+!!
+!!   NAME
+!!     potential_pw2rs
+!!
+!!   FUNCTION
+!!     transfers a potential from a pw_grid to a vector of 
+!!     realspace multigrids
+!!
+!!   NOTES
+!!     extracted from integrate_v_rspace
+!!     should contain all parallel communication of integrate_v_rspace in the 
+!!     case of replicated grids.
+!!
+!!   INPUTS
+!!     v_rspace : INPUT : the potential on a planewave grid in Rspace
+!!     rs_v     : OUTPUT: the potential on the realspace multigrids
+!!
+!!   MODIFICATION HISTORY
+!!     09.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
 
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_v
+    TYPE(coeff_type), INTENT(IN)             :: v_rspace
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(section_vals_type), POINTER         :: interp_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'potential_pw2rs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: auxbas_grid, handle, &
+                                                igrid_level, interp_kind, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: scale
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
+                                                mgrid_temp_rspace
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+
+    CALL timeset(routineN,handle)
+
+    ! *** set up of the potential on the multigrids
+    CALL pw_env_get(pw_env, pw_pools=pw_pools, gridlevel_info=gridlevel_info, &
+           auxbas_grid = auxbas_grid, error=error)
+
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+
+    ! use either realspace or fft techniques to get the potential on the rs multigrids
+    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
+    SELECT CASE(interp_kind)
+    CASE(linear_interp)
+       ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
+                                 use_data = REALDATA3D,&
+                                 in_space = REALSPACE, error=error)
+       CALL coeff_copy(v_rspace,mgrid_temp_rspace(1))
+       CALL coeff_copy(v_rspace,mgrid_rspace(1))
+       DO igrid_level=2,gridlevel_info%ngrid_levels
+          CALL pw_restrict_l(mgrid_temp_rspace(igrid_level-1)%pw,mgrid_rspace(igrid_level)%pw)
+          CALL coeff_copy(mgrid_rspace(igrid_level),mgrid_temp_rspace(igrid_level))
+       ENDDO
+       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
+                                      error=error)
+       DEALLOCATE(mgrid_temp_rspace,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CASE (pw_interp)
+       ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                                 use_data = COMPLEXDATA1D,&
+                                 in_space = RECIPROCALSPACE, error=error)
+       CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+         IF ( igrid_level /= auxbas_grid ) THEN
+              CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
+              CALL coeff_transform_space(mgrid_gspace(igrid_level),&
+                                             mgrid_rspace(igrid_level))
+         ELSE
+              IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
+                  CALL coeff_transform_space(mgrid_gspace(auxbas_grid),&
+                                             mgrid_rspace(auxbas_grid))
+              ELSE ! fft forward + backward should be identical
+                  CALL coeff_copy(v_rspace,mgrid_rspace(auxbas_grid))
+              ENDIF
+         ENDIF
+         ! *** Multiply by the grid volume element ratio ***
+         IF ( igrid_level /= auxbas_grid ) THEN
+            scale = mgrid_rspace(igrid_level)%pw%pw_grid%dvol/&
+                    mgrid_rspace(auxbas_grid)%pw%pw_grid%dvol
+            mgrid_rspace(igrid_level)%pw%cr3d = &
+                                      scale*mgrid_rspace(igrid_level)%pw%cr3d
+         END IF
+       END DO
+       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+                                      error=error)
+       DEALLOCATE(mgrid_gspace,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CASE(spline3_pbc_interp)
+       CALL pw_copy(v_rspace%pw,mgrid_rspace(1)%pw)
+       DO igrid_level=1,gridlevel_info%ngrid_levels-1
+          CALL pw_zero(mgrid_rspace(igrid_level+1)%pw)
+          CALL pw_restrict_s3(mgrid_rspace(igrid_level)%pw,&
+               mgrid_rspace(igrid_level+1)%pw,pw_pools(igrid_level+1)%pool,&
+               interp_section,error=error)
+          ! *** Multiply by the grid volume element ratio
+          mgrid_rspace(igrid_level+1) % pw % cr3d = &
+                 mgrid_rspace(igrid_level+1) % pw % cr3d * 8._dp
+       END DO
+    CASE default
+       CALL cp_unimplemented_error(routineN,"interpolation not supported "//&
+            cp_to_string(interp_kind),error=error)
+    END SELECT
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
+                           mgrid_rspace(igrid_level)%pw,pw2rs)
+    ENDDO
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
+    DEALLOCATE(mgrid_rspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE potential_pw2rs
+
+!!****f* qs_integrate_potential/integrate_pgf_product_rspace *
+!!
+!!   NAME
+!!     integrate_pgf_product_rspace
+!!
+!!   FUNCTION
+!!     low level function to compute matrix elements of primitive gaussian functions
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,&
@@ -1265,8 +1331,7 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
     LOGICAL, INTENT(IN), OPTIONAL            :: use_virial
     REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: my_virial_a, my_virial_b
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
@@ -1672,7 +1737,21 @@ CONTAINS
 
   END SUBROUTINE integrate_pgf_product_rspace
 
-! *****************************************************************************
+!!****f* qs_integrate_potential/virial_update *
+!!
+!!   NAME
+!!     virial_update
+!!
+!!   FUNCTION
+!!     given a set of matrix elements, perform the correct contraction to obtain the virial
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: my_virial_a, my_virial_b
@@ -1724,8 +1803,23 @@ CONTAINS
 !   my_virial_b(3) = my_virial_b(3) + pab*(ftzb*bzp2 - REAL(bz,dp)* bzm1p1)
 
   END SUBROUTINE virial_update
-
-! *****************************************************************************
+!!****f* qs_integrate_potential/force_update *
+!!
+!!   NAME
+!!     force_update
+!!
+!!   FUNCTION
+!!     given a bunch of matrix elements, performe the right contractions to obtain the forces
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!    -
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force_a, force_b
@@ -1758,8 +1852,21 @@ CONTAINS
 
   END SUBROUTINE force_update
 
-! *****************************************************************************
-
+!!****f* qs_integrate_potential/hab_derivatives *
+!!
+!!   NAME
+!!
+!!   FUNCTION
+!!     given a bunch of matrix elements perform the right contractions to obtain the
+!!     derivatives of the hab matirx
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
   SUBROUTINE hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: der_a, der_b
