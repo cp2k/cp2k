@@ -141,6 +141,7 @@ MODULE md
      TYPE ( simpar_units_type )     :: units
      !MK Langevin
      REAL (KIND=dp) :: gamma
+     REAL (KIND=dp) :: noisy_gamma
      REAL (KIND=dp) :: var_w
      !TdK HMC
      INTEGER        :: ld_steps
@@ -205,7 +206,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: iprint
-    REAL(kind=dp)                            :: tmp_r
+    REAL(kind=dp)                            :: tmp_r1, tmp_r2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
                                                 print_key
@@ -305,12 +306,14 @@ CONTAINS
 
       ! Normalization factor using a normal Gaussian random number distribution
 
-      simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
+      simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*(simpar%gamma+simpar%noisy_gamma)
 
       IF ( iw > 0 ) THEN
-        tmp_r = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
+        tmp_r1 = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
+        tmp_r2 = cp_unit_from_cp2k(simpar%noisy_gamma, "fs^-1", error=error)
         WRITE (UNIT=iw,FMT="(T2,A,T71,ES10.3)")&
-          "LD| Gamma [1/fs] ",tmp_r,&
+          "LD| Gamma [1/fs] ",tmp_r1,&
+          "LD| Noisy Gamma [1/fs]",tmp_r2,&
           "LD| Variance [a.u.]",simpar%var_w
       END IF
 
@@ -471,6 +474,8 @@ CONTAINS
 
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
+          CALL section_vals_val_get(md_section, "NOISY_GAMMA", r_val=simpar%noisy_gamma, &
+                                    error=error)
        END IF
 
        tmp_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
@@ -629,6 +634,7 @@ CONTAINS
     simpar % cmass = 0.0_dp
     !MK Langevin
     simpar%gamma = 0.0_dp
+    simpar%noisy_gamma = 0.0_dp
     simpar%var_w = 0.0_dp
     ! TdK HMC
     simpar%ld_steps = 10

@@ -150,7 +150,7 @@ CONTAINS
 !!     pint_env_create
 !!
 !!   FUNCTION
-!!     creates a path integral envirnment
+!!     creates a path integral environment
 !!
 !!   NOTES
 !!     might return an unassociated pointer in parallel on the processors

@@ -371,7 +371,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="subsys",&
             description="a subsystem: coordinates, topology, molecules and cell",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(subsection,print_key,keyword)
@@ -406,7 +406,7 @@ CONTAINS
 
        CALL section_create(subsection,name="print",&
             description="Controls printings related to the subsys",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        CALL cp_print_key_section_create(print_key,"atomic_coordinates",&
@@ -415,7 +415,7 @@ CONTAINS
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
        CALL cp_print_key_section_create(print_key,"interatomic_distances",&
             description="controls the output of the interatomic distances",&
             print_level=debug_print_level, filename="__STD_OUT__",error=error)

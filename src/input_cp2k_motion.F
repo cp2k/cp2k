@@ -1719,7 +1719,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="md",&
             description="parameters needed perform an md run",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=11, n_subsections=7, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, coeff_section, nose_section, uni_section, baro_section, subsection)
@@ -1811,6 +1811,13 @@ CONTAINS
             default_r_val=0.0_dp, unit_str='fs^-1',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Noisy_Gamma",&
+            variants=(/"NoisyGamma"/), &
+            description="Imaginary Langevin Friction term for LD with noisy forces.", &
+            usage="Noisy_Gamma 0.01", default_r_val=0.0_dp, unit_str='fs^-1', error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="pv_ava",&         
             description="Virial availability for force environment",&         
