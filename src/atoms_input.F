@@ -256,12 +256,21 @@ CONTAINS
           END IF
        END DO
        IF (atm_equal_mol /= 0) THEN
-          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| WARNING: User requested the generation of connectivity'
-          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| But in the COORD section was not specified the name of'
-          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| molecule. Reverting to connectivity OFF.Each atom will'
-          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| be considered as a molecule.'
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(T2,A)')&
+                  'CONNECTIVITY| WARNING: User requested the generation of connectivity'
+             WRITE(output_unit,'(T2,A)')&
+                  'CONNECTIVITY| But in the COORD section was not specified the name of'
+             WRITE(output_unit,'(T2,A)')&
+                  'CONNECTIVITY| molecule. Reverting to connectivity OFF.Each atom will'
+             WRITE(output_unit,'(T2,A)')&
+                  'CONNECTIVITY| be considered as a molecule.'
+          END IF
           IF (atm_equal_mol /= natom) THEN
-             WRITE(output_unit,'(T2,A)')'CONNECTIVITY| Missing molecule name in COORD section for few atoms'
+             IF (output_unit>0) THEN
+                WRITE(output_unit,'(T2,A)')&
+                     'CONNECTIVITY| Missing molecule name in COORD section for few atoms'
+             END IF
              CALL stop_program ('read_atoms_input','check coord optional molname')
           END IF
        END IF
