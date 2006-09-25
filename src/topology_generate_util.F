@@ -523,13 +523,15 @@ CONTAINS
             error=error)
        r_max     = tmp
        IF (my_maxrad*bondparm_factor>r_max(1,1)) THEN
-          WRITE(output_unit,'(T2,"GENERATE|",A)')&
-               " ERROR in connectivity generation!",&
-               " The THRESHOLD to select possible bonds is bigger than the MAX bondlength",&
-               " used to build the neighbors lists. Increase the BONDLENGTH_MAX patameter"
-          WRITE(output_unit,'(T2,"GENERATE|",2(A,F11.6),A)')&
-               " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
-               " Present BONDLENGTH_MAX (",r_max(1,1)," )"
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(T2,"GENERATE|",A)')&
+                  " ERROR in connectivity generation!",&
+                  " The THRESHOLD to select possible bonds is bigger than the MAX bondlength",&
+                  " used to build the neighbors lists. Increase the BONDLENGTH_MAX patameter"
+             WRITE(output_unit,'(T2,"GENERATE|",2(A,F11.6),A)')&
+                  " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
+                  " Present BONDLENGTH_MAX (",r_max(1,1)," )"
+          END IF
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
        DO i=1,natom
@@ -667,8 +669,10 @@ CONTAINS
                 END IF
              END DO
              IF (ibond == -1) THEN
-                WRITE(output_unit,'(T2,"GENERATE|",1X,A,I10,A)')&
-                     "WARNING:: Hydrogen - Atom Nr:",iatm1," has no connectivity!"
+                IF (output_unit>0) THEN
+                   WRITE(output_unit,'(T2,"GENERATE|",1X,A,I10,A)')&
+                        "WARNING:: Hydrogen - Atom Nr:",iatm1," has no connectivity!"
+                END IF
              ELSE
                 n_hydr_bonds = n_hydr_bonds + 1
                 n_bonds      = n_bonds + 1
@@ -696,17 +700,19 @@ CONTAINS
           connectivity_ok = check_generate_mol(conn_info%bond_a,conn_info%bond_b,&
                atom_info, bondparm_factor, output_unit, error)
           IF (my_maxrad*bondparm_factor>r_max(1,1)) THEN
-             WRITE(output_unit,'(T2,"GENERATE|",A)')&
-                  " ERROR in connectivity generation!",&
-                  " The THRESHOLD to select possible bonds is bigger than the MAX bondlength",&
-                  " used to build the neighbors lists. Increase the BONDLENGTH_MAX patameter"
-             WRITE(output_unit,'(T2,"GENERATE|",2(A,F11.6),A)')&
-                  " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
-                  " Present BONDLENGTH_MAX (",r_max(1,1)," )"
+             IF (output_unit>0) THEN
+                WRITE(output_unit,'(T2,"GENERATE|",A)')&
+                     " ERROR in connectivity generation!",&
+                     " The THRESHOLD to select possible bonds is bigger than the MAX bondlength",&
+                     " used to build the neighbors lists. Increase the BONDLENGTH_MAX patameter"
+                WRITE(output_unit,'(T2,"GENERATE|",2(A,F11.6),A)')&
+                     " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
+                     " Present BONDLENGTH_MAX (",r_max(1,1)," )"
+             END IF
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
        END DO
-       IF (connectivity_ok) THEN
+       IF (connectivity_ok.AND.(output_unit>0)) THEN
           WRITE(output_unit,'(T2,"GENERATE|",A)')&
                "  Achieved consistency in connectivity generation."
        END IF
@@ -888,6 +894,7 @@ CONTAINS
              ! Set connectivity to .false. EXIT and increase bondparm_factor by 1.05
              conn_ok = .FALSE.
              bondparm_factor = bondparm_factor * 1.05_dp
+             IF (output_unit<0) EXIT
              WRITE(output_unit,'(/,T2,"GENERATE|",A)')" WARNING in connectivity generation!"
              WRITE(output_unit,'(T2,"GENERATE|",A)')&
                   ' Two molecules/residues named ('//TRIM(id2str(itype))//') have different '//&
@@ -1064,9 +1071,11 @@ CONTAINS
                 ! Add to the element to the list
                 IF (do_it>0) THEN
                    nvar = nvar + 1
-                   WRITE(output_unit,'(T2,"ADD|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T64,A,I6)')&
-                        "element (",&
-                        atlist(1),(",",atlist(k),k=2,nsize),") added."," NEW size::",nvar
+                   IF (output_unit>0) THEN
+                      WRITE(output_unit,'(T2,"ADD|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T64,A,I6)')&
+                           "element (",&
+                           atlist(1),(",",atlist(k),k=2,nsize),") added."," NEW size::",nvar
+                   END IF
                    IF (nvar > SIZE(Iarray1)) THEN
                       new_size = INT(5+1.2*nvar)
                       CALL reallocate(Iarray1,1,new_size)
@@ -1095,17 +1104,21 @@ CONTAINS
                       Iarray4(do_it) = Ilist4(do_it)
                    END SELECT
                 ELSE
-                   WRITE(output_unit,'(T2,"ADD|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T80,A)')&
-                        "element (",&
-                        atlist(1),(",",atlist(k),k=2,nsize),") already found.","X"
+                   IF (output_unit>0) THEN
+                      WRITE(output_unit,'(T2,"ADD|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T80,A)')&
+                           "element (",&
+                           atlist(1),(",",atlist(k),k=2,nsize),") already found.","X"
+                   END IF
                 END IF
              ELSE
                 ! Remove element from the list
                 IF (do_it>0) THEN 
                    nvar = nvar - 1
-                   WRITE(output_unit,'(T2,"RMV|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T64,A,I6)')&
-                        "element (",&
-                        atlist(1),(",",atlist(k),k=2,nsize),") removed."," NEW size::",nvar
+                   IF (output_unit>0) THEN
+                      WRITE(output_unit,'(T2,"RMV|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T64,A,I6)')&
+                           "element (",&
+                           atlist(1),(",",atlist(k),k=2,nsize),") removed."," NEW size::",nvar
+                   END IF
                    Iarray1(do_it:nvar)=Iarray1(do_it+1:nvar+1)
                    Iarray2(do_it:nvar)=Iarray2(do_it+1:nvar+1)
                    Iarray1(nvar+1)=-HUGE(0)
@@ -1121,9 +1134,11 @@ CONTAINS
                       Iarray4(nvar+1)=-HUGE(0)
                    END SELECT
                 ELSE
-                   WRITE(output_unit,'(T2,"RMV|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T80,A)')&
-                        "element (",&
-                        atlist(1),(",",atlist(k),k=2,nsize),") not found.","X"
+                   IF (output_unit>0) THEN
+                      WRITE(output_unit,'(T2,"RMV|",1X,A,I6,'//TRIM(fmt)//'(A,I6),A,T80,A)')&
+                           "element (",&
+                           atlist(1),(",",atlist(k),k=2,nsize),") not found.","X"
+                   END IF
                 END IF
              END IF
 
@@ -1645,7 +1660,6 @@ CONTAINS
        ELSE
           output_unit = -1
        END IF
-       output_unit = cp_logger_get_default_unit_nr(logger)
        conn_info => topology%conn_info
        nbond = 0
        natom = topology%natoms
@@ -1928,7 +1942,6 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    output_unit = cp_logger_get_default_unit_nr(logger)
     CALL timeset(routineN,'I','',handle)
     conn_info => topology%conn_info    
     ntheta = SIZE(conn_info%theta_a)
@@ -2001,7 +2014,6 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    output_unit = cp_logger_get_default_unit_nr(logger) 
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
        conn_info => topology%conn_info
@@ -2121,7 +2133,6 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    output_unit = cp_logger_get_default_unit_nr(logger) 
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
        atom_info => topology%atom_info
@@ -2254,7 +2265,6 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-    output_unit = cp_logger_get_default_unit_nr(logger)    
     CALL timeset(routineN,'I','',handle)
     
     conn_info => topology%conn_info    
