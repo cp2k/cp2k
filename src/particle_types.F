@@ -749,23 +749,38 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE write_particle_matrix(matrix,particle_set,iw,el_per_part,error)
+  SUBROUTINE write_particle_matrix(matrix,particle_set,iw,el_per_part,Ilist,error)
     REAL(KIND=dp), DIMENSION(:, :)           :: matrix
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: iw
     INTEGER, INTENT(IN), OPTIONAL            :: el_per_part
+    INTEGER, POINTER, DIMENSION(:), OPTIONAL :: Ilist
     TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: from, iatom, icol, jatom, &
                                                 katom, my_el_per_part, natom, &
-                                                to
+                                                to,i
+    INTEGER, POINTER, DIMENSION(:)           :: my_list
 
     my_el_per_part = 1
     IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
-    natom = SIZE(particle_set)*my_el_per_part
+    IF (PRESENT(Ilist)) THEN
+       natom = SIZE(Ilist)
+    ELSE
+       natom = SIZE(particle_set)
+    END IF
+    ALLOCATE(my_list(natom))
+    IF (PRESENT(Ilist)) THEN
+       my_list = Ilist
+    ELSE
+       DO i = 1, natom
+          my_list(i) = i
+       END DO
+    END IF
+    natom = natom*my_el_per_part
     DO jatom=1,natom,5
        from = jatom
        to = MIN(from+4,natom)
@@ -774,14 +789,14 @@ END SUBROUTINE clone_particle
        DO iatom=1,natom
           katom = iatom/my_el_per_part
           IF (MOD(iatom,my_el_per_part)/=0) katom = katom+1
-          CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind,&
+          CALL get_atomic_kind(atomic_kind=particle_set(my_list(katom))%atomic_kind,&
                element_symbol=element_symbol)
           WRITE (UNIT=iw,FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))")&
                iatom,element_symbol,&
                (matrix(iatom,icol),icol=from,to)
        END DO
     END DO
-    
+    DEALLOCATE(my_list)
   END SUBROUTINE write_particle_matrix
 
 ! *****************************************************************************

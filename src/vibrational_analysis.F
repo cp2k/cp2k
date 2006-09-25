@@ -57,6 +57,30 @@ MODULE vibrational_analysis
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cell_types,                      ONLY: cell_type
+  USE colvar_methods,                  ONLY: colvar_eval_mol_f
+  USE colvar_types,                    ONLY: colvar_counters,&
+                                             colvar_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+  USE kinds,                           ONLY: dp
+  USE md,                              ONLY: simulation_parameters_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: colvar_constraint_type,&
+                                             fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             local_colvar_constraint_type,&
+                                             molecule_type
+  USE message_passing,                 ONLY: mp_sum
+  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -99,7 +123,7 @@ CONTAINS
     CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, iparticle1, &
       iparticle2, iseq, isubsys, j, l, n_rep, ncoord, nrep, nRotTrM, nvib, &
-      output_unit, prep, stat
+      output_unit, prep, stat, natoms, imap, ip1, ip2
     LOGICAL                                  :: failure, keep_rotations
     REAL(KIND=dp)                            :: dx, norm, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, konst, &
@@ -116,6 +140,8 @@ CONTAINS
       POINTER                                :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, DIMENSION(:), POINTER           :: Mlist, Clist
+    LOGICAL :: something_frozen
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -154,29 +180,47 @@ CONTAINS
           CPPostcondition(SIZE(subsys)==isubsys,cp_failure_level,routineP,error,failure)
           particles => subsys(isubsys)%subsys%particles%els
           ! Allocate working arrays
-          ncoord=SIZE(particles)*3
-          ALLOCATE(mass(SIZE(particles)), stat=stat)
+          CALL get_moving_atoms(force_env=f_env%force_env,Ilist=Mlist,error=error)
+          something_frozen = SIZE(particles).NE.SIZE(Mlist)
+          natoms=SIZE(Mlist)
+          ncoord=natoms*3
+          ALLOCATE(Clist(ncoord), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+          ALLOCATE(mass(natoms), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(pos0(ncoord), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(Hessian(ncoord,ncoord),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
-          DO i = 1, SIZE(particles)
-             mass(i) = particles(i)%atomic_kind%mass
+          Clist = 0
+          DO i = 1, natoms
+             imap             = Mlist(i)
+             Clist((i-1)*3+1) = (imap-1)*3+1
+             Clist((i-1)*3+2) = (imap-1)*3+2
+             Clist((i-1)*3+3) = (imap-1)*3+3
+             mass(i) = particles(imap)%atomic_kind%mass
              CPPostcondition(mass(i)>0.0_dp,cp_failure_level,routineP,error,failure)
              mass(i)= SQRT(mass(i))
-             pos0((i-1)*3+1) = particles(i)%r(1)
-             pos0((i-1)*3+2) = particles(i)%r(2)
-             pos0((i-1)*3+3) = particles(i)%r(3)
+             pos0((i-1)*3+1) = particles(imap)%r(1)
+             pos0((i-1)*3+2) = particles(imap)%r(2)
+             pos0((i-1)*3+3) = particles(imap)%r(3)
           END DO
           ! 
           ! Determine the principal axes of inertia.
           ! Generation of coordinates in the rotating and translating frame
           !
-          CALL rot_ana(particles,RotTrM,nRotTrM,output_unit,&
-               para_env%mepos==para_env%source,keep_rotations,error)
+          IF (something_frozen) THEN
+             nRotTrM = 0
+             ALLOCATE(RotTrM(natoms*3,nRotTrM),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ELSE
+             CALL rot_ana(particles,RotTrM,nRotTrM,output_unit,&
+                  para_env%mepos==para_env%source,keep_rotations,natoms,&
+                  error)
+          END IF
           ! Generate the suitable rototranslating basis set
-          CALL build_D_matrix(particles,RotTrM,nRotTrM,D,full=.FALSE.,error=error)
+          CALL build_D_matrix(particles,RotTrM,nRotTrM,D,full=.FALSE.,&
+               natoms=natoms,error=error)
           !
           ! Loop on atoms and coordinates
           !
@@ -185,31 +229,40 @@ CONTAINS
           DO icoordp = 1, ncoord, nrep
              icoord  = icoordp-1
              DO j = 1, nrep
-                rep_env%r(:,j)=pos0
+                DO i = 1, ncoord
+                   imap = Clist(i)
+                   rep_env%r(imap,j)=pos0(i)
+                END DO
                 IF (icoord+j <= ncoord) THEN
-                   rep_env%r(icoord+j,j) = rep_env%r(icoord+j,j) + Dx
+                   imap = Clist(icoord+j)
+                   rep_env%r(imap,j) = rep_env%r(imap,j) + Dx
                 END IF
              END DO
              CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
              DO j = 1, nrep
                 IF (icoord+j <= ncoord) THEN
-                   Hessian(:,icoord+j) = rep_env%f(:rep_env%ndim,j)
+                   DO i = 1, ncoord
+                      imap = Clist(i)
+                      Hessian(i,icoord+j) = rep_env%f(imap,j)
+                   END DO
+                   imap = Clist(icoord+j)
                    ! Dump Info
                    IF (output_unit>0) THEN
-                      iparticle1 = (icoord+j)/3
-                      IF (MOD(icoord+j,3)/=0) iparticle1=iparticle1+1
+                      iparticle1 = imap/3
+                      IF (MOD(imap,3)/=0) iparticle1=iparticle1+1
                       WRITE(output_unit,'(T2,A,I5,A,I5,3A)')&
                            "VIB| REPLICA Nr.",j,"- Energy and Forces for particle:",&
-                           iparticle1,"  coordinate: ",lab(icoord+j-(iparticle1-1)*3),&
-                           " + D"//TRIM(lab(icoord+j-(iparticle1-1)*3))
+                           iparticle1,"  coordinate: ",lab(imap-(iparticle1-1)*3),&
+                           " + D"//TRIM(lab(imap-(iparticle1-1)*3))
                       !
                       WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
                            "VIB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j)
                       WRITE(output_unit,'(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))')lab(1),lab(2),lab(3)
-                      DO i = 1, SIZE(particles)
+                      DO i = 1, natoms
+                         imap = Mlist(i)
                          WRITE(output_unit,'(T2,"VIB|",T12,A,T30,3(2X,F15.9))')&
-                              particles(i)%atomic_kind%name,&
-                              rep_env%f((i-1)*3+1:(i-1)*3+3,j)
+                              particles(imap)%atomic_kind%name,&
+                              rep_env%f((imap-1)*3+1:(imap-1)*3+3,j)
                       END DO
                    END IF
                 END IF
@@ -218,63 +271,73 @@ CONTAINS
           DO icoordm = 1, ncoord, nrep
              icoord  = icoordm-1
              DO j = 1, nrep
-                rep_env%r(:,j)=pos0
+                DO i = 1, ncoord
+                   imap = Clist(i)
+                   rep_env%r(imap,j)=pos0(i)
+                END DO
                 IF (icoord+j <= ncoord) THEN
-                   rep_env%r(icoord+j,j) = rep_env%r(icoord+j,j) - Dx
+                   imap = Clist(icoord+j)
+                   rep_env%r(imap,j) = rep_env%r(imap,j) - Dx
                 END IF
              END DO
              CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
              DO j = 1, nrep
                 IF (icoord+j <= ncoord) THEN
-                   iparticle1 = (icoord+j)/3
-                   IF (MOD(icoord+j,3)/=0) iparticle1=iparticle1+1
+                   imap = Clist(icoord+j)
+                   iparticle1 = imap/3
+                   IF (MOD(imap,3)/=0) iparticle1=iparticle1+1
+                   ip1  = (icoord+j)/3
+                   IF (MOD(icoord+j,3)/=0) ip1=ip1+1
                    ! Dump Info
                    IF (output_unit>0) THEN
                       WRITE(output_unit,'(T2,A,I5,A,I5,3A)')&
                            "VIB| REPLICA Nr.",j,"- Energy and Forces for particle:",&
-                           iparticle1,"  coordinate: ",lab(icoord+j-(iparticle1-1)*3),&
-                           " - D"//TRIM(lab(icoord+j-(iparticle1-1)*3))
+                           iparticle1,"  coordinate: ",lab(imap-(iparticle1-1)*3),&
+                           " - D"//TRIM(lab(imap-(iparticle1-1)*3))
                       !
                       WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
                            "VIB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j)
                       WRITE(output_unit,'(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))')lab(1),lab(2),lab(3)
-                      DO i = 1, SIZE(particles)
+                      DO i = 1, natoms
+                         imap = Mlist(i)
                          WRITE(output_unit,'(T2,"VIB|",T12,A,T30,3(2X,F15.9))')&
-                              particles(i)%atomic_kind%name,&
-                              rep_env%f((i-1)*3+1:(i-1)*3+3,j)
+                              particles(imap)%atomic_kind%name,&
+                              rep_env%f((imap-1)*3+1:(imap-1)*3+3,j)
                       END DO
                    END IF
-                   iseq = 0
-                   DO iparticle2=1,SIZE(particles)
-                      DO l = 1,3
-                         iseq = iseq + 1
-                         tmp  = Hessian(iseq,icoord+j) - rep_env%f(iseq,j)
-                         tmp  = - tmp/(2.0_dp*Dx*mass(iparticle1)*mass(iparticle2))*1E6_dp
-                         ! Mass weighted Hessian
-                         Hessian(iseq,icoord+j) = tmp
-                      END DO                      
+                   DO iseq = 1, ncoord
+                      imap = Clist(iseq)
+                      iparticle2 = imap/3
+                      IF (MOD(imap,3)/=0) iparticle2=iparticle2+1
+                      ip2  = iseq/3
+                      IF (MOD(iseq,3)/=0) ip2=ip2+1
+                      tmp  = Hessian(iseq,icoord+j) - rep_env%f(imap,j)
+                      tmp  = - tmp/(2.0_dp*Dx*mass(ip1)*mass(ip2))*1E6_dp
+                      ! Mass weighted Hessian
+                      Hessian(iseq,icoord+j) = tmp
                    END DO
                 END IF
              END DO
-          END DO          
+          END DO
           ! Dump Info
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,A)')"VIB| Hessian in cartesian coordinates"
-             CALL write_particle_matrix(Hessian,particles,output_unit,el_per_part=3,error=error)
+             CALL write_particle_matrix(Hessian,particles,output_unit,el_per_part=3,&
+                  Ilist=Mlist,error=error)
           END IF
-          ! Check and Enforce symmetry in the Hessian
-          DO i =1, SIZE(Hessian,1)
-             DO j = i, SIZE(Hessian,1)
+          ! Enforce symmetry in the Hessian
+          DO i =1, ncoord
+             DO j = i, ncoord
                 ! Take the upper diagonal part
                 Hessian(j,i) = Hessian(i,j)
              END DO
           END DO
-          nvib = 3*SIZE(particles)-nRotTrM
-          ALLOCATE(H_eigval1(3*SIZE(particles)),stat=stat)
+          nvib = ncoord-nRotTrM
+          ALLOCATE(H_eigval1(ncoord),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(H_eigval2(SIZE(D,2)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(Hint1(SIZE(Hessian,1),SIZE(Hessian,2)),stat=stat)
+          ALLOCATE(Hint1(ncoord,ncoord),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(Hint2(SIZE(D,2),SIZE(D,2)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -286,7 +349,7 @@ CONTAINS
           CALL diamat_all(Hint1,H_eigval1)
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,"VIB| Cartesian Low frequencies ---",4G12.5)')&
-                  (H_eigval1(i),i=1,MIN(9,3*SIZE(particles)))
+                  (H_eigval1(i),i=1,MIN(9,ncoord))
           END IF
           IF (nvib/=0) THEN
              Hint2=MATMUL(TRANSPOSE(D),MATMUL(Hessian,D))
@@ -297,7 +360,7 @@ CONTAINS
                 WRITE(output_unit,'(T2,"VIB| Internal  Low frequencies ---",4G12.5)')H_eigval2
              END IF
              Hessian = 0.0_dp
-             DO i = 1, SIZE(particles)
+             DO i = 1, natoms
                 DO j = 1, 3
                    Hessian((i-1)*3+j,(i-1)*3+j) = 1.0_dp/mass(i)
                 END DO
@@ -318,7 +381,7 @@ CONTAINS
              ! Dump Info
              IF (para_env%mepos==para_env%source) THEN             
                 output_unit= cp_logger_get_default_unit_nr(logger)
-                CALL vib_out(output_unit,nvib,D,konst,rmass,H_eigval2,particles)
+                CALL vib_out(output_unit,nvib,D,konst,rmass,H_eigval2,particles,Mlist)
              END IF
           ELSE
              IF (output_unit>0) THEN
@@ -326,6 +389,10 @@ CONTAINS
              END IF
           END IF
           ! Deallocate working arrays
+          DEALLOCATE(Clist,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(Mlist,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(H_eigval1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(H_eigval2,stat=stat)
@@ -353,6 +420,110 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE vb_anal
 
+!!****f* cp2k/get_moving_atoms [1.0] *
+!!
+!!   NAME
+!!     get_moving_atoms
+!!
+!!   FUNCTION
+!!     give back a list of moving atoms
+!!
+!!   NOTES
+!!     
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006
+!!
+!!   MODIFICATION HISTORY
+!!             
+!!
+!!   SOURCE
+!****************************************************************************
+  SUBROUTINE get_moving_atoms(force_env, Ilist, error)
+    TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, DIMENSION(:), POINTER           :: Ilist
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_moving_atoms', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, ii, ikind, iparticle, iparticle_local, isubsys, &
+      nfixed_atoms, nkind, nparticle_local, stat, ndim
+    LOGICAL                                  :: failure
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: fixme
+
+    failure = .FALSE.
+    CALL timeset(routineN,'I','',handle)
+    IF (.NOT. failure) THEN
+       CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+
+       DO isubsys = 1, SIZE(subsys)
+          CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+               particles=particles, &
+               local_particles=local_particles,&
+               molecule_kinds_new=molecule_kinds, error=error)
+
+          nkind             =  molecule_kinds % n_els
+          molecule_kind_set => molecule_kinds % els
+          particle_set      => particles%els
+          ALLOCATE(fixme(SIZE(particle_set)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+          fixme=0
+
+          Mol_kind:  DO ikind = 1, nkind
+             molecule_kind => molecule_kind_set(ikind)
+             CALL get_molecule_kind ( molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list )
+
+             IF (nfixed_atoms ==0) CYCLE Mol_Kind
+             DO i = 1, SIZE(local_particles%n_el)
+                nparticle_local   = local_particles%n_el(i)
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(i)%array(iparticle_local)
+                   DO ii = 1, SIZE(fixd_list)
+                      IF (fixd_list(ii)%fixd == iparticle) THEN
+                         IF (.NOT.fixd_list(ii)%restraint%active) THEN
+                            ! Identify fixed atoms..
+                            fixme(iparticle)=1
+                         END IF
+                         EXIT
+                      END IF
+                   END DO
+                END DO
+             END DO
+          END DO Mol_kind
+
+          CALL mp_sum(fixme,force_env%para_env%group)
+          ndim = COUNT(fixme==0)
+          ALLOCATE(Ilist(ndim),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+          i = 0
+          DO iparticle=1,SIZE(particle_set)
+             IF (fixme(iparticle)==0) THEN
+                i = i + 1
+                Ilist(i) = iparticle
+             END IF
+          ENDDO
+          DEALLOCATE(fixme,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+    END IF
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE get_moving_atoms
+
 !!****f* cp2k/vib_out [1.0] *
 !!
 !!   NAME
@@ -372,10 +543,11 @@ CONTAINS
 !!
 !!   SOURCE
 !****************************************************************************
-  SUBROUTINE vib_out(iw,nvib,D,k,m,freq,particles)
+  SUBROUTINE vib_out(iw,nvib,D,k,m,freq,particles,Mlist)
     INTEGER, INTENT(IN)                      :: iw, nvib
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: k, m, freq
+    INTEGER, POINTER, DIMENSION(:)           :: Mlist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
 
@@ -401,10 +573,10 @@ CONTAINS
        DO iatom=1,natom,3
           katom = iatom/3
           IF (MOD(iatom,3)/=0) katom = katom+1
-          CALL get_atomic_kind(atomic_kind=particles(katom)%atomic_kind,&
+          CALL get_atomic_kind(atomic_kind=particles(Mlist(katom))%atomic_kind,&
                element_symbol=element_symbol)
           WRITE (UNIT=iw,FMT="(T2,I5,2X,A2,7X,3(4X,2(F5.2,1X),F5.2))")&
-               katom,element_symbol,&
+               Mlist(katom),element_symbol,&
                ((D(iatom+j,icol),j=0,2),icol=from,to)
        END DO
        WRITE(UNIT=iw,FMT="(/)")
@@ -433,12 +605,13 @@ CONTAINS
 !!
 !!   SOURCE
 !****************************************************************************
-  SUBROUTINE rot_ana(particles, mat, dof, iw, ionode, keep_rotations, error)
+  SUBROUTINE rot_ana(particles, mat, dof, iw, ionode, keep_rotations, natoms,&
+       error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
     INTEGER, INTENT(OUT)                     :: dof
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw, natoms
     LOGICAL, INTENT(IN)                      :: ionode, keep_rotations
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
@@ -465,7 +638,7 @@ CONTAINS
        rcom  = 0.0_dp
        masst = 0.0_dp
        ! Center of mass
-       DO iparticle = 1, SIZE(particles)
+       DO iparticle = 1, natoms
           mass = particles(iparticle)%atomic_kind%mass
           CPPostcondition(mass>0.0_dp,cp_failure_level,routineP,error,failure)
           masst = masst + mass
@@ -474,7 +647,7 @@ CONTAINS
        rcom = rcom / masst
        ! Intertia Tensor
        Ip   = 0.0_dp
-       DO iparticle = 1, SIZE(particles)
+       DO iparticle = 1, natoms
           mass = particles(iparticle)%atomic_kind%mass
           rm = particles(iparticle)%r - rcom
           Ip(1,1) = Ip(1,1) + mass * ( rm(2)**2 + rm(3)**2 )
@@ -497,7 +670,7 @@ CONTAINS
        END IF
        IF (ionode) THEN
           WRITE(iw,'(/,T2,A)')"ROT| Standard Molecule Orientation - ANGSTROM "
-          DO iparticle = 1, SIZE(particles)
+          DO iparticle = 1, natoms
              WRITE(iw,'(T2,"ROT|",T20,A,T30,3(3X,F12.6))')&
                   TRIM(particles(iparticle)%atomic_kind%name),&
                   MATMUL(particles(iparticle)%r,Ip)*angstrom
@@ -505,12 +678,12 @@ CONTAINS
        END IF
     END IF
     ! Build up the Translational vectors
-    ALLOCATE(Tr(SIZE(particles)*3,3),stat=stat)
+    ALLOCATE(Tr(natoms*3,3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     Tr   = 0.0_dp
     DO k = 1, 3
        iseq = 0
-       DO iparticle = 1, SIZE(particles)
+       DO iparticle = 1, natoms
           mass = SQRT(particles(iparticle)%atomic_kind%mass)
           DO j = 1, 3
              iseq = iseq + 1
@@ -525,11 +698,11 @@ CONTAINS
     END DO
     dof = 3
     ! Build up the Rotational vectors
-    ALLOCATE(Rot(SIZE(particles)*3,3),stat=stat)
+    ALLOCATE(Rot(natoms*3,3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     lrot = 0
     IF (.NOT.keep_rotations) THEN
-       DO iparticle = 1, SIZE(particles)
+       DO iparticle = 1, natoms
           mass = SQRT(particles(iparticle)%atomic_kind%mass)
           rm = particles(iparticle)%r - rcom
           cp(1) = rm(1)*Ip(1,1) + rm(2) * Ip(2,1) + rm(3) * Ip(3,1)
@@ -573,7 +746,7 @@ CONTAINS
        IF (dof==3.AND.(.NOT.keep_rotations)) WRITE(iw,'(T2,A)')"ROT| Single Atom detected.." 
     END IF
     ! Give back the vectors generating the rototranslating Frame
-    ALLOCATE(mat(SIZE(particles)*3,dof),stat=stat)
+    ALLOCATE(mat(natoms*3,dof),stat=stat)
     iseq = 0
     DO i = 1, 3
        mat(:,i)=Tr(:,i)
@@ -609,11 +782,11 @@ CONTAINS
 !!
 !!   SOURCE
 !****************************************************************************
-  SUBROUTINE build_D_matrix(particles,mat,dof,Dout,full,error)
+  SUBROUTINE build_D_matrix(particles,mat,dof,Dout,full,natoms,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
-    INTEGER, INTENT(IN)                      :: dof
+    INTEGER, INTENT(IN)                      :: dof, natoms
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dout
     LOGICAL, OPTIONAL                        :: full
     TYPE(cp_error_type), INTENT(inout)  &
@@ -636,10 +809,10 @@ CONTAINS
     IF (PRESENT(full)) my_full = full
     IF (.NOT.failure) THEN
        ! Generate the missing vectors of the orthogonal basis set
-       nvib = 3*SIZE(particles)-dof
-       ALLOCATE(work(3*SIZE(particles)),stat=stat)
+       nvib = 3*natoms-dof
+       ALLOCATE(work(3*natoms),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(D(3*SIZE(particles),3*SIZE(particles)),stat=stat)
+       ALLOCATE(D(3*natoms,3*natoms),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Check First orthogonality in the first element of the basis set
        DO i = 1, dof
@@ -654,7 +827,7 @@ CONTAINS
        ifound = 0
        DO WHILE (ifound /= nvib)
           iseq = iseq + 1
-          CPPostcondition(iseq<=3*SIZE(particles),cp_failure_level,routineP,error,failure)
+          CPPostcondition(iseq<=3*natoms,cp_failure_level,routineP,error,failure)
           work       = 0.0_dp
           work(iseq) = 1.0_dp
           ! Gram Schmidt orthogonalization
@@ -670,13 +843,13 @@ CONTAINS
              D(:,dof+ifound) = work / norm
           END IF          
        END DO
-       CPPostcondition(dof+ifound==3*SIZE(particles),cp_failure_level,routineP,error,failure)
+       CPPostcondition(dof+ifound==3*natoms,cp_failure_level,routineP,error,failure)
        IF (my_full) THEN
-          ALLOCATE(Dout(3*SIZE(particles),3*SIZE(particles)),stat=stat)
+          ALLOCATE(Dout(3*natoms,3*natoms),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
           Dout = D
        ELSE
-          ALLOCATE(Dout(3*SIZE(particles),nvib),stat=stat)
+          ALLOCATE(Dout(3*natoms,nvib),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
           Dout = D(:,dof+1:)
        END IF
