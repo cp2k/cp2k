@@ -528,7 +528,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
-    IF(trace) CALL trace_debug("start",groupid=para_env%group)
+    IF(trace) CALL trace_debug("start",para_env)
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)
