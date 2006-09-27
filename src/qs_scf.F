@@ -580,10 +580,11 @@ CONTAINS
           END IF
 
           ! ** Write restart file **
-          IF (scf_control%write_restart_each>0.AND.&
-               MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-             CALL write_mo_set(mos,particle_set,para_env,&
-                  id_nr=1,dft_section=dft_section,error=error)
+          IF (scf_control%write_restart_each>0) THEN
+             IF (MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
+                CALL write_mo_set(mos,particle_set,para_env,&
+                    id_nr=1,dft_section=dft_section,error=error)
+             ENDIF
           END IF
 
           IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
