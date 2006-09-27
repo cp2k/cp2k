@@ -1378,8 +1378,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
         alpha = REAL(4*nvec - 2,KIND=dp)/REAL(nvec + 1,KIND=dp)
         IF (ionode) THEN
-          WRITE(output_unit,*) ""
-          WRITE(output_unit,*) " B( 1 ) =",alpha
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)")&
+            "Parameters for the always stable predictor-corrector (ASPC) method:",&
+            "ASPC order: ",nvec - 2,&
+            "B(",1,") = ",alpha
         END IF
         CALL cp_fm_scale(alpha,mo_coeff,error=error)
 
@@ -1390,7 +1392,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
           alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
                   binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)
-          IF (ionode) WRITE(output_unit,*) " B(",i,") =",alpha
+          IF (ionode) THEN
+            WRITE (UNIT=output_unit,FMT="(T3,A2,I0,A4,F10.6)")&
+              "B(",i,") = ",alpha
+          END IF
           CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp,error=error)
         END DO
         CALL cp_fm_release(csc,error=error)
