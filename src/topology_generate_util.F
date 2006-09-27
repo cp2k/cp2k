@@ -1205,22 +1205,22 @@ CONTAINS
     IF (nsize/=1) THEN
        ALLOCATE(tmp(Ndim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       tmp = Ilist2
+       tmp = Ilist2(1:Ndim)
        DO i = 1,Ndim
           Ilist2(i)=tmp(wrk(i))
        END DO
        SELECT CASE(nsize)
        CASE(3)
-          tmp = Ilist3
+          tmp = Ilist3(1:Ndim)
           DO i = 1,Ndim
              Ilist3(i)=tmp(wrk(i))
           END DO
        CASE(4)
-          tmp = Ilist3
+          tmp = Ilist3(1:Ndim)
           DO i = 1,Ndim
              Ilist3(i)=tmp(wrk(i))
           END DO
-          tmp = Ilist4
+          tmp = Ilist4(1:Ndim)
           DO i = 1,Ndim
              Ilist4(i)=tmp(wrk(i))
           END DO
