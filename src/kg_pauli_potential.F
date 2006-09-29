@@ -497,7 +497,7 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
                                      kind_number=ikind)
                     atom_a = atom_of_kind(ia)
                     force(ikind)%kg_gpw_pauli(i,atom_a) = &
-                         force(ikind)%kg_gpw_pauli(i,atom_a) + &
+                         force(ikind)%kg_gpw_pauli(i,atom_a) - &
                          2._dp*epsmol*SUM ( fora(ifirst_ao(iao):ilast_ao(iao)) )
                   END DO
                   dvpot(1:naoa,1:naob) = &
@@ -511,7 +511,7 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
                                      kind_number=jkind)
                     atom_a = atom_of_kind(ja)
                     force(jkind)%kg_gpw_pauli(i,atom_a) = &
-                         force(jkind)%kg_gpw_pauli(i,atom_a) + &
+                         force(jkind)%kg_gpw_pauli(i,atom_a) - &
                          2._dp*epsmol*SUM ( forb(jfirst_ao_bcast(jao):jlast_ao_bcast(jao)) )
                   END DO
                 END DO
