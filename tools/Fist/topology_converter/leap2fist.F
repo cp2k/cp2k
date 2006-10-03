@@ -823,7 +823,8 @@ CONTAINS
     INTEGER :: my_sec, my_res, my_bonds, local, my_phi, my_theta, my_atom
     INTEGER :: i, j, ind, ifirst, ilast
     INTEGER, DIMENSION(:), POINTER :: my_i, my_j, my_k, my_l
-    CHARACTER (LEN=2) :: int_format
+    CHARACTER (LEN=2)  :: int_format
+    CHARACTER (LEN=80) :: psf_atm_fmt
 
     NULLIFY( my_i, my_j, my_k, my_l)
     IF(verbose) WRITE(*,'(A)') "    Writing out PSF file "//TRIM(psf_filename)    
@@ -832,7 +833,11 @@ CONTAINS
     !
     my_sec = 1
     int_format="I7"
-    if (psf_xplor) int_format="I8"
+    psf_atm_fmt="(I7,1X,A5,I7,1X,A5,A5,A5,F10.5,F10.5,I7)"
+    IF (psf_xplor) THEN 
+       int_format="I8"
+       psf_atm_fmt="(I8,1X,A4,1X,I4,3(1X,A4),1X,F10.6,3X,F10.4,I13)"
+    END IF
     WRITE(unit,'(A)') "PSF"
     WRITE(unit,'(A)') " "
     WRITE(unit,'(I7,A)') my_sec, " !NTITLE"
@@ -851,7 +856,7 @@ CONTAINS
           ilast = IPRES(my_res + 1) - 1
        END IF
        DO my_atom = ifirst, ilast
-          WRITE(unit,'(I7,1X,A5,I7,1X,A5,A5,A5,F10.5,F10.5,I7)') &
+          WRITE(unit,FMT=TRIM(psf_atm_fmt)) &
                my_atom,&
                molnames(my_atom),&
                my_res ,&
