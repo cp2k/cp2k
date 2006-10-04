@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2006 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 !!****** cp2k/constraint_clv [1.0] *
@@ -68,14 +68,17 @@ CONTAINS
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - optionally apply fix atom constraint to random forces (Langevin)
+!!       (04.10.206,MK)
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE fix_atom_control( force_env, error)
+  SUBROUTINE fix_atom_control( force_env, error, w)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL                               :: w
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fix_atom_control', &
       routineP = moduleN//':'//routineN
@@ -118,18 +121,19 @@ CONTAINS
              my_atm_fixed = my_atm_fixed + nfixed_atoms
           END DO
           IF (my_atm_fixed /=0) THEN
-             ! Allocate scratch array
-             ALLOCATE(force(3,SIZE(particles%els)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             force = 0.0_dp
-
-             DO i = 1, SIZE(local_particles%n_el)
-                nparticle_local   = local_particles%n_el(i)
-                DO iparticle_local=1,nparticle_local
-                   iparticle = local_particles%list(i)%array(iparticle_local)
-                   force(:,iparticle)  = particle_set(iparticle)%f(:)
+             IF (.NOT.PRESENT(w)) THEN
+                ! Allocate scratch array
+                ALLOCATE(force(3,SIZE(particles%els)),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                force = 0.0_dp
+                DO i = 1, SIZE(local_particles%n_el)
+                   nparticle_local   = local_particles%n_el(i)
+                   DO iparticle_local=1,nparticle_local
+                      iparticle = local_particles%list(i)%array(iparticle_local)
+                      force(:,iparticle)  = particle_set(iparticle)%f(:)
+                   END DO
                 END DO
-             END DO
+             END IF
 
              Mol_kind:  DO ikind = 1, nkind
                 molecule_kind => molecule_kind_set(ikind)
@@ -146,7 +150,11 @@ CONTAINS
                                  (.NOT.fixd_list(ii)%restraint%active))
                             IF (zero_force) THEN
                                ! Constraint
-                               force(:,iparticle)  = 0.0_dp
+                               IF (PRESENT(w)) THEN
+                                  w(:,iparticle) = 0.0_dp
+                               ELSE
+                                  force(:,iparticle) = 0.0_dp
+                               END IF
                                EXIT
                             END IF
                          END IF
@@ -154,10 +162,11 @@ CONTAINS
                    END DO
                 END DO
              END DO Mol_kind
-             CALL update_particle_set(particle_set,force_env%para_env%group,for=force)
-
-             DEALLOCATE(force,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             IF (.NOT.PRESENT(w)) THEN
+                CALL update_particle_set(particle_set,force_env%para_env%group,for=force)
+                DEALLOCATE(force,stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           END IF
        END DO
     END IF

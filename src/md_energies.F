@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2003  CP2K developers group                                 !
+!   Copyright (C) 2003 - 2006 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/md_energies [1.0] *
 !!
@@ -52,7 +52,8 @@ MODULE md_energies
                                              md_environment_type,&
                                              set_md_env
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates
+  USE particle_types,                  ONLY: write_particle_coordinates,&
+                                             write_structure_data
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE timings,                         ONLY: timeset,&
@@ -131,7 +132,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: motion_section, root_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, motion_section, &
+                                                root_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
@@ -162,6 +164,7 @@ CONTAINS
 
     root_section=>force_env_p(1)%force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+    force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&
          cell=cell,&
@@ -462,6 +465,7 @@ CONTAINS
        !------------------
        ! Print Coordinates
        !------------------
+       CALL write_structure_data(particles%els,cell,force_env_section,error)
        IF ( crd > 0 ) THEN
           IF(simpar%output_format==dump_dcd) THEN
              IF ( init_traj ) THEN

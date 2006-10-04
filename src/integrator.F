@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2006 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/integrator [1.0] *
 !!
@@ -36,6 +36,7 @@ MODULE integrator
                                              rattle_roll_control,&
                                              shake_control,&
                                              shake_roll_control
+  USE constraint_clv,                  ONLY: fix_atom_control
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -53,7 +54,8 @@ MODULE integrator
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type
+                                             force_env_p_type,&
+                                             force_env_type
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
        dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
@@ -159,6 +161,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -168,10 +171,13 @@ CONTAINS
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
-    TYPE(lnhc_parameters_type), &
-      DIMENSION(:), POINTER                  :: nhc_coef
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -180,20 +186,34 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
-    NULLIFY (dyn_coeff_set, nhc_coef, para_env)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_coef=nhc_coef, para_env = para_env)
+    NULLIFY (cell)
+    NULLIFY (dyn_coeff_set)
+    NULLIFY (para_env)
+
+    CALL get_md_env(md_env=md_env,&
+                    simpar=simpar,&
+                    force_env_p=force_env_p,&
+                    para_env=para_env)
+
+    force_env => force_env_p(1)%force_env
+
     dt = simpar%dt
     gam = simpar%gamma
 
-    IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("nve","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+    IF (SIZE(force_env_p) /= 1) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "MD_ENV with more than (or less) than one "//&
+                        "force_env not supported atm!")
     END IF
-    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set, virial = virial ,error=error)
+
+    CALL force_env_get(force_env=force_env,&
+                       subsys=subsys,&
+                       cell=cell,&
+                       dyn_coeff_set=dyn_coeff_set,&
+                       virial=virial,&
+                       error=error)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -203,17 +223,20 @@ CONTAINS
                          particles=particles,&
                          local_molecules_new=local_molecules,&
                          molecules_new=molecules, &
-                         molecule_kinds_new=molecule_kinds,error=error)
+                         molecule_kinds_new=molecule_kinds,&
+                         error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
       nmolecule_kind = molecule_kinds%n_els
+      molecule_kind_set => molecule_kinds%els
 
       nparticle = particles%n_els
       particle_set => particles%els
-      nmolecule = molecules % n_els
+      nmolecule = molecules%n_els
+      molecule_set => molecules%els
 
-!     *** Allocate work storage for positions ***
+      ! Allocate work storage
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -225,14 +248,38 @@ CONTAINS
                                        "vel",3*nparticle*dp_size)
       vel(:,:) = 0.0_dp
 
-!     *** Generate Gaussian random variables for Wiener process ***
-
       ALLOCATE (w(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "w",3*nparticle*dp_size)
       w(:,:) = 0.0_dp
 
-!     *** Velocity Verlet (first part) ***
+      IF (simpar%constraint) THEN
+        CALL getold(local_molecules,molecule_set,molecule_kind_set,&
+                    particle_set,cell,error)
+      END IF
+
+      ! Generate random variables
+
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        sigma = simpar%var_w*mass
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          rng_stream => local_particles%local_particle_set(iparticle_kind)%&
+                        &rng(iparticle_local)%stream
+          w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+        END DO
+      END DO
+
+      ! Apply fix atom constraint
+
+      CALL fix_atom_control(force_env,error,w)
+
+      ! Velocity Verlet (first part)
 
       c = EXP(-0.25_dp*dt*gam)
       c2 = c*c
@@ -243,16 +290,10 @@ CONTAINS
         atomic_kind => atomic_kind_set(iparticle_kind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
         nparticle_local = local_particles%n_el(iparticle_kind)
-        sigma = simpar%var_w*mass
         dm = 0.5_dp*dt/mass
         c3 = dm/c2
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          rng_stream => local_particles%local_particle_set(iparticle_kind)%&
-                        &rng(iparticle_local)%stream
-          w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
-          w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
-          w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
           vel(:,iparticle) = particle_set(iparticle)%v(:) +&
                              c3*particle_set(iparticle)%f(:)
           pos(:,iparticle) = particle_set(iparticle)%r(:) +&
@@ -262,18 +303,29 @@ CONTAINS
         END DO
       END DO
 
-!     *** Broadcast the new particle positions ***
+      IF (simpar%constraint) THEN
+        CALL shake_control(local_molecules,molecule_set,molecule_kind_set,&
+                           particle_set,pos,vel,simpar%dt,simpar%shake_tol,&
+                           simpar%info_constraint,cell,error)
+      END IF
+
+      ! Broadcast the new particle positions
 
       CALL update_particle_set(particle_set,para_env%group,pos=pos)
 
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
 
-!     *** Update forces ***
+      IF (ASSOCIATED(dyn_coeff_set)) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "dyn_coeff_set: not implemented with Langevin")
+      END IF
 
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
+      ! Update forces
 
-!     *** Update Verlet (second part) ***
+      CALL force_env_calc_energy_force(force_env,error=error)
+
+      ! Update Verlet (second part)
 
       DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
@@ -292,7 +344,13 @@ CONTAINS
         END DO
       END DO
 
-!     *** Broadcast the new particle velocities ***
+      IF (simpar%constraint) THEN
+        CALL rattle_control(local_molecules,molecule_set,molecule_kind_set,&
+                            particle_set,vel,simpar%dt,simpar%shake_tol,&
+                            simpar%info_constraint,cell,error)
+      END IF
+
+      ! Broadcast the new particle velocities
 
       CALL update_particle_set(particle_set,para_env%group,vel=vel)
 
@@ -301,6 +359,15 @@ CONTAINS
 
       DEALLOCATE (w,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"w")
+
+      ! Update virial
+
+      IF (simpar%constraint) THEN
+        CALL pv_constraint(local_molecules,molecule_set,molecule_kind_set,&
+                           particle_set,virial,para_env%group)
+        CALL virial_evaluate(atomic_kind_set,particle_set,local_particles,&
+                             virial,para_env%group)
+      END IF
 
     END DO ! next subsys or sub-system
 
@@ -379,8 +446,9 @@ CONTAINS
                     nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("nve","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
@@ -625,21 +693,23 @@ CONTAINS
     dt = simpar%dt
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("isokin","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,error=error)
 
     IF (SIZE(subsys)/=1) THEN
        ! presumably one just needs to get e.g. kinetic energy of the full system by looping
        ! over the subsystems
-       CALL stop_program("isokin","integrator",__LINE__,&
-       "force_env with more than (or less) than one subsys not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "force_env with more than (or less) than one subsys "//&
+                         "not supported atm!")
     END IF
 
     IF (simpar%constraint) THEN
-        CALL stop_program("isokin","integrator",__LINE__,&
-             "Constraints not yet implemented")
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Constraints not yet implemented")
     ENDIF
 
     do_subsys: DO isubsys=1,SIZE(subsys)
@@ -821,8 +891,9 @@ CONTAINS
                     nhc_part=nhc,nhc_coef=nhc_coef,para_env=para_env)
     dt = simpar%dt
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("nvt","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell,error=error)
@@ -1094,8 +1165,9 @@ CONTAINS
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("npt_i","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        virial = virial, cell = cell ,error=error)
@@ -1331,6 +1403,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reftraj'
+
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
     INTEGER                                  :: I, istat, nparticle, Nread
@@ -1349,13 +1423,15 @@ CONTAINS
     CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info, &
                     force_env_p=force_env_p,para_env = para_env)
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("reftraj","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,error=error)
     IF (SIZE(subsys)/=1) THEN
-       CALL stop_program("reftraj","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one subsys not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one subsys "//&
+                         "not supported atm!")
     END IF
     CALL cp_subsys_get(subsys=subsys(1)%subsys, particles=particles,error=error)
     nparticle = particles%n_els
@@ -1387,11 +1463,11 @@ CONTAINS
 
     RETURN
 998 CONTINUE ! end of file
-    CALL stop_program("reftraj","integrator",__LINE__,&
-       "End of reference trajectory file reached")
+    CALL stop_program(routineN,moduleN,__LINE__,&
+                      "End of reference trajectory file reached")
 999 CONTINUE ! error
-    CALL stop_program("reftraj","integrator",__LINE__,&
-       "Error reading reference trajectory file")
+    CALL stop_program(routineN,moduleN,__LINE__,&
+                      "Error reading reference trajectory file")
 
  END SUBROUTINE reftraj
 
@@ -1480,8 +1556,9 @@ CONTAINS
     infree = 1.0_dp / REAL ( simpar % nfree, dp )
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("nph_uniaxial","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        virial = virial, cell = cell ,error=error)
@@ -1770,8 +1847,9 @@ CONTAINS
     gamma1 = simpar % gamma_nph
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("nph_uniaxial_damped","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        virial = virial, cell = cell ,error=error)
@@ -2269,12 +2347,12 @@ END SUBROUTINE deallocate_old
 
  SUBROUTINE npt_f ( md_env, error )
 
-
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_f'
+
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
                                                 e4 = e2/20.0_dp, &
@@ -2331,8 +2409,9 @@ END SUBROUTINE deallocate_old
     infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp)
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("npt_f","integrator",__LINE__,&
-       "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        virial = virial, cell = cell ,error=error)
@@ -3189,8 +3268,9 @@ END SUBROUTINE update_veps
     n_time_steps=simpar%n_time_steps
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("nve","integrator",__LINE__,&
-            "MD_ENV with more than (or less) than one force_env not supported atm!")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "MD_ENV with more than (or less) than one "//&
+                         "force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
          dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell,error=error)
