@@ -321,7 +321,8 @@ CONTAINS
 
        CALL section_create(section,name="SCREENING",&
             description="This section is used to set up a screening function for the short "//&
-            "range part of the interaction potential.",&
+            "range part of the Coulomb interaction potential. Affects only semiempirical "//&
+            " calculations.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
