@@ -454,7 +454,7 @@ SUBROUTINE create_ewald_section(section,error)
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
     CALL section_create(section,name="ewald",&
-         description="ewald parameters",&
+         description="Ewald parameters controlling electrostatic only for CLASSICAL MM.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
