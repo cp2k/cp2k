@@ -60,7 +60,9 @@ MODULE topology_generate_util
   USE topology_util,                   ONLY: array1_list_type,&
                                              array2_list_type,&
                                              find_molecule,&
-                                             reorder_structure
+                                             reorder_structure,&
+                                             give_back_molecule,&
+                                             reorder_list_array
   USE util,                            ONLY: find_boundary,&
                                              sort
   USE cell_types,                      ONLY: pbc
@@ -112,8 +114,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
       routineP = moduleN//':'//routineN
@@ -247,16 +248,19 @@ CONTAINS
     CALL timestop(0.0_dp,handle2)
     IF(iw>0) THEN
        DO iatom=1,natom
-          WRITE(iw,'(4(A," : ",I7))') "iatom",iatom,&
-                                      "map_mol_typ",atom_info%map_mol_typ(iatom),&
-                                      "map_mol_num",atom_info%map_mol_num(iatom),&
-                                      "map_mol_res",atom_info%map_mol_res(iatom)
+          WRITE(iw,'(4(1X,A,":",I0),2(1X,A,1X,A))') "iatom",iatom,&
+                                       "map_mol_typ",atom_info%map_mol_typ(iatom),&
+                                       "map_mol_num",atom_info%map_mol_num(iatom),&
+                                       "map_mol_res",atom_info%map_mol_res(iatom),&
+                                       "mol_name:",TRIM(atom_info%label_molname(iatom)),&
+                                       "res_name:",TRIM(atom_info%label_resname(iatom))
        END DO
     END IF
     IF (my_qmmm) THEN
        do_again = .FALSE.
        IF (iw>0) WRITE(iw,*)"MAP_MOL_NUM ",atom_info%map_mol_num
        IF (iw>0) WRITE(iw,*)"MAP_MOL_TYP ",atom_info%map_mol_typ
+       IF (iw>0) WRITE(iw,*)"MAP_MOL_RES ",atom_info%map_mol_res
        ALLOCATE(qm_atom_index(SIZE(qmmm_env%qm_atom_index)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        qm_atom_index = qmmm_env%qm_atom_index
@@ -356,6 +360,7 @@ CONTAINS
           WRITE(iw,*)"Number of atoms per each molecule: ",atom_in_mol
           WRITE(iw,*)"MAP_MOL_TYP:: ",atom_info%map_mol_typ(first:last)
           WRITE(iw,*)"MAP_MOL_NUM:: ",atom_info%map_mol_num(first:last)
+          WRITE(iw,*)"MAP_MOL_RES:: ",atom_info%map_mol_res(first:last)
           !
           DO j = 1, max_mol_num
              IF (COUNT(atom_info%map_mol_num(first:last)==j) /= atom_in_mol) THEN
@@ -696,9 +701,21 @@ CONTAINS
           ! Resize arrays to their proper size..
           CALL reallocate(conn_info%bond_a,1,n_bonds)
           CALL reallocate(conn_info%bond_b,1,n_bonds)
-          ! Check created connectivity and possibly give the OK to proceed
-          connectivity_ok = check_generate_mol(conn_info%bond_a,conn_info%bond_b,&
-               atom_info, bondparm_factor, output_unit, error)
+          IF (topology%create_molecules) THEN
+             ! No need to check consistency between provided molecule name and
+             ! generated connectivity since we overrided the molecule definition.
+             IF (.NOT.topology%reorder_atom) THEN
+                topology%reorder_atom = .TRUE.
+                WRITE(output_unit,'(T2,"GENERATE|",A)')&
+                     " Molecules names have been generated. Now reordering particle set in order to have ",&
+                     " atoms belonging to the same molecule in a sequential order." 
+             END IF
+             connectivity_ok = .TRUE.
+          ELSE
+             ! Check created connectivity and possibly give the OK to proceed
+             connectivity_ok = check_generate_mol(conn_info%bond_a,conn_info%bond_b,&
+                  atom_info, bondparm_factor, output_unit, error)
+          END IF
           IF (my_maxrad*bondparm_factor>r_max(1,1)) THEN
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"GENERATE|",A)')&
@@ -746,6 +763,8 @@ CONTAINS
        END IF
        CALL timeset(TRIM(routineN)//"_7",'I','',handle2)
        ! If PARA_RES then activate RESIDUES
+       CALL reallocate(conn_info%c_bond_a,1,0)
+       CALL reallocate(conn_info%c_bond_b,1,0)
        IF(topology%para_res) THEN
           DO ibond=1,SIZE(conn_info%bond_a)
              iatom = conn_info%bond_a(ibond)
@@ -933,44 +952,6 @@ CONTAINS
        CALL timestop(0.0_dp,handle)
     END IF
   END FUNCTION check_generate_mol
-
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     give_back_molecule
-!!
-!!   SYNOPSIS
-!!
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  RECURSIVE SUBROUTINE give_back_molecule(icheck, bond_list,i,mol_natom)
-    LOGICAL, POINTER, DIMENSION(:)           :: icheck
-    TYPE(array1_list_type), &
-         DIMENSION(:), POINTER               :: bond_list    
-    INTEGER, INTENT(IN)                      :: i
-    INTEGER, INTENT(INOUT)                   :: mol_natom
-
-    INTEGER :: j, k
-    
-    icheck(i) = .TRUE.
-    DO j = 1, SIZE(bond_list(i)%array1)
-       k = bond_list(i)%array1(j)
-       IF (icheck(k)) CYCLE
-       mol_natom = mol_natom + 1
-       CALL give_back_molecule(icheck, bond_list, k, mol_natom)
-    END DO
-
-  END SUBROUTINE give_back_molecule
 
 !******************************************************************************
 !!****** topology_generate_util [1.0] *
@@ -1165,171 +1146,6 @@ CONTAINS
     END IF
   END SUBROUTINE connectivity_external_control
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     reorder_list_array
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Order arrays of lists
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  RECURSIVE SUBROUTINE reorder_list_array(Ilist1, Ilist2, Ilist3, Ilist4, nsize, ndim, error)
-    INTEGER, DIMENSION(:), POINTER           :: Ilist1
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
-    INTEGER, INTENT(IN)                      :: nsize, ndim
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iend, istart, ldim, stat
-    INTEGER, DIMENSION(:), POINTER           :: tmp, wrk
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    CPPostcondition(nsize>0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(wrk(Ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL sort(Ilist1,Ndim,wrk)
-    IF (nsize/=1) THEN
-       ALLOCATE(tmp(Ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       tmp = Ilist2(1:Ndim)
-       DO i = 1,Ndim
-          Ilist2(i)=tmp(wrk(i))
-       END DO
-       SELECT CASE(nsize)
-       CASE(3)
-          tmp = Ilist3(1:Ndim)
-          DO i = 1,Ndim
-             Ilist3(i)=tmp(wrk(i))
-          END DO
-       CASE(4)
-          tmp = Ilist3(1:Ndim)
-          DO i = 1,Ndim
-             Ilist3(i)=tmp(wrk(i))
-          END DO
-          tmp = Ilist4(1:Ndim)
-          DO i = 1,Ndim
-             Ilist4(i)=tmp(wrk(i))
-          END DO
-       END SELECT
-       DEALLOCATE(tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       istart = 1
-       DO i = 1,Ndim
-          IF (Ilist1(i)/=Ilist1(istart)) THEN
-             iend = i-1
-             ldim = iend-istart+1
-             CALL  reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
-                  ldim, istart, iend, error)
-             istart = i
-          END IF
-       END DO
-       ! Last term to sort
-       iend = Ndim
-       ldim = iend-istart+1
-       CALL  reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
-            ldim, istart, iend, error)
-    END IF
-    DEALLOCATE(wrk,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END SUBROUTINE reorder_list_array
-
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     reorder_list_array_low
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Low level routine for ordering arrays of lists
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  RECURSIVE SUBROUTINE reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
-       ldim, istart, iend, error)
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
-    INTEGER, INTENT(IN)                      :: nsize, ldim, istart, iend
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array_low', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    INTEGER, DIMENSION(:), POINTER           :: tmp_2, tmp_3, tmp_4
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    SELECT CASE(nsize)
-    CASE(2)
-       ALLOCATE(tmp_2(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       tmp_2(:) = Ilist2(istart:iend)
-       CALL reorder_list_array(tmp_2,nsize=nsize-1,ndim=ldim,&
-            error=error)
-       Ilist2(istart:iend) = tmp_2(:)
-       DEALLOCATE(tmp_2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CASE(3)
-       ALLOCATE(tmp_2(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(tmp_3(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       tmp_2(:) = Ilist2(istart:iend)
-       tmp_3(:) = Ilist3(istart:iend)
-       CALL reorder_list_array(tmp_2,tmp_3,nsize=nsize-1,ndim=ldim,&
-            error=error)
-       Ilist2(istart:iend) = tmp_2(:)
-       Ilist3(istart:iend) = tmp_3(:)
-       DEALLOCATE(tmp_2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(tmp_3,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CASE(4)
-       ALLOCATE(tmp_2(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(tmp_3(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(tmp_4(ldim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       tmp_2(:) = Ilist2(istart:iend)
-       tmp_3(:) = Ilist3(istart:iend)
-       tmp_4(:) = Ilist4(istart:iend)
-       CALL reorder_list_array(tmp_2, tmp_3, tmp_4, nsize=nsize-1,ndim=ldim,&
-            error=error)
-       Ilist2(istart:iend) = tmp_2(:)
-       Ilist3(istart:iend) = tmp_3(:)
-       Ilist4(istart:iend) = tmp_4(:)
-       DEALLOCATE(tmp_2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(tmp_3,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(tmp_4,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END SELECT
-
-  END SUBROUTINE reorder_list_array_low
-  
 !******************************************************************************
 !!****** topology_generate_util [1.0] *
 !!

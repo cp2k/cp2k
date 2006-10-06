@@ -608,8 +608,8 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
 
      DO i = 1, SIZE(atom_list)
         DO j = 1, 3
-           dipole_deriv(j)=dipole_deriv(j)+particle_set(i)%v(j)*q
-           theta = particle_set(i)%r(j)*gvec(j)
+           dipole_deriv(j)=dipole_deriv(j)+particle_set(atom_list(i))%v(j)*q
+           theta = particle_set(atom_list(i))%r(j)*gvec(j)
            zeta(j) = q * CMPLX(COS(theta),SIN(theta),KIND=dp)
         END DO
         ggamma = ggamma + zeta

@@ -1003,13 +1003,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="REORDER",&
-            description="Reorder a list of atomic coordinates into order so it can be packed correctly.",&
-            usage="REORDER logical",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MOL_CHECK",&
             description="Check molecules have the same number of atom and names.",&
             usage="MOL_CHECK logical",&
@@ -1100,6 +1093,22 @@ CONTAINS
             description="Setup of keywords controlling the generation of the connectivity",&
             n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
+
+       CALL keyword_create(keyword, name="REORDER",&
+            description="Reorder a list of atomic coordinates into order so it can be packed correctly.",&
+            usage="REORDER <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CREATE_MOLECULES",&
+            description="Create molecules names and definition. Can be used to override the "//&
+            " molecules specifications of a possible input connectivity or to create molecules"//&
+            " specifications for file types as XYZ, missing of molecules definitions.",&
+            usage="CREATE_MOLECULES <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BONDPARM",&
             description="Used in conjunction with BONDPARM_FACTOR to "//&

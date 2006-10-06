@@ -150,6 +150,7 @@ OBJECTS_GENERIC =\
  glob_matching.o\
  global_types.o\
  gopt_f_types.o\
+ graphcon.o\
  harris_energy_types.o\
  harris_env_types.o\
  harris_force.o\

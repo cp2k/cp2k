@@ -357,6 +357,14 @@ CONTAINS
     CASE (do_conn_generate)
        CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
        CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
+       IF(topology%reorder_atom) THEN
+          ! If we generate connectivity we can save memory reordering the molecules
+          ! in this case once a first connectivity has been created we match according
+          ! molecule names provided in the PDB and reorder the connectivity according to that.
+          CALL topology_reorder_atoms(topology,para_env,subsys_section,error)
+          CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
+          CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
+       END IF
        CALL topology_generate_bend(topology,para_env,subsys_section,error)
        CALL topology_generate_ub(topology,para_env,subsys_section,error)
        CALL topology_generate_dihe(topology,para_env,subsys_section,error)
@@ -365,17 +373,6 @@ CONTAINS
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,subsys_section,error)
-       IF(topology%reorder_atom) THEN
-          CALL topology_reorder_atoms(topology,para_env,subsys_section,error)
-          CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
-          CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
-          CALL topology_generate_bend(topology,para_env,subsys_section,error)
-          CALL topology_generate_ub(topology,para_env,subsys_section,error)
-          CALL topology_generate_dihe(topology,para_env,subsys_section,error)
-          CALL topology_generate_impr(topology,para_env,subsys_section,error)
-          CALL topology_generate_onfo(topology,para_env,subsys_section,error)
-          CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
-       END IF
     CASE (do_conn_off)
        CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
        CALL topology_generate_bend(topology,para_env,subsys_section,error)

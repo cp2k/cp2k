@@ -1,0 +1,140 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/par_all27_prot_lipid.inp
+      parmtype CHM
+      &spline
+       rcut_nb 9.0
+      &end
+      &bond 
+        atoms C H
+        K 0.2
+        R0 [angstrom] 1.1
+      &end
+      &bond 
+        atoms O H
+        K 0.2
+        R0 [angstrom] 1.0
+      &end
+      &bend
+        atoms C C H
+        K 0.02
+        THETA0 [deg] 120.0
+      &end
+      &bend
+        atoms C C C
+        K 0.02
+        THETA0 [deg] 120.0
+      &end
+      &bend
+        atoms C C O
+        K 0.02
+        THETA0 [deg] 120.0
+      &end
+      &bend
+        atoms H O C
+        K 0.02
+        THETA0 [deg] 120.0
+      &end
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .4
+        GMAX 27
+        O_SPLINE 4
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+     H  0.000 -2.462  4.000     X 
+     C  1.200  0.693  0.000     X 
+     H  2.132  1.231  4.000     X 
+     C  0.000  1.386  0.000     X 
+     H  2.124  0.813 10.000     X 
+     H -2.111 -1.690 10.000     X 
+     C  1.200 -0.693  0.000     X 
+     C  0.000  0.934 10.000     X 
+     H  2.132 -1.231  4.000     X 
+     C -1.200  0.693  4.000     X 
+     H  2.132  1.231  0.000     X 
+     C  0.000 -1.386  0.000     X 
+     H -2.132  1.231  0.000     X 
+     C  0.000 -1.386  4.000     X 
+     H  0.000 -2.462  0.000     X 
+     O  0.049  2.286 10.000     X 
+     H -2.132 -1.231  4.000     X 
+     C  0.000  0.934 14.000     X 
+     C -1.200 -0.693  0.000     X 
+     H  2.149 -1.656 14.000     X 
+     O  0.049  2.286 14.000     X 
+     H  0.000  2.462  0.000     X 
+     H  0.028 -2.919 14.000     X 
+     C  0.019 -1.844 14.000     X 
+     H -0.825  2.652 10.000     X 
+     C  1.200 -0.693  4.000     X 
+     C  1.210 -1.131 10.000     X 
+     H  2.132 -1.231  0.000     X 
+     H -2.132  1.231  4.000     X 
+     C  0.019 -1.844 10.000     X 
+     C  0.000  1.386  4.000     X 
+     C -1.195  0.234 10.000     X 
+     H  0.028 -2.919 10.000     X 
+     C  1.210 -1.131 14.000     X 
+     C -1.179 -1.153 14.000     X 
+     H -2.133  0.765 10.000     X 
+     H -2.132 -1.231  0.000     X 
+     H  2.124  0.813 14.000     X 
+     H  2.149 -1.656 10.000     X 
+     C -1.179 -1.153 10.000     X 
+     H -2.111 -1.690 14.000     X 
+     C -1.200  0.693  0.000     X 
+     H  0.000  2.462  4.000     X 
+     C  1.209  0.251 10.000     X 
+     C -1.200 -0.693  4.000     X 
+     C  1.209  0.251 14.000     X 
+     C  1.200  0.693  4.000     X 
+     C -1.195  0.234 14.000     X 
+     H -2.133  0.765 14.000     X 
+     H -0.825  2.652 14.000     X 
+    &END COORD
+    &TOPOLOGY
+      DUMP_TOP
+      &GENERATE
+        CREATE_MOLECULES
+        REORDER
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROJECT dhfr
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+  &PRINT
+    &RESTART OFF
+    &END
+    &RESTART_HISTORY OFF
+    &END
+    &TRAJECTORY OFF
+    &END
+    &VELOCITIES OFF
+    &END
+  &END
+&END MOTION

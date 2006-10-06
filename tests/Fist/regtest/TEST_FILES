@@ -128,3 +128,6 @@ JAC_gen.inp               2
 arginine.inp              2
 arginine0.inp             2
 arginine_crossC.inp       2
+#new reordering algorithm
+water_reord.inp           2
+phenobenz.inp             2

@@ -135,6 +135,7 @@ MODULE topology_types
      !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
      LOGICAL                                   :: molname_generated
      REAL(KIND=dp)                             :: bondparm_factor
+     LOGICAL                                   :: create_molecules
      LOGICAL                                   :: reorder_atom
      LOGICAL                                   :: molecules_check
      LOGICAL                                   :: coordinate
@@ -209,6 +210,7 @@ CONTAINS
     topology%nmol_conn=0
     topology%bondparm_type=do_bondparm_covalent
     topology%reorder_atom=.FALSE.
+    topology%create_molecules=.FALSE.
     topology%molecules_check=.FALSE.
     topology%coordinate=.FALSE.
     topology%dump_topology=.FALSE.

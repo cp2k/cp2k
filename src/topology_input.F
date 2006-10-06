@@ -109,7 +109,9 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology % charge_beta,error=error)
      CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology % para_res,error=error)
      CALL section_vals_val_get(topology_section,"DUMP_TOP",l_val=topology % dump_topology,error=error)
-     CALL section_vals_val_get(topology_section,"REORDER",l_val=topology % reorder_atom,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology % reorder_atom,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",&
+          l_val=topology%create_molecules,error=error)
      CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology % molecules_check,error=error)
      ! Character
      CALL section_vals_val_get(topology_section,"COORD_FILE",n_rep_val=n_rep, error=error)

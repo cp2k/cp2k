@@ -34,11 +34,15 @@ MODULE graphcon
     IMPLICIT NONE
 
     PRIVATE
-    PUBLIC :: vertex, reorder_graph, hash_molecule
+    PUBLIC :: vertex, graph_type, reorder_graph, hash_molecule
 
     ! a molecule is an array of vertices, each vertex has a kind
     ! and a list of edges (bonds). 
     ! (the number is the index of the other vertex in the array that builds the molecule)
+    TYPE graph_type
+       TYPE(vertex), POINTER, DIMENSION(:) :: graph
+    END TYPE graph_type
+
     TYPE vertex
        INTEGER :: kind
        INTEGER, POINTER, DIMENSION(:) :: bonds
@@ -327,7 +331,10 @@ CONTAINS
            DEALLOCATE(classes(Iclass)%q)
         ENDDO
         DEALLOCATE(classes)
-
+        DO I=1,isuperclass
+           DEALLOCATE(superclasses(I)%classes)
+        ENDDO
+        DEALLOCATE(superclasses)
     END SUBROUTINE reorder_graph
 !!****f* graphcon/spread_superclass *
 !!
