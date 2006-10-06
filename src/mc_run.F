@@ -169,9 +169,11 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section
+                                                root_section,&
+                                                force_env_section_2
 
-      NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
+      NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream,force_env_section,&
+         force_env_section_2,root_section)
       para_env=>force_env%para_env
       logger=>cp_error_get_logger(error)
       iw = cp_logger_get_default_unit_nr(logger)
@@ -316,8 +318,9 @@ CONTAINS
             '*************************************'
          ENDIF
 
+         force_env_section_2 => force_env_2%force_env_section
          CALL read_mc_section ( mc_par_2, para_env, globenv ,box2_file,&
-              root_section,force_env_section,error)
+              root_section,force_env_section_2,error)
 
 ! determine the total number of molecules and atoms
          CALL force_env_get(force_env_2,subsys=subsys_2,error=error)
