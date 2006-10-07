@@ -71,6 +71,7 @@ MODULE md_energies
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
      REAL ( dp ) :: avetemp_baro, avehugoniot, avecpu
      REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
+     REAL ( dp ) :: avetemp_qm, avekin_qm
   END TYPE average_quantities_type
 
 
@@ -120,7 +121,7 @@ CONTAINS
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp)                            :: cons, ekin, ekin_coefs, epot, &
                                                 hugoniot, temp, temp_baro, &
-                                                temp_coefs
+                                                temp_coefs, temp_qm, ekin_qm
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
     TYPE(average_quantities_type), SAVE      :: averages
@@ -138,6 +139,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
+    LOGICAL :: qmmm
 
     DATA init        /.TRUE./
     DATA init_traj   /.TRUE./
@@ -152,7 +154,6 @@ CONTAINS
 
     ! Zeroing
     hugoniot = 0._dp
-
     NULLIFY(dyn_coeff_set,motion_section)
     CALL get_md_env(md_env=md_env,&
          itimes=itimes,&
@@ -211,20 +212,30 @@ CONTAINS
             cons,&
             ekin=ekin,&
             temp_part=temp,&
+            ekin_qm=ekin_qm,&
+            temp_qm=temp_qm,&
+            qmmm=qmmm,&
             temp_baro=temp_baro,&
             ekin_coefs=ekin_coefs,&
-            temp_coefs=temp_coefs,error=error)
-       temp_coefs=temp_coefs*kelvin
-       temp = temp*kelvin
-       temp_baro = temp_baro*kelvin
+            temp_coefs=temp_coefs,&
+            error=error)
+       temp_coefs = temp_coefs*kelvin
+       temp       = temp*kelvin
+       temp_qm    = temp_qm*kelvin
+       temp_baro  = temp_baro*kelvin
     ELSE
        CALL compute_conserved_quantity(md_env,&
             epot,&
             cons,&
             ekin=ekin,&
             temp_part=temp,&
-            temp_baro=temp_baro ,error=error)
-       temp = temp*kelvin
+            ekin_qm=ekin_qm,&
+            temp_qm=temp_qm,&
+            qmmm=qmmm,&
+            temp_baro=temp_baro,&
+            error=error)
+       temp      = temp*kelvin
+       temp_qm   = temp_qm*kelvin
        temp_baro = temp_baro*kelvin
     END IF
 
@@ -279,10 +290,22 @@ CONTAINS
                'GO CP2K GO! **********************************'
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL POTENTIAL ENERGY', &
                ADJUSTL( unit % e_label), '= ', epot
-          WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
-               ADJUSTL( unit % e_label), '= ', ekin
-          WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
-               ADJUSTL( unit % temp_label ), '= ', temp
+          IF (.NOT.qmmm) THEN
+             ! NO QM/MM info
+             WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
+                  ADJUSTL( unit % e_label), '= ', ekin
+             WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
+                  ADJUSTL( unit % temp_label ), '= ', temp
+          ELSE
+             WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' MM INITIAL KINETIC ENERGY', &
+                  ADJUSTL( unit % e_label), '= ', ekin
+             WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' QM INITIAL KINETIC ENERGY', &
+                  ADJUSTL( unit % e_label), '= ', ekin_qm
+             WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' MM INITIAL TEMPERATURE', &
+                  ADJUSTL( unit % temp_label ), '= ', temp
+             WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' QM INITIAL TEMPERATURE', &
+                  ADJUSTL( unit % temp_label ), '= ', temp_qm
+          END IF
           IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
@@ -335,10 +358,12 @@ CONTAINS
           IF ( virial % pv_availability ) averages%avepxx = pv_xx
           averages%avecpu = used_time
           averages%avehugoniot = hugoniot
-          averages%avetemp = temp
           averages%avetemp_baro = temp_baro
           averages%avepot = epot
           averages%avekin = ekin
+          averages%avetemp = temp
+          averages%avekin_qm  = ekin_qm
+          averages%avetemp_qm = temp_qm
           averages%avevol = cell % deth
           averages%aveca = abc ( 1 )
           averages%avecb = abc ( 2 )
@@ -354,8 +379,6 @@ CONTAINS
           IF ( virial % pv_availability ) &
                averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/ &
                REAL ( delta_t, dp )
-          averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+temp)/ &
-               REAL(delta_t,dp)
           averages%avecpu = (averages%avecpu*REAL(delta_t-1,dp)+used_time)/ &
                REAL(delta_t,dp)
           averages%avehugoniot = (averages%avehugoniot*REAL(delta_t-1,dp)+hugoniot)/ &
@@ -365,6 +388,12 @@ CONTAINS
           averages%avepot = (averages%avepot*REAL(delta_t-1,dp)+epot)/ &
                REAL(delta_t,dp)
           averages%avekin = (averages%avekin*REAL(delta_t-1,dp)+ekin)/ &
+               REAL(delta_t,dp)
+          averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+temp)/ &
+               REAL(delta_t,dp)
+          averages%avekin_qm = (averages%avekin_qm*REAL(delta_t-1,dp)+ekin_qm)/ &
+               REAL(delta_t,dp)
+          averages%avetemp_qm = (averages%avetemp_qm*REAL(delta_t-1,dp)+temp_qm)/ &
                REAL(delta_t,dp)
           averages%avevol = (averages%avevol*REAL(delta_t-1,dp)+cell%deth)/ &
                REAL(delta_t,dp)
@@ -401,10 +430,22 @@ CONTAINS
                econs, econs_avg/REAL( delta_t,dp)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                ADJUSTL(unit % e_label), '= ', epot, averages%avepot
-          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
-               ADJUSTL(unit % e_label), '= ', ekin, averages%avekin
-          WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
-               ADJUSTL(unit % temp_label), '= ', temp, averages%avetemp
+          IF (.NOT.qmmm) THEN
+             ! No QM/MM info
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
+                  ADJUSTL(unit % e_label), '= ', ekin, averages%avekin
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
+                  ADJUSTL(unit % temp_label), '= ', temp, averages%avetemp
+          ELSE
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' MM KINETIC ENERGY', &
+                  ADJUSTL(unit % e_label), '= ', ekin, averages%avekin
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' QM KINETIC ENERGY', &
+                  ADJUSTL(unit % e_label), '= ', ekin_qm, averages%avekin_qm
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' MM TEMPERATURE', &
+                  ADJUSTL(unit % temp_label), '= ', temp, averages%avetemp
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' QM TEMPERATURE', &
+                  ADJUSTL(unit % temp_label), '= ', temp_qm, averages%avetemp_qm
+          END IF
           IF ( virial % pv_availability ) &
                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                ADJUSTL(unit % pres_label), '= ', pv_scalar, averages%avepress
