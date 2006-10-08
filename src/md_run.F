@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2003  CP2K developers group
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2001 - 2006 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/md_run [1.0] *
 !!
@@ -66,7 +66,6 @@ MODULE md_run
                                              md_env_release,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -456,12 +455,12 @@ END SUBROUTINE md_output
 
   SUBROUTINE temperature_control(simpar,force_env,error)
 
-!   Purpose: Perform all temperature manipulations during a QS MD run.
+    ! Perform all temperature manipulations during a QS MD run.
 
-!   History: - Creation (15.09.2003,MK)
-!            - adapted to force_env (05.10.2003,fawzi)
+    ! - Creation (15.09.2003,MK)
+    ! - adapted to force_env (05.10.2003,fawzi)
 
-!   ***************************************************************************
+    ! *************************************************************************
 
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -470,28 +469,29 @@ END SUBROUTINE md_output
                                              :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
-      routineP = moduleN//':'//routineN
+                                   routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
                                                 isubsys, natom
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e_kinetic, mass, scale, &
-                                                temperature, v2
+                                                temperature, total_mass, v2
+    REAL(KIND=dp), DIMENSION(3)              :: v, vcom
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_list_type), POINTER        :: particles
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(atomic_kind, atomic_kinds, particles, local_particles, atom_list,&
-            subsys, para_env)
+
+    NULLIFY(atomic_kind,atomic_kinds,particles,atom_list,subsys,para_env)
+
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
@@ -499,73 +499,89 @@ END SUBROUTINE md_output
 
     IF (simpar%temp_tol > 0.0_dp) THEN
 
-       CALL force_env_get(force_env,subsys=subsys, para_env=para_env,error=error)
+      CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
 
-       DO isubsys=1,SIZE(subsys)
+      DO isubsys=1,SIZE(subsys)
+
+        CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                           atomic_kinds=atomic_kinds,&
+                           particles=particles,&
+                           error=error)
+
+        ! Calculate the current temperature
+
+        e_kinetic = 0.0_dp
+        total_mass = 0.0_dp
+        vcom(:) = 0.0_dp
+
+        DO ikind=1,atomic_kinds%n_els
+          atomic_kind => atomic_kinds%els(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               atom_list=atom_list,&
+                               mass=mass,&
+                               natom=natom)
+          v2 = 0.0_dp
+          v(:) = 0.0_dp
+          DO iatom=1,natom
+            atom = atom_list(iatom)
+            v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                      particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                      particles%els(atom)%v(3)*particles%els(atom)%v(3)
+            v(:) = v(:) + particles%els(atom)%v(:)
+          END DO
+          e_kinetic = e_kinetic + 0.5_dp*mass*v2
+          vcom(:) = vcom(:) + mass*v(:)
+          total_mass = total_mass + REAL(natom,KIND=dp)*mass
+        END DO
+
+      END DO
+
+      temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
+
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+        WRITE (UNIT=cp_logger_get_default_unit_nr(logger),&
+               FMT="(/,T2,A,(T58,A3,F20.10))")&
+          "Centre of mass motion (COM):","x =",vcom(1)/total_mass,&
+                                         "y =",vcom(2)/total_mass,&
+                                         "z =",vcom(3)/total_mass
+      END IF
+
+      ! Scale temperature to reference temperture, if requested
+
+      IF (ABS(simpar%temp_ext - temperature) > simpar%temp_tol) THEN
+
+        scale = SQRT(simpar%temp_ext/temperature)
+
+        DO isubsys=1,SIZE(subsys)
 
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
-               local_particles=local_particles,&
-               particles=particles, atomic_kinds=atomic_kinds,&
-               error=error)
+                             atomic_kinds=atomic_kinds,&
+                             particles=particles,&
+                             error=error)
 
-          !     *** Calculate the current temperature ***
-          e_kinetic = 0.0_dp
-
-          DO ikind=1,SIZE(local_particles%list)
-             atomic_kind => atomic_kinds%els(ikind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  mass=mass)
-             atom_list => local_particles%list(ikind)%array
-             v2 = 0.0_dp
-             DO iatom=1,SIZE(atom_list)
-                atom = atom_list(iatom)
-                v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                     particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                     particles%els(atom)%v(3)*particles%els(atom)%v(3)
-             END DO
-             e_kinetic = e_kinetic + 0.5_dp*mass*v2
-          END DO
-       END DO
-       CALL mp_sum(e_kinetic,para_env%group) !FM loop on all particles and avoid sum?
-
-       temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
-
-       !     *** Scale temperature to reference temperture, if requested ***
-
-       IF (ABS(simpar%temp_ext - temperature) > simpar%temp_tol) THEN
-
-          scale = SQRT(simpar%temp_ext/temperature)
-
-          DO isubsys=1,SIZE(subsys)
-
-             CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                  local_particles=local_particles,&
-                  particles=particles, atomic_kinds=atomic_kinds,&
-                  error=error)
-
-             DO ikind=1,atomic_kinds%n_els
-                atomic_kind => atomic_kinds%els(ikind)
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     atom_list=atom_list,&
-                     mass=mass)
-                v2 = 0.0_dp
-                natom = SIZE(atom_list)
-                DO iatom=1,natom
-                   atom = atom_list(iatom)
-                   particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
-                END DO
-             END DO
-
+          DO ikind=1,atomic_kinds%n_els
+            atomic_kind => atomic_kinds%els(ikind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                 atom_list=atom_list,&
+                                 mass=mass,&
+                                 natom=natom)
+            v2 = 0.0_dp
+            DO iatom=1,natom
+              atom = atom_list(iatom)
+              particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+            END DO
           END DO
 
-          IF (logger%para_env%mepos==logger%para_env%source) THEN
-             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),&
-                  FMT="(/,T2,A,F10.2,A,F10.2,A)")&
-                  "Temperature scaled to requested temperature:",&
-                  temperature*kelvin," K  ->",simpar%temp_ext*kelvin," K"
-          END IF
+        END DO
 
-       END IF
+        IF (logger%para_env%mepos == logger%para_env%source) THEN
+          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),&
+                 FMT="(/,T2,A,F10.2,A,F10.2,A)")&
+            "Temperature scaled to requested temperature:",&
+            temperature*kelvin," K  ->",simpar%temp_ext*kelvin," K"
+        END IF
+
+      END IF
 
     END IF
 
