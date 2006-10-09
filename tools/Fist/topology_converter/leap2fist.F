@@ -876,7 +876,7 @@ CONTAINS
     ALLOCATE(my_i(my_bonds), my_j(my_bonds))
     my_i(1:NBONH) = IBH/3+1; my_i(NBONH+1:my_bonds) = IB/3+1
     my_j(1:NBONH) = JBH/3+1; my_j(NBONH+1:my_bonds) = JB/3+1
-    WRITE(unit,'(I8,X,A)') my_bonds,"!NBOND"
+    WRITE(unit,'(I8,1X,A)') my_bonds,"!NBOND"
     WRITE(unit,'(8'//int_format//')')(my_i(local),my_j(local), local=1,my_bonds)
     DEALLOCATE(my_i, my_j)
     WRITE(unit,*) ""
@@ -888,7 +888,7 @@ CONTAINS
     my_i(1:NTHETH) = ITH/3+1; my_i(NTHETH+1:my_theta) = IT/3+1
     my_j(1:NTHETH) = JTH/3+1; my_j(NTHETH+1:my_theta) = JT/3+1
     my_k(1:NTHETH) = KTH/3+1; my_k(NTHETH+1:my_theta) = KT/3+1
-    WRITE(unit,'(I8,X,A)') my_theta,"!NTHETA"
+    WRITE(unit,'(I8,1X,A)') my_theta,"!NTHETA"
     WRITE(unit,'(9'//int_format//')') (my_i(local),my_j(local),my_k(local), local=1,my_theta)
     WRITE(unit,*) ""
     DEALLOCATE(my_i, my_j, my_k)
@@ -952,7 +952,7 @@ CONTAINS
           END DO
        END DO
        !
-       WRITE(unit,'(I8,X,A)') ind,"!NPHI"
+       WRITE(unit,'(I8,1X,A)') ind,"!NPHI"
        WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
@@ -1013,7 +1013,7 @@ CONTAINS
              END IF
           END DO
        END DO
-       WRITE(unit,'(I8,X,A)') ind,"!NIMPHI"
+       WRITE(unit,'(I8,1X,A)') ind,"!NIMPHI"
        WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
@@ -1068,17 +1068,17 @@ CONTAINS
              END IF
           END DO
        END DO
-       WRITE(unit,'(I8,X,A)') ind,"!NPHI"
+       WRITE(unit,'(I8,1X,A)') ind,"!NPHI"
        WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
-       WRITE(unit,'(I8,X,A)') 0,"!NIMPHI"
+       WRITE(unit,'(I8,1X,A)') 0,"!NIMPHI"
        WRITE(unit,*) ""
     END IF
     !
     ! Section NDON
     !
-    WRITE(unit,'(I8,X,A)') 0,"!NDON"
+    WRITE(unit,'(I8,1X,A)') 0,"!NDON"
     WRITE(unit,*) ""
     !
     ! Section NACC
