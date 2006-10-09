@@ -1000,7 +1000,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     CALL cp_fm_to_fm(matrix_tmp,matrix_pre,error=error)
 
     ! test that the subspace remained conserved
-    IF (.TRUE.) THEN
+    IF (.FALSE.) THEN
         CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
