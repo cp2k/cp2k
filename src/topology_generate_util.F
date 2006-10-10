@@ -121,8 +121,8 @@ CONTAINS
 
     INTEGER :: atom_in_kind, atom_in_mol, first, handle, handle2, i, iatm, &
       iatom, ifirst, ilast, inum, iw, j, jump1, jump2, last, max_mol_num, &
-      mol_num, mol_res, mol_typ, myind, N, natom, ntype, stat
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
+      mol_num, mol_res, mol_typ, myind, N, natom, ntype, stat, istart, iend, nlocl
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, wrk1, wrk2
     LOGICAL                                  :: do_again, failure, my_qmmm
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
@@ -197,7 +197,7 @@ CONTAINS
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
     CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
-    CALL find_molecule(atom_bond_list,atom_info%map_mol_num)   
+    CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%label_molname)   
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -208,6 +208,46 @@ CONTAINS
     ! Modify according map_mol_typ the array map_mol_num
     !
     IF(iw>0) WRITE(iw,'(/,A)') "End of molecule generation"
+    IF(iw>0) WRITE(iw,'(/,A)') "Checking for non-continuous generated molecules"
+    ! Check molecule number
+    ALLOCATE(wrk1(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(wrk2(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    wrk1 = atom_info%map_mol_num
+    CALL sort(wrk1,natom,wrk2)
+    istart  = 1
+    mol_typ = wrk1(istart)
+    DO i = 2, natom
+       IF (mol_typ /= wrk1(i)) THEN
+          iend  = i-1
+          first = MINVAL(wrk2(istart:iend))
+          last  = MAXVAL(wrk2(istart:iend))
+          nlocl = last-first+1
+          IF (iend-istart+1 /= nlocl) THEN
+             CALL stop_program ("topology_generate_molecule",&
+                  "Detected a non contiguous molecule!! "//&
+                  "Too late at this stage everything should be already ordered! "//&
+                  "Try with the keyword reordering.. It may help!")
+          END IF
+          istart = i
+       END IF
+    END DO
+    iend  = i-1
+    first = MINVAL(wrk2(istart:iend))
+    last  = MAXVAL(wrk2(istart:iend))
+    nlocl = last-first+1
+    IF (iend-istart+1 /= nlocl) THEN
+       CALL stop_program ("topology_generate_molecule",&
+            "Detected a non contiguous molecule!! "//&
+            "Too late at this stage everything should be already ordered! "//&
+            "Try with the keyword reordering.. It may help!")
+    END IF
+    DEALLOCATE(wrk1, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(wrk2,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+    IF(iw>0) WRITE(iw,'(/,A)') "End of check"
     IF(iw>0) WRITE(iw,'(/,A)') "Start of renumbering molecules"
     mol_typ = atom_info%map_mol_typ(1)
     mol_num = atom_info%map_mol_num(1)
@@ -609,6 +649,12 @@ CONTAINS
        CALL reallocate(conn_info%bond_a,1,1)
        CALL reallocate(conn_info%bond_b,1,1)
        connectivity_ok =.FALSE.
+       ! No need to check consistency between provided molecule name and
+       ! generated connectivity since we overrided the molecule definition.
+       IF (topology%create_molecules) THEN
+          atom_info%label_molname = "TO_DEFINE_LATER"
+          ! A real name assignment will then be performed in the reorder module..
+       END IF
        ! It may happen that the connectivity created is fault for the missing
        ! of one bond.. this external loop ensures that everything was created
        ! fits exactly with the definition of molecules..
@@ -619,6 +665,7 @@ CONTAINS
              IF (h_list(iatm1)) CYCLE
              DO j = 1,SIZE(bond_list(iatm1)%array1)
                 iatm2 = bond_list(iatm1)%array1(j)
+                IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
                 IF(h_list(iatm2).OR.(iatm2<=iatm1)) CYCLE
                 k     = bond_list(iatm1)%array2(j)
                 ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
@@ -657,6 +704,7 @@ CONTAINS
              ibond  = -1
              DO j = 1,SIZE(bond_list(iatm1)%array1)
                 iatm2 = bond_list(iatm1)%array1(j)
+                IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
                 k     = bond_list(iatm1)%array2(j)
                 ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
                 k     = ABS(k)
@@ -702,13 +750,13 @@ CONTAINS
           CALL reallocate(conn_info%bond_a,1,n_bonds)
           CALL reallocate(conn_info%bond_b,1,n_bonds)
           IF (topology%create_molecules) THEN
-             ! No need to check consistency between provided molecule name and
-             ! generated connectivity since we overrided the molecule definition.
+             ! Since we create molecule names we're not sure that all atoms are contiguous
+             ! so we need to reorder them on the basis of the generated name
              IF (.NOT.topology%reorder_atom) THEN
                 topology%reorder_atom = .TRUE.
                 WRITE(output_unit,'(T2,"GENERATE|",A)')&
                      " Molecules names have been generated. Now reordering particle set in order to have ",&
-                     " atoms belonging to the same molecule in a sequential order." 
+                     " atoms belonging to the same molecule in a sequential order."
              END IF
              connectivity_ok = .TRUE.
           ELSE
@@ -853,7 +901,7 @@ CONTAINS
        ALLOCATE(wrk(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i = 1, natom
-          mol_map(i) = str2id(s2s(TRIM(atom_info%label_resname(i))))
+          mol_map(i) = str2id(s2s(TRIM(atom_info%label_molname(i))))
        END DO
        mol_map_o = mol_map
        CALL sort(mol_map,natom,wrk)
@@ -900,7 +948,7 @@ CONTAINS
           IF (icheck(i)) CYCLE
           itype     = mol_map_o(i)
           mol_natom = 0
-          CALL give_back_molecule(icheck,bond_list,i,mol_natom)
+          CALL give_back_molecule(icheck,bond_list,i,mol_natom,mol_map_o,mol_map_o(i))
           DO j = 1, SIZE(mol_info)
              IF (itype==mol_info(j,1)) EXIT
           END DO

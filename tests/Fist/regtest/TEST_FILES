@@ -131,3 +131,4 @@ arginine_crossC.inp       2
 #new reordering algorithm
 water_reord.inp           2
 phenobenz.inp             2
+liquid.inp                2

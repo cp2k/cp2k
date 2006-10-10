@@ -113,7 +113,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: telement(:), &
                                                 tlabel_atmname(:), &
-                                                molname(:)
+                                                molname(:),&
+                                                tlabel_molname(:),&
+                                                tlabel_resname(:)
     CHARACTER(LEN=default_string_length)     :: mol_id
     INTEGER :: handle, i, iatm, iindex, imol, imol_ref, iref, iund, iw, j, &
       location, max_mol_num, n, natom, old_hash, old_mol, stat, unique_mol,&
@@ -149,7 +151,7 @@ CONTAINS
     conn_info => topology%conn_info    
     natom = topology%natoms
     NULLIFY( new_position, reference_set)
-    NULLIFY(tlabel_atmname, telement, mol_num)
+    NULLIFY(tlabel_atmname, telement, mol_num, tlabel_molname, tlabel_resname)
     NULLIFY(tr, tatm_charge, tatm_mass, atm_map1, atm_map2, atm_map3)
     ! This routine can be called only at a very high level where these structures are still
     ! not even taken into account...
@@ -164,6 +166,10 @@ CONTAINS
     ALLOCATE(molname(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(tlabel_atmname(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tlabel_molname(natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(tlabel_resname(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(tr(3,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -196,7 +202,7 @@ CONTAINS
     ALLOCATE(atom_info%map_mol_num(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     atom_info%map_mol_num = -1
-    CALL find_molecule(atom_bond_list,atom_info%map_mol_num)
+    CALL find_molecule(atom_bond_list,atom_info%map_mol_num, atom_info%label_molname)
     max_mol_num = MAXVAL(atom_info%map_mol_num)
     ! In atom_info%map_mol_num have already been mapped molecules
     ALLOCATE(mol_bnd(2,max_mol_num),STAT=stat)
@@ -372,6 +378,8 @@ CONTAINS
     !Lets swap the atoms now
     DO iatm=1,natom
        location = new_position(iatm)
+       tlabel_molname(iatm)       = atom_info%label_molname(location)
+       tlabel_resname(iatm)       = atom_info%label_resname(location)
        tlabel_atmname(iatm)       = atom_info%label_atmname(location)
        telement(iatm)             = atom_info%element(location)
        tr(1,iatm)                 = atom_info%r(1,location)
@@ -380,9 +388,16 @@ CONTAINS
        tatm_charge(iatm)          = atom_info%atm_charge(location)
        tatm_mass(iatm)            = atom_info%atm_mass(location)
     END DO
+    IF (topology%create_molecules) THEN
+       DO iatm=1,natom
+          tlabel_molname(iatm)   = "MOL"//TRIM(molname(iatm))
+          tlabel_resname(iatm)   = "R"//TRIM(molname(iatm))
+       END DO
+       topology%create_molecules = .FALSE.
+    END IF
     DO iatm=1,natom
-       atom_info%label_molname(iatm)   = "MOL"//TRIM(molname(iatm))
-       atom_info%label_resname(iatm)   = "R"//TRIM(molname(iatm))
+       atom_info%label_molname(iatm)   = tlabel_molname(iatm)
+       atom_info%label_resname(iatm)   = tlabel_resname(iatm)
        atom_info%label_resid(iatm)     = mol_num(iatm)
        atom_info%label_atmname(iatm)   = tlabel_atmname(iatm)
        atom_info%element(iatm)         = telement(iatm)
@@ -396,6 +411,10 @@ CONTAINS
     DEALLOCATE(new_position,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(tlabel_atmname,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(tlabel_molname,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(tlabel_resname,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(telement,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -796,23 +815,29 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  RECURSIVE SUBROUTINE give_back_molecule(icheck, bond_list,i,mol_natom)
+  RECURSIVE SUBROUTINE give_back_molecule(icheck, bond_list,i,mol_natom,mol_map,my_mol)
     LOGICAL, DIMENSION(:), POINTER           :: icheck
+    INTEGER, DIMENSION(:), POINTER           :: mol_map
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
-    INTEGER, INTENT(IN)                      :: i
+    INTEGER, INTENT(IN)                      :: i, my_mol
     INTEGER, INTENT(INOUT)                   :: mol_natom
 
     INTEGER                                  :: j, k
 
-    icheck(i) = .TRUE.
-    DO j = 1, SIZE(bond_list(i)%array1)
-       k = bond_list(i)%array1(j)
-       IF (icheck(k)) CYCLE
-       mol_natom = mol_natom + 1
-       CALL give_back_molecule(icheck, bond_list, k, mol_natom)
-    END DO
-
+    IF (mol_map(i)==my_mol) THEN
+       icheck(i) = .TRUE.
+       DO j = 1, SIZE(bond_list(i)%array1)
+          k = bond_list(i)%array1(j)
+          IF (icheck(k)) CYCLE
+          mol_natom = mol_natom + 1
+          CALL give_back_molecule(icheck, bond_list, k, mol_natom, mol_map, my_mol)
+       END DO
+    ELSE
+       ! Do nothing means only that bonds were found between molecules
+       ! as we defined them.. This could easily be a bond detected but not
+       ! physically present.. so just skip this part and go on..
+    END IF
   END SUBROUTINE give_back_molecule
 
 
@@ -978,19 +1003,24 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE find_molecule(atom_bond_list,mol_info)
+  SUBROUTINE find_molecule(atom_bond_list,mol_info,mol_name)
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(IN)                             :: atom_bond_list
+    CHARACTER(LEN=default_string_length),&
+         POINTER, DIMENSION(:)               :: mol_name
     INTEGER, DIMENSION(:), POINTER           :: mol_info
 
     INTEGER                                  :: I, N, nmol
+    CHARACTER(LEN=default_string_length)     :: my_mol_name
 
     N=SIZE(atom_bond_list)
     nmol=0
     DO I=1,N
        IF (mol_info(I)==-1) THEN
           nmol=nmol+1
-          CALL spread_mol(atom_bond_list,mol_info,i,nmol)
+          my_mol_name = mol_name(I)
+          CALL spread_mol(atom_bond_list,mol_info,i,nmol, my_mol_name,&
+               mol_name)
        ENDIF
     ENDDO
   END SUBROUTINE find_molecule
@@ -1014,10 +1044,15 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  RECURSIVE SUBROUTINE spread_mol(atom_bond_list,mol_info,iatom,imol)
+  RECURSIVE SUBROUTINE spread_mol(atom_bond_list,mol_info,iatom,imol, &
+       my_mol_name, mol_name)
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(IN)                             :: atom_bond_list
     INTEGER, DIMENSION(:), POINTER           :: mol_info
+    CHARACTER(LEN=default_string_length),&
+         INTENT(IN)                          :: my_mol_name
+    CHARACTER(LEN=default_string_length),&
+         POINTER, DIMENSION(:)               :: mol_name
     INTEGER, INTENT(IN)                      :: iatom, imol
 
     INTEGER                                  :: atom_b, i
@@ -1025,9 +1060,13 @@ CONTAINS
     mol_info(iatom)=imol
     DO I=1,SIZE(atom_bond_list(iatom)%array1)
        atom_b=atom_bond_list(iatom)%array1(I)
-       IF (mol_info(atom_b)==-1) &
-            CALL spread_mol(atom_bond_list,mol_info,atom_b,imol)
-       IF (mol_info(atom_b)/=imol) STOP "internal error"
+       ! In this way we're really sure that all atoms belong to the same
+       ! molecule. This should correct possible errors in the generation of 
+       ! the bond list..
+       IF (mol_info(atom_b)==-1.AND.my_mol_name==mol_name(atom_b)) THEN
+          CALL spread_mol(atom_bond_list,mol_info,atom_b,imol,my_mol_name, mol_name)
+          IF (mol_info(atom_b)/=imol) STOP "internal error"
+       END IF
     ENDDO
   END SUBROUTINE spread_mol
  
@@ -1236,20 +1275,28 @@ CONTAINS
           !-----------------------------------------------------------------------------
           ! 3. Check that each molecule have the same bond sequences
           !-----------------------------------------------------------------------------
-          IF (SIZE(atom_bond_list(iatom)%array1)/=SIZE(atom_bond_list(iatom)%array1)) failure = .TRUE.
+          IF (SIZE(atom_bond_list(iatom)%array1)/=SIZE(atom_bond_list(first+loc_counter-1)%array1))&
+               failure = .TRUE.
           IF (.NOT.failure) THEN
              DO k = 1,SIZE(atom_bond_list(iatom)%array1)
                 IF (ALL(atom_bond_list(first+loc_counter-1)%array1-first/=&
                         atom_bond_list(iatom)%array1(k)-first_loc)) THEN
                    CALL stop_program ("topology_molecules_check",&
-                        "different bonds for same molecule kind"//&
+                        "different sequence of bonds for same molecule kind"//&
                         " molecule type  = "//cp_to_string(mol_typ)//&
                         " molecule number= "//cp_to_string(mol_num)//&
-                        " expected bonds="//cp_to_string(iatom-first_loc+1)//" - "//&
-                        cp_to_string(atom_bond_list(iatom)%array1(k)-first_loc)//&
                         " NOT FOUND! Check the connectivity of your system.")
                 END IF
              END DO
+          ELSE
+             CALL stop_program ("topology_molecules_check",&
+                  "different number of bonds for same molecule kind"//&
+                  " molecule type  = "//cp_to_string(mol_typ)//&
+                  " molecule number= "//cp_to_string(mol_num)//&
+                  " expected bonds="//&
+                  cp_to_string(SIZE(atom_bond_list(first+loc_counter-1)%array1))//" - "//&
+                  cp_to_string(SIZE(atom_bond_list(iatom)%array1))//&
+                  " NOT FOUND! Check the connectivity of your system.")             
           END IF
        ELSE
           mol_num = atom_info%map_mol_num(iatom)
