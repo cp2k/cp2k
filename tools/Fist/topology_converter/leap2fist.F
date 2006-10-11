@@ -823,31 +823,33 @@ CONTAINS
     INTEGER :: my_sec, my_res, my_bonds, local, my_phi, my_theta, my_atom
     INTEGER :: i, j, ind, ifirst, ilast
     INTEGER, DIMENSION(:), POINTER :: my_i, my_j, my_k, my_l
-    CHARACTER (LEN=2)  :: int_format
+    CHARACTER (LEN=3)  :: int_format
     CHARACTER (LEN=80) :: psf_atm_fmt
 
     NULLIFY( my_i, my_j, my_k, my_l)
-    IF(verbose) WRITE(*,'(A)') "    Writing out PSF file "//TRIM(psf_filename)    
+    IF(verbose) WRITE(*,'(A)') "    Writing out PSF file in CHARMM31 EXT format"//TRIM(psf_filename)    
     !
     ! Section Title
     !
     my_sec = 1
-    int_format="I8"
-    psf_atm_fmt="(I7,1X,A5,I7,1X,A5,A5,A5,F10.5,F10.5,I7)"
+    int_format="I10"
+    psf_atm_fmt='(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.5,T88,I1)'
     IF (psf_xplor) THEN 
        int_format="I8"
-       psf_atm_fmt="(I8,1X,A4,1X,I4,3(1X,A4),1X,F10.6,3X,F10.4,I13)"
+       psf_atm_fmt= '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
+       WRITE(unit,'(A)') "PSF"
+    ELSE
+       WRITE(unit,'(A)') "PSF EXT"
     END IF
-    WRITE(unit,'(A)') "PSF"
     WRITE(unit,'(A)') " "
-    WRITE(unit,'(I7,A)') my_sec, " !NTITLE"
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)') my_sec,"!NTITLE"
     WRITE(unit,'(A)')" Conversion from AMBER PARMTOP ::"//TRIM(TITLE)
     WRITE(unit,'(A)') " "
     
     !
     ! Section Atom
     !
-    WRITE(unit,'('//int_format//',A)')NATOM," !NATOM"
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)')NATOM,"!NATOM"
     DO my_res = 1, NRES
        ifirst = IPRES(my_res)
        IF (my_res == NRES) THEN 
@@ -867,7 +869,6 @@ CONTAINS
                AMASS(my_atom) ,0
        END DO
     END DO
-
     WRITE(unit,*) " "
     !
     ! Section Bonds
@@ -876,8 +877,8 @@ CONTAINS
     ALLOCATE(my_i(my_bonds), my_j(my_bonds))
     my_i(1:NBONH) = IBH/3+1; my_i(NBONH+1:my_bonds) = IB/3+1
     my_j(1:NBONH) = JBH/3+1; my_j(NBONH+1:my_bonds) = JB/3+1
-    WRITE(unit,'(I8,1X,A)') my_bonds,"!NBOND"
-    WRITE(unit,'(8'//int_format//')')(my_i(local),my_j(local), local=1,my_bonds)
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)') my_bonds,"!NBOND"
+    WRITE(unit,'(8'//TRIM(int_format)//')')(my_i(local),my_j(local), local=1,my_bonds)
     DEALLOCATE(my_i, my_j)
     WRITE(unit,*) ""
     !
@@ -888,8 +889,8 @@ CONTAINS
     my_i(1:NTHETH) = ITH/3+1; my_i(NTHETH+1:my_theta) = IT/3+1
     my_j(1:NTHETH) = JTH/3+1; my_j(NTHETH+1:my_theta) = JT/3+1
     my_k(1:NTHETH) = KTH/3+1; my_k(NTHETH+1:my_theta) = KT/3+1
-    WRITE(unit,'(I8,1X,A)') my_theta,"!NTHETA"
-    WRITE(unit,'(9'//int_format//')') (my_i(local),my_j(local),my_k(local), local=1,my_theta)
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)') my_theta,"!NTHETA"
+    WRITE(unit,'(9'//TRIM(int_format)//')') (my_i(local),my_j(local),my_k(local), local=1,my_theta)
     WRITE(unit,*) ""
     DEALLOCATE(my_i, my_j, my_k)
     !
@@ -952,8 +953,8 @@ CONTAINS
           END DO
        END DO
        !
-       WRITE(unit,'(I8,1X,A)') ind,"!NPHI"
-       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
+       WRITE(unit,'('//TRIM(int_format)//',1X,A)') ind,"!NPHI"
+       WRITE(unit,'(8'//TRIM(int_format)//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
        !
@@ -1013,8 +1014,8 @@ CONTAINS
              END IF
           END DO
        END DO
-       WRITE(unit,'(I8,1X,A)') ind,"!NIMPHI"
-       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
+       WRITE(unit,'('//TRIM(int_format)//',1X,A)') ind,"!NIMPHI"
+       WRITE(unit,'(8'//TRIM(int_format)//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
     ELSE
@@ -1068,32 +1069,32 @@ CONTAINS
              END IF
           END DO
        END DO
-       WRITE(unit,'(I8,1X,A)') ind,"!NPHI"
-       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
+       WRITE(unit,'('//TRIM(int_format)//',1X,A)') ind,"!NPHI"
+       WRITE(unit,'(8'//TRIM(int_format)//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
-       WRITE(unit,'(I8,1X,A)') 0,"!NIMPHI"
+       WRITE(unit,'('//TRIM(int_format)//',1X,A)')0,"!NIMPHI"
        WRITE(unit,*) ""
     END IF
     !
     ! Section NDON
     !
-    WRITE(unit,'(I8,1X,A)') 0,"!NDON"
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)')0,"!NDON"
     WRITE(unit,*) ""
     !
     ! Section NACC
     !
-    WRITE(unit,*) "       0 !NACC"
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)')0,"!NACC"
     WRITE(unit,*) ""
     !
     ! Section NNB
     !
-    WRITE(unit,*) "       0 !NNB"
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)')0,"!NNB"
     WRITE(unit,*) ""    
     !
     ! Section NGRP 
     !
-    WRITE(unit,*) "       0 !NGRP"
+    WRITE(unit,'('//TRIM(int_format)//',1X,A)')0,"!NGRP"
     WRITE(unit,*) ""    
     DEALLOCATE(molnames)
   END SUBROUTINE write_psf
@@ -1409,28 +1410,28 @@ CONTAINS
     !
     ! Deallocate all structures...
     !
-     IF (ASSOCIATED(my_i         )) DEALLOCATE(my_i         )
-     IF (ASSOCIATED(my_j         )) DEALLOCATE(my_j         )
-     IF (ASSOCIATED(my_k         )) DEALLOCATE(my_k         )
-     IF (ASSOCIATED(my_l         )) DEALLOCATE(my_l         )
-     IF (ASSOCIATED(my_atom_index)) DEALLOCATE(my_atom_index)           
-     IF (ASSOCIATED(dihedral_type)) DEALLOCATE(dihedral_type)          
-     IF (ASSOCIATED(my_kb        )) DEALLOCATE(my_kb        )
-     IF (ASSOCIATED(my_req       )) DEALLOCATE(my_req       )   
-     IF (ASSOCIATED(my_ka        )) DEALLOCATE(my_ka        )
-     IF (ASSOCIATED(my_theta     )) DEALLOCATE(my_theta     )   
-     IF (ASSOCIATED(my_a         )) DEALLOCATE(my_a         )
-     IF (ASSOCIATED(my_delta     )) DEALLOCATE(my_delta     )
-     IF (ASSOCIATED(my_m         )) DEALLOCATE(my_m         )
-     IF (ASSOCIATED(my_ki        )) DEALLOCATE(my_ki        )          
-     IF (ASSOCIATED(vdw_a        )) DEALLOCATE(vdw_a        )
-     IF (ASSOCIATED(vdw_b        )) DEALLOCATE(vdw_b        )    
-     IF (ASSOCIATED(my_scale_el  )) DEALLOCATE(my_scale_el  )
-     IF (ASSOCIATED(my_scale_LJ  )) DEALLOCATE(my_scale_LJ  )
-     IF (ASSOCIATED(type_i       )) DEALLOCATE(type_i       )
-     IF (ASSOCIATED(type_j       )) DEALLOCATE(type_j       ) 
-     IF (ASSOCIATED(my_res_name  )) DEALLOCATE(my_res_name  )
-     
+    IF (ASSOCIATED(my_i         )) DEALLOCATE(my_i         )
+    IF (ASSOCIATED(my_j         )) DEALLOCATE(my_j         )
+    IF (ASSOCIATED(my_k         )) DEALLOCATE(my_k         )
+    IF (ASSOCIATED(my_l         )) DEALLOCATE(my_l         )
+    IF (ASSOCIATED(my_atom_index)) DEALLOCATE(my_atom_index)           
+    IF (ASSOCIATED(dihedral_type)) DEALLOCATE(dihedral_type)          
+    IF (ASSOCIATED(my_kb        )) DEALLOCATE(my_kb        )
+    IF (ASSOCIATED(my_req       )) DEALLOCATE(my_req       )   
+    IF (ASSOCIATED(my_ka        )) DEALLOCATE(my_ka        )
+    IF (ASSOCIATED(my_theta     )) DEALLOCATE(my_theta     )   
+    IF (ASSOCIATED(my_a         )) DEALLOCATE(my_a         )
+    IF (ASSOCIATED(my_delta     )) DEALLOCATE(my_delta     )
+    IF (ASSOCIATED(my_m         )) DEALLOCATE(my_m         )
+    IF (ASSOCIATED(my_ki        )) DEALLOCATE(my_ki        )          
+    IF (ASSOCIATED(vdw_a        )) DEALLOCATE(vdw_a        )
+    IF (ASSOCIATED(vdw_b        )) DEALLOCATE(vdw_b        )    
+    IF (ASSOCIATED(my_scale_el  )) DEALLOCATE(my_scale_el  )
+    IF (ASSOCIATED(my_scale_LJ  )) DEALLOCATE(my_scale_LJ  )
+    IF (ASSOCIATED(type_i       )) DEALLOCATE(type_i       )
+    IF (ASSOCIATED(type_j       )) DEALLOCATE(type_j       ) 
+    IF (ASSOCIATED(my_res_name  )) DEALLOCATE(my_res_name  )
+    
     RETURN
   END SUBROUTINE write_dlpoly_field
   
