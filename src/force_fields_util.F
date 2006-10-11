@@ -1533,8 +1533,6 @@ CONTAINS
              END DO
           END IF
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-             ii = 0
-             jj = 0
              IF(.NOT.found_a) THEN
                 DO k=1,SIZE(chm_info%nonbond_a)
                    IF((name_atm_a)==(chm_info%nonbond_a(k))) THEN
@@ -1569,7 +1567,6 @@ CONTAINS
                 found = .TRUE.
              END IF
           END IF
-
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded14)) THEN
              DO k=1,SIZE(inp_info%nonbonded14%pot)
@@ -1588,7 +1585,6 @@ CONTAINS
                 END IF
              END DO
           END IF
-
           ! at the very end we offer the possibility to overwrite the parameters for QM/MM
           ! nonbonded interactions
           IF (use_qmmm_ff) THEN
