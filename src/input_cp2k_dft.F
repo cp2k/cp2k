@@ -3858,6 +3858,8 @@ SUBROUTINE create_ot_section(section,error)
      CALL section_create(section,"ot",&
          description="Sets the various options for the orbital transformation (OT) method. "//&
                      "Default settings already provide an efficient, yet robust method. "//&
+                     "Most systems benefit from using the FULL_ALL preconditioner "//&
+                     "combined with a small value (0.001) of ENERGY_GAP."//&
                      "Well-behaved systems might benefit from using a DIIS minimizer.",&
          n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
@@ -3878,8 +3880,9 @@ SUBROUTINE create_ot_section(section,error)
           usage="MINIMIZER DIIS",&
           default_i_val=ot_mini_cg,&
           enum_c_vals=s2a( "SD", "CG", "DIIS"),&
-          enum_desc=s2a("Steepest descent","Conjugate Gradients", &
-                        "Direct inversion in the iterative subspace"),&
+          enum_desc=s2a("Steepest descent: not recommended","Conjugate Gradients: most reliable, use for difficult systems."//&
+                        " The total energy should decrease at every OT CG step if the line search is appropriate.", &
+                        "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster"),&
           enum_i_vals=(/ot_mini_sd,ot_mini_cg,ot_mini_diis/),&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -3888,7 +3891,7 @@ SUBROUTINE create_ot_section(section,error)
      CALL keyword_create(keyword, name="SAFE_DIIS",&
             variants=(/"SAFER_DIIS"/),&
             description="Reject DIIS steps if they point away from the"//&
-            " minimum, do SD in that case ",&
+            " minimum, do SD in that case.",&
             usage="SAFE_DIIS ON", default_l_val=.TRUE.,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -3905,40 +3908,52 @@ SUBROUTINE create_ot_section(section,error)
           variants=(/"LINE_SEARCH"/),&
           description="1D line search algorithm to be used with the OT minimizer,"//&
                       " in increasing order of robustness and cost. MINIMIZER CG combined with"//&
-                      " LINESEARCH GOLD should always find an electronic minimum.",&
+                      " LINESEARCH GOLD should always find an electronic minimum. "//&
+                      " Whereas the 2PNT minimizer is almost always OK, 3PNT might be needed for systems"//&
+                      " in which successive OT CG steps do not decrease the total energy.",&
           usage="LINESEARCH GOLD",&
           default_i_val=ot_ls_2pnt,&
           enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
           enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
-                        "... or on 3 points","perform 1D golden section search of the minimum"),&
+                        "... or on 3 points","perform 1D golden section search of the minimum (very expensive)"),&
           enum_i_vals=(/ot_ls_none,ot_ls_2pnt,ot_ls_3pnt,ot_ls_gold/),&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="STEPSIZE",&
-          description="Initial stepsize used for the line search",&
+          description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stablize DIIS"//&
+                      " or to improve the CG behavior in the first few steps",&
           usage="STEPSIZE 0.4",&
           default_r_val=0.15_dp,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="GOLD_TARGET",&
-          description="Target relative uncertainty in the location of the minimum",&
+          description="Target relative uncertainty in the location of the minimum for LINESEARCH GOLD",&
           usage="GOLD_TARGET 0.1",&
           default_r_val=0.01_dp,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="PRECONDITIONER",&
-          description="Type of preconditioner to be used with all minimization schemes."//&
-                      "They differ in effectiveness, cost of construction, cost of application.",&
-          usage="PRECONDITIONER FULL_SINGLE",&
+          description="Type of preconditioner to be used with all minimization schemes. "//&
+                      "They differ in effectiveness, cost of construction, cost of application. "//&
+                      "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.",&
+          usage="PRECONDITIONER FULL_ALL",&
           default_i_val=ot_precond_full_kinetic,&
           enum_c_vals=s2a("FULL_ALL","FULL_SINGLE","FULL_SINGLE_INVERSE","FULL_KINETIC","FULL_S_INVERSE","SPARSE_DIAG","NONE"),&
-          enum_desc=s2a("State selective, similar to full_single","Based on diagonalisation", "Based on H-eS cholesky inversion", &
-                        "Cholesky inversion of S and T", &
-                        "Cholesky inversion of S","Only based on atomic blocks", &
+          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "//&
+                        "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "//&
+                        "This preconditioner is recommended for almost all systems, except very large systems where "//&
+                        "make_preconditioner would dominate the total computational cost.",&
+                        "Based on diagonalisation, not as good as FULL_ALL, but somewhat cheaper to apply. ",&
+                        "Based on H-eS cholesky inversion, no diagonalization needed and thus fast to create, "//&
+                        "but not recommended unless the initial wavefunction guess is known to be very good.",&
+                        "Cholesky inversion of S and T, fast construction, robust, and relatively good, "//&
+                        "use for very large systems.",&
+                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
+                        "Only based on atomic blocks, very cheap in construction but quite poor.",&
                         "skip preconditioning"),&
           enum_i_vals=(/ot_precond_full_all,ot_precond_full_single,ot_precond_full_single_inverse, &
                         ot_precond_full_kinetic,ot_precond_s_inverse,&
@@ -3948,22 +3963,26 @@ SUBROUTINE create_ot_section(section,error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="ENERGY_GAP",&
-          description="Energy gap estimate [a.u.] for preconditioning",&
-          usage="EPS_TAYLOR 0.1",&
+          description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "//&
+                      "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "//&
+                      "of the gap (0.001 doing normally fine). For the other preconditioners, making this value larger (0.2)"//&
+                      " will tame the preconditioner in case of poor initial guesses.",&
+          usage="ENERGY_GAP 0.001",&
           default_r_val=0.2_dp,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_TAYLOR",&
           variants=(/"EPSTAYLOR"/),&
-          description="Target accuracy of the taylor expansion for the matrix functions",&
+          description="Target accuracy of the taylor expansion for the matrix functions, should normally be kept as is.",&
           usage="EPS_TAYLOR 1.0E-15",&
           default_r_val=1.0E-16_dp,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="MAX_TAYLOR",&
-          description="Maximum order of the Taylor expansion before diagonalisation is prefered",&
+          description="Maximum order of the Taylor expansion before diagonalisation is prefered, for large parallel runs"//&
+                      " a slightly higher order could sometimes result in a small speedup.",&
           usage="MAX_TAYLOR 5",&
           default_i_val=4,error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -3971,7 +3990,9 @@ SUBROUTINE create_ot_section(section,error)
 
      CALL keyword_create(keyword, name="ROTATION",&
           description="Introduce additional variables so that rotations of the occupied"//&
-                      " subspace are allowed as well",&
+                      " subspace are allowed as well, only needed for cases where the energy is not invariant under "//&
+                      " a rotation of the occupied subspace such as non-singlet restricted calculations "//& 
+                      " or fractional occupations.",&
           usage="ROTATION",lone_keyword_l_val=.TRUE.,&
           default_l_val=.FALSE.,error=error)
      CALL section_add_keyword(section,keyword,error=error)

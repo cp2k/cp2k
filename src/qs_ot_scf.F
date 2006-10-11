@@ -165,6 +165,7 @@ CONTAINS
     WRITE(output_unit,'(A)') "  for electronic structure calculations "
     WRITE(output_unit,'(A)') "  Joost VandeVondele and Juerg Hutter"
     WRITE(output_unit,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
+    WRITE(output_unit,'(A)') "  http://dx.doi.org/10.1063/1.1543154"
     WRITE(output_unit,'(A)') " "
     WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
@@ -173,12 +174,13 @@ CONTAINS
     CASE ("CG")
          WRITE(output_unit,'(A)') "  minimizer      : CG                  : conjugate gradient"
     CASE ("DIIS")
-         WRITE(output_unit,'(A)') "  minimizer      : DIIS                : direct inversion in the iterative subspace"
-         WRITE(output_unit,'(A,I3,A)') "                            using      : - ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         WRITE(output_unit,'(A)') "  minimizer      : DIIS                : direct inversion "
+         WRITE(output_unit,'(A)') "                                         in the iterative subspace"
+         WRITE(output_unit,'(A,I3,A)')    "                            using      : - ",qs_ot_env(1)%settings%diis_m," diis vectors"
          IF (qs_ot_env(1)%settings%safer_diis) THEN
-            WRITE(output_unit,'(A,I3,A)') "                                    - safer DIIS on"
+            WRITE(output_unit,'(A,I3,A)') "                                         - safer DIIS on"
          ELSE
-            WRITE(output_unit,'(A,I3,A)') "                                    - safer DIIS off"
+            WRITE(output_unit,'(A,I3,A)') "                                         - safer DIIS off"
          ENDIF
     CASE DEFAULT
          WRITE(output_unit,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
@@ -193,7 +195,7 @@ CONTAINS
     CASE ("FULL_KINETIC")
          WRITE(output_unit,'(A)') "  preconditioner : FULL_KINETIC        : cholesky inversion of T + eS"
     CASE ("FULL_S_INVERSE")
-         WRITE(output_unit,'(A)') "  preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
+         WRITE(output_unit,'(A)')            "  preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
     CASE ("SPARSE_DIAG")
          WRITE(output_unit,'(A)')  &
            "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
@@ -205,12 +207,12 @@ CONTAINS
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
        SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")
-                    WRITE(output_unit,'(A)') "  line search    : 2PNT           : 2 energies, one gradient "
+                    WRITE(output_unit,'(A)') "  line search    : 2PNT                : 2 energies, one gradient "
          CASE ("3PNT")
-                    WRITE(output_unit,'(A)') "  line search    : 3PNT           : 3 energies "
+                    WRITE(output_unit,'(A)') "  line search    : 3PNT                : 3 energies "
          CASE ("GOLD")
-                    WRITE(output_unit,'(A)') "  line search    : GOLD           : bracketing and golden section search "
-                    WRITE(output_unit,'(A,F14.8)') "                   target relative accuracy : ", &
+                    WRITE(output_unit,'(A)')       "  line search    : GOLD                : bracketing and golden section search "
+                    WRITE(output_unit,'(A,F14.8)') "                   target rel accuracy : ", &
                                qs_ot_env(1)%settings%gold_target
          CASE ("NONE")
                     WRITE(output_unit,'(A)') "  line search    : NONE "
@@ -218,13 +220,13 @@ CONTAINS
                     WRITE(output_unit,'(3A)') "  line search : ", &
                                qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
        END SELECT
-       WRITE(output_unit,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
-       WRITE(output_unit,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
-       WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
-       WRITE(output_unit,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
-       WRITE(output_unit,'(A)') "  "
-       WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
     ENDIF
+    WRITE(output_unit,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
+    WRITE(output_unit,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
+    WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
+    WRITE(output_unit,'(A,I14)')   "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
+    WRITE(output_unit,'(A)') "  "
+    WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
  END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&

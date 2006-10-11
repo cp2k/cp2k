@@ -286,12 +286,13 @@ CPSourceFileRef,&
 ! DEPRECATED, see cp_fm_basic_linalg:cp_fm_triangular_multiply
 !
 !******************************************************************
-  SUBROUTINE cp_fm_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,&
+  SUBROUTINE cp_fm_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,transa,&
        error)
     TYPE(cp_fm_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                         :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )        :: op
     CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: pos
+    CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: transa
     TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_restore',&
@@ -304,7 +305,7 @@ CPSourceFileRef,&
     INTEGER                                   :: myprow, mypcol, i
     INTEGER, DIMENSION(9)                     :: desca,descb,descout
     TYPE(cp_blacs_env_type), POINTER          :: context
-    CHARACTER                                 :: chol_pos
+    CHARACTER                                 :: chol_pos,chol_transa
 
     CALL timeset("cp_fm_cholesky_restore","I","",handle)
 
@@ -337,6 +338,9 @@ CPSourceFileRef,&
        chol_pos='L'
     ENDIF
 
+    chol_transa='N'
+    IF (PRESENT(transa)) chol_transa=transa
+
     ! notice b is the cholesky guy
     a => matrix%local_data
     b => matrixb%local_data
@@ -352,18 +356,18 @@ CPSourceFileRef,&
       CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
     ENDDO
     IF (op.EQ."SOLVE") THEN
-      CALL pdtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+      CALL pdtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
     ELSE
-      CALL pdtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+      CALL pdtrmm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
     ENDIF
 #else
 
     alpha=1.0_dp
     CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
     IF (op.EQ."SOLVE") THEN
-      CALL dtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
+      CALL dtrsm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),n,out(1,1),n)
     ELSE
-      CALL dtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
+      CALL dtrmm(chol_pos,'U',chol_transa,'N',n,neig,alpha,b(1,1),n,out(1,1),n)
     ENDIF
 
 #endif

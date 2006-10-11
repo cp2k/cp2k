@@ -68,6 +68,7 @@ MODULE cp_fm_types
             cp_fm_get_info, &
             cp_fm_set_element, &
             cp_fm_get_element, &
+            cp_fm_get_diag, &          ! get diagonal
             cp_fm_set_all, &           ! set all elements and diagonal
             cp_fm_set_submatrix, &     ! set a submatrix to given values
             cp_fm_get_submatrix, &     ! get a submatrix of given values
@@ -456,6 +457,68 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_set_all
 
 ! *****************************************************************************
+
+!!****f* cp2k/cp_fm_types/cp_fm_get_diag *
+!!
+!!   NAME
+!!     cp_fm_get_diag
+!!
+!!   FUNCTION
+!!     returns the diagonal elements of a fm
+!!
+!!   ARGUMENTS
+!!
+!!   NOTES
+!!
+!!****
+  SUBROUTINE cp_fm_get_diag(matrix,diag,error)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(cp_fm_type), POINTER                  :: matrix
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT) :: diag    
+    TYPE(cp_error_type), INTENT(inout)         :: error
+
+
+    ! locals
+    INTEGER :: i,nrow_global
+
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9) :: desca
+    TYPE(cp_blacs_env_type), POINTER :: context
+    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
+               nprow
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
+#endif
+
+    CALL cp_fm_get_info(matrix,nrow_global=nrow_global,error=error)
+#if defined(__SCALAPACK)
+    diag=0.0_dp
+    context => matrix%matrix_struct%context
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+
+    a => matrix%local_data
+    desca(:) = matrix%matrix_struct%descriptor(:)
+ 
+    DO i=1,nrow_global
+       CALL infog2l(i,i,desca,nprow,npcol,myprow,mypcol,&
+                    irow_local,icol_local,iprow,ipcol)
+       IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
+         diag(i) = a(irow_local,icol_local)
+       ENDIF
+    END DO
+#else
+    DO i=1, nrow_global
+       diag(i)=matrix%local_data(i,i)
+    ENDDO
+#endif
+    CALL mp_sum(diag,matrix%matrix_struct%para_env%group)
+
+  END SUBROUTINE cp_fm_get_diag
 
 !!****f* cp2k/cp_fm_types/cp_fm_get_element *
 !!

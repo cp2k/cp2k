@@ -31,3 +31,5 @@ H-1.inp            1
 H-2.inp            1
 # elec_conf
 H2O-1.inp          1
+# outer scf with FULL_ALL
+H2O.inp            1

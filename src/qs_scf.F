@@ -353,7 +353,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, ispin, &
-                                                iter_level, output_unit
+                                                iter_level, output_unit, total_steps
     LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
       has_unit_metric, outer_loop_converged, use_jacobi, use_virial
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
@@ -418,6 +418,7 @@ CONTAINS
 
     IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") &
             "SCF WAVEFUNCTION OPTIMIZATION"
+     
 
 
     ! short cut flags setting the different methods
@@ -437,6 +438,7 @@ CONTAINS
 
     ! *** outer loop of the scf, can treat other variables, such as lagrangian multipliers
     scf_env%outer_scf%iter_count=0
+    total_steps = 0
     scf_outer_loop: DO
 
        CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, scf_section=scf_section, error=error)
@@ -463,6 +465,7 @@ CONTAINS
 
           IF (output_unit > 0) CALL m_flush(output_unit)
 
+          total_steps = total_steps + 1
           CALL cp_iterate(logger%iter_info,&
                           last=.FALSE.,&
                           iter_nr=scf_env%iter_count,&
@@ -654,18 +657,19 @@ CONTAINS
                            SIZE(scf_env%outer_scf%gradient,1)
        IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
 
-       IF (output_unit>0) WRITE(output_unit,'(/,T2,A,I4,A,F20.9,A,F20.9/)') &
+       IF (output_unit>0) WRITE(output_unit,'(/,T3,A,I4,A,E10.2,A,F25.14)') &
                             "outer SCF iter = ",scf_env%outer_scf%iter_count, &
                             " gradient = ",outer_loop_eps," energy =",energy%total
 
        IF (outer_loop_converged) THEN
-            IF (output_unit>0) WRITE(output_unit,'(/,T2,A,I4,A,/)') &
-                  "outer SCF loop converged in",scf_env%outer_scf%iter_count," iterations"
+            IF (output_unit>0) WRITE(output_unit,'(T3,A,I4,A,I4,A,/)') &
+                  "outer SCF loop converged in",scf_env%outer_scf%iter_count," iterations or ",total_steps," steps"
             EXIT scf_outer_loop
        ENDIF
 
        IF (scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf .OR. should_stop ) THEN
-            IF (output_unit>0) WRITE(output_unit,'(/,T2,A,/)') "outer SCF loop FAILED to converge"
+            IF (output_unit>0) WRITE(output_unit,'(T3,A,I4,A,I4,A,/)') "outer SCF loop FAILED to converge after ", &
+                                     scf_env%outer_scf%iter_count," iterations or ",total_steps," steps"
             EXIT scf_outer_loop
        ENDIF
 
