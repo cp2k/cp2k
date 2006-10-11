@@ -1512,9 +1512,9 @@ CONTAINS
           END IF
 
           ! loop over params from CHARMM
+          ii = 0
+          jj = 0
           IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
-             ii = 0
-             jj = 0
              DO k=1,SIZE(chm_info%nonbond_a_14)
                 IF((name_atm_a)==(chm_info%nonbond_a_14(k))) THEN
                    ii = k
@@ -1551,21 +1551,21 @@ CONTAINS
                    END IF
                 END DO
              END IF
-             IF(ii/=0 .AND. jj/=0) THEN
-                rmin = rmin2_a + rmin2_b
-                epsilon = SQRT(epsilon_a*epsilon_b)
-                CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-                potparm_bond%pot(i,j)%pot%type       = lj_charmm_type
-                potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-                potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
-                potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-                potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-                potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
-                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
-                found = .TRUE.
-             END IF
+          END IF
+          IF(ii/=0 .AND. jj/=0) THEN
+             rmin = rmin2_a + rmin2_b
+             epsilon = SQRT(epsilon_a*epsilon_b)
+             CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
+             potparm_bond%pot(i,j)%pot%type       = lj_charmm_type
+             potparm_bond%pot(i,j)%pot%at1        = name_atm_a
+             potparm_bond%pot(i,j)%pot%at2        = name_atm_b
+             potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
+             potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
+             potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
+             potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+             IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                  " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
+             found = .TRUE.
           END IF
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded14)) THEN
