@@ -25,7 +25,7 @@
     &END CELL
     &TOPOLOGY
       CONN_FILE 5dhfr_cube.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE ../sample_pdb/5dhfr_cube.pdb
       COORDINATE PDB
       PARA_RES

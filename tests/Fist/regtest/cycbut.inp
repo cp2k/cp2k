@@ -44,7 +44,7 @@
     &TOPOLOGY
       CHARGE_BETA
       CONN_FILE cycbut.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/cycbut.pdb
       COORDINATE PDB
       EXCLUDE_EI 1-3

@@ -1032,10 +1032,10 @@ CONTAINS
             usage="COORDINATE (PDB||XYZ||G96||OFF)", &
             enum_c_vals=s2a( "PDB","XYZ","G96","OFF"),&
             enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_off/),&
-            enum_desc=s2a("PDB BLAH.",&
-                          "XYZ BLAH.",&
-                          "G96 BLAH.",&
-                          "OFF BLAH."),&
+            enum_desc=s2a("Coordinates provided through a PDB file format",&
+                          "Coordinates provided through an XYZ file format",&
+                          "Coordinates provided through a GROMOS96 file format",&
+                          "Coordinates read in the &COORD section of the input file"),&
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1044,15 +1044,20 @@ CONTAINS
             variants=(/ "CONNECTI"/),&
             description="Ways to determine and generate a molecules. "// &
             "Default is to use GENERATE",&
-            usage="CONNECTIVITY (PSF||GENERATE||OFF||MOL_SET|G87||G96)", &
-            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_SET","G87","G96"),&
-            enum_i_vals=(/do_conn_psf,do_conn_generate,&
-                          do_conn_off,do_conn_mol_set,&
+            usage="CONNECTIVITY (PSF||UPSF||MOL_SET||GENERATE||OFF||G87||G96)", &
+            enum_c_vals=s2a("PSF","UPSF","MOL_SET","GENERATE","OFF","G87","G96"),&
+            enum_i_vals=(/do_conn_psf,&
+                          do_conn_psf_u,&
+                          do_conn_mol_set,&
+                          do_conn_generate,&
+                          do_conn_off,&
                           do_conn_g87,do_conn_g96/),&
-            enum_desc=s2a("Use a PSF file for you system to determine molecules.",&
+            enum_desc=s2a("Use  a PSF file to determine the connectivity."//&
+                                  " (support standard CHARMM/XPLOR and EXT CHARMM)",&
+                          "Read a PSF file in an unformatted way (useful for not so standard PSF).",&
+                          "Use multiple PSF (for now...) files to generate the whole sytem.",&
                           "Use a simple distance criteria. (Look at keyword BONDPARM)",&
                           "Do not generate molecules. (Use for QS or ill defined systems)",&
-                          "Use multiple PSF (for now...) files to generate the whole sytem.",&
                           "Use GROMOS G87 topology file.",&
                           "Use GROMOS G96 topology file."),&
             default_i_val=do_conn_generate,error=error)

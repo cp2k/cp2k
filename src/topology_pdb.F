@@ -141,11 +141,7 @@ CONTAINS
 
     natom         = 0
     inum_mol      = 1
-    WRITE(root_mol_name,'(A3,I7)')"MOL",inum_mol
-    DO i =  1, 10
-       IF (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
-    END DO
-    
+    WRITE(root_mol_name,'(A3,I0)')"MOL",inum_mol
     DO
        line = ''
        CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
@@ -206,10 +202,7 @@ CONTAINS
           CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,natom))
        CASE ("TER")
           inum_mol = inum_mol + 1
-          WRITE(root_mol_name,'(A3,I7)')"MOL",inum_mol
-          DO i =  1, 10
-             IF (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
-          END DO
+          WRITE(root_mol_name,'(A3,I0)')"MOL",inum_mol
        CASE ("REMARK")
           IF(iw>0) WRITE(iw,*) TRIM(line)
        CASE ("END")

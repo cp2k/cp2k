@@ -22,7 +22,7 @@
     &END CELL
     &TOPOLOGY
       CONN_FILE h2po4.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE h2po4.pdb
       COORDINATE pdb
     &END TOPOLOGY

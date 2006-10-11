@@ -1,0 +1,56 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/wat125.pot
+      parmtype CHM
+      &spline
+        EMAX_SPLINE 1.0
+      &end
+      &CHARGE
+        ATOM 62
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM 3
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0 
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE wat125.xyz
+      COORDINATE XYZ
+      CONNECTIVITY PSF
+      CONN_FILE wat125.psf
+      DUMP_TOP
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT water_1
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 1.0
+    TEMPERATURE 298
+  &END MD
+&END MOTION

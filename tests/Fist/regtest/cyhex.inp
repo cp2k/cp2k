@@ -22,7 +22,7 @@
     &TOPOLOGY
       CHARGE_BETA
       CONN_FILE cyhex.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/cyhex.pdb
       COORDINATE PDB
       EXCLUDE_EI 1-3

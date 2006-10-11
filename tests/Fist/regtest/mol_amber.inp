@@ -48,7 +48,7 @@
     &END CELL
     &TOPOLOGY
       CONN_FILE mol.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/mol.pdb
       COORDINATE PDB
     &END TOPOLOGY

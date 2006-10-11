@@ -52,7 +52,7 @@
     &END CELL
     &TOPOLOGY
       CONN_FILE ipbv.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE ipbv.pdb
       COORDINATE pdb
       NHCOPT MOLECULE

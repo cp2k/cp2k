@@ -28,7 +28,7 @@
       CHARGE_BETA
       COORD_FILE_NAME ../sample_pdb/loop.pdb
       COORDINATE PDB
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       CONN_FILE  loop.psf
     &END TOPOLOGY
   &END SUBSYS

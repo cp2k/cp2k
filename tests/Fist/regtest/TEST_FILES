@@ -132,3 +132,5 @@ arginine_crossC.inp       2
 water_reord.inp           2
 phenobenz.inp             2
 liquid.inp                2
+#PSF EXT CHARMM
+wat125.inp                2

@@ -46,7 +46,7 @@
     &END KIND
     &TOPOLOGY
       CONN_FILE topology_atoms_1.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

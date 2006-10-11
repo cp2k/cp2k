@@ -57,7 +57,7 @@
     &END CELL
     &TOPOLOGY
       CONN_FILE ipbv_flex.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE ipbv.pdb
       COORDINATE pdb
     &END TOPOLOGY

@@ -29,7 +29,8 @@ MODULE topology
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
-       do_conn_off, do_conn_psf, do_coord_g96, do_coord_pdb, do_coord_xyz
+       do_conn_off, do_conn_psf, do_coord_g96, do_coord_pdb, do_coord_xyz,&
+       do_conn_psf_u
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -336,7 +337,7 @@ CONTAINS
          CALL section_vals_val_get(section,"CONN_FILE",c_val=filename,&
                                     i_rep_section=i_rep,error=error)
          DO imol=1,nmol
-           CALL read_topology_psf(filename,topology,para_env,subsys_section,error)
+           CALL read_topology_psf(filename,topology,para_env,subsys_section,do_conn_psf,error)
          END DO
        END DO
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
@@ -348,9 +349,10 @@ CONTAINS
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,subsys_section,error)
-    CASE (do_conn_psf)
+    CASE (do_conn_psf, do_conn_psf_u)
        CALL pre_read_topology_psf(topology,subsys_section,error)
-       CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,error)
+       CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,&
+            topology%conn_type, error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,subsys_section,error)

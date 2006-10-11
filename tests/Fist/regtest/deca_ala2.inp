@@ -22,7 +22,7 @@
     &TOPOLOGY
       CHARGE_BETA
       CONN_FILE deca_ala2.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
       COORDINATE PDB
     &END TOPOLOGY

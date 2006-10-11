@@ -28,7 +28,7 @@
     &END CELL
     &TOPOLOGY
       CONN_FILE gly.psf
-      CONNECTIVITY PSF
+      CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/gly.pdb
       COORDINATE PDB
     &END TOPOLOGY
