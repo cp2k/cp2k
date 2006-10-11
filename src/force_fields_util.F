@@ -1533,6 +1533,8 @@ CONTAINS
              END DO
           END IF
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN
+             ii = 0
+             jj = 0
              IF(.NOT.found_a) THEN
                 DO k=1,SIZE(chm_info%nonbond_a)
                    IF((name_atm_a)==(chm_info%nonbond_a(k))) THEN
