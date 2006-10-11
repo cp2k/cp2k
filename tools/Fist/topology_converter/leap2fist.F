@@ -833,7 +833,7 @@ CONTAINS
     !
     my_sec = 1
     int_format="I10"
-    psf_atm_fmt='(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.5,T88,I1)'
+    psf_atm_fmt='(I10,T12,A,T21,I8,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.5,T88,I1)'
     IF (psf_xplor) THEN 
        int_format="I8"
        psf_atm_fmt= '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
@@ -860,11 +860,11 @@ CONTAINS
        DO my_atom = ifirst, ilast
           WRITE(unit,FMT=TRIM(psf_atm_fmt)) &
                my_atom,&
-               molnames(my_atom),&
+               TRIM(molnames(my_atom)),&
                my_res ,&
-               LABRES(my_res) ,&
-               IGRAPH(my_atom),&
-               ISYMBL(my_atom),&
+               TRIM(LABRES(my_res)) ,&
+               TRIM(IGRAPH(my_atom)),&
+               TRIM(ISYMBL(my_atom)),&
                CHRG(my_atom)/CV_CHRG ,&
                AMASS(my_atom) ,0
        END DO
