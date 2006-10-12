@@ -28,7 +28,7 @@ MODULE topology_xyz
                                              parser_get_object,&
                                              parser_release
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
@@ -81,6 +81,7 @@ CONTAINS
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length)     :: my_default_index
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
@@ -128,7 +129,8 @@ CONTAINS
                                    atom_info%r(3,j)
           CALL uppercase(atom_info%label_atmname(j))
           ! For default, set atom name to residue name to molecule name
-          atom_info%label_molname(j)   =  TRIM(atom_info%label_atmname(j))
+          WRITE(my_default_index,'(I0)')j   
+          atom_info%label_molname(j)   =  TRIM(atom_info%label_atmname(j))//TRIM(my_default_index)
           atom_info%label_resname(j)   =  atom_info%label_molname(j)
           atom_info%label_resid(j)     =  1
           atom_info%element(j)         =  atom_info%label_atmname(j)

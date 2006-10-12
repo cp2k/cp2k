@@ -567,7 +567,7 @@ CONTAINS
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MAX",r_val=tmp,&
             error=error)
        r_max     = tmp
-       IF (my_maxrad*bondparm_factor>r_max(1,1)) THEN
+       IF (my_maxrad*bondparm_factor>r_max(1,1).AND.(.NOT.topology%molname_generated)) THEN
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,"GENERATE|",A)')&
                   " ERROR in connectivity generation!",&
@@ -764,7 +764,7 @@ CONTAINS
              connectivity_ok = check_generate_mol(conn_info%bond_a,conn_info%bond_b,&
                   atom_info, bondparm_factor, output_unit, error)
           END IF
-          IF (my_maxrad*bondparm_factor>r_max(1,1)) THEN
+          IF (my_maxrad*bondparm_factor>r_max(1,1).AND.(.NOT.topology%molname_generated)) THEN
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"GENERATE|",A)')&
                      " ERROR in connectivity generation!",&

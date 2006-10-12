@@ -90,6 +90,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(len=2*default_string_length)   :: line_att
+    CHARACTER(len=default_string_length)     :: my_default_index
     INTEGER                                  :: atm_equal_mol, end_c, iatom, &
                                                 ILEN, j, natom, start_c, wrd,&
                                                 output_unit
@@ -218,9 +219,10 @@ CONTAINS
              start_c=end_c
           END DO
           ! For default, set atom name to residue name to molecule name
-          atom_info%label_molname(iatom) = atom_info%label_atmname(iatom)
-          atom_info%label_resname(iatom) = atom_info%label_atmname(iatom)
-          atom_info%element(iatom) = atom_info%label_atmname(iatom)
+          WRITE(my_default_index,'(I0)')iatom
+          atom_info%label_molname(iatom) = TRIM(atom_info%label_atmname(iatom))//TRIM(my_default_index)
+          atom_info%label_resname(iatom) = TRIM(atom_info%label_molname(iatom))
+          atom_info%element(iatom)       = TRIM(atom_info%label_atmname(iatom))
           topology%molname_generated = .TRUE.
           IF (start_c<=LEN_TRIM(line_att)) THEN
              READ(line_att(start_c:LEN_TRIM(line_att)),*)atom_info%label_molname(iatom)
@@ -229,7 +231,6 @@ CONTAINS
           END IF
           atom_info%atm_mass(iatom) = 0.0_dp 
           atom_info%atm_charge(iatom) = 0.0_dp 
-
        END DO
     END IF
     !-----------------------------------------------------------------------------
@@ -243,38 +244,6 @@ CONTAINS
           atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
        END IF
     END DO
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 4. Post processing for special molecule name at the end of xyz
-    !-----------------------------------------------------------------------------
-    IF ((.NOT.my_overwrite).AND.(topology%conn_type == do_conn_generate)) THEN
-       atm_equal_mol = 0
-       DO iatom=1,natom
-          IF(atom_info%label_molname(iatom)==atom_info%label_atmname(iatom))THEN
-             atm_equal_mol = atm_equal_mol + 1
-             topology%conn_type = do_conn_off
-          END IF
-       END DO
-       IF (atm_equal_mol /= 0) THEN
-          IF (output_unit>0) THEN
-             WRITE(output_unit,'(T2,A)')&
-                  'CONNECTIVITY| WARNING: User requested the generation of connectivity'
-             WRITE(output_unit,'(T2,A)')&
-                  'CONNECTIVITY| But in the COORD section was not specified the name of'
-             WRITE(output_unit,'(T2,A)')&
-                  'CONNECTIVITY| molecule. Reverting to connectivity OFF.Each atom will'
-             WRITE(output_unit,'(T2,A)')&
-                  'CONNECTIVITY| be considered as a molecule.'
-          END IF
-          IF (atm_equal_mol /= natom) THEN
-             IF (output_unit>0) THEN
-                WRITE(output_unit,'(T2,A)')&
-                     'CONNECTIVITY| Missing molecule name in COORD section for few atoms'
-             END IF
-             CALL stop_program ('read_atoms_input','check coord optional molname')
-          END IF
-       END IF
-    END IF
   END SUBROUTINE read_atoms_input
 
 END MODULE atoms_input
