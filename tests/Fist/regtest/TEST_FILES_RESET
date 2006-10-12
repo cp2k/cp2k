@@ -227,3 +227,5 @@ water_IPBV_flex.inp
 silicon_cluster_6.inp
 # bug fix for torsion in topology_connectivity_pack
 gly_amber.inp
+#reorganizing data for hbonds in shake.. numerical error due to the tolerance of shake (10^-8)
+water32_hbonds_2.inp

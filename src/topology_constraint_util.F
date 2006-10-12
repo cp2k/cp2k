@@ -154,10 +154,18 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(section_vals_type), POINTER         :: hbonds_section
-
+    INTEGER :: output_unit
+    LOGICAL :: ionode, ishbond
+    
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -207,16 +215,24 @@ CONTAINS
           molecule => molecule_set(molecule_list(1))
           CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
           natom = last_atom - first_atom +1
-          DO j =  1, natom
+          DO k=1,nbond
+             ishbond = .FALSE.
+             j = bond_list(k)%a
+             IF (j<1.OR.j>natom)CYCLE
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol)
-             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) THEN
-                DO k=1,nbond
-                   IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
-                      nhdist = nhdist + 1
-                   END IF
-                END DO
+             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
+             IF (.NOT.ishbond) THEN
+                j = bond_list(k)%b
+                IF (j<1.OR.j>natom)CYCLE
+                atomic_kind => atom_list(j)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     name=name,element_symbol=element_symbol)
+                IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
+             END IF
+             IF (ishbond) THEN
+                nhdist = nhdist + 1
              END IF
           END DO
        END DO
@@ -241,40 +257,48 @@ CONTAINS
           CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
           natom = last_atom  - first_atom + 1
           offset = first_atom - 1
-          DO j =  1, natom
+          DO k=1,nbond
+             ishbond = .FALSE.
+             j = bond_list(k)%a
+             IF (j<1.OR.j>natom)CYCLE
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol)
-             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) THEN
-                DO k=1,nbond
-                   IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
-                      rvec = particle_set(offset+bond_list(k)%a)%r-particle_set(offset+bond_list(k)%b)%r
-                      rmod = SQRT(DOT_PRODUCT(rvec,rvec))
-                      IF (ASSOCIATED(hdist)) THEN
-                         IF (SIZE(hdist)>0) THEN
-                            IF (bond_list(k)%a==j) atomic_kind => atom_list(bond_list(k)%b)%atomic_kind
-                            IF (bond_list(k)%b==j) atomic_kind => atom_list(bond_list(k)%a)%atomic_kind
-                            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 name=name,element_symbol=element_symbol)
-                            DO m = 1, SIZE(hdist)
-                               IF (TRIM(name)==TRIM(atom_typeh(m))) EXIT
-                               IF (TRIM(element_symbol)==TRIM(atom_typeh(m))) EXIT
-                            END DO
-                            IF (m<=SIZE(hdist)) THEN
-                               rmod = hdist(m)
-                            END IF
-                         END IF
+             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
+             IF (.NOT.ishbond) THEN
+                j = bond_list(k)%b
+                IF (j<1.OR.j>natom)CYCLE
+                atomic_kind => atom_list(j)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     name=name,element_symbol=element_symbol)
+                IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
+             END IF
+             IF (ishbond) THEN
+                rvec = particle_set(offset+bond_list(k)%a)%r-particle_set(offset+bond_list(k)%b)%r
+                rmod = SQRT(DOT_PRODUCT(rvec,rvec))
+                IF (ASSOCIATED(hdist)) THEN
+                   IF (SIZE(hdist)>0) THEN
+                      IF (bond_list(k)%a==j) atomic_kind => atom_list(bond_list(k)%b)%atomic_kind
+                      IF (bond_list(k)%b==j) atomic_kind => atom_list(bond_list(k)%a)%atomic_kind
+                      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name,element_symbol=element_symbol)
+                      DO m = 1, SIZE(hdist)
+                         IF (TRIM(name)==TRIM(atom_typeh(m))) EXIT
+                         IF (TRIM(element_symbol)==TRIM(atom_typeh(m))) EXIT
+                      END DO
+                      IF (m<=SIZE(hdist)) THEN
+                         rmod = hdist(m)
                       END IF
-                      nhdist = nhdist + 1
-                      cons_info%const_colv_mol(nhdist+n_start_colv)     = i
-                      cons_info%const_colv_target(nhdist+n_start_colv)  = rmod
-                      CALL colvar_create(cons_info%colvar_set(nhdist+n_start_colv)%colvar,&
-                           dist_colvar_id, error)
-                      cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a
-                      cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%j_at = bond_list(k)%b
-                      CALL colvar_setup(cons_info%colvar_set(nhdist+n_start_colv)%colvar, error)
                    END IF
-                END DO
+                END IF
+                nhdist = nhdist + 1
+                cons_info%const_colv_mol(nhdist+n_start_colv)     = i
+                cons_info%const_colv_target(nhdist+n_start_colv)  = rmod
+                CALL colvar_create(cons_info%colvar_set(nhdist+n_start_colv)%colvar,&
+                     dist_colvar_id, error)
+                cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a
+                cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%j_at = bond_list(k)%b
+                CALL colvar_setup(cons_info%colvar_set(nhdist+n_start_colv)%colvar, error)
              END IF
           END DO
        END DO
