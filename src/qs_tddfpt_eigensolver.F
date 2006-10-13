@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A GENERAL PROGRAM TO PERFORM MOLECULAR DYNAMICS SIMULATIONS         !
-!   COPYRIGHT (C) 2000  CP2K DEVELOPERS GROUP                                 !
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
 
 !!****M* CP2K/qs_tddfpt_eigensolver *
 !!

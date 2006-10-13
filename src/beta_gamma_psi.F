@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 MODULE beta_gamma_psi
  ! not tested in the case where dp would stand for single precision
   USE kinds,                           ONLY: dp

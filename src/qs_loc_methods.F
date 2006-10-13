@@ -1,5 +1,5 @@
-!   CP2K: A general program to perform moleocular dynamics simulations         !
-!   Copyright (C) 2004 - 2005  CP2K developers group                          !
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_loc_methods_new [1.0] *
 !!

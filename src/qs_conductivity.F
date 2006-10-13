@@ -1,5 +1,7 @@
+!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   copyright 2003 the cp2k developers group !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
 
 !!****** cp2k/qs_conductivity [1.0] *
 !!
