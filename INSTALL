@@ -24,6 +24,7 @@ How to compile CP2K code
      http://www.netlib.org/blas/
      http://www.netlib.org/lapack/ (see also http://www.netlib.org/lapack-dev/)
      http://math-atlas.sourceforge.net/
+     http://www.tacc.utexas.edu/resources/software/ (GotoBLAS)
      using vendor provided libraries can make a very significant difference (e.g. mkl, essl)
 
  2c) MPI and SCALAPACK are needed for parallel runs
