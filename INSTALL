@@ -28,7 +28,7 @@ How to compile CP2K code
      using vendor provided libraries can make a very significant difference (e.g. mkl, essl)
 
  2c) MPI and SCALAPACK are needed for parallel runs
-     (use the latest versions available, download all patches)
+     (use the latest versions available, download all patches !!)
      http://www-unix.mcs.anl.gov/mpi/mpich/
      http://www.netlib.org/scalapack/ (see also http://www.netlib.org/lapack-dev/)
 
