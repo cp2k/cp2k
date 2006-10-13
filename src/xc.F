@@ -1459,7 +1459,7 @@ CPSourceFileRef,&
                     ndr=SQRT(drho(1)%array(i,j,k)**2+&
                          drho(2)%array(i,j,k)**2+&
                          drho(3)%array(i,j,k)**2)
-                    deriv_data(i,j,k)=deriv_data(i,j,k)/MAX(ndr,drho_cutoff)
+                    deriv_data(i,j,k)=-deriv_data(i,j,k)/MAX(ndr,drho_cutoff)
                  END DO
               END DO
            END DO
