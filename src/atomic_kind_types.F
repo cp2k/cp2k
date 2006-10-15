@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****** cp2k/atomic_kind_types [1.0] *
 !!
 !!   NAME
@@ -43,7 +44,12 @@ MODULE atomic_kind_types
        write_potential
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
-                                             do_qs
+                                             do_qs,&
+                                             do_method_eht,&
+                                             do_method_mndo,&
+                                             do_method_am1,&
+                                             do_method_pm3,&
+                                             do_method_pdg
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -1101,7 +1107,8 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,error)
+  SUBROUTINE read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,&
+       no_fail, error)
 
 !   Purpose: Read an atomic kind data set from the input file.
 
@@ -1114,6 +1121,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
+    LOGICAL, INTENT(IN)                      :: no_fail
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -1146,6 +1154,7 @@ CONTAINS
     k_rep=-1
     akind_name=atomic_kind%name
     CALL uppercase(akind_name)
+    ! First we use the atom_name to find out the proper KIND section
     DO i_rep=1,n_rep
        CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
             c_val=keyword,i_rep_section=i_rep,error=error)
@@ -1155,54 +1164,87 @@ CONTAINS
           EXIT
        END IF
     END DO
+    ! The search for the KIND section failed.. look further before failing the run..
     IF (k_rep<1) THEN
        ipos = INDEX(atomic_kind%name,"_")
        IF (((ipos == 2).OR.(ipos == 3)).AND.(INDEX(atomic_kind%name,"_ghost")==0)) THEN
-          element_symbol = atomic_kind%name(1:ipos-1)
+          ! If the atm_name could not match any KIND section it maybe be a QM/MM link atom.
+          ! ghost atoms will be treated differently.
+          akind_name = atomic_kind%name(1:ipos-1)
        ELSE
-          element_symbol = atomic_kind%name(1:2)
+          ! If it's not a link atom let's check for the element and map
+          ! the KIND section to the element.
+          akind_name = atomic_kind%element_symbol(1:2)
        END IF
-       CALL uppercase(element_symbol)
-       DO i=LBOUND(ptable,1),UBOUND(ptable,1)
-          current_symbol = ptable(i)%symbol
-          CALL uppercase(current_symbol)
-          IF (current_symbol == element_symbol) THEN
-             atomic_kind%element_symbol = ptable(i)%symbol
-             IF (atomic_kind%mass==-1.0_dp) THEN
-                atomic_kind%mass = ptable(i)%amass
-             END IF
-             z = i
+       CALL uppercase(akind_name)
+       DO i_rep=1,n_rep
+          CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+               c_val=keyword,i_rep_section=i_rep,error=error)
+          CALL uppercase(keyword)
+          IF (keyword==akind_name) THEN
+             k_rep=i_rep
              EXIT
           END IF
        END DO
-
-       IF (z /= -1) THEN
-          akind_name=atomic_kind%element_symbol
-          CALL uppercase(akind_name)
-          DO i_rep=1,n_rep
-             CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-                  c_val=keyword,i_rep_section=i_rep,error=error)
-             CALL uppercase(keyword)
-             IF (keyword==akind_name) THEN
-                k_rep=i_rep
-                EXIT
-             END IF
-          END DO
-       END IF
-
-       IF (k_rep<1) THEN
-          DO i_rep=1,n_rep
-             CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
-                  c_val=keyword,i_rep_section=i_rep,error=error)
-             CALL uppercase(keyword)
-             IF (keyword=="DEFAULT") THEN
-                k_rep=i_rep
-                EXIT
-             END IF
-          END DO
+    END IF
+    ! In case it should not really match any possible KIND section
+    ! let's look if a default one is defined..
+    IF (k_rep<1) THEN
+       DO i_rep=1,n_rep
+          CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+               c_val=keyword,i_rep_section=i_rep,error=error)
+          CALL uppercase(keyword)
+          IF (keyword=="DEFAULT") THEN
+             k_rep=i_rep
+             EXIT
+          END IF
+       END DO
+    END IF
+    IF (k_rep<0.AND.(.NOT.no_fail)) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "No &KIND section was possible to associate to the atomic kind <"//&
+            TRIM(akind_name)//">. The KIND section were also scanned for the"//&
+            " corresponding element <"//TRIM(element_symbol)//"> but no match"//&
+            " was found. Check your input file!",para_env)
+    END IF
+    ! Defining the element name
+    ipos = INDEX(atomic_kind%element_symbol,"_")
+    IF ((ipos == 2).OR.(ipos == 3)) THEN
+       element_symbol = atomic_kind%element_symbol(1:ipos-1)
+    ELSE
+       element_symbol = atomic_kind%element_symbol(1:2)
+    END IF
+    IF (k_rep>0) THEN
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="ELEMENT",n_rep_val=i,error=error)
+       IF (i>0) THEN
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+               keyword_name="ELEMENT",c_val=element_symbol,error=error)
        END IF
     END IF
-
+    CALL uppercase(element_symbol)
+    DO i=LBOUND(ptable,1),UBOUND(ptable,1)
+       current_symbol = ptable(i)%symbol
+       CALL uppercase(current_symbol)
+       IF (current_symbol == element_symbol) THEN
+          atomic_kind%element_symbol = ptable(i)%symbol
+          IF (atomic_kind%mass==-1.0_dp) THEN
+             atomic_kind%mass = ptable(i)%amass
+          END IF
+          z = i
+          EXIT
+       END IF
+    END DO
+    ! If a proper element was not found exit the normal execution
+    IF (z == -1) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "No element could be assign to the atomic kind <"//&
+            TRIM(akind_name)//">. Specify a valid "//&
+            "element symbol in the input section <KIND "//&
+            TRIM(akind_name)//"> or select a valid "//&
+            "element symbol for the atomic kind name",para_env)
+    END IF
+    ! Normal parsing of the KIND section
     IF (k_rep>0) THEN
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name,error=error)
@@ -1212,25 +1254,6 @@ CONTAINS
             keyword_name="BASIS_SET",c_val=orb_basis_set_name,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="BASIS_NORMALIZATION", i_val=norb,error=error)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="ELEMENT",n_rep_val=i,error=error)
-       IF (i>0) THEN
-          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="ELEMENT",c_val=element_symbol,error=error)
-          CALL uppercase(element_symbol)
-          DO i=LBOUND(ptable,1),UBOUND(ptable,1)
-             current_symbol = ptable(i)%symbol
-             CALL uppercase(current_symbol)
-             IF (current_symbol == element_symbol) THEN
-                atomic_kind%element_symbol = ptable(i)%symbol
-                IF (atomic_kind%mass==-1.0_dp) THEN
-                   atomic_kind%mass = ptable(i)%amass
-                END IF
-                z = i
-                EXIT
-             END IF
-          END DO
-       END IF
        ! seems like atomic_kind is not initialised here
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="ELEC_CONF",n_rep_val=i,error=error)
@@ -1295,41 +1318,7 @@ CONTAINS
             keyword_name="GHOST",l_val=atomic_kind%ghost,error=error)
     END IF
 
-!   *** The corresponding element of the current atomic kind is still   ***
-!   *** undefined. Try the head first two characters of the kind name itself ***
-
-    IF (z == -1) THEN
-      ipos = INDEX(atomic_kind%name,"_")
-      IF ((ipos == 2).OR.(ipos == 3)) THEN
-        element_symbol = atomic_kind%name(1:ipos-1)
-      ELSE
-        element_symbol = atomic_kind%name(1:2)
-      END IF
-      CALL uppercase(element_symbol)
-      DO i=LBOUND(ptable,1),UBOUND(ptable,1)
-        current_symbol = ptable(i)%symbol
-        CALL uppercase(current_symbol)
-        IF (current_symbol == element_symbol) THEN
-          atomic_kind%element_symbol = ptable(i)%symbol
-          IF (atomic_kind%mass==-1.0_dp) THEN
-             atomic_kind%mass = ptable(i)%amass
-          END IF
-          z = i
-          EXIT
-        END IF
-      END DO
-    END IF
-
     atomic_kind%mass = atomic_kind%mass*massunit
-
-    IF (z == -1) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "No element could be assign to the atomic kind <"//&
-                        TRIM(atomic_kind%name)//">. Specify a valid "//&
-                        "element symbol in the input section <KIND "//&
-                        TRIM(atomic_kind%name)//"> or select a valid "//&
-                        "element symbol for the atomic kind name",para_env)
-    END IF
 
 !   *** Allocate and initialise the orbital basis set data set structure ***
     CALL init_orbital_pointers(5) ! debug the SUN optimizer
@@ -1466,25 +1455,34 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind_set'
 
-    INTEGER                                  :: ikind, nkind
+    INTEGER                                  :: ikind, nkind, method, qs_method
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-
-!   ---------------------------------------------------------------------------
-
+    LOGICAL                                  :: no_fail
+    
+    no_fail = .FALSE.
+    ! between all methods only SE does not need a KIND section.
+    ! At this stage we still don't know if we are in a SE run or not..
+    ! We've to figure it out now!
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method,error=error)
+    IF (method==do_qs) THEN
+       CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=qs_method,&
+            error=error)
+       SELECT CASE (qs_method)
+       CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+          no_fail = .TRUE.
+       END SELECT
+    END IF
     IF (ASSOCIATED(atomic_kind_set)) THEN
-
       nkind = SIZE(atomic_kind_set)
-
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section, error)
+        CALL read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,&
+             no_fail, error)
       END DO
     ELSE
-
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated",&
                         para_env)
-
     END IF
 
   END SUBROUTINE read_atomic_kind_set
@@ -1513,8 +1511,6 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(semi_empirical_type), POINTER       :: se_parameter
-
-!   ---------------------------------------------------------------------------
 
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )

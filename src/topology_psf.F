@@ -273,6 +273,14 @@ CONTAINS
              CALL uppercase ( atom_info%label_atmname(index_now) )
           END DO
        END IF
+       ! In case element was autoassigned let's keep up2date the element name 
+       ! with the atom_name
+       IF (topology%aa_element) THEN
+          DO iatom=1,natom
+             index_now=iatom+natom_prev
+             atom_info%element(index_now) = atom_info%label_atmname(index_now)
+          END DO
+       END IF
     END IF
     !
     ! BOND section

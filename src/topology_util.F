@@ -22,7 +22,6 @@
 !******************************************************************************
 
 MODULE topology_util
-  USE checkpoint_handler,              ONLY: Pwarning
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -36,6 +35,8 @@ MODULE topology_util
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mm_mapping_library,              ONLY: amber_map,&
+                                             charmm_map
   USE periodic_table,                  ONLY: ptable
   USE string_table,                    ONLY: str2id
   USE string_utilities,                ONLY: uppercase
@@ -1147,10 +1148,8 @@ CONTAINS
           END IF
        END DO
        IF (.NOT. element_found) THEN
-          IF (iw>0) WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
-               //atm_symbol(iatom)//" was not found in the periodic table"
+          CALL stop_program ("set_atm_mass"," CP2K should never reach this point!")         
        ENDIF
-       
        atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
        IF(iw>0) WRITE(iw,'(7X,A,A5)') "In topology_set_atm_mass :: iatom = ",ptable(ielem_found)%symbol
     END DO
@@ -1340,12 +1339,11 @@ CONTAINS
 !!     12.2005 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE check_subsys_element(element_in, element_out, root_section, force_env_section, error)
+  SUBROUTINE check_subsys_element(element_in, element_out, subsys_section, error)
     CHARACTER(len=*), INTENT(IN)             :: element_in
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
-    TYPE(section_vals_type), POINTER         :: root_section, &
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element', &
@@ -1353,15 +1351,25 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: current_symbol, &
                                                 element_symbol, keyword
-    INTEGER                                  :: i, i_rep, n_rep
-    INTEGER, SAVE                            :: iwarn = 20
-    LOGICAL                                  :: failure, found
+    INTEGER                                  :: i, i_rep, n_rep, output_unit
+    LOGICAL                                  :: failure, found, ionode
     TYPE(section_vals_type), POINTER         :: kind_section
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    found = .FALSE.
-    failure = .FALSE.
+    NULLIFY(logger)
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
+    found          = .FALSE.
+    failure        = .FALSE.
     element_symbol = element_in
-    element_out = ""
+    element_out    = ""
+    ! First check the element read from the input file..
     CALL uppercase(element_symbol)
     DO i=LBOUND(ptable,1),UBOUND(ptable,1)
        current_symbol = ptable(i)%symbol
@@ -1372,8 +1380,9 @@ CONTAINS
           EXIT
        END IF
     END DO
+    ! If not found maybe the user defined a KIND section..
     IF (.NOT.found) THEN
-       kind_section => section_vals_get_subs_vals(force_env_section,&
+       kind_section => section_vals_get_subs_vals(subsys_section,&
             "KIND",error=error)
        CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
        DO i_rep=1,n_rep
@@ -1393,15 +1402,38 @@ CONTAINS
           END IF
        END DO
     END IF
+    ! Last chance.. are these atom_kinds of AMBER or CHARMM FF ?
     IF (.NOT.found) THEN
-       IF (iwarn > 0) THEN
-          CALL Pwarning("No element specification provided for type:"//element_in//".",root_section, error)
-          iwarn = iwarn - 1
-          IF (iwarn == 0) THEN
-             CALL Pwarning("Further Output regarding unknown element types will be suppressed!",&
-                  root_section,error)
+       ! First we go through the AMBER library
+       DO i = 1, SIZE(amber_map%kind)
+          IF (element_symbol==amber_map%kind(i)) THEN
+             found =.TRUE.
+             EXIT
           END IF
+       END DO
+       IF (found) THEN
+          element_out = amber_map%element(i)
        END IF
+    END IF
+    IF (.NOT.found) THEN
+       ! Then we go through the CHARMM library
+       DO i = 1, SIZE(charmm_map%kind)
+          IF (element_symbol==charmm_map%kind(i)) THEN
+             found =.TRUE.
+             EXIT
+          END IF
+       END DO
+       IF (found) THEN
+          element_out = charmm_map%element(i)
+       END IF
+    END IF
+    ! If no element is found the job stops here.
+    IF (.NOT.found) THEN
+       CALL stop_program ("check_subsys_element",&
+            " Unknown element for KIND <"//TRIM(element_symbol)//">."//&
+            " This problem can be fixed specifying properly elements in PDB"//&
+            " or specifying a KIND section or getting in touch with one of "//&
+            " the developers!")         
     END IF
 
   END SUBROUTINE check_subsys_element

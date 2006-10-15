@@ -208,8 +208,6 @@ CONTAINS
                             subsystem%colvar_p,root_section,para_env,globenv, &
                             force_env_section=force_env_section,error=error)
 
-      !CALL read_atomic_kind_set(atomic_kind_set, globenv)
-
       CALL particle_list_create(particles, els_ptr=particle_set, error=error)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set, error=error)
       CALL mol_new_list_create(molecules, els_ptr=molecule_set, error=error)

@@ -1,0 +1,205 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+
+!!****h* cp2k/mm_mapping_library [1.0] *
+!!
+!!   NAME
+!!     mm_mapping_library
+!!
+!!   FUNCTION
+!!     Contains the mapping ATOM_KIND -> ELEMENT for the most
+!!     common cases in CHARMM and AMBER
+!!     This should avoid in most cases the need to provide the element
+!!     column in the PDB if in the atom_name column of the PDB is provided
+!!     instead the atom kind
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2006 created [tlaino]
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE mm_mapping_library
+  USE kinds,                           ONLY: default_string_length
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+  PRIVATE
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mm_mapping_library'
+
+  TYPE ff_map_type
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: kind
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: element
+  END TYPE ff_map_type
+
+
+  TYPE(ff_map_type), POINTER, PUBLIC :: amber_map,&
+                                       charmm_map
+  PUBLIC :: create_ff_map,&
+            destroy_ff_map,&
+            ff_map_type
+CONTAINS
+
+!!****f* mm_mapping_library/create_ff_map [1.0] *
+!!
+!!   NAME
+!!     create_ff_map
+!!
+!!   FUNCTION
+!!     Initialize arrays for mapping KINDS <-> ELEMENTS
+!!     for major elements in AMBER and CHARMM
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2006 created [tlaino]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE create_ff_map(ff_type, error)
+    CHARACTER(LEN=*), INTENT(IN)             :: ff_type
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ff_map', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: amb_imax = 47, chm_imax = 107
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    SELECT CASE(ff_type)
+    CASE("AMBER")
+       ALLOCATE(amber_map,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! allocate substructures
+       ALLOCATE(amber_map%kind(amb_imax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(amber_map%element(amb_imax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       amber_map%kind=(/&
+            "BR","C ","CA","CB","CC","CK","CM","CN","CQ","CR",&
+            "CT","CV","CW","C*","C0","F ","H ","HC","HA","HO",&
+            "HS","HW","HP","I ","IM","IP","IB","MG","N ","NA",&
+            "NB","NC","N ","N*","O ","OW","OH","OS","P ","S ",&
+            "SH","CU","FE","Li","K ","Rb","Cs"/) 
+       amber_map%element=(/&
+            "Br","C ","C ","C ","C ","C ","C ","C ","C ","C ",&
+            "C ","C ","C ","C ","C ","F ","H ","H ","H ","H ",&
+            "H ","H ","H ","I ","Cl","Na","Na","Mg","N ","N ",&
+            "N ","N ","N ","N ","O ","O ","O ","O ","P ","S ",&
+            "S ","Cu","Fe","Li","K ","Rb","Cs"/)
+
+    CASE("CHARMM")
+       ALLOCATE(charmm_map,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! allocate substructures
+       ALLOCATE(charmm_map%kind(chm_imax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(charmm_map%element(chm_imax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       charmm_map%kind=(/&
+            "CA  ","CAL ","C   ","CC  ","CD  ","CE  ","CEL ","CES ","CLA ","CL  ",&
+            "CM  ","CN1A","CN1T","CN3A","CN3B","CN3C","CN3D","CN3T","CN5G","CN7B",&
+            "CN7C","CN7D","CN8B","CNA ","CN  ","CNE ","CPA ","CPB ","CP  ","CPH ",&
+            "CPM ","CPT ","CS  ","CT  ","CTL ","CY  ","DUM ","FE  ","FNA ","FN  ",&
+            "HA  ","HAL ","HB  ","HC  ","HCL ","HE  ","HE  ","HEL ","H   ","HL  ",&
+            "HN3B","HN3C","HNE ","HN  ","HNP ","HOL ","HP  ","HR  ","HS  ","HT  ",&
+            "MG  ","NC  ","NE  ","NH3L","NH  ","N   ","NN1C","NN2B","NN2C","NN2G",&
+            "NN2U","NN3A","NN3G","NN3I","NN  ","NPH ","NP  ","NR  ","NR  ","NTL ",&
+            "NY  ","O2L ","OBL ","OB  ","OCL ","OC  ","OHL ","OH  ","OM  ","ON1C",&
+            "ON2b","ON6B","ON  ","O   ","OSL ","OS  ","OT  ","P2  ","PL  ","POT ",&
+            "P   ","SL  ","SM  ","SOD ","S   ","SS  ","ZN  "/)
+
+       charmm_map%element=(/&
+            "C ","Ca","C ","C ","C ","C ","C ","Cs","Cl","C ",&
+            "C ","C ","C ","C ","C ","C ","C ","C ","C ","C ",&
+            "C ","C ","C ","C ","C ","C ","C ","C ","C ","C ",&
+            "C ","C ","C ","C ","C ","C ","H ","Fe","F ","F ",&
+            "H ","H ","H ","H ","H ","H ","He","H ","H ","H ",&
+            "H ","H ","H ","H ","H ","H ","H ","H ","H ","H ",&
+            "Mg","N ","Ne","N ","N ","N ","N ","N ","N ","N ",&
+            "N ","N ","N ","N ","N ","N ","N ","H ","N ","N ",&
+            "N ","O ","O ","O ","O ","O ","O ","O ","O ","O ",&
+            "O ","O ","O ","O ","O ","O ","O ","P ","P ","K ",&
+            "P ","S ","S ","Na","S ","S ","Zn"/)
+
+    END SELECT
+  END SUBROUTINE create_ff_map
+
+!!****f* mm_mapping_library/destroy_ff_map [1.0] *
+!!
+!!   NAME
+!!     destroy_ff_map
+!!
+!!   FUNCTION
+!!     Deallocates the arrays used for mapping
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2006 created [tlaino]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE destroy_ff_map(ff_type, error)
+    CHARACTER(LEN=*), INTENT(IN)             :: ff_type
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'destroy_ff_map', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    SELECT CASE(ff_type)
+    CASE("AMBER")
+       ! deallocate substructures
+       DEALLOCATE(amber_map%kind,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(amber_map%element,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! deallocate main
+       DEALLOCATE(amber_map,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE("CHARMM")
+       ! deallocate substructures
+       DEALLOCATE(charmm_map%kind,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(charmm_map%element,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! deallocate main
+       DEALLOCATE(charmm_map,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END SELECT
+  END SUBROUTINE destroy_ff_map
+
+END MODULE mm_mapping_library

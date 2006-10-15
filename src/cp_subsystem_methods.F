@@ -248,7 +248,7 @@ CONTAINS
           !
           id_ = INDEX(topology%atom_info%label_atmname(iat),"_")-1
           IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
-          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,root_section,&
+          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,&
                subsys_section,error)
           topology%atom_info%element(iat)=my_element
           topology%atom_info%atm_mass(iat)=0._dp

@@ -43,3 +43,5 @@ H2O-debug-2.inp    1
 H2O-debug-3.inp    1
 # new colvar
 C2H4-meta.inp      1
+# improved atomic_kind
+test-pdb.inp       1

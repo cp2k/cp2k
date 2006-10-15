@@ -29,14 +29,16 @@ MODULE topology
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
-       do_conn_off, do_conn_psf, do_coord_g96, do_coord_pdb, do_coord_xyz,&
-       do_conn_psf_u
+       do_conn_off, do_conn_psf, do_conn_psf_u, do_coord_g96, do_coord_pdb, &
+       do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mm_mapping_library,              ONLY: create_ff_map,&
+                                             destroy_ff_map
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -130,8 +132,7 @@ CONTAINS
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
@@ -298,19 +299,22 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: filename
-    INTEGER                                  :: handle, i_rep, imol, iw, &
-                                                n_rep, nmol
+    CHARACTER(len=default_string_length)     :: element0, filename, my_element
+    CHARACTER(len=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: elements
+    INTEGER                                  :: handle, handle2, i, j, k, i_rep, &
+                                                id, imol, iw, n_rep, nmol, stat, itmp
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
-
+    INTEGER, PARAMETER                       :: map0 = ICHAR("0"),&
+                                                map9 = ICHAR("9")
+    
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -323,7 +327,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! Read in or generate the connectivity information any way we can 
+    ! 1. Read in the connectivity information (if this is the case) 
     !-----------------------------------------------------------------------------
     SELECT CASE (topology%conn_type)
     CASE (do_conn_mol_set)
@@ -337,25 +341,70 @@ CONTAINS
          CALL section_vals_val_get(section,"CONN_FILE",c_val=filename,&
                                     i_rep_section=i_rep,error=error)
          DO imol=1,nmol
-           CALL read_topology_psf(filename,topology,para_env,subsys_section,do_conn_psf,error)
+           CALL read_topology_psf(filename,topology,para_env,subsys_section,&
+                do_conn_psf,error)
          END DO
        END DO
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
-       IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,subsys_section,error)
     CASE (do_conn_g96,do_conn_g87)
        CALL pre_read_topology_gromos(topology,subsys_section,error)
-       CALL read_topology_gromos(topology%conn_file_name,topology,para_env,subsys_section,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
-       IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,subsys_section,error)
+       CALL read_topology_gromos(topology%conn_file_name,topology,para_env,&
+            subsys_section,error)
     CASE (do_conn_psf, do_conn_psf_u)
        CALL pre_read_topology_psf(topology,subsys_section,error)
        CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,&
             topology%conn_type, error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
-       IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,subsys_section,error)
+    CASE(do_conn_generate,do_conn_off)
+       ! Do nothing for the time being.. after we check element we go on if that is
+       ! the case
+    CASE DEFAULT
+       ! No default.. stop the execution
+       CALL stop_program ("connectivity_control","no default")
+    END SELECT
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 2. Check for the element name.. 
+    !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_check_element_name",'I','',handle2)
+    ! Fix element name
+    CALL create_ff_map("AMBER",error)
+    CALL create_ff_map("CHARMM",error)
+    ALLOCATE(elements(SIZE(topology%atom_info%element)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    elements = topology%atom_info%element
+    DO i = 1, topology%natoms
+       IF (elements(i)=="__DEF__") CYCLE
+       ! If present an underscore let's skipp all that over the underscore
+       id = INDEX(elements(i),"_")-1
+       IF (id==-1) id = LEN_TRIM(elements(i))
+       ! Many atomic kind have been defined as ELEMENT+LETTER+NUMBER
+       ! the number at the end can vary arbitrarily..
+       ! Leet's check all ELEMENT+LETTER skipping the number.. we should 
+       ! identify in any case the element
+       DO j = id, 1, -1
+          itmp = ICHAR(elements(i)(j:j)) 
+          IF ((itmp<map0).OR.(itmp>map9)) EXIT
+       END DO
+       element0 = elements(i)(1:j)
+       CALL check_subsys_element(element0,my_element,subsys_section,error)
+       ! Earn time fixing same element labels for same atoms
+       element0 = elements(i)
+       DO k = i, topology%natoms
+          IF (element0==topology%atom_info%element(k)) THEN
+             topology%atom_info%element(k)=my_element
+             elements(k)="__DEF__"
+          END IF
+       END DO
+    END DO
+    DEALLOCATE(elements,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL destroy_ff_map("AMBER",error)
+    CALL destroy_ff_map("CHARMM",error)
+    CALL timestop(0.0_dp,handle2)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 3. Generate the connectivity information otherwise
+    !-----------------------------------------------------------------------------
+    SELECT CASE (topology%conn_type)
     CASE (do_conn_generate)
        CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
        CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
@@ -372,9 +421,6 @@ CONTAINS
        CALL topology_generate_dihe(topology,para_env,subsys_section,error)
        CALL topology_generate_impr(topology,para_env,subsys_section,error)
        CALL topology_generate_onfo(topology,para_env,subsys_section,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
-       IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,subsys_section,error)
     CASE (do_conn_off)
        CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
        CALL topology_generate_bend(topology,para_env,subsys_section,error)
@@ -382,10 +428,10 @@ CONTAINS
        CALL topology_generate_dihe(topology,para_env,subsys_section,error)
        CALL topology_generate_impr(topology,para_env,subsys_section,error)
        CALL topology_generate_onfo(topology,para_env,subsys_section,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
-    CASE DEFAULT
-       CALL stop_program ("connectivity_control","no default")
     END SELECT
+
+    CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
+    IF(topology%molecules_check) CALL topology_molecules_check(topology,subsys_section,error)
 
     IF (my_qmmm) THEN
        CALL qmmm_coordinate_control(topology, qmmm_env,subsys_section, error)
@@ -417,23 +463,17 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE coordinate_control(topology,root_section,para_env,subsys_section,error)
 
-
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: element0, my_element
-    CHARACTER(len=default_string_length), &
-      ALLOCATABLE, DIMENSION(:)              :: elements
-    INTEGER                                  :: handle, handle2, i, id, iw, &
-                                                j, stat
+    INTEGER                                  :: handle, handle2, i, iw
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -464,43 +504,24 @@ CONTAINS
     SELECT CASE (topology%coord_type)
     CASE (do_coord_g96)
        CALL read_coordinate_g96 (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE., subsys_section=subsys_section,error=error)
+       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
+                               subsys_section=subsys_section,error=error)
     CASE (do_coord_pdb)
        CALL read_coordinate_pdb (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE., subsys_section=subsys_section,error=error)
+       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
+                               subsys_section=subsys_section,error=error)
     CASE (do_coord_xyz)
        CALL read_coordinate_xyz (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE., subsys_section=subsys_section,error=error)
+       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
+                               subsys_section=subsys_section,error=error)
     CASE DEFAULT
-       CALL read_atoms_input ( topology, root_section,  subsys_section=subsys_section, error=error)
+       CALL read_atoms_input ( topology, root_section, subsys_section=subsys_section,&
+            error=error)
     END SELECT
     CALL timestop(0.0_dp,handle2)
-    ! if the e.g. the &COORD block is empty, we don't proceed
     IF (topology%natoms.LE.0) THEN
        CALL stop_program ("coordinate_control","No atomic coordinates have been found")
-    ENDIF
-    CALL timeset(routineN//"_CHECK_ELEMENT_NAME",'I','',handle2)
-    ! Fix element name
-    ALLOCATE(elements(SIZE(topology%atom_info%element)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    elements = topology%atom_info%element
-    DO i = 1, topology%natoms
-       IF (elements(i)=="[]") CYCLE
-       id = INDEX(elements(i),"_")-1
-       IF (id==-1) id = LEN_TRIM(elements(i))
-       element0 = elements(i)(1:id)
-       CALL check_subsys_element(element0,my_element,root_section,subsys_section,error)
-       ! Earn time fixing same element labels for same atoms
-       DO j = 1, topology%natoms
-          IF (TRIM(element0)==TRIM(topology%atom_info%element(j))) THEN
-             topology%atom_info%element(j)=my_element
-             elements(j)="[]"
-          END IF
-       END DO
-    END DO
-    DEALLOCATE(elements,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_dp,handle2)
+    END IF
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO",error=error)

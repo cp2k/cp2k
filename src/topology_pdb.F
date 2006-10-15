@@ -93,8 +93,6 @@ CONTAINS
 !!   OPTIONS
 !!
 !!   INPUTS
-!!*** *************************************************************************
-!------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
   SUBROUTINE read_coordinate_pdb (topology,para_env,subsys_section,error)
@@ -188,6 +186,10 @@ CONTAINS
                atom_info%atm_charge(natom) = atom_info%occup(natom)
           IF(topology%charge_beta) &
                atom_info%atm_charge(natom) = atom_info%beta(natom)
+          IF (TRIM(atom_info%element(natom))=="") THEN
+             topology%aa_element      = .TRUE.
+             atom_info%element(natom) = atom_info%label_atmname(natom)
+          END IF
           IF(iw>0) WRITE(iw,*) natom,line(13:16),line(77:78)
           IF(iw>0) WRITE(iw,'(5X,A4,5X,A2,3F8.3,A4,I4)') &
                TRIM(atom_info%label_atmname(natom)),&

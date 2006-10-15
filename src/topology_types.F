@@ -133,6 +133,7 @@ MODULE topology_types
      INTEGER                                   :: natoms, natom_type
      INTEGER                                   :: nmol, nmol_type, nmol_conn
      !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
+     LOGICAL                                   :: aa_element
      LOGICAL                                   :: molname_generated
      REAL(KIND=dp)                             :: bondparm_factor
      LOGICAL                                   :: create_molecules
@@ -228,6 +229,7 @@ CONTAINS
     topology%charge_beta=.FALSE.
     topology%para_res=.FALSE.
     topology%molname_generated=.FALSE.
+    topology%aa_element=.FALSE.
     topology%exclude_vdw=do_skip_13
     topology%exclude_ei=do_skip_13
     !-----------------------------------------------------------------------------

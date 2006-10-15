@@ -3,3 +3,7 @@
 C11H24-qmmmgapw-gauss-0.inp
 #reset due to numerics
 C11H24-qmmmgapw-gauss-0.inp
+#serious bug fix in the definition of the atomic kind
+C11H24-qmmmgapwall-gauss-0.inp  
+C11H24-qmmmgapw-gauss-0.inp  
+H2O-qmmm-gapw-fdbg.inp
