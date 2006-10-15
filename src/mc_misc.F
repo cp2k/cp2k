@@ -1084,7 +1084,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       ENDIF
 ! write the topology section
       WRITE(unit,10000) "    &TOPOLOGY"
-      WRITE(unit,10000) "      CONNECTIVITY PSF"
+      CALL section_vals_val_get(input,"SUBSYS%TOPOLOGY%CONNECTIVITY",c_val=c_val,error=error)
+      WRITE(unit,20001) "      CONNECTIVITY ",TRIM(ADJUSTL(c_val))
       WRITE(cfile,'(I4)') natoms_tot/natoms
       IF(nchains == 0) cfile="1"
       SELECT CASE ( force_env%in_use )
