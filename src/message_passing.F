@@ -43,7 +43,7 @@ MODULE message_passing
   PRIVATE
 
 #ifndef __mp_timeset__
-!#define __mp_timeset__  
+#define __mp_timeset__  
 #endif
 
 #ifdef __parallel
