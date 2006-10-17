@@ -1577,7 +1577,7 @@ CONTAINS
                      (((name_atm_b)==(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
                      ((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                    CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,potparm_bond%pot(i,j)%pot,error)
-                   IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                   IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -1789,7 +1789,6 @@ CONTAINS
              END IF
           END IF
 
-
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded)) THEN
              DO k=1,SIZE(inp_info%nonbonded%pot)
@@ -1801,11 +1800,10 @@ CONTAINS
                      (((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
                      ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                    CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
-                   IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                   IF (found) CALL Pwarning("Multiple non-bonded declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",&
                         root_section,error)
-                   IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                        " ",TRIM(name_atm_b)
+                   IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
                    EXIT
                 END IF
