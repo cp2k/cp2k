@@ -34,7 +34,8 @@ MODULE virial_types
   TYPE virial_type
      INTEGER :: ref_count, id_nr
      REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_total, pv_kinetic, &
-                                         pv_virial, pv_constraint
+                                         pv_virial, pv_constraint, &
+                                         pv_xc
      LOGICAL :: pv_availability,pv_numer
   END TYPE virial_type
 
@@ -59,6 +60,7 @@ CONTAINS
     virial_out % pv_total = virial_in % pv_total 
     virial_out % pv_kinetic = virial_in % pv_kinetic  
     virial_out % pv_virial = virial_in % pv_virial 
+    virial_out % pv_xc = virial_in % pv_xc 
     virial_out % pv_constraint = virial_in % pv_constraint 
     virial_out % pv_availability = virial_in % pv_availability
     virial_out % pv_numer = virial_in % pv_numer
@@ -82,6 +84,7 @@ CONTAINS
     virial % pv_total = 0.0_dp 
     virial % pv_kinetic = 0.0_dp 
     virial % pv_virial = 0.0_dp 
+    virial % pv_xc = 0.0_dp 
     virial % pv_constraint = 0.0_dp 
     IF ( PRESENT ( virial_in_use ) ) THEN
        virial % pv_availability = virial_in_use
@@ -98,7 +101,7 @@ CONTAINS
 ! *****************************************************************************
 
 !-----------------------------------------------------------------------------!
- SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_constraint, &
+ SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
                          pv_kinetic, pv_availability, pv_numer )
 
 !   Purpose: Set the virial_type
@@ -106,7 +109,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(virial_type), POINTER               :: virial
-    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, &
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc,&
                                                 pv_constraint, pv_kinetic
     LOGICAL, OPTIONAL                        :: pv_availability, pv_numer
 
@@ -117,6 +120,7 @@ CONTAINS
 
     IF ( PRESENT ( pv_total ) ) virial % pv_total = pv_total
     IF ( PRESENT ( pv_virial ) ) virial % pv_virial = pv_virial
+    IF ( PRESENT ( pv_xc ) ) virial % pv_xc = pv_xc
     IF ( PRESENT ( pv_constraint ) ) virial % pv_constraint = pv_constraint
     IF ( PRESENT ( pv_kinetic ) ) virial % pv_kinetic = pv_kinetic
     IF ( PRESENT ( pv_availability ) ) virial % pv_availability = pv_availability
@@ -124,7 +128,7 @@ CONTAINS
 
   END SUBROUTINE virial_set
 !-----------------------------------------------------------------------------!
- SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_constraint, &
+ SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
                          pv_kinetic, pv_availability, pv_numer )
 
 !   Purpose: Get the virial_type
@@ -132,7 +136,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(virial_type), POINTER               :: virial
-    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, &
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
     LOGICAL, OPTIONAL                        :: pv_availability, pv_numer
 
@@ -143,6 +147,7 @@ CONTAINS
 
     IF ( PRESENT ( pv_total ) ) pv_total = virial % pv_total
     IF ( PRESENT ( pv_virial ) ) pv_virial = virial % pv_virial
+    IF ( PRESENT ( pv_xc ) ) pv_xc = virial % pv_xc
     IF ( PRESENT ( pv_constraint ) ) pv_constraint = virial % pv_constraint
     IF ( PRESENT ( pv_kinetic ) ) pv_kinetic = virial % pv_kinetic 
     IF ( PRESENT ( pv_availability ) ) pv_availability = virial % pv_availability 

@@ -582,6 +582,13 @@ CONTAINS
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, gapw_xc=gapw_xc, error=error)
 
+       IF (use_virial .AND. calculate_forces) THEN
+         DO dir=1,3
+           virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) -&
+                                         virial%pv_xc(dir,dir) 
+         END DO
+       ENDIF
+
        IF (gapw .OR. gapw_xc) THEN
           CALL calculate_vxc_atom(qs_env,just_energy,error)
        END IF
@@ -1461,6 +1468,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(virial_type), POINTER               :: virial
 
 !   ---------------------------------------------------------------------------
 
@@ -1489,7 +1497,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   END IF
 
   CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
-       pw_env=pw_env, cell=cell, error=error)
+       pw_env=pw_env, cell=cell,virial=virial, error=error)
   xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
   ! would be better to pass these as arguments
   IF (harris_flag) THEN
@@ -1622,7 +1630,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
              rho_g=rho_g,tau=tau,exc=exc,&
              xc_section=xc_section,&
              cell=cell, pw_pool=xc_pw_pool,&
-             error=error)
+             error=error,&
+             virial=virial)
      END IF
 
      IF (my_scaling .NE. 1.0_dp) THEN

@@ -63,6 +63,7 @@ MODULE xc
        pw_transfer, pw_type, pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
                                              MAX_LABEL_LENGTH
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -125,6 +126,7 @@ CONTAINS
 !!     - xc_section: parameters selecting the xc and the method used to
 !!       calculate it
 !!     - pw_pool: the pool for the grids
+!!     - virial: virial for calculating the GGA part of the stress
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -133,7 +135,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,xc_section,&
-       cell,pw_pool,error)
+       cell,pw_pool,error,virial)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
                                                 rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
@@ -142,6 +144,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
       routineP = moduleN//':'//routineN
@@ -163,7 +166,7 @@ CONTAINS
        CASE(xc_new_f_routine)
           CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
-               cell=cell, pw_pool=pw_pool, error=error)
+               cell=cell, pw_pool=pw_pool,error=error,virial=virial)
        CASE(xc_debug_new_routine)
           CALL xc_vxc_pw_create_debug(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
@@ -1212,7 +1215,7 @@ END SUBROUTINE smooth_cutoff
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
-     cell,pw_pool,error)
+     cell,pw_pool,error,virial)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
@@ -1221,6 +1224,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create', &
       routineP = moduleN//':'//routineN
@@ -1234,7 +1238,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: dealloc_pw_to_deriv, failure, &
-                                                has_tau, lsd, zero_result
+                                                has_tau, lsd, zero_result, &
+                                                use_virial
     REAL(KIND=dp)                            :: density_smooth_cut_range, &
                                                 drho_cutoff, my_rho, ndr, &
                                                 rho_cutoff
@@ -1248,7 +1253,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
     TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv, pw_to_deriv_rho
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, vxc_g
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, vxc_g, &
+                                                virial_pw
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -1256,7 +1262,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(tmp_g, tmp_r, tmp_r2, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa,&
-       drhob, pos,deriv_set,rho_set)
+       drhob, pos,deriv_set,rho_set,virial_pw)
   nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
   DO idir=1,3
      NULLIFY(pw_to_deriv(idir)%pw, pw_to_deriv_rho(idir)%pw)
@@ -1279,6 +1285,12 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
         CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
      END IF
   END IF
+
+  IF (PRESENT(virial)) THEN
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+  ELSE
+    use_virial = .FALSE.
+  ENDIF 
 
   IF (.NOT.failure) THEN
      bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -1482,6 +1494,11 @@ CPSourceFileRef,&
         END IF
 
         IF (ASSOCIATED(drho).AND.ASSOCIATED(drho(1)%array)) THEN
+           IF (use_virial) THEN
+              CALL pw_pool_create_pw(pw_pool,virial_pw,use_data=REALDATA3D,&
+                   in_space=REALSPACE,error=error)
+              CALL pw_zero(virial_pw)
+           ENDIF
            CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
            DO idir=1,3
               CALL pw_create(pw_to_deriv_rho(idir)%pw,pw_grid=pw_grid,&
@@ -1494,13 +1511,24 @@ CPSourceFileRef,&
               DO k = bo(1,3), bo(2,3)
                  DO j = bo(1,2), bo(2,2)
                     DO i = bo(1,1), bo(2,1)
+                       IF (use_virial) THEN
+                          virial_pw%cr3d(i,j,k)=drho(idir)%array(i,j,k)*&
+                              drho(idir)%array(i,j,k)*deriv_data(i,j,k)
+                       ENDIF
                        drho(idir)%array(i,j,k)=drho(idir)%array(i,j,k)*&
                             deriv_data(i,j,k)
                     END DO
                  END DO
               END DO
+              IF (use_virial) THEN
+                 virial%pv_xc(idir,idir) = accurate_sum ( virial_pw%cr3d )*pw_grid%dvol
+                 CALL pw_zero(virial_pw)
+              ENDIF
               NULLIFY(drho(idir)%array)
            END DO
+           IF (use_virial) THEN
+             CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
+           ENDIF
         ELSE
            DO idir=1,3
               CALL pw_pool_create_pw(pw_pool,pw_to_deriv_rho(idir)%pw,&
@@ -1520,7 +1548,7 @@ CPSourceFileRef,&
               END DO
            END DO
         END IF
-
+  
         CALL pw_pool_give_back_cr3d(pw_pool, deriv_att%deriv_data, error=error)
      END IF
 
