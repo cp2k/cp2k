@@ -572,9 +572,9 @@ SUBROUTINE parser_next_token(parser,string_length,error)
               parser%icol = parser%icol + 1
               IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
                    (parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
+                   (parser%input_line(parser%icol:parser%icol) == horizontal_tab).OR.&
                    ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character).OR.&
-                   (parser%input_line(parser%icol:parser%icol) == parser%continuation_character).OR.&
-                   (parser%input_line(parser%icol:parser%icol) == horizontal_tab)) THEN
+                   (parser%input_line(parser%icol:parser%icol) == parser%continuation_character)) THEN
                  EXIT
               ELSE IF (INDEX(parser%separators,parser%input_line(parser%icol:parser%icol)) > 0) THEN
                  parser%first_separator = .FALSE.
@@ -895,7 +895,8 @@ END SUBROUTINE parser_next_token
              non_white_found=.FALSE.
              DO icol=1,LEN(parser%input_line)
                 thischar=parser%input_line(icol:icol)
-                IF (thischar.NE.blank_character) THEN
+                IF ( (thischar.NE.blank_character).AND.&
+                     (thischar.NE.horizontal_tab)) THEN
                    IF (.NOT. ANY(parser%comment_character.EQ.thischar)) non_white_found=.TRUE.
                    EXIT
                 ENDIF
