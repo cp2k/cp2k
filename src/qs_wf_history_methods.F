@@ -1013,9 +1013,15 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         !END DO
 
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
 
         DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
@@ -1032,10 +1038,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
+
         DO ispin=1,SIZE(t0_state%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
@@ -1051,10 +1064,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
+
         IF(my_kg_gpw) THEN
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
            CALL kg_gpw_prev_wf(kg_fm_mol_set,rho%rho_ao,matrix_s,error=error)
@@ -1082,10 +1102,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
+
         DO ispin=1,SIZE(t0_state%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
@@ -1119,10 +1146,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)
         END IF
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
+
         IF (.NOT.failure) THEN
            my_orthogonal_wf=.TRUE.
            t0=0.0_dp
@@ -1175,10 +1209,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)
         END IF
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
+
         IF (.not.failure) THEN
           t0=0.0_dp
           t1=t1_state%dt
@@ -1220,10 +1261,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)
         END IF
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
+
         IF (.not.failure) THEN
            my_orthogonal_wf=.TRUE.
            ! use PS_2=2 PS_1-PS_0
@@ -1267,10 +1315,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         ! figure out the actual number of vectors to use in the extrapolation:
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         CPPrecondition(nvec .GT. 0,cp_failure_level,routineP,error,failure)
-        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
-             .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        IF (nvec >= wf_history%memory_depth) THEN
+          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          END IF
         END IF
+
         my_orthogonal_wf=.TRUE.
         IF(my_kg_gpw) THEN
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
@@ -1349,12 +1404,16 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
       ! Stable relaxation parameter of the corrector (i.e. Hartree damping)
       qs_env%scf_control%p_mix = REAL(nvec,KIND=dp)/REAL(2*nvec - 1,KIND=dp)
       IF (nvec >= wf_history%memory_depth) THEN
-        IF ((qs_env%use_harris) .AND. (qs_env%scf_control%fill_wf_history)) THEN
-          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
-        ELSE
-          qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_aspc
+        IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+        ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+        ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+          qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
         END IF
       END IF
+
       my_orthogonal_wf = .TRUE.
       CPPrecondition(.NOT.my_kg_gpw,cp_failure_level,routineP,error,failure)
       DO ispin=1,SIZE(mos)

@@ -142,6 +142,7 @@ MODULE md
      !MK Langevin
      REAL (KIND=dp) :: gamma
      REAL (KIND=dp) :: noisy_gamma
+     REAL (KIND=dp) :: shadow_gamma
      REAL (KIND=dp) :: var_w
      !TdK HMC
      INTEGER        :: ld_steps
@@ -206,7 +207,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: iprint
-    REAL(kind=dp)                            :: tmp_r1, tmp_r2
+    REAL(kind=dp)                            :: tmp_r1, tmp_r2, tmp_r3
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
                                                 print_key
@@ -311,9 +312,11 @@ CONTAINS
       IF ( iw > 0 ) THEN
         tmp_r1 = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
         tmp_r2 = cp_unit_from_cp2k(simpar%noisy_gamma, "fs^-1", error=error)
+        tmp_r3 = cp_unit_from_cp2k(simpar%shadow_gamma, "fs^-1", error=error)
         WRITE (UNIT=iw,FMT="(T2,A,T71,ES10.3)")&
           "LD| Gamma [1/fs] ",tmp_r1,&
           "LD| Noisy Gamma [1/fs]",tmp_r2,&
+          "LD| Shadow Gamma [1/fs]", tmp_r3,&
           "LD| Variance [a.u.]",simpar%var_w
       END IF
 
@@ -476,6 +479,8 @@ CONTAINS
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
           CALL section_vals_val_get(md_section, "NOISY_GAMMA", r_val=simpar%noisy_gamma, &
                                     error=error)
+          CALL section_vals_val_get(md_section, "SHADOW_GAMMA", r_val=simpar%shadow_gamma, &
+                                    error=error)
        END IF
 
        tmp_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
@@ -635,6 +640,7 @@ CONTAINS
     !MK Langevin
     simpar%gamma = 0.0_dp
     simpar%noisy_gamma = 0.0_dp
+    simpar%shadow_gamma = 0.0_dp
     simpar%var_w = 0.0_dp
     ! TdK HMC
     simpar%ld_steps = 10

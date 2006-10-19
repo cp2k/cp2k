@@ -1819,6 +1819,13 @@ CONTAINS
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
+       CALL keyword_create(keyword, name="Shadow_Gamma",&
+            variants=(/"ShadowGamma"/), &
+            description="Shadow Langevin Friction term for LD with noisy forces in order to adjust Noisy_Gamma.", &
+            usage="Shadow_Gamma 0.01", default_r_val=0.0_dp, unit_str='fs^-1', error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
        CALL keyword_create(keyword, name="pv_ava",&         
             description="Virial availability for force environment",&         
             usage="pv_ava LOGICAL",&         

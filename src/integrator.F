@@ -200,7 +200,7 @@ CONTAINS
     force_env => force_env_p(1)%force_env
 
     dt = simpar%dt
-    gam = simpar%gamma
+    gam = simpar%gamma+simpar%shadow_gamma
 
     IF (SIZE(force_env_p) /= 1) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&

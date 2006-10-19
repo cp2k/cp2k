@@ -129,11 +129,11 @@ MODULE scf_control_types
   TYPE scf_control_type
     TYPE(outer_scf_control_type) :: outer_scf
     INTEGER               :: density_guess
-    REAL(KIND = dp)       :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
-                             work_syevx,eps_lumos, eps_diis,eps_jacobi,&
+    REAL(KIND = dp)       :: eps_eigval,eps_scf,eps_scf_hist,level_shift,p_mix,smear,&
+                             work_syevx,eps_lumos,eps_diis,eps_jacobi,&
                              jacobi_threshold, gspace_mixing_a, gspace_mixing_b
     INTEGER               :: max_iter_lumos, max_diis
-    INTEGER               :: max_scf,nrow_block,max_scf_aspc,&
+    INTEGER               :: max_scf,nrow_block,max_scf_hist,&
                              ncol_block,maxl,nkind, write_restart_each, &
                              harris_max_scf
     LOGICAL               :: gradient_functional,gth_potential_present,&
@@ -198,6 +198,7 @@ CONTAINS
       scf_control%density_guess = atomic_guess
       scf_control%eps_eigval = 1.0E-5_dp
       scf_control%eps_scf = 1.0E-5_dp
+      scf_control%eps_scf_hist = 0.0_dp
       scf_control%eps_lumos = 1.0E-5_dp
       scf_control%max_iter_lumos = 2999
       scf_control%eps_diis = 0.1_dp
@@ -219,7 +220,7 @@ CONTAINS
       scf_control%jacobi_threshold = 1.0E-7_dp
       scf_control%write_restart_each=10
       scf_control%added_mos=0
-      scf_control%max_scf_aspc = 1
+      scf_control%max_scf_hist = 0
       scf_control%gspace_mixing_a = 1.0_dp
       scf_control%gspace_mixing_b = 0.0_dp
       scf_control%fill_wf_history = .FALSE.
@@ -516,8 +517,11 @@ CONTAINS
              scf_control%added_mos(2)=added_mos(2)
           END IF
        END IF
-       CALL section_vals_val_get(scf_section,"max_scf_aspc",&
-                                 i_val=scf_control%max_scf_aspc,&
+       CALL section_vals_val_get(scf_section,"max_scf_history",&
+                                 i_val=scf_control%max_scf_hist,&
+                                 error=error)
+       CALL section_vals_val_get(scf_section,"eps_scf_history",&
+                                 r_val=scf_control%eps_scf_hist,&
                                  error=error)
 
        IF (scf_control%level_shift /= 0.0_dp) &
@@ -631,15 +635,16 @@ CONTAINS
 
           WRITE (UNIT=output_unit,&
                  FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),4(/,T25,A,T76,I5),"//&
-                     "T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),"//&
+                     "T25,56('-'),6(/,T25,A,T72,ES9.2),T25,56('-'),"//&
                      "6(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
             "SCF PARAMETERS",&
             "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
             "max_scf:           ",scf_control%max_scf,&
-            "max_scf_aspc:      ",scf_control%max_scf_aspc,&
+            "max_scf_history:   ",scf_control%max_scf_hist,&
             "max_diis:          ",scf_control%max_diis,&
             "write_restart_each:",scf_control%write_restart_each,&
             "eps_scf:           ",scf_control%eps_scf,&
+            "eps_scf_history:   ",scf_control%eps_scf_hist,&
             "eps_diis:          ",scf_control%eps_diis,&
             "eps_eigval:        ",scf_control%eps_eigval,&
             "eps_jacobi:        ",scf_control%eps_jacobi,&

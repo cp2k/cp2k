@@ -2619,7 +2619,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,"scf",&
             description="parameters needed perform an scf run",&
-            n_keywords=24, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=25, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(subsection)
@@ -2634,8 +2634,9 @@ SUBROUTINE create_tddfpt_section(section,error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
             description="How often the wavefunction restart file should be "//&
-            "written during an scf (0=only at the end, -1=never).",usage="WRITE_RESTART_EACH 5",&
-            default_i_val=10,error=error)
+            "written during the scf cycle (0=only at the end of each MD step, "//&
+            "-1=never, -2=in addition the extrapolation history is written).",&
+            usage="WRITE_RESTART_EACH 5", default_i_val=10,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2671,9 +2672,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MAX_SCF_ASPC", &
-            description="Maximum number of SCF iterations to be performed for ASPC", &
-            usage="MAX_SCF_ASPC 1", required=.FALSE., default_i_val=1,error=error)
+       CALL keyword_create(keyword, name="MAX_SCF_HISTORY", variants=(/"MAX_SCF_HIST"/), &
+            description="Maximum number of SCF iterations after the history pipeline is filled", &
+            usage="MAX_SCF_HISTORY 1", required=.FALSE., default_i_val=0,lone_keyword_i_val=1, &
+            error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -2694,6 +2696,13 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="EPS_SCF",&
             description="target accuracy for the scf convergence",&
             usage="EPS_SCF 1.e-6", default_r_val=1.e-5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_SCF_HISTORY", variants=(/"EPS_SCF_HIST"/), &
+            description="target accuracy for the scf convergence after the history pipeline is filled",&
+            usage="EPS_SCF_HISTORY 1.e-5", default_r_val=0.0_dp,lone_keyword_r_val=1.0e-5_dp,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2761,7 +2770,7 @@ SUBROUTINE create_tddfpt_section(section,error)
                           "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
                           "Use random wavefunction coefficients.", &
                           "Diagonalize the core hamiltonian for an initial guess.", &
-                          "Use the aux_basis_set for collocation (Harris only ?)."), &
+                          "Use the aux_basis_set for collocation."), &
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
             densities_guess/),&
             error=error)
@@ -3421,14 +3430,22 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="HARRIS",&
             description="This section specifies the flags for the calculation of the harris functional",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ACTIVATE",&
-            description="Activates the harris functional.",&
-            usage="ACTIVATE TRUE", required=.FALSE.,&
+       CALL keyword_create(keyword, name="ACTIVATE", &
+            description="Activates the harris functional.", &
+            usage="ACTIVATE TRUE", required=.FALSE., &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="HARRIS_ENERGY",&
+            description="Overrides the QS Energy.", &
+            usage="HARRIS_ENERGY TRUE", required=.FALSE., &
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
             error=error)
        CALL section_add_keyword(section, keyword, error=error)
@@ -3436,14 +3453,14 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="FILL_WF_HISTORY", &
             description="Converges to self-consistency until the " //&
-            "WF-history is filled.", usage="FILL_WF_HISTORY TRUE", &
+            "WF-history is filled (HMC only).", usage="FILL_WF_HISTORY TRUE", &
             required=.FALSE., default_l_val=.FALSE., &
             lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="HARRIS_MAX_SCF", &
-            description="The maximum number of SCF cycles after the wf_history is filled.", &
+            description="The maximum number of SCF cycles after the wf_history is filled (HMC only).", &
             usage="HARRIS_MAX_SCF 1", required=.FALSE., &
             default_i_val=1, lone_keyword_i_val=1, &
             error=error)
@@ -4249,7 +4266,7 @@ END SUBROUTINE create_ot_section
 
       CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
            description="How often the wavefunction restart file should be "//&
-            "written during an tp_scf (0=only at the end, -1=never).",&
+            "written during the tp_scf cycle (0=only at the end, -1=never).",&
             usage="WRITE_RESTART_EACH 5",&
             default_i_val=10,error=error)
        CALL section_add_keyword(section,keyword,error=error)

@@ -98,7 +98,8 @@ MODULE qs_scf
        ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run, &
        restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
@@ -355,7 +356,8 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 iter_level, output_unit, total_steps
     LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
-      has_unit_metric, outer_loop_converged, use_jacobi, use_virial
+               has_unit_metric, outer_loop_converged, use_jacobi, use_virial, &
+               harris_energy
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -375,7 +377,7 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
-                                                scf_section
+                                                scf_section, harris_section
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,"I"," ",handle)
@@ -412,6 +414,7 @@ CONTAINS
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+    harris_section => section_vals_get_subs_vals(dft_section,"QS%HARRIS", error=error)
 
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".scfLog",error=error)
@@ -534,7 +537,10 @@ CONTAINS
             ELSE
               CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env, error=error)
             END IF
-            IF (globenv%run_type_id == qs_debug_run) THEN
+
+            CALL section_vals_val_get(harris_section, "HARRIS_ENERGY", l_val=harris_energy, &
+                                      error=error)
+            IF ((globenv%run_type_id == qs_debug_run) .OR. (harris_energy)) THEN
               energy%total = harris_env%harris_energy%Eharris
             END IF
           END IF
