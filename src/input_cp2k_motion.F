@@ -146,7 +146,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
-       
+
+       CALL cp_print_key_section_create(print_key,"cell",&
+            description="controls the output of the simulatin cell",&
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"velocities",&
             description="controls the output of the velocities",&
             print_level=low_print_level, common_iter_levels=1,&
@@ -176,6 +183,13 @@ CONTAINS
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"stress",&
+            description="controls the output of the stress tensor",&
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 

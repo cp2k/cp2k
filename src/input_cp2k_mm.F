@@ -51,7 +51,8 @@ MODULE input_cp2k_mm
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mm'
 
   PUBLIC :: create_mm_section
-  PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, create_Goodwin_section
+  PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &
+            create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section
 !***
 !****************************************************************************
 CONTAINS
@@ -863,6 +864,14 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_Buck4r_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_Buckmorse_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_NONBONDED_section
@@ -1306,6 +1315,253 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_BMHFT_section
+
+!***************************************************************************
+!!****f* input_cp2k_mm/create_Buck4r_section [1.0] *
+!!
+!!   NAME
+!!     create_Buck4r_section
+!!
+!!   FUNCTION
+!!     This section specifies the input parameters for Buckingham 4 ranges potential type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_Buck4r_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_Buck4r_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="BUCK4RANGES",&
+            description="This section specifies the input parameters for Buckingham 4 ranges potential type.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kind involved in the nonbond potential",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="A",&
+            description="Defines the A parameter of the Buckingham potential",&
+            usage="A {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="K_e", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B",&
+            description="Defines the B parameter of the Buckingham potential",&
+            usage="B {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="C",&
+            description="Defines the C parameter of the Buckingham  potential",&
+            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="K_e*angstrom^6",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R1",&
+            description="Defines the upper bound of the first range ",&
+            usage="R1 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R2",&
+            description="Defines the upper bound of the second range ",&
+            usage="R2 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R3",&
+            description="Defines the upper bound of the third range ",&
+            usage="R3 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,name="POLY1",&
+           description="Coefficients of the polynomial used in the second range"//&
+           "This keyword can be repeated several times.",&
+           usage="POLY1 C1 C2 C3 ..",&
+           n_var=-1,unit_str="K_e",type_of_var=real_t,repeats=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,name="POLY2",&
+           description="Coefficients of the polynomial used in the third range"//&
+           "This keyword can be repeated several times.",&
+           usage="POLY1 C1 C2 C3 ..",&
+           n_var=-1,unit_str="K_e",type_of_var=real_t,repeats=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of the Buckingham potential",&
+            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_Buck4r_section
+
+!***************************************************************************
+!!****f* input_cp2k_mm/create_Buckmorse_section [1.0] *
+!!
+!!   NAME
+!!     create_Buckmorse_section
+!!
+!!   FUNCTION
+!!     This section specifies the input parameters for Buckingham + Morse potential type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_Buckmorse_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_Buckmorse_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="BUCKMORSE",&
+            description="This section specifies the input parameters for"//&
+            " Buckingham plus Morse potential type (Yamada et al, J. All. Comp. 307 (2000) 10).",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kind involved in the nonbond potential",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="F0",&
+            description="Defines the f0 parameter of Buckingham+Morse potential",&
+            usage="F0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="K_e*angstrom^-1", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="A1",&
+            description="Defines the A1 parameter of Buckingham+Morse potential",&
+            usage="A1 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="A2",&
+            description="Defines the A2 parameter of Buckingham+Morse potential",&
+            usage="A2 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B1",&
+            description="Defines the B1 parameter of Buckingham+Morse potential",&
+            usage="B1 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B2",&
+            description="Defines the B2 parameter of Buckingham+Morse potential",&
+            usage="B2 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="C",&
+            description="Defines the C parameter of Buckingham+Morse  potential",&
+            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="K_e*angstrom^6",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="D",&
+            description="Defines the amplitude for the Morse part ",&
+            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="K_e",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R0",&
+            description="Defines the equilibrium distance for the Morse part ",&
+            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Beta",&
+            description="Defines the width for the Morse part ",&
+            usage="Beta {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of the Buckingham potential",&
+            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_Buckmorse_section
 
 !***************************************************************************
 

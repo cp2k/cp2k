@@ -386,6 +386,21 @@ CONTAINS
        WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Coordinates',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
+       IF ( simpar % ensemble == nph_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
+               simpar % ensemble == npt_i_ensemble.OR.&
+               simpar % ensemble == npt_f_ensemble ) THEN
+
+          print_key => section_vals_get_subs_vals(motion_section,"PRINT%CELL",error=error)
+          NULLIFY(iprint)
+          CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
+          filename = cp_print_key_generate_filename(logger,print_key,&
+              extension=".cell",my_local=.FALSE.,error=error)
+         WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Simulation Cell',iprint(SIZE(iprint)), &
+              ADJUSTR ( TRIM(filename) )
+       END IF
+
        print_key => section_vals_get_subs_vals(motion_section,"PRINT%VELOCITIES",error=error)
        NULLIFY(iprint)
        CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)

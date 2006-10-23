@@ -31,7 +31,7 @@ MODULE pair_potential
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: &
-       compare_pot, ea_type, ft_type, gw_type, ip_type, list_pot, &
+       compare_pot, ea_type, b4_type, bm_type, ft_type, gw_type, ip_type, list_pot, &
        lj_charmm_type, lj_type, nn_type, pair_potential_pp_type, &
        pair_potential_single_type, wl_type
   USE splines,                         ONLY: init_spline,&
@@ -78,7 +78,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
     REAL(KIND=dp)                            :: vdw_scale14, ener_pot
 
-    INTEGER                                  :: i, index
+    INTEGER                                  :: i, index, n
     REAL(KIND=dp)                            :: pp, qq, scale
 
     IF (pot%type==lj_charmm_type) THEN
@@ -120,6 +120,29 @@ CONTAINS
        pp =  pot % eam % phi ( index ) + &
             qq * pot % eam % phip ( index )
        ener_pot = pp - pot % energy_cutoff
+    ELSE IF (pot%type==b4_type) THEN
+      IF(r<=pot%buck4r%r1) THEN
+        pp = pot%buck4r%a*EXP(-pot%buck4r%b*r)
+      ELSEIF(r>pot%buck4r%r1.AND.r<=pot%buck4r%r2) THEN
+        pp = 0
+        DO n = 0,pot%buck4r%npoly1
+          pp = pp+pot%buck4r%poly1(n)*r**n
+        END DO 
+      ELSEIF(r>pot%buck4r%r2.AND.r<=pot%buck4r%r3) THEN
+        pp = 0
+        DO n = 0,pot%buck4r%npoly2
+          pp = pp+pot%buck4r%poly2(n)*r**n
+        END DO 
+      ELSEIF(r>pot%buck4r%r3)THEN
+        pp = -pot%buck4r%c/r**6
+      END IF
+      ener_pot = pp - pot % energy_cutoff
+    ELSE IF (pot%type==bm_type) THEN
+      ener_pot = pot%buckmo%f0*(pot%buckmo%b1+pot%buckmo%b2)*&
+               EXP((pot%buckmo%a1+pot%buckmo%a2-r)/(pot%buckmo%b1+pot%buckmo%b2))&
+               - pot%buckmo%c/r**6  &
+               + pot%buckmo%d*((1-EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))**2)-1) &
+               - pot%energy_cutoff
     ELSE
        ener_pot = 0.0_dp
     END IF
@@ -477,6 +500,10 @@ CONTAINS
           nvar = 4 + nvar
        CASE (ip_type)
           nvar = 3 + nvar
+       CASE (b4_type)
+          nvar = 6 + nvar
+       CASE (bm_type)
+          nvar = 9 + nvar
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
@@ -525,6 +552,23 @@ CONTAINS
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%ipbv%rcore
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%ipbv%m
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%ipbv%b
+                   CASE (b4_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%buck4r%a
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%buck4r%b
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%buck4r%c
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%buck4r%r1
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%buck4r%r2
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%buck4r%r3
+                   CASE (bm_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%buckmo%f0
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%buckmo%a1
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%buckmo%a2
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%buckmo%b1
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%buckmo%b2
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%buckmo%c
+                      pot_par(nk,7)  = potparm%pot(i,j)%pot%buckmo%d
+                      pot_par(nk,8)  = potparm%pot(i,j)%pot%buckmo%r0
+                      pot_par(nk,9)  = potparm%pot(i,j)%pot%buckmo%beta
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT

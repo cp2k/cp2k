@@ -213,14 +213,13 @@ CONTAINS
     END IF
     CALL force_env_get(force_env,virial=virial,error=error)
     IF (virial%pv_availability) THEN
-       CALL zero_virial(force_env%virial,force_env%virial%pv_availability,&
-            force_env%virial%pv_numer)
+       CALL zero_virial(virial,virial%pv_availability, virial%pv_numer)
     END IF
     IF (.NOT.failure) THEN
 
        SELECT CASE ( force_env%in_use )
        CASE ( use_fist_force )
-          CALL fist_force_control( force_env%fist_env,force_env%virial, force_env%para_env, &
+          CALL fist_force_control( force_env%fist_env,virial, force_env%para_env, &
                force_env_section=force_env%force_env_section, error=error)
        CASE (use_ep_force)
           CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)

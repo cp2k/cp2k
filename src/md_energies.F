@@ -54,7 +54,8 @@ MODULE md_energies
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates,&
                                              write_structure_data
-  USE physcon,                         ONLY: femtoseconds,&
+  USE physcon,                         ONLY: angstrom,&
+                                             femtoseconds,&
                                              kelvin
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -111,9 +112,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
                                                 my_pos, remark1, remark2, &
                                                 title
-    INTEGER                                  :: crd, delta_t, ene, frc, &
+    INTEGER                                  :: box, crd, delta_t, ene, frc, &
                                                 handle, i, iskip, isubsys, &
-                                                iw, nat, vel
+                                                iw, nat, str, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL, SAVE                            :: init, init_force, init_traj, &
                                                 init_vel
@@ -497,12 +498,30 @@ CONTAINS
        crd = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="pos", error=error)
+       IF ( simpar % ensemble == nph_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
+               simpar % ensemble == npt_i_ensemble.OR.&
+               simpar % ensemble == npt_f_ensemble ) THEN
+         box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
+              extension=".cell", file_position=my_pos, file_action=my_act,&
+              file_form=my_form, error=error)
+       ELSE
+         box = 0
+       END IF
        vel = cp_print_key_unit_nr(logger,motion_section,"PRINT%VELOCITIES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="vel", error=error)
        frc = cp_print_key_unit_nr(logger,motion_section,"PRINT%FORCES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="force", error=error)
+       IF( virial % pv_availability ) THEN
+         str = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
+              extension=".stress", file_position=my_pos, file_action=my_act,&
+              file_form=my_form, error=error)
+       ELSE
+         str = 0
+       END IF
        !------------------
        ! Print Coordinates
        !------------------
@@ -538,6 +557,35 @@ CONTAINS
           END DO
           CALL m_flush(crd)
        END IF
+       !------------------
+       ! Print Simulation Cell (only if constant pressure)
+       !------------------
+       IF ( box > 0 ) THEN
+          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                  " i =",itimes,", E =",epot
+          WRITE(UNIT=box,FMT="(A)") title
+          WRITE(UNIT=box,FMT="(4X,3F20.10)") cell%hmat(1,1)*angstrom,&
+                       cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom
+          WRITE(UNIT=box,FMT="(4X,3F20.10)") cell%hmat(1,2)*angstrom,&
+                       cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom
+          WRITE(UNIT=box,FMT="(4X,3F20.10)") cell%hmat(1,3)*angstrom,&
+                       cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom
+       END IF
+       !------------------
+       ! Print the Stress tensor
+       !------------------
+       IF ( str > 0 ) THEN
+          WRITE(UNIT=str,FMT="(I10,9F20.10)") itimes, virial%pv_total(1,1)/cell%deth*unit%bar, &
+                        virial%pv_total(1,2)/cell%deth*unit%bar, &
+                        virial%pv_total(1,3)/cell%deth*unit%bar,&
+                        virial%pv_total(2,1)/cell%deth*unit%bar, &
+                        virial%pv_total(2,2)/cell%deth*unit%bar, &
+                        virial%pv_total(2,3)/cell%deth*unit%bar,& 
+                        virial%pv_total(3,1)/cell%deth*unit%bar, &
+                        virial%pv_total(3,2)/cell%deth*unit%bar, &
+                        virial%pv_total(3,3)/cell%deth*unit%bar
+       END IF
+       !------------------
        !------------------
        ! Print Velocities
        !------------------
@@ -621,10 +669,22 @@ CONTAINS
             "MD%PRINT%ENERGY", error=error)
        CALL cp_print_key_finished_output(crd,logger,motion_section,&
             "PRINT%TRAJECTORY", error=error)
+       IF ( simpar % ensemble == nph_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_ensemble .OR.&
+               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
+               simpar % ensemble == npt_i_ensemble.OR.&
+               simpar % ensemble == npt_f_ensemble ) THEN
+         CALL cp_print_key_finished_output(box,logger,motion_section,&
+              "PRINT%CELL", error=error)
+       END IF
        CALL cp_print_key_finished_output(vel,logger,motion_section,&
             "PRINT%VELOCITIES", error=error)
        CALL cp_print_key_finished_output(frc,logger,motion_section,&
             "PRINT%FORCES", error=error)
+       IF( virial % pv_availability ) THEN
+         CALL cp_print_key_finished_output(str,logger,motion_section,&
+              "PRINT%STRESS", error=error)
+       END IF
     END IF
     init = .FALSE.
     CALL timestop(handle)

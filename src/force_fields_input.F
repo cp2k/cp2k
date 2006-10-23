@@ -55,9 +55,9 @@ MODULE force_fields_input
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
-       ea_type, eam_pot_type, ft_type, gw_type, ip_type, lj_charmm_type, &
-       lj_type, pair_potential_p_type, pair_potential_reallocate, &
-       pair_potential_single_type, wl_type
+       b4_type, bm_type, ea_type, eam_pot_type, ft_type, gw_type, &
+       ip_type, lj_charmm_type, lj_type, pair_potential_p_type, &
+       pair_potential_reallocate, pair_potential_single_type, wl_type
   USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
@@ -111,7 +111,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nbends, nbmhft, nbonds, nchg, &
-                                                neam, ngd, nipbv, nlj, ntors, &
+                                                neam, nb4, nbm, ngd, nipbv, nlj, ntors, &
                                                 ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
@@ -177,6 +177,21 @@ CONTAINS
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhft,bmhft=.TRUE.,error=error)
              CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCK4RANGES",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nb4,error=error)
+          ntot=nlj+nwl+neam+ngd+nbmhft
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nb4,buck4r=.TRUE.,error=error)
+             CALL read_b4_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCKMORSE",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbm,error=error)
+          ntot=nlj+nwl+neam+ngd+nbmhft+nb4
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbm,buckmo=.TRUE.,error=error)
+             CALL read_bm_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -709,6 +724,174 @@ CONTAINS
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
     END DO
   END SUBROUTINE read_bmhft_section
+
+!******************************************************************************
+!!****** force_fields_input/read_b4_section [1.0] *
+!!
+!!   NAME
+!!     read_b4_section
+!!
+!!   FUNCTION
+!!     Reads the Buckingham 4 Ranges potential section
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_b4_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_b4_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, istat, n_items
+    INTEGER                                  :: i, ir, n_rep, np1, np2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b, c, r1, r2, r3, rcut
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff1, coeff2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: list
+
+    failure = .FALSE.
+    NULLIFY(coeff1,coeff2)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
+       CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
+       CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
+       CALL section_vals_val_get(section,"R1",i_rep_section=isec,r_val=r1,error=error)
+       CALL section_vals_val_get(section,"R2",i_rep_section=isec,r_val=r2,error=error)
+       CALL section_vals_val_get(section,"R3",i_rep_section=isec,r_val=r3,error=error)
+       CALL section_vals_val_get(section,"POLY1",n_rep_val=n_rep,error=error)
+       np1 = 0
+       DO ir = 1,n_rep
+         NULLIFY(list)
+         CALL section_vals_val_get(section,"POLY1",i_rep_val=ir,r_vals=list,error=error)
+         IF(ASSOCIATED(list)) THEN
+           CALL reallocate(coeff1,0,np1+SIZE(list)-1)
+           DO i = 1, SIZE(list)
+             coeff1(i+np1-1) = list(i)
+           END DO  ! i
+           np1 = np1 + SIZE(list)
+         END IF
+       END DO  ! ir
+       CALL section_vals_val_get(section,"POLY2",n_rep_val=n_rep,error=error)
+       np2 = 0
+       DO ir = 1,n_rep
+         NULLIFY(list)
+         CALL section_vals_val_get(section,"POLY2",i_rep_val=ir,r_vals=list,error=error)
+         IF(ASSOCIATED(list)) THEN
+           CALL reallocate(coeff2,0,np2+SIZE(list)-1)
+           DO i = 1, SIZE(list)
+             coeff2(i+np2-1) = list(i)
+           END DO  ! i
+           np2 = np2 + SIZE(list)
+         END IF
+       END DO  ! ir
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = b4_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       nonbonded%pot(start+isec)%pot %buck4r%a = a
+       nonbonded%pot(start+isec)%pot %buck4r%b = b
+       nonbonded%pot(start+isec)%pot %buck4r%c = c
+       nonbonded%pot(start+isec)%pot %buck4r%r1 = r1
+       nonbonded%pot(start+isec)%pot %buck4r%r2 = r2
+       nonbonded%pot(start+isec)%pot %buck4r%r3 = r3
+       nonbonded%pot(start+isec)%pot %buck4r%npoly1 = np1-1
+       IF( np1-1 > 10) THEN
+         CALL stop_program ("input_nonbonded","BUCK4r: too high polynomial order (>0)")
+       END IF
+       nonbonded%pot(start+isec)%pot %buck4r%poly1(0:np1-1) = coeff1(0:np1-1)
+       nonbonded%pot(start+isec)%pot %buck4r%npoly2 = np2-1
+       IF( np2-1 > 10) THEN
+         CALL stop_program ("input_nonbonded","BUCK4r: too high polynomial order (>0)")
+       END IF
+       nonbonded%pot(start+isec)%pot %buck4r%poly2(0:np2-1) = coeff2(0:np2-1)
+       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       DEALLOCATE(coeff1,coeff2,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END DO
+  END SUBROUTINE read_b4_section
+
+!******************************************************************************
+!!****** force_fields_input/read_bm_section [1.0] *
+!!
+!!   NAME
+!!     read_bm_section
+!!
+!!   FUNCTION
+!!     Reads the Buckingham plus Morse potential section
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_bm_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_bm_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: n_rep
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a1, a2, b1, b2, c, d
+    REAL(KIND=dp)                            :: f0, r0, beta, rcut
+
+    failure = .FALSE.
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       CALL section_vals_val_get(section,"F0",i_rep_section=isec,r_val=f0,error=error)
+       CALL section_vals_val_get(section,"A1",i_rep_section=isec,r_val=a1,error=error)
+       CALL section_vals_val_get(section,"A2",i_rep_section=isec,r_val=a2,error=error)
+       CALL section_vals_val_get(section,"B1",i_rep_section=isec,r_val=b1,error=error)
+       CALL section_vals_val_get(section,"B2",i_rep_section=isec,r_val=b2,error=error)
+       CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
+       CALL section_vals_val_get(section,"D",i_rep_section=isec,r_val=d,error=error)
+       CALL section_vals_val_get(section,"R0",i_rep_section=isec,r_val=r0,error=error)
+       CALL section_vals_val_get(section,"Beta",i_rep_section=isec,r_val=beta,error=error)
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = bm_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       nonbonded%pot(start+isec)%pot %buckmo%f0 = f0
+       nonbonded%pot(start+isec)%pot %buckmo%a1 = a1
+       nonbonded%pot(start+isec)%pot %buckmo%a2 = a2
+       nonbonded%pot(start+isec)%pot %buckmo%b1 = b1
+       nonbonded%pot(start+isec)%pot %buckmo%b2 = b2
+       nonbonded%pot(start+isec)%pot %buckmo%c = c
+       nonbonded%pot(start+isec)%pot %buckmo%d = d
+       nonbonded%pot(start+isec)%pot %buckmo%r0 = r0
+       nonbonded%pot(start+isec)%pot %buckmo%beta = beta
+       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+    END DO
+  END SUBROUTINE read_bm_section
 
 !******************************************************************************
 !!****** force_fields_input/read_chrg_section [1.0] *

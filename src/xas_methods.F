@@ -303,8 +303,6 @@ CONTAINS
     DO ispin = 1,dft_control%nspins
         CALL get_mo_set(mos(ispin)%mo_set,nelectron=nelectron,maxocc=maxocc,&
              homo=my_homo(ispin),uniform_occupation=my_uocc(ispin))
-        my_homo(ispin) = homo
-        my_uocc(ispin) = uocc
       IF(scf_control%smear /= 0.0_dp) THEN
         homo = NINT(nelectron/maxocc)
         uocc = .TRUE.
