@@ -490,6 +490,8 @@ CPSourceFileRef,&
     ELSE
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
+    CALL mp_environ(new_size,new_rank,new_group)
+
     IF (output_unit>0) THEN
         WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
         WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
@@ -550,7 +552,6 @@ CPSourceFileRef,&
 
           ! generate a fresh call to cp2k_run
           IF (ierr==0) THEN
-              CALL mp_environ(new_size,new_rank,new_group)
               IF (new_rank == 0) THEN
 
                  ! generate the output file
