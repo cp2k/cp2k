@@ -109,15 +109,23 @@ MODULE hartree_local_types
     natom = SIZE(ecoul_1c,1)
 
     DO iat= 1,natom
-      DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
+      IF (ASSOCIATED(ecoul_1c(iat)%Vh1_h%r_coef)) THEN
+          DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                           "ecoul_1c%Vh1_h%r_coef")
+      ENDIF
       DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "ecoul_1c%Vh1_h%r_coef")
+                       "ecoul_1c%Vh1_h")
 
-      DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
+      IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN 
+          DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                           "ecoul_1c%Vh1_s%r_coef")
+      ENDIF
       DEALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "ecoul_1c%Vh1_s%r_coef")
+                       "ecoul_1c%Vh1_s")
 
     END DO
 
