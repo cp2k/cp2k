@@ -229,8 +229,8 @@ CONTAINS
              atom_info%label_resname(iatom) = atom_info%label_molname(iatom)
              topology%molname_generated = .FALSE.
           END IF
-          atom_info%atm_mass(iatom) = 0.0_dp 
-          atom_info%atm_charge(iatom) = 0.0_dp 
+          atom_info%atm_mass(iatom)   = 0.0_dp 
+          atom_info%atm_charge(iatom) = -HUGE(0.0_dp)
        END DO
     END IF
     !-----------------------------------------------------------------------------

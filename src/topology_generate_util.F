@@ -547,8 +547,6 @@ CONTAINS
              CALL stop_program ("topology_generate_bond","illegal bondparm_type")
           END IF
           CALL convert_to_cp2k_units("ANGSTROM",length=radius(iatom))
-
-          atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
           IF(iw>0) WRITE(iw,'(T2,"GENERATE|",5X,A,T77,A5)') &
                "In topology_generate_bond :: iatom = ",ptable(ielem_found)%symbol
        END DO

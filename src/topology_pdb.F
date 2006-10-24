@@ -181,7 +181,7 @@ CONTAINS
           READ(line(73:76),*,IOSTAT=istat) atom_info%label_molname(natom)
           READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
           atom_info%atm_mass(natom)  = 0.0_dp
-          atom_info%atm_charge(natom)= 0.0_dp
+          atom_info%atm_charge(natom)= -HUGE(0.0_dp)
           IF(topology%charge_occup) & 
                atom_info%atm_charge(natom) = atom_info%occup(natom)
           IF(topology%charge_beta) &

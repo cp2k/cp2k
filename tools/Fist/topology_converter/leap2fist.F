@@ -833,7 +833,7 @@ CONTAINS
     !
     my_sec = 1
     int_format="I10"
-    psf_atm_fmt='(I10,T12,A,T21,I8,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.5,T88,I1)'
+    psf_atm_fmt='(I10,T12,A,T21,I8,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.3,T88,I1)'
     IF (psf_xplor) THEN 
        int_format="I8"
        psf_atm_fmt= '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'

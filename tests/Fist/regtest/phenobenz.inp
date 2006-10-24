@@ -38,6 +38,18 @@
         K 0.02
         THETA0 [deg] 120.0
       &end
+      &charge
+        atom h
+        charge 0.0
+      &end
+      &charge
+        atom o
+        charge 0.0
+      &end
+      &charge
+        atom c
+        charge 0.0
+      &end
     &END FORCEFIELD
     &POISSON
       &EWALD

@@ -1105,10 +1105,14 @@ CONTAINS
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
     INTEGER                                  :: handle, i, iatom, ielem, &
                                                 ielem_found, iw, natom, &
-                                                nelem, stat
-    LOGICAL                                  :: element_found, failure
+                                                nelem, stat, n_rep, i_rep
+    LOGICAL                                  :: element_found, failure, user_defined
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: kind_section
+    CHARACTER(LEN=default_string_length),&
+         POINTER, DIMENSION(:)               :: keyword
+    REAL(KIND=dp), POINTER, DIMENSION(:)     :: mass
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -1124,36 +1128,73 @@ CONTAINS
     !Get the temporary array that we need
     ALLOCATE(atm_symbol(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    !------------------------------------------------------------------------------
     DO iatom=1,natom
        atm_symbol(iatom) = ''
        IF(ASSOCIATED(atom_info%element)) THEN
           atm_symbol(iatom) = atom_info%element(iatom)
        END IF
     END DO
-    !------------------------------------------------------------------------------
-    !Set up the arrays that we need for this routine
+    ! Available external info
+    kind_section => section_vals_get_subs_vals(subsys_section,&
+         "KIND",error=error)
+    CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+    ALLOCATE(keyword(n_rep),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(mass(n_rep),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    mass = HUGE(0.0_dp)
+    DO i_rep=1,n_rep
+       CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+            c_val=keyword(i_rep),i_rep_section=i_rep,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+            keyword_name="ELEMENT",n_rep_val=i,error=error)
+       IF (i>0)  CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+            keyword_name="ELEMENT",c_val=keyword(i_rep),error=error)
+       CALL uppercase(keyword(i_rep))
+       CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+            keyword_name="MASS",n_rep_val=i,error=error)
+       IF (i>0)  CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+            keyword_name="MASS",r_val=mass(i_rep),error=error)
+    END DO
+    !
     DO iatom=1,natom
-       nelem = UBOUND(ptable,1)
-       element_found=.FALSE.
-       ielem_found=0
        upper_sym_1=atm_symbol(iatom)
        CALL uppercase(upper_sym_1)
-       DO ielem=1,nelem 
-          upper_sym_2=ptable(ielem)%symbol
-          CALL uppercase(upper_sym_2)
-          IF(upper_sym_1 == upper_sym_2)THEN
-             element_found=.TRUE.
-             ielem_found=ielem
+       !If we reach this point then we've definitely identified the element..
+       !Let's look if an external mass has been defined..
+       user_defined = .FALSE.
+       DO i= 1, SIZE(keyword)
+          IF (upper_sym_1==keyword(i)(1:2).AND.mass(i)/=HUGE(0.0_dp)) THEN
+             atom_info%atm_mass(iatom) = mass(i)
+             user_defined = .TRUE.
+             EXIT
           END IF
        END DO
-       IF (.NOT. element_found) THEN
-          CALL stop_program ("set_atm_mass"," CP2K should never reach this point!")         
-       ENDIF
-       atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
-       IF(iw>0) WRITE(iw,'(7X,A,A5)') "In topology_set_atm_mass :: iatom = ",ptable(ielem_found)%symbol
+       IF (.NOT.user_defined) THEN
+          !If not let's look at the tabulated value
+          nelem = UBOUND(ptable,1)
+          element_found=.FALSE.
+          ielem_found=0
+          DO ielem=1,nelem 
+             upper_sym_2=ptable(ielem)%symbol
+             CALL uppercase(upper_sym_2)
+             IF(upper_sym_1 == upper_sym_2)THEN
+                element_found=.TRUE.
+                ielem_found=ielem
+             END IF
+          END DO
+          IF (.NOT. element_found) THEN
+             CALL stop_program ("set_atm_mass"," CP2K should never reach this point!")         
+          ENDIF
+          atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
+       END IF
+       IF(iw>0) WRITE(iw,'(7X,A,A5)') "In topology_set_atm_mass :: iatom = ",&
+            ptable(ielem_found)%symbol
     END DO
-
+    DEALLOCATE(keyword,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(mass,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(atm_symbol,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 

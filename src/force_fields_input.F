@@ -75,7 +75,8 @@ MODULE force_fields_input
             read_force_field_gromos,&
             read_lj_section,&
             read_wl_section,&
-            read_gd_section
+            read_gd_section,&
+            read_chrg_section
 
 !!*****
 !******************************************************************************
@@ -172,26 +173,25 @@ CONTAINS
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFT",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhft,error=error)
-          ntot=nlj+nwl+neam+ngd
+          ntot=nlj+nwl+neam+ngd+nipbv
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhft,bmhft=.TRUE.,error=error)
              CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCK4RANGES",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nb4,error=error)
-          ntot=nlj+nwl+neam+ngd+nbmhft
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nb4,buck4r=.TRUE.,error=error)
              CALL read_b4_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCKMORSE",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbm,error=error)
-          ntot=nlj+nwl+neam+ngd+nbmhft+nb4
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbm,buckmo=.TRUE.,error=error)
              CALL read_bm_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
-
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)

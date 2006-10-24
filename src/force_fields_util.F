@@ -1407,11 +1407,14 @@ CONTAINS
           IF (ASSOCIATED(ff_type%inp_info%nonbonded%pot)) THEN
              ! Let's find the nonbonded potential where this atom is involved
              DO j = 1, SIZE(ff_type%inp_info%nonbonded%pot)
-                IF (atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
+                IF ( atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
                      atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN
                    SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
                    CASE (ea_type)
-                      ! Nothing to complain.. we don't need charges
+                      ! Charge is zero for EAM type potential
+                      charge(i) = 0.0_dp
+                      found     = .TRUE.
+                      EXIT
                    CASE default
                       IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
                                                                 fatal=fatal,&

@@ -37,7 +37,9 @@ MODULE topology_psf
   USE input_constants,                 ONLY: do_conn_psf,&
                                              do_conn_psf_u,&
                                              do_skip_14
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -51,6 +53,7 @@ MODULE topology_psf
   USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
   USE termination,                     ONLY: stop_program
+  USE force_fields_input,              ONLY: read_chrg_section
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -213,7 +216,7 @@ CONTAINS
              psf_format = '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
           CASE ("EXT")
              ! EXTEnded CHARMM31 format
-             psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.5,T88,I1)'
+             psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.3,T88,I1)'
              c_int      = 'I10'
           CASE DEFAULT
              IF (output_unit>0) WRITE(output_unit,'(T2,A)')&
@@ -614,11 +617,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE write_topology_psf (topology,para_env,subsys_section,error)
+  SUBROUTINE write_topology_psf (topology,para_env,subsys_section,force_env_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: subsys_section, force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
@@ -627,11 +630,16 @@ CONTAINS
     CHARACTER(LEN=2*default_string_length)   :: psf_format
     CHARACTER(LEN=default_string_length)     :: c_int, my_tag1, my_tag2, &
                                                 my_tag3, record
-    INTEGER                                  :: file_unit, handle, i, iw, j
-    LOGICAL                                  :: failure, ldum
+    INTEGER                                  :: file_unit, handle, i, iw, j, nchg, stat
+    LOGICAL                                  :: failure, ldum, explicit
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
+    REAL(KIND=dp), POINTER, DIMENSION(:)     :: charges
+    TYPE(section_vals_type), POINTER         :: tmp_section
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: charge_atm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -643,10 +651,42 @@ CONTAINS
     atom_info => topology%atom_info
     conn_info => topology%conn_info
 
+    ! Check for charges.. (need to dump them in the PSF..)
+    ALLOCATE(charges(topology%natoms),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (ALL(atom_info%atm_charge==-HUGE(0.0_dp))) THEN
+       ! Collect charges from Input file..
+       NULLIFY(tmp_section)
+       tmp_section => section_vals_get_subs_vals(force_env_section,"MM%FORCEFIELD%CHARGE",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+       IF (explicit) THEN
+          ALLOCATE(charge_atm(nchg),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(charge_inp(nchg),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL read_chrg_section(charge_atm,charge_inp,tmp_section,0,error)
+          DO j = 1, topology%natoms
+             DO i = 1, nchg
+                IF (atom_info%label_atmname(j)==charge_atm(i)) THEN
+                   charges(j) = charge_inp(i)
+                   EXIT
+                END IF
+             END DO
+          END DO
+          DEALLOCATE(charge_atm,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(charge_inp,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          charges = -999.0_dp
+       END IF
+    ELSE
+       charges = atom_info%atm_charge
+    END IF
     record = "topology_dump.psf"
     ! build the EXT format
     c_int="I10"
-    psf_format = '(I10,T12,A,T21,I0,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.5,T88,I1)'
+    psf_format = '(I10,T12,A,T21,I0,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.3,T88,I1)'
     IF(iw>0) WRITE(iw,'(T2,A)') &
          "PSF_WRITE| Writing out PSF file with CHARMM31 EXTErnal format: ",TRIM(record)
 
@@ -676,11 +716,13 @@ CONTAINS
             TRIM(my_tag2),&
             TRIM(my_tag3),&
             TRIM(my_tag3),&
-            atom_info%atm_charge(i),&
+            charges(i),&
             atom_info%atm_mass(i),&
             0
     END DO
     WRITE(file_unit,FMT='(/)')
+    DEALLOCATE(charges,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')SIZE(conn_info%bond_a)," !NBOND"
     DO i=1,SIZE(conn_info%bond_a),4

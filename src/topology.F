@@ -229,14 +229,17 @@ CONTAINS
     IF (my_qmmm) THEN
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,para_env, my_qmmm, qmmm_env, subsys_section,force_env_section=force_env_section,&
+            topology,para_env, my_qmmm, qmmm_env, subsys_section,&
+            force_env_section=force_env_section,&
             error=error)
     ELSE 
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,para_env,subsys_section=subsys_section,force_env_section=force_env_section,&
+            topology,para_env,subsys_section=subsys_section,&
+            force_env_section=force_env_section,&
             error=error)
     END IF
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 9. Deal with the constraint stuff if requested
@@ -255,10 +258,9 @@ CONTAINS
     ! 10. Dump the topology informations
     !-----------------------------------------------------------------------------
     IF(topology%dump_topology) THEN
-       CALL write_topology_psf(topology,para_env,subsys_section,error)
+       CALL write_topology_psf(topology,para_env,subsys_section,force_env_section,error)
        CALL write_coordinate_pdb(topology,para_env,subsys_section,error)
     END IF
-
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
