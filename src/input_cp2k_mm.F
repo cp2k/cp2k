@@ -455,12 +455,12 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TORSION",&
-            description="specifies the torsion potential of the MM system.",&
+            description="specifies the torsion potential of the MM system."//&
+            "Functional Form (CHARMM): K*[1+cos[M*PHI-PHI0]].",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
-       
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the tors.",&
             usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
@@ -538,7 +538,9 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
-            description="specifies the bend potential of the MM system.",&
+            description="specifies the bend potential of the MM system."//&
+            "Functional Form (G97): K*(COS(THETA)-THETA0)^2"//&
+            "Functional Form (HARMONIC/CHARMM/G87): K*(THETA-THETA0)^2",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -574,7 +576,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="UB",&
-            description="specifies the UB potential of the MM system.",&
+            description="specifies the UB potential of the MM system."//&
+            "Functional Form (CHARMM): K*(R-R0)^2",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -637,7 +640,10 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BOND",&
-            description="specifies the bond potential the MM system",&
+            description="specifies the bond potential the MM system"//&
+            "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"//&
+            "Functional Form (G96): 1/4*K*(R-R0)^2"//&
+            "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -652,7 +658,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="KIND",&
             description="kind of bond",&
-            usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}", required=.FALSE., type_of_var=lchar_t,&
+            usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}",&
+            required=.FALSE., type_of_var=lchar_t,&
             default_lc_val="CHARMM",&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -972,7 +979,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="lennard-jones",&
-            description="This section specifies the input parameters for LENNARD-JONES potential type.",&
+            description="This section specifies the input parameters for LENNARD-JONES potential type."//&
+            "Functional form: V(r) = EPSILON * [(SIGMA/r)^12-(SIGMA/r)^6].",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -1049,7 +1057,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="williams",&
-            description="This section specifies the input parameters for WILLIAMS potential type.",&
+            description="This section specifies the input parameters for WILLIAMS potential type."//&
+            "Functional form: V(r) = A*EXP(-B*r) - C / r^6 .",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -1132,7 +1141,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="goodwin",&
-            description="This section specifies the input parameters for GOODWIN potential type.",&
+            description="This section specifies the input parameters for GOODWIN potential type."//&
+            "Functional form: V(r) = EXP(M*(-(r/DC)**MC+(D/DC)**MC))*VR0*(D/r)**M.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -1229,7 +1239,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="ipbv",&
-            description="This section specifies the input parameters for IPBV potential type.",&
+            description="This section specifies the input parameters for IPBV potential type."//&
+            "Functional form: Implicit table function.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -1292,7 +1303,9 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BMHFT",&
-            description="This section specifies the input parameters for BMHFT potential type.",&
+            description="This section specifies the input parameters for BMHFT potential type."//&
+            "Functional form: V(r) = A * EXP(-B*r) - C/r^6 - D/r^8."//&
+            "Values available inside cp2k only for the Na/Cl pair.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -1305,11 +1318,38 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the BMHFT potential",&
             usage="RCUT {real}", default_r_val=7.8_dp,&
             unit_str="angstrom",  error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="A",&
+            description="Defines the A parameter of the Fumi-Tosi Potential",&
+            usage="A {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B",&
+            description="Defines the B parameter of the Fumi-Tosi Potential",&
+            usage="B {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="C",&
+            description="Defines the C parameter of the Fumi-Tosi Potential",&
+            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^6",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="D",&
+            description="Defines the D parameter of the Fumi-Tosi Potential",&
+            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^8",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1353,7 +1393,10 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BUCK4RANGES",&
-            description="This section specifies the input parameters for Buckingham 4 ranges potential type.",&
+            description="This section specifies the input parameters for Buckingham 4"//&
+            " ranges potential type."//&
+            "Functional form: (r<r1) V(r) = A* EXP(-B*r); (r1<r<r2) V(r) = SUM_n POLY1(n)*R^n;"//&
+            "(r2<r<r3) V(r) = SUM_n POLY2(n)*R^n; (r>r3) V(r) = -C/r^6",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -1475,7 +1518,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BUCKMORSE",&
             description="This section specifies the input parameters for"//&
-            " Buckingham plus Morse potential type (Yamada et al, J. All. Comp. 307 (2000) 10).",&
+            " Buckingham plus Morse potential type (Yamada et al, J. All. Comp. 307 (2000) 10)."//&
+            " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*EXP[-2*beta*(r-R0)].",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 

@@ -56,7 +56,7 @@ MODULE force_fields_input
   USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, ea_type, eam_pot_type, ft_type, gw_type, &
-       ip_type, lj_charmm_type, lj_type, pair_potential_p_type, &
+       ip_type, lj_charmm_type, pair_potential_p_type, &
        pair_potential_reallocate, pair_potential_single_type, wl_type
   USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: uppercase
@@ -514,7 +514,6 @@ CONTAINS
        CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-       nonbonded%pot(start+isec)%pot %type = lj_type
        nonbonded%pot(start+isec)%pot %type = lj_charmm_type
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
@@ -707,7 +706,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: isec, n_items, i
     REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -718,8 +717,21 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
-            nonbonded%pot(start+isec)%pot )
+       
+       CALL section_vals_val_get(section,"A",i_rep_section=isec,n_rep_val=i,error=error)
+       IF (i==1) THEN
+          CALL section_vals_val_get(section,"A",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%ft%a,error=error)
+          CALL section_vals_val_get(section,"B",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%ft%b,error=error)
+          CALL section_vals_val_get(section,"C",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%ft%c,error=error)
+          CALL section_vals_val_get(section,"D",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%ft%d,error=error)
+       ELSE
+          CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
+               nonbonded%pot(start+isec)%pot )
+       END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
     END DO

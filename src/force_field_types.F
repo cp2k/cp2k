@@ -65,7 +65,6 @@ MODULE force_field_types
     INTEGER                        :: nmul
     INTEGER, POINTER               :: m(:)
     REAL(KIND = dp), POINTER       :: k(:),cosphi0(:)
-    REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
@@ -360,7 +359,6 @@ CONTAINS
        DO ikind=1,nkind
           torsion_kind_set(ikind)%name = "UNDEF"
           torsion_kind_set(ikind)%nmul = 0
-          torsion_kind_set(ikind)%a(:) = 0.0_dp
           NULLIFY(torsion_kind_set(ikind)%k)
           NULLIFY(torsion_kind_set(ikind)%m)
           NULLIFY(torsion_kind_set(ikind)%cosphi0)

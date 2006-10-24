@@ -329,7 +329,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
             CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
                               is32,dist1,dist2,u1,u2,iw1,iw2, &
-                              torsion_list(itorsion)%torsion_kind%a, &
                               torsion_list(itorsion)%torsion_kind%k(imul), &
                               torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                               torsion_list(itorsion)%torsion_kind%m(imul), &

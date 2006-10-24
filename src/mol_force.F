@@ -89,9 +89,7 @@ SUBROUTINE force_bonds ( TYPE, rij, r0, k, energy, fscalar )
     CALL stop_program ("mol_force.F","unmatched bond kind")
   END SELECT
   
-
 END SUBROUTINE force_bonds
-
 
 !!*****
 !******************************************************************************
@@ -170,7 +168,7 @@ END SUBROUTINE force_bends
 !******************************************************************************
 
 SUBROUTINE force_torsions ( TYPE, is32, dist1, dist2, u1, u2, iw1, iw2, &
-           a, k, cosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
+           k, cosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
 
 
     CHARACTER(len=default_string_length), &
@@ -178,8 +176,6 @@ SUBROUTINE force_torsions ( TYPE, is32, dist1, dist2, u1, u2, iw1, iw2, &
     REAL(KIND=dp), INTENT(IN)                :: is32, dist1, dist2
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: u1, u2
     REAL(KIND=dp), INTENT(IN)                :: iw1, iw2
-    REAL(KIND=dp), DIMENSION(0:3), &
-      INTENT(IN)                             :: a
     REAL(KIND=dp), INTENT(IN)                :: k, cosphi0
     INTEGER, INTENT(IN)                      :: m
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
@@ -230,13 +226,6 @@ SUBROUTINE force_torsions ( TYPE, is32, dist1, dist2, u1, u2, iw1, iw2, &
 
 ! compute fscalar
      fscalar = -fscalar * cosphi0 * k
-  CASE ( "POWER" )
-     energy = a(0) + a(1) + 2.0_dp * a(2) + a(3) &
-           + ( a(1) - 3.0_dp * a(3) ) * cosphi &
-           - 2.0_dp * a(2) * cosphi ** 2 + 4.0_dp * a(3) * cosphi ** 3
-
-! compute fscalar
-     fscalar = - a(1) + 3.0_dp * a(3) + 4.0_dp * a(2) * cosphi - 12.0_dp * a(3) * cosphi ** 2
   CASE DEFAULT
      CALL stop_program ("mol_force.F","unmatched torsion kind")
   END SELECT 

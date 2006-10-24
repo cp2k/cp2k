@@ -86,7 +86,7 @@ CONTAINS
             4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
             sigma6*r**(-6)) - pot%energy_cutoff
     ELSE IF (pot%type==lj_type) THEN
-       ener_pot = vdw_scale14 * &
+       ener_pot = vdw_scale14 * pot%lj%epsilon* &
             (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - pot%energy_cutoff
     ELSE IF (pot%type==ip_type) THEN
        ener_pot = 0._dp
@@ -124,12 +124,12 @@ CONTAINS
       IF(r<=pot%buck4r%r1) THEN
         pp = pot%buck4r%a*EXP(-pot%buck4r%b*r)
       ELSEIF(r>pot%buck4r%r1.AND.r<=pot%buck4r%r2) THEN
-        pp = 0
+        pp = 0.0_dp
         DO n = 0,pot%buck4r%npoly1
           pp = pp+pot%buck4r%poly1(n)*r**n
         END DO 
       ELSEIF(r>pot%buck4r%r2.AND.r<=pot%buck4r%r3) THEN
-        pp = 0
+        pp = 0.0_dp
         DO n = 0,pot%buck4r%npoly2
           pp = pp+pot%buck4r%poly2(n)*r**n
         END DO 
@@ -141,7 +141,7 @@ CONTAINS
       ener_pot = pot%buckmo%f0*(pot%buckmo%b1+pot%buckmo%b2)*&
                EXP((pot%buckmo%a1+pot%buckmo%a2-r)/(pot%buckmo%b1+pot%buckmo%b2))&
                - pot%buckmo%c/r**6  &
-               + pot%buckmo%d*((1-EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))**2)-1) &
+               + pot%buckmo%d*(EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))**2) &
                - pot%energy_cutoff
     ELSE
        ener_pot = 0.0_dp
@@ -189,7 +189,6 @@ CONTAINS
        ! to avoid a large numberof points in the spline generation
        ! we evaluate the 1-4 interactions analytically..
        ener_coul = 0.0_dp
-       !ei_scale14 * ifourpi / eps0 * qi * qj / r - pot % e_cutoff_coul
     ENDIF
 
   END FUNCTION ener_coul
