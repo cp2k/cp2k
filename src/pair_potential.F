@@ -141,7 +141,8 @@ CONTAINS
       ener_pot = pot%buckmo%f0*(pot%buckmo%b1+pot%buckmo%b2)*&
                EXP((pot%buckmo%a1+pot%buckmo%a2-r)/(pot%buckmo%b1+pot%buckmo%b2))&
                - pot%buckmo%c/r**6  &
-               + pot%buckmo%d*(EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))**2) &
+               + pot%buckmo%d*(EXP(-2._dp*pot%buckmo%beta*(r-pot%buckmo%r0))- &
+                               2.0_dp*EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))) &
                - pot%energy_cutoff
     ELSE
        ener_pot = 0.0_dp

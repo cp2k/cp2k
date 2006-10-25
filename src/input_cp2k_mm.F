@@ -1519,7 +1519,7 @@ CONTAINS
        CALL section_create(section,name="BUCKMORSE",&
             description="This section specifies the input parameters for"//&
             " Buckingham plus Morse potential type (Yamada et al, J. All. Comp. 307 (2000) 10)."//&
-            " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*EXP[-2*beta*(r-R0)].",&
+            " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*{EXP[-2*beta*(r-R0)]-2*EXP[-beta*(r-R0)]}.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
