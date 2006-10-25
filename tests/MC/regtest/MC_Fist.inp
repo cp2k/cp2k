@@ -255,8 +255,11 @@
  H       3.889107504717      6.253294143532     13.221731148935
     &END COORD
     &TOPOLOGY
-      CONN_FILE topology_fist_64.psf
-      CONNECTIVITY UPSF
+      &MOL_SET
+        CONN_FILE topology_fist_WAT.psf
+        NMOL 64
+      &END
+      CONNECTIVITY MOL_SET
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
