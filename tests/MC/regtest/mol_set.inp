@@ -1,0 +1,174 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &BOND
+        ATOMS O  H
+        K  0.0
+        R0 0.97572
+      &END BOND
+      &BOND
+        ATOMS H  H
+        K  0.0
+        R0 1.5139
+      &END BOND
+      &BEND
+        ATOMS H  O  H
+        K  0.0
+        THETA0 1.82422
+      &END BEND
+      &NONBONDED
+        &LENNARD-JONES 
+  	  ATOMS Ar Ar
+          EPSILON 60.0
+          SIGMA 2.5 
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES 
+  	  ATOMS Ar O
+          EPSILON 70.0
+          SIGMA 2.8 
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES 
+  	  ATOMS Ar H
+          EPSILON 0.0
+          SIGMA 2.5 
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES 
+  	  ATOMS O O
+          EPSILON 78.19580 
+          SIGMA 3.1655 
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES 
+  	  ATOMS O H
+          EPSILON 0.0
+          SIGMA 3.1655 
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES 
+  	  ATOMS H H 
+          EPSILON 0.0
+          SIGMA 3.1655 
+          RCUT 5.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .40
+        GMAX 11
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.5 13.5 13.5
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ O      11.667599837210      7.964352234664      0.059453614019
+ H      10.873359634781      8.005423314626      0.665667823055
+ H      11.364979095795      7.770411108906     -0.873716837951
+ O       2.314161441602      5.011228167767      2.784706973673
+ H       1.663128370368      5.686998340596      3.130381117447
+ H       2.659721328394      5.306531429441      1.893985965664
+ Ar      11.43   3.54   6.24
+ O      10.262864742466      5.548805003571     11.360725453725
+ H      10.424041748648      4.666485986338     11.802918991113
+ H       9.436479204754      5.494708086386     10.800225647804
+ O       5.937092785694     12.752770338234      7.554822749656
+ H       6.459679552548     12.731874699056      8.407152758147
+ H       6.560379344025     12.890048310674      6.784973290144
+ Ar      1.43   3.54   6.24
+ Ar      4.43   10.54   9.24
+ O       1.052476316752      3.192494253568      0.284763135867
+ H       1.009686510209      3.892635795528      0.997483876183
+ H       1.385134340137      3.601676794269     -0.564888471374
+ O      11.621014134223      7.899470257763      6.835708666826
+ H      10.723243819476      8.290315257093      7.038806299646
+ H      12.107936378358      8.496446358905      6.198114886544
+ O       3.255054397643      5.532098285916     13.500752220167
+ H       3.169785700155      4.860242146843     12.764995074351
+ H       3.889107504717      6.253294143532     13.221731148935
+ Ar      11.43   3.54   2.24
+ Ar      2.43   5.54   6.24
+ Ar      10.43   5.54   5.24
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY MOL_SET
+      &MOL_SET
+        NMOL 2
+        CONN_FILE water.psf
+      &END
+      &MOL_SET
+        NMOL 1
+        CONN_FILE argon.psf
+      &END
+      &MOL_SET
+        NMOL 2
+        CONN_FILE water.psf
+      &END
+      &MOL_SET
+        NMOL 2
+        CONN_FILE argon.psf
+      &END
+      &MOL_SET
+        NMOL 3
+        CONN_FILE water.psf
+      &END
+      &MOL_SET
+        NMOL 3
+        CONN_FILE argon.psf
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT H2O_MC
+  RUN_TYPE MC
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MC
+    IUPTRANS 6400000
+    IUPVOLUME 3200000
+    LBIAS no
+    LSTOP yes
+    NMOVES 1
+    NSTEP 10
+    PMSWAP 0.0
+    PMTRAION 1.00
+    PMTRANS 0.0
+    PMVOLUME 0.00
+    PRESSURE 1.013
+    PROGRAM traditional
+    RESTART no
+    RESTART_FILE_NAME mc_restart_1
+    RMDIHEDRAL 3.0
+    RMANGLE 3.0
+    RMBOND 0.074
+    RMROT 26.0
+    RMTRANS 0.38
+    RMVOLUME 50.0
+    TEMP 298.0
+    IPRINT 1
+  &END MC
+&END MOTION

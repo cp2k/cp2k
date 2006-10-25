@@ -1,0 +1,22 @@
+ PSF
+
+   1 !NTITLE
+     Topology file for argon
+
+     1  !NATOM
+       1 ARG     1 ARG  Ar   Ar         0.000000     15.999400       0
+
+     0  !NBOND
+
+     0   !NTHETA
+
+     0   !NPHI
+
+     0   !NIMPHI
+
+     0   !NDON
+
+     0   !NACC
+
+     0   !NNB
+
