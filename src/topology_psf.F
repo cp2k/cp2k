@@ -322,8 +322,8 @@ CONTAINS
                   i=1,MIN(4,(nbond-ibond+1)))
           END DO
        END IF
-       conn_info%bond_a=conn_info%bond_a+natom_prev
-       conn_info%bond_b=conn_info%bond_b+natom_prev
+       conn_info%bond_a(nbond_prev+1:)=conn_info%bond_a(nbond_prev+1:)+natom_prev
+       conn_info%bond_b(nbond_prev+1:)=conn_info%bond_b(nbond_prev+1:)+natom_prev
     END IF
     !
     ! PARA_RES structure
@@ -394,9 +394,9 @@ CONTAINS
                   i=1,MIN(3,(ntheta-itheta+1)))
           END DO
        END IF
-       conn_info%theta_a=conn_info%theta_a+natom_prev
-       conn_info%theta_b=conn_info%theta_b+natom_prev
-       conn_info%theta_c=conn_info%theta_c+natom_prev
+       conn_info%theta_a(ntheta_prev+1:)=conn_info%theta_a(ntheta_prev+1:)+natom_prev
+       conn_info%theta_b(ntheta_prev+1:)=conn_info%theta_b(ntheta_prev+1:)+natom_prev
+       conn_info%theta_c(ntheta_prev+1:)=conn_info%theta_c(ntheta_prev+1:)+natom_prev
     END IF
     !
     ! UB structure
@@ -452,10 +452,10 @@ CONTAINS
                   i=1,MIN(2,(nphi-iphi+1)))
           END DO
        END IF
-       conn_info%phi_a=conn_info%phi_a+natom_prev
-       conn_info%phi_b=conn_info%phi_b+natom_prev
-       conn_info%phi_c=conn_info%phi_c+natom_prev
-       conn_info%phi_d=conn_info%phi_d+natom_prev
+       conn_info%phi_a(nphi_prev+1:)=conn_info%phi_a(nphi_prev+1:)+natom_prev
+       conn_info%phi_b(nphi_prev+1:)=conn_info%phi_b(nphi_prev+1:)+natom_prev
+       conn_info%phi_c(nphi_prev+1:)=conn_info%phi_c(nphi_prev+1:)+natom_prev
+       conn_info%phi_d(nphi_prev+1:)=conn_info%phi_d(nphi_prev+1:)+natom_prev
     END IF
     !
     ! ONFO structure
@@ -464,9 +464,9 @@ CONTAINS
        conn_info%onfo_a(:) = conn_info%phi_a(:)
        conn_info%onfo_b(:) = conn_info%phi_d(:)
        ! Reorder bonds
-       ALLOCATE(ex_bond_list(natom),stat=stat)
+       ALLOCATE(ex_bond_list(natom+natom_prev),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I=1,natom
+       DO I=1,natom+natom_prev
           ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
@@ -474,9 +474,9 @@ CONTAINS
        IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
        CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
        ! Reorder bends
-       ALLOCATE(ex_bend_list(natom),stat=stat)
+       ALLOCATE(ex_bend_list(natom+natom_prev),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I=1,natom
+       DO I=1,natom+natom_prev
           ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
@@ -493,23 +493,23 @@ CONTAINS
           conn_info%onfo_b(nonfo) = conn_info%onfo_b(ionfo)
        END DO
        ! deallocate bends
-       DO I=1,natom
+       DO I=1,natom+natom_prev
           DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        DEALLOCATE(ex_bend_list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! deallocate bonds
-       DO I=1,natom
+       DO I=1,natom+natom_prev
           DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        DEALLOCATE(ex_bond_list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Get unique onfo
-       ALLOCATE(ex_bond_list(natom),stat=stat)
+       ALLOCATE(ex_bond_list(natom+natom_prev),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I=1,natom
+       DO I=1,natom+natom_prev
           ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
@@ -517,7 +517,7 @@ CONTAINS
        IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo_prev+nonfo
        CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
        nonfo = 0
-       DO I=1,natom
+       DO I=1,natom+natom_prev
           DO ionfo = 1, SIZE(ex_bond_list(I)%array1)
              IF (COUNT(ex_bond_list(I)%array1==ex_bond_list(I)%array1(ionfo))/=1) THEN
                 ex_bond_list(I)%array1(ionfo) = 0
@@ -531,7 +531,7 @@ CONTAINS
        END DO
        CALL reallocate(conn_info%onfo_a,1,nonfo_prev+nonfo)
        CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nonfo)
-       DO I=1,natom
+       DO I=1,natom+natom_prev
           DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
