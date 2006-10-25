@@ -10,5 +10,3 @@ MC_QS.inp 6
 MC_Fist.inp 6
 # KG MC testing GEMC simulation on water
 MC_KG_box1.inp 6
-# general test for using mol_set
-mol_set.inp 6
