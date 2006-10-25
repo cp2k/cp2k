@@ -619,11 +619,13 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=5)                         :: cfile
     CHARACTER(LEN=default_string_length)     :: c_val, name, name_a, name_b, &
-                                                name_c, name_d, unit_type
+                                                name_c, name_d, unit_type,&
+                                                mol_name
+                                                
     INTEGER :: current_bend, current_bond, current_torsion, ewald_type, gmax, &
       handle, i_val, iatom, ibend, ibond, ichain, ifunct, imul, itorsion, &
       itype, jbend, jbond, jtorsion, jtype, natoms, nbend, nbond, nchains, &
-      ns_max, ntorsion, ntypes, o_spline, stat, unit
+      ns_max, ntorsion, ntypes, o_spline, stat, unit,imolecule
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
@@ -693,10 +695,17 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 ! get some molecule information
       CALL cp_subsys_get(subsys(1)%subsys, &
          molecule_kinds_new=molecule_kinds_new,error=error)
-      molecule_kind => molecule_kinds_new%els(1)
-      CALL get_molecule_kind(molecule_kind,atom_list=atom_list,&
-         natom=natoms,bond_list=bond_list,bend_list=bend_list,&
-         torsion_list=torsion_list,nbond=nbond,nbend=nbend,ntorsion=ntorsion)
+
+! more than one molecule?
+      IF(SIZE(molecule_kinds_new%els(:)) .GT. 1) THEN
+         STOP 'Cannot do more than one molecule yet'
+      ELSE
+         molecule_kind => molecule_kinds_new%els(1)
+         CALL get_molecule_kind(molecule_kind,atom_list=atom_list,&
+              natom=natoms,bond_list=bond_list,bend_list=bend_list,&
+              torsion_list=torsion_list,nbond=nbond,nbend=nbend,&
+              ntorsion=ntorsion,name=mol_name)
+      ENDIF
 
 ! find out how many atom types we have
       ntypes=SIZE(atomic_kind_set(:))
@@ -1082,25 +1091,31 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             WRITE(unit,10000) "    &END KIND"
          ENDDO
       ENDIF
-! write the topology section
+! write the topology section, using MOL_SET
       WRITE(unit,10000) "    &TOPOLOGY"
-      CALL section_vals_val_get(input,"SUBSYS%TOPOLOGY%CONNECTIVITY",c_val=c_val,error=error)
-      WRITE(unit,20001) "      CONNECTIVITY ",TRIM(ADJUSTL(c_val))
-      WRITE(cfile,'(I4)') natoms_tot/natoms
-      IF(nchains == 0) cfile="1"
-      SELECT CASE ( force_env%in_use )
-      CASE ( use_fist_force )
-         WRITE(unit,10000) '      CONN_FILE topology_fist_' &
-              // TRIM(ADJUSTL(cfile)) // '.psf'
-      CASE ( use_qs_force )
-         WRITE(unit,10000) '      CONN_FILE topology_atoms_' &
-              // TRIM(ADJUSTL(cfile)) // '.psf'
-      CASE ( use_kg_force )
-         WRITE(unit,10000) '      CONN_FILE topology_atoms_' &
-              // TRIM(ADJUSTL(cfile)) // '.psf'
-      CASE default
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-      END SELECT
+!      CALL section_vals_val_get(input,"SUBSYS%TOPOLOGY%CONNECTIVITY",c_val=c_val,error=error)
+!      WRITE(unit,20001) "      CONNECTIVITY ",TRIM(ADJUSTL(c_val))
+      WRITE(unit,10000) "      CONNECTIVITY MOL_SET"
+!      WRITE(cfile,'(I4)') natoms_tot/natoms
+!      IF(nchains == 0) cfile="1"
+      DO imolecule=1,1
+        WRITE(unit,10000) "      &MOL_SET"
+        SELECT CASE ( force_env%in_use )
+        CASE ( use_fist_force )
+           WRITE(unit,10000) '        CONN_FILE topology_fist_' &
+                // TRIM(ADJUSTL(mol_name)) // '.psf'
+        CASE ( use_qs_force )
+           WRITE(unit,10000) '        CONN_FILE topology_atoms_' &
+                // TRIM(ADJUSTL(mol_name)) // '.psf'
+        CASE ( use_kg_force )
+           WRITE(unit,10000) '        CONN_FILE topology_atoms_' &
+                // TRIM(ADJUSTL(mol_name)) // '.psf'
+        CASE default
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END SELECT
+        WRITE(unit,20003) "        NMOL ",nchains
+        WRITE(unit,10000) "      &END MOL_SET"
+      ENDDO
       WRITE(unit,10000) "    &END TOPOLOGY"
       WRITE(unit,10000) "  &END SUBSYS"
       WRITE(unit,10000) "&END FORCE_EVAL"
