@@ -4,9 +4,9 @@
      Topology file for water
 
      3   !NATOM
-       1 H2O     1 H2O  O    O          0.000000     15.999400       0
-       2 H2O     1 H2O  H    H          0.000000      1.008000       0
-       3 H2O     1 H2O  H    H          0.000000      1.008000       0
+       1 WAT     1 WAT  O    O          0.000000     15.999400       0
+       2 WAT     1 WAT  H    H          0.000000      1.008000       0
+       3 WAT     1 WAT  H    H          0.000000      1.008000       0
 
      2   !NBOND
        1       2       1       3     
