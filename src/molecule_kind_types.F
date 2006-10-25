@@ -149,7 +149,7 @@ MODULE molecule_kind_types
     TYPE(fixd_constraint_type), DIMENSION(:), POINTER :: fixd_list
     CHARACTER(LEN=default_string_length)              :: name
     INTEGER                                           :: nhcopt
-    REAL(KIND = dp), DIMENSION(:), POINTER            :: charge,&
+    REAL(KIND = dp)                                   :: charge,&
                                                          mass
     INTEGER                                           :: kind_number,&
                                                          natom,&
@@ -295,8 +295,8 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%bond_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%bend_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%torsion_kind_set)
-      NULLIFY (molecule_kind_set(imolecule_kind)%charge)
-      NULLIFY (molecule_kind_set(imolecule_kind)%mass)
+      molecule_kind_set(imolecule_kind)%charge = 0.0_dp
+      molecule_kind_set(imolecule_kind)%mass = 0.0_dp
       molecule_kind_set(imolecule_kind)%name = ""
       molecule_kind_set(imolecule_kind)%molname_generated = .FALSE.
       molecule_kind_set(imolecule_kind)%nhcopt = -1
@@ -543,8 +543,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
     INTEGER, INTENT(OUT), OPTIONAL           :: nhcopt
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: mass, charge
+    REAL(KIND=dp), OPTIONAL                  :: mass, charge
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
                                                 nbond, nub, nimpr, nonfo, &
                                                 nconstraint, nfixd
@@ -594,8 +593,8 @@ CONTAINS
       IF (PRESENT(name)) name = molecule_kind%name
       IF (PRESENT(molname_generated)) molname_generated = molecule_kind%molname_generated
       IF (PRESENT(nhcopt)) nhcopt = molecule_kind%nhcopt
-      IF (PRESENT(mass)) mass => molecule_kind%mass
-      IF (PRESENT(charge)) charge => molecule_kind%charge
+      IF (PRESENT(mass)) mass = molecule_kind%mass
+      IF (PRESENT(charge)) charge = molecule_kind%charge
       IF (PRESENT(kind_number)) kind_number = molecule_kind%kind_number
       IF (PRESENT(natom)) natom = molecule_kind%natom
       IF (PRESENT(nbend)) nbend = molecule_kind%nbend
@@ -799,8 +798,7 @@ CONTAINS
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: mass, charge
+    REAL(KIND=dp), OPTIONAL                  :: mass, charge
     INTEGER, INTENT(IN), OPTIONAL            :: kind_number
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     TYPE(atom_type), DIMENSION(:), &
@@ -869,8 +867,8 @@ CONTAINS
       IF (PRESENT(molname_generated)) molecule_kind%molname_generated = molname_generated
       IF (PRESENT(name)) molecule_kind%name = name
       IF (PRESENT(nhcopt)) molecule_kind%nhcopt = nhcopt
-      IF (PRESENT(mass)) molecule_kind%mass => mass
-      IF (PRESENT(charge)) molecule_kind%charge => charge
+      IF (PRESENT(mass)) molecule_kind%mass = mass
+      IF (PRESENT(charge)) molecule_kind%charge = charge
       IF (PRESENT(kind_number)) molecule_kind%kind_number = kind_number
       IF (PRESENT(nbond)) molecule_kind%nbond = nbond
       IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list

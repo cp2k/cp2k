@@ -2182,6 +2182,7 @@ CONTAINS
     INTEGER                                  :: handle, iatom, imol, iw
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: qeff, qeff_mol, qeff_sum
+    REAL(KIND=dp)                            :: mass, mass_mol, mass_sum
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2200,36 +2201,41 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 1. Sum of qeff for each molecule_kind
+    ! 1. Sum of [qeff,mass] for each molecule_kind
     !-----------------------------------------------------------------------------
     DO imol=1,SIZE(molecule_kind_set)
        qeff_mol=0.0_dp
+       mass_mol=0.0_dp
        molecule_kind => molecule_kind_set(imol)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             name=molname,atom_list=atom_list)
        DO iatom=1,SIZE(atom_list)
           atomic_kind => atom_list(iatom)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=atmname,qeff=qeff)
+               name=atmname,qeff=qeff,mass=mass)
           IF(iw>0) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname)," charge = ",qeff
           qeff_mol = qeff_mol + qeff
+          mass_mol = mass_mol + mass
        END DO
+       CALL set_molecule_kind(molecule_kind=molecule_kind,charge=qeff_mol,mass=mass_mol)
        IF(iw>0) WRITE(iw,*) "    Mol Kind ",TRIM(molname)," charge = ",qeff_mol
     END DO
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 2. Sum of qeff for particle_set
+    ! 2. Sum of [qeff,mass] for particle_set
     !-----------------------------------------------------------------------------
     DO iatom=1,SIZE(particle_set)
        atomic_kind => particle_set(iatom)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            name=atmname,qeff=qeff)
+            name=atmname,qeff=qeff,mass=mass)
        IF(iw>0) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname),&
             " charge = ",qeff
        qeff_sum = qeff_sum + qeff
+       mass_sum = mass_sum + mass
     END DO
     IF(iw>0) WRITE(iw,*) "    Total system charge = ",qeff_sum
+    IF(iw>0) WRITE(iw,*) "    Total system mass   = ",mass_sum
 
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
