@@ -308,7 +308,7 @@ CONTAINS
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
-    REAL(dp)                                 :: value
+    REAL(dp)                                 :: value,tmpsqrt
     TYPE(section_vals_type), POINTER :: ddapc_restraint_section, loc_section, &
       mull_section, s2_restraint_section, se_section
 
@@ -326,14 +326,15 @@ CONTAINS
 
     ! Setup all defaults values and overwrite input parameters
     CALL section_vals_val_get(qs_section,"EPS_DEFAULT",r_val=value,error=error)
+    tmpsqrt=SQRT(value) ! a trick to work around a NAG 5.1 optimizer bug
     qs_control%eps_core_charge = value/100.0_dp
-    qs_control%eps_pgf_orb = SQRT(value)
+    qs_control%eps_pgf_orb = tmpsqrt
     qs_control%eps_ppl = value/100.0_dp
     qs_control%eps_ppnl = value/100.0_dp
     qs_control%eps_rho_gspace = value
     qs_control%eps_rho_rspace = value
-    qs_control%eps_gvg_rspace = SQRT(value)
-    qs_control%eps_kg_gpw = SQRT(value)*1000._dp
+    qs_control%eps_gvg_rspace = tmpsqrt
+    qs_control%eps_kg_gpw = tmpsqrt*1000._dp
     !
     CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
