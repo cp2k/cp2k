@@ -2229,9 +2229,11 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
               END IF
            END IF
         END IF
-        IF (.NOT.my_hide_root) indent = indent - 2
-        WRITE (UNIT=unit_nr,FMT="(A)")&
-          REPEAT(" ",indent)//"&END "//TRIM(section%name)
+        IF (.NOT.my_hide_root) THEN
+          indent = indent - 2
+          WRITE (UNIT=unit_nr,FMT="(A)")&
+            REPEAT(" ",indent)//"&END "//TRIM(section%name)
+        END IF
      END DO
   END IF
   CALL cp_error_dealloc_ref(suberror)
