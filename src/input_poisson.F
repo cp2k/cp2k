@@ -391,7 +391,10 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="mt",&
-            description="Sets up parameters of  Martyna-Tuckerman poisson solver",&
+            description="Sets up parameters of  Martyna-Tuckerman poisson solver. "//&
+                        "Note that exact results are only guaranteed if the unit cell is "//&
+                        "twice as large as charge density (and serious artefacts can result "//&
+                        "if the cell is much smaller).",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
