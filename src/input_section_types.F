@@ -2230,10 +2230,8 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
            END IF
         END IF
         IF (.NOT.my_hide_root) indent = indent - 2
-        WRITE(myfmt,*)indent,"X"
-        CALL compress(myfmt,full=.TRUE.)
-        IF (.NOT.my_hide_root) &
-             WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&END ',a)") TRIM(section%name)
+        WRITE (UNIT=unit_nr,FMT="(A)")&
+          REPEAT(" ",indent)//"&END "//TRIM(section%name)
      END DO
   END IF
   CALL cp_error_dealloc_ref(suberror)
