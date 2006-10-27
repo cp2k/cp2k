@@ -1,0 +1,86 @@
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K [rad^-2kcalmol] 110.0
+        THETA0 [deg] 104.52
+      &END BEND
+      &BOND
+        ATOMS O H
+        K [angstrom^-2kcalmol] 900.0 
+        R0 [angstrom] 0.9572
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.834
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.417
+      &END CHARGE
+      &NONBONDED
+        &GENPOT
+          atoms O O
+          FUNCTION 4.0*0.00024234375275817384*((5.953960130145687/x)^12-(5.953960130145687/x)**6)
+          #PARAMETERS 
+          #VALUES   
+          VARIABLES x
+          RCUT    [angstrom] 11.4
+        &END GENPOT
+        &GENPOT
+          atoms O H
+          FUNCTION 4.0*0.00013322508091892268*((3.354263887710221/x)^12-(3.354263887710221/x)**6)
+          PARAMETERS 
+          VALUES   
+          VARIABLES x
+          RCUT  [angstrom] 11.4
+        &END GENPOT
+        &GENPOT
+          atoms H H
+          FUNCTION 4.0*A*((S/x)^12-(S/x)**6)
+          PARAMETERS A S
+          VALUES  0.00007327379450540748 0.7558904535685007
+          VARIABLES x
+          RCUT    [angstrom] 11.4
+        &END GENPOT
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .5
+        GMAX 12
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+  O        -3.8785691310        5.2764260121        1.0006790295 H2O
+  H        -3.0208695451        4.8843099287        1.1665969668 H2O
+  H        -4.4253035786        4.5255560719        0.7690283147 H2O
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+
+  PROJECT H2O-1
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION
+

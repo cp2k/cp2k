@@ -901,10 +901,19 @@ CONTAINS
     failure = .FALSE.
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
+       NULLIFY(atm_names, parameters, variables, fun, values)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        CALL section_vals_val_get(section,"FUNCTION",i_rep_section=isec,c_vals=fun,error=error)
-       CALL section_vals_val_get(section,"PARAMETERS",i_rep_section=isec,c_vals=parameters,error=error)
-       CALL section_vals_val_get(section,"VALUES",i_rep_section=isec,r_vals=values,error=error)
+       CALL section_vals_val_get(section,"PARAMETERS",n_rep_val=n_rep,i_rep_section=isec,error=error)
+       IF (n_rep /= 0) then
+         CALL section_vals_val_get(section,"PARAMETERS",i_rep_section=isec,c_vals=parameters,error=error)
+         CALL section_vals_val_get(section,"VALUES",i_rep_section=isec,r_vals=values,error=error)
+         IF (ALL(parameters=="")) THEN
+            NULLIFY(parameters, values)
+         ELSE
+            CPPostcondition(size(values)==size(parameters),cp_failure_level,routineP,error,failure)
+         ENDIF
+       ENDIF
        CALL section_vals_val_get(section,"VARIABLES",i_rep_section=isec,c_vals=variables,error=error)
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        
@@ -927,19 +936,20 @@ CONTAINS
        END DO
        CALL compress(nonbonded%pot(start+isec)%pot %gp%potential, full=.TRUE.)
        ! parameters
-       idim = SIZE(parameters)
-       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%parameters(idim+1),stat=stat)
+       idim = 1
+       IF (ASSOCIATED(parameters)) idim = idim + SIZE(parameters)
+       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%parameters(idim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       nonbonded%pot(start+isec)%pot %gp%parameters(2:)  = parameters
+       IF (ASSOCIATED(parameters)) nonbonded%pot(start+isec)%pot %gp%parameters(2:)  = parameters
+       ! values
+       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%values(idim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       nonbonded%pot(start+isec)%pot %gp%values = 0.0_dp
+       IF (ASSOCIATED(values)) nonbonded%pot(start+isec)%pot %gp%values(2:) = values
        ! variables
        CPPostcondition(SIZE(variables)==1,cp_failure_level,routineP,error,failure)
        nonbonded%pot(start+isec)%pot %gp%variables = variables(1)
        nonbonded%pot(start+isec)%pot %gp%parameters(1:1) = variables(1)
-       ! values
-       idim = SIZE(parameters)
-       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%values(idim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       nonbonded%pot(start+isec)%pot %gp%values = values
        ! rcut
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
     END DO

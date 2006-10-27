@@ -164,7 +164,8 @@ CONTAINS
                                2.0_dp*EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))) &
                - pot%energy_cutoff
     ELSE IF (pot%type==gp_type) THEN
-       ener_pot = evalf(pot%gp%myid,(/r,pot%gp%values/)) - pot%energy_cutoff
+       pot%gp%values(1)=r
+       ener_pot = evalf(pot%gp%myid,pot%gp%values) - pot%energy_cutoff
        IF (EvalErrType > 0) &
             CALL stop_program("ener_pot","Error evaluating generic potential energy function")
     ELSE
