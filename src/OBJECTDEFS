@@ -142,6 +142,7 @@ OBJECTS_GENERIC =\
  force_fields.o\
  force_fields_input.o\
  force_fields_util.o\
+ fparser.o\
  fp_types.o\
  fp_methods.o\
  gamma.o\

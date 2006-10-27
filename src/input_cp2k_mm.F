@@ -52,7 +52,8 @@ MODULE input_cp2k_mm
 
   PUBLIC :: create_mm_section
   PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &
-            create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section
+            create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section,&
+            create_GENPOT_section
 !***
 !****************************************************************************
 CONTAINS
@@ -799,6 +800,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_GENPOT_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_NONBONDED14_section
@@ -879,9 +884,108 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_GENPOT_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_NONBONDED_section
+
+!***************************************************************************
+!!****f* input_cp2k_mm/create_GENPOT_section [1.0] *
+!!
+!!   NAME
+!!     create_GENPOT_section
+!!
+!!   FUNCTION
+!!     This section specifies the input parameters for a generic potential form
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_GENPOT_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_GENPOT_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="GENPOT",&
+            description="This section specifies the input parameters for a generic potential type."//&
+            "A functional form is specified. Mathematical Operators recognized are +, -, *, /, ** "//&
+            "or alternatively ^, whereas symbols for brackets must be (). "//&
+            "The function parser recognizes the (single argument) Fortran 90 intrinsic functions "//&
+            "abs, exp, log10, log, sqrt, sinh, cosh, tanh, sin, cos, tan, asin, acos, atan. "//&
+            "Parsing for INTRINSIC functions is CASE INsensitive.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kind involved in the generic potential",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="FUNCTION",&
+            description="Specifies the functional form in mathematical notation.",&
+            usage="FUNCTION  a*EXP(-b*x^2)/x+D*log10(x)", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VARIABLES",&
+            description="Defines the variable of the functional form.",&
+            usage="VARIABLES x", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PARAMETERS",&
+            description="Defines the parameters of the functional form",&
+            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VALUES",&
+            description="Defines the values of  parameter of the functional form",&
+            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of the generic potential",&
+            usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_GENPOT_section
 
 !***************************************************************************
 !!****f* input_cp2k_mm/create_EAM_section [1.0] *

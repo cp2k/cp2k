@@ -28,6 +28,7 @@ MODULE input_cp2k_qmmm
   USE input_cp2k_mm,                   ONLY: create_Goodwin_section,&
                                              create_LJ_section,&
                                              create_NONBONDED14_section,&
+                                             create_GENPOT_section,&
                                              create_Williams_section
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -447,6 +448,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_Goodwin_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_GENPOT_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

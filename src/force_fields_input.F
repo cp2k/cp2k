@@ -51,15 +51,25 @@ MODULE force_fields_input
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE pair_potential_types,            ONLY: &
-       b4_type, bm_type, ea_type, eam_pot_type, ft_type, gw_type, &
-       ip_type, lj_charmm_type, pair_potential_p_type, &
-       pair_potential_reallocate, pair_potential_single_type, wl_type
+  USE pair_potential_types,            ONLY: b4_type,&
+                                             gp_type,&
+                                             bm_type,&
+                                             ea_type,&
+                                             eam_pot_type,&
+                                             ft_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             lj_charmm_type,&
+                                             pair_potential_p_type,&
+                                             pair_potential_reallocate,&
+                                             pair_potential_single_type,&
+                                             wl_type
   USE physcon,                         ONLY: bohr
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: uppercase, compress
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -76,6 +86,7 @@ MODULE force_fields_input
             read_lj_section,&
             read_wl_section,&
             read_gd_section,&
+            read_gp_section,&
             read_chrg_section
 
 !!*****
@@ -113,7 +124,7 @@ CONTAINS
 
     INTEGER                                  :: nbends, nbmhft, nbonds, nchg, &
                                                 neam, nb4, nbm, ngd, nipbv, nlj, ntors, &
-                                                ntot, nubs, nwl
+                                                ntot, nubs, nwl, ngp
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -192,6 +203,13 @@ CONTAINS
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbm,buckmo=.TRUE.,error=error)
              CALL read_bm_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngp,gp=.TRUE.,error=error)
+             CALL read_gp_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -216,6 +234,13 @@ CONTAINS
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngd, goodwin=.TRUE.,error=error)
              CALL read_gd_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
+          ntot=nlj+nwl+ngd
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngp,gp=.TRUE.,error=error)
+             CALL read_gp_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"CHARGE",error=error)
@@ -837,6 +862,88 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
   END SUBROUTINE read_b4_section
+
+!******************************************************************************
+!!****** force_fields_input/read_gp_section [1.0] *
+!!
+!!   NAME
+!!     read_gp_section
+!!
+!!   FUNCTION
+!!     Reads the GENPOT - generic potential section
+!!
+!!   AUTHOR
+!!     Teodoro Laino - 10.2006
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_gp_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_gp_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names, parameters,&
+                                                variables, fun
+    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: n_rep, idim, stat,i
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), POINTER, DIMENSION(:)     :: values
+    REAL(KIND=dp) :: rcut
+
+    failure = .FALSE.
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       CALL section_vals_val_get(section,"FUNCTION",i_rep_section=isec,c_vals=fun,error=error)
+       CALL section_vals_val_get(section,"PARAMETERS",i_rep_section=isec,c_vals=parameters,error=error)
+       CALL section_vals_val_get(section,"VALUES",i_rep_section=isec,r_vals=values,error=error)
+       CALL section_vals_val_get(section,"VARIABLES",i_rep_section=isec,c_vals=variables,error=error)
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+       
+       nonbonded%pot(start+isec)%pot %type = gp_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       ! function name: read as an array of strings to better treat the presence of
+       ! white spaces..
+       ! function name
+       nonbonded%pot(start+isec)%pot %gp%potential = " "
+       idim = 1
+       DO i = 1, SIZE(fun)
+          nonbonded%pot(start+isec)%pot %gp%potential = nonbonded%pot(start+isec)%pot %gp%potential(1:idim)//&
+               TRIM(fun(i))
+          idim = idim + LEN_TRIM(fun(i))
+          IF (idim > default_path_length) &
+               CALL stop_program ("input_nonbonded","read_gp_section: string for funtion too long!")
+       END DO
+       CALL compress(nonbonded%pot(start+isec)%pot %gp%potential, full=.TRUE.)
+       ! parameters
+       idim = SIZE(parameters)
+       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%parameters(idim+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       nonbonded%pot(start+isec)%pot %gp%parameters(2:)  = parameters
+       ! variables
+       CPPostcondition(SIZE(variables)==1,cp_failure_level,routineP,error,failure)
+       nonbonded%pot(start+isec)%pot %gp%variables = variables(1)
+       nonbonded%pot(start+isec)%pot %gp%parameters(1:1) = variables(1)
+       ! values
+       idim = SIZE(parameters)
+       ALLOCATE(nonbonded%pot(start+isec)%pot %gp%values(idim),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       nonbonded%pot(start+isec)%pot %gp%values = values
+       ! rcut
+       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+    END DO
+  END SUBROUTINE read_gp_section
 
 !******************************************************************************
 !!****** force_fields_input/read_bm_section [1.0] *

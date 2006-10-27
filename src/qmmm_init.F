@@ -54,7 +54,8 @@ MODULE qmmm_init
   USE force_field_types,               ONLY: input_info_type
   USE force_fields_input,              ONLY: read_gd_section,&
                                              read_lj_section,&
-                                             read_wl_section
+                                             read_wl_section,&
+                                             read_gp_section
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: qmmm_header
   USE input_constants,                 ONLY: &
@@ -1151,17 +1152,17 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
-    INTEGER                                  :: n_gd, n_lj, n_wl, np
+    INTEGER                                  :: n_gd, n_lj, n_wl, np, n_gp
     TYPE(section_vals_type), POINTER         :: gd_section, lj_section, &
-                                                wl_section
+                                                wl_section, gp_section
 
-!
-! NONBONDED
-!
-
+    !
+    ! NONBONDED
+    !
     lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES",error=error)
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
+    gp_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GENPOT",error=error)
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
     np = n_lj
     IF (n_lj /= 0) THEN
@@ -1180,12 +1181,19 @@ CPSourceFileRef,&
        CALL pair_potential_reallocate(inp_info%nonbonded,1,np,goodwin=.TRUE.,error=error)
        CALL read_gd_section(inp_info%nonbonded,gd_section, start=n_lj+n_wl, error=error)
     END IF
+    CALL section_vals_get(gp_section,n_repetition=n_gp,error=error)
+    np = n_lj + n_wl + n_gd + n_gp
+    IF (n_gp /= 0) THEN
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,gp=.TRUE.,error=error)
+       CALL read_gp_section(inp_info%nonbonded,gp_section, start=n_lj+n_wl+n_gd, error=error)
+    END IF
     !
     ! NONBONDED14
     !
     lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%LENNARD-JONES",error=error)
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GOODWIN",error=error)
+    gp_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED14%GENPOT",error=error)
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
     np = n_lj
     IF (n_lj /= 0) THEN
@@ -1204,6 +1212,13 @@ CPSourceFileRef,&
        CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,goodwin=.TRUE.,error=error)
        CALL read_gd_section(inp_info%nonbonded14,gd_section, start=n_lj+n_wl, error=error)
     END IF
+    CALL section_vals_get(gp_section,n_repetition=n_gp,error=error)
+    np = n_lj + n_wl + n_gd + n_gp
+    IF (n_gp /= 0) THEN
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,gp=.TRUE.,error=error)
+       CALL read_gp_section(inp_info%nonbonded14,gp_section, start=n_lj+n_wl+n_gd, error=error)
+    END IF
+
   END SUBROUTINE read_qmmm_ff_section
 
   !!****f* qmmm_init/setup_qm_atom_list [1.0] *

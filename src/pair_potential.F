@@ -30,10 +30,21 @@ MODULE pair_potential
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE pair_potential_types,            ONLY: &
-       compare_pot, ea_type, b4_type, bm_type, ft_type, gw_type, ip_type, list_pot, &
-       lj_charmm_type, lj_type, nn_type, pair_potential_pp_type, &
-       pair_potential_single_type, wl_type
+  USE pair_potential_types,            ONLY: compare_pot,&
+                                             ea_type,&
+                                             b4_type,&
+                                             bm_type,&
+                                             ft_type,&
+                                             gp_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             list_pot,&
+                                             lj_charmm_type,&
+                                             lj_type,&
+                                             nn_type,&
+                                             pair_potential_pp_type,&
+                                             pair_potential_single_type,&
+                                             wl_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              potential_s,&
@@ -42,6 +53,14 @@ MODULE pair_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+  USE fparser,                         ONLY: initf,&
+                                             parsef,&
+                                             evalf,&
+                                             EvalErrMsg,&
+                                             finalizef,&
+                                             EvalErrType
+  USE termination,                     ONLY: stop_program
+  USE string_table,                    ONLY: str2id
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -144,6 +163,10 @@ CONTAINS
                + pot%buckmo%d*(EXP(-2._dp*pot%buckmo%beta*(r-pot%buckmo%r0))- &
                                2.0_dp*EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))) &
                - pot%energy_cutoff
+    ELSE IF (pot%type==gp_type) THEN
+       ener_pot = evalf(pot%gp%myid,(/r,pot%gp%values/)) - pot%energy_cutoff
+       IF (EvalErrType > 0) &
+            CALL stop_program("ener_pot","Error evaluating generic potential energy function")
     ELSE
        ener_pot = 0.0_dp
     END IF
@@ -236,7 +259,7 @@ CONTAINS
 
     INTEGER                                  :: ewald_type, handle, i, &
                                                 ilevel, j, jx, n, ncount, &
-                                                npoints, ntype
+                                                npoints, ntype, ngp
     LOGICAL                                  :: failure, found_locut, my_do_14
     REAL(KIND=dp) :: alpha, diffmax, dx2, e, eps0, hicut, locut, locut_found, &
       my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, &
@@ -246,6 +269,7 @@ CONTAINS
     failure     = .FALSE.
     n      = 0
     ncount = 0
+    ngp    = 0
     my_ei_scale14 = 1.0_dp ; IF (PRESENT(ei_scale14))   my_ei_scale14 = ei_scale14
     my_vdw_scale14= 1.0_dp ; IF (PRESENT(vdw_scale14)) my_vdw_scale14 = vdw_scale14
     my_do_14= .FALSE.      ; IF (PRESENT(do_14))             my_do_14 = do_14
@@ -255,6 +279,24 @@ CONTAINS
        WRITE(iw3,'(T2,A,I0,A,I0,A)') 'SPLINE_INFO| Generating: ',&
             (ntype*(ntype+1))/2,' splines due to ',ntype,' different atomic kinds'
     ENDIF
+    ! Prescreen for general potential type
+    DO i = 1, ntype ! i:  first atom type
+       DO j = 1, i  ! j:  second atom type
+          IF ((potparm%pot(i,j)%pot%type==gp_type).AND.(potparm%pot(i,j)%pot%undef)) ngp = ngp + 1
+       END DO
+    END DO
+    CALL initf(ngp)
+    ngp = 0
+    DO i = 1, ntype ! i:  first atom type
+       DO j = 1, i  ! j:  second atom type
+          IF ((potparm%pot(i,j)%pot%type==gp_type).AND.(potparm%pot(i,j)%pot%undef)) THEN 
+             ngp = ngp + 1
+             potparm%pot(i,j)%pot%gp%myid = ngp
+             CALL parsef(ngp,TRIM(potparm%pot(i,j)%pot%gp%potential),potparm%pot(i,j)%pot%gp%parameters)
+          END IF
+       END DO
+    END DO
+    ! real computation of splines
     DO i = 1, ntype ! i:  first atom type
        atomic_kind=> atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi)
@@ -386,6 +428,7 @@ CONTAINS
           END IF
        END DO
     END DO
+    CALL finalizef()
     IF (iw3>0) THEN
        WRITE(iw3,'()')
     ENDIF
@@ -504,6 +547,8 @@ CONTAINS
           nvar = 6 + nvar
        CASE (bm_type)
           nvar = 9 + nvar
+       CASE (gp_type)
+          nvar = 2 + nvar
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
@@ -529,6 +574,9 @@ CONTAINS
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%lj%epsilon
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%lj%sigma6
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%lj%sigma12
+                   CASE(gp_type)
+                      pot_par(nk,1)  = str2id(potparm%pot(i,j)%pot%gp%potential)
+                      pot_par(nk,2)  = str2id(potparm%pot(i,j)%pot%gp%variables)
                    CASE (wl_type)
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%willis%a
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%willis%b
@@ -661,25 +709,25 @@ CONTAINS
           istart = 1
           DO j = 1, ndim
              ! Special cases for EAM and IPBV
+             locij = my_index(j)
+             CALL get_indexes(locij,ntype,tmpij)
              SELECT CASE(pot_target)
              CASE(ea_type,ip_type)
                 ! check the array components
-                locij = my_index(j)
-                CALL get_indexes(locij,ntype,tmpij)
                 CALL compare_pot(potparm%pot(tmpij(1) ,tmpij(2) )%pot,&
                                  potparm%pot(tmpij0(1),tmpij0(2))%pot,&
                                  check, error)
+             CASE(gp_type)
+                check = .TRUE.
+                IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters /= &
+                     potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) check = .FALSE.
+                IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values /= &
+                     potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values))     check = .FALSE.
              CASE default
                 check = .TRUE.
              END SELECT
              IF (ALL(Cwork==pot_par(j,:)).AND.check) CYCLE
              Cwork = pot_par(j,:)
-             ! Index for special cases
-             SELECT CASE(pot_target)
-             CASE(ea_type,ip_type)
-                locij = my_index(j)
-                CALL get_indexes(locij,ntype,tmpij0)
-             END SELECT
              nunique = nunique + 1
              iend    = j - 1
              min_val = MINVAL(my_index(istart:iend))

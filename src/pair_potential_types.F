@@ -22,6 +22,7 @@
 MODULE pair_potential_types
 
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE splines,                         ONLY: spline_data_copy,&
                                              spline_data_release,&
@@ -44,9 +45,10 @@ MODULE pair_potential_types
                                 ip_type= 6,&
                                 ea_type= 7,&
                                 b4_type= 8,&
-                                bm_type= 9
+                                bm_type= 9,&
+                                gp_type=10
 
-  INTEGER, PUBLIC, PARAMETER, DIMENSION(10) :: list_pot = (/nn_type,&
+  INTEGER, PUBLIC, PARAMETER, DIMENSION(11) :: list_pot = (/nn_type,&
                                                            lj_type,&
                                                            lj_charmm_type,&
                                                            ft_type,&
@@ -55,7 +57,8 @@ MODULE pair_potential_types
                                                            ip_type,&
                                                            ea_type,&
                                                            b4_type,&
-                                                           bm_type /)
+                                                           bm_type,&
+                                                           gp_type/)
 
   PUBLIC :: pair_potential_type,&
             pair_potential_reallocate
@@ -80,7 +83,8 @@ MODULE pair_potential_types
             ipbv_pot_type,&
             eam_pot_type,&
             buck4ran_pot_type,&
-            buckmorse_pot_type
+            buckmorse_pot_type,&
+            gp_pot_type
 
   PUBLIC :: pair_potential_lj_create
   PUBLIC :: compare_pot
@@ -148,6 +152,13 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: beta
   END TYPE buckmorse_pot_type
 
+  TYPE gp_pot_type
+     INTEGER                                   :: myid
+     CHARACTER ( LEN = default_path_length )   :: potential
+     CHARACTER ( LEN = default_string_length ), POINTER, DIMENSION(:) :: parameters
+     CHARACTER ( LEN = default_string_length ) :: variables
+     REAL(KIND=dp), DIMENSION(:), POINTER      :: values
+  END TYPE gp_pot_type
 
   TYPE pair_potential_single_type
      REAL (KIND=dp) :: rcutsq
@@ -158,6 +169,7 @@ MODULE pair_potential_types
      CHARACTER ( LEN = default_string_length ) :: at1
      CHARACTER ( LEN = default_string_length ) :: at2
      TYPE ( ipbv_pot_type ),       POINTER :: ipbv
+     TYPE ( gp_pot_type),          POINTER :: gp
      TYPE ( lj_pot_type ),         POINTER :: lj
      TYPE ( ft_pot_type ),         POINTER :: ft
      TYPE ( williams_pot_type ),   POINTER :: willis
@@ -288,6 +300,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        NULLIFY( potparm%ipbv,&
                 potparm%lj,&
+                potparm%gp,&
                 potparm%ft,&
                 potparm%willis,&
                 potparm%goodwin,&
@@ -346,6 +359,7 @@ CONTAINS
     CALL pair_potential_buckmo_clean (potparm, error=error)
     CALL pair_potential_bmhft_clean (potparm, error=error)
     CALL pair_potential_ipbv_clean (potparm, error=error)
+    CALL pair_potential_gp_clean (potparm, error=error)
 
   END SUBROUTINE pair_potential_single_clean
 
@@ -406,6 +420,7 @@ CONTAINS
        CALL pair_potential_ipbv_copy (potparm_source, potparm_dest, error=error)
        CALL pair_potential_buck4r_copy (potparm_source, potparm_dest, error=error)
        CALL pair_potential_buckmo_copy (potparm_source, potparm_dest, error=error)
+       CALL pair_potential_gp_copy (potparm_source, potparm_dest, error=error)
     END IF
   END SUBROUTINE pair_potential_single_copy
 
@@ -488,8 +503,9 @@ CONTAINS
        CALL pair_potential_williams_release ( potparm, error=error )
        CALL pair_potential_goodwin_release  ( potparm, error=error )
        CALL pair_potential_eam_release      ( potparm, error=error )
-       CALL pair_potential_buck4r_release    ( potparm, error=error )
-       CALL pair_potential_buckmo_release    ( potparm, error=error )
+       CALL pair_potential_buck4r_release   ( potparm, error=error )
+       CALL pair_potential_buckmo_release   ( potparm, error=error )
+       CALL pair_potential_gp_release       ( potparm, error=error )
        DEALLOCATE(potparm, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -761,12 +777,13 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,goodwin,eam,bmhft,ipbv,buck4r,buckmo,error)
+  SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,goodwin,&
+       eam,bmhft,ipbv,buck4r,buckmo,gp,error)
     TYPE(pair_potential_p_type), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
     LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
                                                 goodwin, eam, bmhft, ipbv, &
-                                                buck4r, buckmo
+                                                buck4r, buckmo, gp
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -776,7 +793,7 @@ CONTAINS
     INTEGER                                  :: i, ipot, lb1_old, ub1_old
     LOGICAL                                  :: check, failure, lbmhft, lbuck4r, &
                                                 lbuckmo, leam, lgoodwin, lipbv, &
-                                                llj, llj_charmm, lwilliams
+                                                llj, llj_charmm, lwilliams, lgp
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
@@ -789,65 +806,70 @@ CONTAINS
     leam      = .FALSE. ; IF (PRESENT(eam))       leam      = eam
     lbmhft    = .FALSE. ; IF (PRESENT(bmhft))     lbmhft    = bmhft
     lipbv     = .FALSE. ; IF (PRESENT(ipbv))      lipbv     = ipbv
-    lbuck4r    = .FALSE. ; IF (PRESENT(buck4r))   lbuck4r    = buck4r
-    lbuckmo    = .FALSE. ; IF (PRESENT(buckmo))   lbuckmo    = buckmo
+    lbuck4r   = .FALSE. ; IF (PRESENT(buck4r))    lbuck4r   = buck4r
+    lbuckmo   = .FALSE. ; IF (PRESENT(buckmo))    lbuckmo   = buckmo
+    lgp       = .FALSE. ; IF (PRESENT(gp))        lgp       = gp
 
     IF (llj) THEN
        ipot  = lj_type
        check = .NOT.(llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft&
-                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo)
+                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (llj_charmm) THEN
        ipot  = lj_charmm_type
        check = .NOT.(llj.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lwilliams) THEN
        ipot  = wl_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgoodwin) THEN
        ipot  = gw_type
        check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (leam) THEN
        ipot  = ea_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.lwilliams.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbmhft) THEN
        ipot  = ft_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lipbv) THEN
        ipot  = ip_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                     .OR.lbuck4r.OR.lbuckmo)
+                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuck4r) THEN
        ipot  = b4_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                     .OR.lipbv.OR.lbuckmo)
+                     .OR.lipbv.OR.lbuckmo.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuckmo) THEN
        ipot  = bm_type
        check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                    .OR.lipbv.OR.lbuck4r)
+                    .OR.lipbv.OR.lbuck4r.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
-
-
+    IF (lgp) THEN
+       ipot  = gp_type
+       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
+                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo)
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    END IF
 
     IF (.NOT.failure) THEN
        lb1_old = 0
@@ -886,6 +908,8 @@ CONTAINS
              CALL pair_potential_buck4r_create(p%pot(i)%pot, error=error)
           CASE (bm_type)
              CALL pair_potential_buckmo_create(p%pot(i)%pot, error=error)
+          CASE (gp_type)
+             CALL pair_potential_gp_create(p%pot(i)%pot, error=error)
           END SELECT
           NULLIFY ( p%pot(i)%pot%pair_spline_data )
           NULLIFY ( p%pot(i)%pot%rho_spline_data )
@@ -897,13 +921,191 @@ CONTAINS
 
   !******************************************************************************
   !!****
+  !!****s* pair_potential_types/pair_potential_gp_create [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_gp_create
+  !!
+  !!   FUNCTION
+  !!     Creates the generic potential type
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [teo] 11.2005
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_gp_create(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CPPostcondition(.NOT.ASSOCIATED(potparm%gp),cp_failure_level,routineP,error,failure)
+       ALLOCATE(potparm%gp, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pair_potential_gp_clean(potparm, error=error)
+    END IF
+  END SUBROUTINE pair_potential_gp_create
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_gp_copy [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_gp_copy
+  !!
+  !!   FUNCTION
+  !!     Copy two generic potential type
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [teo] 11.2005
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_gp_copy(potparm_source, potparm_dest, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER :: idim, stat
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm_source%gp)) RETURN
+       IF (ASSOCIATED(potparm_dest%gp)) CALL pair_potential_gp_release(potparm_dest, error=error)
+       CALL pair_potential_gp_create(potparm_dest, error=error)
+       potparm_dest% gp % myid      = potparm_source% gp % myid
+       potparm_dest% gp % potential = potparm_source% gp % potential
+       potparm_dest% gp % variables = potparm_source% gp % variables
+       IF (ASSOCIATED(potparm_source% gp % parameters)) THEN
+          idim = SIZE(potparm_source% gp % parameters)
+          ALLOCATE(potparm_dest% gp % parameters(idim),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          potparm_dest% gp % parameters = potparm_source% gp % parameters
+       END IF
+       IF (ASSOCIATED(potparm_source% gp % values)) THEN
+          idim = SIZE(potparm_source% gp % values)
+          ALLOCATE(potparm_dest% gp % values(idim),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          potparm_dest% gp % values = potparm_source% gp % values
+       END IF
+    END IF
+  END SUBROUTINE pair_potential_gp_copy
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_gp_clean [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_gp_clean
+  !!
+  !!   FUNCTION
+  !!     Cleans the generic potential type
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [teo] 11.2005
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_gp_clean(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm % gp)) RETURN
+       potparm % gp % myid      = 0
+       potparm % gp % potential = ""
+       potparm % gp % variables = ""
+       NULLIFY (potparm % gp % parameters)
+       NULLIFY (potparm % gp % values)
+    END IF
+  END SUBROUTINE pair_potential_gp_clean
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_gp_release [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_gp_release
+  !!
+  !!   FUNCTION
+  !!     Destroys the generic potential type
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [teo] 11.2005
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_gp_release(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (ASSOCIATED(potparm%gp)) THEN
+          IF (ASSOCIATED(potparm%gp%parameters)) THEN
+             DEALLOCATE(potparm%gp%parameters, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(potparm%gp%values)) THEN
+             DEALLOCATE(potparm%gp%values, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          DEALLOCATE(potparm%gp, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       NULLIFY(potparm%gp)
+    END IF
+  END SUBROUTINE pair_potential_gp_release
+
+  !******************************************************************************
+  !!****
   !!****s* pair_potential_types/pair_potential_lj_create [1.0] *
   !!
   !!   NAME
   !!     pair_potential_lj_create
   !!
   !!   FUNCTION
-  !!     Creates the LJ potential type
+  !!     Cleans the LJ potential type
   !!
   !!   AUTHOR
   !!     Teodoro Laino [teo] 11.2005
