@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2006  CP2K developers group                          !
+!   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/machine_pgi [1.0] *
 !!
@@ -24,14 +24,17 @@
 MODULE machine_g95
 
   USE kinds,                           ONLY: dp
-
+  USE ISO_C_BINDING,                   ONLY: C_INT64_T
   IMPLICIT NONE
+
+  INTEGER(KIND=C_INT64_T), bind(C, name='_g95_total_alloc') :: total_memory
+
 
   PRIVATE
 
-  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory
 
 !!*****
 !******************************************************************************
@@ -41,16 +44,14 @@ CONTAINS
 FUNCTION m_loc_r(a) RESULT(res)
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
-
-  res=-1
+    res=LOC(a)
 END FUNCTION m_loc_r
   
 FUNCTION m_loc_c(a) RESULT(res)
     COMPLEX(KIND=dp), DIMENSION(*), &
       INTENT(in)                             :: a
     INTEGER                                  :: res
-
-  res=-1
+    res=LOC(a)
 END FUNCTION m_loc_c
 
 ! can be used to get a nice core
@@ -61,7 +62,6 @@ END SUBROUTINE m_abort
 ! the number of arguments of the fortran program
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
-
     INTEGER                                  :: iargc
 
     ic = iargc()
@@ -71,13 +71,17 @@ END FUNCTION m_iargc
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
-
-    REAL                                     :: wtl
-
-    CALL CPU_TIME(wtl)
-    ct=wtl
+    CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 
+!******************************************************************************
+!!  wall clock time in seconds
+FUNCTION m_walltime() RESULT (wt)
+    REAL(KIND=dp)                            :: wt
+    INTEGER                                  :: count, count_rate
+    CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
+    wt = REAL(count,KIND=dp)/REAL(count_rate,KIND=dp)
+END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
@@ -104,24 +108,20 @@ END SUBROUTINE m_datum
 
   SUBROUTINE print_memory(checkpoint)
 
-!   Purpose: Print the memory usage of the program at checkpoint.
-
-!   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
 
     CHARACTER(LEN=200)                       :: cmdstr
+    CHARACTER(LEN=90)                        :: tmp
     INTEGER                                  :: pid
 
 !   ---------------------------------------------------------------------------
 
     CALL m_getpid(pid)
+    tmp=TRIM(checkpoint)//">:"
+    tmp=ADJUSTL(tmp)
 
-    WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-      "echo -e ""\\n PID""",pid,""" <"//TRIM(checkpoint)//&
-      ">:"" `ps -o vsz --no-headers -p",pid," ` KBytes""\\c"""
-
-    CALL system(cmdstr)
+    write(6,'(A4,I8,A90,I8,A7)')  " PID",pid,tmp,(total_memory+1023)/1024," KBytes"
 
   END SUBROUTINE print_memory
 
