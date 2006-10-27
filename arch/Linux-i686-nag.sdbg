@@ -1,14 +1,14 @@
 PERL     = perl
 CC       = cc
 CPP      = cpp
-FC       = f95
-LD       = f95
+FC       = f95-new
+LD       = f95-new
 AR       = ar -r
-DFLAGS   = -D__NAG -D__FFTSG 
+DFLAGS   = -D__NAG -D__FFTSG -D__DEBUG__
 CPPFLAGS = -C $(DFLAGS) -traditional
-FCFLAGS  = -O0 -g -C=all -mismatch_all -f77 -nan
+FCFLAGS  = -O0 -g -gline -C=all -C=undefined -mismatch_all -nan
 LDFLAGS  = $(FCFLAGS)
-LIBS     = /System/Library/Frameworks/vecLib.framework/vecLib -lg2c
+LIBS     = /users/vondele/lapack_blas.o
 
 
 OBJECTS_ARCHITECTURE = machine_nag.o

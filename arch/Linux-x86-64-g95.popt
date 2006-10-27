@@ -1,0 +1,24 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = mpif90 
+LD       = mpif90
+AR       = ar -r
+DFLAGS   = -D__G95 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK -D__FFTW3  -I/users/vondele/FFTW/include
+CPPFLAGS = -traditional -C $(DFLAGS)
+FCFLAGS  = $(DFLAGS) -O2 -ffast-math -march=opteron -cpp
+LDFLAGS  = $(FCFLAGS) -L/users/vondele/GOTOBLAS -L/users/vondele/FFTW/lib
+LIBS     = -Wl,--rpath,/users/vondele/GOTOBLAS -lfftw3 /users/vondele/TEST/SCALAPACK/libscalapack.a \
+           /users/vondele/TEST/BLACS/LIB/blacsF77init_MPI-LINUX-0.a \
+           /users/vondele/TEST/BLACS/LIB/blacs_MPI-LINUX-0.a \
+           /users/vondele/TEST/BLACS/LIB/blacsF77init_MPI-LINUX-0.a \
+           /users/vondele/LAPACK/liblapack_G95.a \
+           -lgoto_opteron64p-r1.00 -lpthread              
+
+OBJECTS_ARCHITECTURE = machine_g95.o
+
+# forpar madness
+machine_g95.dep:
+	touch -a machine_g95.dep machine_g95.int
+machine_g95.int: machine_g95.o kinds.o
+
