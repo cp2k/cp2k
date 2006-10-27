@@ -32,7 +32,7 @@ MODULE machine_g95
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory
 
@@ -74,15 +74,6 @@ FUNCTION m_cputime() RESULT (ct)
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 
-!******************************************************************************
-!!  wall clock time in seconds
-FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                            :: wt
-    INTEGER                                  :: count, count_rate
-    CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
-    wt = REAL(count,KIND=dp)/REAL(count_rate,KIND=dp)
-END FUNCTION m_walltime
-!******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
     CHARACTER(len=*), INTENT(OUT)            :: cal_date
