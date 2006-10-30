@@ -34,7 +34,8 @@ MODULE machine_g95
 
   PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory, &
+            m_sys, m_mov
 
 !!*****
 !******************************************************************************
@@ -114,9 +115,37 @@ END SUBROUTINE m_datum
 
     write(6,'(A4,I8,A90,I8,A7)')  " PID",pid,tmp,(total_memory+1023)/1024," KBytes"
 
-  END SUBROUTINE print_memory
+ END SUBROUTINE print_memory
 
 ! *****************************************************************************
+
+  SUBROUTINE m_sys(cmd)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: cmd
+
+!   ---------------------------------------------------------------------------
+
+    CALL system(cmd)
+
+ END SUBROUTINE m_sys
+
+! *****************************************************************************
+
+  SUBROUTINE m_mov(source,target)
+
+
+    CHARACTER(LEN=*), INTENT(IN)             :: source, target
+    CHARACTER(LEN=200)                       :: cmd
+
+!   ---------------------------------------------------------------------------
+
+    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+    CALL system(cmd)
+
+  END SUBROUTINE m_mov
+
+! *****************************************************************************
+
 SUBROUTINE m_hostnm(hname)
     CHARACTER(len=*), INTENT(OUT)            :: hname
 

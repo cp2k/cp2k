@@ -101,8 +101,11 @@ MODULE qs_scf
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE machine,                         ONLY: m_flush,&
+                                             m_mov,&
+                                             m_sys,&
                                              m_walltime
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
@@ -180,6 +183,7 @@ MODULE qs_scf
                                              timestop
   USE virial_types,                    ONLY: virial_type
   USE xas_restart,                     ONLY: xas_initialize_rho
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -354,7 +358,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, ispin, &
-                                                iter_level, output_unit, total_steps
+                                                iter_level, output_unit, &
+                                                total_steps, nvec, i
     LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
                has_unit_metric, outer_loop_converged, use_jacobi, use_virial, &
                harris_energy
@@ -379,6 +384,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section, harris_section
     TYPE(virial_type), POINTER               :: virial
+    CHARACTER(LEN=default_path_length)       :: file_name, filename1, &
+                                                filename2, cmd
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -630,6 +637,32 @@ CONTAINS
        IF (scf_control%write_restart_each>=0) THEN
           CALL write_mo_set(mos,particle_set,para_env,&
                id_nr=1,dft_section=dft_section,error=error)
+       ELSE IF (scf_control%write_restart_each == -2) THEN
+          CALL write_mo_set(mos,particle_set, para_env, &
+               id_nr=1, dft_section=dft_section, error=error)
+          nvec = MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count)
+
+          IF (para_env%ionode) THEN
+            CALL section_vals_val_get(dft_section, "RESTART_FILE_NAME", &
+                 c_val=file_name, error=error)
+
+            filename1=file_name
+            filename2=file_name
+            DO i=1,nvec
+              IF ((nvec-i) /= 0) THEN
+                filename1((LEN_TRIM(file_name)+1):(LEN(file_name))) = "-"//&
+                     ADJUSTL(cp_to_string(nvec-i))
+              END IF
+              IF ((nvec-i+1) /= 0) THEN
+                filename2((LEN_TRIM(file_name)+1):(LEN(file_name))) = "-"//&
+                     ADJUSTL(cp_to_string(nvec-i+1))
+              END IF
+              IF ((nvec-i+1) > 1) THEN
+                CALL m_mov(filename1, filename2)
+              END IF
+            END DO
+            CALL m_mov("RESTART", "RESTART-1")
+          END IF
        END IF
 
        !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
