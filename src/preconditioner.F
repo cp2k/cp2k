@@ -844,6 +844,7 @@ END SUBROUTINE apply_full_single
 !!
 !!   MODIFICATION HISTORY
 !!     03.2006 created [Joost VandeVondele]
+!!     10.2006 made more robust [Joost VandeVondele]
 !!
 !!*** **********************************************************************
 SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, energy_gap,error)
@@ -855,13 +856,16 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     REAL(KIND=dp)                            :: energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    LOGICAL, PARAMETER                       :: check_it = .TRUE.
+    REAL(KIND=dp),PARAMETER                  :: eval_shift=5.0_dp ! arbitrary upshift of the occupied evals
+    REAL(KIND=dp),PARAMETER                  :: fudge_factor=2.0_dp ! fudge factor for taking the error estimate into account
 
     INTEGER                                  :: k, n
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, evals
+    REAL(KIND=dp)                            :: error_estimate, preconditioner_shift
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, evals, diag
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_sc0, matrix_tmp, &
-                                                matrix_tmp2
+    TYPE(cp_fm_type), POINTER                :: matrix_sc0, matrix_hc0,matrix_shc0,matrix_s1, matrix_tmp, matrix_tmp2
+    TYPE(cp_error_type)                      :: sub_error
+    LOGICAL                                  :: failure
 
     CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k,error=error)
 
@@ -870,51 +874,88 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env,error=error)
     CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp,name="preconditioner_env%fm",error=error)
+    CALL cp_fm_create(matrix_tmp,fm_struct_tmp, name="preconditioner matrix_tmp",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,"sc0",error=error)
+    ! first try to get a ritz error estimate
+    ! 0) cholesky decompose the overlap matrix, if this fails the basis is singular,
+    !    more than EPS_DEFAULT
+    CALL copy_sm_to_fm(matrix_s,matrix_tmp,error=error)
+    CALL cp_fm_cholesky_decompose(matrix_tmp,error=error)
+
+    ! get the error estimate
+    CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,name="sc0",error=error)
     CALL cp_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k,error=error)
+    CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
+    CALL cp_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+
+    CALL cp_fm_create(matrix_shc0,matrix_c0%matrix_struct,name="shc0",error=error)
+    CALL cp_fm_cholesky_restore(matrix_hc0,k,matrix_tmp,matrix_shc0,"SOLVE",transa="T",error=error)
+    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
+                                context=preconditioner_env%ctxt, &
+                                para_env=preconditioner_env%para_env,error=error)
+    CALL cp_fm_create(matrix_s1,fm_struct_tmp,name="matrix_s1",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    ! since we only use diagonal elements this is a bit of a waste
+    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
+    ALLOCATE(diag(k))
+    CALL cp_fm_get_diag(matrix_s1,diag,error=error)
+    error_estimate=MAXVAL(sqrt(abs(diag-c0_evals**2)))
+    DEALLOCATE(diag)
+    CALL cp_fm_release(matrix_s1,error=error)
+    CALL cp_fm_release(matrix_shc0,error=error)
+    CALL cp_fm_release(matrix_hc0,error=error)
+
+    ! shift up the occupied subspace eigenvalues
     ALLOCATE(c0_shift(k))
-
-    ! this must be positive since c0_evals are sorted from most negative to most positive  ?
-    WRITE(6,*) 'C0 evals', c0_evals
-    c0_shift=SQRT(-(c0_evals-c0_evals(k))+energy_gap)
-
+    c0_shift=SQRT(-(c0_evals-c0_evals(k))+eval_shift)
     CALL cp_fm_column_scale(matrix_sc0,c0_shift)
     CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm,error=error)
     CALL cp_fm_release(matrix_sc0,error=error)
+    DEALLOCATE(c0_shift)
 
-    CALL cp_fm_create(matrix_tmp,preconditioner_env%fm%matrix_struct, &
-                                 name="preconditioner matrix_tmp",error=error)
-    IF (check_it) CALL cp_fm_create(matrix_tmp2,preconditioner_env%fm%matrix_struct, &
-                                 name="preconditioner matrix_tmp2",error=error)
+    ! get H added to the shift
     CALL copy_sm_to_fm(matrix_h,matrix_tmp,error=error)
     CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,1.0_dp,matrix_tmp,error=error)
     CALL copy_sm_to_fm(matrix_s,matrix_tmp,error=error)
 
-    ! XXX
-    ! here we decide to scale up the evals with energy_gap, that is quite arbitrary
-    ! however, in this way, one can control the if the cholesky decomposition crashes or not
-    CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,-c0_evals(k)+energy_gap,matrix_tmp,error=error)
+    ! preconditioner shift, we target the middle of the occupied spectrum, and taking into account the error_estimate
+    ! write(6,*) "Error estimate = ",error_estimate
+    preconditioner_shift=-(MINVAL(c0_evals)+ MAXVAL(c0_evals))/2.0_dp + &
+                           error_estimate*fudge_factor
+    CALL copy_sm_to_fm(matrix_s,matrix_tmp,error=error)
+    CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,preconditioner_shift,matrix_tmp,error=error)
 
-    IF (check_it) THEN
-       CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp2,error=error)
+    ! check evals
+    IF (.FALSE.) THEN
+       CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp,error=error)
+       CALL cp_fm_create(matrix_tmp2,matrix_tmp%matrix_struct,name="matrix_tmp2",error=error)
        ALLOCATE(evals(n))
-       CALL cp_fm_syevd(matrix_tmp2,matrix_tmp,evals,error=error)
-       WRITE(6,*) 'EVALS'
-       WRITE(6,'(4F15.8)') evals
+       CALL cp_fm_syevd(matrix_tmp,matrix_tmp2,evals,error)
+       CALL cp_fm_release(matrix_tmp2,error=error)
+       write(6,*) "evals ",evals
        DEALLOCATE(evals)
     ENDIF
 
     ! the preconditioner ought now to be symmetric positive definite (provided C0 & system are OK)
-    CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=error)
+    ! we do catch the error and try to fix things
+    CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+    CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=sub_error)
+    failure = .FALSE. ; CALL cp_error_check(sub_error,failure)
+    CALL cp_error_dealloc_ref(sub_error)
+
+    ! check if we need to replace the preconditioner by something simple
+    ! just to keep going
+    IF (failure) THEN
+       ! just the inverse of the overlap matrix right now    
+       CALL copy_sm_to_fm(matrix_s,preconditioner_env%fm,error=error)
+       CALL cp_fm_cholesky_decompose(preconditioner_env%fm,error=error)
+    ENDIF
+
+    ! we need to bring it in the final shape (i.e. full matrix, explicit inverse)
     CALL cp_fm_cholesky_invert(preconditioner_env%fm,error=error)
     CALL cp_fm_upper_to_full(preconditioner_env%fm,matrix_tmp,error=error)
-
-
     CALL cp_fm_release(matrix_tmp,error=error)
-    IF (check_it) CALL cp_fm_release(matrix_tmp2,error=error)
-    DEALLOCATE(c0_shift)
 
 END SUBROUTINE make_full_single_inverse
 

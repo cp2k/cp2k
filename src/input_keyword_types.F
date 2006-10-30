@@ -873,7 +873,7 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
                 WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
                 DO i=1,SIZE(keyword%enum%c_vals)
                    c_string=keyword%enum%c_vals(i)
-                   WRITE (unit_nr,'(a,a,a,a,a)',advance='NO') "<li><code>",&
+                   WRITE (unit_nr,'(a,a,a,a,a)') "<li><code>",&
                         TRIM(c_string), "</code>: ",TRIM(keyword%enum%desc(i)),"</li>"
                 END DO
                 WRITE (unit_nr,'(a)',advance='NO') '</ul>'
