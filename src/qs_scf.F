@@ -49,6 +49,7 @@
 !******************************************************************************
 
 MODULE qs_scf
+  USE cp_files,                        ONLY: move_file
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
@@ -104,8 +105,6 @@ MODULE qs_scf
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_flush,&
-                                             m_mov,&
-                                             m_sys,&
                                              m_walltime
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
@@ -658,10 +657,10 @@ CONTAINS
                      ADJUSTL(cp_to_string(nvec-i+1))
               END IF
               IF ((nvec-i+1) > 1) THEN
-                CALL m_mov(filename1, filename2)
+                CALL move_file(filename1, filename2)
               END IF
             END DO
-            CALL m_mov("RESTART", "RESTART-1")
+            CALL move_file("RESTART", "RESTART-1")
           END IF
        END IF
 

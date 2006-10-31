@@ -29,7 +29,7 @@ MODULE machine_aix
 
   PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_sys, m_mov
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 
   INTERFACE m_loc_r
      MODULE PROCEDURE m_loc_r1,m_loc_r2,m_loc_r3,m_loc_r4
@@ -215,33 +215,6 @@ END SUBROUTINE m_datum
     ENDIF
 #endif
   END SUBROUTINE print_memory
-
-! *****************************************************************************
-
-  SUBROUTINE m_sys(cmd)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: cmd
-
-!   ---------------------------------------------------------------------------
-
-    CALL system(cmd)
-
-  END SUBROUTINE m_sys
-
-! *****************************************************************************
-
- SUBROUTINE m_mov(source,target)
-
-
-    CHARACTER(LEN=*), INTENT(IN)             :: source, target
-    CHARACTER(LEN=200)                       :: cmd
-
-!   ---------------------------------------------------------------------------
-
-    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
-
-  END SUBROUTINE m_mov
 
 ! *****************************************************************************
 

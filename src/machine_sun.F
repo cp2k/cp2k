@@ -29,7 +29,7 @@ MODULE machine_sun
 
   PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_sys, m_mov
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 
 !!*****
 !******************************************************************************
@@ -125,42 +125,15 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-    CALL m_getpid(pid)
+   CALL m_getpid(pid)
 
-    WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
+   WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
      "/usr/bin/echo ""\n PID""",pid,""" <"//TRIM(checkpoint)//&
      ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\c"""
 
-    CALL system(cmdstr)
+   CALL system(cmdstr)
 
   END SUBROUTINE print_memory
-
-! *****************************************************************************
-
-  SUBROUTINE m_sys(cmd)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: cmd
-
-!   ---------------------------------------------------------------------------
-
-    CALL system(cmd)
-
-  END SUBROUTINE m_sys
-
-! *****************************************************************************
-
- SUBROUTINE m_mov(source,target)
-
-
-    CHARACTER(LEN=*), INTENT(IN)             :: source, target
-    CHARACTER(LEN=200)                       :: cmd
-
-!   ---------------------------------------------------------------------------
-
-    cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
-
-  END SUBROUTINE m_mov
 
 ! *****************************************************************************
 
