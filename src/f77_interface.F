@@ -67,6 +67,7 @@ MODULE f77_interface
                                              do_qmmm,&
                                              do_qs,&
                                              do_tbmd,&
+                                             do_mixed,&
                                              method_names
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_cp2k_check,                ONLY: check_cp2k_input
@@ -88,6 +89,7 @@ MODULE f77_interface
   USE metadynamics,                    ONLY: metadyn_read
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
+  USE mixed_main,                       ONLY: mixed_create_force_env
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: init_physcon
   USE qmmm_init,                       ONLY: qmmm_create_force_env
@@ -704,7 +706,7 @@ END SUBROUTINE f_env_rm_defaults
        force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
 
        CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
-       CALL section_vals_val_get(root_section,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
+       CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",i_vals=i_force_eval,&
             ignore_required=.TRUE.,error=error)
        CPPrecondition(SIZE(i_force_eval)==nforce_eval,cp_failure_level,routineP,error,failure)
        DO iforce_eval = 1, nforce_eval
@@ -736,6 +738,9 @@ END SUBROUTINE f_env_rm_defaults
                   force_env_section=force_env_section, error=error)
           CASE (do_eip)
              CALL eip_create_force_env(my_force_env, root_section, para_env, globenv, &
+                  force_env_section=force_env_section, error=error)
+          CASE (do_mixed)
+             CALL mixed_create_force_env(my_force_env, root_section,para_env,globenv,&
                   force_env_section=force_env_section, error=error)
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

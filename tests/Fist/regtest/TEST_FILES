@@ -138,3 +138,5 @@ wat125.inp                2
 argon_GENPOT.inp          2
 H2O-1-GENPOT.inp          2
 H2O-1-GENPOT-2.inp        2
+# mixing
+H2OFe-5_75.inp            2

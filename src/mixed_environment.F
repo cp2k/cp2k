@@ -1,0 +1,285 @@
+
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+
+!!****** cp2k/mixed_environment [1.0] *
+!!
+!!   NAME
+!!     mixed_environment
+!!
+!!   FUNCTION
+!!    initialize mixed environment
+!!   AUTHOR
+!!     fschiff
+!!   HISTORY
+!!   SOURCE
+!******************************************************************************
+
+MODULE mixed_environment
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             get_cell,&
+                                             read_cell,&
+                                             write_cell
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
+  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+                                             cp_subsys_release,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_type
+  USE distribution_1d_types,           ONLY: distribution_1d_release,&
+                                             distribution_1d_type
+  USE distribution_methods,            ONLY: distribute_molecules_1d
+  USE mixed_energy_types,               ONLY: allocate_mixed_energy,&
+                                             mixed_energy_type
+  USE mixed_environment_types,          ONLY: mixed_environment_type,&
+                                             get_mixed_env,&
+                                             set_mixed_env
+  USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: fist_header
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
+  USE kinds,                           ONLY: dp
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
+                                             mol_kind_new_list_release,&
+                                             mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_create,&
+                                             mol_new_list_release,&
+                                             mol_new_list_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type,&
+                                             write_molecule_kind_set
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_fist_particle_coordinates,&
+                                             write_particle_distances
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology,                        ONLY: topology_control
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment'
+  PUBLIC :: mixed_init
+
+!!*****
+!-----------------------------------------------------------------------------!
+
+CONTAINS
+
+!-----------------------------------------------------------------------------!
+!
+!-----------------------------------------------------------------------------!
+!!
+!!   NAME
+!!     mixed_init
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!   reads the input and database file for mixed
+!!
+!!   AUTHOR
+!!    fschiff
+!!   MODIFICATION HISTORY
+!!
+!!   USED BY
+!!     mixed_main
+!!
+!!*** *************************************************************************
+
+SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_section, error )
+
+    TYPE(mixed_environment_type), POINTER     :: mixed_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init'
+
+    INTEGER                                  :: handle, iw
+    LOGICAL                                  :: failure,use_ref_cell
+    REAL(KIND=dp), DIMENSION(3)              :: abc
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
+    TYPE(mol_new_list_type), POINTER         :: mols
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: cell_section,colvar_section                                                
+                                                
+
+  CALL timeset(routineN,"I",'',handle)
+  failure = .FALSE.
+  logger => cp_error_get_logger(error)
+
+  NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
+            particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
+  NULLIFY ( cell_section)
+
+  cell_section => section_vals_get_subs_vals(force_env_section,&
+       "SUBSYS%CELL",error=error)
+
+  CALL set_mixed_env(mixed_env,input=force_env_section,error=error)
+
+!!FS  iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
+!!FS       extension=".mmLog",error=error)
+!!FS  CALL fist_header(iw, iw>0)
+!!FS  CALL cp_print_key_finished_output(iw,logger,mm_section,&
+!!FS       "PRINT%PROGRAM_BANNER",error=error)
+
+  CALL cp_subsys_create ( subsystem, para_env = para_env, error = error )
+
+  ! read colvars and add to subsystem
+  colvar_section => section_vals_get_subs_vals(force_env_section,&
+       "SUBSYS%COLVAR",error=error)
+  CALL cp_subsys_read_colvar( subsystem, colvar_section, error=error)
+
+  CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, error=error,&
+       cell_section=cell_section)
+  CALL get_cell (cell, abc=abc)
+
+! Print the cell parameters ***
+  CALL write_cell ( cell, force_env_section, cell_ref, error)
+
+! topology
+  CALL get_mixed_env (mixed_env, error=error)
+
+  CALL topology_control ( atomic_kind_set, particle_set,&
+                          molecule_kind_set, molecule_set,subsystem%colvar_p,&
+                          root_section,para_env,globenv,&
+                          force_env_section=force_env_section,error=error)
+
+  CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
+  CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
+  CALL mol_new_list_create ( mols, els_ptr = molecule_set, error = error )
+  CALL mol_kind_new_list_create ( mol_kinds, els_ptr = molecule_kind_set, error = error )
+  CALL cp_subsys_set ( subsystem, particles = particles, atomic_kinds = atomic_kinds, &
+       molecules_new = mols, molecule_kinds_new = mol_kinds, error = error )
+  CALL particle_list_release ( particles, error = error )
+  CALL atomic_kind_list_release ( atomic_kinds, error = error )
+  CALL mol_new_list_release ( mols, error = error )
+  CALL mol_kind_new_list_release ( mol_kinds, error = error )
+
+
+  CALL mixed_init_subsys ( mixed_env, subsystem, cell, cell_ref, use_ref_cell, &
+                          force_env_section,&
+                          error )
+
+  CALL cell_release(cell,error=error)
+  CALL cell_release(cell_ref,error=error)
+  CALL cp_subsys_release(subsystem,error=error)
+
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE mixed_init
+
+!   ***************************************************************************
+  SUBROUTINE mixed_init_subsys ( mixed_env, subsystem, cell, cell_ref, use_ref_cell, &
+                                force_env_section,&
+                                error )
+
+!   Purpose: Read the input and the database files for the setup of the
+!            mixed environment.
+
+!   History: - Creation (11.06,fschiff)
+
+!   ***************************************************************************
+    TYPE(mixed_environment_type), POINTER     :: mixed_env
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    LOGICAL, INTENT(IN)                      :: use_ref_cell
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init_subsys'
+
+    INTEGER                                  :: handle
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(mixed_energy_type), POINTER          :: mixed_energy
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: grid_print_section
+
+  CALL timeset(routineN,"I",'',handle)
+  NULLIFY ( mixed_energy, local_molecules, local_particles)
+  particle_set => subsystem % particles % els
+  atomic_kind_set => subsystem % atomic_kinds % els
+  molecule_set => subsystem % molecules_new % els
+  molecule_kind_set => subsystem % molecule_kinds_new % els
+
+! Create the mixed_energy_type
+  CALL allocate_mixed_energy( mixed_energy )
+
+! Print the molecule kind set
+  CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
+
+!! Print the atomic coordinates
+!!FS  CALL write_fist_particle_coordinates(particle_set,cell,force_env_section,error)
+!!FS  CALL write_particle_distances(particle_set,cell,force_env_section,error)
+
+! Distribute molecules and atoms using the new data structures ***
+
+  CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
+                                 particle_set=particle_set,&
+                                 local_particles=local_particles,&
+                                 molecule_kind_set=molecule_kind_set,&
+                                 molecule_set=molecule_set,&
+                                 local_molecules=local_molecules,&
+                                 force_env_section=force_env_section,&
+                                 error=error )
+
+! Create ewald grids
+
+! set the mixed_env
+  CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsystem, error = error )
+  CALL set_mixed_env ( mixed_env=mixed_env,&
+                      cell=cell, cell_ref=cell_ref, &
+                      local_molecules=local_molecules,&
+                      local_particles=local_particles,&
+                      mixed_energy=mixed_energy ,error=error)
+
+  CALL distribution_1d_release ( local_particles, error = error )
+  CALL distribution_1d_release ( local_molecules, error = error )
+
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE mixed_init_subsys
+!******************************************************************************
+END MODULE mixed_environment
+!******************************************************************************

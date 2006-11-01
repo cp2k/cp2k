@@ -58,7 +58,7 @@ MODULE force_env_methods
        force_env_get, force_env_get_natom, force_env_p_type, &
        force_env_pos_get, force_env_type, use_eip_force, use_ep_force, &
        use_fist_force, use_kg_force, use_pol_force, use_qmmm, use_qs_force, &
-       use_tbmd_force, use_prog_name
+       use_tbmd_force, use_prog_name,use_mixed_force
   USE fp_methods,                      ONLY: fp_eval
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
@@ -80,9 +80,15 @@ MODULE force_env_methods
   USE kg_rspw_methods,                 ONLY: kg_rspw_rebuild
   USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_val_get
   USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
                                              meta_env_type
+  USE mixed_energy_types,              ONLY:mixed_energy_type
+  USE mixed_environment_types,         ONLY: mixed_env_retain,&
+                                             mixed_environment_type,&
+                                             get_mixed_env,&
+                                             set_mixed_env
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -262,6 +268,8 @@ CONTAINS
           END IF
        CASE ( use_qmmm )
           CALL qmmm_energy_and_forces(force_env,need_f,error=error)
+       CASE ( use_mixed_force )
+          CALL mixed_energy_forces(force_env,error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -330,7 +338,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_env,kg_env,&
      tbmd_env,meta_env,sub_force_env,qmmm_env,&
-     eip_env,ep_env,force_env_section,error)
+     eip_env,ep_env,force_env_section,mixed_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -348,6 +356,8 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
       OPTIONAL, POINTER                      :: sub_force_env
     TYPE(qmmm_env_qm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
+    TYPE(mixed_environment_type), OPTIONAL, &
+      POINTER                                :: mixed_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(ep_env_type), OPTIONAL, POINTER     :: ep_env
@@ -459,6 +469,13 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         force_env%virial => sub_force_env(1)%force_env%virial
         CALL virial_retain(force_env%virial,error=error)
      END IF
+     IF (PRESENT(mixed_env)) THEN
+        CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
+        force_env%in_use=use_mixed_force
+        force_env%mixed_env => mixed_env
+        CALL mixed_env_retain ( mixed_env, error = error )
+        CALL virial_create ( force_env % virial, virial_in_use = .TRUE. ,error=error)
+     END IF
      IF (PRESENT(ep_env)) THEN
         IF (ASSOCIATED(ep_env)) THEN
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
@@ -561,6 +578,14 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            CALL cp_subsys_retain(subsys(isubsys)%subsys,&
                 error=error)
         END DO
+     CASE(use_mixed_force)
+        ALLOCATE ( force_env % subsys ( 1 ), stat = stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CALL get_mixed_env ( force_env % mixed_env, &
+             subsys=force_env % subsys ( 1 ) % subsys, &
+             error = error )
+        CALL cp_subsys_retain ( force_env % subsys ( 1 ) % subsys, &
+             error = error )
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
@@ -974,6 +999,96 @@ SUBROUTINE apply_qmmm_trasl(force_env, error)
   END SELECT
 
 END SUBROUTINE apply_qmmm_trasl
+
+!! ****f* force_env_methods/mixed_energy_forces  [1.0] 
+!!
+!!   NAME
+!!    mixed_forces
+!!
+!!   FUNCTION
+!!    biased MD for a direct umbrella sampling
+!!
+!!   NOTES
+!!    -
+!!
+!!   INPUTS
+!!
+!!
+!!   AUTHOR
+!!     Florian Schiffmann
+!!
+!!   MODIFICATION HISTORY
+!!      11.06  created [fschiff]
+!!
+!!***************************************************************************
+SUBROUTINE mixed_energy_forces(force_env,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error    
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys_red, subsys_ox, subsys_mix
+    CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_force', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp)                            :: energy_red, energy_ox, lambda
+    TYPE(mixed_energy_type),POINTER:: mixed_energy
+    TYPE(particle_list_type), POINTER        :: particles_red, particles_ox, particles_mix
+    INTEGER                                  :: iparticle
+    LOGICAL                                  :: failure, need_f 
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
+    failure=.FALSE.
+    need_f=.TRUE.
+  logger => cp_error_get_logger(error)
+  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+  
+  CALL force_env_get(force_env=force_env, subsys=subsys_mix, force_env_section=force_env_section, &
+                     error=error)
+
+  CALL section_vals_val_get(force_env_section,"MIXED%LAMBDA",r_val=lambda,&
+                            error=error)
+
+  CALL force_env_get(force_env=force_env%sub_force_env(1)%force_env,&
+       subsys=subsys_red,error=error)
+
+  CALL force_env_get(force_env=force_env%sub_force_env(2)%force_env,&
+       subsys=subsys_ox,error=error)
+
+  CALL cp_subsys_get(subsys=subsys_mix(1)%subsys,particles=particles_mix,error=error)
+  
+  CALL cp_subsys_get(subsys=subsys_red(1)%subsys,particles=particles_red,error=error)
+  
+  CALL cp_subsys_get(subsys=subsys_ox(1)%subsys,particles=particles_ox,error=error)
+
+  DO iparticle = 1, SIZE(particles_mix%els)
+     particles_red%els(iparticle)%r= particles_mix%els(iparticle)%r
+     particles_ox%els(iparticle)%r= particles_mix%els(iparticle)%r     
+  END DO
+
+  CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,&
+       calc_force=need_f,skip_external_control=.TRUE.,error=error)
+
+  CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+                     potential_energy=energy_red,&
+                     error=error)
+
+  CALL force_env_calc_energy_force(force_env%sub_force_env(2)%force_env,&
+       calc_force=need_f,skip_external_control=.TRUE.,error=error)
+
+  CALL force_env_get(force_env%sub_force_env(2)%force_env,&
+                     potential_energy=energy_ox,&
+                     error=error)
+
+  CALL get_mixed_env(mixed_env=force_env%mixed_env, mixed_energy=mixed_energy,error=error)
+
+  mixed_energy%pot=lambda*energy_red + (1-lambda)*energy_ox
+  DO iparticle = 1, SIZE(particles_mix%els)
+     particles_mix%els(iparticle)%f(:)= lambda*particles_red%els(iparticle)%f(:) +&
+          (1.0_dp - lambda )* particles_ox%els(iparticle)%f(:)
+  END DO
+
+  
+END SUBROUTINE mixed_energy_forces
+
 
 
 !!****f* force_env_types/force_env_shake *

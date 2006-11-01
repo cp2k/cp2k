@@ -96,8 +96,8 @@ CONTAINS
 
     INTEGER                                  :: handle, iforce_eval, &
                                                 nforce_eval
-    LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: section, section2, sections
+    LOGICAL                                  :: explicit, failure, explicit_mix
+    TYPE(section_vals_type), POINTER         :: section, section2, sections ,section3
 
     CALL timeset(routineN,handle)
 
@@ -114,15 +114,24 @@ CONTAINS
        ! checks on force_eval section
        sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
-       ! multiple force_eval only if present RESPA
+       ! multiple force_eval only if present RESPA or MIXED calculation is performed
        section2 => section_vals_get_subs_vals(input_file,&
             "MOTION%MD%RESPA",error=error)
        CALL section_vals_get(section2,explicit=explicit,error=error)
-       IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1))) THEN
+       DO iforce_eval=1,nforce_eval         
+          section3 =>section_vals_get_subs_vals(sections,"MIXED",&
+                     i_rep_section=iforce_eval,error=error)
+          CALL section_vals_get(section3,explicit=explicit_mix,error=error)
+          IF(explicit_mix)EXIT
+       END DO
+          
+       IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1)))THEN
+          IF((explicit_mix.AND.(nforce_eval==1)).OR.(.NOT.explicit_mix.AND.(nforce_eval>1)))THEN
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,"Error multiple force_env without RESPA or RESPA with one single "//&
-                " force_env section.",error,failure)
-       END IF
+                routineP,"Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
+                " or MIXED with only two force_env section.",error,failure)
+        END IF
+     END IF
        DO iforce_eval = 1,nforce_eval
           section => section_vals_get_subs_vals3(sections,"DFT",&
                 i_rep_section=iforce_eval,error=error)

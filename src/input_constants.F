@@ -47,7 +47,7 @@ MODULE input_constants
        (/do_farming, do_test, do_cp2k/)
 
   ! Method Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: method_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: method_names=&
        (/"QS        ",&
          "FIST      ",&
          "KG        ",&
@@ -58,9 +58,10 @@ MODULE input_constants
          "KIM-GORDON",&
          "KIM_GORDON",&
          "TB-MD     ",&
-         "EP        "/)
+         "EP        ",&
+         "MIXED     "/)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: method_name_desc=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: method_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
          "Kim Gordon models (DFT)                ",&
@@ -71,7 +72,8 @@ MODULE input_constants
          "Kim Gordon models (DFT)                ",&    !
          "Kim Gordon models (DFT)                ",&    !
          "Tight-Binding Molecular Dynamics       ",&    !
-         "Non-orthogonal perturbation            "/)    !
+         "Non-orthogonal perturbation            ",&    !
+         "Use a combination of two of the above  "/)    
 
   INTEGER, PARAMETER, PUBLIC :: do_qs=1,&
                                 do_fist=2,&
@@ -79,12 +81,12 @@ MODULE input_constants
                                 do_qmmm=4,&
                                 do_tbmd=5,&
                                 do_eip=6,&
-                                do_ep=7
-                                
+                                do_ep=7,&
+                                do_mixed=8
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(11) :: method_name_index=&
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(12) :: method_name_index=&
        (/do_qs, do_fist, do_kg, do_qmmm, do_tbmd, &
-         do_eip, do_qs, do_kg, do_kg, do_tbmd,do_ep/)
+         do_eip, do_qs, do_kg, do_kg, do_tbmd,do_ep, do_mixed/)
 
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&

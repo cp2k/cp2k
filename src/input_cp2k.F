@@ -190,6 +190,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
+       CALL create_multi_force_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
        CALL create_force_eval_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
@@ -736,6 +740,56 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 !!     fawzi
 !!
 !!*** **********************************************************************
+  SUBROUTINE create_multi_force_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_force_eval_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="MULTIPLE_FORCE_EVALS",&
+         description="describe how to handle multiple force_evals",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         error=error)
+
+    NULLIFY(keyword)
+     CALL keyword_create(keyword, name="FORCE_EVAL_ORDER",&
+          description='Specify the orders of the respa shells from the slowest to the fastest force evaluation.',&
+          usage="FORCE_EVAL_ORDER <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
+          default_i_vals=(/1/), error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+   END SUBROUTINE create_multi_force_section
+!***************************************************************************
+
+!!****f* input_cp2k/create_force_eval_section *
+!!
+!!   NAME
+!!     create_force_eval_section
+!!
+!!   FUNCTION
+!!     creates the force_eval section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
   SUBROUTINE create_force_eval_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)  &
@@ -788,6 +842,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL create_mm_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
+
+    CALL create_mix_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)    
 
     CALL create_qmmm_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -1270,5 +1328,60 @@ SUBROUTINE create_cpot_section(section,error)
   END IF
 END SUBROUTINE create_cpot_section
 !***************************************************************************
+!***************************************************************************
+
+!!***create_mix_section [1.0] *
+!!
+!!   NAME
+!!     create_mixed_section
+!!
+!!   FUNCTION
+!!     Create the input section for MIXED.
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fschiff
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_mix_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mix_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="MIXED",&
+            description="This section contains all information to run with a hamiltonian "//&
+                        "defined by a mixing of force_evals",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="LAMBDA",&
+            description="Specify the mixing parameter lambda in the formula:"//&
+            " F= lambda F1 + (1-lambda) F2",&
+            usage="lambda <REAL>", type_of_var=real_t,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_mix_section
+
 
 END MODULE input_cp2k

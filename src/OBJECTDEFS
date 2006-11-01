@@ -250,6 +250,10 @@ OBJECTS_GENERIC =\
  message_passing.o\
  metadynamics.o\
  metadynamics_types.o\
+ mixed_energy_types.o\
+ mixed_environment.o\
+ mixed_environment_types.o\
+ mixed_main.o\
  mm_collocate_potential.o\
  mm_mapping_library.o\
  mol_force.o\

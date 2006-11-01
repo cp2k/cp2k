@@ -59,6 +59,10 @@ MODULE force_env_types
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_retain,&
                                              meta_env_type
+  USE mixed_energy_types,              ONLY: mixed_energy_type
+  USE mixed_environment_types,         ONLY: mixed_env_release,&
+                                             mixed_environment_type,&
+                                             get_mixed_env
   USE particle_list_types,             ONLY: particle_list_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_release,&
                                              qmmm_env_qm_type
@@ -90,9 +94,10 @@ MODULE force_env_types
                                 use_qmmm       = 505, &
                                 use_tbmd_force = 506, &
                                 use_eip_force  = 507,&
-                                use_ep_force   = 508
+                                use_ep_force   = 508,&
+	                        use_mixed_force= 509
 
-  CHARACTER(LEN=10), DIMENSION(501:508), PARAMETER, PUBLIC :: &
+  CHARACTER(LEN=10), DIMENSION(501:509), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
        "FIST  ", &
        "QS    ", &
@@ -101,7 +106,8 @@ MODULE force_env_types
        "QMMM  ", &
        "TBMD  ", &
        "EIP   ",&
-       "EP    "/)
+       "EP    ",&
+       "MIXED "/)
 
   PUBLIC :: force_env_type,&
             force_env_p_type
@@ -178,6 +184,7 @@ MODULE force_env_types
      TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
      TYPE ( virial_type  ), POINTER                      :: virial
      TYPE ( ep_env_type ), POINTER                       :: ep_env
+     TYPE ( mixed_environment_type ), POINTER            :: mixed_env     
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
      TYPE ( extended_energy_type), POINTER               :: extended_energies
@@ -309,6 +316,8 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
           CALL eip_env_release(force_env%eip_env, error=error)
         CASE ( use_ep_force )
           CALL ep_env_release(force_env%ep_env, error=error)
+       CASE (use_mixed_force)
+          CALL mixed_env_release(force_env%mixed_env,error=error)
         END SELECT
         IF (ASSOCIATED(force_env%subsys)) THEN
            DO i=1,SIZE(force_env%subsys)
@@ -386,7 +395,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
      tbmd_env, eip_env, virial, use_ref_cell, globenv, input,ep_env,&
-          force_env_section,method_name_id,root_section,error)
+          force_env_section,method_name_id,root_section,mixed_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -410,6 +419,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       OPTIONAL, POINTER                      :: sub_force_env
     TYPE(qmmm_env_qm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
+    TYPE(mixed_environment_type), OPTIONAL, &
+      POINTER                                :: mixed_env
     TYPE(tbmd_environment_type), OPTIONAL, &
       POINTER                                :: tbmd_env
     TYPE(eip_environment_type), OPTIONAL, &
@@ -438,6 +449,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
                                                 penergy_mm, penergy_qm
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fist_energy_type), POINTER          :: thermo
+    TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: my_qs_env
@@ -578,6 +590,21 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
                                   error=error)
                potential_energy = penergy_qm+penergy_mm
           ENDIF
+     CASE (use_mixed_force)
+        CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
+        CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
+        CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
+        CPPreconditionNoFail(.NOT.PRESENT(tbmd_env),cp_warning_level,routineP,error)
+        CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
+        CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
+        CALL get_mixed_env(force_env%mixed_env,&
+                          mixed_energy=mixed_energy,&
+                          cell=cell,&
+                          cell_ref=cell_ref,&
+                          error=error)
+        IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
+        IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
+        IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
      CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&
@@ -632,7 +659,8 @@ CPSourceFileRef,&
      IF (PRESENT(meta_env)) meta_env => force_env%meta_env
      IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
      IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
-     IF (PRESENT(virial))        virial        => force_env % virial
+     IF (PRESENT(mixed_env))     mixed_env     => force_env%mixed_env
+     IF (PRESENT(virial))        virial        => force_env%virial
      IF (PRESENT(globenv))       globenv       => force_env%globenv
      IF (PRESENT(root_section))  root_section  => force_env%root_section
      IF (PRESENT(ep_env))        ep_env        => force_env%ep_env

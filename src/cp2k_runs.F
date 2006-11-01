@@ -51,7 +51,7 @@ MODULE cp2k_runs
   USE input_constants,                 ONLY: &
        EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
        SE_MC_method, TBMD_MC_method, bsse_run, do_cp2k, do_eip, do_ep, &
-       do_farming, do_fist, do_kg, do_qmmm, do_qs, do_tbmd, do_test, &
+       do_farming, do_fist, do_kg, do_qmmm, do_qs, do_tbmd, do_test, do_mixed, &
        electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
        hmc_run, ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, &
        none_run, pint_run, qs_debug_run, vib_anal
