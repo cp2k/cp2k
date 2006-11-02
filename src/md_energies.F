@@ -112,7 +112,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
                                                 my_pos, remark1, remark2, &
                                                 title
-    INTEGER                                  :: box, crd, delta_t, ene, frc, &
+    INTEGER                                  :: box, crd, delta_t, ene, frc,ener_mix, &
                                                 handle, i, iskip, isubsys, &
                                                 iw, nat, str, vel
     INTEGER, POINTER                         :: itimes
@@ -120,7 +120,7 @@ CONTAINS
                                                 init_vel
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
-    REAL(KIND=dp)                            :: cons, ekin, ekin_coefs, epot, &
+    REAL(KIND=dp)                            :: cons, ekin, ekin_coefs, epot,efone,eftwo, &
                                                 hugoniot, temp, temp_baro, &
                                                 temp_coefs, temp_qm, ekin_qm
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
@@ -498,6 +498,9 @@ CONTAINS
        crd = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="pos", error=error)
+       ener_mix=cp_print_key_unit_nr(logger,motion_section,"PRINT%MIXED_ENERGIES",&
+            extension=".ener", file_position=my_pos, file_action=my_act,&
+            middle_name="mix", error=error)
        IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
@@ -652,6 +655,20 @@ CONTAINS
           END DO
           CALL m_flush(frc)
        END IF
+
+       !------------------
+       ! Print MIXED Energy
+       !------------------
+       IF (ener_mix>0) THEN
+          CALL force_env_get(force_env_p ( 1 ) % force_env%sub_force_env(1)%force_env,&
+                             potential_energy=efone, error=error)
+          CALL force_env_get(force_env_p ( 1 ) % force_env%sub_force_env(2)%force_env,&
+                             potential_energy=eftwo, error=error)
+          WRITE (ener_mix,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9)")&
+               itimes,t*femtoseconds,epot,efone,eftwo,cons
+       END IF
+
+
        !------------------
        ! Print Energy
        !------------------
@@ -681,6 +698,8 @@ CONTAINS
             "PRINT%VELOCITIES", error=error)
        CALL cp_print_key_finished_output(frc,logger,motion_section,&
             "PRINT%FORCES", error=error)
+       CALL cp_print_key_finished_output(ener_mix,logger,motion_section,&
+            "PRINT%MIXED_ENERGIES", error=error)
        IF( virial % pv_availability ) THEN
          CALL cp_print_key_finished_output(str,logger,motion_section,&
               "PRINT%STRESS", error=error)
