@@ -31,7 +31,8 @@ MODULE md_energies
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type
+                                             force_env_p_type,&
+                                             use_mixed_force
   USE input_constants,                 ONLY: dump_dcd,&
                                              dump_xmol,&
                                              ensemble_name_types,&
@@ -118,6 +119,7 @@ CONTAINS
     INTEGER, POINTER                         :: itimes
     LOGICAL, SAVE                            :: init, init_force, init_traj, &
                                                 init_vel
+    LOGICAL                                  :: is_mixed
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp)                            :: cons, ekin, ekin_coefs, epot,efone,eftwo, &
@@ -147,6 +149,7 @@ CONTAINS
     DATA init_vel    /.TRUE./
     DATA init_force  /.TRUE./
 
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,handle)
@@ -175,6 +178,8 @@ CONTAINS
          dyn_coeff_set=dyn_coeff_set,&
          virial = virial, &
          error=error)
+
+    is_mixed=force_env_p ( 1 ) % force_env%in_use == use_mixed_force
 
     nat=0
     DO isubsys=1,SIZE(subsys)
@@ -498,9 +503,11 @@ CONTAINS
        crd = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="pos", error=error)
-       ener_mix=cp_print_key_unit_nr(logger,motion_section,"PRINT%MIXED_ENERGIES",&
-            extension=".ener", file_position=my_pos, file_action=my_act,&
-            middle_name="mix", error=error)
+       IF (is_mixed) THEN
+           ener_mix=cp_print_key_unit_nr(logger,motion_section,"PRINT%MIXED_ENERGIES",&
+                extension=".ener", file_position=my_pos, file_action=my_act,&
+                middle_name="mix", error=error)
+       ENDIF
        IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
@@ -659,7 +666,7 @@ CONTAINS
        !------------------
        ! Print MIXED Energy
        !------------------
-       IF (ener_mix>0) THEN
+       IF (ener_mix>0 .AND. is_mixed) THEN
           CALL force_env_get(force_env_p ( 1 ) % force_env%sub_force_env(1)%force_env,&
                              potential_energy=efone, error=error)
           CALL force_env_get(force_env_p ( 1 ) % force_env%sub_force_env(2)%force_env,&
@@ -698,8 +705,10 @@ CONTAINS
             "PRINT%VELOCITIES", error=error)
        CALL cp_print_key_finished_output(frc,logger,motion_section,&
             "PRINT%FORCES", error=error)
-       CALL cp_print_key_finished_output(ener_mix,logger,motion_section,&
-            "PRINT%MIXED_ENERGIES", error=error)
+       IF (is_mixed) THEN
+           CALL cp_print_key_finished_output(ener_mix,logger,motion_section,&
+                "PRINT%MIXED_ENERGIES", error=error)
+       ENDIF
        IF( virial % pv_availability ) THEN
          CALL cp_print_key_finished_output(str,logger,motion_section,&
               "PRINT%STRESS", error=error)
