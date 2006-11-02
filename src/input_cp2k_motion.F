@@ -190,7 +190,7 @@ CONTAINS
             description="controls the output of the energies of the two"//&
                         "regular FORCE_EVALS in the MIXED method"//&
                         "printed is step,time,Etot,E_F1,E_F2,CONS_QNT",&
-            print_level=high_print_level, common_iter_levels=1,&
+            print_level=low_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
