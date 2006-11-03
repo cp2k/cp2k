@@ -65,7 +65,8 @@ MODULE force_env_methods
   USE input_constants,                 ONLY: qs_debug_run,&
                                              use_bazant_eip,&
                                              use_lenosky_eip,&
-                                             method_names
+                                             method_names, &
+                                             dump_xmol
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -93,7 +94,8 @@ MODULE force_env_methods
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             write_particle_coordinates
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
   USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
@@ -183,7 +185,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
          routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nat, stat, output_unit
+    INTEGER                                  :: nat, stat, output_unit, isubsys, print_forces
     LOGICAL                                  :: energy_consistency, failure, &
          my_skip, need_f, ionode
     REAL(kind=dp)                            :: e_pot
@@ -192,6 +194,10 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -301,6 +307,23 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
        END IF
+
+       print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&
+                        extension=".xyz",error=error)
+
+       IF (print_forces>0 .AND. need_f) THEN
+          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
+          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T66,F15.9,/)')&
+               ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
+          CALL force_env_get(force_env, subsys=subsys, error=error)         
+          DO isubsys=1,SIZE(subsys)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  particles=particles, error=error)
+             CALL write_particle_coordinates(particles%els,print_forces,&
+                  dump_xmol,"FORCE"," FORCES| (a.u.) " )
+          END DO
+       ENDIF
+
        ! Dump force_eval energy..
        IF (output_unit>0.AND.(.NOT.need_f)) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)

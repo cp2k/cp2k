@@ -319,11 +319,13 @@ CONTAINS
              IF(  method_name_id /= do_qs .AND.&
                   method_name_id /= do_kg .AND.&
                   method_name_id  /= do_qmmm .AND.&
-                  method_name_id  /= do_ep)  &
+                  method_name_id  /= do_ep .AND.&
+                  method_name_id  /= do_mixed .AND.&
+                  method_name_id  /= do_fist )  &
 
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Energy run available only with QS, KG, EP and QMMM methods "//&
-CPSourceFileRef,&
+                  "Energy/Force run not available for all methods "//&
+                   CPSourceFileRef,&
                   suberror,failure)
              SELECT CASE(globenv%run_type_id)
              CASE (energy_run)
