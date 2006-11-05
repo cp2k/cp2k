@@ -1031,7 +1031,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "    &CELL"
       WRITE(unit,40000) '      ABC  ',box_length(1:3)
       WRITE(unit,10000) '      UNIT ANGSTROM'
-      IF(force_env%in_use == use_qs_force) THEN
+      IF(force_env%in_use == use_qs_force .OR. &
+        force_env%in_use == use_kg_force) THEN
          IF(use_ref_cell) THEN
             WRITE(unit,10000) '       &CELL_REF'
             WRITE(unit,40000) '         ABC ',&
