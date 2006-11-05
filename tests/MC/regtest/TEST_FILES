@@ -6,7 +6,7 @@
 #
 # QS MC test for volume moves and the ref_cell on water
 MC_QS.inp 6
-# FIST MC testing NpT simulation with biasing on water
-MC_Fist.inp 6
-# KG MC testing GEMC simulation on water
-MC_KG_box1.inp 6
+# FIST MC testing binary Ar/water GEMC simulation
+MC_Fist_box1.inp 6
+# KG MC testing AVBMC NpT with KG 
+MC_KG.inp 6
