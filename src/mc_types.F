@@ -6,7 +6,7 @@
 !!
 !!   NAME
 !!     mc_types
-!!
+!! 
 !!   FUNCTION
 !!     holds all the structure types needed for Monte Carlo, except
 !!     the mc_environment_type
@@ -21,16 +21,26 @@
 !******************************************************************************
 
 MODULE mc_types
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_p_type,&
+                                             use_fist_force,&
+                                             use_qs_force,&
+                                             use_kg_force
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
@@ -39,16 +49,25 @@ MODULE mc_types
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_string_length,&
+                                             int_size,&
+                                             dp_size
   USE mathconstants,                   ONLY: pi
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type
+                                             molecule_kind_type,&
+                                             atom_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE physcon,                         ONLY: boltzmann,&
                                              joule
-  USE string_utilities,                ONLY: xstring
+  USE string_utilities,                ONLY: xstring,&
+                                             uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -61,19 +80,22 @@ MODULE mc_types
             mc_averages_type,mc_averages_p_type,&
             mc_moves_type, mc_moves_p_type,accattempt,&
             get_mc_par,set_mc_par,read_mc_section,&
-            find_mc_rcut,determine_conf_prob
+            find_mc_rcut,mc_molecule_info_type,&
+            mc_determine_molecule_info,mc_molecule_info_destroy,&
+            mc_sim_par_create,mc_sim_par_destroy,&
+            get_mc_molecule_info,&
+            mc_input_file_type,mc_input_file_create,&
+            get_mc_input_file,mc_input_file_destroy
 
 
   TYPE mc_simulation_parameters_type
+! contains all the parameters needed for running Monte Carlo simulations
       PRIVATE
-      INTEGER :: avbmc_atom
+      INTEGER,DIMENSION(:),POINTER :: avbmc_atom
       INTEGER :: nstep
       INTEGER :: iupvolume
       INTEGER :: iuptrans
       INTEGER :: nbox
-      INTEGER :: nchain
-      INTEGER :: nunits
-      INTEGER :: nunits_tot
       INTEGER :: nmoves
       INTEGER :: nswapmoves
       INTEGER :: rm
@@ -101,16 +123,13 @@ MODULE mc_types
       CHARACTER ( LEN = 200 ) :: box2_file
       CHARACTER ( LEN = 200 ) :: fft_lib
       CHARACTER ( LEN = 50 ) :: PROGRAM
+      REAL ( dp ),DIMENSION(:),POINTER :: pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,&
+           pbias,pmavbmc_mol
       REAL ( dp ) :: discrete_step
       REAL ( dp ) :: rmvolume
-      REAL ( dp ) :: rmbond
-      REAL ( dp ) :: rmangle
-      REAL ( dp ) :: rmdihedral
-      REAL ( dp ) :: rmrot
-      REAL ( dp ) :: rmtrans
+      REAL ( dp ),DIMENSION(:),POINTER :: rmbond,rmangle,rmdihedral,rmrot,rmtrans
       REAL ( dp ) :: temp
       REAL ( dp ) :: pressure
-      REAL ( dp ) :: pbias
       REAL ( dp ) :: pmavbmc
       REAL ( dp ) :: pmswap
       REAL ( dp ) :: pmvolume
@@ -118,23 +137,46 @@ MODULE mc_types
       REAL ( dp ) :: pmtrans
       REAL ( dp ) :: BETA
       REAL ( dp ) :: rcut
-      REAL ( dp ) :: avbmc_rmin
-      REAL ( dp ) :: avbmc_rmax
-      REAL ( dp ),DIMENSION(1:3) :: conf_prob
+      REAL ( dp ),DIMENSION(:),POINTER :: avbmc_rmin,avbmc_rmax
+      TYPE(mc_input_file_type),POINTER ::&
+           mc_input_file,mc_bias_file
       TYPE(section_vals_type),POINTER :: input_file
+      TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
   END TYPE mc_simulation_parameters_type
 
+  TYPE mc_input_file_type
+! contains all the text of the input file
+      PRIVATE
+      INTEGER :: run_type_row,run_type_column,coord_row_start,coord_row_end,&
+           cell_row,cell_column,global_row_end,in_use
+      INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
+      CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: text
+   END TYPE mc_input_file_type
+
+  TYPE mc_molecule_info_type
+! contains information on molecules...I had to do this because I use multiple force
+! environments, and they know nothing about each other
+      PRIVATE
+      INTEGER :: nboxes
+      CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: names
+      CHARACTER ( LEN = default_string_length ),&
+           DIMENSION(:,:),POINTER :: atom_names
+      REAL ( dp ),DIMENSION(:,:),POINTER :: conf_prob,mass
+      INTEGER, DIMENSION(:,:),POINTER :: nchains
+      INTEGER :: nmol_types,nchain_total
+      INTEGER,DIMENSION(:),POINTER :: nunits,mol_type,nunits_tot,in_box
+ END TYPE mc_molecule_info_type
+
   TYPE mc_simulation_parameters_p_type
+! a pointer for multiple boxes
       TYPE (mc_simulation_parameters_type),POINTER :: mc_par
   END TYPE mc_simulation_parameters_p_type
 
   TYPE mc_averages_type
+! contains some data that is averaged throughout the course of a run
       REAL(KIND = dp) :: ave_energy
       REAL(KIND = dp) :: ave_energy_squared
       REAL(KIND = dp) :: ave_volume
-      REAL(KIND = dp) :: bond1
-      REAL(KIND = dp) :: bond2
-      REAL(KIND = dp) :: angle
       REAL(KIND = dp) :: molecules
   END TYPE mc_averages_type
 
@@ -143,6 +185,7 @@ MODULE mc_types
   END TYPE mc_averages_p_type
 
   TYPE mc_moves_type
+! contains data for how many moves of a give type we've accepted/rejected
       TYPE ( accattempt ), POINTER :: bias_bond
       TYPE ( accattempt ), POINTER :: bias_angle
       TYPE ( accattempt ), POINTER :: bias_dihedral
@@ -160,7 +203,7 @@ MODULE mc_types
       TYPE ( accattempt ), POINTER :: avbmc_inout
       TYPE ( accattempt ), POINTER :: avbmc_outout
       TYPE ( accattempt ), POINTER :: Quickstep
-      REAL(KIND = dp) :: bias_energy,trans_dis,qtrans_dis
+      REAL(KIND = dp) :: trans_dis,qtrans_dis
       INTEGER :: empty,grown,empty_conf,empty_avbmc
   END TYPE mc_moves_type
 
@@ -180,15 +223,62 @@ MODULE mc_types
 CONTAINS
 !****************************************************************************
 
- SUBROUTINE get_mc_par ( mc_par, nstep, iuptrans, iupvolume, nchain,&
-       nunits,nunits_tot,nmoves,nswapmoves,rm,cl,diff,nstart,&
+ SUBROUTINE get_mc_input_file ( mc_input_file,run_type_row,run_type_column,&
+      coord_row_start,coord_row_end,cell_row,cell_column,global_row_end,&
+      mol_set_nmol_row,mol_set_nmol_column,in_use,text)
+
+! *****************************************************************************
+!!****s* mc_types.F/get_mc_par
+!!
+!!   NAME
+!!     get_mc_par
+!!
+!!   FUNCTION
+!!     accesses the private elements of the mc_input_file_type
+!!
+!!   ARGUMENTS
+!!     - mc_input_file: the input file you want data for
+!!
+!!   Suitable for parallel.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+   TYPE(mc_input_file_type),POINTER :: mc_input_file
+   INTEGER,INTENT(OUT),OPTIONAL :: run_type_row,&
+        run_type_column,coord_row_start,coord_row_end,&
+        cell_row,cell_column,global_row_end,in_use
+   INTEGER,DIMENSION(:),POINTER,OPTIONAL :: &
+        mol_set_nmol_row,mol_set_nmol_column
+   CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER,&
+        OPTIONAL :: text
+   
+   IF(PRESENT(in_use)) in_use=mc_input_file%in_use
+   IF(PRESENT(run_type_row)) run_type_row=mc_input_file%run_type_row
+   IF(PRESENT(run_type_column)) run_type_column=mc_input_file%run_type_column
+   IF(PRESENT(coord_row_start)) coord_row_start=mc_input_file%coord_row_start
+   IF(PRESENT(coord_row_end)) coord_row_end=mc_input_file%coord_row_end
+   IF(PRESENT(cell_row)) cell_row=mc_input_file%cell_row
+   IF(PRESENT(cell_column)) cell_column=mc_input_file%cell_column
+   IF(PRESENT(global_row_end)) global_row_end=mc_input_file%global_row_end
+   
+   IF(PRESENT(mol_set_nmol_row)) mol_set_nmol_row=> mc_input_file%mol_set_nmol_row
+   IF(PRESENT(mol_set_nmol_column)) mol_set_nmol_column=> mc_input_file%mol_set_nmol_column
+   IF(PRESENT(text)) text=> mc_input_file%text
+   
+ END SUBROUTINE GET_MC_INPUT_FILE
+
+ SUBROUTINE get_mc_par ( mc_par, nstep, iuptrans, iupvolume, &
+       nmoves,nswapmoves,rm,cl,diff,nstart,&
        source,group,lbias,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,PROGRAM,restart_file_name,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        fft_lib,iprint,rcut,ldiscrete,discrete_step,&
-       conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
-       input_file)
+       pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
+       input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
+       pmtraion_mol,mc_input_file,mc_bias_file)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -211,41 +301,40 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    INTEGER, INTENT(OUT), OPTIONAL :: nstep, iuptrans, iupvolume, nchain, &
-      nunits, nunits_tot, nmoves, nswapmoves, rm, cl, diff, nstart, source, &
+    INTEGER, INTENT(OUT), OPTIONAL :: nstep, iuptrans, iupvolume, &
+      nmoves, nswapmoves, rm, cl, diff, nstart, source, &
       group
     LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: rmvolume, rmbond, rmangle, rmrot, &
-      rmtrans, temp, pressure, BETA, pmswap, pmvolume, pmtraion, pmtrans
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: rmvolume, temp, pressure, BETA, pmswap,&
+         pmvolume, pmtraion, pmtrans
+    REAL(KIND=dp),DIMENSION(:),POINTER,OPTIONAL  :: rmbond,rmangle,rmrot,rmtrans,rmdihedral,&
+         avbmc_rmin,avbmc_rmax
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
       restart_file_name, molecules_file, moves_file, coords_file, &
       energy_file, displacement_file, cell_file, dat_file, data_file, &
       box2_file, fft_lib
     INTEGER, INTENT(OUT), OPTIONAL           :: iprint
+    INTEGER,DIMENSION(:),POINTER,OPTIONAL    :: avbmc_atom
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcut
     LOGICAL, INTENT(OUT), OPTIONAL           :: ldiscrete
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: discrete_step
-    REAL(KIND=dp), DIMENSION(1:3), &
-      INTENT(OUT), OPTIONAL                  :: conf_prob
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmavbmc, pbias
-    INTEGER, INTENT(OUT), OPTIONAL           :: avbmc_atom
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: avbmc_rmin, avbmc_rmax, &
-                                                rmdihedral
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: discrete_step,pmavbmc
+    REAL(KIND=dp), DIMENSION(:), POINTER,OPTIONAL     :: pmavbmc_mol, pbias,&
+         pmtrans_mol,pmrot_mol,pmtraion_mol
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input_file
+    TYPE(mc_molecule_info_type), OPTIONAL, &
+      POINTER                                :: mc_molecule_info
+    TYPE(mc_input_file_type), OPTIONAL, &
+      POINTER                                :: mc_input_file,mc_bias_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
-
+    REAL(dp),DIMENSION(:),POINTER,OPTIONAL  :: pmswap_mol
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( nstep ) ) nstep = mc_par % nstep
-    IF ( PRESENT ( avbmc_atom ) ) avbmc_atom = mc_par % avbmc_atom
     IF ( PRESENT ( iuptrans ) ) iuptrans = mc_par % iuptrans
     IF ( PRESENT ( iupvolume ) ) iupvolume = mc_par % iupvolume
-    IF ( PRESENT ( nchain ) ) nchain = mc_par % nchain
-    IF ( PRESENT ( nunits ) ) nunits = mc_par % nunits
-    IF ( PRESENT ( nunits_tot ) ) nunits_tot = mc_par % nunits_tot
     IF ( PRESENT ( nmoves ) ) nmoves = mc_par % nmoves
     IF ( PRESENT ( nswapmoves ) ) nswapmoves = mc_par % nswapmoves
     IF ( PRESENT ( rm ) ) rm = mc_par % rm
@@ -262,18 +351,12 @@ CONTAINS
     IF ( PRESENT ( lstop ) ) lstop = mc_par % lstop
     IF ( PRESENT ( ldiscrete ) ) ldiscrete = mc_par % ldiscrete
 
-    IF ( PRESENT ( conf_prob ) ) conf_prob(:) = mc_par % conf_prob(:)
-
-    IF ( PRESENT ( avbmc_rmin ) ) avbmc_rmin = mc_par % avbmc_rmin
-    IF ( PRESENT ( avbmc_rmax ) ) avbmc_rmax = mc_par % avbmc_rmax
+    IF ( PRESENT ( avbmc_atom ) ) avbmc_atom => mc_par % avbmc_atom
+    IF ( PRESENT ( avbmc_rmin ) ) avbmc_rmin => mc_par % avbmc_rmin
+    IF ( PRESENT ( avbmc_rmax ) ) avbmc_rmax => mc_par % avbmc_rmax
     IF ( PRESENT ( rcut ) ) rcut = mc_par % rcut
     IF ( PRESENT ( discrete_step ) ) discrete_step = mc_par % discrete_step
     IF ( PRESENT ( rmvolume ) ) rmvolume = mc_par % rmvolume
-    IF ( PRESENT ( rmbond ) ) rmbond = mc_par % rmbond
-    IF ( PRESENT ( rmangle ) ) rmangle = mc_par % rmangle
-    IF ( PRESENT ( rmdihedral ) ) rmdihedral = mc_par % rmdihedral
-    IF ( PRESENT ( rmrot ) ) rmrot = mc_par % rmrot
-    IF ( PRESENT ( rmtrans ) ) rmtrans = mc_par % rmtrans
     IF ( PRESENT ( temp ) ) temp = mc_par % temp
     IF ( PRESENT ( pressure ) ) pressure = mc_par % pressure
     IF ( PRESENT ( BETA ) ) BETA = mc_par % BETA
@@ -282,7 +365,17 @@ CONTAINS
     IF ( PRESENT ( pmtraion ) ) pmtraion = mc_par % pmtraion
     IF ( PRESENT ( pmtrans ) ) pmtrans = mc_par % pmtrans
     IF ( PRESENT ( pmavbmc) ) pmavbmc = mc_par % pmavbmc
-    IF ( PRESENT ( pbias) ) pbias = mc_par % pbias
+    IF ( PRESENT ( pmrot_mol) ) pmrot_mol => mc_par % pmrot_mol
+    IF ( PRESENT ( pmtrans_mol) ) pmtrans_mol => mc_par % pmtrans_mol
+    IF ( PRESENT ( pmtraion_mol) ) pmtraion_mol => mc_par % pmtraion_mol
+    IF ( PRESENT ( pmavbmc_mol) ) pmavbmc_mol => mc_par % pmavbmc_mol
+    IF ( PRESENT ( pbias) ) pbias => mc_par % pbias
+
+    IF ( PRESENT ( rmbond ) ) rmbond => mc_par % rmbond
+    IF ( PRESENT ( rmangle ) ) rmangle => mc_par % rmangle
+    IF ( PRESENT ( rmdihedral ) ) rmdihedral => mc_par % rmdihedral
+    IF ( PRESENT ( rmrot ) ) rmrot => mc_par % rmrot
+    IF ( PRESENT ( rmtrans ) ) rmtrans => mc_par % rmtrans
 
     IF ( PRESENT ( ensemble ) ) ensemble = mc_par % ensemble
     IF ( PRESENT ( PROGRAM ) ) PROGRAM = mc_par % program
@@ -301,14 +394,79 @@ CONTAINS
     IF ( PRESENT ( fft_lib ) ) fft_lib = mc_par % fft_lib
 
     IF ( PRESENT ( input_file ) ) input_file => mc_par % input_file
+    IF ( PRESENT ( mc_molecule_info ) ) mc_molecule_info => mc_par % mc_molecule_info
+    IF ( PRESENT ( mc_input_file ) ) mc_input_file => mc_par % mc_input_file
+    IF ( PRESENT ( mc_bias_file ) ) mc_bias_file => mc_par % mc_bias_file
+
+    IF ( PRESENT ( pmswap_mol ) ) pmswap_mol => mc_par % pmswap_mol
 
   END SUBROUTINE get_mc_par
 
- SUBROUTINE set_mc_par ( mc_par, nchain,nunits,nunits_tot,rm,cl,&
+ !****************************************************************************
+
+ SUBROUTINE get_mc_molecule_info ( mc_molecule_info, nmol_types,nchain_total,nboxes,&
+      names,conf_prob,nchains,nunits,mol_type,nunits_tot,in_box,atom_names,&
+      mass)
+
+! *****************************************************************************
+!!****s* mc_types.F/get_mc_molecule_info
+!!
+!!   NAME
+!!     get_mc_molecule_info
+!!
+!!   FUNCTION
+!!     accesses the private elements of the mc_molecule_info_type
+!!
+!!   ARGUMENTS
+!!     - mc_molecule_info: the structure you want the parameters for
+!!
+!!   Suitable for parallel.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+
+   TYPE(mc_molecule_info_type), &
+        POINTER                                :: mc_molecule_info
+   INTEGER, INTENT(OUT), OPTIONAL :: nmol_types,nchain_total,nboxes
+   CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER,OPTIONAL :: names
+   CHARACTER ( LEN = default_string_length ),DIMENSION(:,:),&
+        POINTER,OPTIONAL :: atom_names
+   REAL ( dp ),DIMENSION(:,:),POINTER,OPTIONAL :: conf_prob,mass
+   INTEGER, DIMENSION(:,:),POINTER,OPTIONAL :: nchains
+   INTEGER,DIMENSION(:),POINTER,OPTIONAL :: nunits,mol_type,nunits_tot,in_box
+   
+   CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_molecule_info', &
+        routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF ( PRESENT ( nboxes ) ) nboxes = mc_molecule_info % nboxes
+    IF ( PRESENT ( nchain_total ) ) nchain_total = mc_molecule_info % nchain_total
+    IF ( PRESENT ( nmol_types ) ) nmol_types = mc_molecule_info % nmol_types
+    
+    IF ( PRESENT ( names ) ) names => mc_molecule_info % names
+    IF ( PRESENT ( atom_names ) ) atom_names => mc_molecule_info % atom_names
+
+    IF ( PRESENT ( conf_prob ) ) conf_prob => mc_molecule_info % conf_prob
+    IF ( PRESENT ( mass ) ) mass => mc_molecule_info % mass
+
+    IF ( PRESENT ( nchains ) ) nchains => mc_molecule_info % nchains
+    IF ( PRESENT ( nunits ) ) nunits => mc_molecule_info % nunits
+    IF ( PRESENT ( mol_type ) ) mol_type => mc_molecule_info % mol_type
+    IF ( PRESENT ( nunits_tot ) ) nunits_tot => mc_molecule_info % nunits_tot
+    IF ( PRESENT ( in_box ) ) in_box => mc_molecule_info % in_box
+
+  END SUBROUTINE get_mc_molecule_info
+
+SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       diff,nstart,rmvolume,rmbond,rmangle,rmdihedral,rmrot,rmtrans,PROGRAM,&
       nmoves,nswapmoves,lstop,temp,pressure,iuptrans,iupvolume,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
-      lrestart,ldiscrete,discrete_step,pmavbmc)
+      lrestart,ldiscrete,discrete_step,pmavbmc,mc_molecule_info,&
+      pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
+      avbmc_rmin,avbmc_rmax,avbmc_atom,pbias)
 
 ! *****************************************************************************
 !!****s* mc_types.F/set_mc_par
@@ -331,9 +489,9 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    INTEGER, INTENT(IN), OPTIONAL            :: nchain, nunits, nunits_tot, &
-                                                rm, cl, diff, nstart
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume, rmbond, rmangle, &
+    INTEGER, INTENT(IN), OPTIONAL            :: rm, cl, diff, nstart
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume
+    REAL(KIND=dp), DIMENSION(:),POINTER, OPTIONAL      :: rmbond, rmangle, &
                                                 rmdihedral, rmrot, rmtrans
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM
     INTEGER, INTENT(IN), OPTIONAL            :: nmoves, nswapmoves
@@ -347,18 +505,21 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nstep
     LOGICAL, INTENT(IN), OPTIONAL            :: lrestart, ldiscrete
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: discrete_step, pmavbmc
+    TYPE(mc_molecule_info_type), &
+      POINTER, OPTIONAL  :: mc_molecule_info
+    REAL(dp),DIMENSION(:),POINTER,OPTIONAL :: &
+         pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
+         avbmc_rmin,avbmc_rmax,pbias
+    INTEGER,DIMENSION(:),POINTER,OPTIONAL :: avbmc_atom
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
       routineP = moduleN//':'//routineN
-
+    INTEGER :: iparm
 !   ---------------------------------------------------------------------------
 ! These are the only values that change during the course of the simulation
 ! or are computed outside of this module
 
     IF ( PRESENT ( nstep ) ) mc_par % nstep = nstep
-    IF ( PRESENT ( nchain ) ) mc_par % nchain = nchain
-    IF ( PRESENT ( nunits ) ) mc_par % nunits = nunits
-    IF ( PRESENT ( nunits_tot ) ) mc_par % nunits_tot = nunits_tot
     IF ( PRESENT ( rm ) ) mc_par % rm = rm
     IF ( PRESENT ( cl ) ) mc_par % cl = cl
     IF ( PRESENT ( diff ) ) mc_par % diff = diff
@@ -386,15 +547,519 @@ CONTAINS
 
     IF ( PRESENT ( discrete_step ) ) mc_par % discrete_step = discrete_step
     IF ( PRESENT ( rmvolume ) ) mc_par % rmvolume = rmvolume
-    IF ( PRESENT ( rmbond ) ) mc_par % rmbond = rmbond
-    IF ( PRESENT ( rmangle ) ) mc_par % rmangle = rmangle
-    IF ( PRESENT ( rmdihedral ) ) mc_par % rmdihedral = rmdihedral
-    IF ( PRESENT ( rmrot ) ) mc_par % rmrot = rmrot
-    IF ( PRESENT ( rmtrans ) ) mc_par % rmtrans = rmtrans
+
+! cannot just change the pointers, because then we have memory leaks
+! and the program crashes if we try to release it (in certain cases)
+    IF ( PRESENT ( rmbond ) ) THEN
+       DO iparm=1,SIZE(rmbond)
+          mc_par % rmbond(iparm) = rmbond(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( rmangle ) ) THEN
+       DO iparm=1,SIZE(rmangle)
+          mc_par % rmangle(iparm) = rmangle(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( rmdihedral ) ) THEN
+       DO iparm=1,SIZE(rmdihedral)
+          mc_par % rmdihedral(iparm) = rmdihedral(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( rmrot ) ) THEN
+       DO iparm=1,SIZE(rmrot)
+          mc_par % rmrot(iparm) = rmrot(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( rmtrans ) ) THEN
+       DO iparm=1,SIZE(rmtrans)
+          mc_par % rmtrans(iparm) = rmtrans(iparm)
+       ENDDO
+    ENDIF
+
+    IF ( PRESENT ( pmavbmc_mol ) ) THEN
+       DO iparm=1,SIZE(pmavbmc_mol)
+          mc_par % pmavbmc_mol(iparm) = pmavbmc_mol(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( pmtrans_mol ) ) THEN
+       DO iparm=1,SIZE(pmtrans_mol)
+          mc_par % pmtrans_mol(iparm) = pmtrans_mol(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( pmrot_mol ) ) THEN
+       DO iparm=1,SIZE(pmrot_mol)
+          mc_par % pmrot_mol(iparm) = pmrot_mol(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( pmtraion_mol ) ) THEN
+       DO iparm=1,SIZE(pmtraion_mol)
+          mc_par % pmtraion_mol(iparm) = pmtraion_mol(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( pmswap_mol ) ) THEN
+       DO iparm=1,SIZE(pmswap_mol)
+          mc_par % pmswap_mol(iparm) = pmswap_mol(iparm)
+       ENDDO
+    ENDIF
+
+    IF ( PRESENT ( avbmc_atom ) ) THEN
+       DO iparm=1,SIZE(avbmc_atom)
+          mc_par % avbmc_atom(iparm) = avbmc_atom(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( avbmc_rmin ) ) THEN
+       DO iparm=1,SIZE(avbmc_rmin)
+          mc_par % avbmc_rmin(iparm) = avbmc_rmin(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( avbmc_rmax ) ) THEN
+       DO iparm=1,SIZE(avbmc_rmax)
+          mc_par % avbmc_rmax(iparm) = avbmc_rmax(iparm)
+       ENDDO
+    ENDIF
+    IF ( PRESENT ( pbias ) ) THEN
+       DO iparm=1,SIZE(pbias)
+          mc_par % pbias(iparm) = pbias(iparm)
+       ENDDO
+    ENDIF
 
     IF ( PRESENT ( PROGRAM ) ) mc_par % program = PROGRAM
 
+    IF(PRESENT(mc_molecule_info)) mc_par%mc_molecule_info => mc_molecule_info
   END SUBROUTINE set_mc_par
+
+!******************************************************************************
+!!****** mc/mc_sim_par_create [1.0] *
+!!
+!!   NAME
+!!     mc_sim_par_create
+!!
+!!   FUNCTION
+!!     creates (allocates) the mc_simulation_parameters type
+!!
+!!   ARGUMENTS
+!!     - mc_par: the structure that will be created (allocated)
+!!     - nmol_types: the number of molecule types in the system
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!   NOTES
+!!
+!!*****************************************************************************
+  SUBROUTINE mc_sim_par_create ( mc_par ,nmol_types)
+
+
+    TYPE(mc_simulation_parameters_type), &
+         POINTER                               :: mc_par
+    INTEGER,INTENT(IN)                       :: nmol_types
+    
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_sim_par_create'
+
+    INTEGER :: istat
+!******************************************************************************
+
+    NULLIFY(mc_par)
+
+    ALLOCATE(mc_par)
+    ALLOCATE (mc_par%pmtraion_mol(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmtraion_mol",nmol_types*dp_size)
+    ALLOCATE (mc_par%pmtrans_mol(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmtrans_mol",nmol_types*dp_size)
+    ALLOCATE (mc_par%pmrot_mol(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmrot_mol",nmol_types*dp_size)
+    ALLOCATE (mc_par%pmswap_mol(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmswap_mol",nmol_types*dp_size)
+
+    ALLOCATE (mc_par%rmbond(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmbond",nmol_types*dp_size)
+    ALLOCATE (mc_par%rmangle(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmangle",nmol_types*dp_size)
+    ALLOCATE (mc_par%rmdihedral(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmdihedral",nmol_types*dp_size)
+    ALLOCATE (mc_par%rmtrans(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmtrans",nmol_types*dp_size)
+    ALLOCATE (mc_par%rmrot(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmrot",nmol_types*dp_size)
+
+    ALLOCATE (mc_par%avbmc_atom(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%avbmc_atom",nmol_types*int_size)
+    ALLOCATE (mc_par%avbmc_rmin(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%avbmc_rmin",nmol_types*dp_size)
+    ALLOCATE (mc_par%avbmc_rmax(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%avbmc_rmax",nmol_types*dp_size)
+    ALLOCATE (mc_par%pmavbmc_mol(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmavbmc_mol",nmol_types*dp_size)
+    ALLOCATE (mc_par%pbias(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pbias",nmol_types*dp_size)
+
+    ALLOCATE (mc_par%mc_input_file,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%mc_input_file",1)
+    ALLOCATE (mc_par%mc_bias_file,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%mc_bias_file",1)
+
+  END SUBROUTINE mc_sim_par_create
+
+
+!******************************************************************************
+!!****** mc/mc_sim_par_destroy [1.0] *
+!!
+!!   NAME
+!!     mc_sim_par_destroy
+!!
+!!   FUNCTION
+!!     destroys (deallocates) the mc_simulation_parameters type
+!!
+!!   ARGUMENTS
+!!     - mc_par: the structure that will be destroyed
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!   NOTES
+!!
+!!*****************************************************************************
+  SUBROUTINE mc_sim_par_destroy ( mc_par )
+
+
+    TYPE(mc_simulation_parameters_type), &
+         POINTER                               :: mc_par
+    
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_sim_par_destroy'
+
+    INTEGER :: istat
+!******************************************************************************
+
+    DEALLOCATE (mc_par%mc_input_file,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%mc_input_file")
+    DEALLOCATE (mc_par%mc_bias_file,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%mc_bias_file")
+
+   DEALLOCATE (mc_par%pmtraion_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmtraion_mol")
+    DEALLOCATE (mc_par%pmtrans_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmtrans_mol")
+    DEALLOCATE (mc_par%pmrot_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmrot_mol")
+    DEALLOCATE (mc_par%pmswap_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmswap_mol")
+
+    DEALLOCATE (mc_par%rmbond,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmbond")
+    DEALLOCATE (mc_par%rmangle,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmangle")
+    DEALLOCATE (mc_par%rmdihedral,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmdihedral")
+    DEALLOCATE (mc_par%rmtrans,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmtrans")
+    DEALLOCATE (mc_par%rmrot,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%rmrot")
+
+    DEALLOCATE (mc_par%avbmc_atom,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%avbmc_atom")
+    DEALLOCATE (mc_par%avbmc_rmin,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%avbmc_rmin")
+    DEALLOCATE (mc_par%avbmc_rmax,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%avbmc_rmax")
+    DEALLOCATE (mc_par%pmavbmc_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmavbmc_mol")
+    DEALLOCATE (mc_par%pbias,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pbias")
+
+   DEALLOCATE (mc_par,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par")
+    NULLIFY(mc_par)
+
+
+ END SUBROUTINE mc_sim_par_destroy
+
+!******************************************************************************
+!!****** mc/mc_input_file_create [1.0] *
+!!
+!!   NAME
+!!     mc_input_file_create
+!!
+!!   FUNCTION
+!!     creates (allocates) the mc_input_file_type
+!!
+!!   ARGUMENTS
+!!     - mc_input_file: the structure that will be created (allocated)
+!!     - input_file_name: the name of the file to read
+!!     - nmol_types: the number of molecule types in the system
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!   NOTES
+!!
+!!*****************************************************************************
+  SUBROUTINE mc_input_file_create (mc_input_file,input_file_name,nmol_types)
+
+
+    TYPE(mc_input_file_type), &
+         POINTER                               :: mc_input_file
+    INTEGER,INTENT(IN)                       :: nmol_types
+    CHARACTER(LEN=*),INTENT(IN)              :: input_file_name
+    
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_iput_file_info_create'
+
+    INTEGER :: istat,unit,nlines,io_stat,iline,idum,abc_row,abc_column,&
+         cell_row,cell_column,row_number,irep,nstart,&
+         line_number
+    CHARACTER(default_string_length)   :: line,method_name,cdum
+!******************************************************************************
+
+    ALLOCATE (mc_input_file%mol_set_nmol_row(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%mol_set_nmol_row",nmol_types*int_size)
+    ALLOCATE (mc_input_file%mol_set_nmol_column(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%mol_set_nmol_column",nmol_types*int_size)
+
+! now read in and store the input file, first finding out how many lines it is
+    CALL open_file(file_name=input_file_name,&
+         unit_number=unit,file_action='READ',file_status='OLD')   
+
+    nlines=0
+    DO
+       READ(unit,'(A)',IOSTAT=io_stat) line
+       IF(io_stat .NE. 0) EXIT
+       nlines=nlines+1
+    ENDDO
+
+    
+    ALLOCATE (mc_input_file%text(1:nlines),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%text",nlines*default_string_length)
+
+    REWIND(unit)
+    DO iline=1,nlines
+       READ(unit,'(A)') mc_input_file%text(iline)
+    ENDDO
+
+! close the input file
+    CALL close_file(unit_number=unit)
+
+! now we need to find the row and column numbers of a variety of things
+! first, Let's find the first END after GLOBAL
+    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&GLOBAL",.TRUE.,&
+         mc_input_file%global_row_end,idum)
+
+! first, let's find the first END after &COORD, and the line of &COORD
+    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.TRUE.,&
+         mc_input_file%coord_row_end,idum)
+    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.FALSE.,&
+         mc_input_file%coord_row_start,idum)
+
+! now the RUN_TYPE
+    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"RUN_TYPE",.FALSE.,&
+         mc_input_file%run_type_row, mc_input_file%run_type_column)
+    mc_input_file%run_type_column=mc_input_file%run_type_column+9
+
+! now the CELL stuff..we don't care about REF_CELL since that should
+! never change if it's there
+    CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&CELL",.FALSE.,&
+         mc_input_file%cell_row, mc_input_file%cell_column)
+! now find the ABC input line after CELL
+    CALL mc_parse_text(mc_input_file%text,mc_input_file%cell_row+1,nlines-1,&
+         "ABC",.FALSE.,abc_row,abc_column)
+! is there a &CELL inbetween?  If so, that ABC will be for the ref_cell
+! and we need to find the next one
+    CALL mc_parse_text(mc_input_file%text,mc_input_file%cell_row+1,abc_row,&
+         "&CELL",.FALSE.,cell_row,cell_column)
+    IF(cell_row == 0) THEN ! nothing in between...we found the correct ABC
+       mc_input_file%cell_row=abc_row
+       mc_input_file%cell_column=abc_column+4
+    ELSE
+       CALL mc_parse_text(mc_input_file%text,abc_row+1,nlines-1,&
+            "ABC",.FALSE.,mc_input_file%cell_row, mc_input_file%cell_column)
+    ENDIF
+
+! now we need all the MOL_SET NMOLS indicies
+    irep=0
+    nstart=1
+    DO
+       CALL mc_parse_text(mc_input_file%text,nstart,nlines-1,"&MOL_SET",&
+         .FALSE.,row_number, idum)
+       IF(row_number == 0) EXIT
+       nstart=row_number+1
+       irep=irep+1
+       CALL mc_parse_text(mc_input_file%text,nstart,nlines-1,"NMOL",&
+            .FALSE.,mc_input_file%mol_set_nmol_row(irep), &
+            mc_input_file%mol_set_nmol_column(irep))   
+       mc_input_file%mol_set_nmol_column(irep)=mc_input_file%mol_set_nmol_column(irep)+5
+
+    ENDDO
+    IF(irep .NE. nmol_types) CALL stop_program('mc_types.F/mc_input_file_create',&
+         'Did not find MOL_SET sections for every molecule in the simulation (make sure both input files have all types)')
+
+! now let's find the type of force_env...right now, I'm only concerned with
+! KG,QS, and Fist, though it should be trivial to add others
+    CALL mc_parse_text(mc_input_file%text,1,nlines-1,&
+         "METHOD",.FALSE.,line_number, idum)
+    READ(mc_input_file%text(line_number),*) cdum,method_name
+    CALL uppercase(method_name)
+    SELECT CASE(TRIM(ADJUSTL(method_name)))
+    CASE("FIST")
+       mc_input_file%in_use=use_fist_force
+    CASE("QS","QUICKSTEP")
+       mc_input_file%in_use=use_qs_force
+    CASE("KG")
+       mc_input_file%in_use=use_kg_force
+    CASE default
+       CALL stop_program('mc_types.F/mc_input_file_create',&
+         'Cannot determine the type of force_env we are using (check METHOD)')
+    END SELECT
+
+  END SUBROUTINE mc_input_file_create
+
+!******************************************************************************
+!!****** mc/mc_input_file_destroy [1.0] *
+!!
+!!   NAME
+!!     mc_input_file_destroy
+!!
+!!   FUNCTION
+!!     destroys (deallocates) things in the mc_input_file_type
+!!
+!!   ARGUMENTS
+!!     - mc_input_file: the structure that will be released (deallocated)
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!   NOTES
+!!
+!!*****************************************************************************
+  SUBROUTINE mc_input_file_destroy(mc_input_file)
+
+
+    TYPE(mc_input_file_type), &
+         POINTER                               :: mc_input_file
+    
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_iput_file_info_create'
+
+    INTEGER :: istat
+!******************************************************************************
+
+    DEALLOCATE (mc_input_file%mol_set_nmol_row,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%mol_set_nmol_row")
+    DEALLOCATE (mc_input_file%mol_set_nmol_column,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%mol_set_nmol_column")
+    DEALLOCATE (mc_input_file%text,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%text")
+
+  END SUBROUTINE mc_input_file_destroy
+
+!******************************************************************************
+!!****** mc/mc_parse_text [1.0] *
+!!
+!!   NAME
+!!     mc_parse_text
+!!
+!!   FUNCTION
+!!     a basic text parser used to find the row and column numbers of various strings
+!!     in the input file, to store as indices for when we create a dat_file...
+!!     returns 0 for the row if nothing is found
+!!
+!!   ARGUMENTS
+!!     - text: the text to parse
+!!     - nstart: the line to start searching from
+!!     - nend: the line to end searching
+!!     - string_search: the text we're looking for
+!!     - lend: if .TRUE., find the &END that comes after string_search...assumes that
+!!           the row is the first row with & in the same column as the search string
+!!     - row_number: the row the string is first found on
+!!     - column_number: the column number that the string first appears on
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!   NOTES
+!!
+!!*****************************************************************************
+
+SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
+     row_number,column_number)
+
+  INTEGER,INTENT(IN) :: nstart,nend
+  LOGICAL,INTENT(IN) :: lend
+  CHARACTER(LEN=*),DIMENSION(:),INTENT(IN) :: text
+  CHARACTER(LEN=*),INTENT(IN) :: string_search
+  INTEGER,INTENT(OUT) :: row_number,column_number
+  
+  CHARACTER(default_string_length) :: text_temp
+  INTEGER :: index_string,iline,string_size,jline
+!*****************************************************************************
+
+! did not see any string utilities in the code to help, so here I go
+  row_number=0
+  column_number=0
+
+! how long is our string to search for?
+  string_size=LEN_TRIM(string_search)
+  whole_file:DO iline=nstart,nend
+
+     index_string=-1
+     index_string=INDEX(text(iline),string_search(1:string_size))
+     
+     IF(index_string .GT. 0) THEN ! we found one
+        IF(.NOT. lend) THEN
+           row_number=iline
+           column_number=index_string
+        ELSE
+           column_number=index_string
+           DO jline=iline+1,nend
+! now we find the &END that matches up with this one...
+! I need proper indentation because I'm not very smart
+              text_temp=text(jline)
+              IF(text_temp(column_number:column_number) .EQ. "&") THEN
+                 row_number=jline
+                 EXIT
+              ENDIF
+           ENDDO
+        ENDIF
+        EXIT whole_file
+     ENDIF
+  ENDDO whole_file
+
+END SUBROUTINE mc_parse_text
 
 !******************************************************************************
 !!****** mc/read_mc_section [1.0] *
@@ -408,68 +1073,16 @@ CONTAINS
 !!   ARGUMENTS
 !!     - mc_par: the structure that will store the parameters
 !!     - globenv: the global environment for the simulation
+!!     - input_file_name: the name of the input_file
+!!     - input_file: the structure that contains all the keywords in the input file
+!!     - force_env_section: used to grab the type of force_env
+!!     - error: the cp_error_type
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!   NOTES
-!!I---------------------------------------------------------------------------I
-!!I SECTION: &MC ... &END                                                     I
-!!I                                                                           I
-!!I program:     (traditional,gemc)       type of simulation
-!!I nstep:                                number of steps
-!!I lstop:       (yes,no)                 if no, peform nstep cycles
-!!I ldiscrete:   (yes,no)                 if yes, perform a discrete volume
-!!                                        move
-!!I avbmc_rmin:                           the minimum distance used in AVBMC
-!!I avbmc_rmax:                           the maximum distance used in AVBMC
-!!I avbmc_atom:                           the atom used to calculate distances
-!!                          between for the AVBMC swap move
-!!I lbias:  (yes,no)                      pre-bias moves..requires an
-!!                                        additional file
-!!I nmoves:                               number of moves between Quickstep
-!!                                        calculations
-!!I discrete_step:                        the size (in angstroms) of the cell
-!!                                        length displacement for discrete
-!!                                        volume_moves
-!!I rmbond:                               maximum displacement for bond
-!!                                        changes (in angstroms)
-!!I rmangle:                              maximum displacement for angle
-!!                                        changes (in degrees)
-!!I rmdihedral:                           maximum displacement for dihedral
-!!                                        changes (in degrees)
-!!I rmtrans:                              maximum displacement for molecule
-!!                                        translations (in angstroms)
-!!I rmrot:                                maximum displacement for molecule
-!!                                        rotations (in degrees)
-!!I rmvolume:                             maximum displacement for volume
-!!                                        changes (in cubic angstroms)
-!!I iuptrans:                             every iuptrans step, update maximum
-!!                                        displacements for angle,bond,rot,
-!!                                        trans
-!!I iupvolume:                            every iupvolume step, update maximum
-!!                                        volume displacement
-!!I conf_prob:                            holds the probabilities of doing a
-!!                                        bond langth change (1),
-!!                                  angle change (2), or dihedral change(3)
-!!I pmswap:                               probability of doing a swap move
-!!I pmvolume:                             probability of doing a volume move
-!!I pmavbmc:                              probability of doing an AVBMC1 move
-!!I pmtraion:                             probability of doing a conformational
-!!                                        move
-!!I pbias:                                probability of doing different types
-!!                                 of AVBMC moves (in-in,out-out,etc.)
-!!                                        move
-!!I pmtrans:                              probability of doing a translation
-!!I temp:                                 temperature (in Kelvin)
-!!I pressure:                             pressure (in bar)
-!!I lrestart:     (yes,no)                read initial coordinates from a
-!!                                        restart file
-!!I restart_file_name:                    name of the restart file
-!!I box2_file:                            name of the input file that contains
-!!                                        the coords for the second box in
-!!                                        a GEMC simulation
-!!I---------------------------------------------------------------------------I
+!!
 !!*****************************************************************************
 
 SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_file, force_env_section,&
@@ -477,7 +1090,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
 
     TYPE(mc_simulation_parameters_type), &
-      INTENT(OUT)                            :: mc_par
+      POINTER                                :: mc_par
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
@@ -487,11 +1100,15 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_section'
 
     INTEGER                                  :: handle, ia, ie, iw, &
-                                                method_name_id, stop_num
+                                                method_name_id, stop_num,&
+                                                itype,imol
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mc_section
-
+    CHARACTER(LEN=5)     :: molecule_string,tab_string,tab_string_int
+    CHARACTER(LEN=default_string_length)     :: format_string,format_string_int
+    REAL(dp),DIMENSION(:),POINTER :: temp_r_array
+    INTEGER,DIMENSION(:),POINTER :: temp_i_array
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -513,21 +1130,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       mc_par % group = para_env%group
       mc_par % source = para_env%source
 
-!..defaults
-      mc_par % rmbond = 0.1d0
-      mc_par % rmangle = 5.0d0
-      mc_par % rmdihedral = 5.0d0
-      mc_par % pbias = 0.5d0
-      mc_par % pmavbmc = 0.0d0
-      mc_par % pmswap = 0.0d0
-      mc_par % pmvolume = 0.0d0
-      mc_par % avbmc_atom = 1
-      mc_par % avbmc_rmin = 2.0_dp
-      mc_par % avbmc_rmax = 4.0_dp
+!..defaults...most are set in input_cp2k_motion
       mc_par % nstart = 0
-      mc_par % nswapmoves = 1
-      mc_par % ldiscrete = .FALSE.
-      mc_par % discrete_step = 0.05d0
       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
       SELECT CASE (method_name_id)
       CASE (do_fist)
@@ -537,6 +1141,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CASE (do_qs)
          mc_par % iprint = 1
       END SELECT
+
 
       logger=>cp_error_get_logger(error)
       iw = cp_logger_get_default_unit_nr(logger)
@@ -578,32 +1183,82 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
  ! first, grab all the integer values
       CALL section_vals_val_get(mc_section,"NSTEP",i_val=mc_par%nstep,error=error)
-      CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_val=mc_par%avbmc_atom,error=error)
       CALL section_vals_val_get(mc_section,"NMOVES",i_val=mc_par%nmoves,error=error)
       CALL section_vals_val_get(mc_section,"NSWAPMOVES",i_val=mc_par%nswapmoves,error=error)
       CALL section_vals_val_get(mc_section,"IUPVOLUME",i_val=mc_par%iupvolume,error=error)
       CALL section_vals_val_get(mc_section,"IUPTRANS",i_val=mc_par%iuptrans,error=error)
       CALL section_vals_val_get(mc_section,"IPRINT",i_val=mc_par%iprint,error=error)
+! now an integer array
+      CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_vals=temp_i_array,error=error)
+      DO imol=1,SIZE(temp_i_array)
+         mc_par%avbmc_atom(imol)=temp_i_array(imol)
+      ENDDO
 
 ! now the real values
-      CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_val=mc_par%avbmc_rmin,error=error)
-      CALL section_vals_val_get(mc_section,"AVBMC_RMAX",r_val=mc_par%avbmc_rmax,error=error)
       CALL section_vals_val_get(mc_section,"PRESSURE",r_val=mc_par%pressure,error=error)
       CALL section_vals_val_get(mc_section,"TEMP",r_val=mc_par%temp,error=error)
       CALL section_vals_val_get(mc_section,"PMVOLUME",r_val=mc_par%pmvolume,error=error)
       CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
       CALL section_vals_val_get(mc_section,"PMAVBMC",r_val=mc_par%pmavbmc,error=error)
-      CALL section_vals_val_get(mc_section,"PBIAS",r_val=mc_par%pbias,error=error)
       CALL section_vals_val_get(mc_section,"PMTRANS",r_val=mc_par%pmtrans,error=error)
       CALL section_vals_val_get(mc_section,"PMTRAION",r_val=mc_par%pmtraion,error=error)
       CALL section_vals_val_get(mc_section,"DISCRETE_STEP",r_val=mc_par%discrete_step,error=error)
       CALL section_vals_val_get(mc_section,"RMVOLUME",r_val=mc_par%rmvolume,error=error)
-      CALL section_vals_val_get(mc_section,"RMBOND",r_val=mc_par%rmbond,error=error)
-      CALL section_vals_val_get(mc_section,"RMANGLE",r_val=mc_par%rmangle,error=error)
-      CALL section_vals_val_get(mc_section,"RMDIHEDRAL",r_val=mc_par%rmdihedral,error=error)
-      CALL section_vals_val_get(mc_section,"RMROT",r_val=mc_par%rmrot,error=error)
-      CALL section_vals_val_get(mc_section,"RMTRANS",r_val=mc_par%rmtrans,error=error)
 
+! set the values of the arrays...if we just point, we have problems when we start fooling around
+! with releasing force_envs and wonky values get set (despite that these are private)
+      CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%avbmc_rmin(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"AVBMC_RMAX",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%avbmc_rmax(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"PBIAS",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%pbias(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"PMAVBMC_MOL",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%pmavbmc_mol(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"RMBOND",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%rmbond(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"RMANGLE",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%rmangle(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"RMDIHEDRAL",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%rmdihedral(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"RMROT",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%rmrot(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"RMTRANS",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%rmtrans(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"PMTRAION_MOL",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%pmtraion_mol(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"PMTRANS_MOL",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%pmtrans_mol(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"PMROT_MOL",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%pmrot_mol(imol)=temp_r_array(imol)
+      ENDDO
+      CALL section_vals_val_get(mc_section,"PMSWAP_MOL",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%pmswap_mol(imol)=temp_r_array(imol)
+      ENDDO
 
 ! now some logical values
       CALL section_vals_val_get(mc_section,"LBIAS",l_val=mc_par%lbias,error=error)
@@ -628,6 +1283,11 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
 !..write some information to output
       IF (mc_par % ionode ) THEN
+         WRITE(molecule_string,'(I2)') mc_par%mc_molecule_info%nmol_types
+         WRITE(tab_string,'(I4)') 81-10*mc_par%mc_molecule_info%nmol_types
+         WRITE(tab_string_int,'(I4)') 81-5*mc_par%mc_molecule_info%nmol_types
+         format_string="(A,T" // TRIM(ADJUSTL(tab_string)) // "," // TRIM(ADJUSTL(molecule_string)) // "(2X,F8.4))"
+         format_string_int="(A,T" // TRIM(ADJUSTL(tab_string)) // "," // TRIM(ADJUSTL(molecule_string)) // "(I3,2X))"
          WRITE ( iw, '( A )' ) ' MC| Monte Carlo Protocol '
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| total number of steps ', &
             mc_par % nstep
@@ -635,22 +1295,32 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             mc_par % pmvolume
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
             mc_par % pmswap
+         WRITE ( iw, format_string ) ' MC| pmswap_mol ', &
+            mc_par % pmswap_mol
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmavbmc ', &
             mc_par % pmavbmc
-         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pbias ', &
+         WRITE ( iw, format_string ) ' MC| pmavbmc_mol ', &
+            mc_par % pmavbmc_mol
+         WRITE ( iw, format_string ) ' MC| pbias ', &
             mc_par % pbias
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmtraion ', &
             mc_par % pmtraion
+         WRITE ( iw, format_string ) ' MC| pmtraion_mol ', &
+            mc_par % pmtraion_mol
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmtrans ', &
             mc_par % pmtrans
+         WRITE ( iw, format_string ) ' MC| pmtrans_mol ', &
+            mc_par % pmtrans_mol
+         WRITE ( iw, format_string ) ' MC| pmrot_mol ', &
+            mc_par % pmrot_mol
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| iupvolume ', &
             mc_par % iupvolume
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| iuptrans ', &
             mc_par % iuptrans
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| iprint ', &
             mc_par % iprint
-         WRITE ( iw, '( A,T58,A20 )' ) ' MC| ensemble ', &
-            mc_par % ensemble
+         WRITE ( iw, '( A,T61,A20 )' ) ' MC| ensemble ', &
+            ADJUSTR(mc_par % ensemble)
          IF (mc_par%ensemble .EQ. 'GEMC-NVT') THEN
             WRITE ( iw, '( A,T58,A)' ) ' MC| Box 2 file', &
             TRIM(mc_par % box2_file)
@@ -683,25 +1353,25 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             '[cubic angstroms]', &
             mc_par % rmvolume
          ENDIF
-         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmbond [angstroms]', &
+         WRITE ( iw, format_string ) ' MC| rmbond [angstroms]', &
             mc_par % rmbond
-         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmangle [degrees]', &
+         WRITE ( iw, format_string ) ' MC| rmangle [degrees]', &
             mc_par % rmangle
-         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmdihedral [degrees]', &
+         WRITE ( iw, format_string ) ' MC| rmdihedral [degrees]', &
             mc_par % rmdihedral
-         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmtrans [angstroms]', &
+         WRITE ( iw, format_string ) ' MC| rmtrans [angstroms]', &
             mc_par % rmtrans
-         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmrot [degrees]', &
+         WRITE ( iw, format_string ) ' MC| rmrot [degrees]', &
             mc_par % rmrot
          WRITE ( iw, '( A,T71,F10.2 )' ) ' MC| Temperature [K] ', &
             mc_par % temp
          WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| Pressure [bar] ', &
             mc_par % pressure
-         WRITE ( iw, '( A,T71,I10 )' ) ' MC| AVBMC target atom ', &
+         WRITE ( iw, format_string_int ) ' MC| AVBMC target atom ', &
             mc_par % avbmc_atom
-         WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| AVBMC inner cutoff [ang]', &
+         WRITE ( iw, format_string ) ' MC| AVBMC inner cutoff [ang]', &
             mc_par % avbmc_rmin
-         WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| AVBMC outer cutoff [ang]', &
+         WRITE ( iw, format_string ) ' MC| AVBMC outer cutoff [ang]', &
             mc_par % avbmc_rmax
          IF ( mc_par % lrestart ) THEN
             WRITE ( iw, '(A,A)') ' MC| Initial data will be read from a',&
@@ -731,25 +1401,27 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 ! figure out what beta (1/kT) is in atomic units (1/Hartree)
       mc_par % BETA = 1 / mc_par%temp / boltzmann * joule
 
-! convert from degrees to radians
-      mc_par%rmrot = mc_par%rmrot/180.0e0_dp*pi
-      mc_par%rmangle = mc_par%rmangle/180.0e0_dp*pi
-      mc_par%rmdihedral = mc_par%rmdihedral/180.0e0_dp*pi
 ! convert from bar to a.u.
       CALL convert_to_cp2k_units(pressure=mc_par%pressure)
 ! convert from angstrom to a.u.
+      DO itype=1,mc_par%mc_molecule_info%nmol_types
+! convert from degrees to radians
+         mc_par%rmrot(itype) = mc_par%rmrot(itype)/180.0e0_dp*pi
+         mc_par%rmangle(itype) = mc_par%rmangle(itype)/180.0e0_dp*pi
+         mc_par%rmdihedral(itype) = mc_par%rmdihedral(itype)/180.0e0_dp*pi
+         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+              length=mc_par%rmtrans(itype))
+         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+              length=mc_par%rmbond(itype))
+         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+              length=mc_par%avbmc_rmin(itype))
+         CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+              length=mc_par%avbmc_rmax(itype))
+      ENDDO
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-         length=mc_par%rmtrans)
-      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-         length=mc_par%rmbond)
-      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-         length=mc_par%rmvolume,l_power=3)
+           length=mc_par%rmvolume,l_power=3)
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
          length=mc_par%discrete_step)
-      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-         length=mc_par%avbmc_rmin)
-      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-         length=mc_par%avbmc_rmax)
 
 ! end the timing
       CALL timestop(0.0e0_dp,handle)
@@ -833,19 +1505,23 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
 END SUBROUTINE find_mc_rcut
 
 !******************************************************************************
-!!****** mc/determine_conf_prob [1.0] *
+!******************************************************************************
+!!****** mc/mc_determine_molecule_info [1.0] *
 !!
 !!   NAME
-!!     determine_conf_prob
+!!     mc_determine_molecule_info
 !!
 !!   FUNCTION
-!!     determines the probabilities of doing interal conformational moves
-!!     in the system, based on how many of each type there are...the
-!!     result is stored in mc_par % conf_prob
+!!     figures out the number of total molecules, the number of atoms in each 
+!!     molecule, an array with the molecule types, etc...a lot of information
+!!     that we need.  I did this because I use multiple force_env (simulation
+!!     boxes) for MC, and they don't know about each other.
 !!
 !!   ARGUMENTS
-!!     - mc_par: the structure that will store the parameters
-!!     - molecule_kind: the pointer to the molecule kind we're looking at
+!!     - force_env: the pointer containing all the force environments in the
+!!       simulation
+!!     - mc_molecule_info: the structure that will hold all the information
+!!         for the molecule types
 !!
 !!   Suitable for parallel.
 !!
@@ -855,29 +1531,272 @@ END SUBROUTINE find_mc_rcut
 !!   NOTES
 !!*****************************************************************************
 
-SUBROUTINE determine_conf_prob ( mc_par, molecule_kind)
+SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
+
+    TYPE(cp_error_type), INTENT(inout)  :: error
+    TYPE(force_env_p_type), DIMENSION(:),POINTER &
+         :: force_env
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+ 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_determine_molecule_info', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(mol_kind_new_list_p_type), DIMENSION(:),POINTER &
+         :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER  :: molecule_kind
+    CHARACTER(LEN=default_string_length) :: name
+    CHARACTER(LEN=default_string_length),DIMENSION(:),ALLOCATABLE :: &
+         names_init
+    INTEGER :: total,nbond,nbend,ntorsion,istat,ibox,ntypes,&
+         itype,imolecule,jtype,iunique,natom,natoms_large,&
+         nmolecule,nboxes, first_mol,last_mol,this_molecule,imol,iatom
+    LOGICAL :: lnew_type
+    INTEGER :: nmol_types
+    INTEGER,DIMENSION(:),POINTER :: molecule_list
+    TYPE(atom_type),DIMENSION(:),POINTER :: atom_list
+    TYPE(atomic_kind_type),POINTER :: atomic_kind
+!**********************************************************************
+
+! how many simulation boxes do we have?
+    nboxes=SIZE(force_env(:))
+
+! allocate the pointer
+    ALLOCATE(mc_molecule_info)
+    mc_molecule_info%nboxes=nboxes
+
+! we need to figure out how many different kinds of molecules we have...
+! the fun stuff comes in when box 1 is missing a molecule type...I'll
+! distinguish molecules based on names from the .psf files...
+! this is only really a problem when we have more than one simulation
+! box
+    NULLIFY(subsys,molecule_kinds_new,molecule_kind)
+
+    ALLOCATE (molecule_kinds_new(1:nboxes),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "molecule_kinds_new",nboxes)
+
+ ! find out how many types we have
+    ntypes=0
+    DO ibox=1,nboxes
+       CALL force_env_get(force_env(ibox)%force_env,&
+            subsys=subsys,error=error)
+       CALL cp_subsys_get(subsys(1)%subsys, &
+            molecule_kinds_new=molecule_kinds_new(ibox)%list,&
+            error=error)
+       ntypes=ntypes+SIZE(molecule_kinds_new(ibox)%list%els(:))
+    ENDDO
+
+    ALLOCATE (names_init(1:ntypes),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "names_init",ntypes*default_string_length)
+
+! now get the names of all types so we can figure out how many distinct
+! types we have
+    itype=1
+    natoms_large=0
+    DO ibox=1,nboxes
+       DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))
+          molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
+          CALL get_molecule_kind(molecule_kind,name=names_init(itype),&
+               natom=natom)
+          IF(natom .GT. natoms_large) natoms_large=natom
+          itype=itype+1
+       ENDDO
+    ENDDO
+
+    nmol_types=0
+    DO itype=1,ntypes
+       lnew_type=.TRUE.
+       DO jtype=1,itype-1
+          IF(TRIM(names_init(itype)) .EQ. TRIM(names_init(jtype)))&
+               lnew_type=.FALSE.
+       ENDDO
+       IF(lnew_type) THEN
+          nmol_types=nmol_types+1
+       ELSE
+          names_init(itype)=''
+       ENDIF
+    ENDDO
+
+! allocate arrays for the names of the molecules, the number of atoms, and
+! the conformational probabilities
+    mc_molecule_info%nmol_types=nmol_types
+    ALLOCATE(mc_molecule_info%names(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_molecule_info%names",nmol_types*default_string_length)
+    ALLOCATE(mc_molecule_info%nunits(1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_molecule_info%nunits",nmol_types*int_size)
+    ALLOCATE(mc_molecule_info%conf_prob(1:3,1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_molecule_info%conf_prob",3*nmol_types*dp_size)
+    ALLOCATE(mc_molecule_info%nchains(1:nmol_types,1:nboxes),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_molecule_info%nchains",nboxes*nmol_types*dp_size)
+    ALLOCATE(mc_molecule_info%nunits_tot(1:nboxes),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_molecule_info%nunits_tot",nboxes*int_size)
+    ALLOCATE(mc_molecule_info%atom_names(1:natoms_large,1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_molecule_info%atom_names",natoms_large*nmol_types*default_string_length)
+    ALLOCATE(mc_molecule_info%mass(1:natoms_large,1:nmol_types),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_molecule_info%mass",natoms_large*nmol_types*dp_size)
+
+! now record all the information for every molecule type
+    iunique=0
+    itype=0
+    DO ibox=1,nboxes
+       DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))
+          itype=itype+1
+          IF(names_init(itype) .EQ. '') CYCLE
+          iunique=iunique+1
+          mc_molecule_info%names(iunique)=names_init(itype)
+          molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
+          CALL get_molecule_kind(molecule_kind,natom=mc_molecule_info%nunits(iunique),&
+               nbond=nbond,nbend=nbend,ntorsion=ntorsion,atom_list=atom_list)
+
+          DO iatom=1,mc_molecule_info%nunits(iunique)
+             atomic_kind => atom_list(iatom)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  name=mc_molecule_info%atom_names(iatom,iunique),&
+                  mass=mc_molecule_info%mass(iatom,iunique))             
+          ENDDO
+
+! compute the probabilities of doing any particular kind of conformation change
+          total=nbond+nbend+ntorsion
+
+          IF(total == 0) THEN
+             mc_molecule_info%conf_prob(:,iunique)=0.0d0
+          ELSE
+             mc_molecule_info%conf_prob(1,iunique)=REAL(nbond,dp)/REAL(total,dp)
+             mc_molecule_info%conf_prob(2,iunique)=REAL(nbend,dp)/REAL(total,dp)
+             mc_molecule_info%conf_prob(3,iunique)=REAL(ntorsion,dp)/REAL(total,dp)
+          ENDIF
+
+       ENDDO
+    ENDDO
+
+! now we need to figure out the total number of molecules of each kind in
+! each box, and the total number of interaction sites in each box
+    mc_molecule_info%nchains(:,:)=0
+    DO iunique=1,nmol_types
+       DO ibox=1,nboxes
+          DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))    
+             molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
+             CALL get_molecule_kind(molecule_kind,nmolecule=nmolecule,&
+                  name=name)
+             IF(TRIM(name) .NE. mc_molecule_info%names(iunique) ) CYCLE
+             mc_molecule_info%nchains(iunique,ibox)=mc_molecule_info%nchains(iunique,ibox)+nmolecule
+          ENDDO
+       ENDDO
+    ENDDO
+    mc_molecule_info%nchain_total=0
+    DO ibox=1,nboxes
+       mc_molecule_info%nunits_tot(ibox)=0
+       DO iunique=1,nmol_types
+          mc_molecule_info%nunits_tot(ibox)=mc_molecule_info%nunits_tot(ibox)+&
+               mc_molecule_info%nunits(iunique)*mc_molecule_info%nchains(iunique,ibox)
+       ENDDO
+       mc_molecule_info%nchain_total=mc_molecule_info%nchain_total+SUM(mc_molecule_info%nchains(:,ibox))
+    ENDDO
+
+! now we need to figure out which type every molecule is,
+! and which force_env (box) it's in
+    ALLOCATE(mc_molecule_info%mol_type(1:mc_molecule_info%nchain_total),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mol_type",mc_molecule_info%nchain_total*int_size)
+    ALLOCATE(mc_molecule_info%in_box(1:mc_molecule_info%nchain_total),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "in_box",mc_molecule_info%nchain_total*int_size)
+
+    last_mol=0
+    DO ibox=1,nboxes
+       first_mol=last_mol+1
+       last_mol=first_mol+SUM(mc_molecule_info%nchains(:,ibox))-1
+       mc_molecule_info%in_box(first_mol:last_mol)=ibox
+       DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))    
+          molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
+          CALL get_molecule_kind(molecule_kind,nmolecule=nmolecule,&
+               name=name,molecule_list=molecule_list)
+! figure out which molecule number this is
+          this_molecule=0
+          DO iunique=1,nmol_types
+             IF(TRIM(name) .EQ. TRIM(mc_molecule_info%names(iunique))) THEN
+                this_molecule=iunique
+             ENDIF
+          ENDDO
+          DO imol=1,SIZE(molecule_list(:))
+             mc_molecule_info%mol_type(first_mol+molecule_list(imol)-1)=this_molecule
+          ENDDO
+       ENDDO
+    ENDDO
+
+! get rid of stuff we don't need
+    DEALLOCATE(names_init,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"names_init")
+    DEALLOCATE(molecule_kinds_new,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"molecule_kinds_new")
 
 
-    TYPE(mc_simulation_parameters_type), &
-      INTENT(INOUT)                          :: mc_par
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+END SUBROUTINE MC_DETERMINE_MOLECULE_INFO
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_conf_prob'
 
-    INTEGER                                  :: nbend, nbond, ntorsion, total
+!******************************************************************************
+!!****** mc/mc_molecule_info_destroy [1.0] *
+!!
+!!   NAME
+!!     mc_molecule_info_destroy
+!!
+!!   FUNCTION
+!!     deallocates all the arrays in the mc_molecule_info_type
+!!
+!!   ARGUMENTS
+!!     - mc_molecule_info: the structure we wish to deallocate
+!!
+!!   Suitable for parallel.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!   NOTES
+!!*****************************************************************************
+SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 
-!------------------------------------------------------------------------------
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+ 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_info_destroy', &
+      routineP = moduleN//':'//routineN
+    INTEGER :: istat
+!*****************************************************************************
 
-      CALL get_molecule_kind(molecule_kind,nbond=nbond,nbend=nbend,&
-         ntorsion=ntorsion)
+    DEALLOCATE(mc_molecule_info%nchains,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nchains")
+    DEALLOCATE(mc_molecule_info%nunits,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nunits")
+    DEALLOCATE(mc_molecule_info%mol_type,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mol_type")
+    DEALLOCATE(mc_molecule_info%in_box,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"in_box")
+    DEALLOCATE(mc_molecule_info%names,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"names")
+    DEALLOCATE(mc_molecule_info%atom_names,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_names")
+    DEALLOCATE(mc_molecule_info%conf_prob,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"conf_prob")
+    DEALLOCATE(mc_molecule_info%nunits_tot,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nunits_tot")
+    DEALLOCATE(mc_molecule_info%mass,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mass")
+    
 
-      total=nbond+nbend+ntorsion
+    DEALLOCATE(mc_molecule_info,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc_molecule_info")
+    NULLIFY(mc_molecule_info)
 
-      mc_par % conf_prob(1)=REAL(nbond,dp)/REAL(total,dp)
-      mc_par % conf_prob(2)=REAL(nbend,dp)/REAL(total,dp)
-      mc_par % conf_prob(3)=REAL(ntorsion,dp)/REAL(total,dp)
-
-END SUBROUTINE determine_conf_prob
+  END SUBROUTINE mc_molecule_info_destroy
 
 END MODULE mc_types
 

@@ -31,7 +31,6 @@ MODULE mc_control
   USE environment,                     ONLY: cp2k_read
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_release,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create,&
@@ -42,16 +41,20 @@ MODULE mc_control
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_release,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
-                                             dp_size
-  USE mc_misc,                         ONLY: mc_make_dat_file
+                                             dp_size,&
+                                             int_size,&
+                                             default_string_length
+  USE mc_misc,                         ONLY: mc_make_dat_file_new
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_simulation_parameters_type,&
-                                             set_mc_par
+                                             set_mc_par,&
+                                             mc_molecule_info_type,&
+                                             get_mc_molecule_info,&
+                                             mc_input_file_type
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: atom_type,&
@@ -104,20 +107,22 @@ CONTAINS
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
+SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
 
     INTEGER, INTENT(IN)                      :: nnstep
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
+    INTEGER,DIMENSION(:),INTENT(IN)          :: nchains
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_mc_restart'
 
     CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: restart_file_name
     INTEGER                                  :: handle, ichain, iunit, &
-                                                nchain, nunits, nunits_tot, &
-                                                unit
+                                                unit,iparticle,natom,&
+                                                nmolecule,nunits_tot,imol_type,&
+                                                nmol_types
     REAL(KIND=dp)                            :: temp
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
@@ -136,15 +141,11 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
 
 ! get some data from mc_par
   CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=temp,&
-      nunits_tot=nunits_tot,nchain=nchain,ensemble=ensemble,&
-      nunits=nunits)
+      ensemble=ensemble)
 
 ! open the file and write some simulation parameters
   CALL open_file(file_name=restart_file_name,unit_number=unit,&
                  file_action='WRITE',file_status='REPLACE')
-  WRITE(unit,*) nnstep
-  WRITE(unit,*) temp,nunits_tot
-  WRITE(unit,*) ensemble
 
 ! get the cell length and coordinates
   CALL force_env_get(force_env,cell=cell,subsys=subsys,&
@@ -153,19 +154,32 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
   CALL cp_subsys_get(subsys(1)%subsys, &
              molecule_kinds_new=molecule_kinds_new,&
              particles=particles, error=error)
-  molecule_kind => molecule_kinds_new%els(1)
-  CALL get_molecule_kind(molecule_kind,atom_list=atom_list)
 
+  nunits_tot=SIZE(particles%els(:))
+  WRITE(unit,*) nnstep
+  WRITE(unit,*) temp,nunits_tot
+  WRITE(unit,*) ensemble
+  WRITE(unit,*) nchains(:)
   WRITE(unit,'(3(F10.6,3X))') abc(1:3)*angstrom  ! in angstroms
   WRITE(unit,*)
 
+! can't do a simple particles%els%atomic_kind%element_symbol because
+! of the classical force_env
+  nmol_types=SIZE(molecule_kinds_new%els(:))
+  iparticle=1
+  DO imol_type=1,nmol_types
+     molecule_kind => molecule_kinds_new%els(imol_type)
+     CALL get_molecule_kind(molecule_kind,atom_list=atom_list,&
+          nmolecule=nmolecule,natom=natom)
 ! write the coordinates out
-  DO ichain=1,nchain
-      DO iunit=1,nunits
-         WRITE(unit,'(1X,A,1X,3(F15.10,3X))') &
-                 TRIM(ADJUSTL(atom_list(iunit)%name)),&
-                 particles%els((ichain-1)*nunits+iunit)%r(1:3)*angstrom
-      ENDDO
+     DO ichain=1,nmolecule
+        DO iunit=1,natom
+           WRITE(unit,'(1X,A,1X,3(F15.10,3X))') &
+                TRIM(ADJUSTL(atom_list(iunit)%name)),&
+                particles%els(iparticle)%r(1:3)*angstrom
+           iparticle=iparticle+1
+        ENDDO
+     ENDDO
   ENDDO
 
   CALL close_file(unit_number=unit)
@@ -198,23 +212,26 @@ END SUBROUTINE write_mc_restart
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
+SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw,mc_nunits_tot
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_restart'
 
-    CHARACTER(LEN=20)                        :: chardum, ensemble, mc_ensemble
-    CHARACTER(LEN=200)                       :: fft_lib
+    CHARACTER(LEN=20)                        :: ensemble, mc_ensemble
     CHARACTER(LEN=40)                        :: dat_file, restart_file_name
-    INTEGER :: group, handle, i, ipart, istat, iunit, mc_nchain, mc_nunits, &
-      mc_nunits_tot, nstart, nunits_tot, print_level, source, unit
+    INTEGER :: group, handle, i, ipart, istat, iunit, &
+      nstart, nunits_tot, print_level, source, unit, nmol_types
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: mc_temp, rand, temp
+    CHARACTER(5), ALLOCATABLE, &
+      DIMENSION(:)                        :: atom_symbols
+    CHARACTER(default_string_length), POINTER, &
+      DIMENSION(:,:)                        :: atom_names
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, box_length
@@ -223,7 +240,9 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
-
+    INTEGER,DIMENSION(:),POINTER    :: nunits,nchains
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+    TYPE(mc_input_file_type),POINTER :: mc_input_file
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -231,9 +250,15 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
 
 ! get some stuff from the mc_par
       CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=mc_temp,&
-         nunits_tot=mc_nunits_tot,ensemble=mc_ensemble,nunits=mc_nunits,&
-         ionode=ionode,dat_file=dat_file,nchain=mc_nchain,fft_lib=fft_lib,&
-         group=group,source=source)
+         ensemble=mc_ensemble,mc_molecule_info=mc_molecule_info,&
+         ionode=ionode,dat_file=dat_file,&
+         group=group,source=source,mc_input_file=mc_input_file)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits=nunits,&
+           nmol_types=nmol_types,atom_names=atom_names)
+
+      ALLOCATE (nchains(1:nmol_types),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+           "nchains",nmol_types*int_size)
 
       ! currently a hack, printlevel should be intern to the print_keys
       print_level = 1
@@ -246,6 +271,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
          READ(unit,*) nstart
          READ(unit,*) temp,nunits_tot
          READ(unit,*) ensemble
+         READ(unit,*) nchains(1:nmol_types)
       ENDIF
       CALL mp_bcast(nstart,source,group)
       CALL mp_bcast(temp,source,group)
@@ -270,8 +296,6 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
             WRITE(iw,*) 'Input file units =',mc_nunits_tot
             WRITE(iw,*) 'Restart file units =',nunits_tot
          ENDIF
-         mc_nunits_tot=nunits_tot
-         mc_nchain=mc_nunits_tot/mc_nunits
       ENDIF
       IF(ensemble .NE. mc_ensemble) THEN
          IF(ionode) THEN
@@ -294,55 +318,64 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
       IF(ionode) THEN
          READ(unit,*)  box_length(1:3) ! in angstroms
          READ(unit,*)
+         box_length(1:3)=box_length(1:3)/angstrom ! convert to a.u.
       ENDIF
       CALL mp_bcast(box_length,source,group)
-      IF(ABS(box_length(1) - abc(1)*angstrom) .GT. 0.0001E0_dp .OR. &
-         ABS(box_length(2) - abc(2)*angstrom) .GT. 0.0001E0_dp .OR. &
-         ABS(box_length(3) - abc(3)*angstrom) .GT. 0.0001E0_dp) THEN
+      IF(ABS(box_length(1) - abc(1)) .GT. 0.0001E0_dp .OR. &
+         ABS(box_length(2) - abc(2)) .GT. 0.0001E0_dp .OR. &
+         ABS(box_length(3) - abc(3)) .GT. 0.0001E0_dp) THEN
          IF (ionode) THEN
             WRITE(iw,*) 'The cell length in the restart file is ',&
                'not the same as the input file.'
             WRITE(iw,*) 'Input file cell length =',abc(1:3)*angstrom
-            WRITE(iw,*) 'Restart file cell length =',box_length(1:3)
+            WRITE(iw,*) 'Restart file cell length =',box_length(1:3)*angstrom
          ENDIF
       ENDIF
 
 ! allocate the array holding the coordiantes, and read in the coordiantes,
 ! and write the dat file so we can make a new force_env
       IF(nunits_tot == 0) THEN
-         ALLOCATE (r(3,mc_nunits),STAT=istat)
+         ALLOCATE (r(3,nunits(1)),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "r",3*mc_nunits*dp_size)
-         DO iunit=1,mc_nunits
+            "r",3*nunits(1)*dp_size)
+         ALLOCATE (atom_symbols(nunits(1)),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "ipart",nunits_tot*5)
+
+         DO iunit=1,nunits(1)
             r(1:3,iunit) = (/ REAL(iunit,dp), REAL(iunit,dp),REAL(iunit,dp) /)
+            atom_symbols(iunit)=atom_names(iunit,1)
          ENDDO
 
-
+         nchains(1)=1
          IF(ionode) THEN
-            CALL mc_make_dat_file(r(:,:),mc_nunits,box_length(:),dat_file,&
-               force_env,TRIM(fft_lib),print_level,error)
+            CALL mc_make_dat_file_new(r(:,:),atom_symbols,nunits(1),&
+                 box_length(:),dat_file,nchains(:),mc_input_file)
             CALL close_file(unit_number=unit)
          ENDIF
       ELSE
          ALLOCATE (r(3,nunits_tot),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r",3*nunits_tot*dp_size)
+         ALLOCATE (atom_symbols(nunits_tot),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "ipart",nunits_tot*5)
 
          IF(ionode) THEN
-            DO ipart=1,mc_nunits_tot
-               READ(unit,*) chardum,r(1:3,ipart)
+            DO ipart=1,nunits_tot
+               READ(unit,*) atom_symbols(ipart),r(1:3,ipart)
                r(1:3,ipart)=r(1:3,ipart)/angstrom
             ENDDO
 
             CALL close_file(unit_number=unit)
 
-            CALL mc_make_dat_file(r(:,:),mc_nunits_tot,&
-               box_length(:),dat_file,force_env,TRIM(fft_lib),print_level,error)
+            CALL mc_make_dat_file_new(r(:,:),atom_symbols,nunits_tot,&
+                 box_length(:),dat_file,nchains(:),mc_input_file)
+
          ENDIF
       ENDIF
 
-      CALL set_mc_par(mc_par,nunits_tot=mc_nunits_tot,nunits=mc_nunits,&
-         nstart=nstart,nchain=mc_nchain)
+      CALL set_mc_par(mc_par,nstart=nstart)
 
 ! advance the random number sequence based on the restart step
       IF(ionode) THEN
@@ -355,7 +388,9 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
       CALL timestop(0.0E0_dp,handle)
 
 ! deallcoate
+      DEALLOCATE(nchains)
       DEALLOCATE(r)
+      DEALLOCATE(atom_symbols)
 
 END SUBROUTINE read_mc_restart
 
@@ -394,7 +429,7 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_val, method_name_id, &
+    INTEGER                                  :: method_name_id, &
                                                 nforce_eval
     LOGICAL                                  :: failure
     TYPE(global_environment_type), POINTER   :: globenv
@@ -456,7 +491,6 @@ END SUBROUTINE mc_create_force_env
 !!     - force_env: the force environment we're copying cell length
 !!           and coordinates from
 !!     - globenv: the global environment parameters
-!!     - fft_lib: the FFT library we're using (e.g. FFTW, FFTSG)
 !!     - error: the CP error structure
 !!
 !!   Suitable for parallel.
@@ -465,67 +499,31 @@ END SUBROUTINE mc_create_force_env
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
-            para_env, globenv,fft_lib,print_level,ionode,force_env_section,error)
+SUBROUTINE mc_create_bias_force_env (bias_env,r,atom_symbols,nunits_tot,&
+            para_env, box_length,nchains,mc_input_file,ionode,error)
 
-    TYPE(force_env_type), POINTER            :: bias_env, force_env
+    REAL(dp),DIMENSION(:,:),INTENT(INOUT)       :: r
+    CHARACTER(default_string_length),DIMENSION(:),INTENT(IN) :: atom_symbols
+    INTEGER,INTENT(IN)                       :: nunits_tot
+    INTEGER,DIMENSION(:),POINTER             :: nchains
+    TYPE(force_env_type), POINTER            :: bias_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
-    INTEGER, INTENT(IN)                      :: print_level
     LOGICAL, INTENT(IN)                      :: ionode
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    REAL(KIND=dp), DIMENSION(1:3),INTENT(IN)            :: box_length
+    TYPE(mc_input_file_type),POINTER :: mc_input_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_bias_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iparticle, istat, nunits_tot
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: r
-    REAL(KIND=dp), DIMENSION(1:3)            :: abc
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-
 !-----------------------------------------------------------------------------
 
-      NULLIFY(cell,subsys)
-
-! create the bias_env from the template file
-      CALL mc_create_force_env(bias_env, para_env, 'bias_template.inp',error=error)
-! grab the coordinates and cell parameters of the old environment
-      CALL force_env_get(force_env,subsys=subsys,cell=cell,&
-         error=error)
-
-      CALL get_cell(cell,abc=abc)
-      CALL cp_subsys_get(subsys(1)%subsys, &
-         particles=particles, error=error)
-
-!  copy the data we need and make a new force_environment
-      nunits_tot=SIZE(particles%els(:))
-      ALLOCATE (r(3,nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "particle_positions",3*nunits_tot*dp_size)
-
-      DO iparticle=1,nunits_tot
-         r(1:3,iparticle)=particles%els(iparticle)%r(1:3)
-      ENDDO
-
       IF(ionode) &
-         CALL mc_make_dat_file(r(:,:),nunits_tot,&
-         abc(1:3)*angstrom,&
-         'bias_temp.inp',bias_env,TRIM(fft_lib),print_level,error)
-
-      CALL section_vals_release(bias_env%root_section,error=error)
-      CALL force_env_release(bias_env,error=error)
+           CALL mc_make_dat_file_new(r(:,:),atom_symbols,nunits_tot,&
+           box_length(:),'bias_temp.inp',nchains(:),mc_input_file)
 
       CALL mc_create_force_env(bias_env, para_env, 'bias_temp.inp',error=error)
 
-      DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r")
 
 END SUBROUTINE mc_create_bias_force_env
 

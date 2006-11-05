@@ -28,9 +28,6 @@ MODULE mc_misc
                                              open_file
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-!  USE cp_control_types,                ONLY: dft_control_type
-!  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
-!                                             xc_get_deriv_method_label
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
@@ -65,8 +62,14 @@ MODULE mc_misc
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_averages_type,&
+                                             mc_moves_p_type,&
                                              mc_moves_type,&
-                                             mc_simulation_parameters_type
+                                             mc_simulation_parameters_type,&
+                                             mc_molecule_info_type,&
+                                             get_mc_molecule_info,&
+                                             accattempt,&
+                                             get_mc_input_file,&
+                                             mc_input_file_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: atom_type,&
                                              bend_type,&
@@ -88,7 +91,7 @@ MODULE mc_misc
   IMPLICIT NONE
 
   PUBLIC :: final_mc_write,mc_averages_create,mc_averages_release,&
-            mc_make_dat_file
+            mc_make_dat_file,mc_make_dat_file_new
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_misc'
 
@@ -137,9 +140,6 @@ SUBROUTINE mc_averages_create ( averages  )
       averages%ave_energy=0.0E0_dp
       averages%ave_energy_squared=0.0E0_dp
       averages%ave_volume=0.0E0_dp
-      averages%bond1=0.0E0_dp
-      averages%bond2=0.0E0_dp
-      averages%angle=0.0E0_dp
       averages%molecules=0.0E0_dp
 
 ! end the timing
@@ -221,335 +221,227 @@ END SUBROUTINE mc_averages_release
 !!
 !!*****************************************************************************
 
-SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
+SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
                            final_energy,averages)
 
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(mc_moves_type), POINTER             :: moves
+    TYPE(mc_moves_p_type), DIMENSION(:),POINTER     :: all_moves
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: energy_check, initial_energy, &
                                                 final_energy
     TYPE(mc_averages_type), POINTER          :: averages
 
+    TYPE(mc_molecule_info_type), POINTER          :: mc_molecule_info
+
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'final_mc_write'
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle,nmol_types,itype
     LOGICAL                                  :: lbias
-    REAL(KIND=dp)                            :: pmswap, rmangle, rmbond, &
-                                                rmdihedral, rmrot, rmtrans, &
-                                                rmvolume
-
+    REAL(KIND=dp)                            :: pmswap, rmvolume
+    REAL(dp),DIMENSION(:),POINTER            :: rmangle, rmbond,rmdihedral,&
+         rmrot,rmtrans
+    CHARACTER(LEN=5)     :: molecule_string,tab_string
+    CHARACTER(LEN=default_string_length)     :: format_string,string1,string2,string3
+    TYPE(mc_moves_type), POINTER     :: moves
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,'I','',handle)
 
+    NULLIFY(mc_molecule_info,rmbond,rmangle,rmdihedral,rmrot,rmtrans)
+
     CALL get_mc_par(mc_par,pmswap=pmswap,rmvolume=rmvolume,&
       lbias=lbias,rmbond=rmbond,rmangle=rmangle,rmdihedral=rmdihedral,&
-      rmtrans=rmtrans,rmrot=rmrot)
+      rmtrans=rmtrans,rmrot=rmrot,mc_molecule_info=mc_molecule_info)
+    CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types)
+    WRITE(molecule_string,'(I2)') nmol_types
+    WRITE(tab_string,'(I4)') 81-11*nmol_types
+    format_string="(A,T" // TRIM(ADJUSTL(tab_string)) // "," // TRIM(ADJUSTL(molecule_string)) // "(2X,F9.6))"
 
 ! write out some data averaged over the whole simulation
     WRITE(iw,*)
-    WRITE(iw,*) '****************************************************',&
+    WRITE(iw,'(A,A)') '*****************************************************',&
                    '***************************'
-    WRITE(iw,'(A,T66,F15.8)') " Average Energy [Hartrees]:", &
+    WRITE(iw,'(A,T66,F15.8)') "Average Energy [Hartrees]:", &
                 averages%ave_energy
-!    WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 1 [angstroms]:",&
-!                   averages%bond1*angstrom
-!    WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 2 [angstroms]:",&
-!                   averages%bond2*angstrom
-!    WRITE(iw,'(A,T66,F15.8)') " Average H-O-H angle [degrees]:",&
-!                   averages%angle
     IF (pmswap .GT. 0.0E0_dp) THEN
-       WRITE(iw,'(A,T66,F15.8)') " Average number of molecules:",&
+       WRITE(iw,'(A,T66,F15.8)') "Average number of molecules:",&
                    averages%molecules
     ENDIF
-!    WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
-!      "[g/cm^3]:",1.0E0_dp/averages%ave_volume*averages%molecules/&
-!      (angstrom)**3*(1.0e8_dp)**3/n_avogadro*18.0184E0_dp
-    WRITE(iw,'(A,A,T65,F16.6)') " Average Volume ",&
+    WRITE(iw,'(A,A,T65,F16.6)') "Average Volume ",&
                "[angstroms**3]:",averages%ave_volume*angstrom**3
 
     WRITE(iw,*)
 
 ! write out acceptance rates for the moves
-    WRITE(iw,*) "Move Data"
-    WRITE(iw,*) '----------------------------------------------------',&
-                   '---------------------------'
-! AVBMC moves
-    IF (moves%avbmc_inin%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " AVBMC moves from in to in",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%avbmc_inin%attempts,&
-             moves%avbmc_inin%successes,&
-             REAL(moves%avbmc_inin%successes,dp)/ &
-             REAL(moves%avbmc_inin%attempts,dp)*100.0E0_dp
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
-    IF (moves%avbmc_inout%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " AVBMC moves from in to out",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%avbmc_inout%attempts,&
-             moves%avbmc_inout%successes,&
-             REAL(moves%avbmc_inout%successes,dp)/ &
-             REAL(moves%avbmc_inout%attempts,dp)*100.0E0_dp
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
-    IF (moves%avbmc_outin%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " AVBMC moves from out to in",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%avbmc_outin%attempts,&
-             moves%avbmc_outin%successes,&
-             REAL(moves%avbmc_outin%successes,dp)/ &
-             REAL(moves%avbmc_outin%attempts,dp)*100.0E0_dp
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
-    IF (moves%avbmc_outout%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " AVBMC moves from out to out",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%avbmc_outout%attempts,&
-             moves%avbmc_outout%successes,&
-             REAL(moves%avbmc_outout%successes,dp)/ &
-             REAL(moves%avbmc_outout%attempts,dp)*100.0E0_dp
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
 
 ! volume moves
-    IF (moves%volume%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " Volume Moves",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%volume%attempts,&
-             moves%volume%successes,&
-             REAL(moves%volume%successes,dp)/ &
-             REAL(moves%volume%attempts,dp)*100.0E0_dp
-       WRITE(iw,'(A,T71,F10.5)') &
-           ' Maximum Volume displacement [angstroms^3] = ',&
-                     rmvolume*(angstrom)**3
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
+    WRITE(iw,'(A,A)') '-----------------------------------------------------',&
+         '---------------------------'
+    string2="Attempted       Accepted       Percent"
+    string1="Volume Moves"
+    string3="Maximum volume displacement [angstroms**3]= "
+    rmvolume=rmvolume*angstrom**3
+    CALL final_move_write(all_moves(1)%moves%volume,string1,string2,iw,&
+         displacement=rmvolume,lbias=.FALSE.,format_string=format_string,&
+         string3=string3)
 
-    IF (moves%angle%attempts .GT. 0 .OR. &
-      moves%bond%attempts .GT. 0 .OR. moves%dihedral%attempts .GT. 0 ) THEN
-       WRITE(iw,'(A,T43,A)') " Conformational Moves",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-          moves%bond%attempts+moves%angle%attempts+moves%dihedral%attempts,&
-          moves%bond%successes+moves%angle%successes+moves%dihedral%successes,&
-          REAL(moves%bond%successes+moves%angle%successes+moves%dihedral%successes,dp)/ &
-          REAL(moves%bond%attempts+moves%angle%attempts+moves%dihedral%attempts,dp)*100.0E0_dp
-       IF (moves%bond%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Bond Changes",&
-            "Attempted       Accepted       Percent"
+! Quickstep moves (a series of moves with one potential, and then corrected for
+! by another potential
+    string2="Attempted       Accepted       Percent"
+    string1="Quickstep Moves"
+    CALL final_move_write(all_moves(1)%moves%Quickstep,string1,string2,iw)
+
+    DO itype=1,nmol_types
+       WRITE(iw,'(A,A)') '-----------------------------------------------------',&
+                   '---------------------------'
+       WRITE(iw,'(A,I5)') 'Move Data for Molecule Type ',itype
+       WRITE(iw,'(A,A)') '-----------------------------------------------------',&
+                   '---------------------------'
+
+       moves => all_moves(itype)%moves
+
+! AVBMC moves
+       string2="Attempted       Accepted       Percent"
+       string1="AVBMC moves from in to in"
+       CALL final_move_write(moves%avbmc_inin,string1,string2,iw)
+       string1="AVBMC moves from in to out"
+       CALL final_move_write(moves%avbmc_inout,string1,string2,iw)
+       string1="AVBMC moves from out to in"
+       CALL final_move_write(moves%avbmc_outin,string1,string2,iw)
+       string1="AVBMC moves from out to out"
+       CALL final_move_write(moves%avbmc_outout,string1,string2,iw)
+
+! conformation changes
+       IF (moves%angle%attempts .GT. 0 .OR. &
+            moves%bond%attempts .GT. 0 .OR. &
+            moves%dihedral%attempts .GT. 0 ) THEN
+          WRITE(iw,'(A,T43,A)') "Conformational Moves",&
+               "Attempted       Accepted       Percent"
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%bond%attempts,&
-            moves%bond%successes,&
-            REAL(moves%bond%successes,dp)/ &
-            REAL(moves%bond%attempts,dp)*100.0E0_dp
-          IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum bond displacement [angstroms]= ',&
-            rmbond*angstrom
+               moves%bond%attempts+moves%angle%attempts+&
+               moves%dihedral%attempts,&
+               moves%bond%successes+moves%angle%successes+&
+               moves%dihedral%successes,&
+               REAL(moves%bond%successes+moves%angle%successes+&
+               moves%dihedral%successes,dp)/ &
+               REAL(moves%bond%attempts+moves%angle%attempts+&
+               moves%dihedral%attempts,dp)*100.0E0_dp
+          string2="Attempted       Accepted       Percent"
+          string1="Bond Changes"
+          string3="Maximum bond displacement [angstroms]= "
+          rmbond(itype)=rmbond(itype)*angstrom
+          CALL final_move_write(moves%bond,string1,string2,iw,&
+               displacement=rmbond(itype),lbias=lbias,format_string=format_string,&
+               string3=string3)
+
+          string1="Angle Changes"
+          string3="Maximum angle displacement [degrees]= "
+          rmangle(itype)=rmangle(itype)/pi*180.0E0_dp
+          CALL final_move_write(moves%angle,string1,string2,iw,&
+               displacement=rmangle(itype),lbias=lbias,format_string=format_string,&
+               string3=string3)
+
+          string1="Dihedral Changes"
+          string3="Maximum dihedral displacement [degrees]= "
+          rmdihedral(itype)=rmdihedral(itype)/pi*180.0E0_dp
+          CALL final_move_write(moves%dihedral,string1,string2,iw,&
+               displacement=rmdihedral(itype),lbias=lbias,format_string=format_string,&
+               string3=string3)
+
+          WRITE(iw,'(A,A,I5)') "Conformational Moves Rejected Because",&
+               "Box Was Empty: ",moves%empty_conf
+          WRITE(iw,'(A,A)') '-----------------------------------------------',&
+               '--------------------------------'
        ENDIF
-       IF (moves%angle%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Angle Changes",&
-            "Attempted       Accepted       Percent"
-          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%angle%attempts,&
-            moves%angle%successes,&
-            REAL(moves%angle%successes,dp)/ &
-            REAL(moves%angle%attempts,dp)*100.0E0_dp
-          IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum angle displacement [degrees]= ',&
-            rmangle/pi*180.0E0_dp
-       ENDIF
-       IF (moves%dihedral%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Dihedral Changes",&
-            "Attempted       Accepted       Percent"
-          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%dihedral%attempts,&
-            moves%dihedral%successes,&
-            REAL(moves%dihedral%successes,dp)/ &
-            REAL(moves%dihedral%attempts,dp)*100.0E0_dp
-          IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum dihedral displacement [degrees]= ',&
-            rmdihedral/pi*180.0E0_dp
-       ENDIF
-       WRITE(iw,'(A,A,I5)') " Conformational Moves Rejected Because",&
-          "Box Was Empty: ",moves%empty_conf
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
 
-    IF (moves%trans%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " Translation Moves",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%trans%attempts,&
-             moves%trans%successes,&
-             REAL(moves%trans%successes,dp)/ &
-             REAL(moves%trans%attempts,dp)*100.0E0_dp
-       IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
-         ' Maximum molecular translational displacement [angstroms]= ',&
-                  rmtrans*angstrom
-!       WRITE(iw,'(A,T71,F10.5)') &
-!          ' Total translational displacement [angstroms]=',&
-!                  moves%trans_dis*angstrom
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
+! translation moves
+       string1="Translation Moves"
+       string3="Maximum molecular translational displacement [angstroms]= "
+       rmtrans(itype)=rmtrans(itype)*angstrom
+       CALL final_move_write(moves%trans,string1,string2,iw,&
+            displacement=rmtrans(itype),lbias=lbias,format_string=format_string,&
+            string3=string3)
 
-    IF (moves%rot%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " Rotation Moves",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%rot%attempts,&
-             moves%rot%successes,&
-             REAL(moves%rot%successes,dp)/ &
-             REAL(moves%rot%attempts,dp)*100.0E0_dp
-       IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
-           ' Maximum rotational displacement [degrees] = ',&
-                           rmrot/pi*180.0E0_dp
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
+! rotation moves
+          string1="Rotation Moves"
+          string3="Maximum molecular rotational displacement [degrees]= "
+          rmrot(itype)=rmrot(itype)/pi*180.0E0_dp
+          CALL final_move_write(moves%rot,string1,string2,iw,&
+               displacement=rmrot(itype),lbias=lbias,format_string=format_string,&
+               string3=string3)
 
-    IF (moves%Quickstep%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " Quickstep Moves",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%Quickstep%attempts,&
-             moves%Quickstep%successes,&
-             REAL(moves%Quickstep%successes,dp)/ &
-             REAL(moves%Quickstep%attempts,dp)*100.0E0_dp
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
-
-    IF (moves%swap%attempts .GT. 0) THEN
-       WRITE(iw,'(A,T43,A)') " Swap Moves into this box",&
-          "Attempted       Empty          Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%swap%attempts,&
-             moves%empty,&
-             REAL(moves%empty,dp)/ &
-             REAL(moves%swap%attempts,dp)*100.0E0_dp
-       WRITE(iw,'(A,T43,A)') "                  Growths",&
-          "Attempted       Sucessful      Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%swap%attempts,&
-             moves%grown,&
-             REAL(moves%grown,dp)/ &
-             REAL(moves%swap%attempts,dp)*100.0E0_dp
-       WRITE(iw,'(A,T43,A)') "                    Total",&
-          "Attempted       Accepted       Percent"
-       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-             moves%swap%attempts,&
-             moves%swap%successes,&
-             REAL(moves%swap%successes,dp)/ &
-             REAL(moves%swap%attempts,dp)*100.0E0_dp
-       WRITE(iw,*) '-----------------------------------------------',&
-      '--------------------------------'
-    ENDIF
-
+! swap moves
+          IF (moves%swap%attempts .GT. 0) THEN
+             WRITE(iw,'(A,T43,A)') "Swap Moves into this box",&
+                  "Attempted       Empty          Percent"
+             WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+                  moves%swap%attempts,&
+                  moves%empty,&
+                  REAL(moves%empty,dp)/ &
+                  REAL(moves%swap%attempts,dp)*100.0E0_dp
+             WRITE(iw,'(A,T43,A)') "                  Growths",&
+                  "Attempted       Sucessful      Percent"
+             WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+                  moves%swap%attempts,&
+                  moves%grown,&
+                  REAL(moves%grown,dp)/ &
+                  REAL(moves%swap%attempts,dp)*100.0E0_dp
+             WRITE(iw,'(A,T43,A)') "                    Total",&
+                  "Attempted       Accepted       Percent"
+             WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+                  moves%swap%attempts,&
+                  moves%swap%successes,&
+                  REAL(moves%swap%successes,dp)/ &
+                  REAL(moves%swap%attempts,dp)*100.0E0_dp
+             WRITE(iw,'(A,A)') '-----------------------------------------------',&
+                  '--------------------------------'
+          ENDIF
+          
 ! now we write out information on the classical moves, if it's
 ! a classical simulations
-    IF (lbias) THEN
-       WRITE(iw,*) "Biased Move Data"
-       WRITE(iw,*) '------------------------------------------------',&
-                   '-------------------------------'
-! first, bond changes...record all the moves done since the last update,
-! and print out the totals
-       IF (moves%bond%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Bond Changes",&
-            "Attempted       Accepted       Percent"
-          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%bias_bond%attempts,&
-            moves%bias_bond%successes,&
-            REAL(moves%bias_bond%successes,dp)/ &
-            REAL(moves%bias_bond%attempts,dp)*100.0E0_dp
-          WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum bond displacement [angstroms]= ',&
-            rmbond*angstrom
-          WRITE(iw,*) '-------------------------------------------',&
-                   '------------------------------------'
-       ENDIF
+          IF (lbias) THEN
+             WRITE(iw,'(A)') "Biased Move Data"
+             WRITE(iw,'(A,A)') '-------------------------------------------------',&
+                  '-------------------------------'
+             string2="Attempted       Accepted       Percent"
+             string1="Bond Changes"
+             string3="Maximum bond displacement [angstroms]= "
+             CALL final_move_write(moves%bias_bond,string1,string2,iw,&
+                  displacement=rmbond(itype),lbias=lbias,format_string=format_string,&
+                  string3=string3)
+             
+             string1="Angle Changes"
+             string3="Maximum angle displacement [degrees]= "
+             CALL final_move_write(moves%bias_angle,string1,string2,iw,&
+                  displacement=rmangle(itype),lbias=lbias,format_string=format_string,&
+                  string3=string3)
+             
+             string1="Dihedral Changes"
+             string3="Maximum dihedral displacement [degrees]= "
+             CALL final_move_write(moves%bias_dihedral,string1,string2,iw,&
+                  displacement=rmdihedral(itype),lbias=lbias,format_string=format_string,&
+                  string3=string3)
 
-! now angle changes
-       IF (moves%angle%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Angle Changes",&
-            "Attempted       Accepted       Percent"
-          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%bias_angle%attempts,&
-            moves%bias_angle%successes,&
-            REAL(moves%bias_angle%successes,dp)/ &
-            REAL(moves%bias_angle%attempts,dp)*100.0E0_dp
-          WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum angle displacement [degrees]= ',&
-            rmangle/pi*180.0E0_dp
-          WRITE(iw,*) '-------------------------------------------',&
-                   '------------------------------------'
-       ENDIF
+ ! translation moves
+             string1="Translation Moves"
+             string3="Maximum molecular translational displacement [angstroms]= "
+             CALL final_move_write(moves%bias_trans,string1,string2,iw,&
+                  displacement=rmtrans(itype),lbias=lbias,format_string=format_string,&
+                  string3=string3)
 
-! now dihedral changes
-       IF (moves%dihedral%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Dihedral Changes",&
-            "Attempted       Accepted       Percent"
-          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%bias_dihedral%attempts,&
-            moves%bias_dihedral%successes,&
-            REAL(moves%bias_dihedral%successes,dp)/ &
-            REAL(moves%bias_dihedral%attempts,dp)*100.0E0_dp
-          WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum dihedral displacement [degrees]= ',&
-            rmdihedral/pi*180.0E0_dp
-          WRITE(iw,*) '-------------------------------------------',&
-                   '------------------------------------'
-       ENDIF
+! rotation moves
+             string1="Rotation Moves"
+             string3="Maximum molecular rotational displacement [degrees]= "
+             CALL final_move_write(moves%bias_rot,string1,string2,iw,&
+                  displacement=rmrot(itype),lbias=lbias,format_string=format_string,&
+                  string3=string3)
 
-! now molecule translations
-       IF (moves%trans%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Molecule Translations",&
-            "Attempted       Accepted       Percent"
-          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%bias_trans%attempts,&
-            moves%bias_trans%successes,&
-            REAL(moves%bias_trans%successes,dp)/ &
-            REAL(moves%bias_trans%attempts,dp)*100.0E0_dp
-          WRITE(iw,'(A,T71,F10.5)') &
-         ' Maximum molecular translational displacement [angstroms]= ',&
-                  rmtrans*angstrom
-          WRITE(iw,*) '-------------------------------------------',&
-                   '------------------------------------'
-       ENDIF
+         ENDIF
 
-! now molecule rotations
-       IF (moves%rot%attempts .GT. 0 ) THEN
-          WRITE(iw,'(A,T43,A)') " Molecule Rotations",&
-            "Attempted       Accepted       Percent"
-          WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
-            moves%bias_rot%attempts,&
-            moves%bias_rot%successes,&
-            REAL(moves%bias_rot%successes,dp)/ &
-            REAL(moves%bias_rot%attempts,dp)*100.0E0_dp
-          WRITE(iw,'(A,T71,F10.5)') &
-           ' Maximum rotational displacement [degrees] = ',&
-                           rmrot/pi*180.0E0_dp
-          WRITE(iw,*) '-------------------------------------------',&
-                   '------------------------------------'
-       ENDIF
-
-    ENDIF
+       ENDDO
 
 
 
@@ -561,8 +453,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
          WRITE(iw,'(A,T64,F16.10)') 'Inital Energy + energy_check =',&
                  initial_energy+energy_check
     ENDIF
-    WRITE(iw,*) '****************************************************',&
-                   '***************************'
+    WRITE(iw,'(A,A)') '****************************************************',&
+                   '****************************'
     WRITE(iw,*)
 
 ! end the timing
@@ -570,6 +462,51 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
 
 END SUBROUTINE final_mc_write
+
+SUBROUTINE final_move_write(move_data,string1,string2,iw,string3,&
+     format_string,lbias,displacement)
+
+  TYPE(accattempt),POINTER :: move_data
+  CHARACTER(default_string_length),INTENT(IN) :: string1,string2
+  INTEGER,INTENT(IN) :: iw
+  LOGICAL,INTENT(IN),OPTIONAL :: lbias
+  CHARACTER(default_string_length),INTENT(IN),OPTIONAL :: string3,format_string
+  REAL(dp),OPTIONAL :: displacement
+
+  IF(.NOT. PRESENT(format_string)) THEN
+     IF (move_data%attempts .GT. 0) THEN
+        WRITE(iw,'(A,T43,A)') TRIM(ADJUSTL(string1)),&
+             TRIM(ADJUSTL(string2))
+        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             move_data%attempts,&
+             move_data%successes,&
+             REAL(move_data%successes,dp)/ &
+             REAL(move_data%attempts,dp)*100.0E0_dp
+        WRITE(iw,'(A,A)') '-----------------------------------------------',&
+             '---------------------------------'
+     ENDIF
+  ELSE
+     IF(.NOT. PRESENT(string3) .OR. .NOT. PRESENT(lbias) .OR. &
+          .NOT. PRESENT(displacement)) THEN
+        WRITE(iw,*) 'MISSING FLAGS IN FINAL_MOVE_WRITE'
+     ENDIF
+     IF (move_data%attempts .GT. 0 ) THEN
+        WRITE(iw,'(A,T43,A)') TRIM(ADJUSTL(string1)),&
+             TRIM(ADJUSTL(string2))
+        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             move_data%attempts,&
+             move_data%successes,&
+             REAL(move_data%successes,dp)/ &
+             REAL(move_data%attempts,dp)*100.0E0_dp
+        IF( .NOT. lbias) WRITE(iw,'(A,T71,F10.5)') &
+             string3,displacement
+        WRITE(iw,'(A,A)') '-----------------------------------------------',&
+             '---------------------------------'
+     ENDIF
+  ENDIF
+
+END SUBROUTINE final_move_write
+
 
 !******************************************************************************
 !!****s* mc_misc.F/mc_make_dat_file
@@ -617,7 +554,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       ALLOCATABLE, DIMENSION(:)              :: atom_a_done, atom_b_done, &
                                                 atom_c_done, atom_d_done
     CHARACTER(LEN=2)                         :: element_symbol
-    CHARACTER(LEN=5)                         :: cfile
     CHARACTER(LEN=default_string_length)     :: c_val, name, name_a, name_b, &
                                                 name_c, name_d, unit_type,&
                                                 mol_name
@@ -657,6 +593,11 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 !    TYPE(input_info_type), POINTER           :: inp_info
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+    STOP 'Need to rework this subroutine...mc_make_dat_file'
+! deal with multiple molecules...perhaps by reading the whole input
+! file into a character array and parsing to find where COORD and CELL are,
+! then writing the new information with everything else around it...
+! or making greater use of the input_parsing stuff
 
       CALL timeset(routineN,'I','',handle)
 
@@ -1094,11 +1035,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       ENDIF
 ! write the topology section, using MOL_SET
       WRITE(unit,10000) "    &TOPOLOGY"
-!      CALL section_vals_val_get(input,"SUBSYS%TOPOLOGY%CONNECTIVITY",c_val=c_val,error=error)
-!      WRITE(unit,20001) "      CONNECTIVITY ",TRIM(ADJUSTL(c_val))
       WRITE(unit,10000) "      CONNECTIVITY MOL_SET"
-!      WRITE(cfile,'(I4)') natoms_tot/natoms
-!      IF(nchains == 0) cfile="1"
       DO imolecule=1,1
         WRITE(unit,10000) "      &MOL_SET"
         SELECT CASE ( force_env%in_use )
@@ -1177,6 +1114,146 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 END SUBROUTINE mc_make_dat_file
 
+!******************************************************************************
+!!****s* mc_misc.F/mc_make_dat_file
+!!
+!!   NAME
+!!     mc_make_dat_file
+!!
+!!   FUNCTION
+!!     writes a new input file that CP2K can read in for when we want
+!!     to change a force env (change molecule number)...this is much simpler
+!!     than the version I had used to have, and also more flexible (in a way).
+!!     It assumes that &CELL comes before &COORDS, and &COORDS comes before
+!!     &TOPOLOGY, and &TOPOLOGY comes before &GLOBAL (which comes before MC).
+!!     It also assumes that you use &MOL_SET in &TOPOLOGY.  Still, many fewer
+!!     assumptions than before.
+!!
+!!     box_length and coordinates should be passed in a.u.
+!!
+!!   ARGUMENTS
+!!     - coordinates: the coordiantes of the atoms in the force_env (a.u.)
+!!     - natoms_tot: the total number of atoms
+!!     - box_length: the length of all sides of the simulation box (angstrom)
+!!     - filename: the name of the file to write to
+!!     - force_env: the force environment that holds the parameters needed
+!!                  to write on the file
+!!     - fft_lib: the FFT library we're using (FFTW,FFTSG)
+!!
+!!   Only use in serial.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
+     box_length,filename,nchains,mc_input_file)
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: coordinates
+    INTEGER, INTENT(IN)                      :: nunits_tot
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(IN)                             :: box_length
+    INTEGER, DIMENSION(:), &
+      INTENT(IN)                             :: nchains
+    CHARACTER(LEN=*), INTENT(IN)             :: filename
+    CHARACTER(LEN=*), DIMENSION(:),INTENT(IN)             :: atom_names
+    TYPE(mc_input_file_type), POINTER            :: mc_input_file
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file_new', &
+      routineP = moduleN//':'//routineN
+    
+    CHARACTER(default_string_length),DIMENSION(:),POINTER :: text
+    CHARACTER(default_string_length):: line_text
+    CHARACTER(60) :: cell_string,mol_string
+
+    INTEGER :: unit,nmol_types,iline,cell_row,cell_column,&
+         iunit,coord_row_start,coord_row_end,start_line,itype,&
+         global_row_end,run_type_row,in_use
+    INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
+!*************************************************************************
+
+! open the file
+      CALL open_file(file_name=filename,unit_number=unit,&
+         file_action='WRITE',file_status='REPLACE')
+
+! get all the information from the input_file_type
+      CALL get_mc_input_file(mc_input_file,text=text,cell_row=cell_row,&
+           cell_column=cell_column,coord_row_start=coord_row_start,&
+           coord_row_end=coord_row_end,mol_set_nmol_row=mol_set_nmol_row,&
+           mol_set_nmol_column=mol_set_nmol_column,global_row_end=global_row_end,&
+           run_type_row=run_type_row,in_use=in_use)
+
+! how many molecule types?
+      nmol_types=SIZE(nchains)
+
+! first, write all the information up to the cell lengths
+      DO iline=1,cell_row-1
+         WRITE(unit,'(A)') TRIM(text(iline))
+      ENDDO
+! substitute in the current cell lengths
+      WRITE(cell_string,'(3(F13.8,2X))') box_length(1:3)*angstrom
+      line_text=text(cell_row)
+      line_text(cell_column:cell_column+50)=cell_string(1:51)
+      WRITE(unit,'(A)') TRIM(line_text)
+
+! now write everything until the coordinates
+      DO iline=cell_row+1,coord_row_start
+         WRITE(unit,'(A)') TRIM(text(iline))
+      ENDDO      
+    
+      
+! we may pass nunits_tot=0, but we should still have coordinates
+      IF(nunits_tot == 0) THEN
+         DO iunit=1,SIZE(atom_names(:))
+            WRITE(unit,'(5X,A,2X,3(F15.10))') &
+                 TRIM(ADJUSTL(atom_names(iunit))),&
+                 coordinates(1:3,iunit)*angstrom            
+         ENDDO
+      ELSE
+         DO iunit=1,nunits_tot
+            WRITE(unit,'(5X,A,2X,3(F15.10))') &
+                 TRIM(ADJUSTL(atom_names(iunit))),&
+                 coordinates(1:3,iunit)*angstrom
+         ENDDO
+      ENDIF
+
+! now we need to write the MOL_SET section
+      start_line=coord_row_end
+      DO itype=1,nmol_types
+         DO iline=start_line,mol_set_nmol_row(itype)-1
+            WRITE(unit,'(A)') TRIM(text(iline))
+         ENDDO
+         WRITE(mol_string,'(I8)') nchains(itype)
+         line_text=text(mol_set_nmol_row(itype))        
+         line_text(mol_set_nmol_column(itype):mol_set_nmol_column(itype)+9)=&
+              mol_string(1:10)
+         WRITE(unit,'(A)') TRIM(line_text)
+         start_line=mol_set_nmol_row(itype)+1
+      ENDDO
+
+! write up to the RUN_TYPE...tailor this for the type of environment, so
+! that we can easily do ./cp2k.sdbg input.dat and have it run
+      DO iline=mol_set_nmol_row(nmol_types)+1,run_type_row-1
+         WRITE(unit,'(A)') TRIM(text(iline))
+      ENDDO 
+      SELECT CASE ( in_use )
+      CASE ( use_fist_force )
+         WRITE(unit,'(A)') '  RUN_TYPE     DEBUG'
+      CASE (use_qs_force)
+         WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
+      CASE (use_kg_force)
+         WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
+      END SELECT
+      DO iline=run_type_row+1,global_row_end
+         WRITE(unit,'(A)') TRIM(text(iline))
+      ENDDO 
+
+! close the file
+      CALL close_file(unit_number=unit)
+
+
+    END SUBROUTINE MC_MAKE_DAT_FILE_NEW
 END MODULE mc_misc
 
 !******************************************************************************

@@ -29,7 +29,9 @@ MODULE mc_coordinates
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: mc_averages_type
+  USE mc_types,                        ONLY: mc_averages_type,&
+                                             mc_molecule_info_type,&
+                                             get_mc_molecule_info
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type,&
                                              mol_kind_new_list_type
@@ -50,11 +52,9 @@ MODULE mc_coordinates
 
   IMPLICIT NONE
 
-  PRIVATE :: nonbonded_energy, nonbonded_energy_spce,&
-      generate_avbmc_insertion
+  PRIVATE :: generate_avbmc_insertion
 
-  PUBLIC :: get_water_data,mc_classical_energy,&
-            generate_cbmc_swap_config,&
+  PUBLIC :: generate_cbmc_swap_config,&
             get_center_of_mass,mc_coordinate_fold,&
             find_mc_test_molecule,&
             create_discrete_array,&
@@ -67,361 +67,6 @@ MODULE mc_coordinates
 CONTAINS
 
 !******************************************************************************
-!!****** mc_coordinates.F/get_water_data *
-!!
-!!   NAME
-!!     get_water_data
-!!
-!!   FUNCTION
-!!     gets the running average of both bond lengths and the bond
-!!     angle for every water molecule in the system
-!!
-!!   ARGUMENTS
-!!     - force_env: the force_env you want to get information on
-!!     - averages: the mc_averages structure to store the information
-!!     - nnstep: the number of times this these averages have been
-!!               done (including this one)
-!!     - nchain: the number of molecules in this force_env
-!!     - data: the unit to write the data to
-!!
-!!   NOT CURRENTLY USED...SHOULD BE REWRITEN FOR GENERAL CASE
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!***************************************************************************
-
-SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
-
-
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(mc_averages_type), POINTER          :: averages
-    INTEGER, INTENT(IN)                      :: nnstep, nchain, DATA
-
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_water_data'
-
-    INTEGER                                  :: handle, iimol, imol
-    REAL(KIND=dp)                            :: angle_loc, bond1_loc, &
-                                                bond2_loc, tot_squared
-    REAL(KIND=dp), DIMENSION(1:3)            :: vec_1, vec_2
-    TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys
-    TYPE(particle_list_type), POINTER        :: particles
-
-!------------------------------------------------------------------------------
-! begin the timing of the subroutine
-
-      CALL timeset(routineN,'I','',handle)
-
-! initialize some stuff
-      NULLIFY(oldsys,particles)
-      bond1_loc=0.0E0_dp
-      bond2_loc=0.0E0_dp
-      angle_loc=0.0E0_dp
-
-! get the particle coordinates
-      CALL force_env_get(force_env,subsys=oldsys,error=error)
-      CALL cp_subsys_get(oldsys(1)%subsys, &
-            particles=particles, error=error)
-
-! find the running average bond lengths
-       DO iimol=1,nchain
-          imol=3*iimol-2
-
-          tot_squared=(particles%els(imol)%r(1)-particles%els(imol+1)%&
-                 r(1))**2+(particles%els(imol)%r(2)-particles%els(imol&
-                 +1)%r(2))**2+(particles%els(imol)%r(3)-particles%els(&
-                 imol+1)%r(3))**2
-          bond1_loc=bond1_loc*REAL(iimol-1,dp)/REAL(iimol,dp) &
-                  +SQRT(tot_squared)/REAL(iimol,dp)
-
-          tot_squared=(particles%els(imol)%r(1)-particles%els(imol+2)%&
-                 r(1))**2+(particles%els(imol)%r(2)-particles%els(imol&
-                 +2)%r(2))**2+(particles%els(imol)%r(3)-particles%els(&
-                 imol+2)%r(3))**2
-          bond2_loc=bond2_loc*REAL(iimol-1,dp)/REAL(iimol,dp) &
-                  +SQRT(tot_squared)/REAL(iimol,dp)
-
-! now find the running average bond angle
-          vec_1(1:3)=particles%els(imol+1)%r(1:3)-&
-              particles%els(imol)%r(1:3)
-          vec_2(1:3)=particles%els(imol+2)%r(1:3)-&
-              particles%els(imol)%r(1:3)
-
-          angle_loc=angle_loc*REAL(iimol-1,dp)/REAL(iimol,dp) + &
-                   1.0E0_dp/REAL(iimol,dp)*&
-              ACOS(DOT_PRODUCT(vec_1,vec_2)/(bond1_loc*bond2_loc))&
-              *180.0E0_dp/pi
-
-       ENDDO
-       averages%bond1=averages%bond1*REAL(nnstep-1,dp)/&
-                  REAL(nnstep,dp)+bond1_loc/REAL(nnstep,dp)
-       averages%bond2=averages%bond2*REAL(nnstep-1,dp)/&
-                  REAL(nnstep,dp)+bond2_loc/REAL(nnstep,dp)
-       averages%angle=averages%angle*REAL(nnstep-1,dp)/&
-                  REAL(nnstep,dp)+angle_loc/REAL(nnstep,dp)
-
-       WRITE(DATA,*) nnstep,bond1_loc*angstrom,bond2_loc*angstrom,&
-                     angle_loc
-
-! end the timing
-       CALL timestop(0.0E0_dp,handle)
-
-
-END SUBROUTINE get_water_data
-
-!******************************************************************************
-
-!******************************************************************************
-!!****s* mc_coordinates.F/mc_classical_energy
-!!
-!!   NAME
-!!     mc_classical_energy
-!!
-!!   FUNCTION
-!!     calculates the classical energy of a system configuration using
-!!     a potential force-matched to ab initio results for water
-!!
-!!   ARGUMENTS
-!!     - force_env: the force environment containing the coordinates
-!!     - nchain: the number of molecules in the box, probably could do
-!!               a SIZE(particles%els) for this, but I haven't yet
-!!     - rrcut: the intermolecular cutoff you want to use for the potential,
-!!             in atomic units...be careful with this, as the potential is
-!!             only zero at the cutoff for certain values
-!!     - nstart: the number of the molecule to start calculating for
-!!     - nend: the number of the molecule to end calculating for
-!!     --- if nstart is not equal to 1 and nend is not equal to the total
-!!         number of molecules, set them equal
-!!     - classical_energy_new: the classical energy returned by the routine
-!!     - cell_length: the length of the box...if none is specified,
-!!                    it uses the cell found in the force_env
-!!     - loptional: a flag that is used for debugging
-!!
-!!   NOT CURRENTLY USED...check_for_overlap and the FIST routines are used instead
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
-                                 nchain, nstart, nend ,rcut,loverlap,&
-                                 cell_length)
-
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
-    INTEGER, INTENT(IN)                      :: nchain, nstart, nend
-    REAL(KIND=dp), INTENT(IN)                :: rcut
-    LOGICAL, INTENT(OUT)                     :: loverlap
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cell_length
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_classical_energy'
-
-    INTEGER                                  :: handle, imol, ipart, jmol, &
-                                                jpart, jstart
-    LOGICAL                                  :: lall, lcalc_charge
-    REAL(KIND=dp) :: bend_energy, box_length, charge_energy, &
-      charge_energy_mol, dist, hh_min_cutoff, kstretch, LJ_energy, &
-      LJ_energy_mol, oh_min_cutoff, oo_min_cutoff, rijx, rijy, rijz, &
-      stretch_energy
-    REAL(KIND=dp), DIMENSION(1:3)            :: abc, charges, kbend, RIJ
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:3, 1:nchain)          :: r
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys
-    TYPE(particle_list_type), POINTER        :: particles
-
-!------------------------------------------------------------------------------
-! begin the timing of the subroutine
-
-      CALL timeset(routineN,'I','',handle)
-
-! initialize some stuff
-      loverlap=.FALSE.
-      oo_min_cutoff=2.0E0_dp/angstrom
-      oh_min_cutoff=1.0E0_dp/angstrom
-      hh_min_cutoff=1.0E0_dp/angstrom
-      classical_energy_new=0.0_dp
-
-      NULLIFY(oldsys,particles)
-      LJ_energy=0.0E0_dp
-      charge_energy=0.0E0_dp
-      bend_energy=0.0E0_dp
-      stretch_energy=0.0E0_dp
-      kstretch= 0.4015204E0_dp ! Hartrees/a.u.**2
-      kbend(1)= 0.02384043E0_dp ! Hartrees/a.u.**2
-      kbend(2)= -0.0506033E0_dp ! Hartrees/a.u.**3
-      kbend(3)= 0.0287044E0_dp  ! Hartrees/a.u.**4
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for different classical potentials
-! these are for the fake (IPBV) potential
-!      charges(1:3) = (/ -0.7699784E0_dp,0.3849892E0_dp,0.3849892E0_dp /)
-! these are for SPC/E
-      charges(1:3) = (/ -0.8476E0_dp,0.4238E0_dp,0.4238E0_dp /)
-
-! get the particle coordinates and the cell length
-      CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
-      CALL get_cell(cell,abc=abc)
-      CALL cp_subsys_get(oldsys(1)%subsys, &
-            particles=particles, error=error)
-
-      IF( PRESENT(cell_length)) THEN
-         box_length=cell_length
-      ELSE
-         box_length=abc(1)
-      ENDIF
-
-! put the coordinates into an easier matrix to manipulate
-      DO imol=1,nchain
-         r(1:3,1,imol)=particles%els(imol*3-2)%r(1:3)
-         r(1:3,2,imol)=particles%els(imol*3-1)%r(1:3)
-         r(1:3,3,imol)=particles%els(imol*3)%r(1:3)
-      ENDDO
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! commented out since we shouldn't be
-! calculating potentials here anymore
-! we need to calculate the energy of this configuration
-! first, let's calculate intramolecular (bending and stretching)
-!      DO imol=nstart,nend
-!
-! stretching
-!         OH_bond1=SQRT((r(1,1,imol)-r(1,2,imol))**2+&
-!                 (r(2,1,imol)-r(2,2,imol))**2+&
-!                   (r(3,1,imol)-r(3,2,imol))**2)
-!         OH_bond2=SQRT((r(1,1,imol)-r(1,3,imol))**2+&
-!                   (r(2,1,imol)-r(2,3,imol))**2+&
-!                   (r(3,1,imol)-r(3,3,imol))**2)
-!
-!         stretch_energy=stretch_energy+0.5E0_dp*kstretch*((OH_bond1-&
-!            1.81200E0_dp)**2+(OH_bond2-1.81200E0_dp)**2)
-!
-! bond bending
-!         DO i=1,3
-!            HH(i)=r(i,2,imol)-r(i,3,imol)
-!         ENDDO
-!         mag_HH=SQRT(DOT_PRODUCT(HH,HH))
-!         bend_energy=bend_energy+0.5E0_dp*kbend(1)*(mag_HH-3.0699E0_dp)**2+&
-!             0.33333333333333333E0_dp*kbend(2)*(mag_HH-3.0699E0_dp)**3+&
-!             0.25E0_dp*kbend(3)*(mag_HH-3.0699E0_dp)**4
-!      ENDDO
-
-! now let's find the LJ energy between all the oxygens and
-! the charge interactions
-      lall=.FALSE.
-      jstart=1
-      IF( nstart == 1 .AND. nend == nchain) lall=.TRUE.
-      DO imol=nstart,nend
-         LJ_energy_mol=0.0E0_dp
-         charge_energy_mol=0.0E0_dp
-         IF (lall) jstart=imol+1
-         DO jmol=jstart,nchain
-            IF(imol == jmol) CYCLE
-
-! find the minimum image distance between oxygens
-            RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*ANINT(&
-               (r(1,1,imol)-r(1,1,jmol))/box_length)
-            RIJ(2)=r(2,1,imol)-r(2,1,jmol)-box_length*ANINT(&
-               (r(2,1,imol)-r(2,1,jmol))/box_length)
-            RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
-               (r(3,1,imol)-r(3,1,jmol))/box_length)
-
-            dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
-
-            IF (dist < rcut ) THEN
-! check for overlap
-               IF (dist < oo_min_cutoff) THEN
-                  loverlap=.TRUE.
-                  CALL timestop(0.0E0_dp,handle)
-                  RETURN
-               ELSE
-                  lcalc_charge = .TRUE.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for different classical potentials
-!                  CALL nonbonded_energy(dist,unit_energy,1)
-!                  CALL nonbonded_energy_spce(dist,unit_energy,1)
-!                  LJ_energy_mol=LJ_energy_mol+unit_energy
-!                  charge_energy_mol=charge_energy_mol+charges(1)&
-!                     *charges(1)/(dist)
-               ENDIF
-            ELSE
-               lcalc_charge=.FALSE.
-            ENDIF
-
-            DO ipart=1,3
-               DO jpart=1,3
-                  IF (ipart == 1 .AND. jpart == 1) CYCLE
-
-! find the minimum image distance
-                  rijx=r(1,ipart,imol)-r(1,jpart,jmol)
-                  rijy=r(2,ipart,imol)-r(2,jpart,jmol)
-                  rijz=r(3,ipart,imol)-r(3,jpart,jmol)
-                  RIJ(1)=rijx - box_length*AINT(rijx/box_length+&
-                     SIGN(0.5E0_dp,rijx))
-                  RIJ(2)=rijy - box_length*AINT(rijy/box_length+&
-                     SIGN(0.5E0_dp,rijy))
-                  RIJ(3)=rijz - box_length*AINT(rijz/box_length+&
-                     SIGN(0.5E0_dp,rijz))
-
-                  dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
-
-! LJ energy
-                  IF ( dist < rcut ) THEN
-!                     ntij=(ipart-1)*10 + jpart
-
-                     IF (ipart .NE. 1 .AND. jpart .NE. 1) THEN
-                        IF(dist < hh_min_cutoff) THEN
-                           loverlap=.TRUE.
-                           CALL timestop(0.0E0_dp,handle)
-                           RETURN
-                        ENDIF
-                     ELSE
-                        IF(dist < oh_min_cutoff) THEN
-                           loverlap=.TRUE.
-                           CALL timestop(0.0E0_dp,handle)
-                           RETURN
-                        ENDIF
-                     ENDIF
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for different classical potentials
-!                     CALL nonbonded_energy(dist,unit_energy,ntij)
-!                     CALL nonbonded_energy_spce(dist,unit_energy,ntij)
-!                     LJ_energy_mol=LJ_energy_mol+unit_energy
-                  ENDIF
-
-! coulombic
-!                  IF ( lcalc_charge ) THEN
-!                     charge_energy_mol=charge_energy_mol&
-!                        +charges(ipart)*charges(jpart)/(dist)
-!                  ENDIF
-
-               ENDDO
-            ENDDO
-         ENDDO
-!         LJ_energy=LJ_energy+LJ_energy_mol
-!         charge_energy=charge_energy+charge_energy_mol
-      ENDDO
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for classical simulations
-! sum up the total energy
-!      classical_energy_new=bend_energy+&
-!                stretch_energy+LJ_energy+charge_energy
-!    classical_energy_new=LJ_energy+charge_energy
-    classical_energy_new=0.0_dp
-
-! end the timing
-      CALL timestop(0.0E0_dp,handle)
-
-
-END SUBROUTINE mc_classical_energy
-
-!******************************************************************************
-
-!******************************************************************************
 !!****s* mc_coordinates.F/check_for_overlap
 !!
 !!   NAME
@@ -432,15 +77,14 @@ END SUBROUTINE mc_classical_energy
 !!
 !!   ARGUMENTS
 !!     - force_env: the force environment containing the coordinates
-!!     - nchain: the number of molecules in the box, probably could do
-!!               a SIZE(particles%els) for this, but I haven't yet
-!!     - nstart: the number of the molecule to start calculating for
-!!     - nend: the number of the molecule to end calculating for
-!!     --- if nstart is not equal to 1 and nend is not equal to the total
-!!         number of molecules, set them equal
+!!     - nchains: the number of molecules of each type in the box
+!!     - nunits: the number of interaction sites for each molecule
 !!     - loverlap: returns .TRUE. if atoms overlap
+!!     - mol_type: an array that indicates the type of each molecule
 !!     - cell_length: the length of the box...if none is specified,
 !!                    it uses the cell found in the force_env
+!!     - molecule_number: if present, just look for overlaps with this
+!!           molecule
 !!
 !!     Suitable for parallel use.
 !!
@@ -448,19 +92,21 @@ END SUBROUTINE mc_classical_energy
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
-                                 cell_length)
+SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
+                                 cell_length,molecule_number)
 
     TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, INTENT(IN)                      :: nchain, nstart, nend
+    INTEGER, DIMENSION(:),INTENT(IN)         :: nchains,mol_type,nunits
     LOGICAL, INTENT(OUT)                     :: loverlap
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN), OPTIONAL                   :: cell_length
+    INTEGER,INTENT(IN),OPTIONAL              :: molecule_number
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'check_for_overlap'
 
     INTEGER                                  :: handle, imol, istat, iunit, &
-                                                jmol, jstart, junit, nunits
+                                                jmol, jstart, junit, nunit,&
+                                                nunits_i,nunits_j,nstart,nend
     LOGICAL                                  :: lall
     REAL(KIND=dp)                            :: dist, rmin
     REAL(KIND=dp), ALLOCATABLE, &
@@ -470,16 +116,13 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-
       CALL timeset(routineN,'I','',handle)
 
-      NULLIFY(oldsys,particles,molecule_kinds_new,molecule_kind)
+      NULLIFY(oldsys,particles)
 
 ! initialize some stuff
       loverlap=.FALSE.
@@ -489,13 +132,11 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
       CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
-            molecule_kinds_new=molecule_kinds_new,&
             particles=particles, error=error)
-      molecule_kind => molecule_kinds_new%els(1)
-      CALL get_molecule_kind(molecule_kind,natom=nunits)
-      ALLOCATE(r(1:3,1:nunits,1:nchain),STAT=istat)
+
+      ALLOCATE(r(1:3,1:MAXVAL(nunits),1:SUM(nchains)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mass",3*nunits*nchain*dp_size)
+                       "mass",3*MAXVAL(nunits)*SUM(nchains)*dp_size)
 
       IF( PRESENT(cell_length)) THEN
          box_length(1:3)=cell_length(1:3)
@@ -504,25 +145,36 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
       ENDIF
 
 ! put the coordinates into an easier matrix to manipulate
-      DO imol=1,nchain
-         DO iunit=1,nunits
-            junit=imol*nunits-nunits+iunit
+      junit=0
+      DO imol=1,SUM(nchains)
+         nunit=nunits(mol_type(imol))
+         DO iunit=1,nunit
+            junit=junit+1
             r(1:3,iunit,imol)=particles%els(junit)%r(1:3)
          ENDDO
       ENDDO
 
 ! now let's find the LJ energy between all the oxygens and
 ! the charge interactions
-      lall=.FALSE.
+      lall=.TRUE.
       jstart=1
-      IF( nstart == 1 .AND. nend == nchain) lall=.TRUE.
+      IF( PRESENT(molecule_number)) THEN
+         lall=.FALSE.
+         nstart=molecule_number
+         nend=molecule_number
+      ELSE
+         nstart=1
+         nend=SUM(nchains(:))
+      ENDIF
       DO imol=nstart,nend
          IF (lall) jstart=imol+1
-         DO jmol=jstart,nchain
+         nunits_i=nunits(mol_type(imol))
+         DO jmol=jstart,SUM(nchains(:))
             IF(imol == jmol) CYCLE
+            nunits_j=nunits(mol_type(jmol))
 
-            DO iunit=1,nunits
-               DO junit=1,nunits
+            DO iunit=1,nunits_i
+               DO junit=1,nunits_j
 ! find the minimum image distance
                   RIJ(1)=r(1,iunit,imol)-r(1,junit,jmol)-&
                      box_length(1)*ANINT(&
@@ -560,195 +212,6 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
 
 
 END SUBROUTINE check_for_overlap
-
-!******************************************************************************
-!!****s* mc_coordinates.F/nonbonded_energy
-!!
-!!   NAME
-!!     nonbonded_energy
-!!
-!!   FUNCTION
-!!     calculates the nonbonded energy of two particles, based on the
-!!     seperation and atom types
-!!
-!!   ARGUMENTS
-!!     - dist: the distance between the atoms (in a.u.)
-!!     - ljfake: the energy generated by the subroutine (fake Lennard-Jones
-!!               potential), in Hartree
-!!     - ntij: a number that describes the interaction
-!!             1: oxygen-oxygen
-!!             2,3,11,21: oxygen-hydrogen
-!!             12,13,22,23L hydrogen-hydrogen
-!!
-!!   NOT USED...FIST used instead
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
-
-    REAL(KIND=dp), INTENT(IN)                :: dist
-    REAL(KIND=dp), INTENT(OUT)               :: ljfake
-    INTEGER, INTENT(IN)                      :: ntij
-
-    INTEGER                                  :: index, j
-    REAL(KIND=dp), DIMENSION(1:3)            :: b, m, pshift, r_core
-    REAL(KIND=dp), DIMENSION(2:15, 1:3)      :: A
-
-      index=0
-      IF (ntij == 1 ) index=1
-      IF (ntij == 2 ) index=2
-      IF (ntij == 3 ) index=2
-      IF (ntij == 11 ) index=2
-      IF (ntij == 12 ) index=3
-      IF (ntij == 13 ) index=3
-      IF (ntij == 21 ) index=2
-      IF (ntij == 22 ) index=3
-      IF (ntij == 23 ) index=3
-      IF (index == 0) WRITE(6,*) 'index =',index
-
-
-! --- these pshift make the potential zero at 7.8 angstroms
-!      pshift(1)=0.127827E0_dp ! Hartree
-!      pshift(2)=2.22408E0_dp
-!      pshift(3)=0.256530E0_dp
-!!!!!!!!!!!!!!! for truncated IPBV potential
-! --- these make it zero at 6.211 angstroms
-      pshift(1)=0.128426E0_dp ! Hartree
-      pshift(2)=2.223850E0_dp
-      pshift(3)=0.256652E0_dp
-      m(1) = 0.0E0_dp   ! Hartree/a.u.
-      m(2) = -0.00437054E0_dp
-      m(3) = 0.00377391E0_dp
-! --- these b make the potential zero at 7.8 angstroms
-!      b(1) = 1.0e23_dp ! Hartree
-!      b(2) = 0.0313652E0_dp
-!      b(3) = -0.0206204E0_dp
-! --- these b make the potential zero at 6.211 angstroms
-      b(1) = 1.0e23_dp ! Hartree
-      b(2) = 0.0311350E0_dp
-      b(3) = -0.0204983E0_dp
-      r_core(1)=0.9E0_dp ! a.u.
-      r_core(2)=2.95E0_dp
-      r_core(3)=3.165E0_dp
-      A(2,1) = 4.786380682394E0_dp   ! Hartree*a.u.^2
-      A(3,1) = -1543.407053545E0_dp
-      A(4,1) = 88783.31188529E0_dp
-      A(5,1) = -2361200.155376E0_dp
-      A(6,1) = 35940504.84679E0_dp
-      A(7,1) = -339762743.6358E0_dp
-      A(8,1) = 2043874926.466E0_dp
-      A(9,1) = -7654856796.383E0_dp
-      A(10,1) = 16195251405.65E0_dp
-      A(11,1) = -13140392992.18E0_dp
-      A(12,1) = -9285572894.245E0_dp
-      A(13,1) = 8756947519.029E0_dp
-      A(14,1) = 15793297761.67E0_dp
-      A(15,1) = 12917180227.21E0_dp
-      A(2,2) = -195.7716013277E0_dp
-      A(3,2) = 15343.78613395E0_dp
-      A(4,2) = -530864.4586516E0_dp
-      A(5,2) = 10707934.39058E0_dp
-      A(6,2) = -140099704.7890E0_dp
-      A(7,2) = 1250943273.785E0_dp
-      A(8,2) = -7795458330.676E0_dp
-      A(9,2) = 33955897217.31E0_dp
-      A(10,2) = -101135640744.0E0_dp
-      A(11,2) = 193107995718.7E0_dp
-      A(12,2) = -193440560940.0E0_dp
-      A(13,2) = -4224406093.918E0_dp
-      A(14,2) = 217192386506.5E0_dp
-      A(15,2) = -157581228915.5E0_dp
-      A(2,3) = -26.29456010782E0_dp
-      A(3,3) = 2373.352548248E0_dp
-      A(4,3) = -93880.43551360E0_dp
-      A(5,3) = 2154624.884809E0_dp
-      A(6,3) = -31965151.34955E0_dp
-      A(7,3) = 322781785.3278E0_dp
-      A(8,3) = -2271097368.668E0_dp
-      A(9,3) = 11169163192.90E0_dp
-      A(10,3) = -37684457778.47E0_dp
-      A(11,3) = 82562104256.03E0_dp
-      A(12,3) = -100510435213.4E0_dp
-      A(13,3) = 24570342714.65E0_dp
-      A(14,3) = 88766181532.94E0_dp
-      A(15,3) = -79705131323.98E0_dp
-
-      ljfake=0.0E0_dp
-      IF (dist .GT. r_core(index)) THEN
-! use a series expansion of 1/r
-         DO j=2,15
-            ljfake=ljfake+A(j,index)/(dist**(j-1)*REAL(j-1,dp))
-        ENDDO
-         ljfake=ljfake+pshift(index)
-      ELSE
-! use a linear potential
-         ljfake=m(index)*dist+b(index)
-      ENDIF
-
-END SUBROUTINE nonbonded_energy
-
-!******************************************************************************
-!!****s* mc_coordinates.F/nonbonded_energy_spce
-!!
-!!   NAME
-!!     nonbonded_energy_spce
-!!
-!!   FUNCTION
-!!     calculates the nonbonded energy of two particles, based on the
-!!     seperation and atom types, using the SPC/E potential
-!!
-!!   ARGUMENTS
-!!     - dist: the distance between the atoms (in a.u.)
-!!     - ljfake: the energy generated by the subroutine (fake Lennard-Jones
-!!               potential), in Hartree
-!!     - ntij: a number that describes the interaction
-!!             1: oxygen-oxygen
-!!             2,3,11,21: oxygen-hydrogen
-!!             12,13,22,23L hydrogen-hydrogen
-!!
-!!   NOT USED...FIST used instead
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-SUBROUTINE nonbonded_energy_spce(dist,ljfake,ntij)
-
-    REAL(KIND=dp), INTENT(IN)                :: dist
-    REAL(KIND=dp), INTENT(OUT)               :: ljfake
-    INTEGER, INTENT(IN)                      :: ntij
-
-    INTEGER                                  :: index
-    REAL(KIND=dp)                            :: epsilon, sigma
-
-      index=0
-      IF (ntij == 1 ) index=1
-      IF (ntij == 2 ) index=2
-      IF (ntij == 3 ) index=2
-      IF (ntij == 11 ) index=2
-      IF (ntij == 12 ) index=3
-      IF (ntij == 13 ) index=3
-      IF (ntij == 21 ) index=2
-      IF (ntij == 22 ) index=3
-      IF (ntij == 23 ) index=3
-      IF (index == 0) WRITE(6,*) 'index =',index
-
-      ljfake=0.0E0_dp
-! only the oxygens have a Lennard-Jones interaction
-      IF( index .NE. 1) RETURN
-
-! the sigma and epsilon are figured out using the standard L-B combining
-! rules...units are in Bohr and Hartree,respectively
-!      epsilon=78.1958E0_dp*k/4.3597482E0_dp
-      epsilon=2.4763278E-4_dp
-!      sigma=3.1655E0_dp/0.5291772083E0_dp
-      sigma=5.981928077E0_dp
-
-      ljfake=4.0E0_dp*epsilon*((sigma/dist)**12-(sigma/dist)**6)
-
-END SUBROUTINE nonbonded_energy_spce
 
 !******************************************************************************
 !!****s* mc_coordinates.F/get_center_of_mass
@@ -791,7 +254,7 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
 
       CALL timeset(routineN,'I','',handle)
 
-      total_mass=SUM(mass(:))
+      total_mass=SUM(mass(1:natom))
       center_of_mass(:)=0.0E0_dp
 
       DO iatom=1,natom
@@ -821,8 +284,10 @@ END SUBROUTINE get_center_of_mass
 !!
 !!   ARGUMENTS
 !!     - coordinates: the coordiantes of the atoms in the system
-!!     - natoms_tot: the total number of atoms in the box
-!!     - nunits: the total number of atoms in the molecule
+!!     - nchains_tot: the total number of molecules in the box
+!!     - mol_type: an array that indicates the type of every molecule in the box
+!!     - mass: the mass of every atom for all molecule types
+!!     - nunits: the number of interaction sites for each molecule type
 !!     - box_length: an array for the lengths of the simulation box sides
 !!
 !!     Designed for parallel use.
@@ -831,38 +296,43 @@ END SUBROUTINE get_center_of_mass
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_coordinate_fold(coordinates,natoms_tot,mass,nunits,box_length)
+SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_length)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
-    INTEGER, INTENT(IN)                      :: natoms_tot
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: mass
-    INTEGER, INTENT(IN)                      :: nunits
+    INTEGER, INTENT(IN)                      :: nchains_tot
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)  :: mass
+    INTEGER, DIMENSION(:),INTENT(IN)               :: nunits,mol_type
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN)                             :: box_length
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_coordinate_fold'
 
-    INTEGER                                  :: handle, iatom, iunit, jatom
+    INTEGER                                  :: handle, iatom, jatom,&
+         natoms,start_atom,end_atom,imolecule,molecule_type
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-
       CALL timeset(routineN,'I','',handle)
 
 ! loop over all molecules
-      DO iatom=1,natoms_tot,nunits
-         CALL get_center_of_mass(coordinates(:,iatom:iatom+nunits-1),&
-            nunits,center_of_mass(:),mass(:))
-         DO iunit=1,nunits
-            jatom=iatom+iunit-1
+      end_atom=0
+      DO imolecule=1,nchains_tot
+         molecule_type=mol_type(imolecule)
+         natoms=nunits(molecule_type)
+         start_atom=end_atom+1
+         end_atom=start_atom+natoms-1
+         CALL get_center_of_mass(coordinates(:,start_atom:end_atom),&
+              natoms,center_of_mass(:),mass(:,molecule_type))
+         DO iatom=1,natoms
+            jatom=iatom+start_atom-1
             coordinates(1,jatom)=coordinates(1,jatom)-&
-               box_length(1)*FLOOR(center_of_mass(1)/box_length(1))
+                 box_length(1)*FLOOR(center_of_mass(1)/box_length(1))
             coordinates(2,jatom)=coordinates(2,jatom)-&
-               box_length(2)*FLOOR(center_of_mass(2)/box_length(2))
+                 box_length(2)*FLOOR(center_of_mass(2)/box_length(2))
             coordinates(3,jatom)=coordinates(3,jatom)-&
-               box_length(3)*FLOOR(center_of_mass(3)/box_length(2))
+                 box_length(3)*FLOOR(center_of_mass(3)/box_length(2))
          ENDDO
 
       ENDDO
@@ -890,26 +360,31 @@ END SUBROUTINE mc_coordinate_fold
 !!     - BETA: the value of 1/kT for this simulations, in a.u.
 !!     - nswapmoves: the number of desired trial configurations
 !!     - rosenbluth_weight: the Rosenbluth weight for this set of configs
-!!     - mol_move: the number of the molecule we're moving
+!!     - start_atom: the atom number that the molecule to be swapped starts on
+!!     - natoms_tot: the total number of interaction sites in the box
+!!     - nunits: the number of interaction sites for every molecule_type
+!!     - nunits_tot: the number of interaction sites in the choosen molecule
+!!     - mass: the mass for every interaction site of every molecule type
 !!     - loverlap: the flag that indicates if all of the configs have an
 !!                 atomic overlap
 !!     - choosen_energy: the energy of the choosen config
 !!     - old_energy: the energy that we subtract from all of the trial
 !!       energies to prevent numerical overflows
 !!     - ionode: indicates if we're on the main CPU
+!!     - lremove: is this the Rosenbluth weight for a removal box?
+!!     - mol_type: an array that contains the molecule type for every atom in the box
+!!     - nchains: the number of molecules of each type in this box
 !!     - source: the MPI source value, for broadcasts
 !!     - group: the MPI group value, for broadcasts
 !!     - rng_stream: the random number stream that we draw from
 !!     - error: the the cp_error type
-!!     - rem_molecule: if this is for the removal box, this is the molecule
-!!                     that has been removed...not needed for insertions
 !!     OPTIONAL AVBMC FLAGS
 !!     - avbmc_atom: the atom number that serves for the target atom in each
 !!       molecule (1 is the first atom in the molecule, etc.)
 !!     - rmin: the minimum AVBMC radius for the shell around the target
 !!     - rmax: the maximum AVBMC radius for the shell around the target
 !!     - move_type: generate configs in the "in" or "out" volume
-!!     - mol_target: the number of the first atom in the target molecule
+!!     - target_atom: the number of the avbmc atom in the target molecule
 !!
 !!
 !!     Suitable for parallel.
@@ -919,36 +394,38 @@ END SUBROUTINE mc_coordinate_fold
 !!
 !!*****************************************************************************
 SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-      rosenbluth_weight, mol_move,loverlap, choosen_energy,&
-      old_energy,ionode,source,group,rng_stream,error,rem_molecule,&
-      avbmc_atom,rmin,rmax,move_type,mol_target)
+      rosenbluth_weight, start_atom,natoms_tot,nunits,nunits_mol,mass,loverlap, choosen_energy,&
+      old_energy,ionode,lremove,mol_type,nchains,source,group,rng_stream,error,&
+      avbmc_atom,rmin,rmax,move_type,target_atom)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(IN)                :: BETA
     INTEGER, INTENT(IN)                      :: nswapmoves
     REAL(KIND=dp), INTENT(OUT)               :: rosenbluth_weight
-    INTEGER, INTENT(IN)                      :: mol_move
+    INTEGER, INTENT(IN)                      :: start_atom,nunits_mol,natoms_tot
+    REAL(dp),DIMENSION(1:nunits_mol),INTENT(IN)  :: mass
     LOGICAL, INTENT(OUT)                     :: loverlap
+    INTEGER,DIMENSION(:),INTENT(IN)          :: nchains,mol_type,nunits
     REAL(KIND=dp), INTENT(OUT)               :: choosen_energy
     REAL(KIND=dp), INTENT(IN)                :: old_energy
-    LOGICAL, INTENT(IN)                      :: ionode
+    LOGICAL, INTENT(IN)                      :: ionode,lremove
     INTEGER, INTENT(IN)                      :: source, group
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type)                      :: error
-    INTEGER, INTENT(IN), OPTIONAL            :: rem_molecule, avbmc_atom
+    INTEGER, INTENT(IN), OPTIONAL            :: avbmc_atom
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmin, rmax
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: move_type
-    INTEGER, INTENT(IN), OPTIONAL            :: mol_target
+    INTEGER, INTENT(IN), OPTIONAL            :: target_atom
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_cbmc_swap_config'
 
-    INTEGER :: choosen, end_atom, handle, i, iatom, imolecule, imove, istat, &
-      natom, natoms_tot, nmols, start_atom
+    INTEGER :: choosen, end_atom, handle, i, iatom, imove, istat,&
+         molecule_number,atom_number,imolecule
     LOGICAL                                  :: all_overlaps
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: loverlap_array
     REAL(KIND=dp)                            :: bias_energy, exponent, rand, &
                                                 total_running_weight
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: boltz_weights, mass, &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: boltz_weights,&
                                                 trial_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
@@ -959,10 +436,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
-
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -972,36 +446,17 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
       CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
-            particles=particles, molecule_kinds_new=molecule_kinds_new,&
-            error=error)
-      molecule_kind => molecule_kinds_new%els(1)
-      CALL get_molecule_kind(molecule_kind,natom=natom,nmolecule=nmols)
-      natoms_tot=natom*nmols
-      ALLOCATE(mass(1:natoms_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mass",natoms_tot*dp_size)
-      DO iatom=1,natoms_tot
-         CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
-            mass=mass(iatom))
-      ENDDO
+            particles=particles, error=error)
+
+
 
 ! do some checking to make sure we have all the data we need
       IF(PRESENT(avbmc_atom)) THEN
          IF( .NOT. PRESENT(rmin) .OR. .NOT. PRESENT(rmax) .OR. &
-            .NOT. PRESENT(move_type) .OR. .NOT. PRESENT(mol_target)) THEN
+            .NOT. PRESENT(move_type) .OR. .NOT. PRESENT(target_atom)) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
                'AVBMC swap move is missing information!')
          ENDIF
-      ENDIF
-
-! figure out the numbers of the first and last atoms in the molecule
-      imolecule=mol_move
-      start_atom=natom*imolecule-(natom-1)
-      end_atom=natom*imolecule
-      IF(PRESENT(rem_molecule) ) THEN ! old config?
-         imolecule=rem_molecule ! this the the molecule we're removing
-         start_atom=natom*imolecule-(natom-1)
-         end_atom=natom*imolecule
       ENDIF
 
       ALLOCATE(r_old(1:3,1:natoms_tot),STAT=istat)
@@ -1036,14 +491,29 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          ENDDO
       ENDDO
 
+! save the remove coordinates
       DO iatom=1,natoms_tot
-         r_old(1:3,iatom)=particles%els(iatom)%r(1:3)
+         r_old(1:3,iatom)=r(1:3,iatom,1)
       ENDDO
 
-      IF(PRESENT(rem_molecule)) THEN
-         CALL check_for_overlap ( force_env, nmols, 1, nmols,&
-            loverlap_array(1))
+! figure out the numbers of the first and last atoms in the molecule
+      end_atom=start_atom+nunits_mol-1
+! figure out which molecule number we're on
+      molecule_number=0
+      atom_number=1
+      DO imolecule=1,SUM(nchains(:))
+         IF(atom_number == start_atom) THEN
+            molecule_number=imolecule
+            EXIT
+         ENDIF
+         atom_number=atom_number+nunits(mol_type(imolecule))
+      ENDDO
+      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
+               'CBMC swap move cannot find which molecule number it needs')
 
+      IF(lremove) THEN
+         CALL check_for_overlap (force_env,nchains,nunits,loverlap_array(1),&
+              mol_type)
          CALL mp_bcast(loverlap_array(1),source,group)
 
          IF(loverlap_array(1)) THEN
@@ -1066,7 +536,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             IF(PRESENT(avbmc_atom)) THEN
 ! find an AVBMC insertion point
                CALL generate_avbmc_insertion(rmin,rmax,&
-                  r_old(1:3,mol_target+avbmc_atom-1),&
+                  r_old(1:3,target_atom),&
                   move_type,r_insert(:),abc(:),rng_stream,error=error)
 
                DO i=1,3
@@ -1077,15 +547,15 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! find a new insertion point somewhere in the box
                DO i=1,3
                   rand=next_random_number(rng_stream,error=error)
-!                  CALL random_number(rand)
                   r_insert(i)=rand*abc(i)
                ENDDO
 
 ! find the center of mass of the insertion molecule
-               CALL get_center_of_mass(r(:,start_atom:end_atom,imove),natom,&
+               CALL get_center_of_mass(r(:,start_atom:end_atom,imove),nunits_mol,&
                center_of_mass(:),mass(:))
 
 ! move the molecule to the insertion point
+
                DO i=1,3
                   diff(i)=r_insert(i)-center_of_mass(i)
                ENDDO
@@ -1097,10 +567,10 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             ENDDO
 
 ! rotate the molecule...this routine is only made for serial use
-            CALL rotate_molecule(r(:,start_atom:end_atom,imove),mass,natom,&
-               rng_stream,error=error)
+            CALL rotate_molecule(r(:,start_atom:end_atom,imove),mass(:),&
+                 nunits_mol,rng_stream,error=error)
 
-            IF(imove == 1 .AND. PRESENT(rem_molecule)) THEN
+            IF(imove == 1 .AND. lremove) THEN
                DO iatom=1,natoms_tot
                   r(1:3,iatom,1)=r_old(1:3,iatom)
                ENDDO
@@ -1108,33 +578,26 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
          ENDIF
 
-!         WRITE(6,*) 'start mol ',start_atom
-!         DO iatom=1,natoms_tot,3
-!            WRITE(6,*) ' O ',r(1:3,iatom,imove)*angstrom
- !           WRITE(6,*) ' H ',r(1:3,iatom+1,imove)*angstrom
-!            WRITE(6,*) ' H ',r(1:3,iatom+2,imove)*angstrom
-!         ENDDO
-
-         CALL mp_bcast(r(:,:,imove),source,group)
+        CALL mp_bcast(r(:,:,imove),source,group)
 
 ! calculate the energy and boltzman weight of the config
          DO iatom=start_atom,end_atom
             particles%els(iatom)%r(1:3)=r(1:3,iatom,imove)
          ENDDO
 
-         CALL check_for_overlap ( force_env, nmols,imolecule,imolecule,&
-            loverlap_array(imove))
+         CALL check_for_overlap (force_env,nchains,nunits,loverlap_array(imove),&
+              mol_type,molecule_number=molecule_number)
          IF(loverlap_array(imove)) THEN
             boltz_weights(imove)=0.0_dp
             CYCLE
          ENDIF
+
          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=error)
          CALL force_env_get(force_env,&
             potential_energy=bias_energy,error=error)
 
 
          trial_energy(imove)=(bias_energy-old_energy)
-
          exponent=-BETA*trial_energy(imove)
 #if defined (__SGL)
          IF(exponent .GT. 88.0_dp) THEN
@@ -1158,6 +621,22 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! now we need to pick a configuration based on the Rosenbluth weight,
 ! which is just the sum of the Boltzmann weights
       rosenbluth_weight=SUM(boltz_weights(:))
+      IF(rosenbluth_weight .EQ. 0.0_dp .AND. lremove) THEN
+! should never have 0.0 for an old weight...causes a divide by zero
+! in the acceptance rule
+         IF(ionode) THEN
+            WRITE(6,*) boltz_weights(1:nswapmoves)
+            WRITE(6,*) start_atom,end_atom,lremove
+            WRITE(6,*) loverlap_array(1:nswapmoves)
+            WRITE(6,*) natoms_tot
+            WRITE(6,*)
+            DO iatom=1,natoms_tot
+               WRITE(6,*) r(1:3,iatom,1)*angstrom
+            ENDDO
+         ENDIF
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'CBMC swap move found a bad old weight')
+      ENDIF
       all_overlaps=.TRUE.
       total_running_weight=0.0E0_dp
       choosen=0
@@ -1182,10 +661,10 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
 ! if this is an old configuration, we always choose the first one...
 ! this should never be the case, but I'm testing something
-         IF(PRESENT(rem_molecule)) THEN
+         IF(lremove) THEN
             IF(ionode) THEN
                WRITE(6,*) boltz_weights(1:nswapmoves)
-               WRITE(6,*) start_atom,end_atom,rem_molecule
+               WRITE(6,*) start_atom,end_atom,lremove
                WRITE(6,*) loverlap_array(1:nswapmoves)
                DO iatom=1,natoms_tot
                   WRITE(6,*) r(1:3,iatom,1)
@@ -1195,9 +674,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             'CBMC swap move found all overlaps for the remove config')
          ENDIF
 
-         DEALLOCATE(mass,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"mass")
          DEALLOCATE(r_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r_old")
@@ -1222,7 +698,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          __LINE__,'CBMC swap move failed to select config')
 
 ! if this is an old configuration, we always choose the first one
-      IF(PRESENT(rem_molecule)) choosen=1
+      IF(lremove) choosen=1
 
 ! set the energy for the configuration
       choosen_energy=trial_energy(choosen)
@@ -1232,9 +708,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          particles%els(iatom)%r(1:3)=r(1:3,iatom,choosen)
       ENDDO
 
-      DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"mass")
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r_old")
@@ -1307,7 +780,6 @@ SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
       CALL get_center_of_mass(r(:,:),natoms,center_of_mass(:),mass(:))
 
 ! call a random number to figure out how far we're moving
-!      CALL RANDOM_NUMBER(rand)
       rand=next_random_number(rng_stream,error=error)
       dgamma=pi*(rand-0.5E0_dp)*2.0E0_dp
 
@@ -1367,16 +839,18 @@ END SUBROUTINE rotate_molecule
 !!     find_mc_test_molecule
 !!
 !!   FUNCTION
-!!     returns the number of the first atom in a molecule that we
-!!     want to perform a Monte Carlo move on
+!!     selects a molecule at random to perform a MC move on...you can specify
+!!     the box the molecule should be in, its type, both, or neither
 !!
 !!   ARGUMENTS
-!!     - force_env: the pointer to the group of force_env for the system
-!!     - mol_number: the number of the atom starting the molecule
-!!     - box_number: the number of the box (force_env) the molecule is in
-!!     - nchain: an array holding the number of molecules in each box
+!!     - mc_molecule_info: the structure that contains some global molecule data
+!!     - start_atom: the number of the first atom in the choosen molecule in relation
+!!       to the force_env it's in
+!!     - box_number: the box the choosen molecule is in
+!!     - molecule_type: the type of molecule the choosen molecule is
 !!     - rng_stream: the stream we pull random numbers from
 !!     - box: if present, tells the routine which box to grab a molecule from
+!!     - molecule_type_old: if present, tells the routine which molecule type to select from
 !!     - error: the optional cp_error_type
 !!
 !!   Designed only for serial use.
@@ -1385,99 +859,146 @@ END SUBROUTINE rotate_molecule
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,&
-      rng_stream,box,error)
+SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
+     box_number,molecule_type,rng_stream,box,molecule_type_old,error)
 
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env
-    INTEGER, INTENT(OUT)                     :: mol_number, box_number
-    INTEGER, DIMENSION(:), INTENT(IN)        :: nchain
+    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
+    INTEGER, INTENT(OUT)                     :: start_atom, box_number,molecule_type
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    INTEGER, INTENT(IN), OPTIONAL            :: box
+    INTEGER, INTENT(IN), OPTIONAL            :: box,molecule_type_old
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'find_mc_test_molecule', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: end_box, handle, ibox, imol, &
-                                                nboxes, nmols, start_box, &
-                                                stat, target_molecule
+    INTEGER                                  :: start_mol,molecule_number,jbox,ibox,&
+         imolecule,handle,nchains_tot,imol_type
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rand
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(mol_kind_new_list_p_type), &
-      DIMENSION(:), POINTER                  :: mol_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules_new
-    TYPE(molecule_type), POINTER             :: molecule
+    INTEGER,DIMENSION(:),POINTER             :: nunits,mol_type
+    INTEGER,DIMENSION(:,:),POINTER             :: nchains
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
-      NULLIFY(mol_kinds,subsys)
+      NULLIFY(nunits,mol_type,nchains)
+      CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,nunits=nunits,&
+           mol_type=mol_type)
+      
+! initialize the outgoing variables
+      start_atom=0
+      box_number=0
+      molecule_type=0
 
-      nboxes=SIZE(force_env(:))
+      IF(PRESENT(box) .AND. PRESENT(molecule_type_old))THEN
+! only need to find the atom number the molecule starts on
+         rand=next_random_number(rng_stream,error=error)
+         molecule_number=CEILING(rand*REAL(nchains(molecule_type_old,box)))
 
-      IF(PRESENT(box))THEN
-         start_box=box
-         end_box=box
+         start_mol=1
+         DO jbox=1,box-1
+            start_mol=start_mol+SUM(nchains(:,jbox))
+         ENDDO
+
+! adjust to take into account molecules of other types in the box
+         DO imol_type=1,molecule_type_old-1
+            molecule_number=molecule_number+nchains(imol_type,box)
+         ENDDO
+
+         start_atom=1
+         DO imolecule=1,molecule_number-1
+            start_atom=start_atom+nunits(mol_type(start_mol+imolecule-1))
+         ENDDO
+
+      ELSEIF(PRESENT(box))THEN
+! any molecule in box...need to find molecule type and start atom         
+         rand=next_random_number(rng_stream,error=error)
+         molecule_number=CEILING(rand*REAL(SUM(nchains(:,box))))
+
+         start_mol=1
+         DO jbox=1,box-1
+            start_mol=start_mol+SUM(nchains(:,jbox))
+         ENDDO
+
+         molecule_type=mol_type(start_mol+molecule_number-1)
+
+! now the starting atom
+         start_atom=1
+         DO imolecule=1,molecule_number-1
+            start_atom=start_atom+nunits(mol_type(start_mol+imolecule-1))
+         ENDDO
+
+      ELSEIF(PRESENT(molecule_type_old))THEN
+! any molecule of type molecule_type_old...need to find box number and start atom         
+         rand=next_random_number(rng_stream,error=error)
+         molecule_number=CEILING(rand*REAL(SUM(nchains(molecule_type_old,:))))
+
+! find which box it's in
+         nchains_tot=0
+         DO ibox=1,SIZE(nchains(molecule_type_old,:))
+            IF(molecule_number .LE. nchains(molecule_type_old,ibox)) THEN
+               box_number=ibox
+               EXIT
+            ENDIF
+            molecule_number=molecule_number-nchains(molecule_type_old,ibox)
+         ENDDO
+         
+         start_mol=1
+         DO jbox=1,box_number-1
+            start_mol=start_mol+SUM(nchains(:,jbox))
+         ENDDO
+
+! now find the starting atom number
+         DO imol_type=1,molecule_type_old-1
+            molecule_number=molecule_number+nchains(imol_type,box_number)
+         ENDDO
+         start_atom=1
+         DO imolecule=1,molecule_number-1
+            start_atom=start_atom+nunits(mol_type(start_mol+imolecule-1))
+         ENDDO
+
       ELSE
-         start_box=1
-         end_box=nboxes
+! no restrictions...need to find all pieces of data
+         nchains_tot=0
+         DO ibox=1,SIZE(nchains(1,:))
+            nchains_tot=nchains_tot+SUM(nchains(:,ibox))
+         ENDDO
+         rand=next_random_number(rng_stream,error=error)
+         molecule_number=CEILING(rand*REAL(nchains_tot))
+
+         molecule_type=mol_type(molecule_number)
+
+! now which box it's in
+         DO ibox=1,SUM(nchains(1,:))
+            IF(molecule_number .LE. SUM(nchains(:,ibox))) THEN
+               box_number=ibox
+               EXIT
+            ENDIF
+            molecule_number=molecule_number-SUM(nchains(:,ibox))
+         ENDDO
+
+! now find the starting atom number
+         start_mol=1
+         DO jbox=1,box_number-1
+            start_mol=start_mol+SUM(nchains(:,jbox))
+         ENDDO
+         start_atom=1
+         DO imolecule=1,molecule_number-1
+            start_atom=start_atom+nunits(mol_type(start_mol+imolecule-1))
+         ENDDO
+
       ENDIF
 
-! initialize the outgoing variables
-      mol_number=0
-      box_number=0
-
-      ALLOCATE(subsys(1:nboxes),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(mol_kinds(1:nboxes), stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-! grab the molecule information for all the environments
-      DO ibox=start_box,end_box
-         CALL force_env_get(force_env(ibox)%force_env,&
-            subsys=subsys(ibox)%subsys,error=error)
-         CALL cp_subsys_get(subsys(ibox)%subsys(1)%subsys, &
-            molecule_kinds_new=mol_kinds(ibox)%list,error=error)
-      ENDDO
-
-! grab a random molecule
-      rand=next_random_number(rng_stream,error=error)
-!      CALL random_number(rand)
-      target_molecule=CEILING(rand*REAL(SUM(nchain(start_box:end_box))))
-
-! find the starting atom and box number
-      box_loop:DO ibox=start_box,end_box
-         IF(target_molecule .GT. SUM(nchain(start_box:end_box))) CYCLE
-         box_number=ibox
-         IF(ibox .NE. start_box) THEN
-            target_molecule=target_molecule-&
-               SUM(nchain(start_box:(ibox-1)))
-         ENDIF
-         CALL cp_subsys_get(subsys(ibox)%subsys(1)%subsys, &
-            molecules_new=molecules_new,error=error)
-         nmols=SIZE(molecules_new%els(:))
-         DO imol=1,nmols
-            IF(target_molecule .EQ. imol) THEN
-               molecule => molecules_new%els(imol)
-               CALL get_molecule(molecule,first_atom=mol_number)
-               EXIT box_loop
-            ENDIF
-         ENDDO
-      ENDDO box_loop
-
-! deallocate some stuff
-      DEALLOCATE(mol_kinds)
-      DEALLOCATE(subsys)
-
 ! make sure things are good
-      CPPostcondition(mol_number/=0,cp_failure_level,routineP,error,failure)
+      IF(PRESENT(box)) box_number=box
+      IF(PRESENT(molecule_type_old)) molecule_type=molecule_type_old
+
+      CPPostcondition(start_atom/=0,cp_failure_level,routineP,error,failure)
       CPPostcondition(box_number/=0,cp_failure_level,routineP,error,failure)
+      CPPostcondition(molecule_type/=0,cp_failure_level,routineP,error,failure)
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -1609,8 +1130,6 @@ SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&
       IF(move_type == 'in') THEN
 ! generate a random unit vector, from Allen and Tildesley
          DO
-!            CALL random_number(eta_1)
-!            CALL random_number(eta_2)
             eta_1=next_random_number(rng_stream,error=error)
             eta_2=next_random_number(rng_stream,error=error)
             eta_sq=eta_1**2+eta_2**2
@@ -1624,7 +1143,6 @@ SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&
 
 ! now scale that vector to be within the "in" region
          rand=next_random_number(rng_stream,error=error)
-!         CALL random_number(rand)
          r_insert(1:3)=r_insert(1:3)*(rand*(rmax**3-rmin**3)+rmin**3)**&
             (1.0_dp/3.0_dp)
 
@@ -1634,7 +1152,6 @@ SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&
 ! find a new insertion point somewhere in the box
          DO
             DO i=1,3
-!               CALL random_number(rand)
                rand=next_random_number(rng_stream,error=error)
                r_insert(i)=rand*abc(i)
             ENDDO

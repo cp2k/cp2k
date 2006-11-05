@@ -49,15 +49,15 @@
 
 MODULE mc_run
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_release,&
+  USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_type,&
+                                             force_env_p_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_val_get,&
+                                             section_vals_get,&
                                              section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -69,15 +69,20 @@ MODULE mc_run
                                              mc_env_release,&
                                              mc_environment_p_type,&
                                              set_mc_env
-  USE mc_types,                        ONLY: determine_conf_prob,&
-                                             find_mc_rcut,&
+  USE mc_types,                        ONLY: find_mc_rcut,&
                                              get_mc_par,&
-                                             mc_simulation_parameters_type,&
+                                             mc_simulation_parameters_p_type,&
                                              read_mc_section,&
-                                             set_mc_par
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type
+                                             set_mc_par,&
+                                             get_mc_molecule_info,&
+                                             mc_determine_molecule_info,&
+                                             mc_sim_par_create,&
+                                             mc_sim_par_destroy,&
+                                             mc_molecule_info_type,&
+                                             mc_molecule_info_destroy,&
+                                             mc_input_file_type,&
+                                             mc_input_file_create,&
+                                             mc_input_file_destroy
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -107,22 +112,17 @@ CONTAINS
 !!   NAME
 !!     do_mon_car
 !!
-!!   SYNOPSIS
-!!     Subroutine do_mon_car ( force_env, globenv, error )
-!!       Type(global_environment_type), Pointer   :: globenv
-!!       Type(force_env_type), Pointer            :: force_env
-!!       Type(cp_error_type), Intent(inout),Optional      :: error
-!!     End Subroutine do_mon_car
-!!
 !!   FUNCTION
 !!     starts the Monte Carlo simulation and determines which ensemble we're
 !!     running
 !!
 !!   ARGUMENTS
 !!     - globenv: the global environment for the simulation
-!!     - force_env: the force environment for the simulation, or
+!!     - force_env_1: the force environment for the simulation, or
 !!                  the force environment for box 1, depending on which
 !!                  ensemble we're running
+!!     - input_file_name: the name of the input file that force_env_1 was
+!!       created from
 !!     - error: the error type
 !!
 !!     Designed for parallel.
@@ -132,10 +132,12 @@ CONTAINS
 !!
 !!**************************************************************************
 
-  SUBROUTINE do_mon_car ( force_env, globenv, input_file_name, error )
+  SUBROUTINE do_mon_car ( force_env_1, globenv, input_file_name, error )
 
 
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_type), POINTER            :: force_env_1
+    TYPE(force_env_p_type), DIMENSION(:),POINTER &
+         :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*)                         :: input_file_name
     TYPE(cp_error_type), INTENT(inout)  &
@@ -146,62 +148,178 @@ CONTAINS
 
     CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: box2_file, dat_file
-    INTEGER :: ibox, in_use, iprint, isos, iuptrans, iupvolume, iw, nboxes, &
-      nchain, nmoves, nstep, nswapmoves, nunits, nunits_tot
-    LOGICAL                                  :: ionode, lbias, lrestart, &
-                                                lstop, lterminate
-    REAL(KIND=dp)                            :: BETA, pmswap, pmtraion, &
-                                                pmtrans, pmvolume, pressure, &
-                                                rcut, temp
-    REAL(KIND=dp), DIMENSION(1:3)            :: conf_prob
+    INTEGER :: ibox, isos, iw, nboxes, &
+      istat, nmol_types
+    LOGICAL                                  :: ionode, lrestart, &
+                                                lterminate,lbias
+    REAL(dp)                                 :: pmswap,rcut
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys, subsys_2
     TYPE(force_env_type), POINTER            :: force_env_2
     TYPE(global_environment_type), POINTER   :: globenv_2
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par, mc_par_2
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new, &
-                                                molecule_kinds_new_2
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
+    TYPE(mc_simulation_parameters_p_type), &
+      DIMENSION(:),POINTER                                :: mc_par
+    TYPE(mc_molecule_info_type), POINTER        :: mc_molecule_info
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 root_section,&
-                                                force_env_section_2
+                                                mc_section
+    INTEGER,DIMENSION(:),POINTER             :: nunits_tot
 
-      NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream,force_env_section,&
-         force_env_section_2,root_section)
-      para_env=>force_env%para_env
+!************************************************************************
+
+      NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
+         root_section,mc_molecule_info)
+      para_env=>force_env_1%para_env
       logger=>cp_error_get_logger(error)
       iw = cp_logger_get_default_unit_nr(logger)
-      force_env_section => force_env%force_env_section
-      root_section => force_env%root_section
+      force_env_section => force_env_1%force_env_section
+      root_section => force_env_1%root_section
       CALL section_vals_get(force_env_section,n_repetition=isos,error=error)
       CPPostconditionNoFail(isos==1,cp_warning_level,routineP,error)
 ! set some values...will use get_globenv if that ever comes around
       ionode=para_env%ionode
-
-! allocating or nullifying local pointers
-      ALLOCATE ( mc_par, STAT = isos )
-      IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par', 0 )
 
 ! initialize the random numbers
       CALL create_rng_stream(rng_stream=rng_stream,&
                              name="first",&
                              distribution_type=UNIFORM,error=error)
 
+! need to figure out how many boxes we have, based on the value
+! of mc_par % ensemble
+      NULLIFY(mc_section)
+      mc_section => section_vals_get_subs_vals(root_section,&
+         "MOTION%MC",error=error)
+      CALL section_vals_val_get(mc_section,"PROGRAM",&
+           c_val=ensemble,error=error)
+
+! now we read in the second force_env, if we have another box
+      SELECT CASE(ensemble)
+      CASE("TRADITIONAL")
+         nboxes=1
+         
+         CALL section_vals_val_get(mc_section,"PMSWAP",&
+              r_val=pmswap,error=error)
+         IF(pmswap .GT. 0.0E0_dp) THEN
+            CALL stop_program('mc_run.F/do_mon_car',&
+               'pmswap is greater than 0 for a single box system!')
+         ENDIF
+      CASE("GEMC")
+         nboxes=2
+         CALL section_vals_val_get(mc_section,"BOX2_FILE_NAME",&
+              c_val=box2_file,error=error)
+         CALL mc_create_force_env(force_env_2, para_env,&
+              box2_file,globenv_new=globenv_2,error=error)
+         CALL section_vals_release(force_env_2%root_section,error=error)
+      END SELECT
+
+! now we create the various pointers that contain information for all boxes
+      ALLOCATE (force_env(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "force_env",nboxes)
+      SELECT CASE(ensemble)
+      CASE("TRADITIONAL")
+         force_env(1)%force_env => force_env_1
+      CASE("GEMC")
+         force_env(1)%force_env => force_env_1
+         force_env(2)%force_env => force_env_2
+      END SELECT      
+      ALLOCATE (mc_par(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par",nboxes)
+      ALLOCATE(mc_env(1:nboxes),STAT=isos)
+      IF ( isos /= 0 ) CALL stop_memory('allocstruc','mc_env',nboxes)
+
+! now we need the molecule information
+! determine the total number of molecules and atoms
+      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error)
+      CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
+           nunits_tot=nunits_tot)
+
+      DO ibox=1,nboxes
+
+         IF (ionode) THEN
+            WRITE(iw,*)
+            WRITE(iw,*)
+            WRITE(iw,'(A,I2,A)') '******************************** Begin BOX ',ibox,&
+            '  *******************************'
+         ENDIF
+
+! allocates an mc_env and sets the variables to zero
+         CALL mc_env_create ( mc_env(ibox)%mc_env, &
+            error = error )
+
+! now read in the values of the mc_pars
+! creating the mc_par
+         CALL mc_sim_par_create(mc_par(ibox)%mc_par,nmol_types)
+
+! attach molecule information to all mc_par structures, so we know what we have to read in
+         CALL set_mc_par(mc_par(ibox)%mc_par,mc_molecule_info=mc_molecule_info)
+
 ! read the input of the Monte Carlo section
-      CALL read_mc_section ( mc_par, para_env, globenv ,input_file_name,&
-           ROOT_SECTION,force_env_section,error)
+         force_env_section => force_env(ibox)%force_env%force_env_section
+         root_section => force_env(ibox)%force_env%root_section
+         IF(ibox == 1) THEN
+            CALL read_mc_section ( mc_par(ibox)%mc_par, para_env, globenv ,input_file_name,&
+                 root_section,force_env_section,error)
+         ELSE
+            CALL read_mc_section ( mc_par(ibox)%mc_par, para_env, globenv ,box2_file,&
+                 root_section,force_env_section,error)
+         ENDIF
+
+! get the input file data, in case we need to make a restart...
+! this is also used in the swap move, or anytime we need to make a dat file
+! always judge based on lbias from box 1...in case someone only changes the value
+! for box 1
+         CALL get_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
+         CALL get_mc_par(mc_par(1)%mc_par,lbias=lbias)
+         IF(ibox == 1) THEN
+            CALL mc_input_file_create ( mc_input_file,&
+                 input_file_name,nmol_types)
+         ELSE
+            CALL mc_input_file_create ( mc_input_file,&
+                 box2_file,nmol_types)
+         ENDIF
+         IF(lbias) THEN
+            CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_input_file)
+            CALL mc_input_file_create ( mc_input_file,&
+                 "bias_template.inp",nmol_types)
+         ENDIF
+
+! check for restart
+         CALL get_mc_par(mc_par(ibox)%mc_par,lrestart=lrestart,&
+              dat_file=dat_file)
+         IF ( lrestart ) THEN
+            CALL read_mc_restart(mc_par(ibox)%mc_par,force_env(ibox)%force_env,&
+                 iw,nunits_tot(ibox),rng_stream)
+! release the old force env and make the new one
+            CALL force_env_release(force_env(ibox)%force_env,error=error)
+            CALL mc_create_force_env(force_env(ibox)%force_env, &
+                 para_env, dat_file,error=error)
+         ENDIF
+
+! attach all the structures to one convientent structure
+       CALL set_mc_env( mc_env(ibox)%mc_env,mc_par=mc_par(ibox)%mc_par,&
+            force_env=force_env(ibox)%force_env)
+      ENDDO
+
+! in case there was a restart, we need to do this again
+      CALL mc_molecule_info_destroy(mc_molecule_info)
+      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error)
+      CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
+           nunits_tot=nunits_tot)
+      DO ibox=1,nboxes
+         CALL set_mc_par(mc_par(ibox)%mc_par,mc_molecule_info=mc_molecule_info)
+      ENDDO
 
 ! if we're doing a classical simulation, figure out the largest
 ! potential cutoff and write it to the screen
-      IF(force_env%in_use .EQ. use_fist_force) THEN
-         CALL find_mc_rcut(mc_par,force_env,lterminate)
-         CALL get_mc_par(mc_par,rcut=rcut)
+      IF(force_env(1)%force_env%in_use .EQ. use_fist_force) THEN
+         CALL find_mc_rcut(mc_par(1)%mc_par,force_env(1)%force_env,lterminate)
+         CALL get_mc_par(mc_par(1)%mc_par,rcut=rcut)
          IF(ionode) WRITE (iw,'( A,T73,F8.4 )') &
             ' MC| Interaction cutoff [angstroms]',rcut*angstrom
          IF(lterminate) THEN
@@ -209,231 +327,124 @@ CONTAINS
                'Cutoff larger than twice the boxlength')
          ENDIF
       ENDIF
-! determine the total number of molecules and atoms
-      CALL force_env_get(force_env,subsys=subsys,error=error)
-      CALL cp_subsys_get(subsys(1)%subsys, &
-         molecule_kinds_new=molecule_kinds_new, error=error)
-      molecule_kind => molecule_kinds_new%els(1)
-      CALL get_molecule_kind(molecule_kind,nmolecule=nchain,natom=nunits)
 
-! find the total number of interaction sites in the system
-      nunits_tot=nunits*nchain
-
-! stuff that info into mc_par
-      CALL set_mc_par(mc_par,nchain=nchain,nunits=nunits,&
-         nunits_tot=nunits_tot)
-
-! write out the data
-      IF (ionode) THEN
-         WRITE (iw,'( A,T71,I10 )') ' MC| number of molecules', &
-            nchain
-         WRITE (iw,'( A,A,T71,I10 )') ' MC| number of interactions ',&
-            'sites per molecule', nunits
-         WRITE (iw,'( A,A,T71,I10 )') ' MC| total number of inter',&
-            'action sites', nunits_tot
-      ENDIF
-
-! figure out the percentages of internal conformation moves we're trying
-      CALL determine_conf_prob(mc_par,molecule_kind)
-
-! get some more data
-      CALL get_mc_par(mc_par,lrestart=lrestart,dat_file=dat_file,&
-         ensemble=ensemble,conf_prob=conf_prob)
-
-! write out move probabilities
-      IF (ionode) THEN
-         WRITE (iw,'( A,T75,F6.2 )') ' MC| Percent of bond moves tried', &
-            conf_prob(1)*100.0d0
-         WRITE (iw,'( A,T75,F6.2 )') ' MC| Percent of angle moves tried', &
-            conf_prob(2)*100.0d0
-         WRITE (iw,'( A,T75,F6.2 )') &
-            ' MC| Percent of dihedral moves tried',conf_prob(3)*100.0d0
-      ENDIF
-
-! figure out how many boxes we have
-      SELECT CASE(ensemble)
-      CASE("TRADITIONAL")
-         nboxes=1
-      CASE("GEMC")
-         nboxes=2
-      END SELECT
-
-! create the mc_env pointers
-      ALLOCATE(mc_env(1:nboxes),STAT=isos)
-      IF ( isos /= 0 ) CALL stop_memory('allocstruc','mc_env',nboxes)
-
-      DO ibox=1,nboxes
-! allocates an mc_env and sets the variables to zero
-         CALL mc_env_create ( mc_env(ibox)%mc_env, &
-            error = error )
-      ENDDO
-
-! check for restart
-      IF ( lrestart ) THEN
-         CALL read_mc_restart(mc_par,force_env,iw,rng_stream)
-! release the old force env and make the new one
-         in_use=force_env%in_use
-         CALL force_env_release(force_env,error=error)
-         CALL mc_create_force_env(force_env, para_env, dat_file,error=error)
+! make sure some values are the same between boxes
+      IF(nboxes == 2) THEN
+         CALL equilize_mc_sim_parameters(mc_par,iw,ionode)
       ENDIF
 
 ! now perform the calculation
-      SELECT CASE(ensemble)
-      CASE("TRADITIONAL")
+      CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,error,&
+           rng_stream)
 
-! make sure things aren't wonky
-         CALL get_mc_par(mc_par,pmswap=pmswap)
-         IF(pmswap .GT. 0.0E0_dp) THEN
-            CALL stop_program('mc_run.F/do_mon_car',&
-               'pmswap is greater than 0 for a single box system!')
+! get rid of all the MC molecule information
+      CALL get_mc_env( mc_env(1)%mc_env, mc_par = mc_par(1)%mc_par)
+      CALL get_mc_par(mc_par(1)%mc_par,mc_molecule_info=mc_molecule_info)
+      CALL mc_molecule_info_destroy(mc_molecule_info)
+      
+      DO ibox=1,nboxes
+         CALL get_mc_env( mc_env(ibox)%mc_env, &
+              mc_par = mc_par(ibox)%mc_par,force_env=force_env(ibox)%force_env)
+         CALL get_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
+         CALL mc_input_file_destroy(mc_input_file)
+         IF(lbias)THEN
+            CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_input_file)
+            CALL mc_input_file_destroy(mc_input_file)
          ENDIF
+         CALL mc_sim_par_destroy(mc_par(ibox)%mc_par)
+         CALL mc_env_release ( mc_env(ibox)%mc_env, error )
 
-! pull all the information together into one environment
-         CALL set_mc_env( mc_env(1)%mc_env, &
-            mc_par = mc_par, force_env=force_env)
-         CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
-
-      CASE("GEMC")
-
-         CALL get_mc_par(mc_par,box2_file=box2_file)
-! prepare the second box
-
-! allocating or nullifying local pointers
-         ALLOCATE ( mc_par_2, STAT = isos )
-         IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
-
-! read the input of the Monte Carlo section
-
-         CALL mc_create_force_env(force_env_2, para_env,&
-              box2_file,globenv_new=globenv_2,error=error)
-         CALL section_vals_release(force_env_2%root_section,error=error)
-
-         IF (ionode) THEN
-            WRITE(iw,*)
-            WRITE(iw,*)
-            WRITE(iw,*) '******************************** Begin',&
-            ' BOX 2 ',&
-            '**********************************'
-            WRITE(iw,*) '******************************************',&
-            '*************************************'
+         IF (ibox == 2) THEN
+            CALL force_env_release(force_env(ibox)%force_env,error=error)           
+            CALL globenv_release(globenv_2,para_env, error)
+         ELSE
+            force_env_1 => force_env(1)%force_env
          ENDIF
+      ENDDO
 
-         force_env_section_2 => force_env_2%force_env_section
-         CALL read_mc_section ( mc_par_2, para_env, globenv ,box2_file,&
-              root_section,force_env_section_2,error)
-
-! determine the total number of molecules and atoms
-         CALL force_env_get(force_env_2,subsys=subsys_2,error=error)
-         CALL cp_subsys_get(subsys_2(1)%subsys, &
-         molecule_kinds_new=molecule_kinds_new_2, error=error)
-         molecule_kind_2 => molecule_kinds_new_2%els(1)
-         CALL get_molecule_kind(molecule_kind_2,nmolecule&
-            =nchain,natom=nunits)
-
-! find the total number of interaction sites in the system
-         nunits_tot=nunits*nchain
-
-         CALL set_mc_par(mc_par_2,nchain=nchain,nunits=nunits,&
-         nunits_tot=nunits_tot)
-! write out the data
-         IF (ionode) THEN
-            WRITE(iw,'( A,T71,I10 )' ) ' MC| number of molecules', &
-            nchain
-            WRITE(iw,'( A,A,T71,I10 )') ' MC| number of interactions ',&
-            'sites per molecule', nunits
-            WRITE(iw,'( A,A,T71,I10 )' ) ' MC| total number of inter',&
-            'action sites', nunits_tot
-         ENDIF
-
-! figure out the percentages of internal conformation moves we're trying
-      CALL determine_conf_prob(mc_par_2,molecule_kind_2)
-
-! get some more data
-      CALL get_mc_par(mc_par_2,conf_prob=conf_prob)
-
-! write out move probabilities
-         IF (ionode) THEN
-            WRITE (iw,'( A,T75,F6.2 )') &
-               ' MC| Percent of bond moves tried', &
-               conf_prob(1)*100.0d0
-            WRITE (iw,'( A,T75,F6.2 )') &
-               ' MC| Percent of angle moves tried', &
-               conf_prob(2)*100.0d0
-            WRITE (iw,'( A,T75,F6.2 )') &
-               ' MC| Percent of dihedral moves tried',conf_prob(3)*100.0d0
-! make sure things are consistent between the two environments
-            WRITE(iw,* )
-            WRITE(iw,'( A,A )' ) 'Ignoring some input for box 2, and ',&
-              'using the values for box 1 for the following variables:'
-            WRITE(iw,'( A,A )' ) 'nstep,iupvolume,iuptrans,nmoves,',&
-            'nswapmoves,iprint,lbias,lstop,temp,pressure,pmswap,'
-            WRITE(iw,'( A,A )' ) 'pmvolume,pmtraion,pmtrans,BETA,rcut,',&
-            'lrestart'
-         ENDIF
-         CALL get_mc_par(mc_par,nstep=nstep,iupvolume=iupvolume,&
-            iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
-            iprint=iprint,lbias=lbias,lstop=lstop,temp=temp,&
-            pressure=pressure,pmswap=pmswap,pmvolume=pmvolume,&
-            pmtraion=pmtraion,pmtrans=pmtrans,BETA=BETA,rcut=rcut,&
-            lrestart=lrestart)
-         CALL set_mc_par(mc_par_2,nstep=nstep,iupvolume=iupvolume,&
-            iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
-            iprint=iprint,lbias=lbias,lstop=lstop,temp=temp,&
-            pressure=pressure,pmswap=pmswap,pmvolume=pmvolume,&
-            pmtraion=pmtraion,pmtrans=pmtrans,BETA=BETA,rcut=rcut,&
-            lrestart=lrestart)
-
-! check for restart
-         CALL get_mc_par(mc_par_2,lrestart=lrestart,dat_file=dat_file)
-         IF ( lrestart ) THEN
-            CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
-            CALL force_env_release(force_env_2,error=error)
-            CALL mc_create_force_env(force_env_2, para_env, dat_file,error=error)
-         ENDIF
-
-! pull all the information together into one environment
-         CALL set_mc_env( mc_env(1)%mc_env,mc_par=mc_par,&
-            force_env=force_env)
-         CALL set_mc_env( mc_env(2)%mc_env,mc_par=mc_par_2,&
-            force_env=force_env_2)
-
-! do the calculation
-         CALL mc_run_ensemble(mc_env,para_env,globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
-
-! clean up after ourselves
-         CALL get_mc_env( mc_env(2)%mc_env,mc_par=mc_par_2,&
-            force_env=force_env_2)
-
-         CALL get_mc_par(mc_par_2,box2_file=box2_file)
-         CALL mc_env_release ( mc_env(2)%mc_env, error )
-         CALL force_env_release(force_env_2,error=error)
-         DEALLOCATE ( mc_par_2, STAT = isos )
-         CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
-
-         CALL globenv_release(globenv_2,para_env, error)
-      CASE DEFAULT
-         IF (ionode) THEN
-            WRITE(6,*) "No idea how we got here...input section ",&
-            "should've caught this: ",ensemble
-         ENDIF
-
-      END SELECT
-
-      CALL get_mc_env( mc_env(1)%mc_env, &
-         mc_par = mc_par,force_env=force_env)
       DEALLOCATE ( mc_par, STAT = isos )
       CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
-      CALL mc_env_release ( mc_env(1)%mc_env, error )
       DEALLOCATE ( mc_env, STAT = isos )
+      CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
+      DEALLOCATE ( force_env, STAT = isos )
       CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
 
 ! delete the random numbers
       CALL delete_rng_stream(rng_stream,error=error)
 
-END SUBROUTINE do_mon_car
 
+    END SUBROUTINE do_mon_car
 
-!******************************************************************************
+! *****************************************************************************
+!!****s* mc_run.F/equilize_mc_sim_parameters
+!!
+!!   NAME
+!!     equilize_mc_sim_parameters
+!!
+!!   FUNCTION
+!!     takes some parameters from one set of MC simulation parameters
+!!     and transfers them to a second set...used so that we're not using
+!!     different parameters between two simulation boxes, if they should
+!!     be the same (move probabilities, for instance)
+!!
+!!   ARGUMENTS
+!!     - mc_par: the pointer that contains the simulation parameters
+!!          for both boxes
+!!     - iw: the unit number that prints to screen
+!!     - ionode: equal to .TRUE. if this is the main MPI node
+!!
+!!     Designed for parallel.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!**************************************************************************
+    SUBROUTINE equilize_mc_sim_parameters(mc_par,iw,ionode)
+      INTEGER,INTENT(IN) :: iw
+      LOGICAL,INTENT(IN) :: ionode
+      TYPE(mc_simulation_parameters_p_type),DIMENSION(:),POINTER :: mc_par
 
+      INTEGER :: nstep,iupvolume,iuptrans,nmoves,nswapmoves,iprint
+      REAL(dp) :: temp,pressure,pmswap,pmvolume,pmtraion,pmtrans,BETA,&
+           rcut
+      LOGICAL :: lbias,lstop,lrestart
+      INTEGER,DIMENSION(:),POINTER :: avbmc_atom
+      REAL(dp),DIMENSION(:),POINTER :: avbmc_rmin,avbmc_rmax,pbias,pmswap_mol,&
+           pmtrans_mol,pmrot_mol,pmtraion_mol,pmavbmc_mol
+!***********************************************************************
 
+      IF(ionode) THEN
+         WRITE(iw,'( A,A )' ) 'Ignoring some input for box 2, and ',&
+              'using the values for box 1 for the following variables:'
+         WRITE(iw,'( A,A )' ) 'nstep,iupvolume,iuptrans,nmoves,',&
+              'nswapmoves,iprint,lbias,lstop,temp,pressure'
+         WRITE(iw,'( A,A )' ) 'pmvolume,pmtraion,pmtrans,BETA,rcut,',&
+              'lrestart'
+         WRITE(iw,'( A,A )' ) 'pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,',&
+              'avbmc_atom'
+         WRITE(iw,'( A,A )' ) 'avbmc_rmin,avmbc_rmax,pmavbmc_mol,pbias,pmswap'
+      ENDIF
+      
+      CALL get_mc_par(mc_par(1)%mc_par,nstep=nstep,iupvolume=iupvolume,&
+           iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
+           iprint=iprint,lbias=lbias,lstop=lstop,temp=temp,&
+           pressure=pressure,pmswap=pmswap,pmvolume=pmvolume,&
+           pmtraion=pmtraion,pmtrans=pmtrans,BETA=BETA,rcut=rcut,&
+           lrestart=lrestart,pmtraion_mol=pmtraion_mol,pmtrans_mol=pmtrans_mol,&
+           pmrot_mol=pmrot_mol,pmswap_mol=pmswap_mol,avbmc_atom=avbmc_atom,&
+           avbmc_rmin=avbmc_rmin,avbmc_rmax=avbmc_rmax,pmavbmc_mol=pmavbmc_mol,&
+           pbias=pbias)
+      CALL set_mc_par(mc_par(2)%mc_par,nstep=nstep,iupvolume=iupvolume,&
+           iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
+           iprint=iprint,lbias=lbias,lstop=lstop,temp=temp,&
+           pressure=pressure,pmswap=pmswap,pmvolume=pmvolume,&
+           pmtraion=pmtraion,pmtrans=pmtrans,BETA=BETA,rcut=rcut,&
+           lrestart=lrestart,pmtraion_mol=pmtraion_mol,pmtrans_mol=pmtrans_mol,&
+           pmrot_mol=pmrot_mol,pmswap_mol=pmswap_mol,avbmc_atom=avbmc_atom,&
+           avbmc_rmin=avbmc_rmin,avbmc_rmax=avbmc_rmax,pmavbmc_mol=pmavbmc_mol,&
+           pbias=pbias)
+
+    END SUBROUTINE equilize_mc_sim_parameters
+
+    
 END MODULE mc_run

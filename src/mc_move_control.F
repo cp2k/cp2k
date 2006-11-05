@@ -25,6 +25,8 @@ MODULE mc_move_control
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_moves_type,&
                                              mc_simulation_parameters_type,&
+                                             mc_molecule_info_type,&
+                                             get_mc_molecule_info,&
                                              set_mc_par
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
@@ -188,7 +190,6 @@ CONTAINS
       moves%Quickstep%attempts=0
       moves%Quickstep%successes=0
       moves%Quickstep%qsuccesses=0
-      moves%bias_energy=0.0E0_dp
       moves%trans_dis=0.0E0_dp
       moves%qtrans_dis=0.0E0_dp
       moves%empty=0
@@ -548,30 +549,35 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 !!     MJM
 !!
 !!*****************************************************************************
- SUBROUTINE mc_move_update ( mc_par,move_updates,flag,nnstep,ionode )
+ SUBROUTINE mc_move_update ( mc_par,move_updates,molecule_type,flag,&
+      nnstep,ionode )
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(mc_moves_type), POINTER             :: move_updates
+    TYPE(mc_moves_type), POINTER       :: move_updates
     CHARACTER(LEN=*), INTENT(IN)             :: flag
-    INTEGER, INTENT(IN)                      :: nnstep
+    INTEGER, INTENT(IN)                      :: nnstep,molecule_type
     LOGICAL, INTENT(IN)                      :: ionode
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_move_update'
 
-    INTEGER                                  :: handle, rm
-    REAL(KIND=dp)                            :: rmangle, rmbond, rmdihedral, &
-                                                rmrot, rmtrans, rmvolume, &
-                                                test_ratio
+    INTEGER                                  :: handle, rm,nmol_types
+    REAL(KIND=dp)                            :: rmvolume,test_ratio
+    REAL(dp),DIMENSION(:),POINTER   :: rmangle,rmbond,rmdihedral,rmrot,rmtrans
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
+      NULLIFY(rmangle,rmbond,rmdihedral,rmrot,rmtrans)
+
 ! grab some stuff from mc_par
       CALL get_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
-         rmtrans=rmtrans,rmvolume=rmvolume,rm=rm,rmdihedral=rmdihedral)
+         rmtrans=rmtrans,rmvolume=rmvolume,rm=rm,rmdihedral=rmdihedral,&
+         mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types)
 
       SELECT CASE (flag)
       CASE DEFAULT
@@ -579,22 +585,26 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
          CALL stop_program( "mc_move_update","Wrong option passed")
       CASE ("trans")
 
+! we need to update all the displacements for every molecule type
+         IF(ionode) WRITE(rm,*) nnstep,' Data for molecule type ',&
+              molecule_type
+
 ! update the maximum displacement for bond length change
          IF( move_updates%bias_bond%attempts .GT. 0 ) THEN
 
 ! first account for the extreme cases
             IF ( move_updates%bias_bond%successes == 0 ) THEN
-               rmbond=rmbond/2.0E0_dp
+               rmbond(molecule_type)=rmbond(molecule_type)/2.0E0_dp
             ELSEIF ( move_updates%bias_bond%successes == &
-                     move_updates%bias_bond%attempts ) THEN
-                    rmbond=rmbond*2.0E0_dp
+                 move_updates%bias_bond%attempts ) THEN
+               rmbond(molecule_type)=rmbond(molecule_type)*2.0E0_dp
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%bias_bond%successes,dp)&
-                  /REAL(move_updates%bias_bond%attempts,dp)/0.5E0_dp
+                    /REAL(move_updates%bias_bond%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
-               rmbond=rmbond*test_ratio
+               rmbond(molecule_type)=rmbond(molecule_type)*test_ratio
             ENDIF
 
 ! update and clear the counters
@@ -603,7 +613,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! write the new displacement to a file
             IF(ionode) WRITE(rm,*) nnstep,' rmbond = ',&
-                    rmbond*angstrom,' angstroms'
+                 rmbond(molecule_type)*angstrom,' angstroms'
 
          ENDIF
 
@@ -612,21 +622,21 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%bias_angle%successes == 0 ) THEN
-               rmangle=rmangle/2.0E0_dp
+               rmangle(molecule_type)=rmangle(molecule_type)/2.0E0_dp
             ELSEIF ( move_updates%bias_angle%successes == &
-               move_updates%bias_angle%attempts ) THEN
-               rmangle=rmangle*2.0E0_dp
+                 move_updates%bias_angle%attempts ) THEN
+               rmangle(molecule_type)=rmangle(molecule_type)*2.0E0_dp
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%bias_angle%successes,dp)&
-                  /REAL(move_updates%bias_angle%attempts,dp)/0.5E0_dp
+                    /REAL(move_updates%bias_angle%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
-               rmangle=rmangle*test_ratio
+               rmangle(molecule_type)=rmangle(molecule_type)*test_ratio
             ENDIF
 
 ! more than pi changes meaningless
-            IF (rmangle .GT. pi) rmangle=pi
+            IF (rmangle(molecule_type) .GT. pi) rmangle(molecule_type)=pi
 
 ! clear the counters
             move_updates%bias_angle%attempts=0
@@ -634,7 +644,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! write the new displacement to a file
             IF(ionode) WRITE(rm,*) nnstep,' rmangle = ',&
-                    rmangle/pi*180.0E0_dp,' degrees'
+                 rmangle(molecule_type)/pi*180.0E0_dp,' degrees'
          ENDIF
 
 ! update the maximum displacement for a dihedral change
@@ -642,29 +652,29 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%bias_dihedral%successes == 0 ) THEN
-               rmdihedral=rmdihedral/2.0E0_dp
+               rmdihedral(molecule_type)=rmdihedral(molecule_type)/2.0E0_dp
             ELSEIF ( move_updates%bias_dihedral%successes == &
-               move_updates%bias_dihedral%attempts ) THEN
-               rmdihedral=rmdihedral*2.0E0_dp
+                 move_updates%bias_dihedral%attempts ) THEN
+               rmdihedral(molecule_type)=rmdihedral(molecule_type)*2.0E0_dp
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%bias_dihedral%successes,dp)&
-                  /REAL(move_updates%bias_dihedral%attempts,dp)/0.5E0_dp
+                    /REAL(move_updates%bias_dihedral%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
-               rmdihedral=rmdihedral*test_ratio
+               rmdihedral(molecule_type)=rmdihedral(molecule_type)*test_ratio
             ENDIF
 
 ! more than pi changes meaningless
-            IF (rmdihedral .GT. pi) rmdihedral=pi
+            IF (rmdihedral(molecule_type) .GT. pi) rmdihedral(molecule_type)=pi
 
 ! clear the counters
             move_updates%bias_dihedral%attempts=0
             move_updates%bias_dihedral%successes=0
-
+               
 ! write the new displacement to a file
             IF(ionode) WRITE(rm,*) nnstep,' rmdihedral = ',&
-                    rmdihedral/pi*180.0E0_dp,' degrees'
+                 rmdihedral(molecule_type)/pi*180.0E0_dp,' degrees'
          ENDIF
 
 ! update the maximum displacement for molecule translation
@@ -672,21 +682,22 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%bias_trans%successes == 0 ) THEN
-               rmtrans=rmtrans/2.0E0_dp
+               rmtrans(molecule_type)=rmtrans(molecule_type)/2.0E0_dp
             ELSEIF ( move_updates%bias_trans%successes == &
-               move_updates%bias_trans%attempts ) THEN
-               rmtrans=rmtrans*2.0E0_dp
+                 move_updates%bias_trans%attempts ) THEN
+               rmtrans(molecule_type)=rmtrans(molecule_type)*2.0E0_dp
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%bias_trans%successes,dp)&
-                  /REAL(move_updates%bias_trans%attempts,dp)/0.5E0_dp
+                    /REAL(move_updates%bias_trans%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
-               rmtrans=rmtrans*test_ratio
+               rmtrans(molecule_type)=rmtrans(molecule_type)*test_ratio
             ENDIF
 
  ! make an upper bound...10 a.u.
-           IF (rmtrans .GT. 10.0E0_dp) rmtrans = 10.0E0_dp
+            IF (rmtrans(molecule_type) .GT. 10.0E0_dp) &
+                 rmtrans(molecule_type )= 10.0E0_dp
 
  ! clear the counters
             move_updates%bias_trans%attempts=0
@@ -694,7 +705,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! write the new displacement to a file
             IF(ionode) WRITE(rm,*) nnstep,' rmtrans = ',&
-                    rmtrans*angstrom,' angstroms'
+                 rmtrans(molecule_type)*angstrom,' angstroms'
          ENDIF
 
 ! update the maximum displacement for molecule rotation
@@ -703,27 +714,27 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 ! first account for the extreme cases
             IF ( move_updates%bias_rot%successes == 0 ) THEN
                rmrot=rmrot/2.0E0_dp
-
-               IF (rmrot .GT. pi) rmrot=pi
-
+               
+               IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type)=pi
+               
             ELSEIF ( move_updates%bias_rot%successes == &
-                     move_updates%bias_rot%attempts ) THEN
-               rmrot=rmrot/2.0E0_dp
+                 move_updates%bias_rot%attempts ) THEN
+               rmrot(molecule_type)=rmrot(molecule_type)*2.0E0_dp
 
 ! more than pi rotation is meaningless
-               IF (rmrot .GT. pi) rmrot=pi
+               IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type)=pi
 
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%bias_rot%successes,dp)&
-                  /REAL(move_updates%bias_rot%attempts,dp)/0.5E0_dp
+                    /REAL(move_updates%bias_rot%attempts,dp)/0.5E0_dp
                IF (test_ratio .GT. 2.0E0_dp) test_ratio=2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio=0.5E0_dp
-               rmrot=rmrot*test_ratio
+               rmrot(molecule_type)=rmrot(molecule_type)*test_ratio
 
 ! more than pi rotation is meaningless
-               IF (rmrot .GT. pi) rmrot=pi
-
+               IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type)=pi
+               
             ENDIF
 
 ! clear the counters
@@ -732,7 +743,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
 ! write the new displacement to a file
             IF(ionode) WRITE(rm,*) nnstep,' rmrot = ',&
-                    rmrot/pi*180.0E0_dp,' degrees'
+                 rmrot(molecule_type)/pi*180.0E0_dp,' degrees'
          ENDIF
             
       CASE ("volume")
@@ -766,6 +777,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
                     rmvolume*angstrom**3,' angstroms^3'
 
          ENDIF
+
       END SELECT
 
 ! set some of the MC parameters

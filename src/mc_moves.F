@@ -38,7 +38,8 @@ MODULE mc_moves
                                              use_fist_force
   USE input_constants,                 ONLY: mc_hardcut
   USE kinds,                           ONLY: dp,&
-                                             dp_size
+                                             dp_size,&
+                                             default_string_length
   USE mathconstants,                   ONLY: pi
   USE mc_coordinates,                  ONLY: check_for_overlap,&
                                              create_discrete_array,&
@@ -47,7 +48,9 @@ MODULE mc_moves
                                              mc_coordinate_fold
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_moves_type,&
-                                             mc_simulation_parameters_type
+                                             mc_simulation_parameters_type,&
+                                             mc_molecule_info_type,&
+                                             get_mc_molecule_info
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: bend_type,&
@@ -74,7 +77,7 @@ MODULE mc_moves
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_moves'
 
-  PUBLIC :: mc_atom_translation,mc_molecule_translation,&
+  PUBLIC :: mc_conformation_change,mc_molecule_translation,&
             mc_molecule_rotation,mc_volume_move,mc_avbmc_move
 
 ! *****************************************************************************
@@ -135,10 +138,10 @@ CONTAINS
   END SUBROUTINE depth_first_search
 
 ! *****************************************************************************
-!!****s* mc_moves.F/mc_atom_translation
+!!****s* mc_moves.F/mc_conformation_change
 !!
 !!   NAME
-!!     mc_atom_translation
+!!     mc_conformation_change
 !!
 !!   FUNCTION
 !!     performs either a bond or angle change move for a given molecule
@@ -153,12 +156,14 @@ CONTAINS
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
-!!     - mol: the number of the molecule's first atom, assuming the rest of
+!!     - start_atoml: the number of the molecule's first atom, assuming the rest of
 !!       the atoms follow sequentially
+!!     - molecule_type: the type of the molecule we're moving
+!!     - box_number: the box the molecule is in
 !!     - bias_energy: the biased energy of the system before the move
 !!     - move_type: dictates what kind of conformational change we do
-!!     - rng_stream: the random number stream that we draw from
 !!     - lreject: set to .true. if there is an overlap
+!!     - rng_stream: the random number stream that we draw from
 !!     - error: the cp_error type
 !!
 !!     This subroutine is designed to run in parallel.
@@ -168,9 +173,10 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-  SUBROUTINE mc_atom_translation ( mc_par,force_env,bias_env, moves,&
-                        move_updates,mol,bias_energy,&
-                        move_type,lreject,rng_stream,error)
+  SUBROUTINE mc_conformation_change ( mc_par,force_env,bias_env, moves,&
+                        move_updates,start_atom,molecule_type,box_number,&
+                        bias_energy,move_type,lreject,&
+                        rng_stream,error)
 
 !   ***************************************************************************
 
@@ -178,7 +184,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: mol
+    INTEGER, INTENT(IN)                      :: start_atom,molecule_type,box_number
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     CHARACTER(LEN=*), INTENT(IN)             :: move_type
     LOGICAL, INTENT(OUT)                     :: lreject
@@ -186,59 +192,78 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_atom_translation'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_conformation_change'
 
-    INTEGER                                  :: group, handle, imol, ipart, &
-                                                istat, nchain, nunits, &
-                                                nunits_tot, source
+    INTEGER                                  :: group, handle, ipart, &
+         istat, nunits_mol, end_atom,imol_type,imolecule,atom_number,&
+         molecule_number,source,start_mol,jbox,end_mol
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_length, &
                                                 rand, value, w
+    CHARACTER(default_string_length)         :: name
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new, r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind,&
+         molecule_kind_test
     TYPE(particle_list_type), POINTER        :: particles
-
+    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
+    INTEGER,DIMENSION(:,:),POINTER           :: nchains
+    INTEGER,DIMENSION(:),POINTER           :: nunits,mol_type
+    CHARACTER(default_string_length),DIMENSION(:),POINTER :: names
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
-! get a bunch of stuff from mc_par
-      CALL get_mc_par(mc_par,lbias=lbias,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,&
-         nunits=nunits,group=group,source=source,ionode=ionode)
-
 ! nullify some pointers
-      NULLIFY(particles,subsys,molecule_kinds_new,molecule_kind)
+      NULLIFY(particles,subsys,molecule_kinds_new,molecule_kind,&
+           molecule_kind_test)
+
+! get a bunch of stuff from mc_par
+      CALL get_mc_par(mc_par,lbias=lbias,mc_molecule_info=mc_molecule_info,&
+         BETA=BETA,group=group,source=source,ionode=ionode)
+      CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,nunits=nunits,&
+           mol_type=mol_type,names=names)
 
 ! do some allocation
-      ALLOCATE (r_old(1:3,1:nunits_tot),STAT=istat)
+      nunits_mol=nunits(molecule_type)
+      ALLOCATE (r_old(1:3,1:nunits_mol),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r",3*nunits_tot*dp_size)
-      ALLOCATE (r_new(1:3,1:nunits_tot),STAT=istat)
+                       "r",3*nunits_mol*dp_size)
+      ALLOCATE (r_new(1:3,1:nunits_mol),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r_new",3*nunits_tot*dp_size)
+                       "r_new",3*nunits_mol*dp_size)
 
+! find out some bounds for mol_type
+      start_mol=1
+      DO jbox=1,box_number-1
+         start_mol=start_mol+SUM(nchains(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains(:,box_number))-1
+      
+! figure out which molecule number we are
+      end_atom=start_atom+nunits_mol-1
+      molecule_number=0
+      atom_number=1
+      DO imolecule=1,SUM(nchains(:,box_number))
+         IF(atom_number == start_atom) THEN
+            molecule_number=imolecule
+            EXIT
+         ENDIF
+         atom_number=atom_number+nunits(mol_type(imolecule+start_mol-1))
+      ENDDO
+      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
+           'Cannot find the molecule number')
+      
 ! are we biasing this move?
       IF(lbias) THEN
 
 ! grab the coordinates
          CALL force_env_get(bias_env,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, molecule_kinds_new=molecule_kinds_new,&
-            error=error)
-         molecule_kind => molecule_kinds_new%els(1)
-
-! save the coordinates
-         DO ipart=1,nunits_tot
-            r_old(1:3,ipart)=particles%els(ipart)%r(1:3)
-         ENDDO
-
 ! save the energy
          bias_energy_old=bias_energy
 
@@ -246,18 +271,29 @@ CONTAINS
 
 ! grab the coordinates
          CALL force_env_get(force_env,subsys=subsys,error=error)
-         CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles,  molecule_kinds_new=molecule_kinds_new,&
-            error=error)
-         molecule_kind => molecule_kinds_new%els(1)
-
-! save the coordinates
-         DO ipart=1,nunits_tot
-            r_old(1:3,ipart)=particles%els(ipart)%r(1:3)
-         ENDDO
-
       ENDIF
 
+! now find the molecule type associated with this guy
+      CALL cp_subsys_get(subsys(1)%subsys, &
+           particles=particles, molecule_kinds_new=molecule_kinds_new,&
+           error=error)
+      DO imol_type=1,SIZE(molecule_kinds_new%els(:))
+         molecule_kind_test => molecule_kinds_new%els(imol_type)
+         CALL get_molecule_kind(molecule_kind_test,name=name)
+         IF(TRIM(ADJUSTL(name)) == TRIM(ADJUSTL(names(molecule_type)))) THEN
+            molecule_kind => molecule_kinds_new%els(imol_type)
+            EXIT
+         ENDIF
+      ENDDO
+
+! save the coordinates
+      DO ipart=start_atom,end_atom
+         r_old(1:3,ipart-start_atom+1)=particles%els(ipart)%r(1:3)
+      ENDDO
+
+      IF(.NOT. ASSOCIATED(molecule_kind)) CALL &
+           stop_program(routineN,moduleN,__LINE__,&
+           'Cannot find the molecule type')      
 ! do the move
       IF (move_type == 'bond') THEN
 
@@ -276,8 +312,8 @@ CONTAINS
          ENDIF
 
 ! do the move
-         CALL change_bond_length(r_old,r_new,&
-            mc_par,mol,molecule_kind,dis_length,particles,rng_stream,error=error)
+         CALL change_bond_length(r_old,r_new,mc_par,molecule_type,&
+              molecule_kind,dis_length,particles,rng_stream,error=error)
 
       ELSEIF( move_type == 'angle') THEN
 
@@ -296,9 +332,8 @@ CONTAINS
          ENDIF
 
 ! do the move
-         CALL change_bond_angle(r_old,r_new,&
-            mc_par,mol,molecule_kind,particles,rng_stream,error=error)
-!         CALL change_bond_angle(r_old,r_new,mc_par,mol,rng_stream)
+         CALL change_bond_angle(r_old,r_new,mc_par,molecule_type,&
+              molecule_kind,particles,rng_stream,error=error)
          dis_length=1.0E0_dp
       ELSE
 ! record the attempt
@@ -316,28 +351,27 @@ CONTAINS
          ENDIF
 
 ! do the move
-         CALL change_dihedral(r_old,r_new,&
-            mc_par,mol,molecule_kind,particles,rng_stream,error=error)
+         CALL change_dihedral(r_old,r_new,mc_par,molecule_type,&
+              molecule_kind,particles,rng_stream,error=error)
          dis_length=1.0E0_dp
 
       ENDIF
 
 ! set the coordinates
-      DO ipart=1,nunits_tot
-         particles%els(ipart)%r(1:3)=r_new(1:3,ipart)
+      DO ipart=start_atom,end_atom
+         particles%els(ipart)%r(1:3)=r_new(1:3,ipart-start_atom+1)
       ENDDO
-      CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
 
-
-      imol = (mol+nunits-1)/nunits
 ! check for overlap
       lreject=.FALSE.
       IF(lbias) THEN
-         CALL check_for_overlap(bias_env,&
-            nchain,imol,imol,loverlap)
+         CALL check_for_overlap(bias_env,nchains(:,box_number),&
+              nunits(:),loverlap,mol_type(start_mol:end_mol),&
+              molecule_number=molecule_number)
       ELSE
-         CALL check_for_overlap(force_env,&
-            nchain,imol,imol,loverlap)
+         CALL check_for_overlap(force_env,nchains(:,box_number),&
+              nunits(:),loverlap,mol_type(start_mol:end_mol),&
+              molecule_number=molecule_number)
          IF(loverlap) lreject=.TRUE.
       ENDIF
 
@@ -412,8 +446,8 @@ CONTAINS
             CALL force_env_get(bias_env,subsys=subsys,error=error)
             CALL cp_subsys_get(subsys(1)%subsys, &
                 particles=particles, error=error)
-            DO ipart=1,nunits_tot
-               particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
+            DO ipart=start_atom,end_atom
+               particles%els(ipart)%r(1:3)=r_old(1:3,ipart-start_atom+1)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
 
@@ -433,7 +467,7 @@ CONTAINS
 ! end the timing
   CALL timestop(0.0E0_dp,handle)
 
-  END SUBROUTINE mc_atom_translation
+END SUBROUTINE mc_conformation_change
 
 ! *****************************************************************************
 !!****s* mc_moves.F/mc_molecule_translation
@@ -454,9 +488,11 @@ CONTAINS
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
-!!     - mol: the number of the molecule's first atom, assuming the rest of
+!!     - start_atom: the number of the molecule's first atom, assuming the rest of
 !!       the atoms follow sequentially
+!!     - box_number: the box the molecule is in
 !!     - bias_energy: the biased energy of the system before the move
+!!     - molecule_type: the type of molecule we're moving
 !!     - lreject: set to .true. if there is an overlap
 !!     - rng_stream: the random number stream that we draw from
 !!     - error: the cp_error type
@@ -469,7 +505,8 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_translation(  mc_par,force_env, bias_env,moves,&
-                      move_updates,mol,bias_energy,&
+                      move_updates,start_atom,box_number,&
+                      bias_energy,molecule_type,&
                         lreject,rng_stream,error)
 
 !   ***************************************************************************
@@ -478,7 +515,8 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: mol
+    INTEGER, INTENT(IN)                      :: start_atom,molecule_type,&
+         box_number
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     LOGICAL, INTENT(OUT)                     :: lreject
     TYPE(rng_stream_type), POINTER           :: rng_stream
@@ -487,40 +525,65 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_translation'
 
-    INTEGER                                  :: group, handle, i, imol, &
-                                                ipart, iparticle, istat, &
-                                                nchain, nunits, nunits_tot, &
-                                                source
+    INTEGER                                  :: group, handle, &
+         imolecule, end_atom, ipart, iparticle, istat, source,move_direction,&
+         atom_number,nunits_mol,molecule_number,start_mol,end_mol,jbox
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_mol, &
-                                                rand, rmtrans, value, w
+                                                rand, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
-
+    REAL(dp),DIMENSION(:),POINTER :: rmtrans
+    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
+    INTEGER,DIMENSION(:),POINTER             :: nunits_tot,nunits,mol_type
+    INTEGER,DIMENSION(:,:),POINTER             :: nchains
 !   *** Local Counters ***
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
-! get a bunch of stuff from mc_par
-      CALL get_mc_par(mc_par,lbias=lbias,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,rmtrans=rmtrans,&
-         nunits=nunits,ionode=ionode,source=source,&
-         group=group)
-
 ! nullify some pointers
       NULLIFY(particles,subsys)
 
-! do some allocation
-      ALLOCATE (r_old(1:3,1:nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r",3*nunits_tot*dp_size)
+! get a bunch of stuff from mc_par
+      CALL get_mc_par(mc_par,lbias=lbias,&
+         BETA=BETA,rmtrans=rmtrans,ionode=ionode,source=source,&
+         group=group,mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits_tot=nunits_tot,&
+           nchains=nchains,nunits=nunits,mol_type=mol_type)
 
+! find out some bounds for mol_type
+      start_mol=1
+      DO jbox=1,box_number-1
+         start_mol=start_mol+SUM(nchains(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains(:,box_number))-1
+
+! do some allocation
+      ALLOCATE (r_old(1:3,1:nunits_tot(box_number)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "r",3*nunits_tot(box_number)*dp_size)
+
+! find the index of the last atom of this molecule, and the molecule number
+      nunits_mol=nunits(molecule_type)
+      end_atom=start_atom+nunits_mol-1
+      molecule_number=0
+      atom_number=1
+      DO imolecule=1,SUM(nchains(:,box_number))
+         IF(atom_number == start_atom) THEN
+            molecule_number=imolecule
+            EXIT
+         ENDIF
+         atom_number=atom_number+nunits(mol_type(imolecule+start_mol-1))
+      ENDDO
+      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
+           'Cannot find the molecule number')
+      
 ! are we biasing this move?
       IF(lbias) THEN
 
@@ -530,7 +593,7 @@ CONTAINS
             particles=particles, error=error)
 
 ! save the coordinates
-         DO ipart=1,nunits_tot
+         DO ipart=1,nunits_tot(box_number)
             r_old(1:3,ipart)=particles%els(ipart)%r(1:3)
         ENDDO
 
@@ -561,33 +624,31 @@ CONTAINS
 
 ! call a random number to figure out which direction we're moving
       IF(ionode) rand=next_random_number(rng_stream,error=error)
-!      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
-      i=AINT(3*rand)+1
+      move_direction=AINT(3*rand)+1
 
 ! call a random number to figure out how far we're moving
-!      CALL RANDOM_NUMBER(rand)
       IF(ionode) rand=next_random_number(rng_stream,error=error)
       CALL mp_bcast(rand,source,group)
-      dis_mol=rmtrans*(rand-0.5E0_dp)*2.0E0_dp
+      dis_mol=rmtrans(molecule_type)*(rand-0.5E0_dp)*2.0E0_dp
 
 ! do the move
-      DO iparticle=mol,mol+nunits-1
-         particles%els(iparticle)%r(i)=&
-             particles%els(iparticle)%r(i)+dis_mol
+      DO iparticle=start_atom,end_atom
+         particles%els(iparticle)%r(move_direction)=&
+             particles%els(iparticle)%r(move_direction)+dis_mol
       ENDDO
       CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
 
 ! figure out if there is any overlap...need the number of the molecule
-      imol = (mol+nunits-1)/nunits
-
       lreject=.FALSE.
       IF(lbias) THEN
-         CALL check_for_overlap(bias_env,&
-            nchain,imol,imol,loverlap)
+         CALL check_for_overlap(bias_env,nchains(:,box_number),&
+              nunits(:),loverlap,mol_type(start_mol:end_mol),&
+              molecule_number=molecule_number)
       ELSE
-         CALL check_for_overlap(force_env,&
-            nchain,imol,imol,loverlap)
+         CALL check_for_overlap(force_env,nchains(:,box_number),&
+              nunits(:),loverlap,mol_type(start_mol:end_mol),&
+              molecule_number=molecule_number)
          IF(loverlap) lreject=.TRUE.
       ENDIF
 
@@ -640,7 +701,7 @@ CONTAINS
             CALL force_env_get(bias_env,subsys=subsys,error=error)
             CALL cp_subsys_get(subsys(1)%subsys, &
                particles=particles, error=error)
-            DO ipart=1,nunits_tot
+            DO ipart=1,nunits_tot(box_number)
                particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
@@ -680,8 +741,10 @@ CONTAINS
 !!     - move_updates: the structure that keeps track of how many moves have
 !!              been accepted/rejected since the last time the displacements
 !!              were updated
-!!     - mol: the number of the molecule's first atom, assuming the rest of
+!!     - box_number: the box the molecule is in
+!!     - start_atom: the number of the molecule's first atom, assuming the rest of
 !!       the atoms follow sequentially
+!!     - molecule_type: the type of molecule we're moving
 !!     - bias_energy: the biased energy of the system before the move
 !!     - lreject: set to .true. if there is an overlap
 !!     - rng_stream: the random number stream that we draw from
@@ -695,8 +758,9 @@ CONTAINS
 !!*****************************************************************************
 
  SUBROUTINE mc_molecule_rotation ( mc_par,force_env, bias_env,moves,&
-                      move_updates,mol,bias_energy,&
-                        lreject,rng_stream,error)
+                      move_updates,box_number,&
+                      start_atom,molecule_type,bias_energy,lreject,&
+                      rng_stream,error)
 
 !   ***************************************************************************
 
@@ -704,7 +768,8 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: mol
+    INTEGER, INTENT(IN)                      :: start_atom,&
+         molecule_type,box_number
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     LOGICAL, INTENT(OUT)                     :: lreject
     TYPE(rng_stream_type), POINTER           :: rng_stream
@@ -713,58 +778,85 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_rotation'
 
-    INTEGER                                  :: dir, group, handle, iatom, &
-                                                ii, imol, ipart, istat, &
-                                                iunit, natoms, nchain, &
-                                                nunits, nunits_tot, source
+    INTEGER                                  :: dir, group, handle, &
+         imolecule,end_atom,molecule_number,atom_number,nunits_mol,&
+         ii, ipart, istat, iunit, source,jbox,start_mol,end_mol
     LOGICAL                                  :: ionode, lbias, loverlap, lx, &
                                                 ly
     REAL(KIND=dp) :: BETA, bias_energy_new, bias_energy_old, cosdg, dgamma, &
-      masstot, nxcm, nycm, nzcm, rand, rmrot, rx, rxnew, ry, rynew, rz, &
+      masstot, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, &
       rznew, sindg, value, w
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
-
-!   *** Local Counters ***
+    REAL(dp),DIMENSION(:),POINTER :: rmrot
+    REAL(dp),DIMENSION(:,:),POINTER :: mass
+    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
+    INTEGER,DIMENSION(:),POINTER             :: nunits,nunits_tot,mol_type
+    INTEGER,DIMENSION(:,:),POINTER             :: nchains
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
+      NULLIFY(rmrot,subsys,particles)
+
 ! get a bunch of stuff from mc_par
-      CALL get_mc_par(mc_par,lbias=lbias,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,nunits=nunits,rmrot=rmrot,&
+      CALL get_mc_par(mc_par,lbias=lbias,&
+         BETA=BETA,rmrot=rmrot,mc_molecule_info=mc_molecule_info,&
          ionode=ionode,group=group,source=source)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits=nunits,&
+           nunits_tot=nunits_tot,nchains=nchains,mass=mass,&
+           mol_type=mol_type)
+
+! figure out some bounds for mol_type
+      start_mol=1
+      DO jbox=1,box_number-1
+         start_mol=start_mol+SUM(nchains(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains(:,box_number))-1
+
+      nunits_mol=nunits(molecule_type)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
 
 ! do some allocation
-      ALLOCATE (r_old(1:3,1:nunits_tot),STAT=istat)
+      ALLOCATE (r_old(1:3,1:nunits_tot(box_number)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r",3*nunits_tot*dp_size)
+                       "r",3*nunits_tot(box_number)*dp_size)
 
 ! initialize some stuff
       lx =.FALSE.
       ly =.FALSE.
 
+! determine what the final atom in the molecule is numbered, and which 
+! molecule number this is
+      end_atom=start_atom+nunits_mol-1
+      molecule_number=0
+      atom_number=1
+      DO imolecule=1,SUM(nchains(:,box_number))
+         IF(atom_number == start_atom) THEN
+            molecule_number=imolecule
+            EXIT
+         ENDIF
+         atom_number=atom_number+nunits(mol_type(imolecule+start_mol-1))
+      ENDDO
+      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
+               'Cannot find the molecule number')
+      
 ! are we biasing this move?
       IF(lbias) THEN
 
 ! grab the coordinates
          CALL force_env_get(bias_env,subsys=subsys,error=error)
          CALL cp_subsys_get(subsys(1)%subsys, &
-            particles=particles, molecule_kinds_new=molecule_kinds_new,&
-            error=error)
+            particles=particles, error=error)
 
 ! save the coordinates
-         DO ipart=1,nunits_tot
+         DO ipart=1,nunits_tot(box_number)
             r_old(1:3,ipart)=particles%els(ipart)%r(1:3)
          ENDDO
 
@@ -776,21 +868,11 @@ CONTAINS
 ! grab the coordinates
          CALL force_env_get(force_env,subsys=subsys,error=error)
          CALL cp_subsys_get(subsys(1)%subsys, &
-            molecule_kinds_new=molecule_kinds_new,&
             particles=particles, error=error)
       ENDIF
 
 ! grab the masses
-      molecule_kind => molecule_kinds_new%els(1)
-      CALL get_molecule_kind(molecule_kind,natom=natoms)
-      ALLOCATE(mass(1:natoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mass",natoms*dp_size)
-      DO iatom=1,natoms
-         CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
-            mass=mass(iatom))
-      ENDDO
-      masstot=SUM(mass(:))
+      masstot=SUM(mass(1:nunits(molecule_type),molecule_type))
 
 ! record the attempt
       moves%bias_rot%attempts=moves%bias_rot%attempts+1
@@ -823,10 +905,10 @@ CONTAINS
       nxcm = 0.0E0_dp
       nycm = 0.0E0_dp
       nzcm = 0.0E0_dp
-      DO ii = 1, nunits
-         nxcm = nxcm + particles%els(mol-1+ii)%r(1)* mass(ii)
-         nycm = nycm + particles%els(mol-1+ii)%r(2)* mass(ii)
-         nzcm = nzcm + particles%els(mol-1+ii)%r(3)* mass(ii)
+      DO ii = 1, nunits_mol
+         nxcm = nxcm + particles%els(start_atom-1+ii)%r(1)* mass(ii,molecule_type)
+         nycm = nycm + particles%els(start_atom-1+ii)%r(2)* mass(ii,molecule_type)
+         nzcm = nzcm + particles%els(start_atom-1+ii)%r(3)* mass(ii,molecule_type)
       ENDDO
       nxcm = nxcm / masstot
       nycm = nycm / masstot
@@ -835,7 +917,7 @@ CONTAINS
 ! call a random number to figure out how far we're moving
       IF(ionode) rand=next_random_number(rng_stream,error=error)
       CALL mp_bcast(rand,source,group)
-      dgamma=rmrot*(rand-0.5E0_dp)*2.0E0_dp
+      dgamma=rmrot(molecule_type)*(rand-0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation marix ***
 
@@ -846,7 +928,7 @@ CONTAINS
 
 ! ***    ROTATE UNITS OF I AROUND X-AXIS ***
 
-         DO  iunit = mol,mol+nunits-1
+         DO  iunit = start_atom,end_atom
             ry = particles%els(iunit)%r(2) - nycm
             rz = particles%els(iunit)%r(3) - nzcm
             rynew = cosdg * ry - sindg * rz
@@ -860,7 +942,7 @@ CONTAINS
 
 ! ***    ROTATE UNITS OF I AROUND y-AXIS ***
 
-         DO  iunit = mol,mol+nunits-1
+         DO  iunit = start_atom,end_atom
             rx = particles%els(iunit)%r(1) - nxcm
             rz = particles%els(iunit)%r(3) - nzcm
             rxnew = cosdg * rx + sindg * rz
@@ -875,7 +957,7 @@ CONTAINS
 
 ! ***    ROTATE UNITS OF I AROUND z-AXIS ***
 
-         DO  iunit = mol,mol+nunits-1
+         DO  iunit = start_atom,end_atom
             rx = particles%els(iunit)%r(1) - nxcm
             ry = particles%els(iunit)%r(2) - nycm
 
@@ -891,14 +973,15 @@ CONTAINS
       CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
 
 ! check for overlap
-      imol = (mol+nunits-1)/nunits
       lreject=.FALSE.
       IF(lbias) THEN
-         CALL check_for_overlap(bias_env,&
-            nchain,imol,imol,loverlap)
+         CALL check_for_overlap(bias_env,nchains(:,box_number),&
+              nunits(:),loverlap,mol_type(start_mol:end_mol),&
+              molecule_number=molecule_number)
       ELSE
-         CALL check_for_overlap(force_env,&
-            nchain,imol,imol,loverlap)
+         CALL check_for_overlap(force_env,nchains(:,box_number),&
+              nunits(:),loverlap,mol_type(start_mol:end_mol),&
+              molecule_number=molecule_number)
          IF(loverlap) lreject=.TRUE.
       ENDIF
 
@@ -950,7 +1033,7 @@ CONTAINS
             CALL force_env_get(bias_env,subsys=subsys,error=error)
             CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
-            DO ipart=1,nunits_tot
+            DO ipart=1,nunits_tot(box_number)
                particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
@@ -963,9 +1046,6 @@ CONTAINS
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_old")
-      DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mass")
 
 ! end the timing
   CALL timestop(0.0E0_dp,handle)
@@ -992,6 +1072,7 @@ CONTAINS
 !!     - nnstep: the total number of "outer moves" already performed
 !!     - old_energy: the energy of the last accepted move involving an
 !!                   unbiased calculation
+!!     - box_number: the box we're changing the volume of
 !!     - energy_check: the running total of how much the energy has changed
 !!                     since the initial configuration
 !!     - r_old: the coordinates of the last accepted move involving an
@@ -1010,7 +1091,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
-                        nnstep,old_energy,&
+                        nnstep,old_energy,box_number,&
                         energy_check,r_old,iw,discrete_array,rng_stream,error)
 
 !   ***************************************************************************
@@ -1019,7 +1100,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep
+    INTEGER, INTENT(IN)                      :: nnstep,box_number
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy, energy_check
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
@@ -1035,14 +1116,14 @@ CONTAINS
 
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40)                        :: dat_file
-    INTEGER :: cl, group, handle, i, iatom, icurrent, iside, iside_change, &
-      istat, iunit, natoms, nchain, nunits, nunits_tot, output_unit, &
-      print_level, source
+    INTEGER :: cl, group, handle, iatom, iside, iside_change, &
+      istat, iunit, output_unit, idim,nunits_mol,jbox,start_mol,end_mol,&
+      print_level, source,end_atom,start_atom,imolecule
     LOGICAL                                  :: ionode, ldiscrete, lincrease, &
                                                 loverlap, ltoo_small
     REAL(KIND=dp) :: BETA, discrete_step, energy_term, new_energy, pressure, &
-      pressure_term, rand, rcut, rmvolume, value, vol_dis, volume_term, w
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
+      pressure_term, rand, rcut, rmvolume, value, vol_dis, volume_term, w,&
+      temp_var
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass, &
@@ -1054,13 +1135,11 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles_old
-
-!, testsys
-!    TYPE(force_env_type), POINTER            :: test_env
-!, particles_test
+    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
+    INTEGER,DIMENSION(:),POINTER             :: nunits,nunits_tot,mol_type
+    INTEGER,DIMENSION(:,:),POINTER :: nchains
+    REAL(dp),DIMENSION(:,:),POINTER :: mass
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1068,23 +1147,29 @@ CONTAINS
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,ionode=ionode,&
-         nchain=nchain,BETA=BETA,source=source,group=group,&
-         nunits_tot=nunits_tot,dat_file=dat_file,&
-         rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl,&
+         BETA=BETA,source=source,group=group,&
+         dat_file=dat_file,rmvolume=rmvolume,pressure=pressure,cl=cl,&
          fft_lib=fft_lib,discrete_step=discrete_step,&
-         ldiscrete=ldiscrete)
+         ldiscrete=ldiscrete,mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,&
+           nunits=nunits,nunits_tot=nunits_tot,mol_type=mol_type,&
+           mass=mass)
+! figure out some bounds for mol_type
+      start_mol=1
+      DO jbox=1,box_number-1
+         start_mol=start_mol+SUM(nchains(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains(:,box_number))-1
 
       print_level = 1 ! hack, printlevel is for print_keys
 
 ! nullify some pointers
-!      NULLIFY(particles_old,particles_test,cell_old,oldsys,&
-!         testsys,test_env,cell_test)
       NULLIFY(particles_old,cell_old,oldsys,cell_test,cell)
 
 ! do some allocation
-      ALLOCATE (r(1:3,1:nunits_tot),STAT=istat)
+      ALLOCATE (r(1:3,1:nunits_tot(box_number)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "r",3*nunits_tot*dp_size)
+         "r",3*nunits_tot(box_number)*dp_size)
 
 ! record the attempt
       moves%volume%attempts=moves%volume%attempts+1
@@ -1097,18 +1182,7 @@ CONTAINS
       CALL cell_create(cell_old,error=error)
       CALL cell_clone(cell,cell_old,error=error)
       CALL cp_subsys_get(oldsys(1)%subsys,particles=particles_old, &
-         molecule_kinds_new=molecule_kinds_new,error=error)
-
-! grab the masses
-      molecule_kind => molecule_kinds_new%els(1)
-      CALL get_molecule_kind(molecule_kind,natom=natoms)
-      ALLOCATE(mass(1:natoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mass",natoms*dp_size)
-      DO iatom=1,natoms
-         CALL get_atomic_kind(particles_old%els(iatom)%atomic_kind,&
-            mass=mass(iatom))
-      ENDDO
+         error=error)
 
 ! find the old cell length
       old_cell_length(1)=abc(1)
@@ -1116,19 +1190,9 @@ CONTAINS
       old_cell_length(3)=abc(3)
 
 ! save the old coordiantes
-      DO iatom=1,nunits_tot
+      DO iatom=1,nunits_tot(box_number)
          r(1:3,iatom)=particles_old%els(iatom)%r(1:3)
       ENDDO
-
-! fold the coordinates into the central box
-      CALL mc_coordinate_fold(r(:,:),nunits_tot,mass,nunits,&
-         old_cell_length(1:3))
-
-! save the folded coordiantes
-      DO iatom=1,nunits_tot
-         particles_old%els(iatom)%r(1:3)=r(1:3,iatom)
-      ENDDO
-
 
 ! now do the move
 
@@ -1178,9 +1242,34 @@ CONTAINS
          vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
 !     vol_dis=5.0E0_dp/angstrom**3
 
-         new_cell_length(1:3)=(vol_dis+&
-         old_cell_length(1)*old_cell_length(2)*&
-         old_cell_length(3))**(1.0E0_dp/3.0E0_dp)
+         temp_var=vol_dis+&
+              old_cell_length(1)*old_cell_length(2)*&
+              old_cell_length(3)
+
+        
+         IF(temp_var .LE. 0.0E0_dp) THEN
+            loverlap=.TRUE.  ! cannot have a negative volume
+         ELSE
+            new_cell_length(1)=(temp_var)**(1.0E0_dp/3.0E0_dp)
+            new_cell_length(2)=new_cell_length(1)
+            new_cell_length(3)=new_cell_length(1)
+            loverlap=.FALSE.
+         ENDIF
+      ENDIF
+      CALL mp_bcast(loverlap,source,group)
+
+      IF(loverlap) THEN
+! deallocate some stuff
+         DEALLOCATE(r,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "r")
+         logger=>cp_error_get_logger(error)
+         output_unit=cp_logger_get_default_unit_nr(logger)
+         IF(output_unit>0) WRITE(output_unit,*) &
+            "Volume move rejected because we tried to make too small of box.",vol_dis
+!     end the timing
+         CALL timestop(0.0E0_dp,handle)
+         RETURN
       ENDIF
 
 ! now we need to make the new cell
@@ -1188,7 +1277,8 @@ CONTAINS
       hmat_test(1,1)=new_cell_length(1)
       hmat_test(2,2)=new_cell_length(2)
       hmat_test(3,3)=new_cell_length(3)
-      CALL cell_create(cell_test,hmat_test(:,:),cell%perd,cell%orthorhombic,error=error)
+      CALL cell_create(cell_test,hmat_test(:,:),cell%perd,cell%orthorhombic,&
+           error=error)
       cell_test%subcells=cell_old%subcells
       CALL force_env_set_cell(force_env,cell_test,error=error)
 
@@ -1198,11 +1288,14 @@ CONTAINS
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
-      DO iatom=1,nunits_tot,nunits
-
+      end_atom=0
+      DO imolecule=1,SUM(nchains(:,box_number))
+         nunits_mol=nunits(mol_type(imolecule+start_mol-1))
+         start_atom=end_atom+1
+         end_atom=start_atom+nunits_mol-1
 ! now find the center of mass
-         CALL get_center_of_mass(r(:,iatom:iatom+nunits-1),nunits,&
-            center_of_mass(:),mass(:))
+         CALL get_center_of_mass(r(:,start_atom:end_atom),nunits_mol,&
+            center_of_mass(:),mass(:,mol_type(imolecule+start_mol-1)))
 
 ! scale the center of mass and determine the vector that points from the
 !    old COM to the new one
@@ -1211,20 +1304,20 @@ CONTAINS
                new_cell_length(iside)/old_cell_length(iside)
          ENDDO
 
-         DO i=1,3
-            diff(i)=center_of_mass_new(i)-center_of_mass(i)
+         DO idim=1,3
+            diff(idim)=center_of_mass_new(idim)-center_of_mass(idim)
 ! now change the particle positions
-            DO iunit=0,nunits-1
-               icurrent=iatom+iunit
-               particles_old%els(icurrent)%r(i)=&
-                  particles_old%els(icurrent)%r(i)+diff(i)
+            DO iunit=start_atom,end_atom
+               particles_old%els(iunit)%r(idim)=&
+                  particles_old%els(iunit)%r(idim)+diff(idim)
             ENDDO
          ENDDO
       ENDDO
 
 ! check for overlap
-      CALL check_for_overlap(force_env,&
-         nchain,1,nchain,loverlap,cell_length=new_cell_length)
+      CALL check_for_overlap(force_env,nchains(:,box_number),&
+           nunits(:),loverlap,mol_type(start_mol:end_mol),&
+           cell_length=new_cell_length)
 
 ! figure out if we have overlap problems
       CALL mp_bcast(loverlap,source,group)
@@ -1233,9 +1326,6 @@ CONTAINS
          DEALLOCATE(r,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r")
-         DEALLOCATE(mass,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "mass")
 
          logger=>cp_error_get_logger(error)
          output_unit=cp_logger_get_default_unit_nr(logger)
@@ -1275,7 +1365,7 @@ CONTAINS
 ! accept or reject the move
 ! to prevent overflows
       energy_term=new_energy-old_energy
-      volume_term=-REAL(nchain,dp)/BETA*&
+      volume_term=-REAL(SUM(nchains(:,box_number)),dp)/BETA*&
       LOG(new_cell_length(1)*new_cell_length(2)*new_cell_length(3)/&
          (old_cell_length(1)*old_cell_length(2)*old_cell_length(3)))
       pressure_term=pressure*vol_dis
@@ -1323,7 +1413,7 @@ CONTAINS
          energy_check=energy_check+(new_energy-old_energy)
          old_energy=new_energy
 
-         DO iatom=1,nunits_tot
+         DO iatom=1,nunits_tot(box_number)
             r_old(1:3,iatom)=particles_old%els(iatom)%r(1:3)
          ENDDO
 
@@ -1339,7 +1429,7 @@ CONTAINS
 
 ! reset the cell and particle positions
          CALL force_env_set_cell(force_env,cell_old,error=error)
-         DO iatom=1,nunits_tot
+         DO iatom=1,nunits_tot(box_number)
             particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
          ENDDO
 
@@ -1362,9 +1452,6 @@ CONTAINS
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r")
-      DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mass")
       CALL cell_release(cell_test,error=error)
       CALL cell_release(cell_old,error=error)
 
@@ -1387,8 +1474,7 @@ CONTAINS
 !!     - r_old: the initial coordinates of all molecules in the system
 !!     - r_new: the new coordinates of all molecules in the system
 !!     - mc_par: the mc parameters for the force env
-!!     - mol: the number of the first atom in the molecule, assuming the
-!!            next natom-1 atoms are the rest of the molecule
+!!     - molecule_type: the molecule type that we're moving
 !!     - molecule_kind: the structure containing the molecule information
 !!     - dis_length: the ratio of the new bond length to the old bond length,
 !!                   used in the acceptance rule
@@ -1403,7 +1489,7 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-  SUBROUTINE change_bond_length ( r_old,r_new,mc_par,mol,molecule_kind,&
+  SUBROUTINE change_bond_length ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
       dis_length,particles,rng_stream,error)
 
 !   ***************************************************************************
@@ -1414,7 +1500,7 @@ CONTAINS
       INTENT(OUT)                            :: r_new
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    INTEGER, INTENT(IN)                      :: mol
+    INTEGER, INTENT(IN)                      :: molecule_type
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     REAL(KIND=dp), INTENT(OUT)               :: dis_length
     TYPE(particle_list_type), POINTER        :: particles
@@ -1426,34 +1512,38 @@ CONTAINS
     INTEGER                                  :: bond_number, group, handle, &
                                                 i, iatom, ibond, ipart, &
                                                 istat, natom, nbond, &
-                                                nunits_tot, source
+                                                source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_b, counter
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: atom_mass, mass_a, mass_b, &
                                                 new_length_a, new_length_b, &
-                                                old_length, rand, rmbond
+                                                old_length, rand
     REAL(KIND=dp), DIMENSION(1:3)            :: bond_a, bond_b
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
-
+    REAL(dp),DIMENSION(:),POINTER   :: rmbond
+    INTEGER,DIMENSION(:),POINTER   :: nunits
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
+      
+      NULLIFY(rmbond,mc_molecule_info)
 
 ! get some stuff from mc_par
-      CALL get_mc_par(mc_par,nunits_tot=nunits_tot,rmbond=rmbond,source=source,&
-         group=group,ionode=ionode)
+      CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info,source=source,&
+         group=group,rmbond=rmbond,ionode=ionode)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits=nunits)
 
 ! copy the incoming coordinates so we can change them
-      DO ipart=1,nunits_tot
+      DO ipart=1,nunits(molecule_type)
          r_new(1:3,ipart)=r_old(1:3,ipart)
       ENDDO
 
 ! pick which bond in the molecule at random
       IF(ionode) THEN
          rand=next_random_number(rng_stream,error=error)
-!      CALL RANDOM_NUMBER(rand)
       ENDIF
       CALL mp_bcast(rand,source,group)
       CALL get_molecule_kind(molecule_kind,natom=natom,nbond=nbond,&
@@ -1523,15 +1613,14 @@ CONTAINS
 
 ! choose a displacement
       IF(ionode) rand=next_random_number(rng_stream,error=error)
-!      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
 
-      dis_length=rmbond*2.0E0_dp*(rand-0.5E0_dp)
+      dis_length=rmbond(molecule_type)*2.0E0_dp*(rand-0.5E0_dp)
 
 ! find the bond vector that atom a will be moving
       DO i=1,3
-         bond_a(i)=r_new(i,mol+bond_list(bond_number)%a-1)-&
-            r_new(i,mol+bond_list(bond_number)%b-1)
+         bond_a(i)=r_new(i,bond_list(bond_number)%a)-&
+            r_new(i,bond_list(bond_number)%b)
          bond_b(i)=-bond_a(i)
       ENDDO
 
@@ -1548,13 +1637,13 @@ CONTAINS
 
       DO iatom=1,natom
          IF(atom_a(iatom) == 1) THEN
-            r_new(1,mol+iatom-1)=r_new(1,mol+iatom-1)+bond_a(1)
-            r_new(2,mol+iatom-1)=r_new(2,mol+iatom-1)+bond_a(2)
-            r_new(3,mol+iatom-1)=r_new(3,mol+iatom-1)+bond_a(3)
+            r_new(1,iatom)=r_new(1,iatom)+bond_a(1)
+            r_new(2,iatom)=r_new(2,iatom)+bond_a(2)
+            r_new(3,iatom)=r_new(3,iatom)+bond_a(3)
          ELSE
-            r_new(1,mol+iatom-1)=r_new(1,mol+iatom-1)+bond_b(1)
-            r_new(2,mol+iatom-1)=r_new(2,mol+iatom-1)+bond_b(2)
-            r_new(3,mol+iatom-1)=r_new(3,mol+iatom-1)+bond_b(3)
+            r_new(1,iatom)=r_new(1,iatom)+bond_b(1)
+            r_new(2,iatom)=r_new(2,iatom)+bond_b(2)
+            r_new(3,iatom)=r_new(3,iatom)+bond_b(3)
          ENDIF
       ENDDO
 
@@ -1597,8 +1686,7 @@ CONTAINS
 !!     - r_old: the initial coordinates of all molecules in the system
 !!     - r_new: the new coordinates of all molecules in the system
 !!     - mc_par: the mc parameters for the force env
-!!     - mol: the number of the first atom in the molecule, assuming the
-!!            next natom-1 atoms are the rest of the molecule
+!!     - molecule_type: the type of molecule we're playing with
 !!     - molecule_kind: the structure containing the molecule information
 !!     - particles: the particle_list_type for all particles in the force_env...
 !!            used to grab the mass of each atom
@@ -1610,7 +1698,7 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-  SUBROUTINE change_bond_angle ( r_old,r_new,mc_par,mol,molecule_kind,&
+  SUBROUTINE change_bond_angle ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
       particles,rng_stream,error)
 
 !   ***************************************************************************
@@ -1621,7 +1709,7 @@ CONTAINS
       INTENT(OUT)                            :: r_new
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    INTEGER, INTENT(IN)                      :: mol
+    INTEGER, INTENT(IN)                      :: molecule_type
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
@@ -1632,37 +1720,41 @@ CONTAINS
     INTEGER                                  :: bend_number, group, handle, &
                                                 i, iatom, ibond, ipart, &
                                                 istat, natom, nbend, nbond, &
-                                                nunits_tot, source
+                                                source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_c, counter
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
     LOGICAL                                  :: ionode
     REAL(KIND=dp) :: atom_mass, bis_length, dis_angle, dis_angle_a, &
       dis_angle_c, mass_a, mass_c, new_angle_a, new_angle_c, old_angle, &
-      old_length_a, old_length_c, rand, rmangle, temp_length
+      old_length_a, old_length_c, rand, temp_length
     REAL(KIND=dp), DIMENSION(1:3)            :: bisector, bond_a, bond_c, &
                                                 cross_prod, cross_prod_plane, &
                                                 temp
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
-
+    INTEGER,DIMENSION(:),POINTER   :: nunits
+    REAL(dp),DIMENSION(:),POINTER :: rmangle
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
+      NULLIFY(bend_list,bond_list,rmangle,mc_molecule_info)
+
 ! get some stuff from mc_par
-      CALL get_mc_par(mc_par,nunits_tot=nunits_tot,rmangle=rmangle,source=source,&
-         group=group,ionode=ionode)
+      CALL get_mc_par(mc_par,rmangle=rmangle,source=source,&
+         group=group,ionode=ionode,mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits=nunits)
 
 ! copy the incoming coordinates so we can change them
-      DO ipart=1,nunits_tot
+      DO ipart=1,nunits(molecule_type)
          r_new(1:3,ipart)=r_old(1:3,ipart)
       ENDDO
 
 ! pick which bond in the molecule at random
       IF(ionode) THEN
          rand=next_random_number(rng_stream,error=error)
-!      CALL RANDOM_NUMBER(rand)
       ENDIF
       CALL mp_bcast(rand,source,group)
       CALL get_molecule_kind(molecule_kind,natom=natom,nbend=nbend,&
@@ -1731,7 +1823,7 @@ CONTAINS
       IF(ionode) rand=next_random_number(rng_stream,error=error)
       CALL mp_bcast(rand,source,group)
 
-      dis_angle=rmangle*2.0E0_dp*(rand-0.5E0_dp)
+      dis_angle=rmangle(molecule_type)*2.0E0_dp*(rand-0.5E0_dp)
 
 ! need to find the A-B-C bisector
 
@@ -1741,10 +1833,10 @@ CONTAINS
 
 ! find the bond vectors
       DO i=1,3
-         bond_a(i)=r_new(i,mol-1+bend_list(bend_number)%a)-&
-            r_new(i,mol-1+bend_list(bend_number)%b)
-         bond_c(i)=r_new(i,mol-1+bend_list(bend_number)%c)-&
-            r_new(i,mol-1+bend_list(bend_number)%b)
+         bond_a(i)=r_new(i,bend_list(bend_number)%a)-&
+            r_new(i,bend_list(bend_number)%b)
+         bond_c(i)=r_new(i,bend_list(bend_number)%c)-&
+            r_new(i,bend_list(bend_number)%b)
       ENDDO
       old_length_a=SQRT(DOT_PRODUCT(bond_a,bond_a))
       old_length_c=SQRT(DOT_PRODUCT(bond_c,bond_c))
@@ -1775,8 +1867,8 @@ CONTAINS
 ! and cross_prod is z
 ! shift the molecule so that atom b is at the origin
       DO iatom=1,natom
-         r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)-&
-            r_old(1:3,mol-1+bend_list(bend_number)%b)
+         r_new(1:3,iatom)=r_new(1:3,iatom)-&
+            r_old(1:3,bend_list(bend_number)%b)
       ENDDO
 
 ! figure out how much we move each side, since we're mass-weighting, by the
@@ -1788,8 +1880,8 @@ CONTAINS
 ! now loop through all the atoms, moving the ones that are connected to a or c
       DO iatom=1,natom
 ! subtract out the z component (perpendicular to the angle plane)
-         temp(1:3)=r_new(1:3,mol-1+iatom)-&
-            DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+         temp(1:3)=r_new(1:3,iatom)-&
+            DOT_PRODUCT(cross_prod(1:3),r_new(1:3,iatom))*&
             cross_prod(1:3)
          temp_length=SQRT(DOT_PRODUCT(temp,temp))
 
@@ -1799,16 +1891,16 @@ CONTAINS
 
 ! if the y-coordinate is less than zero, we need to switch the sign when we make the vector,
 ! as the angle computed by the dot product can't distinguish between that
-            IF(DOT_PRODUCT(cross_prod_plane(1:3),r_new(1:3,mol-1+iatom)) &
+            IF(DOT_PRODUCT(cross_prod_plane(1:3),r_new(1:3,iatom)) &
                .LT. 0.0_dp) THEN
 
 ! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
             new_angle_a=ACOS(DOT_PRODUCT(bisector,temp(1:3))/&
                (temp_length))+dis_angle_a
 
-            r_new(1:3,mol-1+iatom)=COS(new_angle_a)*temp_length*bisector(1:3)-&
+            r_new(1:3,iatom)=COS(new_angle_a)*temp_length*bisector(1:3)-&
                SIN(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
-               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,iatom))*&
                cross_prod(1:3)
             ELSE
 
@@ -1816,9 +1908,9 @@ CONTAINS
             new_angle_a=ACOS(DOT_PRODUCT(bisector,temp(1:3))/&
                (temp_length))-dis_angle_a
 
-            r_new(1:3,mol-1+iatom)=COS(new_angle_a)*temp_length*bisector(1:3)+&
+            r_new(1:3,iatom)=COS(new_angle_a)*temp_length*bisector(1:3)+&
                SIN(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
-               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,iatom))*&
                cross_prod(1:3)
             ENDIF
 
@@ -1826,23 +1918,23 @@ CONTAINS
 
 ! if the y-coordinate is less than zero, we need to switch the sign when we make the vector,
 ! as the angle computed by the dot product can't distinguish between that
-            IF(DOT_PRODUCT(cross_prod_plane(1:3),r_new(1:3,mol-1+iatom)) &
+            IF(DOT_PRODUCT(cross_prod_plane(1:3),r_new(1:3,iatom)) &
                .LT. 0.0_dp) THEN
 ! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
             new_angle_c=ACOS(DOT_PRODUCT(bisector(1:3),temp(1:3))/&
                (temp_length))-dis_angle_c
 
-            r_new(1:3,mol-1+iatom)=COS(new_angle_c)*temp_length*bisector(1:3)-&
+            r_new(1:3,iatom)=COS(new_angle_c)*temp_length*bisector(1:3)-&
                SIN(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
-               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,iatom))*&
                cross_prod(1:3)
             ELSE
             new_angle_c=ACOS(DOT_PRODUCT(bisector(1:3),temp(1:3))/&
                (temp_length))+dis_angle_c
 
-            r_new(1:3,mol-1+iatom)=COS(new_angle_c)*temp_length*bisector(1:3)+&
+            r_new(1:3,iatom)=COS(new_angle_c)*temp_length*bisector(1:3)+&
                SIN(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
-               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
+               DOT_PRODUCT(cross_prod(1:3),r_new(1:3,iatom))*&
                cross_prod(1:3)
             ENDIF
          ENDIF
@@ -1850,8 +1942,8 @@ CONTAINS
       ENDDO
 
       DO iatom=1,natom
-         r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)+&
-            r_old(1:3,mol-1+bend_list(bend_number)%b)
+         r_new(1:3,iatom)=r_new(1:3,iatom)+&
+            r_old(1:3,bend_list(bend_number)%b)
       ENDDO
 
 ! deallocate some stuff
@@ -1895,8 +1987,7 @@ CONTAINS
 !!     - r_old: the initial coordinates of all molecules in the system
 !!     - r_new: the new coordinates of all molecules in the system
 !!     - mc_par: the mc parameters for the force env
-!!     - mol: the number of the first atom in the molecule, assuming the
-!!            next natom-1 atoms are the rest of the molecule
+!!     - molecule_type: the type of molecule we're playing with
 !!     - molecule_kind: the structure containing the molecule information
 !!     - particles: the particle_list_type for all particles in the force_env..
 !!            used to grab the mass of each atom
@@ -1908,7 +1999,7 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-  SUBROUTINE change_dihedral ( r_old,r_new,mc_par,mol,molecule_kind,&
+  SUBROUTINE change_dihedral ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
       particles,rng_stream,error)
 
 !   ***************************************************************************
@@ -1919,7 +2010,7 @@ CONTAINS
       INTENT(OUT)                            :: r_new
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    INTEGER, INTENT(IN)                      :: mol
+    INTEGER, INTENT(IN)                      :: molecule_type
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
@@ -1928,28 +2019,34 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'change_dihedral'
 
     INTEGER :: group, handle, i, iatom, ibond, ipart, istat, natom, nbond, &
-      ntorsion, nunits_tot, source, torsion_number
+      ntorsion, source, torsion_number
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_d, counter
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
     LOGICAL                                  :: ionode
     REAL(KIND=dp) :: atom_mass, dis_angle, dis_angle_a, dis_angle_d, mass_a, &
-      mass_d, old_length_a, rand, rmdihedral, u, v, w, x, y, z
+      mass_d, old_length_a, rand, u, v, w, x, y, z
     REAL(KIND=dp), DIMENSION(1:3)            :: bond_a, temp
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
-
+    REAL(dp),DIMENSION(:),POINTER :: rmdihedral
+    INTEGER,DIMENSION(:),POINTER   :: nunits
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
+      NULLIFY(rmdihedral,torsion_list,bond_list,mc_molecule_info)
+
 ! get some stuff from mc_par
-      CALL get_mc_par(mc_par,nunits_tot=nunits_tot,rmdihedral=rmdihedral,&
-         source=source,group=group,ionode=ionode)
+      CALL get_mc_par(mc_par,rmdihedral=rmdihedral,&
+         source=source,group=group,ionode=ionode,&
+         mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits=nunits)
 
 ! copy the incoming coordinates so we can change them
-      DO ipart=1,nunits_tot
+      DO ipart=1,nunits(molecule_type)
          r_new(1:3,ipart)=r_old(1:3,ipart)
       ENDDO
 
@@ -2027,12 +2124,12 @@ CONTAINS
       IF(ionode) rand=next_random_number(rng_stream,error=error)
       CALL mp_bcast(rand,source,group)
 
-      dis_angle=rmdihedral*2.0E0_dp*(rand-0.5E0_dp)
+      dis_angle=rmdihedral(molecule_type)*2.0E0_dp*(rand-0.5E0_dp)
 
 ! find the bond vectors, B-C, so we know what to rotate around
       DO i=1,3
-         bond_a(i)=r_new(i,mol-1+torsion_list(torsion_number)%c)-&
-            r_new(i,mol-1+torsion_list(torsion_number)%b)
+         bond_a(i)=r_new(i,torsion_list(torsion_number)%c)-&
+            r_new(i,torsion_list(torsion_number)%b)
       ENDDO
       old_length_a=SQRT(DOT_PRODUCT(bond_a,bond_a))
       bond_a(1:3)=bond_a(1:3)/old_length_a
@@ -2047,17 +2144,17 @@ CONTAINS
 
          IF(atom_a(iatom) == 1) THEN
 ! shift the coords so b is at the origin
-            r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)-&
-               r_new(1:3,mol-1+torsion_list(torsion_number)%b)
+            r_new(1:3,iatom)=r_new(1:3,iatom)-&
+               r_new(1:3,torsion_list(torsion_number)%b)
 
 
 ! multiply by the rotation matrix
                u=bond_a(1)
                v=bond_a(2)
                w=bond_a(3)
-               x=r_new(1,mol-1+iatom)
-               y=r_new(2,mol-1+iatom)
-               z=r_new(3,mol-1+iatom)
+               x=r_new(1,iatom)
+               y=r_new(2,iatom)
+               z=r_new(3,iatom)
                temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*COS(dis_angle_a)+&
                   SQRT(u**2+v**2+w**2)*(v*z-w*y)*SIN(dis_angle_a))/(u**2+v**2+w**2)
                temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*COS(dis_angle_a)+&
@@ -2066,22 +2163,22 @@ CONTAINS
                   SQRT(u**2+v**2+w**2)*(u*y-v*x)*SIN(dis_angle_a))/(u**2+v**2+w**2)
 
 ! shift back to the original position
-            temp(1:3)=temp(1:3)+r_new(1:3,mol-1+torsion_list(torsion_number)%b)
-            r_new(1:3,mol-1+iatom)=temp(1:3)
+            temp(1:3)=temp(1:3)+r_new(1:3,torsion_list(torsion_number)%b)
+            r_new(1:3,iatom)=temp(1:3)
 
          ELSEIF(atom_d(iatom) == 1) THEN
 
 ! shift the coords so c is at the origin
-            r_new(1:3,mol-1+iatom)=r_new(1:3,mol-1+iatom)-&
-               r_new(1:3,mol-1+torsion_list(torsion_number)%c)
+            r_new(1:3,iatom)=r_new(1:3,iatom)-&
+               r_new(1:3,torsion_list(torsion_number)%c)
 
 ! multiply by the rotation matrix
                u=bond_a(1)
                v=bond_a(2)
                w=bond_a(3)
-               x=r_new(1,mol-1+iatom)
-               y=r_new(2,mol-1+iatom)
-               z=r_new(3,mol-1+iatom)
+               x=r_new(1,iatom)
+               y=r_new(2,iatom)
+               z=r_new(3,iatom)
                temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*COS(dis_angle_d)+&
                   SQRT(u**2+v**2+w**2)*(v*z-w*y)*SIN(dis_angle_d))/(u**2+v**2+w**2)
                temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*COS(dis_angle_d)+&
@@ -2090,8 +2187,8 @@ CONTAINS
                   SQRT(u**2+v**2+w**2)*(u*y-v*x)*SIN(dis_angle_d))/(u**2+v**2+w**2)
 
 ! shift back to the original position
-            temp(1:3)=temp(1:3)+r_new(1:3,mol-1+torsion_list(torsion_number)%c)
-            r_new(1:3,mol-1+iatom)=temp(1:3)
+            temp(1:3)=temp(1:3)+r_new(1:3,torsion_list(torsion_number)%c)
+            r_new(1:3,iatom)=temp(1:3)
          ENDIF
       ENDDO
 
@@ -2137,10 +2234,13 @@ CONTAINS
 !!     - enegy_check: the running energy difference between now and the inital energy
 !!     - r_old: the coordinates of force_env before the move
 !!     - old_energy: the energy of the force_env before the move
-!!     - mol_swap: the number of the moving molecule's first atom, assuming the rest of
+!!     - start_atom_swap: the number of the swap molecule's first atom, assuming the rest of
 !!       the atoms follow sequentially
-!!     - mol_target: the number of the target molecule's first atom
-!!     - bias_energy: the biased energy of the system before the move
+!!     - target_atom: the number of the target atom for swapping
+!!     - molecule_type: the molecule type for the atom we're swapping
+!!     - box_number: the number of the box we're doing this move in
+!!     - bias_energy_old: the biased energy of the system before the move
+!!     - last_bias_energy: the last biased energy of the system
 !!     - move_type: dictates if we're moving to an "in" or "out" region
 !!     - rng_stream: the random number stream that we draw from
 !!     - error: the cp_error type
@@ -2153,8 +2253,10 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_avbmc_move ( mc_par,force_env,bias_env, moves,&
-                        energy_check,r_old,old_energy,mol_swap,&
-                        mol_target,bias_energy_old,move_type,rng_stream,error)
+                        energy_check,r_old,old_energy,start_atom_swap,&
+                        target_atom,&
+                        molecule_type,box_number,bias_energy_old,last_bias_energy,&
+                        move_type,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -2166,8 +2268,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy
-    INTEGER, INTENT(IN)                      :: mol_swap, mol_target
-    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy_old
+    INTEGER, INTENT(IN)                      :: start_atom_swap, target_atom,&
+         box_number,molecule_type
+    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy_old,&
+         last_bias_energy
     CHARACTER(LEN=*), INTENT(IN)             :: move_type
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)  &
@@ -2175,12 +2279,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_avbmc_move'
 
-    INTEGER :: avbmc_atom, group, handle, imolecule, ipart, istat, natom, &
-      nchain, nswapmoves, nunits_tot, source
+    INTEGER :: group, handle, ipart, istat, natom, &
+      nswapmoves, source, start_mol,jbox,end_mol
     LOGICAL                                  :: ionode, lbias, ldum, lin, &
                                                 loverlap
-    REAL(KIND=dp) :: avbmc_rmax, avbmc_rmin, BETA, bias_energy_new, &
-      del_quickstep_energy, distance, new_energy, pbias, prefactor, rand, &
+    REAL(KIND=dp) :: BETA, bias_energy_new, &
+      del_quickstep_energy, distance, new_energy, prefactor, rand, &
       rdum, volume_in, volume_out, w, weight_new, weight_old
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new
@@ -2191,7 +2295,11 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles, particles_force
-
+    INTEGER,DIMENSION(:),POINTER             :: mol_type,nunits,nunits_tot,avbmc_atom
+    INTEGER,DIMENSION(:,:),POINTER           :: nchains
+    REAL(dp),DIMENSION(:,:),POINTER          :: mass
+    REAL(dp),DIMENSION(:),POINTER          :: avbmc_rmin,avbmc_rmax,pbias
+    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
 !   ---------------------------------------------------------------------------
 
       rdum=1.0_dp
@@ -2200,11 +2308,19 @@ CONTAINS
       CALL timeset(routineN,'I','',handle)
 
 ! get a bunch of stuff from mc_par
-      CALL get_mc_par(mc_par,lbias=lbias,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,avbmc_atom=avbmc_atom,&
+      CALL get_mc_par(mc_par,lbias=lbias,&
+         BETA=BETA,avbmc_atom=avbmc_atom,&
          avbmc_rmin=avbmc_rmin,avbmc_rmax=avbmc_rmax,&
          nswapmoves=nswapmoves,ionode=ionode,source=source,&
-         group=group,pbias=pbias)
+         group=group,pbias=pbias,mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,&
+           mass=mass,nunits=nunits,nunits_tot=nunits_tot,mol_type=mol_type)
+! figure out some bounds for mol_type
+      start_mol=1
+      DO jbox=1,box_number-1
+         start_mol=start_mol+SUM(nchains(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains(:,box_number))-1
 
 
 ! nullify some pointers
@@ -2212,9 +2328,9 @@ CONTAINS
          particles_force,subsys_force)
 
 ! do some allocation
-      ALLOCATE (r_new(1:3,1:nunits_tot),STAT=istat)
+      ALLOCATE (r_new(1:3,1:nunits_tot(box_number)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "r_new",3*nunits_tot*dp_size)
+                       "r_new",3*nunits_tot(box_number)*dp_size)
 
 ! now we need to grab and save coordinates, in case we reject
 ! are we biasing this move?
@@ -2247,20 +2363,20 @@ CONTAINS
 
 ! let's determine if the molecule to be moved is in the "in" region or the
 ! "out" region of the target
-      RIJ(1)=particles%els(mol_swap+avbmc_atom-1)%r(1)-&
-         particles%els(mol_target+avbmc_atom-1)%r(1)-abc(1)*ANINT(&
-         (particles%els(mol_swap+avbmc_atom-1)%r(1)-&
-         particles%els(mol_target+avbmc_atom-1)%r(1))/abc(1))
-      RIJ(2)=particles%els(mol_swap+avbmc_atom-1)%r(2)-&
-         particles%els(mol_target+avbmc_atom-1)%r(2)-abc(2)*ANINT(&
-         (particles%els(mol_swap+avbmc_atom-1)%r(2)-&
-         particles%els(mol_target+avbmc_atom-1)%r(2))/abc(2))
-      RIJ(3)=particles%els(mol_swap+avbmc_atom-1)%r(3)-&
-         particles%els(mol_target+avbmc_atom-1)%r(3)-abc(3)*ANINT(&
-         (particles%els(mol_swap+avbmc_atom-1)%r(3)-&
-         particles%els(mol_target+avbmc_atom-1)%r(3))/abc(3))
+      RIJ(1)=particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(1)-&
+         particles%els(target_atom)%r(1)-abc(1)*ANINT(&
+         (particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(1)-&
+         particles%els(target_atom)%r(1))/abc(1))
+      RIJ(2)=particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(2)-&
+         particles%els(target_atom)%r(2)-abc(2)*ANINT(&
+         (particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(2)-&
+         particles%els(target_atom)%r(2))/abc(2))
+      RIJ(3)=particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(3)-&
+         particles%els(target_atom)%r(3)-abc(3)*ANINT(&
+         (particles%els(start_atom_swap+avbmc_atom(molecule_type)-1)%r(3)-&
+         particles%els(target_atom)%r(3))/abc(3))
       distance=SQRT(RIJ(1)**2+RIJ(2)**2+RIJ(3)**2)
-      IF(distance .LE. avbmc_rmax .AND. distance .GE. avbmc_rmin) THEN
+      IF(distance .LE. avbmc_rmax(molecule_type) .AND. distance .GE. avbmc_rmin(molecule_type)) THEN
          lin=.TRUE.
       ELSE
          lin=.FALSE.
@@ -2270,51 +2386,59 @@ CONTAINS
 !     swapping into the "in" region of mol_target
       IF(lin) THEN
          IF(move_type == 'in' ) THEN
-            moves%avbmc_inin%attempts=moves%avbmc_inin%attempts+1
+            moves%avbmc_inin%attempts=&
+                 moves%avbmc_inin%attempts+1
          ELSE
-            moves%avbmc_inout%attempts=moves%avbmc_inout%attempts+1
+            moves%avbmc_inout%attempts=&
+                 moves%avbmc_inout%attempts+1
          ENDIF
       ELSE
          IF(move_type == 'in' ) THEN
-            moves%avbmc_outin%attempts=moves%avbmc_outin%attempts+1
+            moves%avbmc_outin%attempts=&
+                 moves%avbmc_outin%attempts+1
          ELSE
-            moves%avbmc_outout%attempts=moves%avbmc_outout%attempts+1
+            moves%avbmc_outout%attempts=&
+                 moves%avbmc_outout%attempts+1
          ENDIF
       ENDIF
 
-! now try the move
-      imolecule=(mol_swap+natom-1)/natom
       IF(lbias) THEN
 
          IF(move_type == 'in') THEN
 
 ! do CBMC for the old config
             CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
-               weight_old,imolecule,ldum, rdum,&
-               bias_energy_old,ionode,source,group,rng_stream,error,&
-               avbmc_atom=avbmc_atom,&
-               rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='out',&
-               mol_target=mol_target,rem_molecule=imolecule)
+               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+               mass(:,molecule_type),ldum, rdum,&
+               bias_energy_old,ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
+               source,group,rng_stream,error,&
+               avbmc_atom=avbmc_atom(molecule_type),&
+               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='out',&
+               target_atom=target_atom)
 
          ELSE
 
 ! do CBMC for the old config
            CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
-               weight_old,imolecule,ldum, rdum,&
-               bias_energy_old,ionode,source,group,rng_stream,error,&
-               avbmc_atom=avbmc_atom,&
-               rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='in',&
-               mol_target=mol_target,rem_molecule=imolecule)
+               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+               mass(:,molecule_type),ldum, rdum,&
+               bias_energy_old,ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
+               source,group,rng_stream,error,&
+               avbmc_atom=avbmc_atom(molecule_type),&
+               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='in',&
+               target_atom=target_atom)
 
          ENDIF
 
 ! generate the new config
          CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
-            weight_new,imolecule,loverlap, bias_energy_new,&
-            bias_energy_old,ionode,source,group,rng_stream,error,&
-            avbmc_atom=avbmc_atom,&
-            rmin=avbmc_rmin,rmax=avbmc_rmax,move_type=move_type,&
-            mol_target=mol_target)
+            weight_new,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+            mass(:,molecule_type),loverlap, bias_energy_new,&
+            bias_energy_old,ionode,.FALSE.,mol_type(start_mol:end_mol),nchains(:,box_number),&
+            source,group,rng_stream,error,&
+            avbmc_atom=avbmc_atom(molecule_type),&
+            rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type=move_type,&
+            target_atom=target_atom)
 
 ! the energy that comes out of the above routine is the difference...we want
 ! the real energy for the acceptance rule...we don't do this for the
@@ -2329,28 +2453,34 @@ CONTAINS
 
 ! find the weight of the old config
             CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-               weight_old,imolecule,ldum,rdum,old_energy,&
-               ionode,source,group,rng_stream,error,avbmc_atom=avbmc_atom,&
-               rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='out',&
-               mol_target=mol_target,rem_molecule=imolecule)
+               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+               mass(:,molecule_type),ldum,rdum,old_energy,&
+               ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
+               avbmc_atom=avbmc_atom(molecule_type),&
+               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='out',&
+               target_atom=target_atom)
 
          ELSE
 
 ! find the weight of the old config
             CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-               weight_old,imolecule,ldum,rdum,old_energy,&
-               ionode,source,group,rng_stream,error,avbmc_atom=avbmc_atom,&
-               rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='in',&
-               mol_target=mol_target,rem_molecule=imolecule)
+               weight_old,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+               mass(:,molecule_type),ldum,rdum,old_energy,&
+               ionode,.TRUE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
+               avbmc_atom=avbmc_atom(molecule_type),&
+               rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type='in',&
+               target_atom=target_atom)
 
          ENDIF
 
  ! generate the new config...do this after, because it changes the force_env
         CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
-            weight_new,imolecule,loverlap,new_energy,old_energy,&
-            ionode,source,group,rng_stream,error,avbmc_atom=avbmc_atom,&
-            rmin=avbmc_rmin,rmax=avbmc_rmax,move_type=move_type,&
-            mol_target=mol_target)
+            weight_new,start_atom_swap,nunits_tot(box_number),nunits,nunits(molecule_type),&
+            mass(:,molecule_type),loverlap,new_energy,old_energy,&
+            ionode,.FALSE.,mol_type(start_mol:end_mol),nchains(:,box_number),source,group,rng_stream,error,&
+            avbmc_atom=avbmc_atom(molecule_type),&
+            rmin=avbmc_rmin(molecule_type),rmax=avbmc_rmax(molecule_type),move_type=move_type,&
+            target_atom=target_atom)
 
       ENDIF
 
@@ -2371,7 +2501,7 @@ CONTAINS
             CALL cp_subsys_get(subsys(1)%subsys, &
                particles=particles,error=error)
          ENDIF
-         DO ipart=1,nunits_tot
+         DO ipart=1,nunits_tot(box_number)
             particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
          ENDDO
 
@@ -2392,7 +2522,7 @@ CONTAINS
             subsys=subsys,error=error)
          CALL cp_subsys_get(subsys(1)%subsys, &
             particles=particles,error=error)
-         DO ipart=1,nunits_tot
+         DO ipart=1,nunits_tot(box_number)
             particles_force%els(ipart)%r(1:3)=particles%els(ipart)%r(1:3)
          ENDDO
 
@@ -2403,7 +2533,7 @@ CONTAINS
 
       ENDIF
 
-      volume_in=4.0_dp/3.0_dp*pi*(avbmc_rmax**3-avbmc_rmin**3)
+      volume_in=4.0_dp/3.0_dp*pi*(avbmc_rmax(molecule_type)**3-avbmc_rmin(molecule_type)**3)
       volume_out=abc(1)*abc(2)*abc(3)-volume_in
 
       IF(lin .AND. move_type == 'in' .OR. &
@@ -2411,9 +2541,9 @@ CONTAINS
 ! standard Metropolis rule
          prefactor=1.0_dp
       ELSEIF(.NOT. lin .AND. move_type == 'in') THEN
-         prefactor=(1.0_dp-pbias)*volume_in/(pbias*volume_out)
+         prefactor=(1.0_dp-pbias(molecule_type))*volume_in/(pbias(molecule_type)*volume_out)
       ELSE
-         prefactor=pbias*volume_out/((1.0_dp-pbias)*volume_in)
+         prefactor=pbias(molecule_type)*volume_out/((1.0_dp-pbias(molecule_type))*volume_in)
       ENDIF
 
       IF(lbias) THEN
@@ -2457,15 +2587,19 @@ CONTAINS
 
          IF(lin) THEN
             IF(move_type == 'in' ) THEN
-               moves%avbmc_inin%successes=moves%avbmc_inin%successes+1
+               moves%avbmc_inin%successes=&
+                    moves%avbmc_inin%successes+1
             ELSE
-               moves%avbmc_inout%successes=moves%avbmc_inout%successes+1
+               moves%avbmc_inout%successes=&
+                    moves%avbmc_inout%successes+1
             ENDIF
          ELSE
             IF(move_type == 'in' ) THEN
-               moves%avbmc_outin%successes=moves%avbmc_outin%successes+1
+               moves%avbmc_outin%successes=&
+                    moves%avbmc_outin%successes+1
             ELSE
-               moves%avbmc_outout%successes=moves%avbmc_outout%successes+1
+               moves%avbmc_outout%successes=&
+                    moves%avbmc_outout%successes+1
             ENDIF
          ENDIF
 
@@ -2481,7 +2615,8 @@ CONTAINS
 
 ! if we're biasing the update the biasing energy
          IF (lbias) THEN
-            moves%bias_energy=bias_energy_new
+! need to do this outside of the routine
+            last_bias_energy=bias_energy_new
             bias_energy_old=bias_energy_new
          ENDIF
 
@@ -2490,7 +2625,7 @@ CONTAINS
             subsys=subsys,error=error)
          CALL cp_subsys_get(subsys(1)%subsys, &
             particles=particles,error=error)
-         DO ipart=1,nunits_tot
+         DO ipart=1,nunits_tot(box_number)
             r_old(1:3,ipart)=particles%els(ipart)%r(1:3)
          ENDDO
 
@@ -2502,7 +2637,7 @@ CONTAINS
             CALL force_env_get(bias_env,subsys=subsys,error=error)
             CALL cp_subsys_get(subsys(1)%subsys, &
                particles=particles, error=error)
-            DO ipart=1,nunits_tot
+            DO ipart=1,nunits_tot(box_number)
                particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
             ENDDO
             CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)
@@ -2510,7 +2645,7 @@ CONTAINS
          CALL force_env_get(force_env,subsys=subsys,error=error)
          CALL cp_subsys_get(subsys(1)%subsys, &
             particles=particles, error=error)
-         DO ipart=1,nunits_tot
+         DO ipart=1,nunits_tot(box_number)
             particles%els(ipart)%r(1:3)=r_old(1:3,ipart)
          ENDDO
          CALL cp_subsys_set(subsys(1)%subsys,particles=particles,error=error)

@@ -24,7 +24,6 @@
 !******************************************************************************
 
 MODULE mc_ge_moves
-  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_p_type,&
@@ -40,30 +39,29 @@ MODULE mc_ge_moves
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_release,&
-                                             force_env_type
-  USE global_types,                    ONLY: global_environment_type
+                                             force_env_release
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_release,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_release
   USE kinds,                           ONLY: dp,&
-                                             dp_size
+                                             dp_size,&
+                                             default_string_length
   USE mc_control,                      ONLY: mc_create_force_env
   USE mc_coordinates,                  ONLY: check_for_overlap,&
                                              generate_cbmc_swap_config,&
-                                             get_center_of_mass,&
-                                             mc_coordinate_fold
-  USE mc_misc,                         ONLY: mc_make_dat_file
+                                             get_center_of_mass
+  USE mc_misc,                         ONLY: mc_make_dat_file_new
   USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_moves_p_type,&
                                              mc_simulation_parameters_p_type,&
-                                             set_mc_par
+                                             set_mc_par,&
+                                             mc_molecule_info_type,&
+                                             get_mc_molecule_info,&
+                                             mc_molecule_info_destroy,&
+                                             mc_determine_molecule_info,&
+                                             mc_input_file_type
   USE message_passing,                 ONLY: mp_bcast
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
@@ -124,7 +122,6 @@ CONTAINS
 !!       recompute the energy
 !!     - subsys: the pointers for the particle subsystems of both boxes
 !!     - particles: the pointers for the particle sets
-!!     - cell: the pointers for the cells
 !!     - rng_stream: the stream we pull random numbers from
 !!     - error: the cp_error_type in case something goes wrong
 !!
@@ -136,8 +133,8 @@ CONTAINS
 !!*****************************************************************************
   SUBROUTINE mc_Quickstep_move(mc_par,force_env,bias_env,moves,&
                         lreject,move_updates,energy_check,r_old,&
-                        nnstep,old_energy,bias_energy_new,&
-                        nboxes,box_flag,subsys,particles,cell,rng_stream,error)
+                        nnstep,old_energy,bias_energy_new,last_bias_energy,&
+                        nboxes,box_flag,subsys,particles,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -145,25 +142,23 @@ CONTAINS
       DIMENSION(:), POINTER                  :: mc_par
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env, bias_env
-    TYPE(mc_moves_p_type), DIMENSION(:), &
-      POINTER                                :: moves
+    TYPE(mc_moves_p_type), DIMENSION(:,:), &
+      POINTER                                :: moves,move_updates
     LOGICAL, INTENT(IN)                      :: lreject
-    TYPE(mc_moves_p_type), DIMENSION(:), &
-      POINTER                                :: move_updates
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: energy_check
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: r_old
     INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: old_energy, bias_energy_new
+      INTENT(INOUT)                          :: old_energy, bias_energy_new,&
+      last_bias_energy
     INTEGER, INTENT(IN)                      :: nboxes
     INTEGER, DIMENSION(:), INTENT(IN)        :: box_flag
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
-    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
@@ -172,8 +167,9 @@ CONTAINS
 
     INTEGER                                  :: group, handle, ibox, &
                                                 iparticle, iprint, istat, &
-                                                source
-    INTEGER, DIMENSION(1:nboxes)             :: diff, nchain, nunits_tot
+                                                source,nmol_types, itype,&
+                                                start_mol,end_mol,jbox
+    INTEGER, DIMENSION(1:nboxes)             :: diff
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, energies, rand, w
     REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy_old, new_energy
@@ -181,7 +177,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys_bias
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_bias
-
+    TYPE(mc_molecule_info_type),POINTER           :: mc_molecule_info
+    INTEGER,DIMENSION(:,:),POINTER :: nchains
+    INTEGER,DIMENSION(:),POINTER :: nunits_tot,nunits,mol_type
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -192,12 +190,14 @@ CONTAINS
 ! get a bunch of data from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,lbias=lbias,&
          BETA=BETA,diff=diff(1),source=source,group=group,&
-         nunits_tot=nunits_tot(1),nchain=nchain(1),iprint=iprint)
+         iprint=iprint,&
+         mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
+           nchains=nchains,nunits_tot=nunits_tot,nunits=nunits,mol_type=mol_type)
 
       IF(nboxes .GT. 1) THEN
          DO ibox=2,nboxes
-            CALL get_mc_par(mc_par(ibox)%mc_par,nchain=nchain(ibox),&
-               diff=diff(ibox),nunits_tot=nunits_tot(ibox))
+            CALL get_mc_par(mc_par(ibox)%mc_par,diff=diff(ibox))
          ENDDO
       ENDIF
 
@@ -209,11 +209,11 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_bias",nboxes)
 
-! record the attempt
-      DO ibox=1,nboxes
-         moves(ibox)%moves%Quickstep%attempts=&
-            moves(ibox)%moves%Quickstep%attempts+1
-      ENDDO
+! record the attempt...we really only care about molecule type 1 and box
+! type 1, since the acceptance will be identical for all boxes and molecules
+      moves(1,1)%moves%Quickstep%attempts=&
+           moves(1,1)%moves%Quickstep%attempts+1
+
 
 ! grab the coordinates for the force_env
       DO ibox=1,nboxes
@@ -263,9 +263,9 @@ CONTAINS
 ! write them out in case something bad happens
          IF(MOD(nnstep,iprint) == 0) THEN
             DO ibox=1,nboxes
-               IF(nchain(ibox) == 0) THEN
+               IF(SUM(nchains(:,ibox)) == 0) THEN
                   WRITE(diff(ibox),*) nnstep
-                  WRITE(diff(ibox),*) nchain(ibox)
+                  WRITE(diff(ibox),*) nchains(:,ibox)
                ELSE
                   WRITE(diff(ibox),*) nnstep
                   CALL write_particle_coordinates(&
@@ -281,14 +281,20 @@ CONTAINS
 
             DO ibox=1,nboxes
 ! look for overlap
-               IF(nchain(ibox) .NE. 0) THEN
+               IF(SUM(nchains(:,ibox)) .NE. 0) THEN
+! find the molecule bounds                  
+                  start_mol=1
+                  DO jbox=1,ibox-1
+                     start_mol=start_mol+SUM(nchains(:,jbox))
+                  ENDDO
+                  end_mol=start_mol+SUM(nchains(:,ibox))-1
                   CALL check_for_overlap(bias_env(ibox)%force_env,&
-                     nchain(ibox),1,nchain(ibox),loverlap)
+                     nchains(:,ibox),nunits(:),loverlap,mol_type(start_mol:end_mol))
                   IF(loverlap) CALL stop_program(routineN,&
                      moduleN,__LINE__,&
                      'Quickstep move found an overlap in the old config')
                ENDIF
-               bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
+               bias_energy_old(ibox)=last_bias_energy(ibox)
             ENDDO
 
             energies=-BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:)))&
@@ -334,29 +340,32 @@ CONTAINS
 
       IF (rand .LT. w) THEN
 
-         DO ibox=1,nboxes
 ! accept the move
-            moves(ibox)%moves%Quickstep%successes=&
-               moves(ibox)%moves%Quickstep%successes+1
+         moves(1,1)%moves%Quickstep%successes=&
+              moves(1,1)%moves%Quickstep%successes+1
 
+         DO ibox=1,nboxes
 ! remember what kind of move we did for lbias=.false.
             IF(.NOT. lbias) THEN
-               CALL q_move_accept(moves(ibox)%moves,.TRUE.)
-               CALL q_move_accept(move_updates(ibox)%moves,.TRUE.)
+               DO itype=1,nmol_types
+                  CALL q_move_accept(moves(itype,ibox)%moves,.TRUE.)
+                  CALL q_move_accept(move_updates(itype,ibox)%moves,.TRUE.)
 
 ! reset the counters
-               CALL move_q_reinit(moves(ibox)%moves, .TRUE.)
-               CALL move_q_reinit(move_updates(ibox)%moves, .TRUE.)
-
+                  CALL move_q_reinit(moves(itype,ibox)%moves, .TRUE.)
+                  CALL move_q_reinit(move_updates(itype,ibox)%moves, .TRUE.)
+               ENDDO
             ENDIF
 
+            DO itype=1,nmol_types
 ! we need to record all accepted moves since last Quickstep calculation
-            CALL q_move_accept(moves(ibox)%moves,.FALSE.)
-            CALL q_move_accept(move_updates(ibox)%moves,.FALSE.)
+               CALL q_move_accept(moves(itype,ibox)%moves,.FALSE.)
+               CALL q_move_accept(move_updates(itype,ibox)%moves,.FALSE.)
 
 ! reset the counters
-            CALL move_q_reinit(moves(ibox)%moves, .FALSE.)
-            CALL move_q_reinit(move_updates(ibox)%moves, .FALSE.)
+               CALL move_q_reinit(moves(itype,ibox)%moves, .FALSE.)
+               CALL move_q_reinit(move_updates(itype,ibox)%moves, .FALSE.)
+            ENDDO
 
 ! update energies
             energy_check(ibox)=energy_check(ibox)+&
@@ -367,7 +376,7 @@ CONTAINS
 
          IF ( lbias) THEN
             DO ibox=1,nboxes
-               moves(ibox)%moves%bias_energy=bias_energy_new(ibox)
+               last_bias_energy(ibox)=bias_energy_new(ibox)
             ENDDO
          ENDIF
 
@@ -385,13 +394,15 @@ CONTAINS
 
  ! reject the move
          DO ibox=1,nboxes
-            CALL move_q_reinit(moves(ibox)%moves,.FALSE.)
-            CALL move_q_reinit(move_updates(ibox)%moves,.FALSE.)
-            IF(.NOT. lbias) THEN
+            DO itype=1,nmol_types
+               CALL move_q_reinit(moves(itype,ibox)%moves,.FALSE.)
+               CALL move_q_reinit(move_updates(itype,ibox)%moves,.FALSE.)
+               IF(.NOT. lbias) THEN
 ! reset the counters
-               CALL move_q_reinit(moves(ibox)%moves, .TRUE.)
-               CALL move_q_reinit(move_updates(ibox)%moves, .TRUE.)
-            ENDIF
+                  CALL move_q_reinit(moves(itype,ibox)%moves, .TRUE.)
+                  CALL move_q_reinit(move_updates(itype,ibox)%moves, .TRUE.)
+               ENDIF
+            ENDDO
 
          ENDDO
 
@@ -415,7 +426,7 @@ CONTAINS
 ! need to reset the energies of the biasing potential
          IF ( lbias) THEN
             DO ibox=1,nboxes
-               bias_energy_new(ibox)=moves(ibox)%moves%bias_energy
+               bias_energy_new(ibox)=last_bias_energy(ibox)
             ENDDO
          ENDIF
 
@@ -466,10 +477,10 @@ CONTAINS
 !!              full potential calculation for both boxes
 !!     - old_energy: the energy of the last accepted move involving a
 !!                   a full potential calculation
-!!     - nnstep: the Monte Carlo step we're on
-!!     - globenv: the global environment for the whole simulation
+!!     - para_env: the parallel environment for this simulation
 !!     - bias_energy_old: the energies of both boxes computed using the biasing
 !!       potential
+!!     - last_bias_energy: the energy for the biased simulations
 !!     - rng_stream: the stream we pull random numbers from
 !!     - error: the cp_error_type in case something goes wrong
 !!
@@ -482,7 +493,8 @@ CONTAINS
 
   SUBROUTINE mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check,r_old,old_energy,&
-                para_env,globenv,bias_energy_old,rng_stream,force_env_section,error)
+                para_env,bias_energy_old,last_bias_energy,&
+                rng_stream,error)
 
 !   ***************************************************************************
 
@@ -490,7 +502,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: mc_par
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env, bias_env
-    TYPE(mc_moves_p_type), DIMENSION(:), &
+    TYPE(mc_moves_p_type), DIMENSION(:,:), &
       POINTER                                :: moves
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: energy_check
@@ -499,11 +511,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: old_energy
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), DIMENSION(1:2), &
-      INTENT(INOUT)                          :: bias_energy_old
+      INTENT(INOUT)                          :: bias_energy_old,&
+      last_bias_energy
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
 
@@ -511,20 +522,21 @@ CONTAINS
 
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
-    INTEGER :: group, handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
-      insert_box, ipart, istat, natom, nswapmoves, print_level, rem_atoms, &
-      remove_box, source
-    INTEGER, DIMENSION(1:2)                  :: nchain, nunits_tot
+    INTEGER :: group, handle, iatom, ibox, iiatom, imolecule, ins_atoms, &
+      insert_box, ipart, istat, nswapmoves, print_level, rem_atoms, &
+      remove_box, source,molecule_type, nmol_types,itype,start_atom_rem,&
+      start_atom_ins,idim,start_mol,end_mol,jbox
+    INTEGER, DIMENSION(:),POINTER                  :: nunits_tot,nunits
+    INTEGER, DIMENSION(:,:),POINTER                  :: nchains,nchains_test
     LOGICAL                                  :: ionode, lbias, loverlap, &
                                                 loverlap_ins, loverlap_rem
     REAL(KIND=dp)                            :: BETA, del_quickstep_energy, &
                                                 prefactor, rand, rdum, w, &
                                                 weight_new, weight_old
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cbmc_energies, r_cbmc, &
-                                                r_insert, r_insert_mol, &
-                                                r_remove
+                                                r_insert_mol
     REAL(KIND=dp), DIMENSION(1:2)            :: bias_energy_new, new_energy
     REAL(KIND=dp), DIMENSION(1:3)            :: abc_insert, abc_remove, &
                                                 center_of_mass, &
@@ -534,16 +546,20 @@ CONTAINS
       DIMENSION(:), POINTER                  :: insert_sys, remove_sys
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(force_env_type), POINTER            :: insert_env, insert_env_bias, &
-                                                remove_env, remove_env_bias
-    TYPE(mol_kind_new_list_p_type), &
-      DIMENSION(:), POINTER                  :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(force_env_p_type), DIMENSION(:), &
+         POINTER     :: test_env,test_env_bias
+
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
     TYPE(particle_list_type), POINTER        :: particles_insert, &
                                                 particles_remove
-
+    TYPE(mc_molecule_info_type), POINTER :: mc_molecule_info,mc_molecule_info_test
+    REAL(dp),DIMENSION(:),POINTER :: pmswap_mol
+    REAL(dp),DIMENSION(:,:),POINTER :: insert_coords,remove_coords
+    CHARACTER(default_string_length),DIMENSION(:,:),POINTER :: atom_names
+    CHARACTER(default_string_length),DIMENSION(:),ALLOCATABLE :: atom_names_insert,atom_names_remove
+    INTEGER,DIMENSION(:),POINTER :: mol_type,mol_type_test
+    TYPE(mc_input_file_type),POINTER :: mc_input_file,mc_bias_file
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -553,19 +569,21 @@ CONTAINS
       loverlap=.FALSE.
 
 ! nullify some pointers
-      NULLIFY(particles_old)
-      NULLIFY(oldsys)
+      NULLIFY(particles_old,mol_type,mol_type_test,mc_input_file,mc_bias_file)
+      NULLIFY(oldsys,atom_names,pmswap_mol,insert_coords,remove_coords)
 
 ! grab some stuff from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
          nswapmoves=nswapmoves,group=group,source=source,&
-         lbias=lbias,nchain=nchain(1),nunits_tot=nunits_tot(1),&
-         dat_file=dat_file(1),fft_lib=fft_lib)
+         lbias=lbias,dat_file=dat_file(1),fft_lib=fft_lib,&
+         mc_molecule_info=mc_molecule_info,pmswap_mol=pmswap_mol)
+      CALL get_mc_molecule_info(mc_molecule_info,nchains=nchains,&
+           nunits=nunits,nunits_tot=nunits_tot,nmol_types=nmol_types,&
+           atom_names=atom_names,mass=mass,mol_type=mol_type)
 
       print_level = 1
 
-      CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
-         nunits_tot=nunits_tot(2),dat_file=dat_file(2))
+      CALL get_mc_par(mc_par(2)%mc_par,dat_file=dat_file(2))
 
 ! allocate some stuff
       ALLOCATE(oldsys(1:2),STAT=istat)
@@ -574,23 +592,18 @@ CONTAINS
       ALLOCATE(particles_old(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old",2)
-      ALLOCATE(molecule_kinds_new(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "molecule_kinds_new",2)
 
 ! get the old coordinates
       DO ibox=1,2
          CALL force_env_get(force_env(ibox)%force_env,&
              subsys=oldsys(ibox)%subsys,error=error)
          CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
-            molecule_kinds_new=molecule_kinds_new(ibox)%list,&
             particles=particles_old(ibox)%list, &
             error=error)
       ENDDO
 
 !     choose a direction to swap
       IF(ionode) rand=next_random_number(rng_stream,error=error)
-!         CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
 
       IF ( rand .LE. 0.50E0_dp ) THEN
@@ -601,38 +614,68 @@ CONTAINS
          insert_box=1
       ENDIF
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! testing
+!      remove_box=2
+!      insert_box=1
+
+! now choose a molecule type at random
+      IF(ionode) rand=next_random_number(rng_stream,error=error)
+      CALL mp_bcast(rand,source,group)
+      DO itype=1,nmol_types
+         IF(rand .LT. pmswap_mol(itype)) THEN
+            molecule_type=itype
+            EXIT
+         ENDIF
+      ENDDO
+
 ! record the attempt for the box the particle is to be inserted into
-      moves(insert_box)%moves%swap%attempts=&
-         moves(insert_box)%moves%swap%attempts+1
+      moves(molecule_type,insert_box)%moves%swap%attempts=&
+         moves(molecule_type,insert_box)%moves%swap%attempts+1
 
 ! now choose a random molecule to remove from the removal box, checking
 ! to make sure the box isn't empty
-      IF(nchain(remove_box) == 0) THEN
+      IF(nchains(molecule_type,remove_box) == 0) THEN
          loverlap=.TRUE.
-         moves(insert_box)%moves%empty=&
-            moves(insert_box)%moves%empty+1
+         moves(molecule_type,insert_box)%moves%empty=&
+            moves(molecule_type,insert_box)%moves%empty+1
       ELSE
 
          IF(ionode) rand=next_random_number(rng_stream,error=error)
-!            CALL RANDOM_NUMBER(rand)
          CALL mp_bcast(rand,source,group)
-         imolecule=CEILING(rand*nchain(remove_box))
+         imolecule=CEILING(rand*nchains(molecule_type,remove_box))
+! figure out the atom number this molecule starts on
+         start_atom_rem=1
+         DO itype=1,nmol_types
+            IF(itype == molecule_type) THEN
+               start_atom_rem=start_atom_rem+(imolecule-1)*nunits(itype)
+               EXIT
+            ELSE
+               start_atom_rem=start_atom_rem+nchains(itype,remove_box)*nunits(itype)
+            ENDIF
+         ENDDO
 
 ! check for overlap
+         start_mol=1
+         DO jbox=1,remove_box-1
+            start_mol=start_mol+SUM(nchains(:,jbox))
+         ENDDO
+         end_mol=start_mol+SUM(nchains(:,remove_box))-1
          CALL check_for_overlap(force_env(remove_box)%force_env,&
-            nchain(remove_box),1,nchain(remove_box),loverlap)
+            nchains(:,remove_box),nunits,loverlap,mol_type(start_mol:end_mol))
          IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
             'CBMC swap move found an overlap in the old remove config')
+         start_mol=1
+         DO jbox=1,insert_box-1
+            start_mol=start_mol+SUM(nchains(:,jbox))
+         ENDDO
+         end_mol=start_mol+SUM(nchains(:,insert_box))-1
          CALL check_for_overlap(force_env(insert_box)%force_env,&
-            nchain(insert_box),1,nchain(insert_box),loverlap)
+            nchains(:,insert_box),nunits,loverlap,mol_type(start_mol:end_mol))
          IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
             'CBMC swap move found an overlap in the old insert config')
       ENDIF
 
       IF(loverlap) THEN
-         DEALLOCATE(molecule_kinds_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"molecule_kinds_new")
          DEALLOCATE(oldsys,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"oldsys")
@@ -643,19 +686,34 @@ CONTAINS
          RETURN
       ENDIF
 
-! allocate a couple of arrays that depend on the box
-      molecule_kind => molecule_kinds_new(1)%list%els(1)
-      CALL get_molecule_kind(molecule_kind,natom=natom)
-      ALLOCATE(mass(1:natom),STAT=istat)
+! figure out how many atoms will be in each box after the move
+      ins_atoms=nunits_tot(insert_box)+nunits(molecule_type)
+      rem_atoms=nunits_tot(remove_box)-nunits(molecule_type)
+! now allocate the arrays that will hold the coordinates and the
+! atom name, for writing to the dat file
+      IF(rem_atoms == 0) THEN
+         ALLOCATE(remove_coords(1:3,1:nunits(1)),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+              "remove_coords",nunits(1)*3*dp_size)
+         ALLOCATE(atom_names_remove(1:nunits(1)),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+              "atom_names_remove",nunits(1)*dp_size)
+      ELSE
+         ALLOCATE(remove_coords(1:3,1:rem_atoms),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+              "remove_coords",rem_atoms*3*dp_size)
+         ALLOCATE(atom_names_remove(1:rem_atoms),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+              "atom_names_remove",rem_atoms*dp_size)
+      ENDIF
+      ALLOCATE(insert_coords(1:3,1:ins_atoms),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "mass",natom*dp_size)
-      DO iatom=1,natom
-         CALL get_atomic_kind(particles_old(1)%list%els(iatom)%atomic_kind,&
-            mass=mass(iatom))
-      ENDDO
-      ins_atoms=nunits_tot(insert_box)+natom
-      rem_atoms=nunits_tot(remove_box)-natom
+         "insert_coords",ins_atoms*3*dp_size)
+      ALLOCATE(atom_names_insert(1:ins_atoms),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "atom_names_insert",MAX(ins_atoms,rem_atoms)*dp_size)
 
+    
 ! grab the cells for later...acceptance and insertion
       IF(lbias) THEN
          CALL force_env_get(bias_env(insert_box)%force_env,&
@@ -674,37 +732,32 @@ CONTAINS
 
       IF(ionode) THEN
 ! choose an insertion point
-         DO i=1,3
-!            CALL RANDOM_NUMBER(rand)
+         DO idim=1,3
             rand=next_random_number(rng_stream,error=error)
-            pos_insert(i)=rand*abc_insert(1)
+            pos_insert(idim)=rand*abc_insert(1)
          ENDDO
       ENDIF
       CALL mp_bcast(pos_insert,source,group)
 
 ! allocate some arrays we'll be using
-!      CALL stop_program("natom value not defined here. Maybe ?natoms?",&
-!                        "mc_ge_moves.F")
-      ALLOCATE(r_insert_mol(1:3,1:natom),STAT=istat)
+      ALLOCATE(r_insert_mol(1:3,1:nunits(molecule_type)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "r_insert_mol",3*natom)
-      ALLOCATE(r_insert(1:3,1:ins_atoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "r_insert",3*ins_atoms*dp_size)
+         "r_insert_mol",3*nunits(molecule_type))
 
-      DO i=imolecule*natom-natom+1,imolecule*natom
-         ii=i-imolecule*natom+natom
-         r_insert_mol(1:3,ii)=&
-            particles_old(remove_box)%list%els(i)%r(1:3)
+      iiatom=1
+      DO iatom=start_atom_rem,start_atom_rem+nunits(molecule_type)-1
+         r_insert_mol(1:3,iiatom)=&
+            particles_old(remove_box)%list%els(iatom)%r(1:3)
+         iiatom=iiatom+1
       ENDDO
 
 !     find the center of mass of the molecule
-      CALL get_center_of_mass(r_insert_mol(:,:),natom,&
-      center_of_mass(:),mass(:))
+      CALL get_center_of_mass(r_insert_mol(:,:),nunits(molecule_type),&
+      center_of_mass(:),mass(:,molecule_type))
 
 !     move the center of mass to the insertion point
       displace_molecule(1:3)=pos_insert(1:3)-center_of_mass(1:3)
-      DO iatom=1,natom
+      DO iatom=1,nunits(molecule_type)
          r_insert_mol(1:3,iatom)=r_insert_mol(1:3,iatom)+&
             displace_molecule(1:3)
       ENDDO
@@ -712,112 +765,140 @@ CONTAINS
 ! prepare the insertion coordinates to be written to the .dat file so
 ! we can create a new force environment...remember there is still a particle
 ! in the box even if nchain=0
-      IF (nchain(insert_box) == 0) THEN
-         DO iatom=1,natom
-            r_insert(1:3,iatom)=r_insert_mol(1:3,iatom)
+      IF (SUM(nchains(:,insert_box)) == 0) THEN
+         DO iatom=1,nunits(molecule_type)
+            insert_coords(1:3,iatom)=r_insert_mol(1:3,iatom)
+            atom_names_insert(iatom)=&
+                 particles_old(insert_box)%list%els(start_atom_rem+iatom-1)%atomic_kind%name
          ENDDO
       ELSE
-         DO iatom=1,ins_atoms-natom
-            r_insert(1:3,iatom)=&
+! the problem is I can't just tack the new molecule on to the end, 
+! because of reading in the dat_file...the topology stuff will crash 
+! if the molecules aren't all grouped together, so I have to insert it 
+! at the end of the section of molecules with the same type, then 
+! remember the start number for the CBMC stuff
+         start_atom_ins=1
+         DO itype=1,nmol_types
+            start_atom_ins=start_atom_ins+&
+                 nchains(itype,insert_box)*nunits(itype)
+            IF(itype == molecule_type) EXIT
+         ENDDO         
+         DO iatom=1,start_atom_ins-1
+            insert_coords(1:3,iatom)=&
                particles_old(insert_box)%list%els(iatom)%r(1:3)
+            atom_names_insert(iatom)=&
+                 particles_old(insert_box)%list%els(iatom)%atomic_kind%name
          ENDDO
-         DO iatom=ins_atoms-natom+1,ins_atoms
-            ii=iatom-(ins_atoms-natom)
-            r_insert(1:3,iatom)=r_insert_mol(1:3,ii)
+         iiatom=1
+         DO iatom=start_atom_ins,start_atom_ins+nunits(molecule_type)-1
+            insert_coords(1:3,iatom)=r_insert_mol(1:3,iiatom)
+            atom_names_insert(iatom)=atom_names(iiatom,molecule_type)
+            iiatom=iiatom+1
+         ENDDO
+         DO iatom=start_atom_ins+nunits(molecule_type),ins_atoms
+            insert_coords(1:3,iatom)=&
+               particles_old(insert_box)%list%els(iatom-nunits(molecule_type))%r(1:3)
+            atom_names_insert(iatom)=&
+                 particles_old(insert_box)%list%els(iatom-nunits(molecule_type))%atomic_kind%name
          ENDDO
       ENDIF
 
 ! fold the coordinates into the box and check for overlaps
-      CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,mass,natom,&
-         abc_insert(1:3))
-
-! allocate r_remove
-      IF (rem_atoms == 0) THEN
-         ALLOCATE(r_remove(1:3,1:natom),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"r_remove",3*natom*dp_size)
-      ELSE
-         ALLOCATE(r_remove(1:3,1:rem_atoms),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"r_remove",3*rem_atoms*dp_size)
-      ENDIF
+      start_mol=1
+      DO jbox=1,insert_box-1
+         start_mol=start_mol+SUM(nchains(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains(:,insert_box))-1
 
 ! make the .dat file
       IF (ionode) THEN
 
+         nchains(molecule_type,insert_box)=nchains(molecule_type,insert_box)+1
          IF(lbias) THEN
-            CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
-               abc_insert(:)*angstrom,dat_file(insert_box),&
-               bias_env(insert_box)%force_env,TRIM(fft_lib),print_level,error=error)
+            CALL get_mc_par(mc_par(insert_box)%mc_par,mc_bias_file=mc_bias_file)
+            CALL mc_make_dat_file_new(insert_coords(:,:),atom_names_insert(:),ins_atoms,&
+               abc_insert(:),dat_file(insert_box),nchains(:,insert_box),&
+               mc_bias_file)
          ELSE
-            CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
-               abc_insert(:)*angstrom,dat_file(insert_box),&
-               force_env(insert_box)%force_env,TRIM(fft_lib),print_level,error=error)
+            CALL get_mc_par(mc_par(insert_box)%mc_par,mc_input_file=mc_input_file)
+            CALL mc_make_dat_file_new(insert_coords(:,:),atom_names_insert(:),ins_atoms,&
+                abc_insert(:),dat_file(insert_box),nchains(:,insert_box),&
+                mc_input_file)
          ENDIF
+         nchains(molecule_type,insert_box)=nchains(molecule_type,insert_box)-1
+
       ENDIF
+
 ! now do the same for the removal box...be careful not to make an empty box
       IF (rem_atoms == 0) THEN
-         DO iatom=1,natom
-            r_remove(1:3,iatom)=r_insert_mol(1:3,iatom)
+         DO iatom=1,nunits(molecule_type)
+            remove_coords(1:3,iatom)=r_insert_mol(1:3,iatom)
+            atom_names_remove(iatom)=atom_names(iatom,molecule_type)
          ENDDO
-!     make the .dat file
+
+! chains is already where it should be, because we need at least 1 molecule in the box
          IF(ionode) THEN
             IF(lbias) THEN
-               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(:)*angstrom,dat_file(remove_box),&
-                  bias_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
+               CALL get_mc_par(mc_par(remove_box)%mc_par,mc_bias_file=mc_bias_file)
+               CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+                    abc_remove(:),dat_file(remove_box),nchains(:,remove_box),&
+                    mc_bias_file)
             ELSE
-               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(:)*angstrom,dat_file(remove_box),&
-                  force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
+               CALL get_mc_par(mc_par(remove_box)%mc_par,mc_input_file=mc_input_file)
+               CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+                    abc_remove(:),dat_file(remove_box),nchains(:,remove_box),&
+                    mc_input_file)
             ENDIF
+
          ENDIF
+
       ELSE
-         IF(imolecule == 1) THEN
-            DO iatom=natom+1,rem_atoms+natom
-               ii=iatom-natom
-               r_remove(1:3,ii)=&
-                  particles_old(remove_box)%list%els(iatom)%r(1:3)
-            ENDDO
-         ELSE
-            DO iatom=1,imolecule*natom-natom
-               r_remove(1:3,iatom)=&
-                  particles_old(remove_box)%list%els(iatom)%r(1:3)
-            ENDDO
-            DO iatom=imolecule*natom+1,rem_atoms+natom
-               ii=iatom-natom
-               r_remove(1:3,ii)=&
-                  particles_old(remove_box)%list%els(iatom)%r(1:3)
-            ENDDO
-         ENDIF
+         DO iatom=1,start_atom_rem-1
+            remove_coords(1:3,iatom)=&
+                 particles_old(remove_box)%list%els(iatom)%r(1:3)
+            atom_names_remove(iatom)=&
+                 particles_old(remove_box)%list%els(iatom)%atomic_kind%name
+         ENDDO
+         DO iatom=start_atom_rem+nunits(molecule_type),nunits_tot(remove_box)
+            remove_coords(1:3,iatom-nunits(molecule_type))=&
+                 particles_old(remove_box)%list%els(iatom)%r(1:3)
+            atom_names_remove(iatom-nunits(molecule_type))=&
+                 particles_old(remove_box)%list%els(iatom)%atomic_kind%name
+         ENDDO
 
 ! make the .dat file
          IF (ionode) THEN
+            nchains(molecule_type,remove_box)=nchains(molecule_type,remove_box)-1
             IF(lbias) THEN
-               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(:)*angstrom,dat_file(remove_box),&
-                  bias_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
+               CALL get_mc_par(mc_par(remove_box)%mc_par,mc_bias_file=mc_bias_file)
+               CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+                    abc_remove(:),dat_file(remove_box),nchains(:,remove_box),&
+                    mc_bias_file)
             ELSE
-               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(:)*angstrom,dat_file(remove_box),&
-                  force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
+               CALL get_mc_par(mc_par(remove_box)%mc_par,mc_input_file=mc_input_file)
+               CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+                    abc_remove(:),dat_file(remove_box),nchains(:,remove_box),&
+                    mc_input_file)
             ENDIF
+            nchains(molecule_type,remove_box)=nchains(molecule_type,remove_box)+1
+
          ENDIF
       ENDIF
 
-! deallocate r_remove,r_insert, and r_insert_mol
-      DEALLOCATE(r_insert,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"r_insert")
+! deallocate r_insert_mol
       DEALLOCATE(r_insert_mol,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r_insert_mol")
 
 ! now let's create the two new environments with the different number
 ! of molecules
-
-      CALL mc_create_force_env(insert_env, para_env, dat_file(insert_box),error=error)
-      CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)
+      ALLOCATE(test_env(1:2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+      "test_env",3*ins_atoms*dp_size)
+      CALL mc_create_force_env(test_env(insert_box)%force_env, para_env, &
+           dat_file(insert_box),error=error)
+      CALL mc_create_force_env(test_env(remove_box)%force_env, para_env, &
+           dat_file(remove_box),error=error)
 
 ! allocate an array we'll need
       ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
@@ -830,15 +911,25 @@ CONTAINS
       loverlap_ins=.FALSE.
       loverlap_rem=.FALSE.
 
+! compute the new molecule information...we need this for the CBMC part
+      CALL mc_determine_molecule_info(test_env,mc_molecule_info_test,error)      
+      CALL get_mc_molecule_info(mc_molecule_info_test,nchains=nchains_test,&
+           mol_type=mol_type_test)
 
 ! figure out the position of the molecule we're inserting, and the
 ! Rosenbluth weight
+      start_mol=1
+      DO jbox=1,insert_box-1
+         start_mol=start_mol+SUM(nchains_test(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains_test(:,insert_box))-1
+
       IF(lbias) THEN
-         CALL generate_cbmc_swap_config(insert_env,&
-            BETA,nswapmoves,weight_new,nchain(insert_box)+1,loverlap_ins,&
-            bias_energy_new(insert_box),&
-            bias_energy_old(insert_box),ionode,source,group,rng_stream,&
-            error)
+         CALL generate_cbmc_swap_config(test_env(insert_box)%force_env,&
+            BETA,nswapmoves,weight_new,start_atom_ins,ins_atoms,nunits(:),&
+            nunits(molecule_type),mass(:,molecule_type),loverlap_ins,bias_energy_new(insert_box),&
+            bias_energy_old(insert_box),ionode,.FALSE.,mol_type_test(start_mol:end_mol),&
+            nchains_test(:,insert_box),source,group,rng_stream,error)
 
 ! the energy that comes out of the above routine is the difference...we want
 ! the real energy for the acceptance rule...we don't do this for the
@@ -847,14 +938,14 @@ CONTAINS
             bias_energy_new(insert_box)=bias_energy_new(insert_box)+&
                bias_energy_old(insert_box)
       ELSE
-         CALL generate_cbmc_swap_config(insert_env,&
-            BETA,nswapmoves,weight_new,nchain(insert_box)+1,&
-            loverlap_ins,new_energy(insert_box),&
-            old_energy(insert_box),ionode,source,group,&
-            rng_stream,error)
+         CALL generate_cbmc_swap_config(test_env(insert_box)%force_env,&
+            BETA,nswapmoves,weight_new,start_atom_ins,ins_atoms,nunits(:),&
+            nunits(molecule_type),mass(:,molecule_type),loverlap_ins,new_energy(insert_box),&
+            old_energy(insert_box),ionode,.FALSE.,mol_type_test(start_mol:end_mol),&
+            nchains_test(:,insert_box),source,group,rng_stream,error)
       ENDIF
 
-      CALL force_env_get(insert_env,&
+      CALL force_env_get(test_env(insert_box)%force_env,&
          subsys=insert_sys,error=error)
       CALL cp_subsys_get(insert_sys(1)%subsys, &
          particles=particles_insert,error=error)
@@ -867,19 +958,17 @@ CONTAINS
 
       IF(loverlap_ins .OR. loverlap_rem) THEN
 ! deallocate some stuff
-         CALL section_vals_release(insert_env%root_section,error=error)
-         CALL section_vals_release(remove_env%root_section,error=error)
-         CALL force_env_release(insert_env,error=error)
-         CALL force_env_release(remove_env,error=error)
-         DEALLOCATE(r_remove,STAT=istat)
+         CALL mc_molecule_info_destroy(mc_molecule_info_test)
+         CALL section_vals_release(test_env(insert_box)%force_env%root_section,error=error)
+         CALL section_vals_release(test_env(remove_box)%force_env%root_section,error=error)
+         CALL force_env_release(test_env(insert_box)%force_env,error=error)
+         CALL force_env_release(test_env(remove_box)%force_env,error=error)
+         DEALLOCATE(insert_coords,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"r_remove")
-         DEALLOCATE(mass,STAT=istat)
+            __LINE__,"insert_coords")
+         DEALLOCATE(remove_coords,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"mass")
-         DEALLOCATE(molecule_kinds_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-            __LINE__,"molecule_kinds_new")
+            __LINE__,"remove_coords")
          DEALLOCATE(r_cbmc,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r_cbmc")
@@ -892,13 +981,16 @@ CONTAINS
          DEALLOCATE(particles_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"particles_old")
+         DEALLOCATE(test_env,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
+              __LINE__,"test_env")
          CALL timestop(0.0E0_dp,handle)
          RETURN
       ENDIF
 
 ! broadcast the choosen coordiantes to all processors
 
-      CALL force_env_get(insert_env,&
+      CALL force_env_get(test_env(insert_box)%force_env,&
          subsys=insert_sys,error=error)
       CALL cp_subsys_get(insert_sys(1)%subsys, &
          particles=particles_insert,error=error)
@@ -909,58 +1001,71 @@ CONTAINS
       ENDDO
 
 ! if we made it this far, we have no overlaps
-      moves(insert_box)%moves%grown=&
-         moves(insert_box)%moves%grown+1
+      moves(molecule_type,insert_box)%moves%grown=&
+         moves(molecule_type,insert_box)%moves%grown+1
 
 ! if we're biasing, we need to make environments with the non-biasing
 ! potentials, and calculate the energies
       IF(lbias) THEN
 
+         ALLOCATE(test_env_bias(1:2),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+              "test_env_bias",2)
+
 ! first, the environment to which we added a molecule
-         IF(ionode) CALL mc_make_dat_file(r_cbmc(:,:),ins_atoms,&
-            abc_insert(:)*angstrom,dat_file(insert_box),&
-            force_env(insert_box)%force_env,TRIM(fft_lib),print_level,error=error)
-         insert_env_bias => insert_env
-         NULLIFY(insert_env)
-         CALL mc_create_force_env(insert_env, para_env, dat_file(insert_box),error=error)
+         CALL get_mc_par(mc_par(insert_box)%mc_par,mc_input_file=mc_input_file)
+         CALL mc_make_dat_file_new(r_cbmc(:,:),atom_names_insert(:),ins_atoms,&
+              abc_insert(:),dat_file(insert_box),nchains_test(:,insert_box),&
+              mc_input_file)
+         test_env_bias(insert_box)%force_env => test_env(insert_box)%force_env
+         NULLIFY(test_env(insert_box)%force_env)
+         CALL mc_create_force_env(test_env(insert_box)%force_env, para_env, &
+              dat_file(insert_box),error=error)
 !         CALL section_vals_release(insert_env%root_section)
 
-         CALL force_env_calc_energy_force(insert_env,&
+         CALL force_env_calc_energy_force(test_env(insert_box)%force_env,&
             calc_force=.FALSE.,error=error)
-         CALL force_env_get(insert_env,&
+         CALL force_env_get(test_env(insert_box)%force_env,&
             potential_energy=new_energy(insert_box),error=error)
 
 ! now the environment that has one less molecule
-         IF (nchain(remove_box)-1 == 0) THEN
-            IF(ionode) CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-               abc_remove(:)*angstrom,dat_file(remove_box),&
-               force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
-            remove_env_bias => remove_env
-            NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)
+         IF (SUM(nchains_test(:,remove_box)) == 0) THEN
+! don't need to remove a molecule, since we want nchains(molecule_type,remove_box)=1
+            CALL get_mc_par(mc_par(remove_box)%mc_par,mc_input_file=mc_input_file)
+            CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+                 abc_remove(:),dat_file(remove_box),nchains(:,remove_box),&
+                 mc_input_file)
+             test_env_bias(remove_box)%force_env => test_env(remove_box)%force_env
+            NULLIFY(test_env(remove_box)%force_env)
+            CALL mc_create_force_env(test_env(remove_box)%force_env, para_env, &
+                 dat_file(remove_box),error=error)
             new_energy(remove_box)=0.0E0_dp
             bias_energy_new(remove_box)=0.0E0_dp
          ELSE
-            IF(ionode) CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-               abc_remove(:)*angstrom,dat_file(remove_box),&
-               force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
-            remove_env_bias => remove_env
-            NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)
-            CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
-            CALL force_env_get(remove_env,&
+            CALL get_mc_par(mc_par(remove_box)%mc_par,mc_input_file=mc_input_file)
+            CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+                 abc_remove(:),dat_file(remove_box),nchains_test(:,remove_box),&
+                 mc_input_file)
+            test_env_bias(remove_box)%force_env => test_env(remove_box)%force_env
+            NULLIFY(test_env(remove_box)%force_env)
+            CALL mc_create_force_env(test_env(remove_box)%force_env, para_env, &
+                 dat_file(remove_box),error=error)
+            CALL force_env_calc_energy_force(test_env(remove_box)%force_env,&
+                 calc_force=.FALSE.,error=error)
+            CALL force_env_get(test_env(remove_box)%force_env,&
                potential_energy=new_energy(remove_box),error=error)
-            CALL force_env_calc_energy_force(remove_env_bias,&
+            CALL force_env_calc_energy_force(test_env_bias(remove_box)%force_env,&
                calc_force=.FALSE.,error=error)
-            CALL force_env_get(remove_env_bias,&
+            CALL force_env_get(test_env_bias(remove_box)%force_env,&
                potential_energy=bias_energy_new(remove_box),error=error)
          ENDIF
       ELSE
-         IF (nchain(remove_box)-1 == 0) THEN
+         IF (SUM(nchains_test(:,remove_box)) == 0) THEN
             new_energy(remove_box)=0.0E0_dp
          ELSE
-            CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
-            CALL force_env_get(remove_env,&
+            CALL force_env_calc_energy_force(test_env(remove_box)%force_env,&
+                 calc_force=.FALSE.,error=error)
+            CALL force_env_get(test_env(remove_box)%force_env,&
                potential_energy=new_energy(remove_box),error=error)
          ENDIF
       ENDIF
@@ -968,24 +1073,33 @@ CONTAINS
 
 ! now we need to figure out the rosenbluth weight for the old configuration...
 ! we wait until now to do that because we need the energy of the box that
-! has had a molecule removed
+! has had a molecule removed...notice we use the environment that has not
+! had a molecule removed for the CBMC configurations, and therefore nchains
+! and mol_type instead of nchains_test and mol_type_test
+      start_mol=1
+      DO jbox=1,remove_box-1
+         start_mol=start_mol+SUM(nchains(:,jbox))
+      ENDDO
+      end_mol=start_mol+SUM(nchains(:,remove_box))-1
       IF(lbias) THEN
           CALL generate_cbmc_swap_config(bias_env(remove_box)%force_env,&
-            BETA,nswapmoves,weight_old,nchain(remove_box),loverlap_rem,rdum,&
-            bias_energy_new(remove_box),&
-            ionode,source,group,rng_stream,error,rem_molecule=imolecule)
+            BETA,nswapmoves,weight_old,start_atom_rem,nunits_tot(remove_box),&
+            nunits(:),nunits(molecule_type),mass(:,molecule_type),loverlap_rem,rdum,&
+            bias_energy_new(remove_box),ionode,.TRUE.,mol_type(start_mol:end_mol),&
+            nchains(:,remove_box),source,group,rng_stream,error)
       ELSE
          CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
-            BETA,nswapmoves,weight_old,nchain(remove_box),loverlap_rem,rdum,&
-            new_energy(remove_box),&
-            ionode,source,group,rng_stream,error,rem_molecule=imolecule)
+            BETA,nswapmoves,weight_old,start_atom_rem,nunits_tot(remove_box),&
+            nunits(:),nunits(molecule_type),mass(:,molecule_type),loverlap_rem,rdum,&
+            new_energy(remove_box),ionode,.TRUE.,mol_type(start_mol:end_mol),&
+            nchains(:,remove_box),source,group,rng_stream,error)
       ENDIF
 
 ! figure out the prefactor to the boltzmann weight in the acceptance
 ! rule, based on numbers of particles and volumes
 
-      prefactor=REAL(nchain(remove_box),dp)/&
-      REAL(nchain(insert_box)+1,dp)*&
+      prefactor=REAL(nchains(molecule_type,remove_box),dp)/&
+      REAL(nchains(molecule_type,insert_box)+1,dp)*&
       abc_insert(1)**3/abc_remove(1)**3
 
       IF(lbias) THEN
@@ -1040,8 +1154,8 @@ CONTAINS
 ! accept the move
 
 !     accept the move
-         moves(insert_box)%moves%swap%successes=&
-         moves(insert_box)%moves%swap%successes+1
+         moves(molecule_type,insert_box)%moves%swap%successes=&
+         moves(molecule_type,insert_box)%moves%swap%successes+1
 
 ! we need to compensate for the fact that we take the difference in
 ! generate_cbmc_config to keep the exponetials small
@@ -1057,34 +1171,29 @@ CONTAINS
             old_energy(ibox)=new_energy(ibox)
 ! if we're biasing the update the biasing energy
             IF (lbias) THEN
-               moves(ibox)%moves%bias_energy=&
-               bias_energy_new(ibox)
+               last_bias_energy(ibox)=bias_energy_new(ibox)
                bias_energy_old(ibox)=bias_energy_new(ibox)
             ENDIF
 
          ENDDO
 
 
-! change particle numbers
-! now change the total number of units and chains in the mc_par
-         nchain(insert_box)=nchain(insert_box)+1
-         nchain(remove_box)=nchain(remove_box)-1
-
-! set the numbers in the mc_par structures
-         CALL set_mc_par(mc_par(insert_box)%mc_par,&
-            nchain=nchain(insert_box),nunits_tot=ins_atoms)
-         CALL set_mc_par(mc_par(remove_box)%mc_par,&
-            nchain=nchain(remove_box),nunits_tot=rem_atoms)
+! change particle numbers...basically destory the old mc_molecule_info and attach
+! the new stuff to the mc_pars
+! figure out the molecule information for the new environments
+         CALL mc_molecule_info_destroy(mc_molecule_info)
+         CALL set_mc_par(mc_par(insert_box)%mc_par,mc_molecule_info=mc_molecule_info_test)
+         CALL set_mc_par(mc_par(remove_box)%mc_par,mc_molecule_info=mc_molecule_info_test)
 
 ! update coordinates
-         CALL force_env_get(insert_env,&
+         CALL force_env_get(test_env(insert_box)%force_env,&
             subsys=insert_sys,error=error)
          CALL cp_subsys_get(insert_sys(1)%subsys, &
             particles=particles_insert,error=error)
          DO ipart=1,ins_atoms
             r_old(1:3,ipart,insert_box)=particles_insert%els(ipart)%r(1:3)
          ENDDO
-         CALL force_env_get(remove_env,&
+         CALL force_env_get(test_env(remove_box)%force_env,&
             subsys=remove_sys,error=error)
          CALL cp_subsys_get(remove_sys(1)%subsys, &
             particles=particles_remove,error=error)
@@ -1097,19 +1206,19 @@ CONTAINS
 
          ! insertion box
          IF (insert_box/=1) THEN
-            CALL section_vals_release(insert_env%root_section,error=error)
+            CALL section_vals_release(test_env(insert_box)%force_env%root_section,error=error)
          END IF
          CALL section_vals_release(force_env(insert_box)%force_env%root_section,error=error)
          CALL force_env_release(force_env(insert_box)%force_env,error=error)
-         force_env(insert_box)%force_env => insert_env
+         force_env(insert_box)%force_env => test_env(insert_box)%force_env
 
          ! removal box
          IF (remove_box/=1) THEN
-            CALL section_vals_release(remove_env%root_section,error=error)
+            CALL section_vals_release(test_env(remove_box)%force_env%root_section,error=error)
          END IF
          CALL section_vals_release(force_env(remove_box)%force_env%root_section,error=error)
          CALL force_env_release(force_env(remove_box)%force_env,error=error)
-         force_env(remove_box)%force_env => remove_env
+         force_env(remove_box)%force_env => test_env(remove_box)%force_env
 
 
 ! if we're biasing, update the bias_env
@@ -1118,48 +1227,56 @@ CONTAINS
             CALL section_vals_release(bias_env(remove_box)%force_env%root_section,error=error)
 
             CALL force_env_release(bias_env(insert_box)%force_env,error=error)
-            bias_env(insert_box)%force_env => insert_env_bias
+            bias_env(insert_box)%force_env =>  test_env_bias(insert_box)%force_env
             CALL force_env_release(bias_env(remove_box)%force_env,error=error)
-            bias_env(remove_box)%force_env => remove_env_bias
+            bias_env(remove_box)%force_env => test_env_bias(remove_box)%force_env
+            DEALLOCATE(test_env_bias,STAT=istat)
+            IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
+                 __LINE__,"test_env_bias")
          ENDIF
 
       ELSE
 
 ! reject the move
-         CALL section_vals_release(insert_env%root_section,error=error)
-         CALL section_vals_release(remove_env%root_section,error=error)
-         CALL force_env_release(insert_env,error=error)
-         CALL force_env_release(remove_env,error=error)
+         CALL mc_molecule_info_destroy(mc_molecule_info_test)
+         CALL section_vals_release(test_env(insert_box)%force_env%root_section,error=error)
+         CALL section_vals_release(test_env(remove_box)%force_env%root_section,error=error)
+         CALL force_env_release(test_env(insert_box)%force_env,error=error)
+         CALL force_env_release(test_env(remove_box)%force_env,error=error)
          IF(lbias) THEN
-            CALL section_vals_release(insert_env_bias%root_section,error=error)
-            CALL section_vals_release(remove_env_bias%root_section,error=error)
-            CALL force_env_release(insert_env_bias,error=error)
-            CALL force_env_release(remove_env_bias,error=error)
+            CALL section_vals_release(test_env_bias(insert_box)%force_env%root_section,error=error)
+            CALL section_vals_release(test_env_bias(remove_box)%force_env%root_section,error=error)
+            CALL force_env_release( test_env_bias(insert_box)%force_env,error=error)
+            CALL force_env_release( test_env_bias(remove_box)%force_env,error=error)
+            DEALLOCATE(test_env_bias,STAT=istat)
+            IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
+                 __LINE__,"test_env_bias")
          ENDIF
       ENDIF
 
 ! deallocate some stuff
+      DEALLOCATE(insert_coords,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
+           __LINE__,"insert_coords")
+      DEALLOCATE(remove_coords,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
+           __LINE__,"remove_coords")
+      DEALLOCATE(test_env,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
+           __LINE__,"test_env")
       DEALLOCATE(cbmc_energies,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"cbmc_energies")
       DEALLOCATE(r_cbmc,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r_cbmc")
-      DEALLOCATE(r_remove,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"r_remove")
-      DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"mass")
-      DEALLOCATE(molecule_kinds_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"molecule_kinds_new")
       DEALLOCATE(oldsys,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "oldsys")
       DEALLOCATE(particles_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old")
+
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -1189,7 +1306,6 @@ CONTAINS
 !!     - nnstep: the total number of Monte Carlo moves already performed
 !!     - old_energy: the energy of the last accepted move involving an
 !!                   unbiased potential calculation
-!!     - globenv: the global simulation parameters
 !!     - energy_check: the running total of how much the energy has changed
 !!                     since the initial configuration
 !!     - r_old: the coordinates of the last accepted move involving a
@@ -1205,7 +1321,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_ge_volume_move ( mc_par,force_env, moves,move_updates,&
-      nnstep,old_energy,globenv,energy_check,r_old,rng_stream,error)
+      nnstep,old_energy,energy_check,r_old,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -1213,12 +1329,11 @@ CONTAINS
       DIMENSION(:), POINTER                  :: mc_par
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env
-    TYPE(mc_moves_p_type), DIMENSION(:), &
+    TYPE(mc_moves_p_type), DIMENSION(:,:), &
       POINTER                                :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: old_energy
-    TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: energy_check
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -1231,15 +1346,14 @@ CONTAINS
 
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
-    INTEGER :: all_atoms, cl, group, handle, iatom, ibox, iside, istat, j, &
-      jatom, natoms, nunits, print_level, source
-    INTEGER, DIMENSION(1:2)                  :: nchain, nunits_tot
+    INTEGER :: max_atoms, cl, group, handle, iatom, ibox, iside, istat, j, &
+      jatom, print_level, source,start_atom,end_atom,&
+      molecule_index,jbox,imolecule,molecule_type,start_mol,end_mol
     LOGICAL                                  :: ionode
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: loverlap
     LOGICAL, DIMENSION(1:2)                  :: lempty
     REAL(KIND=dp)                            :: BETA, prefactor, rand, &
                                                 rmvolume, vol_dis, w
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r
     REAL(KIND=dp), DIMENSION(1:2)            :: new_energy, volume_new, &
@@ -1252,12 +1366,12 @@ CONTAINS
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell, cell_old, cell_test
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(mol_kind_new_list_p_type), &
-      DIMENSION(:), POINTER                  :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
-
+    TYPE(mc_molecule_info_type),POINTER    :: mc_molecule_info
+    REAL(dp),DIMENSION(:,:),POINTER :: mass
+    INTEGER,DIMENSION(:),POINTER :: nunits_tot,nunits,mol_type
+    INTEGER,DIMENSION(:,:),POINTER :: nchains
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1268,19 +1382,20 @@ CONTAINS
 
 ! get some data from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,source=source,&
-         group=group,nchain=nchain(1),nunits_tot=nunits_tot(1),&
-         dat_file=dat_file(1),rmvolume=rmvolume,&
-         nunits=nunits,BETA=BETA,cl=cl,fft_lib=fft_lib)
+         group=group,dat_file=dat_file(1),rmvolume=rmvolume,&
+         BETA=BETA,cl=cl,fft_lib=fft_lib,&
+         mc_molecule_info=mc_molecule_info)
+      CALL get_mc_molecule_info(mc_molecule_info,nunits_tot=nunits_tot,&
+           mass=mass,nchains=nchains,nunits=nunits,mol_type=mol_type)
 
       print_level = 1
-      CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
-         nunits_tot=nunits_tot(2),dat_file=dat_file(2))
+      CALL get_mc_par(mc_par(2)%mc_par,dat_file=dat_file(2))
 
 ! allocate some stuff
-      all_atoms=nunits_tot(1)+nunits_tot(2)
-      ALLOCATE(r(1:3,all_atoms,1:2),STAT=istat)
+      max_atoms=MAX(nunits_tot(1),nunits_tot(2))
+      ALLOCATE(r(1:3,max_atoms,1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "r",3*2*all_atoms)
+         "r",2*3*max_atoms*dp_size)
       ALLOCATE(oldsys(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "oldsys",2)
@@ -1299,25 +1414,22 @@ CONTAINS
       ALLOCATE(loverlap(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "loverlap",2)
-      ALLOCATE(molecule_kinds_new(2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "molecule_kinds_new",2)
 
 ! check for empty boxes...need to be careful because we can't build
 ! a force_env with no particles
       DO ibox=1,2
          lempty(ibox)=.FALSE.
-         IF(nchain(ibox)==0) THEN
+         IF(SUM(nchains(:,ibox))==0) THEN
             lempty(ibox)=.TRUE.
          ENDIF
       ENDDO
 
 ! record the attempt
       DO ibox=1,2
-         moves(ibox)%moves%volume%attempts= &
-            moves(ibox)%moves%volume%attempts+1
-         move_updates(ibox)%moves%volume%attempts=&
-            move_updates(ibox)%moves%volume%attempts+1
+         moves(1,ibox)%moves%volume%attempts= &
+            moves(1,ibox)%moves%volume%attempts+1
+         move_updates(1,ibox)%moves%volume%attempts=&
+            move_updates(1,ibox)%moves%volume%attempts+1
       ENDDO
 
 ! now let's grab the cell length and particle positions
@@ -1329,7 +1441,6 @@ CONTAINS
          CALL cell_create(cell_old(ibox)%cell,error=error)
          CALL cell_clone(cell(ibox)%cell,cell_old(ibox)%cell,error=error)
          CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
-            molecule_kinds_new=molecule_kinds_new(ibox)%list,&
             particles=particles_old(ibox)%list, error=error)
 
 ! find the old cell length
@@ -1337,48 +1448,12 @@ CONTAINS
 
       ENDDO
 
-! allocate a couple of arrays that depend on the box
-      molecule_kind => molecule_kinds_new(1)%list%els(1)
-      CALL get_molecule_kind(molecule_kind,natom=natoms)
-      ALLOCATE(mass(1:natoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mass",natoms*dp_size)
-      DO iatom=1,natoms
-         CALL get_atomic_kind(particles_old(1)%list%els(iatom)%atomic_kind,&
-            mass=mass(iatom))
-      ENDDO
-
       DO ibox=1,2
 
-         IF(lempty(ibox)) THEN
-
-! make the new dat file
-!            IF (ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
-!               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
-!               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
-
-         ELSE
-
 ! save the old coordiantes
-            DO iatom=1,nunits_tot(ibox)
-               r(1:3,iatom,ibox)=particles_old(ibox)%list%els(iatom)%r(1:3)
-            ENDDO
-
-! fold the coordinates into the central box
-            CALL mc_coordinate_fold(r(:,:,ibox),&
-               nunits_tot(ibox),mass,nunits,&
-               old_cell_length(1:3,ibox))
-!            WRITE(6,*) 'iour ',ibox,nunits_tot(ibox)
-! make the new dat file
-!            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),nunits_tot(ibox),&
-!               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
-!               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
-
-! save the folded coordinates
-            DO iatom=1,nunits_tot(ibox)
-               particles_old(ibox)%list%els(iatom)%r(1:3)=r(1:3,iatom,ibox)
-            ENDDO
-         ENDIF
+         DO iatom=1,nunits_tot(ibox)
+            r(1:3,iatom,ibox)=particles_old(ibox)%list%els(iatom)%r(1:3)
+         ENDDO
 
       ENDDO
 
@@ -1429,11 +1504,22 @@ CONTAINS
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
-         DO iatom=1,nunits_tot(ibox),nunits
+         start_atom=1
+         molecule_index=1
+         DO jbox=1,ibox-1
+            IF(jbox == ibox) EXIT
+            molecule_index=molecule_index+SUM(nchains(:,jbox))
+         ENDDO
+         DO imolecule=1,SUM(nchains(:,ibox))
+            molecule_type=mol_type(imolecule+molecule_index-1)
+            IF(imolecule .NE. 1) THEN
+               start_atom=start_atom+nunits(mol_type(imolecule+molecule_index-2))
+            ENDIF
+            end_atom=start_atom+nunits(molecule_type)-1
 
 ! now find the center of mass
-            CALL get_center_of_mass(r(:,iatom:iatom+nunits-1,ibox),&
-               nunits,center_of_mass(:),mass(:))
+            CALL get_center_of_mass(r(:,start_atom:end_atom,ibox),&
+               nunits(molecule_type),center_of_mass(:),mass(:,molecule_type))
 
 ! scale the center of mass and determine the vector that points from the
 !    old COM to the new one
@@ -1442,7 +1528,7 @@ CONTAINS
             DO j=1,3
                diff(j)=center_of_mass_new(j)-center_of_mass(j)
 ! now change the particle positions
-               DO jatom=iatom,iatom+nunits-1
+               DO jatom=start_atom,end_atom
                   particles_old(ibox)%list%els(jatom)%r(j)=&
                      particles_old(ibox)%list%els(jatom)%r(j)+diff(j)
                ENDDO
@@ -1451,35 +1537,18 @@ CONTAINS
          ENDDO
 
 ! check for any overlaps we might have
+         start_mol=1
+         DO jbox=1,ibox-1
+            start_mol=start_mol+SUM(nchains(:,jbox))
+         ENDDO
+         end_mol=start_mol+SUM(nchains(:,ibox))-1
          CALL check_for_overlap(force_env(ibox)%force_env,&
-            nchain(ibox),1,nchain(ibox),loverlap(ibox),&
+            nchains(:,ibox),nunits,loverlap(ibox),mol_type(start_mol:end_mol),&
             cell_length=new_cell_length(:,ibox))
 
       ENDDO
 
 ! determine the overall energy difference
-
-!      DO ibox=1,2
-!
-!         IF(lempty(ibox)) THEN
-!
-! make the new dat file
-!            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
-!               new_cell_length(:,ibox)*angstrom,dat_file(ibox),&
-!               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
-!
-!         ELSE
-!
-! make the new dat file
-!            DO iatom=1,nunits_tot(ibox)
-!               r(1:3,iatom,ibox)=particles(ibox)%list%els(iatom)%r(1:3)
-!            ENDDO
-!
-!            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),&
-!               nunits_tot(ibox),new_cell_length(:,ibox)*angstrom,&
-!               dat_file(ibox),force_env(ibox)%force_env,TRIM(fft_lib),print_level)
-!         ENDIF
-!      ENDDO
 
       DO ibox=1,2
          IF(loverlap(ibox)) CYCLE
@@ -1503,8 +1572,8 @@ CONTAINS
          volume_old(ibox)=old_cell_length(1,ibox)*&
             old_cell_length(2,ibox)*old_cell_length(3,ibox)
       ENDDO
-      prefactor=(volume_new(1)/volume_old(1))**nchain(1)*&
-         (volume_new(2)/volume_old(2))**nchain(2)
+      prefactor=(volume_new(1)/volume_old(1))**(SUM(nchains(:,1)))*&
+         (volume_new(2)/volume_old(2))**(SUM(nchains(:,2)))
 
       IF( loverlap(1) .OR. loverlap(2)) THEN
          w=0.0E0_dp
@@ -1538,22 +1607,17 @@ CONTAINS
 
          DO ibox=1,2
 ! accept the move
-            moves(ibox)%moves%volume%successes=&
-               moves(ibox)%moves%volume%successes+1
-            move_updates(ibox)%moves%volume%successes=&
-               move_updates(ibox)%moves%volume%successes+1
+            moves(1,ibox)%moves%volume%successes=&
+               moves(1,ibox)%moves%volume%successes+1
+            move_updates(1,ibox)%moves%volume%successes=&
+               move_updates(1,ibox)%moves%volume%successes+1
 
 ! update energies
             energy_check(ibox)=energy_check(ibox)+(new_energy(ibox)-&
                old_energy(ibox))
             old_energy(ibox)=new_energy(ibox)
 
-! and the coordiantes
-!            CALL force_env_get(test_env(ibox)%force_env,subsys=&
-!               testsys(ibox)%subsys,error=error)
-!            CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
-!               particles=particles_test(ibox)%list, error=error)
-
+! and the new "old" coordiantes
             DO iatom=1,nunits_tot(ibox)
                r_old(1:3,iatom,ibox)=&
                   particles_old(ibox)%list%els(iatom)%r(1:3)
@@ -1591,12 +1655,6 @@ CONTAINS
          CALL cell_release(cell_test(ibox)%cell,error=error)
          CALL cell_release(cell_old(ibox)%cell,error=error)
       ENDDO
-      DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"mass")
-      DEALLOCATE(molecule_kinds_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"molecule_kinds_new")
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r")
