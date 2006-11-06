@@ -82,8 +82,9 @@
     PMTRANS_MOL 1.0
     PMROT_MOL 1.0 
     PMVOLUME 0.2
+    PMVOL_BOX 1.0
     PRESSURE 1.013
-    PROGRAM traditional
+    ENSEMBLE traditional
     RESTART no
     RESTART_FILE_NAME mc_restart_1
     RMDIHEDRAL 1.0
