@@ -174,8 +174,6 @@ CONTAINS
          i_val=excitations,error=error)
     dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
 
-    xc_section => section_vals_get_subs_vals(dft_section,"XC", error=error)
-
 !   *** Read the input section ***
     CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
@@ -595,13 +593,6 @@ CONTAINS
          i_val=t_control%oe_corr,error=error)
 
     t_control%use_kinetic_energy_density = .FALSE.
-    xc_section=>section_vals_get_subs_vals(t_section,"XC",error=error)
-    CALL section_vals_get(xc_section,explicit=was_present,error=error)
-    IF (was_present) THEN
-!FM       CALL read_xc_control(xc_section, t_control%xc_control, nspins,&
-!FM                            t_control%use_kinetic_energy_density, error=error)
-    END IF
-
     sic_section=>section_vals_get_subs_vals(t_section,"SIC",error=error)
     CALL section_vals_val_get(sic_section,"SIC_METHOD",&
          i_val=t_control%sic_method_id,error=error)
@@ -630,7 +621,7 @@ CONTAINS
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
     INTEGER                                  :: ifun, il, output_unit
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, xc_present
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
                                                 gradient_cut, tau_cut
@@ -715,29 +706,30 @@ CONTAINS
            "DFT| SIC scaling parameter b",dft_control%sic_scaling_b
        END IF
 
-       CALL section_vals_val_get(xc_section,"density_cutoff",&
-            r_val=density_cut,error=error)
-       CALL section_vals_val_get(xc_section,"gradient_cutoff",&
-            r_val=gradient_cut,error=error)
-       CALL section_vals_val_get(xc_section,"tau_cutoff",&
-            r_val=tau_cut,error=error)
-       CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",&
-            r_val=density_smooth_cut_range,error=error)
-       WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
-         "DFT| Cutoffs: density ",density_cut,&
-         "DFT|          gradient",gradient_cut,&
-         "DFT|          tau     ",tau_cut,&
-         "DFT|          cutoff_smoothing_range",density_smooth_cut_range
-       CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
-            c_val=tmpStr,error=error)
-       WRITE ( output_unit, '( A, T61, A )' ) &
-            " DFT| XC density smoothing ",ADJUSTR(tmpStr)
-       CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
-            c_val=tmpStr,error=error)
-       WRITE ( output_unit, '( A, T61, A )' ) &
-            " DFT| XC derivatives ",ADJUSTR(tmpStr)
+       CALL section_vals_get(xc_section,explicit=xc_present,error=error)
+       IF (xc_present) THEN
+          CALL section_vals_val_get(xc_section,"density_cutoff",&
+               r_val=density_cut,error=error)
+          CALL section_vals_val_get(xc_section,"gradient_cutoff",&
+               r_val=gradient_cut,error=error)
+          CALL section_vals_val_get(xc_section,"tau_cutoff",&
+               r_val=tau_cut,error=error)
+          CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",&
+               r_val=density_smooth_cut_range,error=error)
+          WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
+               "DFT| Cutoffs: density ",density_cut,&
+               "DFT|          gradient",gradient_cut,&
+               "DFT|          tau     ",tau_cut,&
+               "DFT|          cutoff_smoothing_range",density_smooth_cut_range
+          CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
+               c_val=tmpStr,error=error)
+          WRITE ( output_unit, '( A, T61, A )' ) &
+               " DFT| XC density smoothing ",ADJUSTR(tmpStr)
+          CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
+               c_val=tmpStr,error=error)
+          WRITE ( output_unit, '( A, T61, A )' ) &
+               " DFT| XC derivatives ",ADJUSTR(tmpStr)
 
-       IF (.NOT.failure) THEN
           xc_fun_section => section_vals_get_subs_vals(xc_section,&
                "XC_FUNCTIONAL",error=error)
           CALL section_vals_val_get(xc_section,"FUNCTIONAL_ROUTINE",&
@@ -769,6 +761,8 @@ CONTAINS
                WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
              END IF
           END DO
+       ELSE
+          WRITE (output_unit, fmt="(' FUNCTIONAL| NO EXCHAGE-CORRELATION FUNCTIONAL USED.')")
        END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
