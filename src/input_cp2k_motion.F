@@ -773,13 +773,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="AVBMC_ATOM",&
-            description="The target atom for an AVBMC swap move.",&
-            usage="AVBMC_ATOM {integer}",&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="IPRINT",&
             description="Prints coordinate/cell/etc information every IPRINT steps.",&
             usage="IPRINT {integer}",&
@@ -932,14 +925,28 @@ CONTAINS
        CALL keyword_create(keyword, name="PMSWAP",&
             description="The probability of attempting a swap move.",&
             usage="PMSWAP {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t, default_r_val=0.0E0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMSWAP_MOL",&
+            description="The probability of attempting a molecule swap of a given molecule type.",&
+            usage="PMSWAP_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMVOLUME",&
             description="The probability of attempting a volume move.",&
             usage="PMVOLUME {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t, default_r_val=0.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMROT_MOL",&
+            description="The probability of attempting a molecule rotation of a given molecule type.",&
+            usage="PMROT_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -950,10 +957,24 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PMTRAION_MOL",&
+            description="The probability of attempting a conformational change of a given molecule type.",&
+            usage="PMTRAION_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PMTRANS",&
             description="The probability of attempting a molecule translation.",&
             usage="PMTRANS {real}",&
             type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMTRANS_MOL",&
+            description="The probability of attempting a molecule translation of a given molecule type.",&
+            usage="PMTRANS_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -964,52 +985,59 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="AVBMC_ATOM",&
+            description="The target atom for an AVBMC swap move for each molecule type.",&
+            usage="AVBMC_ATOM {integer} {integer} ... ",&
+            n_var=-1,type_of_var=integer_t,required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RMBOND",&
-            description="Maximum bond length displacement, in angstrom.",&
-            usage="RMBOND {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            description="Maximum bond length displacement, in angstroms, for each molecule type.",&
+            usage="RMBOND {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMANGLE",&
-            description="Maximum bond angle distplacement, in degrees.",&
-            usage="RMANGLE {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            description="Maximum bond angle displacement, in degrees, for each molecule type.",&
+            usage="RMANGLE {real} {real} ...",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMDIHEDRAL",&
-            description="Maximum dihedral angle distplacement, in degrees.",&
-            usage="RMDIHEDRAL {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            description="Maximum dihedral angle distplacement, in degrees, for each molecule type.",&
+            usage="RMDIHEDRAL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMROT",&
-            description="Maximum rotational displacement, in degrees.",&
-            usage="RMROT {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            description="Maximum rotational displacement, in degrees, for each molecule type.",&
+            usage="RMROT {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMTRANS",&
-            description="Maximum translational displacement, in angstroms.",&
-            usage="RMTRANS {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            description="Maximum translational displacement, in angstroms, for each molecule type.",&
+            usage="RMTRANS {real} {real} ...",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="AVBMC_RMIN",&
-            description="The inner radius for an AVBMC swap move, in angstroms.",&
-            usage="AVBMC_RMIN {real}",&
-            default_r_val=1.0E0_dp, error=error)
+            description="The inner radius for an AVBMC swap move, in angstroms for every molecule type.",&
+            usage="AVBMC_RMIN {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="AVBMC_RMAX",&
-            description="The outer radius for an AVBMC swap move, in angstroms.",&
-            usage="AVBMC_RMAX {real}",&
-            default_r_val=5.0E0_dp, error=error)
+            description="The outer radius for an AVBMC swap move, in angstroms, for every molecule type.",&
+            usage="AVBMC_RMAX {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1020,10 +1048,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="PMAVBMC_MOL",&
+            description="The probability of attempting an AVBMC swap move on each molecule type.",&
+            usage="PMAVBMC_MOL {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PBIAS",&
-            description="The probability of swapping to an inner region in an AVBMC swap move.",&
-            usage="PBIAS {real}",&
-            default_r_val=0.5E0_dp, error=error)
+            description="The probability of swapping to an inner region in an AVBMC swap move for each molecule type.",&
+            usage="PBIAS {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
