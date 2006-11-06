@@ -318,7 +318,8 @@ MODULE input_constants
                                 do_coord_off=3
 
   INTEGER, PARAMETER, PUBLIC :: do_mc_traditional=0,&
-                                do_mc_gemc=1
+                                do_mc_gemc_nvt=1,&
+                                do_mc_gemc_npt=2
 
   INTEGER, PARAMETER, PUBLIC :: do_loc_jacobi=0,&
                                 do_loc_crazy=1,&
