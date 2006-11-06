@@ -139,6 +139,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_run_ensemble'
 
+    CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: cbox, fft_lib, move_type, &
                                                 move_type_avbmc
     INTEGER, DIMENSION(1:nboxes)             :: box_flag, cl, data_unit, &
@@ -158,7 +159,7 @@ CONTAINS
                                                 lnew_bias_env, loverlap, &
                                                 lreject, lstop, should_stop
     REAL(dp), DIMENSION(:),POINTER            :: pmtraion_mol,pmavbmc_mol,&
-         pbias,pmrot_mol,pmtrans_mol
+         pbias,pmrot_mol,pmtrans_mol,pmvol_box
     REAL(dp), DIMENSION(:, :),POINTER            :: conf_prob, mass
     INTEGER, DIMENSION(:, :),POINTER            :: nchains
     INTEGER, DIMENSION(:),POINTER            :: mol_type,avbmc_atom,nunits,&
@@ -247,7 +248,8 @@ CONTAINS
          lbias=lbias,iprint=iprint,pmavbmc_mol=pmavbmc_mol,&
          discrete_step=discrete_step,fft_lib=fft_lib,avbmc_atom=avbmc_atom,&
          pmavbmc=pmavbmc,pbias=pbias,mc_molecule_info=mc_molecule_info,&
-         pmrot_mol=pmrot_mol,pmtrans_mol=pmtrans_mol)
+         pmrot_mol=pmrot_mol,pmtrans_mol=pmtrans_mol,pmvol_box=pmvol_box,&
+         ensemble=ensemble)
 
 ! get some data from the molecule types
       CALL get_mc_molecule_info(mc_molecule_info,conf_prob=conf_prob,&
@@ -484,20 +486,41 @@ CONTAINS
                WRITE(iw,*) "Attempting a volume move"
                WRITE(iw,*)
             ENDIF
-
-            IF( nboxes .EQ. 1) THEN
+            
+            SELECT CASE(ensemble)
+            CASE("TRADITIONAL")
                CALL mc_volume_move( mc_par(1)%mc_par,&
-                  force_env(1)%force_env,&
-                  moves(1,1)%moves,move_updates(1,1)%moves,&
-                  nnstep,old_energy(1),1,&
-                  energy_check(1),r_old(:,:,1),iw,discrete_array(:,:),&
-                  rng_stream,error=error)
-
-            ELSE
+                    force_env(1)%force_env,&
+                    moves(1,1)%moves,move_updates(1,1)%moves,&
+                    nnstep,old_energy(1),1,&
+                    energy_check(1),r_old(:,:,1),iw,discrete_array(:,:),&
+                    rng_stream,error=error)
+            CASE("GEMC_NVT")
                CALL mc_ge_volume_move ( mc_par,force_env, moves,&
-                  move_updates,nnstep,old_energy,energy_check,&
-                  r_old,rng_stream,error)
-            ENDIF
+                    move_updates,nnstep,old_energy,energy_check,&
+                    r_old,rng_stream,error)
+            CASE("GEMC_NPT")
+! we need to select a box based on the probability given in the input file
+               IF (ionode) rand=next_random_number(rng_stream,error=error)
+               CALL mp_bcast(rand,source,group)               
+
+               DO ibox=1,nboxes
+                  IF(rand .LE. pmvol_box(ibox)) THEN
+                     box_number=ibox
+                     EXIT
+                  ENDIF
+               ENDDO
+               
+               CALL mc_volume_move( mc_par(box_number)%mc_par,&
+                    force_env(box_number)%force_env,&
+                    moves(1,box_number)%moves,&
+                    move_updates(1,box_number)%moves,&
+                    nnstep,old_energy(box_number),box_number,&
+                    energy_check(box_number),r_old(:,:,box_number),iw,&
+                    discrete_array(:,:),&
+                    rng_stream,error=error)
+            END SELECT
+            
 
 ! we need a new biasing environment now, if we're into that sort of thing
             IF(lbias) THEN
@@ -554,12 +577,12 @@ CONTAINS
                WRITE(iw,*) "Attempting a swap move"
                WRITE(iw,*)
             ENDIF
-
+            
             CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
-                energy_check(:),r_old(:,:,:),old_energy(:),&
-                para_env,bias_energy(:),last_bias_energy(:),&
-                rng_stream,error)
-
+                 energy_check(:),r_old(:,:,:),old_energy(:),&
+                 para_env,bias_energy(:),last_bias_energy(:),&
+                 rng_stream,error)
+            
 ! the number of molecules may have changed, which deallocated the whole
 ! mc_molecule_info structure
             CALL get_mc_par(mc_par(1)%mc_par,mc_molecule_info=mc_molecule_info)

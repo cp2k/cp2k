@@ -82,7 +82,8 @@ MODULE mc_run
                                              mc_molecule_info_destroy,&
                                              mc_input_file_type,&
                                              mc_input_file_create,&
-                                             mc_input_file_destroy
+                                             mc_input_file_destroy,&
+                                             mc_input_parameters_check
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -152,7 +153,7 @@ CONTAINS
       istat, nmol_types
     LOGICAL                                  :: ionode, lrestart, &
                                                 lterminate,lbias
-    REAL(dp)                                 :: pmswap,rcut
+    REAL(dp)                                 :: rcut
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_type), POINTER            :: force_env_2
@@ -193,21 +194,14 @@ CONTAINS
       NULLIFY(mc_section)
       mc_section => section_vals_get_subs_vals(root_section,&
          "MOTION%MC",error=error)
-      CALL section_vals_val_get(mc_section,"PROGRAM",&
+      CALL section_vals_val_get(mc_section,"ENSEMBLE",&
            c_val=ensemble,error=error)
 
 ! now we read in the second force_env, if we have another box
       SELECT CASE(ensemble)
       CASE("TRADITIONAL")
          nboxes=1
-         
-         CALL section_vals_val_get(mc_section,"PMSWAP",&
-              r_val=pmswap,error=error)
-         IF(pmswap .GT. 0.0E0_dp) THEN
-            CALL stop_program('mc_run.F/do_mon_car',&
-               'pmswap is greater than 0 for a single box system!')
-         ENDIF
-      CASE("GEMC")
+      CASE("GEMC_NVT","GEMC_NPT")
          nboxes=2
          CALL section_vals_val_get(mc_section,"BOX2_FILE_NAME",&
               c_val=box2_file,error=error)
@@ -223,7 +217,7 @@ CONTAINS
       SELECT CASE(ensemble)
       CASE("TRADITIONAL")
          force_env(1)%force_env => force_env_1
-      CASE("GEMC")
+      CASE("GEMC_NVT","GEMC_NPT")
          force_env(1)%force_env => force_env_1
          force_env(2)%force_env => force_env_2
       END SELECT      
@@ -254,7 +248,7 @@ CONTAINS
 
 ! now read in the values of the mc_pars
 ! creating the mc_par
-         CALL mc_sim_par_create(mc_par(ibox)%mc_par,nmol_types)
+         CALL mc_sim_par_create(mc_par(ibox)%mc_par,nmol_types,nboxes)
 
 ! attach molecule information to all mc_par structures, so we know what we have to read in
          CALL set_mc_par(mc_par(ibox)%mc_par,mc_molecule_info=mc_molecule_info)
@@ -301,9 +295,6 @@ CONTAINS
                  para_env, dat_file,error=error)
          ENDIF
 
-! attach all the structures to one convientent structure
-       CALL set_mc_env( mc_env(ibox)%mc_env,mc_par=mc_par(ibox)%mc_par,&
-            force_env=force_env(ibox)%force_env)
       ENDDO
 
 ! in case there was a restart, we need to do this again
@@ -333,7 +324,16 @@ CONTAINS
          CALL equilize_mc_sim_parameters(mc_par,iw,ionode)
       ENDIF
 
-! now perform the calculation
+! now check the input parameters and run the simulation
+      DO ibox=1,nboxes
+         
+         CALL mc_input_parameters_check(mc_par(ibox)%mc_par)
+         
+! attach all the structures to one convientent structure
+       CALL set_mc_env( mc_env(ibox)%mc_env,mc_par=mc_par(ibox)%mc_par,&
+            force_env=force_env(ibox)%force_env)
+
+      ENDDO
       CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,error,&
            rng_stream)
 
@@ -411,6 +411,7 @@ CONTAINS
       INTEGER,DIMENSION(:),POINTER :: avbmc_atom
       REAL(dp),DIMENSION(:),POINTER :: avbmc_rmin,avbmc_rmax,pbias,pmswap_mol,&
            pmtrans_mol,pmrot_mol,pmtraion_mol,pmavbmc_mol
+      CHARACTER(20) :: ensemble
 !***********************************************************************
 
       IF(ionode) THEN
@@ -433,7 +434,7 @@ CONTAINS
            lrestart=lrestart,pmtraion_mol=pmtraion_mol,pmtrans_mol=pmtrans_mol,&
            pmrot_mol=pmrot_mol,pmswap_mol=pmswap_mol,avbmc_atom=avbmc_atom,&
            avbmc_rmin=avbmc_rmin,avbmc_rmax=avbmc_rmax,pmavbmc_mol=pmavbmc_mol,&
-           pbias=pbias)
+           pbias=pbias,ensemble=ensemble)
       CALL set_mc_par(mc_par(2)%mc_par,nstep=nstep,iupvolume=iupvolume,&
            iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
            iprint=iprint,lbias=lbias,lstop=lstop,temp=temp,&
@@ -442,7 +443,7 @@ CONTAINS
            lrestart=lrestart,pmtraion_mol=pmtraion_mol,pmtrans_mol=pmtrans_mol,&
            pmrot_mol=pmrot_mol,pmswap_mol=pmswap_mol,avbmc_atom=avbmc_atom,&
            avbmc_rmin=avbmc_rmin,avbmc_rmax=avbmc_rmax,pmavbmc_mol=pmavbmc_mol,&
-           pbias=pbias)
+           pbias=pbias,ensemble=ensemble)
 
     END SUBROUTINE equilize_mc_sim_parameters
 

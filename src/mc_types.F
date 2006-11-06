@@ -85,7 +85,8 @@ MODULE mc_types
             mc_sim_par_create,mc_sim_par_destroy,&
             get_mc_molecule_info,&
             mc_input_file_type,mc_input_file_create,&
-            get_mc_input_file,mc_input_file_destroy
+            get_mc_input_file,mc_input_file_destroy,&
+            mc_input_parameters_check
 
 
   TYPE mc_simulation_parameters_type
@@ -124,7 +125,7 @@ MODULE mc_types
       CHARACTER ( LEN = 200 ) :: fft_lib
       CHARACTER ( LEN = 50 ) :: PROGRAM
       REAL ( dp ),DIMENSION(:),POINTER :: pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,&
-           pbias,pmavbmc_mol
+           pbias,pmavbmc_mol,pmvol_box
       REAL ( dp ) :: discrete_step
       REAL ( dp ) :: rmvolume
       REAL ( dp ),DIMENSION(:),POINTER :: rmbond,rmangle,rmdihedral,rmrot,rmtrans
@@ -228,10 +229,10 @@ CONTAINS
       mol_set_nmol_row,mol_set_nmol_column,in_use,text)
 
 ! *****************************************************************************
-!!****s* mc_types.F/get_mc_par
+!!****s* mc_types.F/get_mc_input_file
 !!
 !!   NAME
-!!     get_mc_par
+!!     get_mc_input_file
 !!
 !!   FUNCTION
 !!     accesses the private elements of the mc_input_file_type
@@ -278,7 +279,7 @@ CONTAINS
        fft_lib,iprint,rcut,ldiscrete,discrete_step,&
        pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
        input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
-       pmtraion_mol,mc_input_file,mc_bias_file)
+       pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -329,7 +330,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
-    REAL(dp),DIMENSION(:),POINTER,OPTIONAL  :: pmswap_mol
+    REAL(dp),DIMENSION(:),POINTER,OPTIONAL  :: pmswap_mol,pmvol_box
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( nstep ) ) nstep = mc_par % nstep
@@ -399,6 +400,7 @@ CONTAINS
     IF ( PRESENT ( mc_bias_file ) ) mc_bias_file => mc_par % mc_bias_file
 
     IF ( PRESENT ( pmswap_mol ) ) pmswap_mol => mc_par % pmswap_mol
+    IF ( PRESENT ( pmvol_box ) ) pmvol_box => mc_par % pmvol_box
 
   END SUBROUTINE get_mc_par
 
@@ -466,7 +468,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
       lrestart,ldiscrete,discrete_step,pmavbmc,mc_molecule_info,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
-      avbmc_rmin,avbmc_rmax,avbmc_atom,pbias)
+      avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box)
 
 ! *****************************************************************************
 !!****s* mc_types.F/set_mc_par
@@ -493,7 +495,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume
     REAL(KIND=dp), DIMENSION(:),POINTER, OPTIONAL      :: rmbond, rmangle, &
                                                 rmdihedral, rmrot, rmtrans
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM,ensemble
     INTEGER, INTENT(IN), OPTIONAL            :: nmoves, nswapmoves
     LOGICAL, INTENT(IN), OPTIONAL            :: lstop
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temp, pressure
@@ -509,7 +511,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       POINTER, OPTIONAL  :: mc_molecule_info
     REAL(dp),DIMENSION(:),POINTER,OPTIONAL :: &
          pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
-         avbmc_rmin,avbmc_rmax,pbias
+         avbmc_rmin,avbmc_rmax,pbias,pmvol_box
     INTEGER,DIMENSION(:),POINTER,OPTIONAL :: avbmc_atom
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
@@ -601,6 +603,11 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           mc_par % pmswap_mol(iparm) = pmswap_mol(iparm)
        ENDDO
     ENDIF
+    IF ( PRESENT ( pmvol_box ) ) THEN
+       DO iparm=1,SIZE(pmvol_box)
+          mc_par % pmvol_box(iparm) = pmvol_box(iparm)
+       ENDDO
+    ENDIF
 
     IF ( PRESENT ( avbmc_atom ) ) THEN
        DO iparm=1,SIZE(avbmc_atom)
@@ -624,6 +631,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     ENDIF
 
     IF ( PRESENT ( PROGRAM ) ) mc_par % program = PROGRAM
+    IF ( PRESENT ( ensemble ) ) mc_par % ensemble = ensemble
 
     IF(PRESENT(mc_molecule_info)) mc_par%mc_molecule_info => mc_molecule_info
   END SUBROUTINE set_mc_par
@@ -647,12 +655,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 !!   NOTES
 !!
 !!*****************************************************************************
-  SUBROUTINE mc_sim_par_create ( mc_par ,nmol_types)
+  SUBROUTINE mc_sim_par_create ( mc_par ,nmol_types,nboxes)
 
 
     TYPE(mc_simulation_parameters_type), &
          POINTER                               :: mc_par
-    INTEGER,INTENT(IN)                       :: nmol_types
+    INTEGER,INTENT(IN)                       :: nmol_types,nboxes
     
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_sim_par_create'
 
@@ -674,6 +682,9 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     ALLOCATE (mc_par%pmswap_mol(1:nmol_types),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pmswap_mol",nmol_types*dp_size)
+    ALLOCATE (mc_par%pmvol_box(1:nboxes),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmvol_box",nboxes*dp_size)
 
     ALLOCATE (mc_par%rmbond(1:nmol_types),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -765,6 +776,9 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     DEALLOCATE (mc_par%pmswap_mol,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pmswap_mol")
+    DEALLOCATE (mc_par%pmvol_box,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%pmvol_box")
 
     DEALLOCATE (mc_par%rmbond,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -877,12 +891,19 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 ! first, Let's find the first END after GLOBAL
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&GLOBAL",.TRUE.,&
          mc_input_file%global_row_end,idum)
+    IF(mc_input_file%global_row_end == 0) &
+         CALL stop_program('mc_types.F/mc_input_file_create',&
+         'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
 
 ! first, let's find the first END after &COORD, and the line of &COORD
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.TRUE.,&
          mc_input_file%coord_row_end,idum)
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.FALSE.,&
          mc_input_file%coord_row_start,idum)
+
+    IF(mc_input_file%coord_row_end == 0) &
+         CALL stop_program('mc_types.F/mc_input_file_create',&
+         'Could not find &END after &COORD (make sure & is the first in the same column after &COORD)')
 
 ! now the RUN_TYPE
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"RUN_TYPE",.FALSE.,&
@@ -1105,8 +1126,10 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mc_section
-    CHARACTER(LEN=5)     :: molecule_string,tab_string,tab_string_int
-    CHARACTER(LEN=default_string_length)     :: format_string,format_string_int
+    CHARACTER(LEN=5)     :: molecule_string,tab_string,tab_string_int,box_string,&
+         tab_box_string
+    CHARACTER(LEN=default_string_length)     :: format_string,format_string_int,&
+         format_box_string
     REAL(dp),DIMENSION(:),POINTER :: temp_r_array
     INTEGER,DIMENSION(:),POINTER :: temp_i_array
 !------------------------------------------------------------------------------
@@ -1259,6 +1282,10 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmswap_mol(imol)=temp_r_array(imol)
       ENDDO
+      CALL section_vals_val_get(mc_section,"PMVOL_BOX",r_vals=temp_r_array,error=error)
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%pmvol_box(imol)=temp_r_array(imol)
+      ENDDO
 
 ! now some logical values
       CALL section_vals_val_get(mc_section,"LBIAS",l_val=mc_par%lbias,error=error)
@@ -1268,7 +1295,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"LBIAS",l_val=mc_par%lbias,error=error)
 
 ! finally the character values
-      CALL section_vals_val_get(mc_section,"PROGRAM",c_val=mc_par%ensemble,error=error)
+      CALL section_vals_val_get(mc_section,"ENSEMBLE",c_val=mc_par%ensemble,error=error)
       CALL section_vals_val_get(mc_section,"RESTART_FILE_NAME",c_val=mc_par%restart_file_name,error=error)
       CALL section_vals_val_get(mc_section,"COORDINATE_FILE_NAME",c_val=mc_par%coords_file,error=error)
       CALL section_vals_val_get(mc_section,"ENERGY_FILE_NAME",c_val=mc_par%energy_file,error=error)
@@ -1283,16 +1310,22 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
 !..write some information to output
       IF (mc_par % ionode ) THEN
+         WRITE(box_string,'(I2)') mc_par%mc_molecule_info%nboxes
          WRITE(molecule_string,'(I2)') mc_par%mc_molecule_info%nmol_types
          WRITE(tab_string,'(I4)') 81-10*mc_par%mc_molecule_info%nmol_types
+         WRITE(tab_box_string,'(I4)') 81-10*mc_par%mc_molecule_info%nboxes
          WRITE(tab_string_int,'(I4)') 81-5*mc_par%mc_molecule_info%nmol_types
          format_string="(A,T" // TRIM(ADJUSTL(tab_string)) // "," // TRIM(ADJUSTL(molecule_string)) // "(2X,F8.4))"
+         format_box_string="(A,T" // TRIM(ADJUSTL(tab_box_string)) // "," // TRIM(ADJUSTL(box_string)) // "(2X,F8.4))"
          format_string_int="(A,T" // TRIM(ADJUSTL(tab_string)) // "," // TRIM(ADJUSTL(molecule_string)) // "(I3,2X))"
+         WRITE(6,*) 'eiroudsflk ',format_box_string
          WRITE ( iw, '( A )' ) ' MC| Monte Carlo Protocol '
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| total number of steps ', &
             mc_par % nstep
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmvolume ', &
             mc_par % pmvolume
+         WRITE ( iw, format_box_string ) ' MC| pmvol_box', &
+            mc_par % pmvol_box
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
             mc_par % pmswap
          WRITE ( iw, format_string ) ' MC| pmswap_mol ', &
@@ -1797,6 +1830,95 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     NULLIFY(mc_molecule_info)
 
   END SUBROUTINE mc_molecule_info_destroy
+
+  SUBROUTINE mc_input_parameters_check ( mc_par)
+
+! *****************************************************************************
+!!****s* mc_types.F/get_mc_molecule_info
+!!
+!!   NAME
+!!     get_mc_molecule_info
+!!
+!!   FUNCTION
+!!     accesses the private elements of the mc_molecule_info_type
+!!
+!!   ARGUMENTS
+!!     - mc_molecule_info: the structure you want the parameters for
+!!
+!!   Suitable for parallel.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
+    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_info_destroy'
+
+    INTEGER           :: nmol_types,nboxes,imol_type
+    INTEGER,DIMENSION(:),POINTER :: nunits
+!******************************************************************************
+    CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info)
+
+    CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
+         nboxes=nboxes,nunits=nunits)
+
+! the final value of these arrays needs to be 1.0, otherwise there is
+! a chance we won't select a molecule type for a move
+    IF(mc_par%pmavbmc_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMAVBMC_MOL needs to be 1.0')       
+    ENDIF
+    IF(mc_par%pmswap_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMSWAP_MOL needs to be 1.0')       
+    ENDIF
+    IF(mc_par%pmtraion_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMTRAION_MOL needs to be 1.0')       
+    ENDIF
+    IF(mc_par%pmtrans_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMTRANS_MOL needs to be 1.0')       
+    ENDIF
+    IF(mc_par%pmrot_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMROT_MOL needs to be 1.0')       
+    ENDIF
+    IF(mc_par%pmvol_box(nboxes) .LT. 0.9999E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMVOL_BOX needs to be 1.0')       
+    ENDIF
+
+ ! some ensembles require multiple boxes or molecule types
+    SELECT CASE(mc_par%ensemble)
+    CASE("GEMC_NPT")
+       IF(nmol_types .LE. 1) &
+            CALL stop_program(routineN,moduleN,__LINE__,&
+            'Cannot have GEMC-NPT simulation with only one molecule type')
+       IF(nboxes .LE. 1) &
+            CALL stop_program(routineN,moduleN,__LINE__,&
+            'Cannot have GEMC-NPT simulation with only one box')
+    CASE("GEMC_NVT")
+       IF(nboxes .LE. 1) &
+            CALL stop_program(routineN,moduleN,__LINE__,&
+            'Cannot have GEMC-NVT simulation with only one box')
+    CASE("TRADITIONAL")
+       IF(mc_par%pmswap .GT. 0.0E0_dp)&
+            CALL stop_program(routineN,moduleN,__LINE__,&
+            'You cannot do swap moves in a system with only one box')
+    END SELECT
+
+! can't choose an AVBMC target atom number higher than the number
+! of units in that molecule
+    DO imol_type=1,nmol_types
+       IF(mc_par%avbmc_atom(imol_type) .GT. nunits(imol_type)) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               'Cannot have avbmc_atom higher than the number of atoms for that molecule type!')
+       ENDIF
+    ENDDO
+
+  END SUBROUTINE mc_input_parameters_check
 
 END MODULE mc_types
 

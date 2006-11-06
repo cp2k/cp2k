@@ -1173,6 +1173,7 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
     INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
 !*************************************************************************
 
+
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
          file_action='WRITE',file_status='REPLACE')
@@ -1183,6 +1184,10 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
            coord_row_end=coord_row_end,mol_set_nmol_row=mol_set_nmol_row,&
            mol_set_nmol_column=mol_set_nmol_column,global_row_end=global_row_end,&
            run_type_row=run_type_row,in_use=in_use)
+
+      DO iline=1,SIZE(text)
+         WRITE(1000,'(A)') TRIM(text(iline))
+      ENDDO
 
 ! how many molecule types?
       nmol_types=SIZE(nchains)

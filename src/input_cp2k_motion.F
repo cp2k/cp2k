@@ -836,11 +836,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
-       CALL keyword_create(keyword, name="PROGRAM",&
+       CALL keyword_create(keyword, name="ENSEMBLE",&
             description="Specify the type of simulation",&
-            usage="PROGRAM (TRADITIONAL|GEMC)",&
-            enum_c_vals=s2a( "TRADITIONAL","GEMC"),&
-            enum_i_vals=(/do_mc_traditional,do_mc_gemc/),&
+            usage="PROGRAM (TRADITIONAL|GEMC_NVT|GEMC_NPT)",&
+            enum_c_vals=s2a( "TRADITIONAL","GEMC_NVT","GEMC_NPT"),&
+            enum_i_vals=(/do_mc_traditional,do_mc_gemc_nvt,do_mc_gemc_npt/),&
             default_i_val=do_mc_traditional,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
@@ -940,6 +940,13 @@ CONTAINS
             description="The probability of attempting a volume move.",&
             usage="PMVOLUME {real}",&
             type_of_var=real_t, default_r_val=0.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMVOL_BOX",&
+            description="The probability of changing the volume of a given box.",&
+            usage="PMVOL_BOX {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
