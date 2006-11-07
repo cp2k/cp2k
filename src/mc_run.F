@@ -163,13 +163,14 @@ CONTAINS
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:),POINTER                                :: mc_par
     TYPE(mc_molecule_info_type), POINTER        :: mc_molecule_info
-    TYPE(mc_input_file_type), POINTER        :: mc_input_file
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file,&
+         mc_bias_file
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 root_section,&
                                                 mc_section
     INTEGER,DIMENSION(:),POINTER             :: nunits_tot
-
+    REAL(dp),DIMENSION(:,:),POINTER          :: empty_coordinates
 !************************************************************************
 
       NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
@@ -229,7 +230,8 @@ CONTAINS
 
 ! now we need the molecule information
 ! determine the total number of molecules and atoms
-      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error)
+      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error,&
+           coordinates_empty=empty_coordinates)
       CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
            nunits_tot=nunits_tot)
 
@@ -272,15 +274,18 @@ CONTAINS
          CALL get_mc_par(mc_par(1)%mc_par,lbias=lbias)
          IF(ibox == 1) THEN
             CALL mc_input_file_create ( mc_input_file,&
-                 input_file_name,nmol_types)
+                 input_file_name,mc_molecule_info,empty_coordinates)
          ELSE
             CALL mc_input_file_create ( mc_input_file,&
-                 box2_file,nmol_types)
+                 box2_file,mc_molecule_info,empty_coordinates)
          ENDIF
+         CALL set_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
+
          IF(lbias) THEN
-            CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_input_file)
-            CALL mc_input_file_create ( mc_input_file,&
-                 "bias_template.inp",nmol_types)
+            CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
+            CALL mc_input_file_create ( mc_bias_file,&
+                 "bias_template.inp",mc_molecule_info,empty_coordinates)
+            CALL set_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
          ENDIF
 
 ! check for restart
@@ -346,11 +351,13 @@ CONTAINS
          CALL get_mc_env( mc_env(ibox)%mc_env, &
               mc_par = mc_par(ibox)%mc_par,force_env=force_env(ibox)%force_env)
          CALL get_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
+         
          CALL mc_input_file_destroy(mc_input_file)
          IF(lbias)THEN
-            CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_input_file)
-            CALL mc_input_file_destroy(mc_input_file)
+            CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
+            CALL mc_input_file_destroy(mc_bias_file)
          ENDIF
+
          CALL mc_sim_par_destroy(mc_par(ibox)%mc_par)
          CALL mc_env_release ( mc_env(ibox)%mc_env, error )
 
@@ -362,6 +369,8 @@ CONTAINS
          ENDIF
       ENDDO
 
+      DEALLOCATE ( empty_coordinates, STAT = isos )
+      CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
       DEALLOCATE ( mc_par, STAT = isos )
       CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
       DEALLOCATE ( mc_env, STAT = isos )

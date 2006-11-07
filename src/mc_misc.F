@@ -1163,13 +1163,13 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file_new', &
       routineP = moduleN//':'//routineN
     
-    CHARACTER(default_string_length),DIMENSION(:),POINTER :: text
+    CHARACTER(default_string_length),DIMENSION(:),POINTER :: text,atom_names_empty
     CHARACTER(default_string_length):: line_text
     CHARACTER(60) :: cell_string,mol_string
-
+    REAL(dp),DIMENSION(:,:),POINTER :: coordinates_empty
     INTEGER :: unit,nmol_types,iline,cell_row,cell_column,&
          iunit,coord_row_start,coord_row_end,start_line,itype,&
-         global_row_end,run_type_row,in_use
+         global_row_end,run_type_row,in_use,nunits_empty
     INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
 !*************************************************************************
 
@@ -1183,11 +1183,8 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
            cell_column=cell_column,coord_row_start=coord_row_start,&
            coord_row_end=coord_row_end,mol_set_nmol_row=mol_set_nmol_row,&
            mol_set_nmol_column=mol_set_nmol_column,global_row_end=global_row_end,&
-           run_type_row=run_type_row,in_use=in_use)
-
-      DO iline=1,SIZE(text)
-         WRITE(1000,'(A)') TRIM(text(iline))
-      ENDDO
+           run_type_row=run_type_row,in_use=in_use,atom_names_empty=atom_names_empty,&
+           nunits_empty=nunits_empty,coordinates_empty=coordinates_empty)
 
 ! how many molecule types?
       nmol_types=SIZE(nchains)
@@ -1210,10 +1207,10 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
       
 ! we may pass nunits_tot=0, but we should still have coordinates
       IF(nunits_tot == 0) THEN
-         DO iunit=1,SIZE(atom_names(:))
+         DO iunit=1,nunits_empty
             WRITE(unit,'(5X,A,2X,3(F15.10))') &
-                 TRIM(ADJUSTL(atom_names(iunit))),&
-                 coordinates(1:3,iunit)*angstrom            
+                 TRIM(ADJUSTL(atom_names_empty(iunit))),&
+                 coordinates_empty(1:3,iunit)*angstrom            
          ENDDO
       ELSE
          DO iunit=1,nunits_tot
@@ -1229,7 +1226,14 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
          DO iline=start_line,mol_set_nmol_row(itype)-1
             WRITE(unit,'(A)') TRIM(text(iline))
          ENDDO
-         WRITE(mol_string,'(I8)') nchains(itype)
+
+! have to print out one molecule, even if it's empty
+         IF(nunits_tot == 0 .AND. itype == 1) THEN
+            WRITE(mol_string,'(I8)') 1
+         ELSE
+            WRITE(mol_string,'(I8)') nchains(itype)
+         ENDIF
+
          line_text=text(mol_set_nmol_row(itype))        
          line_text(mol_set_nmol_column(itype):mol_set_nmol_column(itype)+9)=&
               mol_string(1:10)

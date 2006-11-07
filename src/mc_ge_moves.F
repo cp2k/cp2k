@@ -912,7 +912,12 @@ CONTAINS
       loverlap_rem=.FALSE.
 
 ! compute the new molecule information...we need this for the CBMC part
-      CALL mc_determine_molecule_info(test_env,mc_molecule_info_test,error)      
+      IF(rem_atoms == 0) THEN
+         CALL mc_determine_molecule_info(test_env,mc_molecule_info_test,error,&
+              box_number=remove_box)      
+      ELSE
+         CALL mc_determine_molecule_info(test_env,mc_molecule_info_test,error)      
+      ENDIF
       CALL get_mc_molecule_info(mc_molecule_info_test,nchains=nchains_test,&
            mol_type=mol_type_test)
 
@@ -1030,10 +1035,9 @@ CONTAINS
 
 ! now the environment that has one less molecule
          IF (SUM(nchains_test(:,remove_box)) == 0) THEN
-! don't need to remove a molecule, since we want nchains(molecule_type,remove_box)=1
             CALL get_mc_par(mc_par(remove_box)%mc_par,mc_input_file=mc_input_file)
             CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
-                 abc_remove(:),dat_file(remove_box),nchains(:,remove_box),&
+                 abc_remove(:),dat_file(remove_box),nchains_test(:,remove_box),&
                  mc_input_file)
              test_env_bias(remove_box)%force_env => test_env(remove_box)%force_env
             NULLIFY(test_env(remove_box)%force_env)

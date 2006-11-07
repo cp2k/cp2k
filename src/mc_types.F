@@ -59,6 +59,7 @@ MODULE mc_types
                                              molecule_kind_type,&
                                              atom_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
+  USE particle_list_types,             ONLY: particle_list_p_type
   USE physcon,                         ONLY: boltzmann,&
                                              joule
   USE string_utilities,                ONLY: xstring,&
@@ -73,6 +74,7 @@ MODULE mc_types
   IMPLICIT NONE
 
   PRIVATE
+  
 ! *** Global parameters ***
 
  PUBLIC :: mc_simulation_parameters_type,&
@@ -149,9 +151,11 @@ MODULE mc_types
 ! contains all the text of the input file
       PRIVATE
       INTEGER :: run_type_row,run_type_column,coord_row_start,coord_row_end,&
-           cell_row,cell_column,global_row_end,in_use
+           cell_row,cell_column,global_row_end,in_use,nunits_empty
       INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
       CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: text
+      CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: atom_names_empty
+      REAL(dp),DIMENSION(:,:),POINTER :: coordinates_empty
    END TYPE mc_input_file_type
 
   TYPE mc_molecule_info_type
@@ -226,7 +230,8 @@ CONTAINS
 
  SUBROUTINE get_mc_input_file ( mc_input_file,run_type_row,run_type_column,&
       coord_row_start,coord_row_end,cell_row,cell_column,global_row_end,&
-      mol_set_nmol_row,mol_set_nmol_column,in_use,text)
+      mol_set_nmol_row,mol_set_nmol_column,in_use,text,atom_names_empty,&
+      nunits_empty,coordinates_empty)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_input_file
@@ -249,11 +254,12 @@ CONTAINS
    TYPE(mc_input_file_type),POINTER :: mc_input_file
    INTEGER,INTENT(OUT),OPTIONAL :: run_type_row,&
         run_type_column,coord_row_start,coord_row_end,&
-        cell_row,cell_column,global_row_end,in_use
+        cell_row,cell_column,global_row_end,in_use,nunits_empty
    INTEGER,DIMENSION(:),POINTER,OPTIONAL :: &
         mol_set_nmol_row,mol_set_nmol_column
    CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER,&
-        OPTIONAL :: text
+        OPTIONAL :: text,atom_names_empty
+   REAL(dp),DIMENSION(:,:),POINTER,OPTIONAL :: coordinates_empty
    
    IF(PRESENT(in_use)) in_use=mc_input_file%in_use
    IF(PRESENT(run_type_row)) run_type_row=mc_input_file%run_type_row
@@ -263,13 +269,16 @@ CONTAINS
    IF(PRESENT(cell_row)) cell_row=mc_input_file%cell_row
    IF(PRESENT(cell_column)) cell_column=mc_input_file%cell_column
    IF(PRESENT(global_row_end)) global_row_end=mc_input_file%global_row_end
+   IF(PRESENT(nunits_empty)) nunits_empty=mc_input_file%nunits_empty
    
    IF(PRESENT(mol_set_nmol_row)) mol_set_nmol_row=> mc_input_file%mol_set_nmol_row
    IF(PRESENT(mol_set_nmol_column)) mol_set_nmol_column=> mc_input_file%mol_set_nmol_column
    IF(PRESENT(text)) text=> mc_input_file%text
+   IF(PRESENT(atom_names_empty)) atom_names_empty=> mc_input_file%atom_names_empty
+   IF(PRESENT(coordinates_empty)) coordinates_empty=> mc_input_file%coordinates_empty
    
  END SUBROUTINE GET_MC_INPUT_FILE
-
+!******************************************************************************
  SUBROUTINE get_mc_par ( mc_par, nstep, iuptrans, iupvolume, &
        nmoves,nswapmoves,rm,cl,diff,nstart,&
        source,group,lbias,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
@@ -468,7 +477,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
       lrestart,ldiscrete,discrete_step,pmavbmc,mc_molecule_info,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
-      avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box)
+      avbmc_rmin,avbmc_rmax,avbmc_atom,pbias,ensemble,pmvol_box,&
+      mc_input_file,mc_bias_file)
 
 ! *****************************************************************************
 !!****s* mc_types.F/set_mc_par
@@ -513,6 +523,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
          pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
          avbmc_rmin,avbmc_rmax,pbias,pmvol_box
     INTEGER,DIMENSION(:),POINTER,OPTIONAL :: avbmc_atom
+    TYPE(mc_input_file_type),POINTER,OPTIONAL :: mc_input_file,mc_bias_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
       routineP = moduleN//':'//routineN
@@ -549,6 +560,9 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
     IF ( PRESENT ( discrete_step ) ) mc_par % discrete_step = discrete_step
     IF ( PRESENT ( rmvolume ) ) mc_par % rmvolume = rmvolume
+
+    IF ( PRESENT ( mc_input_file ) ) mc_par % mc_input_file => mc_input_file
+    IF ( PRESENT ( mc_bias_file ) ) mc_par % mc_bias_file => mc_bias_file
 
 ! cannot just change the pointers, because then we have memory leaks
 ! and the program crashes if we try to release it (in certain cases)
@@ -840,22 +854,41 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 !!   NOTES
 !!
 !!*****************************************************************************
-  SUBROUTINE mc_input_file_create (mc_input_file,input_file_name,nmol_types)
+  SUBROUTINE mc_input_file_create (mc_input_file,input_file_name,&
+       mc_molecule_info,empty_coords)
 
 
     TYPE(mc_input_file_type), &
          POINTER                               :: mc_input_file
-    INTEGER,INTENT(IN)                       :: nmol_types
+    TYPE(mc_molecule_info_type),POINTER  :: mc_molecule_info
     CHARACTER(LEN=*),INTENT(IN)              :: input_file_name
-    
+    REAL(dp),DIMENSION(:,:)     :: empty_coords
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_iput_file_info_create'
 
     INTEGER :: istat,unit,nlines,io_stat,iline,idum,abc_row,abc_column,&
          cell_row,cell_column,row_number,irep,nstart,&
-         line_number
+         line_number,nmol_types,iunit
+    INTEGER,DIMENSION(:),POINTER :: nunits
+    CHARACTER(default_string_length),DIMENSION(:,:),POINTER :: atom_names
     CHARACTER(default_string_length)   :: line,method_name,cdum
 !******************************************************************************
 
+! allocate the array we'll need in case we have an empty box
+    CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
+         nunits=nunits,atom_names=atom_names)
+    ALLOCATE (mc_input_file%coordinates_empty(1:3,1:nunits(1)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%coordinates_empty",nunits(1)*5)
+    ALLOCATE (mc_input_file%atom_names_empty(1:nunits(1)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%atom_names_empty",nunits(1)*5)
+    DO iunit=1,nunits(1)
+       mc_input_file%atom_names_empty(iunit)=atom_names(iunit,1)
+       mc_input_file%coordinates_empty(1:3,iunit)=empty_coords(1:3,iunit)
+    ENDDO
+    mc_input_file%nunits_empty=nunits(1)
+
+! allocate some arrays
     ALLOCATE (mc_input_file%mol_set_nmol_row(1:nmol_types),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_input_file%mol_set_nmol_row",nmol_types*int_size)
@@ -1005,6 +1038,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     DEALLOCATE (mc_input_file%text,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_input_file%text")
+    DEALLOCATE (mc_input_file%atom_names_empty,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%atom_names_empty")
+    DEALLOCATE (mc_input_file%coordinates_empty,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_input_file%coordinates_empty")
 
   END SUBROUTINE mc_input_file_destroy
 
@@ -1564,13 +1603,16 @@ END SUBROUTINE find_mc_rcut
 !!   NOTES
 !!*****************************************************************************
 
-SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
+SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_number,&
+     coordinates_empty)
 
     TYPE(cp_error_type), INTENT(inout)  :: error
     TYPE(force_env_p_type), DIMENSION(:),POINTER &
          :: force_env
     TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
- 
+    INTEGER,INTENT(IN),OPTIONAL :: box_number
+    REAL(dp),DIMENSION(:,:),POINTER,OPTIONAL :: coordinates_empty
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_determine_molecule_info', &
       routineP = moduleN//':'//routineN
 
@@ -1578,13 +1620,15 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_kind_new_list_p_type), DIMENSION(:),POINTER &
          :: molecule_kinds_new
+    TYPE(particle_list_p_type),DIMENSION(:),POINTER :: particles
     TYPE(molecule_kind_type), POINTER  :: molecule_kind
     CHARACTER(LEN=default_string_length) :: name
     CHARACTER(LEN=default_string_length),DIMENSION(:),ALLOCATABLE :: &
          names_init
     INTEGER :: total,nbond,nbend,ntorsion,istat,ibox,ntypes,&
          itype,imolecule,jtype,iunique,natom,natoms_large,&
-         nmolecule,nboxes, first_mol,last_mol,this_molecule,imol,iatom
+         nmolecule,nboxes, first_mol,last_mol,this_molecule,imol,iatom,&
+         skip_box,iunit
     LOGICAL :: lnew_type
     INTEGER :: nmol_types
     INTEGER,DIMENSION(:),POINTER :: molecule_list
@@ -1599,6 +1643,14 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
     ALLOCATE(mc_molecule_info)
     mc_molecule_info%nboxes=nboxes
 
+! if box_number is present, that box is supposed to be empty,
+! so we don't count it in anything
+    IF(present(box_number)) THEN
+       skip_box=box_number
+    ELSE
+       skip_box=0
+    ENDIF
+
 ! we need to figure out how many different kinds of molecules we have...
 ! the fun stuff comes in when box 1 is missing a molecule type...I'll
 ! distinguish molecules based on names from the .psf files...
@@ -1606,6 +1658,9 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
 ! box
     NULLIFY(subsys,molecule_kinds_new,molecule_kind)
 
+    ALLOCATE(particles(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "particles",nboxes)
     ALLOCATE (molecule_kinds_new(1:nboxes),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "molecule_kinds_new",nboxes)
@@ -1613,11 +1668,12 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
  ! find out how many types we have
     ntypes=0
     DO ibox=1,nboxes
+       IF(ibox == skip_box) CYCLE
        CALL force_env_get(force_env(ibox)%force_env,&
             subsys=subsys,error=error)
        CALL cp_subsys_get(subsys(1)%subsys, &
             molecule_kinds_new=molecule_kinds_new(ibox)%list,&
-            error=error)
+            particles=particles(ibox)%list,error=error)
        ntypes=ntypes+SIZE(molecule_kinds_new(ibox)%list%els(:))
     ENDDO
 
@@ -1630,6 +1686,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
     itype=1
     natoms_large=0
     DO ibox=1,nboxes
+       IF(ibox == skip_box) CYCLE
        DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))
           molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
           CALL get_molecule_kind(molecule_kind,name=names_init(itype),&
@@ -1682,6 +1739,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
     iunique=0
     itype=0
     DO ibox=1,nboxes
+       IF(ibox == skip_box) CYCLE
        DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))
           itype=itype+1
           IF(names_init(itype) .EQ. '') CYCLE
@@ -1695,7 +1753,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
              atomic_kind => atom_list(iatom)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=mc_molecule_info%atom_names(iatom,iunique),&
-                  mass=mc_molecule_info%mass(iatom,iunique))             
+                  mass=mc_molecule_info%mass(iatom,iunique))   
           ENDDO
 
 ! compute the probabilities of doing any particular kind of conformation change
@@ -1712,11 +1770,24 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
        ENDDO
     ENDDO
 
+! figure out the empty coordinates
+    IF(PRESENT(coordinates_empty)) THEN
+       ALLOCATE(coordinates_empty(1:3,1:mc_molecule_info%nunits(1)),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "coordinates_empty",3*mc_molecule_info%nunits(1)*dp_size)
+       DO iunit=1,mc_molecule_info%nunits(1)
+          coordinates_empty(1:3,iunit)=particles(1)%list%els(iunit)%r(1:3)
+       ENDDO
+    ENDIF
+
+
+
 ! now we need to figure out the total number of molecules of each kind in
 ! each box, and the total number of interaction sites in each box
     mc_molecule_info%nchains(:,:)=0
     DO iunique=1,nmol_types
        DO ibox=1,nboxes
+          IF(ibox == skip_box) CYCLE
           DO imolecule=1,SIZE(molecule_kinds_new(ibox)%list%els(:))    
              molecule_kind=> molecule_kinds_new(ibox)%list%els(imolecule)
              CALL get_molecule_kind(molecule_kind,nmolecule=nmolecule,&
@@ -1729,6 +1800,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
     mc_molecule_info%nchain_total=0
     DO ibox=1,nboxes
        mc_molecule_info%nunits_tot(ibox)=0
+       IF(ibox == skip_box) CYCLE
        DO iunique=1,nmol_types
           mc_molecule_info%nunits_tot(ibox)=mc_molecule_info%nunits_tot(ibox)+&
                mc_molecule_info%nunits(iunique)*mc_molecule_info%nchains(iunique,ibox)
@@ -1747,6 +1819,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
 
     last_mol=0
     DO ibox=1,nboxes
+       IF(ibox == skip_box) CYCLE
        first_mol=last_mol+1
        last_mol=first_mol+SUM(mc_molecule_info%nchains(:,ibox))-1
        mc_molecule_info%in_box(first_mol:last_mol)=ibox
@@ -1772,7 +1845,8 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"names_init")
     DEALLOCATE(molecule_kinds_new,stat=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"molecule_kinds_new")
-
+    DEALLOCATE(particles,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"particles")
 
 END SUBROUTINE MC_DETERMINE_MOLECULE_INFO
 
