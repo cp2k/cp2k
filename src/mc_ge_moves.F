@@ -769,8 +769,9 @@ CONTAINS
          DO iatom=1,nunits(molecule_type)
             insert_coords(1:3,iatom)=r_insert_mol(1:3,iatom)
             atom_names_insert(iatom)=&
-                 particles_old(insert_box)%list%els(start_atom_rem+iatom-1)%atomic_kind%name
+                 particles_old(remove_box)%list%els(start_atom_rem+iatom-1)%atomic_kind%name
          ENDDO
+         start_atom_ins=1
       ELSE
 ! the problem is I can't just tack the new molecule on to the end, 
 ! because of reading in the dat_file...the topology stuff will crash 
@@ -782,7 +783,8 @@ CONTAINS
             start_atom_ins=start_atom_ins+&
                  nchains(itype,insert_box)*nunits(itype)
             IF(itype == molecule_type) EXIT
-         ENDDO         
+         ENDDO     
+    
          DO iatom=1,start_atom_ins-1
             insert_coords(1:3,iatom)=&
                particles_old(insert_box)%list%els(iatom)%r(1:3)

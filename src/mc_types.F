@@ -1357,7 +1357,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          format_string="(A,T" // TRIM(ADJUSTL(tab_string)) // "," // TRIM(ADJUSTL(molecule_string)) // "(2X,F8.4))"
          format_box_string="(A,T" // TRIM(ADJUSTL(tab_box_string)) // "," // TRIM(ADJUSTL(box_string)) // "(2X,F8.4))"
          format_string_int="(A,T" // TRIM(ADJUSTL(tab_string)) // "," // TRIM(ADJUSTL(molecule_string)) // "(I3,2X))"
-         WRITE(6,*) 'eiroudsflk ',format_box_string
          WRITE ( iw, '( A )' ) ' MC| Monte Carlo Protocol '
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| total number of steps ', &
             mc_par % nstep
