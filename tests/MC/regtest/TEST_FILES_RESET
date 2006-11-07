@@ -10,3 +10,5 @@ MC_Fist.inp
 MC_Fist.inp
 # a lot of new MC stuff
 MC_QS.inp
+# changed from an NVT GEMC simulation to NpT
+MC_Fist_box1.inp
