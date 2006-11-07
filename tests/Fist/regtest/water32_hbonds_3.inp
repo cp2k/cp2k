@@ -1,0 +1,95 @@
+
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K 0.05
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.0
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 78.198
+          SIGMA 3.166
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms O H
+          EPSILON 0.0
+          SIGMA 3.6705
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H H
+          EPSILON 0.0
+          SIGMA 3.30523
+          RCUT 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .5
+        GMAX 20
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O                   0.821  -4.406   6.516   H2O
+    H                   0.847  -3.675   7.225   H2O
+    H                  -0.014  -4.240   5.988   H2O
+    O                   1.577   3.933   3.762   H2OY
+    H                   1.221   2.975   3.640   H2OY
+    H                   1.367   4.126   4.659   H2OY
+    O                  -2.111  -3.741  -0.219   H2O
+    H                  -1.378  -4.425  -0.036   H2O
+    H                  -1.825  -2.775   0.003   H2O
+    O                   3.655   3.021   0.988   H2OZ
+    H                   2.706   3.053   1.282   H2OZ
+    H                   3.542   2.615   0.020   H2OZ
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+
+  PROJECT H2O
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    &HBONDS
+      ATOM_TYPE O
+      TARGETS 2.2
+      MOLECULE 1 2 3 4
+    &END
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 300.0
+  &END MD
+&END MOTION

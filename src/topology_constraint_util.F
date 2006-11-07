@@ -57,7 +57,8 @@ MODULE topology_constraint_util
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: constraint_info_type,&
-                                             topology_parameters_type
+                                             topology_parameters_type,&
+                                             constr_list_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -154,11 +155,14 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(section_vals_type), POINTER         :: hbonds_section
+    TYPE(constr_list_type), POINTER, DIMENSION(:)  :: constr_x_mol
     INTEGER :: output_unit
     LOGICAL :: ionode, ishbond
-    
+    INTEGER, POINTER, DIMENSION(:) :: inds
+    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: cnds
+
     failure = .FALSE.
-    NULLIFY(logger)
+    NULLIFY(logger, constr_x_mol)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) THEN
@@ -195,6 +199,39 @@ CONTAINS
     IF(topology%const_hydr) THEN
        topology%const_colv = .TRUE.
        NULLIFY(atom_typeh, hdist)
+       ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, SIZE(molecule_kind_set)
+          ALLOCATE(constr_x_mol(i)%constr(1),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          constr_x_mol(i)%constr(1) = 1
+       END DO
+       CALL section_vals_val_get(hbonds_section,"MOLECULE",n_rep_val=nrep,error=error)
+       IF (nrep/=0) THEN
+          NULLIFY(inds)
+          DO i = 1, SIZE(molecule_kind_set)
+             constr_x_mol(i)%constr(1) = 0
+          END DO
+          CALL section_vals_val_get(hbonds_section,"MOLECULE",i_vals=inds,error=error)
+          DO i = 1, SIZE(inds)
+             constr_x_mol(inds(i))%constr(1) = 1
+          END DO
+       ELSE
+          CALL section_vals_val_get(hbonds_section,"MOLNAME",n_rep_val=nrep,error=error)
+          IF (nrep/=0) THEN
+             NULLIFY(cnds)
+             DO i = 1, SIZE(molecule_kind_set)
+                constr_x_mol(i)%constr(1) = 0
+             END DO
+             CALL section_vals_val_get(hbonds_section,"MOLNAME",c_vals=cnds,error=error)
+             DO i = 1, SIZE(cnds)
+                DO k = 1, SIZE(molecule_kind_set)
+                   molecule_kind => molecule_kind_set(k)
+                   IF (cnds(i) == molecule_kind%name) constr_x_mol(k)%constr(1) = 1
+                END DO
+             END DO
+          END IF
+       END IF
        CALL section_vals_val_get(hbonds_section,"ATOM_TYPE",n_rep_val=nrep,error=error)
        IF (nrep/=0) &
             CALL section_vals_val_get(hbonds_section,"ATOM_TYPE",c_vals=atom_typeh,error=error)
@@ -207,6 +244,7 @@ CONTAINS
        nhdist = 0
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
+          IF (constr_x_mol(i)%constr(1) == 0) CYCLE
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                bond_list=bond_list, nbond=nbond, atom_list=atom_list,&
                molecule_list=molecule_list)
@@ -239,6 +277,7 @@ CONTAINS
        n_start_colv = cons_info%nconst_colv
        cons_info%nconst_colv = nhdist + n_start_colv
        CALL reallocate(cons_info%const_colv_mol,1,cons_info%nconst_colv)
+       CALL reallocate(cons_info%const_colv_molname,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%const_colv_target,1,cons_info%nconst_colv)
        CALL colvar_p_reallocate(cons_info%colvar_set,1,cons_info%nconst_colv,error=error)
        ! Fill in Restraints info
@@ -249,6 +288,7 @@ CONTAINS
        !
        nhdist = 0
        DO i=1,SIZE(molecule_kind_set)
+          IF (constr_x_mol(i)%constr(1) == 0) CYCLE
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                bond_list=bond_list, nbond=nbond, atom_list=atom_list,&
@@ -293,6 +333,7 @@ CONTAINS
                 END IF
                 nhdist = nhdist + 1
                 cons_info%const_colv_mol(nhdist+n_start_colv)     = i
+                cons_info%const_colv_molname(nhdist+n_start_colv) = "UNDEF"
                 cons_info%const_colv_target(nhdist+n_start_colv)  = rmod
                 CALL colvar_create(cons_info%colvar_set(nhdist+n_start_colv)%colvar,&
                      dist_colvar_id, error)
@@ -302,6 +343,12 @@ CONTAINS
              END IF
           END DO
        END DO
+       DO j = 1, SIZE(constr_x_mol)
+          DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       DEALLOCATE(constr_x_mol,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !-----------------------------------------------------------------------------
@@ -309,40 +356,42 @@ CONTAINS
     ! 3. Set the distance constraint molecule_kind_set(ikind)%colv_list
     !-----------------------------------------------------------------------------
     IF(topology%const_colv) THEN
-       DO i = 1, SIZE(cons_info%colvar_set)
-          ii = cons_info%const_colv_mol(i)
-          IF (ii==0) CYCLE
+       CALL give_constraint_array(cons_info%const_colv_mol,&
+                                  cons_info%const_colv_molname,&
+                                  constr_x_mol,&
+                                  molecule_kind_set,&
+                                  error)
+       DO ii = 1, SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
-          ncolv_mol = COUNT(cons_info%const_colv_mol==ii)
+          ncolv_mol = SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(colv_list(ncolv_mol),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ncolv_mol = 0
-          DO j = 1, SIZE(cons_info%colvar_set)
-             IF (cons_info%const_colv_mol(j)==ii) THEN
-                ncolv_mol = ncolv_mol + 1
-                kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
-                ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(j)%colvar%type_id
-                colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(j)%colvar%i_atom
-                IF (cons_info%const_colv_target(j)==-HUGE(0.0_dp)) THEN
-                   CALL colvar_eval_mol_f(cons_info%colvar_set(j)%colvar, topology%cell,&
-                        particle_set, error=error)
-                   colv_list(ncolv_mol)%expected_value = cons_info%colvar_set(j)%colvar%ss
-                ELSE
-                   colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
-                END IF
-                ! Only if torsion let's take into account the singularity in the definition
-                ! of the dihedral
-                IF (cons_info%colvar_set(j)%colvar%type_id==torsion_colvar_id) THEN
-                   cons_info%colvar_set(j)%colvar%torsion_param%o0=colv_list(ncolv_mol)%expected_value
-                END IF
-                ! Restraint
-                colv_list(ncolv_mol)%restraint%active = cons_info%colv_restraint(j)
-                colv_list(ncolv_mol)%restraint%k0     = cons_info%colv_k0(j)
+          DO kk = 1, SIZE(constr_x_mol(ii)%constr)
+             j = constr_x_mol(ii)%constr(kk)
+             ncolv_mol = ncolv_mol + 1
+             kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
+             ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(j)%colvar%type_id
+             colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(j)%colvar%i_atom
+             IF (cons_info%const_colv_target(j)==-HUGE(0.0_dp)) THEN
+                CALL colvar_eval_mol_f(cons_info%colvar_set(j)%colvar, topology%cell,&
+                     particle_set, error=error)
+                colv_list(ncolv_mol)%expected_value = cons_info%colvar_set(j)%colvar%ss
+             ELSE
+                colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
              END IF
+             ! Only if torsion let's take into account the singularity in the definition
+             ! of the dihedral
+             IF (cons_info%colvar_set(j)%colvar%type_id==torsion_colvar_id) THEN
+                cons_info%colvar_set(j)%colvar%torsion_param%o0=colv_list(ncolv_mol)%expected_value
+             END IF
+             ! Restraint
+             colv_list(ncolv_mol)%restraint%active = cons_info%colv_restraint(j)
+             colv_list(ncolv_mol)%restraint%k0     = cons_info%colv_k0(j)
           END DO
           CALL setup_colvar_counters(colv_list,ncolv)
           CALL set_molecule_kind(molecule_kind,colv_list=colv_list,ncolv=ncolv)
@@ -352,36 +401,40 @@ CONTAINS
              ALLOCATE(lcolv(ncolv_mol),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ncolv_mol = 0
-             DO k=1,SIZE(cons_info%colvar_set)
-                IF (cons_info%const_colv_mol(k)==ii) THEN
-                   ncolv_mol = ncolv_mol + 1
-                   lcolv(ncolv_mol)%lambda    = 0.0_dp
-                   lcolv(ncolv_mol)%sigma     = 0.0_dp
-                   ! Set Up colvar variable
-                   NULLIFY(lcolv(ncolv_mol)%colvar, lcolv(ncolv_mol)%colvar_old)
-                   ! Colvar
-                   CALL colvar_clone(lcolv(ncolv_mol)%colvar, cons_info%colvar_set(k)%colvar,&
-                        i_atom_offset=first_atom-1,error=error)
-                   ! Colvar_old
-                   CALL colvar_clone(lcolv(ncolv_mol)%colvar_old,lcolv(ncolv_mol)%colvar,error=error)
-                   ! Check for consistency in the constraint definition
-                   IF  (ANY(lcolv(ncolv_mol)%colvar%i_atom > last_atom).OR.&
-                        ANY(lcolv(ncolv_mol)%colvar%i_atom < first_atom)) THEN
-                      WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
-                      WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
-                           " but the atoms specified in the constraint and the atoms defined for",&
-                           " the molecule DO NOT match!",&
-                           "This could be very probable due to a wrong connectivity, or an error",&
-                           " in the constraint specification in the input file.",&
-                           " Please check it carefully!"
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                   END IF
+             DO kk=1,SIZE(constr_x_mol(ii)%constr)
+                k = constr_x_mol(ii)%constr(kk)
+                ncolv_mol = ncolv_mol + 1
+                lcolv(ncolv_mol)%lambda    = 0.0_dp
+                lcolv(ncolv_mol)%sigma     = 0.0_dp
+                ! Set Up colvar variable
+                NULLIFY(lcolv(ncolv_mol)%colvar, lcolv(ncolv_mol)%colvar_old)
+                ! Colvar
+                CALL colvar_clone(lcolv(ncolv_mol)%colvar, cons_info%colvar_set(k)%colvar,&
+                     i_atom_offset=first_atom-1,error=error)
+                ! Colvar_old
+                CALL colvar_clone(lcolv(ncolv_mol)%colvar_old,lcolv(ncolv_mol)%colvar,error=error)
+                ! Check for consistency in the constraint definition
+                IF  (ANY(lcolv(ncolv_mol)%colvar%i_atom > last_atom).OR.&
+                     ANY(lcolv(ncolv_mol)%colvar%i_atom < first_atom)) THEN
+                   WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
+                   WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
+                        " but the atoms specified in the constraint and the atoms defined for",&
+                        " the molecule DO NOT match!",&
+                        "This could be very probable due to a wrong connectivity, or an error",&
+                        " in the constraint specification in the input file.",&
+                        " Please check it carefully!"
+                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END IF
              END DO
              CALL set_molecule(molecule=molecule,lcolv=lcolv)
           END DO
-          WHERE (cons_info%const_colv_mol==ii) cons_info%const_colv_mol=0
        END DO
+       DO j = 1, SIZE(constr_x_mol)
+          DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       DEALLOCATE(constr_x_mol,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !-----------------------------------------------------------------------------
@@ -389,31 +442,33 @@ CONTAINS
     ! 4. Set the group 3x3 constraint g3x3_list
     !-----------------------------------------------------------------------------
     IF(topology%const_33) THEN
-       DO i=1,cons_info%nconst_g33
-          ii = cons_info%const_g33_mol(i)
-          IF (ii==0) CYCLE
+       CALL give_constraint_array(cons_info%const_g33_mol,&
+                                  cons_info%const_g33_molname,&
+                                  constr_x_mol,&
+                                  molecule_kind_set,&
+                                  error)
+       DO ii = 1, SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
-          ng3x3 = COUNT(cons_info%const_g33_mol==ii)
+          ng3x3 =  SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(g3x3_list(ng3x3),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ng3x3 = 0
           ng3x3_restraint = 0
-          DO j=1,SIZE(cons_info%const_g33_mol)
-             IF (cons_info%const_g33_mol(j)==ii) THEN
-                ng3x3 = ng3x3 + 1
-                g3x3_list(ng3x3)%a   = cons_info%const_g33_a(j)
-                g3x3_list(ng3x3)%b   = cons_info%const_g33_b(j)
-                g3x3_list(ng3x3)%c   = cons_info%const_g33_c(j)
-                g3x3_list(ng3x3)%dab = cons_info%const_g33_dab(j)
-                g3x3_list(ng3x3)%dac = cons_info%const_g33_dac(j)
-                g3x3_list(ng3x3)%dbc = cons_info%const_g33_dbc(j)
-                ! Restraint
-                g3x3_list(ng3x3)%restraint%active = cons_info%g33_restraint(j)
-                g3x3_list(ng3x3)%restraint%k0     = cons_info%g33_k0(j)
-                IF (g3x3_list(ng3x3)%restraint%active) ng3x3_restraint = ng3x3_restraint+ 1
-             END IF
+          DO kk = 1, SIZE(constr_x_mol(ii)%constr)
+             j = constr_x_mol(ii)%constr(kk)
+             ng3x3 = ng3x3 + 1
+             g3x3_list(ng3x3)%a   = cons_info%const_g33_a(j)
+             g3x3_list(ng3x3)%b   = cons_info%const_g33_b(j)
+             g3x3_list(ng3x3)%c   = cons_info%const_g33_c(j)
+             g3x3_list(ng3x3)%dab = cons_info%const_g33_dab(j)
+             g3x3_list(ng3x3)%dac = cons_info%const_g33_dac(j)
+             g3x3_list(ng3x3)%dbc = cons_info%const_g33_dbc(j)
+             ! Restraint
+             g3x3_list(ng3x3)%restraint%active = cons_info%g33_restraint(j)
+             g3x3_list(ng3x3)%restraint%k0     = cons_info%g33_k0(j)
+             IF (g3x3_list(ng3x3)%restraint%active) ng3x3_restraint = ng3x3_restraint+ 1
           END DO
           CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,ng3x3_restraint=ng3x3_restraint,g3x3_list=g3x3_list)
           DO j=1,nmolecule
@@ -421,7 +476,8 @@ CONTAINS
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg3x3(ng3x3),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO k=1,ng3x3
+             DO kk = 1, SIZE(constr_x_mol(ii)%constr)
+                k = constr_x_mol(ii)%constr(kk)
                 lg3x3(k)%scale     = 0.0_dp
                 lg3x3(k)%scale_old = 0.0_dp
                 lg3x3(k)%fa        = 0.0_dp
@@ -452,8 +508,13 @@ CONTAINS
              END DO
              CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
           END DO
-          WHERE (cons_info%const_g33_mol==ii) cons_info%const_g33_mol=0
        END DO
+       DO j = 1, SIZE(constr_x_mol)
+          DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       DEALLOCATE(constr_x_mol,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !-----------------------------------------------------------------------------
@@ -461,35 +522,37 @@ CONTAINS
     ! 5. Set the group 4x6 constraint g4x6_list
     !-----------------------------------------------------------------------------
     IF(topology%const_46) THEN
-       DO i=1,cons_info%nconst_g46
-          ii = cons_info%const_g46_mol(i)
-          IF (ii==0) CYCLE
+       CALL give_constraint_array(cons_info%const_g46_mol,&
+                                  cons_info%const_g46_molname,&
+                                  constr_x_mol,&
+                                  molecule_kind_set,&
+                                  error)
+       DO ii = 1, SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
-          ng4x6 = COUNT(cons_info%const_g46_mol==ii)
+          ng4x6 = SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(g4x6_list(ng4x6),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ng4x6 = 0
           ng4x6_restraint = 0
-          DO j=1,SIZE(cons_info%const_g46_a)
-             IF (cons_info%const_g46_mol(j)==ii) THEN
-                ng4x6 = ng4x6 + 1
-                g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
-                g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
-                g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
-                g4x6_list(ng4x6)%d   = cons_info%const_g46_d(j)
-                g4x6_list(ng4x6)%dab = cons_info%const_g46_dab(j)
-                g4x6_list(ng4x6)%dac = cons_info%const_g46_dac(j)
-                g4x6_list(ng4x6)%dbc = cons_info%const_g46_dbc(j)
-                g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
-                g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
-                g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
-                ! Restraint
-                g4x6_list(ng4x6)%restraint%active = cons_info%g46_restraint(j)
-                g4x6_list(ng4x6)%restraint%k0     = cons_info%g46_k0(j)
-                IF (g4x6_list(ng4x6)%restraint%active) ng4x6_restraint = ng4x6_restraint+ 1
-             END IF
+          DO kk = 1, SIZE(constr_x_mol(ii)%constr)
+             j = constr_x_mol(ii)%constr(kk)
+             ng4x6 = ng4x6 + 1
+             g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
+             g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
+             g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
+             g4x6_list(ng4x6)%d   = cons_info%const_g46_d(j)
+             g4x6_list(ng4x6)%dab = cons_info%const_g46_dab(j)
+             g4x6_list(ng4x6)%dac = cons_info%const_g46_dac(j)
+             g4x6_list(ng4x6)%dbc = cons_info%const_g46_dbc(j)
+             g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
+             g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
+             g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
+             ! Restraint
+             g4x6_list(ng4x6)%restraint%active = cons_info%g46_restraint(j)
+             g4x6_list(ng4x6)%restraint%k0     = cons_info%g46_k0(j)
+             IF (g4x6_list(ng4x6)%restraint%active) ng4x6_restraint = ng4x6_restraint+ 1
           END DO
           CALL set_molecule_kind(molecule_kind,ng4x6=ng4x6,ng4x6_restraint=ng4x6_restraint,g4x6_list=g4x6_list)
           DO j=1,nmolecule
@@ -497,7 +560,8 @@ CONTAINS
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg4x6(ng4x6),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO k=1,ng4x6
+             DO kk = 1, SIZE(constr_x_mol(ii)%constr)
+                k = constr_x_mol(ii)%constr(kk)
                 lg4x6(k)%scale     = 0.0_dp
                 lg4x6(k)%scale_old = 0.0_dp
                 lg4x6(k)%fa        = 0.0_dp
@@ -539,8 +603,13 @@ CONTAINS
              END DO
              CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
           END DO
-          WHERE (cons_info%const_g46_mol==ii) cons_info%const_g46_mol=0
        END DO
+       DO j = 1, SIZE(constr_x_mol)
+          DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       DEALLOCATE(constr_x_mol,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !-----------------------------------------------------------------------------
@@ -648,5 +717,78 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE topology_constraint_pack
+
+!******************************************************************************
+!!****** topology_constraint_util/give_constraint_array [1.0] *
+!!
+!!   NAME
+!!     give_constraint_array
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Gives back a list of molecule to which apply the constraint
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*** *************************************************************************
+  SUBROUTINE give_constraint_array(const_mol, const_molname,constr_x_mol,&
+                                  molecule_kind_set, error)
+    
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+    INTEGER, POINTER, DIMENSION(:)           :: const_mol
+    CHARACTER(LEN=default_string_length),&
+         POINTER, DIMENSION(:)               :: const_molname
+    TYPE(constr_list_type), POINTER, DIMENSION(:)  :: constr_x_mol
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'give_constraint_array', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL :: failure
+    INTEGER :: handle, i, k, isize, stat
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    CHARACTER(LEN=default_string_length)     :: myname
+
+    failure = .FALSE.
+    CALL timeset(routineN,'I','',handle)
+    IF (.NOT.failure) THEN
+       NULLIFY(molecule_kind)
+       ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, SIZE(constr_x_mol)
+          NULLIFY(constr_x_mol(i)%constr)
+          ALLOCATE(constr_x_mol(i)%constr(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       CPPostcondition(SIZE(const_mol)==SIZE(const_molname),cp_failure_level,routineP,error,failure)
+       DO i = 1, SIZE(const_mol)
+          IF (const_mol(i)/=0) THEN 
+             k = const_mol(i)
+             isize = SIZE(constr_x_mol(k)%constr)
+             CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
+             constr_x_mol(k)%constr(isize+1) = i
+          ELSE
+             myname = const_molname(i)
+             DO k = 1, SIZE(molecule_kind_set)
+                molecule_kind => molecule_kind_set(k)
+                IF (molecule_kind%name==myname) THEN
+                   isize = SIZE(constr_x_mol(k)%constr)
+                   CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
+                   constr_x_mol(k)%constr(isize+1) = i
+                END IF
+             END DO
+          END IF
+       END DO
+    END IF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE give_constraint_array
 
 END MODULE topology_constraint_util

@@ -87,6 +87,7 @@ MODULE topology_types
      ! Collective constraints
      INTEGER                                       :: nconst_colv
      INTEGER, POINTER                              :: const_colv_mol(:)
+     CHARACTER(LEN=default_string_length), POINTER :: const_colv_molname(:)
      REAL(KIND=dp), POINTER                        :: const_colv_target(:)
      TYPE(colvar_p_type), POINTER, DIMENSION(:)    :: colvar_set
      LOGICAL, POINTER                              :: colv_restraint(:)                       ! Restraints control
@@ -94,6 +95,7 @@ MODULE topology_types
      ! G3x3
      INTEGER                                       :: nconst_g33
      INTEGER, POINTER                              :: const_g33_mol(:)
+     CHARACTER(LEN=default_string_length), POINTER :: const_g33_molname(:)
      INTEGER, POINTER                              :: const_g33_a(:)
      INTEGER, POINTER                              :: const_g33_b(:)
      INTEGER, POINTER                              :: const_g33_c(:)
@@ -105,6 +107,7 @@ MODULE topology_types
      ! G4x6
      INTEGER                                       :: nconst_g46
      INTEGER, POINTER                              :: const_g46_mol(:)
+     CHARACTER(LEN=default_string_length), POINTER :: const_g46_molname(:)
      INTEGER, POINTER                              :: const_g46_a(:)
      INTEGER, POINTER                              :: const_g46_b(:)
      INTEGER, POINTER                              :: const_g46_c(:)
@@ -153,11 +156,15 @@ MODULE topology_types
      LOGICAL                                   :: para_res
   END TYPE topology_parameters_type
 
+  TYPE constr_list_type
+     INTEGER, DIMENSION(:), POINTER :: constr
+  END TYPE constr_list_type
 
   PUBLIC :: atom_info_type,&
        connectivity_info_type,&
        constraint_info_type,&
-       topology_parameters_type
+       topology_parameters_type,&
+       constr_list_type
 
   PUBLIC :: init_topology,&
        deallocate_topology
@@ -305,12 +312,14 @@ CONTAINS
     constraint_info%nconst_colv = 0
     NULLIFY(constraint_info%colvar_set)
     NULLIFY(constraint_info%const_colv_mol)
+    NULLIFY(constraint_info%const_colv_molname)
     NULLIFY(constraint_info%const_colv_target)
     NULLIFY(constraint_info%colv_restraint)
     NULLIFY(constraint_info%colv_k0)
     ! G3x3
     constraint_info%nconst_g33 = 0
     NULLIFY(constraint_info%const_g33_mol)
+    NULLIFY(constraint_info%const_g33_molname)
     NULLIFY(constraint_info%const_g33_a)
     NULLIFY(constraint_info%const_g33_b)
     NULLIFY(constraint_info%const_g33_c)
@@ -322,6 +331,7 @@ CONTAINS
     ! G4x6
     constraint_info%nconst_g46 = 0
     NULLIFY(constraint_info%const_g46_mol)
+    NULLIFY(constraint_info%const_g46_molname)
     NULLIFY(constraint_info%const_g46_a)
     NULLIFY(constraint_info%const_g46_b)
     NULLIFY(constraint_info%const_g46_c)
@@ -608,6 +618,10 @@ CONTAINS
           DEALLOCATE(constraint_info%const_colv_mol,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+       IF(ASSOCIATED(constraint_info%const_colv_molname)) THEN
+          DEALLOCATE(constraint_info%const_colv_molname,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        IF(ASSOCIATED(constraint_info%const_colv_target)) THEN
           DEALLOCATE(constraint_info%const_colv_target,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -623,6 +637,10 @@ CONTAINS
        ! G3x3
        IF(ASSOCIATED(constraint_info%const_g33_mol)) THEN
           DEALLOCATE(constraint_info%const_g33_mol,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_g33_molname)) THEN
+          DEALLOCATE(constraint_info%const_g33_molname,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF(ASSOCIATED(constraint_info%const_g33_a)) THEN
@@ -660,6 +678,10 @@ CONTAINS
        ! G4x6
        IF(ASSOCIATED(constraint_info%const_g46_mol)) THEN
           DEALLOCATE(constraint_info%const_g46_mol,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_g46_molname)) THEN
+          DEALLOCATE(constraint_info%const_g46_molname,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF(ASSOCIATED(constraint_info%const_g46_a)) THEN

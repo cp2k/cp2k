@@ -422,8 +422,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLECULE",&
-            description="Specifies the index of the molecule kind (in input file order) on which the constraint will be applied.",&
+            description="Specifies the index of the molecule kind (in input file order)"//&
+            "on which the constraint will be applied."//&
+            " MOLECULE and MOLNAME keyword exclude themself mutually.",&
             usage="MOLECULE {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLNAME",&
+            description="Specifies the name of the molecule on which the constraint will be applied.",&
+            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -570,8 +578,15 @@ CONTAINS
        ! Integer
        CALL keyword_create(keyword, name="MOLECULE",&
             variants=(/"MOL"/),&
-            description="Specifies the molecule number on which constraint will be applied",&
+            description="Specifies the molecule kind number on which constraint will be applied."//&
+            " MOLECULE and MOLNAME keyword exclude themself mutually.",&
             usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLNAME",&
+            description="Specifies the name of the molecule on which the constraint will be applied.",&
+            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -643,6 +658,22 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MOLECULE",&
+            description="Specifies the indexes of the molecule kind (in input file order)"//&
+            "on which the constraint will be applied."//&
+            " MOLECULE and MOLNAME keyword exclude themself mutually.",&
+            usage="MOLECULE {integer} .. {integer} ", required=.TRUE., n_var=-1,&
+            type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLNAME",&
+            description="Specifies the names of the molecule on which the constraint will be applied.",&
+            usage="MOLNAME {character} .. {character} ", required=.TRUE., n_var=-1,&
+            type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Real
        CALL keyword_create(keyword, name="TARGETS",&
             description="The constrained distances' values  for the types defines in ATOM_TYPE.",&
@@ -701,8 +732,15 @@ CONTAINS
        ! Integer
        CALL keyword_create(keyword, name="MOLECULE",&
             variants=(/"MOL"/),&
-            description="Specifies the molecule number on which constraint will be applied",&
+            description="Specifies the molecule number on which constraint will be applied."//&
+            " MOLECULE and MOLNAME keyword exclude themself mutually.",&
             usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLNAME",&
+            description="Specifies the name of the molecule on which the constraint will be applied.",&
+            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -176,9 +176,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: icolvar, ig, isize, &
-                                                isize_old, j, jj, msize, &
-                                                msize_old, n_rep, ncons, stat
+    INTEGER                                  :: icolvar, ig, isize,&
+                                                isize_old, j, jj, msize,&
+                                                msize_old, n_rep, ncons, stat,&
+                                                nrep
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
     LOGICAL                                  :: explicit, failure, freeze_mm, &
                                                 freeze_qm
@@ -206,10 +207,12 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
      ! G3X3
      CALL section_vals_get(g3x3_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
-        topology%const_33    =.TRUE.
-        cons_info%nconst_g33 =ncons
+        topology%const_33    = .TRUE.
+        cons_info%nconst_g33 = ncons
         !
         ALLOCATE(cons_info%const_g33_mol(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g33_molname(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_g33_a(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -233,8 +236,25 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 k0=cons_info%g33_k0(ig),&
                                 i_rep_section=ig,&
                                 error=error)
+           cons_info%const_g33_mol(ig)     = 0
+           cons_info%const_g33_molname(ig) = "UNDEF"
+           ! Let's tag to which molecule we want to apply constraints
            CALL section_vals_val_get(g3x3_section,"MOLECULE",i_rep_section=ig,&
-                i_val=cons_info%const_g33_mol(ig),error=error)
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(g3x3_section,"MOLECULE",i_rep_section=ig,&
+                   i_val=cons_info%const_g33_mol(ig),error=error)
+           END IF
+           CALL section_vals_val_get(g3x3_section,"MOLNAME",i_rep_section=ig,&
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(g3x3_section,"MOLNAME",i_rep_section=ig,&
+                   c_val=cons_info%const_g33_molname(ig),error=error)
+           END IF
+           IF  (((cons_info%const_g33_mol(ig)==0).AND.(cons_info%const_g33_molname(ig)=="UNDEF")).OR.&
+                ((cons_info%const_g33_mol(ig)/=0).AND.(cons_info%const_g33_molname(ig)/="UNDEF"))) THEN
+              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END IF
            CALL section_vals_val_get(g3x3_section,"ATOMS",i_rep_section=ig,&
                 i_vals=ilist,error=error)
            CALL section_vals_val_get(g3x3_section,"DISTANCES",i_rep_section=ig,&
@@ -255,6 +275,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         cons_info%nconst_g46 = ncons
         !
         ALLOCATE(cons_info%const_g46_mol(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_g46_molname(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_g46_a(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -286,8 +308,25 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 k0=cons_info%g46_k0(ig),&
                                 i_rep_section=ig,&
                                 error=error)
+           cons_info%const_g46_mol(ig)     = 0
+           cons_info%const_g46_molname(ig) = "UNDEF"
+           ! Let's tag to which molecule we want to apply constraints
            CALL section_vals_val_get(g4x6_section,"MOLECULE",i_rep_section=ig,&
-                i_val=cons_info%const_g46_mol(ig),error=error)
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(g4x6_section,"MOLECULE",i_rep_section=ig,&
+                   i_val=cons_info%const_g46_mol(ig),error=error)
+           END IF
+           CALL section_vals_val_get(g4x6_section,"MOLNAME",i_rep_section=ig,&
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(g4x6_section,"MOLNAME",i_rep_section=ig,&
+                   c_val=cons_info%const_g46_molname(ig),error=error)
+           END IF
+           IF  (((cons_info%const_g46_mol(ig)==0).AND.(cons_info%const_g46_molname(ig)=="UNDEF")).OR.&
+                ((cons_info%const_g46_mol(ig)/=0).AND.(cons_info%const_g46_molname(ig)/="UNDEF"))) THEN
+              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END IF
            CALL section_vals_val_get(g4x6_section,"ATOMS",i_rep_section=ig,&
                 i_vals=ilist,error=error)
            CALL section_vals_val_get(g4x6_section,"DISTANCES",i_rep_section=ig,&
@@ -408,8 +447,6 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
      ! Collective Constraints
      CALL section_vals_get(collective_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
-        CPPostcondition(ncons<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
-        !
         topology%const_colv = .TRUE.
         DO ig = 1, ncons
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
@@ -417,6 +454,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         END DO
         cons_info%nconst_colv = ncons
         ALLOCATE(cons_info%const_colv_mol(ncons), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_colv_molname(ncons), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_colv_target(ncons), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -432,13 +471,30 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 k0=cons_info%colv_k0(ig),&
                                 i_rep_section=ig,&
                                 error=error)
+           cons_info%const_colv_mol(ig)     = 0
+           cons_info%const_colv_molname(ig) = "UNDEF"
+           ! Let's tag to which molecule we want to apply constraints
+           CALL section_vals_val_get(collective_section,"MOLECULE",i_rep_section=ig,&
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(collective_section,"MOLECULE",i_rep_section=ig,&
+                   i_val=cons_info%const_colv_mol(ig),error=error)
+           END IF
+           CALL section_vals_val_get(collective_section,"MOLNAME",i_rep_section=ig,&
+                n_rep_val=nrep,error=error)
+           IF (nrep/=0) THEN
+              CALL section_vals_val_get(collective_section,"MOLNAME",i_rep_section=ig,&
+                   c_val=cons_info%const_colv_molname(ig),error=error)
+           END IF
+           IF  (((cons_info%const_colv_mol(ig)==0).AND.(cons_info%const_colv_molname(ig)=="UNDEF")).OR.&
+                ((cons_info%const_colv_mol(ig)/=0).AND.(cons_info%const_colv_molname(ig)/="UNDEF"))) THEN
+              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END IF
            NULLIFY(cons_info%colvar_set(ig)%colvar)
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig,&
                 i_val=icolvar, error=error)
            CALL colvar_clone(cons_info%colvar_set(ig)%colvar,&
                 colvar_p(icolvar)%colvar, error=error)
-           CALL section_vals_val_get(collective_section,"MOLECULE",i_val=cons_info%const_colv_mol(ig),&
-                i_rep_section=ig,error=error)
            CALL section_vals_val_get(collective_section,"TARGET",&
                 n_rep_val=n_rep,i_rep_section=ig, error=error)
            IF (n_rep /=0) THEN
