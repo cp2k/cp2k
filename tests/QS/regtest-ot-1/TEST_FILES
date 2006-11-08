@@ -14,10 +14,6 @@ H2O-OT-3.inp       1
 H2O-OT-4.inp       1
 # restart, state selective
 H2O-OT-5.inp       1
-#HMC
-H2O-OT-HMC-1.inp   1
-H2O-OT-HMC-2.inp   1
-H2O-OT-LDMC-3.inp  1
 # LSD 
 H2-1.inp           1
 H2-2.inp           1
