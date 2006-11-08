@@ -34,6 +34,7 @@ MODULE input_cp2k_check
                                              xc_funct_bp,&
                                              xc_funct_hcth120,&
                                              xc_funct_no_shortcut,&
+                                             xc_none,&
                                              xc_funct_olyp,&
                                              xc_funct_pade,&
                                              xc_funct_pbe,&
@@ -192,7 +193,7 @@ SUBROUTINE xc_functionals_expand(functionals,error)
      CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
           i_val=shortcut,error=error)
      SELECT CASE(shortcut)
-     CASE(xc_funct_no_shortcut)
+     CASE(xc_funct_no_shortcut, xc_none)
         ! nothing to expand
      CASE(xc_funct_blyp)
         CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&

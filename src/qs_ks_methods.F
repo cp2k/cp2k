@@ -72,10 +72,12 @@ MODULE qs_ks_methods
   USE input_constants,                 ONLY: sic_ad,&
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
-                                             sic_none
+                                             sic_none,&
+                                             xc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_get
+                                             section_vals_get,&
+                                             section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -1448,11 +1450,11 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
        routineP = moduleN//':'//routineN
 
   INTEGER                                  :: handle, ispin, nelec_spin(2), &
-       stat
+       stat, myfun
   LOGICAL                                  :: failure, harris_flag, &
        my_gapw_xc, my_just_energy, &
        nsc_flag, sic_scaling_b_zero, &
-       uf_grid, xc_present
+       uf_grid
   REAL(KIND=dp)                            :: exc_m, my_scaling, nelec_s_inv
   TYPE(cell_type), POINTER                 :: cell
   TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_gspace, rho_m_rspace
@@ -1498,8 +1500,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
        pw_env=pw_env, cell=cell,virial=virial, error=error)
   xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-  CALL section_vals_get(xc_section,explicit=xc_present,error=error)
-  IF (xc_present) THEN
+  CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
+       i_val=myfun,error=error)
+  IF (myfun/=xc_none) THEN
      ! would be better to pass these as arguments
      IF (harris_flag) THEN
         CALL get_qs_env(qs_env=qs_env,  harris_env=harris_env, error=error)

@@ -38,7 +38,7 @@ MODULE cp_control_utils
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
        xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine, xc_none
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -88,8 +88,9 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: basis_set_file_name, &
                                                 potential_file_name
-    INTEGER                                  :: excitations, run_id
-    LOGICAL                                  :: failure, l_param, was_present
+    INTEGER                                  :: excitations, run_id, method_id
+    LOGICAL                                  :: failure, l_param, was_present,&
+                                                is_present, not_SE
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
     TYPE(section_vals_type), POINTER         :: scf_section, tmp_section, &
                                                 xc_fun_section, xc_section
@@ -100,13 +101,27 @@ CONTAINS
     failure=.FALSE.
     was_present = .FALSE.
     NULLIFY(tmp_section,xc_fun_section,xc_section)
-
     CALL dft_control_create(dft_control, error=error)
+    ! Let's determine wheather this is a SE run (no XC section needs to be provided)
+    not_SE = .TRUE.
+    CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
+    SELECT CASE (method_id)
+    CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+       not_SE = .FALSE.
+    END SELECT
+    ! Check for XC section and XC_FUNCTIONAL section
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
+    CALL section_vals_get(xc_section,explicit=is_present,error=error)
+    IF (.NOT.is_present.AND.not_SE) THEN
+       CALL stop_program(routine,"XC section missing.")
+    END IF
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
                                                  error=error)
+    CALL section_vals_get(xc_fun_section,explicit=is_present,error=error)
+    IF (.NOT.is_present.AND.not_SE) THEN
+       CALL stop_program(routine,"XC_FUNCTIONAL section missing.")
+    END IF
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
-
     CALL section_vals_val_get(dft_section,"UKS",l_val=dft_control%uks,error=error)
     CALL section_vals_val_get(dft_section,"ROKS",l_val=dft_control%roks,error=error)
     IF (dft_control%uks.OR.dft_control%roks) THEN
@@ -620,8 +635,8 @@ CONTAINS
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, il, output_unit
-    LOGICAL                                  :: failure, xc_present
+    INTEGER                                  :: ifun, il, output_unit, myfun
+    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
                                                 gradient_cut, tau_cut
@@ -706,32 +721,32 @@ CONTAINS
            "DFT| SIC scaling parameter b",dft_control%sic_scaling_b
        END IF
 
-       CALL section_vals_get(xc_section,explicit=xc_present,error=error)
-       IF (xc_present) THEN
-          CALL section_vals_val_get(xc_section,"density_cutoff",&
-               r_val=density_cut,error=error)
-          CALL section_vals_val_get(xc_section,"gradient_cutoff",&
-               r_val=gradient_cut,error=error)
-          CALL section_vals_val_get(xc_section,"tau_cutoff",&
-               r_val=tau_cut,error=error)
-          CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",&
-               r_val=density_smooth_cut_range,error=error)
-          WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
-               "DFT| Cutoffs: density ",density_cut,&
-               "DFT|          gradient",gradient_cut,&
-               "DFT|          tau     ",tau_cut,&
+       CALL section_vals_val_get(xc_section,"density_cutoff",&
+            r_val=density_cut,error=error)
+       CALL section_vals_val_get(xc_section,"gradient_cutoff",&
+            r_val=gradient_cut,error=error)
+       CALL section_vals_val_get(xc_section,"tau_cutoff",&
+            r_val=tau_cut,error=error)
+       CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",&
+            r_val=density_smooth_cut_range,error=error)
+       WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
+            "DFT| Cutoffs: density ",density_cut,&
+            "DFT|          gradient",gradient_cut,&
+            "DFT|          tau     ",tau_cut,&
                "DFT|          cutoff_smoothing_range",density_smooth_cut_range
-          CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
-               c_val=tmpStr,error=error)
-          WRITE ( output_unit, '( A, T61, A )' ) &
-               " DFT| XC density smoothing ",ADJUSTR(tmpStr)
-          CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
-               c_val=tmpStr,error=error)
-          WRITE ( output_unit, '( A, T61, A )' ) &
-               " DFT| XC derivatives ",ADJUSTR(tmpStr)
-
-          xc_fun_section => section_vals_get_subs_vals(xc_section,&
-               "XC_FUNCTIONAL",error=error)
+       CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
+            c_val=tmpStr,error=error)
+       WRITE ( output_unit, '( A, T61, A )' ) &
+            " DFT| XC density smoothing ",ADJUSTR(tmpStr)
+       CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
+            c_val=tmpStr,error=error)
+       WRITE ( output_unit, '( A, T61, A )' ) &
+            " DFT| XC derivatives ",ADJUSTR(tmpStr)
+       
+       xc_fun_section => section_vals_get_subs_vals(xc_section,&
+            "XC_FUNCTIONAL",error=error)
+       CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun,error=error)
+       IF (myfun/=xc_none) THEN
           CALL section_vals_val_get(xc_section,"FUNCTIONAL_ROUTINE",&
                c_val=tmpStr,error=error)
           WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)")&

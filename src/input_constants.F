@@ -367,7 +367,7 @@ MODULE input_constants
        xc_test_lsd_f_routine=3, xc_debug_new_routine=4
   INTEGER, PARAMETER, PUBLIC :: xc_funct_blyp=1, xc_funct_pade=2, xc_funct_pbe=3,&
        xc_funct_tpss=4, xc_funct_hcth120=5, xc_funct_olyp=6,xc_funct_no_shortcut=0,&
-       xc_funct_bp=7
+       xc_funct_bp=7,xc_none=8
   INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2, sic_ad=3
   INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1
   INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1
