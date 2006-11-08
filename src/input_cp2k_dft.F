@@ -1524,7 +1524,7 @@ SUBROUTINE create_qs_section(section,error)
                         "Linear extrapolation of the wavefunction",&
                         "Linear extrapolation of the density matrix",&
                         "Linear extrapolation of the density matrix times the overlap matrix",&
-                        "Use the previous wavefunction",&
+                        "Use the revious wavefunction",&
                         "Higher order extrapolation of the density matrix times the overlap matrix"//&
                                              " (recommended for most systems and required for OT).",&
                         "Frozen ...",&
@@ -2765,14 +2765,15 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="SCF_GUESS",&
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
-            enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES"),&
+            enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES","HISTORY_RESTART"),&
             enum_desc=s2a("Generate a trial atomic density based on the SZV part of the basis", &
                           "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
                           "Use random wavefunction coefficients.", &
                           "Diagonalize the core hamiltonian for an initial guess.", &
-                          "Use the aux_basis_set for collocation."), &
+                          "Use the aux_basis_set for collocation.", &
+                          "Extrapolated from previous RESTART files."), &
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
-            densities_guess/),&
+                          densities_guess,history_guess/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3430,7 +3431,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="HARRIS",&
             description="This section specifies the flags for the calculation of the harris functional",&
-            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -3447,22 +3448,6 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="Overrides the QS Energy.", &
             usage="HARRIS_ENERGY TRUE", required=.FALSE., &
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-            error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-       CALL keyword_create(keyword, name="FILL_WF_HISTORY", &
-            description="Converges to self-consistency until the " //&
-            "WF-history is filled (HMC only).", usage="FILL_WF_HISTORY TRUE", &
-            required=.FALSE., default_l_val=.FALSE., &
-            lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-       CALL keyword_create(keyword, name="HARRIS_MAX_SCF", &
-            description="The maximum number of SCF cycles after the wf_history is filled (HMC only).", &
-            usage="HARRIS_MAX_SCF 1", required=.FALSE., &
-            default_i_val=1, lone_keyword_i_val=1, &
             error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

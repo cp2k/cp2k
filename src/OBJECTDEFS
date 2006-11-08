@@ -157,7 +157,6 @@ OBJECTS_GENERIC =\
  harris_force.o\
  harris_force_types.o\
  harris_functional.o\
- harris_metropolis_mc.o\
  hartree_local_2centers.o\
  hartree_local_3centers.o\
  hartree_local_methods.o\

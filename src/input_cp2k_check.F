@@ -394,17 +394,6 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
               CALL section_vals_val_set(input_file,"MOTION%METADYN%STEP_START_VAL",i_val=myi,error=error)
               CALL section_vals_val_get(restart_input,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
               CALL section_vals_val_set(input_file,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
-           END IF          
-           !
-           work_section => section_vals_get_subs_vals(input_file,"MOTION%MD%HMC",error=error)
-           CALL section_vals_get(work_section,explicit=explicit1,error=error)
-           work_section => section_vals_get_subs_vals(restart_input,"MOTION%MD%HMC",error=error)
-           CALL section_vals_get(work_section,explicit=explicit2,error=error)
-           IF (explicit1.AND.explicit2) THEN
-              CALL section_vals_val_get(restart_input,"MOTION%MD%HMC%MD_APPROACH_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_set(input_file,"MOTION%MD%HMC%MD_APPROACH_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_get(restart_input,"MOTION%MD%HMC%ACCEPTED_MD_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_set(input_file,"MOTION%MD%HMC%ACCEPTED_MD_START_VAL",i_val=myi,error=error)
            END IF
         END IF
         CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,&

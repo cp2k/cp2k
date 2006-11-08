@@ -170,11 +170,9 @@ MODULE input_constants
                                 bsse_run=9,&
                                 linear_response_run=10,&
                                 pint_run=11,&
-                                ldmc_run=12,&
-                                hmc_run=13,&
-                                vib_anal=14
+                                vib_anal=12
   
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(24), PUBLIC :: run_type_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(20), PUBLIC :: run_type_names=&
        (/"NONE                     ",&
          "ENERGY                   ",&
          "ENERGY_FORCE             ",&
@@ -186,21 +184,17 @@ MODULE input_constants
          "BSSE                     ",&
          "LR                       ",&
          "PINT                     ",&
-         "LDMC                     ",&
-         "HMC                      ",&
          "WFN_OPT                  ",&   ! Aliases to the previous unique names
          "WAVEFUNCTION_OPTIMIZATION",&   !
          "MOLECULAR_DYNAMICS       ",&   !
          "GEOMETRY_OPTIMIZATION    ",&   !
          "MONTECARLO               ",&   !
-         "LANGEVIN_MONTECARLO      ",&   !
-         "HYBRID_MONTECARLO        ",&   !
          "ELECTRONIC_SPECTRA       ",&   !
          "LINEAR_RESPONSE          ",&   !
          "VIBRATIONAL_ANALYSIS     ",&   !
          "NORMAL_MODES             " /)  !
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(24) :: run_type_index=&
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(20) :: run_type_index=&
        (/ none_run,& 
           energy_run,&
           energy_force_run,&
@@ -212,22 +206,18 @@ MODULE input_constants
           bsse_run,&
           linear_response_run,&
           pint_run,&
-          ldmc_run,&
-          hmc_run,&
           energy_run,&
           energy_run,&
           mol_dyn_run,&
           geo_opt_run,&
           mon_car_run,&
-          ldmc_run,&
-          hmc_run,&
           electronic_spectra_run,&
           linear_response_run,&
           vib_anal,&
           vib_anal/)
 
   INTEGER, PARAMETER, PUBLIC :: atomic_guess=1,restart_guess=2,random_guess=3,&
-       core_guess=4, densities_guess=5
+       core_guess=4, densities_guess=5, history_guess=6
   INTEGER, PARAMETER, PUBLIC :: pw_interp=1,linear_interp=2,&
        spline3_nopbc_interp=3,spline3_pbc_interp=4 ! to move somewhere else
   INTEGER, PARAMETER, PUBLIC :: do_gapw_gcs=1,&
@@ -449,30 +439,6 @@ MODULE input_constants
                                 lr_precond_full_all=6
   INTEGER, PARAMETER, PUBLIC :: lr_ls_none=0, lr_ls_2pnt=1,&
                                 lr_ls_3pnt=2, lr_ls_gold=3 
-
-  ! Hybrid MC
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(14), PUBLIC :: method_name_types=&
-       (/"FIST_MD   ",&
-         "KG_MD     ",&
-         "KG_DFT_MD ",&
-         "QS_MD     ",&
-         "Harris_MD ",&
-         "KG_DFT_MC ",&
-         "QS_MC     ",&
-         "Harris_MC ",&
-         "EIP_MD    ",&
-         "SE_MD     ",&
-         "TBMD_MD   ",&
-         "EIP_MC    ",&
-         "SE_MC     ",&
-         "TBMD_MC   "/)
-  INTEGER, PARAMETER, PUBLIC :: FIST_MD_method=1, KG_MD_method=2, &
-                                KG_DFT_MD_method=3, QS_MD_method=4, &
-                                Harris_MD_method=5, KG_DFT_MC_method=6, &
-                                QS_MC_method=7, Harris_MC_method=8, &
-                                EIP_MD_method=9, SE_MD_method=10, &
-                                TBMD_MD_method=11, EIP_MC_method=12, &
-                                SE_MC_method=13, TBMD_MC_method=14
 
   ! Tight-Binding parametrization models
   INTEGER, PARAMETER, PUBLIC :: use_gsp=1,&

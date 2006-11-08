@@ -932,8 +932,8 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: actual_extrapolation_method_nr&
-                                                , handle, i, ispin, k, n, &
+    INTEGER                                  :: actual_extrapolation_method_nr, &
+                                                handle, i, ispin, k, n, &
                                                 nmo, nvec, output_unit
     LOGICAL                                  :: failure, ionode, my_kg_gpw, &
                                                 my_orthogonal_wf
@@ -1017,10 +1017,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1042,10 +1045,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1068,10 +1074,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1106,10 +1115,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1150,10 +1162,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1213,10 +1228,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1265,10 +1283,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1319,10 +1340,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1407,10 +1431,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
           qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          qs_env%scf_control%outer_scf%have_scf = .FALSE.
         ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          qs_env%scf_control%outer_scf%have_scf = .FALSE.
         ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
           qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          qs_env%scf_control%outer_scf%have_scf = .FALSE.
         END IF
       END IF
 
@@ -1439,7 +1466,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         IF (ionode) THEN
           WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)")&
             "Parameters for the always stable predictor-corrector (ASPC) method:",&
-            "ASPC order: ",nvec - 2,&
+            "ASPC order: ",MAX(nvec - 2,0),&
             "B(",1,") = ",alpha
         END IF
         CALL cp_fm_scale(alpha,mo_coeff,error=error)
@@ -1483,8 +1510,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
              routineP,"Unknown interpolation method: "//&
              TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr)))//&
              " in "//&
-CPSourceFileRef,&
-             error, failure)
+             CPSourceFileRef, error, failure)
      END SELECT
      IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
   END IF

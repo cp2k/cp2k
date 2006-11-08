@@ -28,8 +28,8 @@ MODULE cp_control_utils
        do_method_kg_pol, do_method_mndo, do_method_pdg, do_method_pm3, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
        do_s2_constraint, do_s2_restraint, electronic_spectra_run, &
-       elstr_method_name, energy_force_run, energy_run, geo_opt_run, hmc_run, &
-       ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, op_loc_berry, &
+       elstr_method_name, energy_force_run, energy_run, geo_opt_run, &
+       linear_response_run, mol_dyn_run, mon_car_run, op_loc_berry, &
        op_loc_boys, pint_run, qs_debug_run, quadrature_name, sic_ad, &
        sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
        state_loc_fromitoj, state_loc_list, state_loc_upton, &
@@ -168,7 +168,7 @@ CONTAINS
     CASE (energy_run,mon_car_run,electronic_spectra_run,&
           bsse_run,linear_response_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,hmc_run,ldmc_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal)
+    CASE (mol_dyn_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type ")

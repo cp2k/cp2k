@@ -134,10 +134,9 @@ MODULE scf_control_types
                              jacobi_threshold, gspace_mixing_a, gspace_mixing_b
     INTEGER               :: max_iter_lumos, max_diis
     INTEGER               :: max_scf,nrow_block,max_scf_hist,&
-                             ncol_block,maxl,nkind, write_restart_each, &
-                             harris_max_scf
+                             ncol_block,maxl,nkind, write_restart_each
     LOGICAL               :: gradient_functional,gth_potential_present,&
-                             use_cholesky,use_ot,fill_wf_history
+                             use_cholesky,use_ot
     INTEGER               :: ref_count,id_nr
     INTEGER, DIMENSION(2) :: added_mos
     INTEGER                               :: roks_scheme
@@ -223,8 +222,6 @@ CONTAINS
       scf_control%max_scf_hist = 0
       scf_control%gspace_mixing_a = 1.0_dp
       scf_control%gspace_mixing_b = 0.0_dp
-      scf_control%fill_wf_history = .FALSE.
-      scf_control%harris_max_scf = 1
 
       ! ROKS
 
@@ -554,15 +551,6 @@ CONTAINS
        ELSE
           scf_control%outer_scf%have_scf=.FALSE.
        ENDIF
-
-       harris_section => section_vals_get_subs_vals(force_env_section, &
-                                                    "DFT%QS%HARRIS",&
-                                                    error=error)
-
-       CALL section_vals_val_get(harris_section, "fill_wf_history", &
-            l_val=scf_control%fill_wf_history, error=error)
-       CALL section_vals_val_get(harris_section, "harris_max_scf", &
-            i_val=scf_control%harris_max_scf, error=error)
 
     END IF
 

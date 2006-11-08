@@ -32,11 +32,9 @@ MODULE md
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       Harris_MC_method, Harris_MD_method, dump_xmol, ensemble_name_types, &
-       hmc_run, isokin_ensemble, langevin_ensemble, ldmc_run, &
-       method_name_types, nph_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, output_name_types
+       dump_xmol, ensemble_name_types, isokin_ensemble, langevin_ensemble, &
+       nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, output_name_types
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -144,29 +142,6 @@ MODULE md
      REAL (KIND=dp) :: noisy_gamma
      REAL (KIND=dp) :: shadow_gamma
      REAL (KIND=dp) :: var_w
-     !TdK HMC
-     INTEGER        :: ld_steps
-     REAL(KIND=dp)  :: temp_alpha
-     REAL(KIND=dp)  :: temp_beta
-     LOGICAL        :: tot_energy
-     LOGICAL        :: ext_temp
-     LOGICAL        :: qs_accept
-     LOGICAL        :: rnd_velocities
-     LOGICAL        :: vel_scaling
-     LOGICAL        :: qs_start
-     LOGICAL        :: restore_history
-     LOGICAL        :: restore_momenta
-     LOGICAL        :: semi_hybrid
-     LOGICAL        :: soft_start
-     LOGICAL        :: fill_wf_history
-     LOGICAL        :: mmc_extrapolation
-     LOGICAL        :: always_accept
-     LOGICAL        :: drld
-     LOGICAL        :: multiple_scf
-     INTEGER        :: hmc_max_scf
-     LOGICAL        :: lpsc
-     INTEGER        :: md_method
-     INTEGER        :: mc_method
      LOGICAL        :: multi_time_switch, do_respa
      INTEGER        :: n_time_steps
 
@@ -230,76 +205,6 @@ CONTAINS
     CALL read_md_new_section(simpar, root_section, md_section, subsys_section, error)
 
     IF ( iw > 0 ) WRITE (iw, *)
-
-    IF (globenv%run_type_id == ldmc_run) THEN
-       simpar%ensemble = langevin_ensemble
-       simpar%rnd_velocities = .FALSE.
-       simpar%vel_scaling = .FALSE.
-       simpar%restore_history = .TRUE.
-       simpar%restore_momenta = .FALSE.
-       simpar%semi_hybrid = .TRUE.
-    END IF
-
-    IF (globenv%run_type_id == hmc_run .OR. globenv%run_type_id == ldmc_run) THEN
-
-       IF ( iw > 0 ) THEN
-          WRITE ( iw, '( A,T71,I10 )' ) ' HMC| Number of Harris LD steps per MC cycle ', &
-               simpar%ld_steps
-          WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value alpha ', &
-               simpar%temp_alpha
-          WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value beta ', &
-               simpar%temp_beta
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| TOT_ENERGY ', &
-               simpar%tot_energy
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| EXT_TEMP ', &
-               simpar%ext_temp
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| QS_ACCEPT ', &
-               simpar%qs_accept
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| RND_VELOCITIES ', &
-               simpar%rnd_velocities
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| VEL_SCALING ', &
-               simpar%vel_scaling
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| QS_START ', &
-               simpar%qs_start
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| RESTORE_HISTORY ', &
-               simpar%restore_history
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| RECOVER_MOMENTA ', &
-               simpar%restore_momenta
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| SEMI_HYBRID ', &
-               simpar%semi_hybrid
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| SOFT_START ', &
-               simpar%soft_start
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| FILL_WF_HISTORY ', &
-               simpar%fill_wf_history
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| MMC_EXTRAPOLATION ', &
-               simpar%mmc_extrapolation
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| ALWAYS_ACCEPT ', &
-               simpar%always_accept
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| DRLD ', &
-               simpar%drld
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| MULTIPLE_SCF ', &
-               simpar%multiple_scf
-          WRITE ( iw, '( A,T71,I10 )' ) ' HMC| HMC_MAX_SCF ', &
-               simpar%hmc_max_scf
-          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| LPSC ', &
-               simpar%lpsc
-
-          WRITE ( iw, '( A,T61,A )' ) ' HMC| MD Method ', &
-               ADJUSTR ( method_name_types(simpar % md_method)(1:20))
-          WRITE ( iw, '( A,T61,A )' ) ' HMC| MC Method ', &
-               ADJUSTR ( method_name_types(simpar % mc_method)(1:20))
-
-          WRITE ( iw, '( A,T20,A,T71,A )' ) ' HMC| File type', &
-               'Print frequency[steps]', 'File names'
-          print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%HMC",error=error)
-          CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
-          filename = cp_print_key_generate_filename(logger,print_key,&
-               extension=".hmc",middle_name="pos",my_local=.FALSE.,error=error)
-          WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' HMC| HMC Statistics', iprint, &
-               ADJUSTR ( TRIM(filename) )
-          WRITE (iw, *)
-       END IF
-    END IF
 
     !MK Begin setup Langevin dynamics
 
@@ -538,58 +443,6 @@ CONTAINS
        simpar%multi_time_switch = .FALSE.
        IF (simpar%do_respa) simpar%multi_time_switch = .TRUE.
 
-       tmp_section => section_vals_get_subs_vals(md_section, "HMC", error=error)
-       CALL section_vals_get(tmp_section, explicit=explicit, error=error)
-       IF (explicit) THEN
-          !CALL section_vals_val_get(tmp_section, "GAMMA", &
-          !                          r_val=simpar%gamma, error=error)
-          CALL section_vals_val_get(tmp_section, "LD_STEPS", &
-               i_val=simpar%ld_steps, error=error)
-          CALL section_vals_val_get(tmp_section, "TEMP_ALPHA", &
-               r_val=simpar%temp_alpha, error=error)
-          CALL section_vals_val_get(tmp_section, "TEMP_BETA", &
-               r_val=simpar%temp_beta, error=error)
-          CALL section_vals_val_get(tmp_section, "TOT_ENERGY", &
-               l_val=simpar%tot_energy, error=error)
-          CALL section_vals_val_get(tmp_section, "EXT_TEMP", &
-               l_val=simpar%ext_temp, error=error)
-          CALL section_vals_val_get(tmp_section, "QS_ACCEPT", &
-               l_val=simpar%qs_accept, error=error)
-          CALL section_vals_val_get(tmp_section, "RND_VELOCITIES", &
-               l_val=simpar%rnd_velocities, error=error)
-          CALL section_vals_val_get(tmp_section, "VEL_SCALING", &
-               l_val=simpar%vel_scaling, error=error)
-          CALL section_vals_val_get(tmp_section, "QS_START", &
-               l_val=simpar%qs_start, error=error)
-          CALL section_vals_val_get(tmp_section, "RESTORE_HISTORY", &
-               l_val=simpar%restore_history, error=error)
-          CALL section_vals_val_get(tmp_section, "RECOVER_MOMENTA", &
-               l_val=simpar%restore_momenta, error=error)
-          CALL section_vals_val_get(tmp_section, "SEMI_HYBRID", &
-               l_val=simpar%semi_hybrid, error=error)
-          CALL section_vals_val_get(tmp_section, "SOFT_START", &
-               l_val=simpar%soft_start, error=error)
-          CALL section_vals_val_get(tmp_section, "FILL_WF_HISTORY", &
-               l_val=simpar%fill_wf_history, error=error)
-          CALL section_vals_val_get(tmp_section, "MMC_extrapolation", &
-               l_val=simpar%MMC_extrapolation, error=error)
-          CALL section_vals_val_get(tmp_section, "ALWAYS_ACCEPT", &
-               l_val=simpar%always_accept, error=error)
-          CALL section_vals_val_get(tmp_section, "DRLD", &
-               l_val=simpar%drld, error=error)
-          CALL section_vals_val_get(tmp_section, "MULTIPLE_SCF", &
-               l_val=simpar%multiple_scf, error=error)
-          CALL section_vals_val_get(tmp_section, "HMC_MAX_SCF", &
-               i_val=simpar%hmc_max_scf, error=error)
-          CALL section_vals_val_get(tmp_section, "LPSC", &
-               l_val=simpar%lpsc, error=error)
-
-          CALL section_vals_val_get(tmp_section, "MD_METHOD", &
-               i_val=simpar%md_method, error=error)
-          CALL section_vals_val_get(tmp_section, "MC_METHOD", &
-               i_val=simpar%mc_method, error=error)
-       END IF
-
        tmp_section => section_vals_get_subs_vals(md_section,"QS_MD",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
        IF (explicit) THEN
@@ -657,29 +510,6 @@ CONTAINS
     simpar%noisy_gamma = 0.0_dp
     simpar%shadow_gamma = 0.0_dp
     simpar%var_w = 0.0_dp
-    ! TdK HMC
-    simpar%ld_steps = 10
-    simpar%temp_alpha = 0.0_dp
-    simpar%temp_beta = 1.0_dp
-    simpar%tot_energy = .TRUE.
-    simpar%ext_temp = .TRUE.
-    simpar%qs_accept = .FALSE.
-    simpar%rnd_velocities = .TRUE.
-    simpar%vel_scaling = .FALSE.
-    simpar%qs_start = .TRUE.
-    simpar%restore_history = .TRUE.
-    simpar%restore_momenta = .FALSE.
-    simpar%semi_hybrid = .FALSE.
-    simpar%soft_start = .FALSE.
-    simpar%fill_wf_history = .TRUE.
-    simpar%MMC_extrapolation = .FALSE.
-    simpar%always_accept = .FALSE.
-    simpar%drld = .FALSE.
-    simpar%multiple_scf = .FALSE.
-    simpar%hmc_max_scf = 1000
-    simpar%lpsc = .FALSE.
-    simpar%md_method = Harris_MD_method
-    simpar%mc_method = Harris_MC_method
 
   END SUBROUTINE set_md_defaults
 

@@ -50,9 +50,8 @@ MODULE input_cp2k_restarts
                                              force_env_p_type,&
                                              force_env_type
   USE input_constants,                 ONLY: &
-       hmc_run, ldmc_run, mol_dyn_run, mon_car_run, pint_run, &
-       use_unit_angstrom, use_unit_bohr, use_unit_scaled_angstrom, &
-       use_unit_scaled_bohr
+       mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, &
+       use_unit_bohr, use_unit_scaled_angstrom, use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -410,17 +409,6 @@ CONTAINS
           CPAssert(ASSOCIATED(t),cp_failure_level,routineP,error,failure)
           my_t = t
           CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
-       END IF
-    END IF
-    IF (ASSOCIATED(md_approach_nr)) THEN
-       IF (md_approach_nr>=0) THEN
-          my_md_approach_nr = md_approach_nr
-          CALL section_vals_val_set(motion_section,"MD%HMC%MD_APPROACH_START_VAL",i_val=my_md_approach_nr,&
-               error=error)
-          CPAssert(ASSOCIATED(accepted_md),cp_failure_level,routineP,error,failure)
-          my_accepted_md = accepted_md
-          CALL section_vals_val_set(motion_section,"MD%HMC%ACCEPTED_MD_START_VAL",i_val=my_accepted_md,&
-               error=error)
        END IF
     END IF
     !
@@ -923,9 +911,7 @@ CONTAINS
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
     skip_vel_section =((myid /= mol_dyn_run).AND.&
                        (myid /= mon_car_run).AND.&
-                       (myid /= pint_run).AND.&
-                       (myid /= ldmc_run).AND.&
-                       (myid /= hmc_run))
+                       (myid /= pint_run))
 
     ! Go on updatig the force_env_section
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)

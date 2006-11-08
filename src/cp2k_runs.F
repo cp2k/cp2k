@@ -47,14 +47,11 @@ MODULE cp2k_runs
                                              globenv_create,&
                                              globenv_release,&
                                              globenv_retain
-  USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: &
-       EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
-       SE_MC_method, TBMD_MC_method, bsse_run, do_cp2k, do_eip, do_ep, &
-       do_farming, do_fist, do_kg, do_qmmm, do_qs, do_tbmd, do_test, do_mixed, &
-       electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
-       hmc_run, ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, &
-       none_run, pint_run, qs_debug_run, vib_anal
+       bsse_run, do_cp2k, do_eip, do_ep, do_farming, do_fist, do_kg, do_qmmm, &
+       do_qs, do_tbmd, do_test, do_mixed, electronic_spectra_run, &
+       energy_force_run, energy_run, geo_opt_run, linear_response_run, &
+       mol_dyn_run, mon_car_run, none_run, pint_run, qs_debug_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section
@@ -262,30 +259,6 @@ CONTAINS
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
 
-          IF ((run_type_id == hmc_run) .OR. &
-              (run_type_id == ldmc_run)) THEN
-            hmc_section => section_vals_get_subs_vals(input_file, &
-                           "MOTION%MD%HMC", error=error)
-            CALL section_vals_val_get(hmc_section, "MC_METHOD", &
-                                      i_val=mc_method, error=error)
-            SELECT CASE(mc_method)
-            CASE(EIP_MC_method)
-              method_name_id = do_eip
-            CASE(SE_MC_method)
-              method_name_id = do_qs
-            CASE(TBMD_MC_method)
-              method_name_id = do_tbmd
-            CASE(KG_DFT_MC_method)
-              method_name_id = do_kg
-            CASE(QS_MC_method)
-              method_name_id = do_qs
-            CASE(Harris_MC_method)
-              method_name_id = do_qs
-            CASE DEFAULT
-              PRINT *, "The standard DFT/QS method is used for HMC energy evaluation."
-              method_name_id = do_qs
-            END SELECT
-          END IF
           SELECT CASE (prog_name_id)
           CASE (do_farming)
              CALL farming_run ( root_section, para_env, suberror )
@@ -342,8 +315,6 @@ CONTAINS
              CALL qs_geo_opt(force_env,globenv,error=suberror)
           CASE (mon_car_run)
              CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
-          CASE (hmc_run, ldmc_run)
-             CALL harris_mc_ld(force_env, globenv, error=suberror)
           CASE (electronic_spectra_run)
              IF(method_name_id /= do_qs) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
