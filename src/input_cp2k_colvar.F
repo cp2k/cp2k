@@ -229,20 +229,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="KINDS_FROM",&
-            description="Specify kinds of atoms building the coordination variable. ",&
-            usage="KINDS_FROM {integer} {integer} ..",required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="KINDS_TO",&
-            description="Specify kinds of atoms building the coordination variable. ",&
-            usage="KINDS_TO {integer} {integer} ..",required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="R0",&
             variants=(/"R_0"/),&
             description="Specify the R0 parameter in the coordination function.",&
