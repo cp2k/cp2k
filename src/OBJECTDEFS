@@ -175,7 +175,6 @@ OBJECTS_GENERIC =\
  input_cp2k_qmmm.o\
  input_cp2k_restarts.o\
  input_cp2k_subsys.o\
- input_cp2k_tbmd.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\
@@ -414,19 +413,6 @@ OBJECTS_GENERIC =\
  string_utilities.o\
  structure_factor_types.o\
  structure_factors.o\
- tbmd_energy.o\
- tbmd_energy_types.o\
- tbmd_environment.o\
- tbmd_environment_methods.o\
- tbmd_environment_types.o\
- tbmd_force.o\
- tbmd_force_types.o\
- tbmd_hamiltonian.o\
- tbmd_main.o\
- tbmd_model_types.o\
- tbmd_neighbor_list_env_types.o\
- tbmd_neighbor_list_types.o\
- tbmd_neighbor_lists.o\
  termination.o\
  timings.o\
  topology.o\

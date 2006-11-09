@@ -49,9 +49,9 @@ MODULE cp2k_runs
                                              globenv_retain
   USE input_constants,                 ONLY: &
        bsse_run, do_cp2k, do_eip, do_ep, do_farming, do_fist, do_kg, do_qmmm, &
-       do_qs, do_tbmd, do_test, do_mixed, electronic_spectra_run, &
-       energy_force_run, energy_run, geo_opt_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, none_run, pint_run, qs_debug_run, vib_anal
+       do_qs, do_test, do_mixed, electronic_spectra_run, energy_force_run, &
+       energy_run, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
+       none_run, pint_run, qs_debug_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section

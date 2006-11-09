@@ -70,10 +70,6 @@ MODULE force_env_types
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
-  USE tbmd_energy_types,               ONLY: tbmd_energy_type
-  USE tbmd_environment_types,          ONLY: tbmd_env_get,&
-                                             tbmd_env_release,&
-                                             tbmd_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_release,&
@@ -92,21 +88,19 @@ MODULE force_env_types
                                 use_kg_force   = 503, &
                                 use_pol_force  = 504, &
                                 use_qmmm       = 505, &
-                                use_tbmd_force = 506, &
-                                use_eip_force  = 507,&
-                                use_ep_force   = 508,&
-	                        use_mixed_force= 509
+                                use_eip_force  = 506, &
+                                use_ep_force   = 507, &
+	                        use_mixed_force= 508
 
-  CHARACTER(LEN=10), DIMENSION(501:509), PARAMETER, PUBLIC :: &
+  CHARACTER(LEN=10), DIMENSION(501:508), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
        "FIST  ", &
        "QS    ", &
        "KG    ", &
        "KG-POL", &
        "QMMM  ", &
-       "TBMD  ", &
-       "EIP   ",&
-       "EP    ",&
+       "EIP   ", &
+       "EP    ", &
        "MIXED "/)
 
   PUBLIC :: force_env_type,&
@@ -141,7 +135,6 @@ MODULE force_env_types
 !!     - fist_env: the fist environment (allocated only if fist is in use)
 !!     - kg_env: the kg environment (allocated only if kg is in use)
 !!     - qs_env: qs_env (activated only if quickstep is in use)
-!!     - tbmd_env: The TBMD environment (of course only allocated when used)
 !!     - globenv: the globenv to have the input that generated this force_env
 !!     - para_env: the parallel environment that contains all the parallel
 !!       environment of the fragments
@@ -174,7 +167,6 @@ MODULE force_env_types
      TYPE ( meta_env_type ), POINTER                     :: meta_env
      TYPE ( fp_type ), POINTER                           :: fp_env
      TYPE ( qs_environment_type ), POINTER               :: qs_env
-     TYPE ( tbmd_environment_type ), POINTER             :: tbmd_env
      TYPE ( eip_environment_type ), POINTER              :: eip_env
      TYPE ( cp_subsystem_p_type ), DIMENSION(:), POINTER :: subsys
      TYPE ( dyn_coeff_set_p_type ), DIMENSION(:),POINTER :: dyn_coeff_set
@@ -310,8 +302,6 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
           CALL qs_env_release(force_env%qs_env,error=error)
         CASE ( use_kg_force )
           CALL kg_env_release(force_env%kg_env,error=error)
-        CASE ( use_tbmd_force )
-          CALL tbmd_env_release(force_env%tbmd_env, error=error)
         CASE ( use_eip_force )
           CALL eip_env_release(force_env%eip_env, error=error)
         CASE ( use_ep_force )
@@ -393,9 +383,9 @@ END SUBROUTINE force_env_release
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
-     potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
-     tbmd_env, eip_env, virial, use_ref_cell, globenv, input,ep_env,&
-          force_env_section,method_name_id,root_section,mixed_env,error)
+     potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env, &
+     eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
+     method_name_id, root_section, mixed_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -421,8 +411,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       POINTER                                :: qmmm_env
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
-    TYPE(tbmd_environment_type), OPTIONAL, &
-      POINTER                                :: tbmd_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
@@ -453,7 +441,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: my_qs_env
-    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
 
   failure=.FALSE.
 
@@ -476,7 +463,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
-        CPPreconditionNoFail(.NOT.PRESENT(tbmd_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
         CALL get_qs_env(force_env%qs_env,&
                         energy=qs_energy,&
@@ -491,7 +477,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
-        CPPreconditionNoFail(.NOT.PRESENT(tbmd_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
         CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
         CALL get_fist_env(force_env%fist_env,&
@@ -502,29 +487,11 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         IF (PRESENT(potential_energy)) potential_energy = thermo%pot
         IF (PRESENT(kinetic_energy)) kinetic_energy = thermo%kin
         IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
-     CASE (use_tbmd_force)
-        CPPrecondition(ASSOCIATED(force_env%tbmd_env), cp_failure_level, routineP, error, failure)
-        CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
-        CPPreconditionNoFail(.NOT. PRESENT(kg_env), cp_warning_level, routineP, error)
-        CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
-        CPPreconditionNoFail(.NOT.PRESENT(eip_env), cp_warning_level, routineP, error)
-        CALL tbmd_env_get(force_env%tbmd_env,&
-                          tbmd_energy=tbmd_energy,&
-                          cell=cell, &
-                          cell_ref=cell_ref,&
-                          use_ref_cell=use_ref_cell,&
-                          error=error)
-        IF (PRESENT(potential_energy)) THEN
-          potential_energy = tbmd_energy%E_bandstructure + tbmd_energy%E_repulsion &
-                                                         + tbmd_energy%E_correction
-        END IF
-        IF (PRESENT(kinetic_energy)) kinetic_energy = tbmd_energy%E_kinetic
      CASE (use_eip_force)
         CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP, error, failure)
         CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(kg_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
-        CPPreconditionNoFail(.NOT.PRESENT(tbmd_env), cp_warning_level, routineP, error)
         CALL eip_env_get(force_env%eip_env,&
                          cell=cell,&
                          cell_ref=cell_ref, &
@@ -542,7 +509,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         ! do not check ?
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
-        CPPreconditionNoFail(.NOT.PRESENT(tbmd_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
         NULLIFY(dft_control)
         CALL get_kg_env(force_env%kg_env,&
@@ -594,7 +560,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
-        CPPreconditionNoFail(.NOT.PRESENT(tbmd_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
         CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
         CALL get_mixed_env(force_env%mixed_env,&
@@ -623,9 +588,6 @@ CPSourceFileRef,&
      END IF
      IF (PRESENT(kg_env)) THEN
         kg_env => force_env%kg_env
-     END IF
-     IF (PRESENT(tbmd_env)) THEN
-        tbmd_env => force_env%tbmd_env
      END IF
      IF (PRESENT(eip_env)) THEN
         eip_env => force_env%eip_env

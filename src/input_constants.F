@@ -47,31 +47,27 @@ MODULE input_constants
        (/do_farming, do_test, do_cp2k/)
 
   ! Method Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: method_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: method_names=&
        (/"QS        ",&
          "FIST      ",&
          "KG        ",&
          "QMMM      ",&
-         "TBMD      ",&
          "EIP       ",&
          "QUICKSTEP ",&
          "KIM-GORDON",&
          "KIM_GORDON",&
-         "TB-MD     ",&
          "EP        ",&
          "MIXED     "/)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: method_name_desc=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: method_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
          "Kim Gordon models (DFT)                ",&
          "Hybrid quantum classical               ",&
-         "Tight-Binding Molecular Dynamics       ",&
          "Empirical Interatomic Potential        ",&
          "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
          "Kim Gordon models (DFT)                ",&    !
          "Kim Gordon models (DFT)                ",&    !
-         "Tight-Binding Molecular Dynamics       ",&    !
          "Non-orthogonal perturbation            ",&    !
          "Use a combination of two of the above  "/)    
 
@@ -79,14 +75,13 @@ MODULE input_constants
                                 do_fist=2,&
                                 do_kg=3,&
                                 do_qmmm=4,&
-                                do_tbmd=5,&
-                                do_eip=6,&
-                                do_ep=7,&
-                                do_mixed=8
+                                do_eip=5,&
+                                do_ep=6,&
+                                do_mixed=7
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(12) :: method_name_index=&
-       (/do_qs, do_fist, do_kg, do_qmmm, do_tbmd, &
-         do_eip, do_qs, do_kg, do_kg, do_tbmd,do_ep, do_mixed/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(10) :: method_name_index=&
+       (/do_qs, do_fist, do_kg, do_qmmm, do_eip, &
+         do_qs, do_kg, do_kg, do_ep, do_mixed/)
 
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
@@ -439,13 +434,6 @@ MODULE input_constants
                                 lr_precond_full_all=6
   INTEGER, PARAMETER, PUBLIC :: lr_ls_none=0, lr_ls_2pnt=1,&
                                 lr_ls_3pnt=2, lr_ls_gold=3 
-
-  ! Tight-Binding parametrization models
-  INTEGER, PARAMETER, PUBLIC :: use_gsp=1,&
-                                use_sawada=2,&
-                                use_kwon=3,&
-                                use_lenosky=4,&
-                                use_udp=5
 
   INTEGER, PARAMETER, PUBLIC :: xc_pbe_orig=11,xc_rev_pbe=12
 

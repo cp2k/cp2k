@@ -44,7 +44,6 @@ MODULE input_cp2k
   USE input_cp2k_motion,               ONLY: create_motion_section
   USE input_cp2k_qmmm,                 ONLY: create_qmmm_section
   USE input_cp2k_subsys,               ONLY: create_subsys_section
-  USE input_cp2k_tbmd,                 ONLY: create_tbmd_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -830,10 +829,6 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL create_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
-
-    CALL create_tbmd_section(subsection, error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection, error=error)
 
     CALL create_eip_section(subsection, error)
     CALL section_add_subsection(section, subsection, error=error)

@@ -33,7 +33,7 @@ MODULE environment
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_cp2k, do_eip, do_farming, do_fist, do_kg, do_qs, do_tbmd, do_test, &
+       do_cp2k, do_eip, do_farming, do_fist, do_kg, do_qs, do_test, &
        energy_run, mol_dyn_run, none_run, program_names, run_type_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
@@ -545,8 +545,6 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
              CASE (do_fist)
                 globenv%run_type_id = mol_dyn_run
              CASE (do_kg)
-                globenv%run_type_id = mol_dyn_run
-             CASE (do_tbmd)
                 globenv%run_type_id = mol_dyn_run
              CASE (do_eip)
                 globenv%run_type_id = mol_dyn_run

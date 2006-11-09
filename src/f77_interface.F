@@ -66,7 +66,6 @@ MODULE f77_interface
                                              do_kg,&
                                              do_qmmm,&
                                              do_qs,&
-                                             do_tbmd,&
                                              do_mixed,&
                                              method_names
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
@@ -96,7 +95,6 @@ MODULE f77_interface
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE string_table,                    ONLY: string_table_allocate,&
                                              string_table_deallocate
-  USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE timings,                         ONLY: add_timer_env,&
                                              get_timer_env,&
                                              rm_timer_env,&
@@ -733,9 +731,6 @@ END SUBROUTINE f_env_rm_defaults
           CASE (do_qmmm)
              CALL qmmm_create_force_env( my_force_env,&
                   root_section,para_env, globenv, force_env_section=force_env_section, error=error)
-          CASE (do_tbmd)
-             CALL tbmd_create_force_env(my_force_env, root_section, para_env, globenv, &
-                  force_env_section=force_env_section, error=error)
           CASE (do_eip)
              CALL eip_create_force_env(my_force_env, root_section, para_env, globenv, &
                   force_env_section=force_env_section, error=error)
