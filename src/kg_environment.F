@@ -378,7 +378,6 @@ CONTAINS
     CALL cell_release(cell_ref,error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
-!    CALL dft_control_release(dft_control, error=error)
 
     !Sets up pw, grids, densities
     CALL kg_env_setup(kg_env,kg_gpw,error)
@@ -386,6 +385,8 @@ CONTAINS
     IF ( kg_gpw ) THEN
       !Sets up qs_env for subsystems
       CALL kg_subsys_setup(kg_env,force_env_section,error)
+    ELSE
+      CALL dft_control_release(dft_control, error=error)
     END IF
 
     IF (ionode) CALL m_flush(output_unit)
@@ -691,7 +692,7 @@ CONTAINS
                  i_val=molch_kind,error=error)
         END IF
 !dbg
-     write(*,*) 'molecule', nrep, molch_kind
+!     write(*,*) 'molecule', nrep, molch_kind
 
         CALL section_vals_val_get(mol_charge_section,"MOLNAME",i_rep_section=ich,&
                 n_rep_val=nrep,error=error)
@@ -704,11 +705,11 @@ CONTAINS
            CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
 !dbg
-     write(*,*) 'molname', nrep, molch_name
+!     write(*,*) 'molname', nrep, molch_name
         CALL section_vals_val_get(mol_charge_section,"CHARGE",i_rep_section=ich,&
                 i_val=molch_val,error=error)
 !dbg
-     write(*,*) 'charge', nrep, molch_val
+!     write(*,*) 'charge', nrep, molch_val
 
         IF(molch_kind/=0) THEN
           imolecule_kind = molch_kind
