@@ -1,0 +1,1 @@
+awk '{printf("%20.12f",($1-1)^2+($2-2)^2+($3-3)^2+($4-4)^2+($5-5)^2)}' scriptmini_eval.in > scriptmini_eval.out
