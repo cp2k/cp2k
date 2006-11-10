@@ -178,10 +178,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
+
+    CALL timeset(routineN,"I",'',handle)
 
     failure=.FALSE.
 
@@ -227,6 +229,8 @@ CONTAINS
 
     END IF
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE kg_scf_env_create
 
 !!****f* kg_scf/kg_qs_scf [1.0] *
@@ -250,8 +254,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    INTEGER                                  :: handle
     TYPE(kg_environment_type), POINTER       :: my_kg_env
     TYPE(kg_scf_env_type), POINTER           :: scf_env
+
+    CALL timeset(routineN,"I",'',handle)
 
      NULLIFY(scf_env,my_kg_env)
      my_kg_env => kg_env
@@ -268,6 +275,8 @@ CONTAINS
         END IF
         CALL scf_env_do_scf(scf_env,my_kg_env,kg_env%para_env,globenv,error=error)
      END IF
+     CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE kg_qs_scf
 !***************************************************************************
 !!****f* kg_scf/scf_env_do_scf [1.0] *
@@ -337,6 +346,7 @@ CONTAINS
                                                 scf_section
 
 !   ---------------------------------------------------------------------------
+
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
@@ -839,8 +849,8 @@ CONTAINS
 
     CALL timeset("init_kgscf_run","I"," ",handle)
 
-    NULLIFY(dft_control,kg_fm,scf_control)
-    NULLIFY(qs_env,ks_env,matrix_ks)
+    NULLIFY(dft_control,kg_fm,scf_control,S_sm_pools)
+    NULLIFY(qs_env,ks_env,matrix_ks,matrix_s,logger)
 
     failure=.FALSE.
     do_ortho = .TRUE.
@@ -856,6 +866,8 @@ CONTAINS
     IF ( dft_control % qs_control % method == "KG_GPW" ) THEN
 
       CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env,error=error)
+      CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+      CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
       CALL get_qs_env(qs_env=qs_env,&
            dft_control=dft_control,&
@@ -1641,9 +1653,11 @@ CONTAINS
     CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
+    NULLIFY(S_sm_pools)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
        CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools,error=error)
@@ -1723,8 +1737,11 @@ SUBROUTINE kg_scf_env_did_change(scf_env,error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    integer :: handle
 
 !    -------------------------------------------------------------------------
+
+  CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
 
@@ -1735,6 +1752,9 @@ SUBROUTINE kg_scf_env_did_change(scf_env,error)
         CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
      END IF
   END IF
+  CALL timestop(0.0_dp,handle)
+
+
 END SUBROUTINE kg_scf_env_did_change
 
 !***************************************************************************

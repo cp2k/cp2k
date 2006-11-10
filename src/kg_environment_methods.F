@@ -20,6 +20,8 @@ MODULE kg_environment_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+                                             sm_pools_give_back_matrix_vect
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
@@ -46,7 +48,8 @@ MODULE kg_environment_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
-  USE qs_matrix_pools,                 ONLY: mpools_rebuild_s_sm_pools
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             mpools_rebuild_s_sm_pools
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
@@ -158,6 +161,8 @@ CONTAINS
     LOGICAL                                  :: failure, use_tau
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(particle_type), DIMENSION(:), &
@@ -171,12 +176,16 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(para_env, cell, dft_control,particle_set)
+    NULLIFY(para_env, cell, dft_control, kg_sub_pw_env, matrix_ks, particle_set,S_sm_pools )
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, cell=cell, para_env=para_env, dft_control=dft_control,&
-         particle_set=particle_set,matrix_ks=matrix_ks, error=error)
+         particle_set=particle_set, error=error)
+
+!dbg
+!     CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
+!     CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
 
     nspins = dft_control%nspins
     use_tau = dft_control%use_kinetic_energy_density
@@ -186,7 +195,6 @@ CONTAINS
          para_env=para_env, error=error)
 
     CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
-
     ! *** deallocate matrices that will have the wrong structure ***
     CALL deallocate_matrix_set(matrix_ks,error=error)
     CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)

@@ -914,9 +914,6 @@ CONTAINS
                 CALL get_mol_mo_set(mo_set=mo_set,mo=mo,eigenvalues=eigenvalues,&
                                     occupation_numbers=occupation_numbers)
 
-!dbg
-!  WRITE(*,*) imol_local, mo(1:n_ao,1)
-!dbg
                 DO imo = 1 , n_mo(ispin)
                   CALL DCOPY(n_ao,mo(1,imo),1,mo_buffer(1,imo,ispin),1)
                   eig_buffer(imo,ispin) = eigenvalues(imo)

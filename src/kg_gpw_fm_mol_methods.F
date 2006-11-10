@@ -86,7 +86,7 @@ CONTAINS
                                  added_mos,use_cholesky,&
                                  nelectron_global,nao_global,&
                                  nao_max, nmo_max, &
-                                 maxocc_global,error)
+                                 maxocc_global,mol_charge,mol_multiplicity,error)
 
 !   Purpose:
 
@@ -109,6 +109,8 @@ CONTAINS
     INTEGER, INTENT(INOUT)                   :: nelectron_global, nao_global, &
                                                 nao_max, nmo_max
     REAL(dp), DIMENSION(2), INTENT(INOUT)    :: maxocc_global
+    INTEGER                                  :: mol_charge
+    INTEGER                                  :: mol_multiplicity
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -135,7 +137,7 @@ CONTAINS
 
 !   If this molecule kind is charged this has to appear here.
 !   In this case the number of elctrons is modified and we can calculate
-!   the right number of molecular orbitals and te occupation numbers
+!   the right number of molecular orbitals and the occupation numbers
 
     IF ((MODULO(nelectron,2) /= 0).AND.(nspins == 1)) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -147,10 +149,12 @@ CONTAINS
 
     nmol_global = SIZE(molecule_list,1)
 
-    IF (MODULO(nelectron,2) == 0) THEN
-      multiplicity = 1
-    ELSE
-      multiplicity = 2
+    IF(mol_multiplicity == 0) THEN
+      IF (MODULO(nelectron,2) == 0) THEN
+         multiplicity = 1
+      ELSE
+         multiplicity = 2
+      END IF
     END IF
 
 
@@ -204,7 +208,7 @@ CONTAINS
                            nmolecule_local=nmol_local,&
                            natom = natom, n_ao=n_ao,&
                            n_mo =n_mo , nelectron_spin=nelectron_spin,&
-                           maxocc=maxocc, multiplicity=multiplicity)
+                           maxocc=maxocc, charge=mol_charge, multiplicity=multiplicity)
 
      CALL allocate_fm_mol_blocks(fm_mol_set,nmol_local,error=error)
 

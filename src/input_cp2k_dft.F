@@ -36,7 +36,8 @@ MODULE input_cp2k_dft
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: integer_t,&
+  USE input_val_types,                 ONLY: char_t, &
+                                             integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -1524,7 +1525,7 @@ SUBROUTINE create_qs_section(section,error)
                         "Linear extrapolation of the wavefunction",&
                         "Linear extrapolation of the density matrix",&
                         "Linear extrapolation of the density matrix times the overlap matrix",&
-                        "Use the revious wavefunction",&
+                        "Use the previous wavefunction",&
                         "Higher order extrapolation of the density matrix times the overlap matrix"//&
                                              " (recommended for most systems and required for OT).",&
                         "Frozen ...",&
@@ -4669,6 +4670,7 @@ SUBROUTINE create_kg_section(section,error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
 
   failure=.FALSE.
 
@@ -4679,7 +4681,7 @@ SUBROUTINE create_kg_section(section,error)
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY ( keyword )
+       NULLIFY ( keyword, subsection, print_key )
        CALL keyword_create(keyword, name="OVERLAP_ANALYSIS",&
             description="Analyze overlap between wavefunction on different"//&
             " subsystems in KG_GPW method", usage="OVERLAP ANALYSIS",&
@@ -4695,6 +4697,47 @@ SUBROUTINE create_kg_section(section,error)
             default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+
+       CALL section_create(subsection,name="MOL_CHARGE",&
+            description="This section is used to set a fixed charge for a molecule kind.",&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+         NULLIFY(keyword)
+
+         ! Integer
+         CALL keyword_create(keyword, name="MOLECULE",&
+              variants=(/"MOL"/),&
+              description="Specifies the number of the molecule kind on which the charge is applied."//&
+              " MOLECULE and MOLNAME keyword exclude themself mutually.",&
+              usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+         CALL section_add_keyword(subsection,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
+
+         CALL keyword_create(keyword, name="MOLNAME",&
+              description="Specifies the name of the molecule kind on which the charge is applied.",&
+              usage="MOLNAME {character}", required=.TRUE.,&
+              n_var=1, type_of_var=char_t, error=error)
+         CALL section_add_keyword(subsection,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
+
+         CALL keyword_create(keyword, name="CHARGE",&
+              description="Value of the charge for this molecule kind",&
+              usage="CHARGE {integer}",default_i_val=0,&
+              required=.TRUE.,n_var=1,type_of_var=integer_t,error=error)
+         CALL section_add_keyword(subsection,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+
+       CALL cp_print_key_section_create(print_key,"kg_info",&
+            description="",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
   END IF
 

@@ -174,6 +174,7 @@ MODULE kg_gpw_fm_mol_types
 !!      -
 !!   
 !!   ATTRIBUTES
+!!     - charge
 !!     - multiplicity
 !!     - n_ao
 !!     - n_mo
@@ -193,7 +194,7 @@ MODULE kg_gpw_fm_mol_types
 !!*** *********************************************************************
 
   TYPE kg_fm_mol_set_type
-    INTEGER  :: multiplicity, &
+    INTEGER  :: charge, multiplicity, &
                 n_ao, n_mo(2), natom, &
                 nelectron_spin(2),&
                 nmol_kind_global,&
@@ -492,6 +493,7 @@ CONTAINS
     IF(.NOT. failure) THEN
       DO i = 1,nmolecule_kind
         fm_mol_set_b(i)%maxocc = fm_mol_set_a(i)%maxocc 
+        fm_mol_set_b(i)%charge = fm_mol_set_a(i)%charge
         fm_mol_set_b(i)%multiplicity = fm_mol_set_a(i)%multiplicity
         fm_mol_set_b(i)%natom = fm_mol_set_a(i)%natom
         fm_mol_set_b(i)%n_ao = fm_mol_set_a(i)%n_ao
@@ -604,6 +606,7 @@ CONTAINS
     IF(.NOT. failure) THEN
       kg_fm%ref_count = 1
       DO i = 1,nmolecule_kind
+        kg_fm%kg_fm_mol_set(i)%charge = 0
         kg_fm%kg_fm_mol_set(i)%maxocc = 0.0_dp
         kg_fm%kg_fm_mol_set(i)%multiplicity = 0
         kg_fm%kg_fm_mol_set(i)%natom = 0
@@ -717,8 +720,14 @@ CONTAINS
       kg_fm%ref_count=kg_fm%ref_count-1
       IF (kg_fm%ref_count<1) THEN
         CALL kg_fm_mol_set_distroy(kg_fm%kg_fm_mol_set,error=error)
-        DEALLOCATE(kg_fm%imol_pe_pos,kg_fm%imol_local_name,STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        IF(ASSOCIATED(kg_fm%imol_pe_pos)) THEN
+          DEALLOCATE(kg_fm%imol_pe_pos,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(kg_fm%imol_local_name)) THEN
+          DEALLOCATE(kg_fm%imol_local_name,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
         DEALLOCATE(kg_fm,STAT=istat)
         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
@@ -755,7 +764,7 @@ CONTAINS
 
   SUBROUTINE get_kg_fm_mol_set(kg_fm_mol_set, nmol_kind_global,&
                                nmolecule_local, natom, n_ao, n_mo,&
-                               nelectron_spin , maxocc, multiplicity,&
+                               nelectron_spin , maxocc, charge, multiplicity,&
                                fm_mol_blocks)
 
     TYPE(kg_fm_mol_set_type), POINTER        :: kg_fm_mol_set
@@ -763,11 +772,13 @@ CONTAINS
                                                 nmolecule_local, natom, n_ao, &
                                                 n_mo(2), nelectron_spin(2)
     REAL(dp), INTENT(OUT), OPTIONAL          :: maxocc
+    INTEGER, INTENT(OUT), OPTIONAL           :: charge
     INTEGER, INTENT(OUT), OPTIONAL           :: multiplicity
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: fm_mol_blocks
 
     IF(PRESENT(maxocc)) maxocc = kg_fm_mol_set%maxocc
+    IF(PRESENT(charge)) charge =kg_fm_mol_set%charge
     IF(PRESENT(multiplicity)) multiplicity =kg_fm_mol_set%multiplicity
     IF(PRESENT(nmol_kind_global)) nmol_kind_global=kg_fm_mol_set%nmol_kind_global
     IF(PRESENT(nmolecule_local)) nmolecule_local=kg_fm_mol_set%nmolecule_local
@@ -808,7 +819,7 @@ CONTAINS
 
   SUBROUTINE set_kg_fm_mol_set(kg_fm_mol_set, nmol_kind_global,&
                                nmolecule_local, natom, n_ao, n_mo,&
-                               nelectron_spin , maxocc, multiplicity,& 
+                               nelectron_spin , maxocc, charge, multiplicity,& 
                                fm_mol_blocks)
 
     TYPE(kg_fm_mol_set_type), POINTER        :: kg_fm_mol_set
@@ -816,6 +827,7 @@ CONTAINS
                                                 nmolecule_local, natom, n_ao, &
                                                 n_mo(2), nelectron_spin(2)
     REAL(dp), INTENT(IN), OPTIONAL           :: maxocc
+    INTEGER, INTENT(IN), OPTIONAL            :: charge
     INTEGER, INTENT(IN), OPTIONAL            :: multiplicity
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: fm_mol_blocks
@@ -824,6 +836,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF(PRESENT(maxocc)) kg_fm_mol_set%maxocc = maxocc
+    IF(PRESENT(charge)) kg_fm_mol_set%charge = charge
     IF(PRESENT(multiplicity)) kg_fm_mol_set%multiplicity = multiplicity
     IF(PRESENT(nmol_kind_global)) kg_fm_mol_set%nmol_kind_global = nmol_kind_global
     IF(PRESENT(nmolecule_local)) kg_fm_mol_set%nmolecule_local = nmolecule_local

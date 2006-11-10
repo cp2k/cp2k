@@ -471,8 +471,8 @@ CONTAINS
     END IF
     IF (PRESENT(sub_qs_env)) THEN
        CALL qs_env_retain(sub_qs_env,error=error)
+       CALL qs_env_release(kg_env%sub_qs_env,error=error)
        kg_env%sub_qs_env => sub_qs_env
-       CALL qs_env_release(sub_qs_env,error=error)
     END IF
     IF (PRESENT(particle_set)) THEN
       CALL particle_list_create(particles,&

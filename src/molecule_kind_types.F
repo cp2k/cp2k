@@ -710,7 +710,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set)
+  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,charge_x_mol)
 
 !   Purpose: Read a molecule kind data set from the input file.
 
@@ -720,10 +720,11 @@ CONTAINS
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: charge_x_mol
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'num_ao_el_per_molecule'
 
-    INTEGER                                  :: iatom, imol, n_ao, natom, &
+    INTEGER                                  :: iatom, imol, my_charge, n_ao, natom, &
                                                 nelectron, nmol_kind, nsgf
     REAL(KIND=dp)                            :: zeff, zeff_correction
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -738,6 +739,7 @@ CONTAINS
 
     nmol_kind = SIZE(molecule_kind_set,1)
     natom = 0
+    my_charge = 0
 !   *** Initialize the molecule kind data structure ***
 
     DO imol = 1,nmol_kind
@@ -746,6 +748,9 @@ CONTAINS
                              natom=natom)
       nelectron = 0
       n_ao = 0
+      IF(PRESENT(charge_x_mol)) THEN
+        my_charge = charge_x_mol(imol)
+      END IF
       DO iatom=1,natom
         atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -771,6 +776,7 @@ CONTAINS
         ENDIF
         n_ao = n_ao + nsgf
       END DO  ! iatom
+      nelectron = nelectron + my_charge
       CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            nelectron=nelectron, nsgf=n_ao)
     END DO  ! imol

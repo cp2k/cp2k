@@ -56,7 +56,9 @@ MODULE kg_environment
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: kg_header
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_val_get,&
                                              section_vals_type
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
                                              kg_energy_type
@@ -75,7 +77,8 @@ MODULE kg_environment
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_create,&
                                              kg_sub_pw_env_release,&
                                              kg_sub_pw_env_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,& 
+                                             dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max,&
@@ -375,7 +378,7 @@ CONTAINS
     CALL cell_release(cell_ref,error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
-    CALL dft_control_release(dft_control, error=error)
+!    CALL dft_control_release(dft_control, error=error)
 
     !Sets up pw, grids, densities
     CALL kg_env_setup(kg_env,kg_gpw,error)
@@ -386,6 +389,7 @@ CONTAINS
     END IF
 
     IF (ionode) CALL m_flush(output_unit)
+
 
     CALL timestop(0.0_dp,handle)
 
@@ -472,10 +476,27 @@ CONTAINS
   END SUBROUTINE write_total_numbers
 
 !******************************************************************************
-
+!!****** kg_environment/kg_subsys_setup [1.0] *
+!!
+!!   NAME
+!!     kg_subsys_setup
+!!
+!!   FUNCTION
+!!      Distribute the fm_mol_set and allocate the mos for each molecule
+!!      Distribute the electrons among the molecules
+!!      Generate a qs_environment for the system
+!!   
+!!   NOTE
+!!      Charged molecule kinds need to be specified here, reading the info from input somehow
+!!
+!!   AUTHOR
+!!      MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!****
   SUBROUTINE kg_subsys_setup(kg_env,force_env_section,error)
 
-!   We generate a qs_environment for the system
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -485,11 +506,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iglobal, imol, imolecule_kind, istat, nao_global, nao_max, &
-      nelectron_global, nkind, nmo_max, nmolecule_kind, nspins
+    CHARACTER(LEN=default_string_length)     :: molch_name
+    INTEGER :: ich, iglobal, imol, imolecule_kind, istat, nao_global, nao_max, &
+      nelectron_global, nkind, nmo_max, nmolcharge, nmolecule_kind, nrep, nspins, sumcharge
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: added_mos
-    LOGICAL                                  :: failure, nmo_eq_nao, &
+    INTEGER                                  :: molch_kind, molch_val
+    INTEGER, DIMENSION(:), POINTER           :: charge_x_mol
+    INTEGER, DIMENSION(:), POINTER           :: mult_x_mol
+    LOGICAL                                  :: explicit, failure, nmo_eq_nao, &
                                                 use_ref_cell
     REAL(dp)                                 :: maxocc_global(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -518,7 +543,7 @@ CONTAINS
       POINTER                                :: qs_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(section_vals_type), POINTER         :: mol_charge_section, poisson_section
 
     failure=.FALSE.
 
@@ -526,6 +551,7 @@ CONTAINS
     NULLIFY(qs_env,subsys,scf_control,cell,cell_ref,atomic_kind_set,&
             para_env,dft_control,distribution_2d,wf_history,qs_energy,qs_force,&
             poisson_section)
+    NULLIFY(mol_charge_section, charge_x_mol)
 
     NULLIFY(distribution_1d,kg_fm,molecule_kind_set,molecule_set,particle_set)
 
@@ -587,11 +613,14 @@ CONTAINS
                     wf_history=wf_history     ,&
                     error=error                 )
 
+!    CALL scf_c_release(scf_control,error=error)
+    CALL dft_control_release(dft_control, error=error)
+    CALL wfi_release(wf_history,error=error)
+
+    CALL get_kg_env(kg_env=kg_env, dft_control=dft_control, error=error)
     CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
     CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
     CALL qs_charges_release(qs_charges,error=error)
-
-    CALL wfi_release(wf_history,error=error)
 
     CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
@@ -609,25 +638,8 @@ CONTAINS
 
     nspins = dft_control%nspins
 
-!   *** Problems with the distribution of the electrons ***
-
-!   I suppose, the charge of each molecule should be given from input
-!    to assign the correct number of electrons. Is this possible?
-!   It cannot be the global charge of the system, because each molecule
-!   must have a fixed number of electron from the beginning,
-!   and charge transfers are not admitted
-    IF(dft_control%charge /= 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-         "Automatic collocation of the charge on molecules not implemented")
-    END IF
-!   the multiplicity is given by the even or odd number of electrons
-!   for each molecule separatedly. I don't whether it is possible to do differently
-    IF (dft_control%multiplicity /= 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-         "The multiplicity is assigned molecule by molecule")
-    END IF
-
 !   *** Some options require that all MOs are computed ... ***
+    CALL get_kg_env(kg_env=kg_env, scf_control=scf_control, error=error)
     nmo_eq_nao = .FALSE.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
             "DFT%PRINT%MO",error=error),cp_p_file).OR.&
@@ -656,6 +668,66 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     kg_fm%imol_local_name = 0
 
+!   read from input the molecular charges if given 
+    sumcharge = 0
+    ALLOCATE(charge_x_mol(nmolecule_kind),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    charge_x_mol = 0
+    ALLOCATE(mult_x_mol(nmolecule_kind),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    mult_x_mol = 0
+
+    mol_charge_section => section_vals_get_subs_vals(force_env_section,&
+         "DFT%KG%MOL_CHARGE",error=error)
+    CALL section_vals_get(mol_charge_section,explicit=explicit,n_repetition=nmolcharge,error=error)
+    IF(explicit) THEN
+      DO ich =  1, nmolcharge
+        molch_kind = 0
+        molch_name = "UNDEF"
+        CALL section_vals_val_get(mol_charge_section,"MOLECULE",i_rep_section=ich,&
+             n_rep_val=nrep,error=error)
+        IF (nrep/=0) THEN
+            CALL section_vals_val_get(mol_charge_section,"MOLECULE",i_rep_section=ich,&
+                 i_val=molch_kind,error=error)
+        END IF
+!dbg
+     write(*,*) 'molecule', nrep, molch_kind
+
+        CALL section_vals_val_get(mol_charge_section,"MOLNAME",i_rep_section=ich,&
+                n_rep_val=nrep,error=error)
+        IF (nrep/=0) THEN
+            CALL section_vals_val_get(mol_charge_section,"MOLNAME",i_rep_section=ich,&
+                   c_val=molch_name,error=error)
+        END IF
+        IF  (((molch_kind==0).AND.(molch_name=="UNDEF")).OR.&
+                ((molch_kind/=0).AND.(molch_name/="UNDEF"))) THEN
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+!dbg
+     write(*,*) 'molname', nrep, molch_name
+        CALL section_vals_val_get(mol_charge_section,"CHARGE",i_rep_section=ich,&
+                i_val=molch_val,error=error)
+!dbg
+     write(*,*) 'charge', nrep, molch_val
+
+        IF(molch_kind/=0) THEN
+          imolecule_kind = molch_kind
+          charge_x_mol(imolecule_kind) = molch_val
+        ELSE
+          DO imolecule_kind = 1, nmolecule_kind
+             molecule_kind => molecule_kind_set(imolecule_kind)
+             IF (molecule_kind%name==molch_name) THEN
+               charge_x_mol(imolecule_kind) = molch_val
+             END IF
+          END DO 
+        END IF
+      END DO 
+
+      CALL num_ao_el_per_molecule(molecule_kind_set,charge_x_mol=charge_x_mol)
+
+    END IF
+
+    ! Build the full matrix for each molecule
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)
       CALL build_local_fm_mol(kg_fm%kg_fm_mol_set(imolecule_kind),&
@@ -667,6 +739,8 @@ CONTAINS
                               nelectron_global,nao_global,&
                               nao_max, nmo_max, &
                               maxocc_global=maxocc_global,&
+                              mol_charge=charge_x_mol(imolecule_kind),&
+                              mol_multiplicity=mult_x_mol(imolecule_kind),&
                               error=error)
       ! Initialize the local cell and the pw_env for each molecule kind
       fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
@@ -680,7 +754,22 @@ CONTAINS
         kg_fm%imol_pe_pos(iglobal) = para_env%mepos
       END DO
 
+      sumcharge = sumcharge + molecule_kind%nmolecule*charge_x_mol(imolecule_kind) 
+
     END DO
+
+!   check that the total charge is correct
+    IF(dft_control%charge /= sumcharge) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+         " The charge distributed over the molecules is not equal to the total charge")
+    END IF
+
+!   deallocate temporary arrays
+    DEALLOCATE(charge_x_mol, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(mult_x_mol, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
 
     CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env,error=error)
     CALL kg_sub_pw_env_release(kg_sub_pw_env,force_env_section=force_env_section,error=error)

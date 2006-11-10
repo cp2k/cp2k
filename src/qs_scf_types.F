@@ -277,6 +277,9 @@ SUBROUTINE scf_env_did_change(scf_env,error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    INTEGER  :: handle
+
+ CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
 
@@ -287,6 +290,10 @@ SUBROUTINE scf_env_did_change(scf_env,error)
         CALL deallocate_matrix_set(scf_env%p_mix_new,error=error)
      END IF
   END IF
+
+  CALL timestop(0.0_dp,handle)
+
+  
 END SUBROUTINE scf_env_did_change
 
 !!****f* qs_scf_types/scf_env_release [1.0] *

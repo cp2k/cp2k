@@ -279,7 +279,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-         particle_set=particle_set,matrix_ks=matrix_ks, error=error)
+         particle_set=particle_set, matrix_ks=matrix_ks, error=error)
 
     ! *** rebuilds the S_sm_pools ***
     CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
