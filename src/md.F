@@ -263,7 +263,7 @@ CONTAINS
        END IF
        IF (  simpar % ensemble == npt_i_ensemble .OR. simpar % ensemble == npt_f_ensemble ) THEN
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
-               ' MD| Pressure [','Bar','] ', simpar % p_ext/unit%bar
+               ' MD| Pressure [','Bar','] ', simpar % p_ext*unit%bar
           WRITE ( iw, '( A,A4,A, T71, F10.2 )' ) &
                ' MD| Barostat time constant [','fs','] ', &
                simpar % tau_cell/unit%fs
