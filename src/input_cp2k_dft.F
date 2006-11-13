@@ -3207,7 +3207,9 @@ SUBROUTINE create_tddfpt_section(section,error)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BSSE",&
-            description="This section is used to set up the BSSE calculation.",&
+            description="This section is used to set up the BSSE calculation. "//&
+                        "It also requires that for each atomic kind X a kind X_ghost is present, "//&
+                        "with the GHOST keyword specified, in addition to the other required fields.",&
             n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 

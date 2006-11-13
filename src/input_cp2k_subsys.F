@@ -912,8 +912,9 @@ CONTAINS
 
        CALL keyword_create(keyword,&
                            name="GHOST",&
-                           description="This keyword makes all atoms of this "//&
-                                        "to ghost atoms, i.e. the nuclear charge zero.",&
+                           description="This keyword makes all atoms of this kind "//&
+                                        "ghost atoms, i.e. without pseudo or nuclear charge."//&
+                                       "Useful to just have the basis set at that position (BSSE calculations).",&
                            usage="GHOST",&
                            default_l_val=.FALSE.,&
                            lone_keyword_l_val=.TRUE.,&
