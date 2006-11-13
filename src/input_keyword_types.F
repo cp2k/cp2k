@@ -860,12 +860,12 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
             CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr,error=error)
       END IF
       IF (ASSOCIATED(keyword%default_value).AND.keyword%type_of_var/=no_t) THEN
-            WRITE(unit_nr,'(a)',advance="NO") '. Default  : '
+            WRITE(unit_nr,'(a)',advance="NO") '. Default value [internal / a.u.]: '
             CALL val_write(keyword%default_value,unit_nr=unit_nr,error=error)
       END IF
       IF (ASSOCIATED(keyword%unit)) THEN
          my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
-         WRITE(unit_nr,'(a)',advance="NO") '. Default unit of measure : '//TRIM(my_unit)
+         WRITE(unit_nr,'(a)',advance="NO") '. Default unit on input: ['//TRIM(my_unit)//']'
       END IF
 
       IF (keyword%type_of_var==enum_t) THEN
