@@ -32,3 +32,7 @@ He2_ddapc_constraint-2.inp
 He2_ddapc_constraint-3.inp
 # new full single inverse
 He2_none_full_inverse.inp
+# changing the definition of ch_dens
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint-3.inp
+He2_ddapc_constraint.inp

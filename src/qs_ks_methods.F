@@ -526,7 +526,6 @@ CONTAINS
                              v_hartree_gspace%pw,error=error)
        END IF
 
-
        ! In case decouple periodic images and/or apply restraints to charges
        CALL cp_ddapc_apply(qs_env,&
                            rho_tot_gspace,&
@@ -550,7 +549,7 @@ CONTAINS
 
        CALL calc_v_sic_rspace(v_sic_rspace,energy,&
                               qs_env,dft_control,rho,poisson_env,just_energy,&
-                              auxbas_pw_pool,error=error)
+                              calculate_forces,auxbas_pw_pool,error=error)
 
        IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
 
@@ -962,7 +961,7 @@ CONTAINS
 
   SUBROUTINE calc_v_sic_rspace(v_sic_rspace,energy,&
                                qs_env,dft_control,rho,poisson_env,just_energy,&
-                               auxbas_pw_pool,error)
+                               calculate_forces,auxbas_pw_pool,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_sic_rspace
     TYPE(qs_energy_type), POINTER            :: energy
@@ -970,7 +969,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    LOGICAL, INTENT(IN)                      :: just_energy
+    LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
@@ -1007,7 +1006,6 @@ CONTAINS
     CASE ( sic_mauri_us, sic_mauri_spz )
        CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),work_rho)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
-       energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
     CASE ( sic_ad )
        ! find out how many elecs we have
        CALL get_qs_env(qs_env,mos=mo_array,error=error)
@@ -1018,6 +1016,22 @@ CONTAINS
        scaling = 1.0_dp / REAL(nelec,KIND=dp)
        CALL coeff_scale(work_rho,scaling)
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw,error=error)
+    CASE DEFAULT
+       CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
+            "Unknown sic method id",error,failure)
+    END SELECT
+    ! Correct for  DDAP charges (if any)
+    CALL cp_ddapc_apply(qs_env,&
+                        work_rho,&
+                        ener,&
+                        v_hartree_gspace=work_v,&
+                        calculate_forces=calculate_forces,&
+                        error=error)
+
+    SELECT CASE ( dft_control%sic_method_id )
+    CASE ( sic_mauri_us, sic_mauri_spz )
+       energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
+    CASE ( sic_ad )
        energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&

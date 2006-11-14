@@ -57,3 +57,10 @@ H2O-bloechl-restraint.inp
 H2O-solv.inp
 #  
 H2O-bloechl-Spl.inp
+# changing the definition of ch_dens
+H2O-bloechl.inp
+H2O-bloechl-restraint.inp
+H2O-bloechl-Spl.inp
+H2O-solv.inp
+He2H-bloechl-md.inp
+H+solv1.inp

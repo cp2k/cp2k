@@ -104,7 +104,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE get_ddapc(qs_env,calc_force,param_section,&
-       qout1,qout2,out_radii,dq_out,just_charge,error)
+       qout1,qout2,out_radii,dq_out,just_charge,ext_rho_tot_g,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     TYPE(section_vals_type), POINTER         :: param_section
@@ -113,6 +113,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: dq_out
     LOGICAL, INTENT(in), OPTIONAL            :: just_charge
+    TYPE(pw_type), POINTER, OPTIONAL         :: ext_rho_tot_g
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -125,9 +126,8 @@ CONTAINS
                                                 num_gauss, stat
     LOGICAL                                  :: apply_restrain, failure, &
                                                 need_f, only_charge
-    REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, core_ch, &
-                                                elec_ch, gcut, pfact, rcmin, &
-                                                Vol
+    REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, gcut,&
+                                                pfact, rcmin, Vol
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv, cv, dqv0, qtot, qv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dbv
@@ -155,8 +155,8 @@ CONTAINS
     IF (PRESENT(just_charge)) only_charge = just_charge
     IF (PRESENT(calc_force))  need_f      = calc_force    
     logger => cp_error_get_logger(error)
-    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env, radii,&
-            inp_radii, particle_set, qs_charges, cp_ddapc_env)
+    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
+         radii, inp_radii, particle_set, qs_charges, cp_ddapc_env)
     IF (.NOT.failure) THEN
        !
        ! Build the total QS density (electron+nuclei) in G-space
@@ -184,18 +184,22 @@ CONTAINS
                        error=error)
        CALL pw_pool_create_pw(auxbas_pool,rho_tot_g, in_space=RECIPROCALSPACE,&
             use_data=COMPLEXDATA1D, error=error)
-       IF(dft_control%qs_control%gapw) THEN
-         CALL pw_transfer(rho0_s_gs%pw,rho_tot_g)       
+       IF (PRESENT(ext_rho_tot_g)) THEN
+          CALL pw_transfer(ext_rho_tot_g,rho_tot_g)
        ELSE
-         CALL pw_transfer(rho_core%pw,rho_tot_g)       
+          IF(dft_control%qs_control%gapw) THEN
+             CALL pw_transfer(rho0_s_gs%pw,rho_tot_g)       
+          ELSE
+             CALL pw_transfer(rho_core%pw,rho_tot_g)       
+          END IF
+          DO ispin=1,SIZE(rho%rho_g)
+             CALL pw_sumup(rho%rho_g(ispin)%pw,rho_tot_g)
+          END DO
        END IF
-       DO ispin=1,SIZE(rho%rho_g)
-          CALL pw_sumup(rho%rho_g(ispin)%pw,rho_tot_g)
-       END DO
        Vol = rho%rho_r(1)%pw%pw_grid%vol
-       core_ch = qs_charges%total_rho_core_rspace
-       elec_ch = accurate_sum(rho%tot_rho_r)
-       ch_dens = - qs_charges%background
+       ch_dens = 0.0_dp
+       IF (rho_tot_g%pw_grid%have_g0) ch_dens = rho_tot_g%cc(1)
+       CALL mp_sum(ch_dens,logger%para_env%group)
        !
        ! Get Input Parameters
        !
@@ -312,8 +316,6 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(dqv(ndim,SIZE(particle_set),3), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)     
-          ! ALLOCATE(Awrk(ndim, ndim), stat=stat)
-          ! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           !
           DO iparticle = 1, SIZE(particle_set)
              dAm = 0.0_dp
@@ -336,13 +338,9 @@ CONTAINS
              END IF
              DO j = 1, 3
                 dqv0 = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),-qv))
-                ! Awrk = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),cp_ddapc_env%AmI))
-                ! c3   = DOT_PRODUCT(cv,MATMUL(Awrk,bv))+DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
-                ! c3   = c3 / cp_ddapc_env%c0
                 c3 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,bv)))) + &
                        DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
                 c3   = c3 / cp_ddapc_env%c0
-                ! c4   = DOT_PRODUCT(cv,MATMUL(Awrk,cv)) / cp_ddapc_env%c0
                 c4 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,cv)))) / &
                      cp_ddapc_env%c0
                 dqv(:,iparticle,j) = - ( dqv0 + MATMUL(cp_ddapc_env%AmI,dbv(:,j)) - &
@@ -360,12 +358,9 @@ CONTAINS
           END IF
           dq_out = dqv
           IF (debug_this_module) THEN
-             CALL debug_charge(dqv, qs_env, param_section, particle_set, radii, error)
+             CALL debug_charge(dqv, qs_env, param_section, particle_set, radii, rho_tot_g, error)
              cp_ddapc_env => qs_env%cp_ddapc_env 
           END IF
-          !
-          ! DEALLOCATE(Awrk, stat=stat)
-          ! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
           DEALLOCATE(dqv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(dqv0, stat=stat)
@@ -432,7 +427,8 @@ CONTAINS
        v_hartree_gspace,calculate_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: rho_tot_gspace
-    REAL(KIND=dp), INTENT(INOUT)             :: energy, energy_res
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
     TYPE(coeff_type)                         :: v_hartree_gspace
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)  &
@@ -459,7 +455,7 @@ CONTAINS
     failure        = .FALSE.
     need_f         = .FALSE.
     apply_decpl    = .FALSE.
-    apply_restrain = qs_env%dft_control%qs_control%ddapc_restraint
+    apply_restrain = qs_env%dft_control%qs_control%ddapc_restraint.AND.(PRESENT(energy_res))
     logger => cp_error_get_logger(error)
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     IF (.NOT.failure) THEN
@@ -511,10 +507,10 @@ CONTAINS
           IF (need_f) THEN
              CALL reset_ch_pulay(qs_env, error=error)
              CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii,&
-                  dq_out=dq, error=error)
+                  dq_out=dq, ext_rho_tot_g=rho_tot_gspace%pw, error=error)
           ELSE
              CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii,&
-                  error=error)
+                  ext_rho_tot_g=rho_tot_gspace%pw, error=error)
           END IF          
        END IF
        IF (apply_decpl) THEN
@@ -988,11 +984,13 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE debug_charge(dqv, qs_env, param_section, particle_set, radii, error)
+  SUBROUTINE debug_charge(dqv, qs_env, param_section, particle_set, radii, &
+       rho_tot_g, error)
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: dqv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: param_section
+    TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
@@ -1027,9 +1025,11 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
           rvec = particle_set(iparticle)%r
           DO i = 1, 3
              particle_set(iparticle)%r(i) = rvec(i) + dx
-             CALL get_ddapc(qs_env,.FALSE.,param_section,qout1=qtot1,error=error)
+             CALL get_ddapc(qs_env,.FALSE.,param_section,qout1=qtot1,&
+                  ext_rho_tot_g=rho_tot_g,error=error)
              particle_set(iparticle)%r(i) = rvec(i) - dx
-             CALL get_ddapc(qs_env,.FALSE.,param_section,qout1=qtot2,error=error)
+             CALL get_ddapc(qs_env,.FALSE.,param_section,qout1=qtot2,&
+                  ext_rho_tot_g=rho_tot_g,error=error)
              ddqv = (qtot1 - qtot2)/(2.0_dp*dx)
              DO kk = 1, SIZE(qtot1)-1, SIZE(radii)
                 IF (ANY(ddqv(kk:kk+2).GT.1.0E-8_dp)) THEN

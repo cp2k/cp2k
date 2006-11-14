@@ -1498,19 +1498,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
 
-      !MK
-      ! IF (my_kg_gpw) THEN
-      !   ! Updates the molecular rho for each molecule independently
-      !   CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-      !   CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-      ! END IF
-      !MK
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
              TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr)))//&
              " in "//&
-             CPSourceFileRef, error, failure)
+ CPSourceFileRef,&
+             error, failure)
      END SELECT
      IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
   END IF
