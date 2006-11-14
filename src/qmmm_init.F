@@ -75,6 +75,7 @@ MODULE qmmm_init
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
+  USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord
   USE qmmm_per_elpot,                  ONLY: qmmm_per_potential_init
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_types,                      ONLY: &
@@ -142,7 +143,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index, qm_subsys_index
     LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, nocenter, &
-      nocompatibility, qmmm_link
+      nocompatibility, qmmm_link, qmmm_link_Imomm
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
@@ -297,6 +298,7 @@ CONTAINS
        qmmm_env_qm%mm_el_pot_radius      => mm_el_pot_radius
        qmmm_env_qm%mm_el_pot_radius_corr => mm_el_pot_radius_corr
 
+       qmmm_link_Imomm = .FALSE.
        IF (qmmm_link) THEN
           CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, &
                mm_el_pot_radius_corr, mm_atom_index, qm_cell_small, iw, error=error)
@@ -311,6 +313,7 @@ CONTAINS
           qmmm_env_qm%move_mm_charges =  move_mm_charges
           qmmm_env_qm%add_mm_charges  =  add_mm_charges
           qmmm_env_qm%added_charges   => added_charges
+          IF (ASSOCIATED(qmmm_links%imomm)) qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
        END IF
 
        CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
@@ -325,6 +328,8 @@ CONTAINS
             sub_subsys_index=qm_subsys_index,&
             sub_atom_kind_name=qm_atom_type, root_section=root_section, para_env=para_env, &
             force_env_section=force_env_section,error=error)
+       IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
+            qm_atom_index, error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,para_env,globenv,subsystem=subsys_qm,&
             cell=qm_cell_small, qmmm=.TRUE., qmmm_periodic=qmmm_env_qm%periodic,&
             force_env_section=force_env_section, error=error)

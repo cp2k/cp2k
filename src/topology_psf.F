@@ -207,23 +207,26 @@ CONTAINS
        END IF
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
-    IF (psf_type==do_conn_psf) THEN
-       DO WHILE (parser_test_next_token(parser,error=error)/="EOL")          
-          CALL parser_get_object  (parser,field,error=error)
-          SELECT CASE(field(1:3))
-          CASE ("PSF")
-             ! X-PLOR PSF format "similar" to the plain CHARMM PSF format
-             psf_format = '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
-          CASE ("EXT")
-             ! EXTEnded CHARMM31 format
-             psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.3,T88,I1)'
-             c_int      = 'I10'
-          CASE DEFAULT
-             IF (output_unit>0) WRITE(output_unit,'(T2,A)')&
-                  "PSF_INFO| Unimplemented keyword in CP2K PSF format!"
-          END SELECT
-       END DO
-    END IF
+    DO WHILE (parser_test_next_token(parser,error=error)/="EOL")          
+       CALL parser_get_object  (parser,field,error=error)
+       SELECT CASE(field(1:3))
+       CASE ("PSF")
+          IF (psf_type==do_conn_psf) THEN
+            ! X-PLOR PSF format "similar" to the plain CHARMM PSF format
+            psf_format = '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
+          ENDIF
+       CASE ("EXT")
+          IF (psf_type==do_conn_psf) THEN
+            ! EXTEnded CHARMM31 format
+            psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.3,T88,I1)'
+            c_int      = 'I10'
+          ELSE
+            CALL stop_program(routineN,"PSF_INFO| "//field(1:3)//" :: not available for UPSF format!")
+          ENDIF
+       CASE DEFAULT
+          CALL stop_program(routineN,"PSF_INFO| "//field(1:3)//" :: Unimplemented keyword in CP2K PSF/UPSF format!")
+       END SELECT
+    END DO
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NATOM section'
     !
     ! ATOM section
