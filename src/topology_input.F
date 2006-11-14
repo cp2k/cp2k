@@ -28,7 +28,8 @@ MODULE topology_input
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_mol_set,&
                                              do_conn_psf,&
-                                             do_coord_off
+                                             do_coord_off,&
+                                             do_constr_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -181,7 +182,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                                 msize_old, n_rep, ncons, stat,&
                                                 nrep
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
-    LOGICAL                                  :: explicit, failure, freeze_mm, &
+    LOGICAL                                  :: explicit, failure
+    INTEGER                                  :: freeze_mm, &
                                                 freeze_qm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
     TYPE(constraint_info_type), POINTER      :: cons_info
@@ -418,18 +420,25 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               cons_info%fixed_mol_restraint(msize_old+1:msize)=cons_info%fixed_mol_restraint(msize_old+1)
               cons_info%fixed_mol_k0(msize_old+1:msize)=cons_info%fixed_mol_k0(msize_old+1)
            END IF
-           CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",l_val=freeze_mm,i_rep_section=ig,error=error)
-           CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",l_val=freeze_qm,i_rep_section=ig,error=error)
-           cons_info%freeze_mm = cons_info%freeze_mm .OR. freeze_mm
-           cons_info%freeze_qm = cons_info%freeze_qm .OR. freeze_qm
-           IF (cons_info%freeze_mm) THEN
+           CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",n_rep_val=nrep,i_rep_section=ig,error=error)
+           IF (nrep==1) THEN
+              write(6,*) " IG -- ", IG
+              CPPostcondition(cons_info%freeze_mm==do_constr_none,cp_failure_level,routineP,error,failure)
+              CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_val=cons_info%freeze_mm,i_rep_section=ig,error=error)
+           END IF
+           CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",n_rep_val=nrep,i_rep_section=ig,error=error)
+           IF (nrep==1) THEN
+              CPPostcondition(cons_info%freeze_qm==do_constr_none,cp_failure_level,routineP,error,failure)
+              CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",i_val=cons_info%freeze_qm,i_rep_section=ig,error=error)
+           END IF
+           IF (cons_info%freeze_mm/=do_constr_none) THEN
               CALL check_restraint(fix_atom_section,&
                                    is_restraint=cons_info%fixed_mm_restraint, &
                                    k0=cons_info%fixed_mm_k0,&
                                    i_rep_section=ig,&
                                    error=error)
            END IF
-           IF (cons_info%freeze_qm) THEN
+           IF (cons_info%freeze_qm/=do_constr_none) THEN
               CALL check_restraint(fix_atom_section,&
                                    is_restraint=cons_info%fixed_qm_restraint, &
                                    k0=cons_info%fixed_qm_k0,&
@@ -438,10 +447,11 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
            END IF
 
         END DO
-        IF (isize /= 0 .OR. cons_info%freeze_mm .OR. cons_info%freeze_qm &
-             .OR. SIZE(cons_info%fixed_molnames,1)>0 ) THEN
+        IF (isize /= 0 .OR. (cons_info%freeze_mm/=do_constr_none)&
+             .OR. (cons_info%freeze_qm/=do_constr_none) &
+             .OR. SIZE(cons_info%fixed_molnames,1)>0    ) THEN
            topology%const_atom    = .TRUE.
-           cons_info%nfixed_atoms =  isize
+!TL           cons_info%nfixed_atoms =  isize
         END IF
      END IF
      ! Collective Constraints

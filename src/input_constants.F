@@ -110,6 +110,9 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: ewald_name_index=&
        (/do_ewald_none, do_ewald_ewald, do_ewald_pme, do_ewald_spme/)
 
+  INTEGER, PARAMETER, PUBLIC :: do_constr_none=1,&
+                                do_constr_atomic=2,&
+                                do_constr_molec=3
   !
   ! MD Ensemble
   !

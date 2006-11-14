@@ -38,6 +38,7 @@ MODULE topology_constraint_util
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE input_constants,                 ONLY: do_constr_none, do_constr_atomic, do_constr_molec
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -636,14 +637,21 @@ CONTAINS
              IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
                 IF (ANY(cons_info%fixed_molnames.EQ.molname)) fix_atom_molname=.TRUE.
              ENDIF
-             fix_atom_qmmm=.FALSE.
-             IF (PRESENT(qmmm_env)) THEN
-                IF  ((cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
-                     (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))) THEN
-                  fix_atom_qmmm=.TRUE.
-                ENDIF
-             ENDIF
              DO k = first, last
+                fix_atom_qmmm=.FALSE.
+                SELECT CASE(cons_info%freeze_qm)
+                CASE(do_constr_atomic)
+                   if (ANY(qmmm_env%qm_atom_index==k)) fix_atom_qmmm=.TRUE.
+                CASE(do_constr_molec)
+                   if (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) fix_atom_qmmm = .TRUE.
+                END SELECT
+                SELECT CASE(cons_info%freeze_mm)
+                CASE(do_constr_atomic)
+                   if (ALL(qmmm_env%qm_atom_index/=k)) fix_atom_qmmm=.TRUE.
+                CASE(do_constr_molec)
+                   if (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) fix_atom_qmmm = .TRUE.
+                END SELECT
+
                 IF  (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
                         nfixed_atoms = nfixed_atoms + 1
                 END IF
@@ -665,14 +673,8 @@ CONTAINS
                    END IF
                 END DO
              ENDIF
-             fix_atom_qm  = .FALSE.
-             fix_atom_mm  = .FALSE.
-             IF (PRESENT(qmmm_env)) THEN
-                fix_atom_qm  = (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j)))
-                fix_atom_mm  = (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))
-             END IF
-             fix_atom_qmmm= (fix_atom_qm.OR.fix_atom_mm)
              DO k=first,last
+                ! FIXED LIST ATOMS
                 fix_fixed_atom = .FALSE.
                 DO k2loc=1,SIZE(cons_info%fixed_atoms)
                    IF (cons_info%fixed_atoms(k2loc) == k) THEN
@@ -680,6 +682,21 @@ CONTAINS
                       EXIT
                    END IF
                 END DO
+                ! QMMM FIXED ATOMS (QM OR MM)
+                fix_atom_qmmm=.FALSE.
+                SELECT CASE(cons_info%freeze_qm)
+                CASE(do_constr_atomic)
+                   if (ANY(qmmm_env%qm_atom_index==k)) fix_atom_qmmm=.TRUE.
+                CASE(do_constr_molec)
+                   if (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) fix_atom_qmmm = .TRUE.
+                END SELECT
+                SELECT CASE(cons_info%freeze_mm)
+                CASE(do_constr_atomic)
+                   if (ALL(qmmm_env%qm_atom_index/=k)) fix_atom_qmmm=.TRUE.
+                CASE(do_constr_molec)
+                   if (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) fix_atom_qmmm = .TRUE.
+                END SELECT
+                ! AT THEN END THE FIX_ATOM_MOLNAME
                 IF (fix_fixed_atom.OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
                    kk = kk + 1
                    fixd_list(kk)%fixd  = k

@@ -513,18 +513,26 @@ CONTAINS
 
        CALL keyword_create(keyword, name="MM_SUBSYS",&
             variants=(/"PROTEIN"/),&
-            description="In a QM/MM run all  MM atoms are fixed. Only the QM fragment is allowed to move."//&
-            " Default .FALSE.",&
-            usage="MM_SUBSYS logical",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            description="In a QM/MM run all  MM atoms are fixed according to the argument.",&
+            usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)",&
+            enum_c_vals=s2a( "NONE","ATOMIC","MOLECULAR"),&
+            enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
+            enum_desc=s2a("fix nothing",&
+                          "only the MM atoms itself",&
+                          "the full molecule/residue that contains a MM atom (i.e. some QM atoms might move)"),&
+            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="QM_SUBSYS",&
-            description="In a QM/MM run all QM atoms are fixed. Only the MM fragment is allowed to move."//&
-            " Default .FALSE.",&
-            usage="QM_SUBSYS logical",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            description="In a QM/MM run all QM atoms are fixed according to the argument.",&
+            usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)",&
+            enum_c_vals=s2a( "NONE","ATOMIC","MOLECULAR"),&
+            enum_desc=s2a("fix nothing",&
+                          "only the QM atoms itself",&
+                          "the full molecule/residue that contains a QM atom (i.e. some MM atoms might move)"),&
+            enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
+            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

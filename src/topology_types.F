@@ -31,7 +31,8 @@ MODULE topology_types
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
                                              do_nhcopt_global,&
-                                             do_skip_13
+                                             do_skip_13,&
+                                             do_constr_none
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -77,7 +78,7 @@ MODULE topology_types
      LOGICAL, POINTER                              :: fixed_restraint(:)                      ! Restraints control
      REAL(KIND=dp), POINTER                        :: fixed_k0(:)                             ! Restraints control
      ! Freeze QM or MM
-     LOGICAL                                       :: freeze_qm, freeze_mm
+     INTEGER                                       :: freeze_qm, freeze_mm
      LOGICAL                                       :: fixed_mm_restraint, fixed_qm_restraint  ! Restraints control
      REAL(KIND=dp)                                 :: fixed_mm_k0, fixed_qm_k0                ! Restraints control
      ! Freeze with molnames
@@ -300,8 +301,8 @@ CONTAINS
     constraint_info%hbonds_restraint = .FALSE.
     ! Fixed Atoms
     constraint_info%nfixed_atoms = 0
-    constraint_info%freeze_mm = .FALSE.
-    constraint_info%freeze_qm = .FALSE.
+    constraint_info%freeze_mm = do_constr_none
+    constraint_info%freeze_qm = do_constr_none
     NULLIFY(constraint_info%fixed_atoms)
     NULLIFY(constraint_info%fixed_molnames)
     NULLIFY(constraint_info%fixed_restraint)
