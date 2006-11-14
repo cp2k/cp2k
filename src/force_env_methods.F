@@ -432,6 +432,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            kg_env%virial => force_env%virial
            CALL virial_retain(kg_env%virial,error=error)
         END IF
+
      END IF
      IF (PRESENT(eip_env)) THEN
         IF (ASSOCIATED(eip_env)) THEN
@@ -505,6 +506,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
              error = error )
 
      CASE(use_kg_force)
+
         ALLOCATE(force_env%subsys(1), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         NULLIFY(force_env%subsys(1)%subsys)

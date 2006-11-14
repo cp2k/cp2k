@@ -302,6 +302,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
           CALL qs_env_release(force_env%qs_env,error=error)
         CASE ( use_kg_force )
           CALL kg_env_release(force_env%kg_env,error=error)
+
         CASE ( use_eip_force )
           CALL eip_env_release(force_env%eip_env, error=error)
         CASE ( use_ep_force )

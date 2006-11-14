@@ -459,68 +459,66 @@ CONTAINS
            rel_cutoff=rel_cutoff,print_section=print_section,error=error)
 
       ! init pw_grids and pools
-       ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(rs_pools_mol(ngrid_level),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(rs_pools_mol(ngrid_level),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       IF (dft_control % qs_control % commensurate_mgrids) THEN
+      IF (dft_control % qs_control % commensurate_mgrids) THEN
           ncommensurate=ngrid_level
           my_icommensurate = 1
           my_ncommensurate = ncommensurate
-       ELSE
+      ELSE
           ncommensurate=0
           my_icommensurate = 0
           my_ncommensurate = ncommensurate
-       ENDIF
+      ENDIF
 
-       CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
+      CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
                       auxbas_pw_pool=pw_pool_g,auxbas_grid=auxbas_grid,error=error)
-       IF(auxbas_grid/=1) CALL stop_program ( "pw_env_mol_rebuild", &
+      IF(auxbas_grid/=1) CALL stop_program ( "pw_env_mol_rebuild", &
                           "the grid with the largest cutoff is not the first" )
 
      ! some logical variables
-       fft = .TRUE.
-       symmetry = .TRUE.
-       blocking = .FALSE.
+      fft = .TRUE.
+      symmetry = .TRUE.
+      blocking = .FALSE.
 
 
-       CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
-       pw_grid_mol%print_section=>print_section
-       CALL section_vals_retain(print_section,error=error)
-
-
+      CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
+      pw_grid_mol%print_section=>print_section
+      CALL section_vals_retain(print_section,error=error)
 
       ! the following code duplication really sucks ........
 
 
 !FM       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM       pw_grid_mol%para%rs_dims ( 2 ) = 1
-       IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
+      IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(1)
            pw_grid_mol%grid_span = HALFSPACE
-       ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
+      ELSE IF ( dft_control % qs_control % pw_grid_opt % fullspace ) THEN
            cutilev = -cutoff(1)
            pw_grid_mol%grid_span = FULLSPACE
-       ELSE
+      ELSE
            cutilev = -cutoff(1)
            pw_grid_mol%grid_span = HALFSPACE
-       END IF
+      END IF
 
-       pw_grid_g => pw_pool_g%pw_grid
-       ! we can only handle orthorhombic grids at this point
-       IF ( .NOT. pw_grid_g%orthorhombic ) THEN
+      pw_grid_g => pw_pool_g%pw_grid
+      ! we can only handle orthorhombic grids at this point
+      IF ( .NOT. pw_grid_g%orthorhombic ) THEN
           CALL stop_program(routineP,"KG_GPW: only orthorhombic grids allowd")
-       END IF
+      END IF
 
        ! assign a unique tag to this grid
-       grid_tag = grid_tag + 1
-       pw_grid_mol %id_nr = grid_tag
-       pw_grid_mol% para % mode = PW_MODE_LOCAL
-       pw_grid_mol% para % group_head = .TRUE.
+      grid_tag = grid_tag + 1
+      pw_grid_mol %id_nr = grid_tag
+      pw_grid_mol% para % mode = PW_MODE_LOCAL
+      pw_grid_mol% para % group_head = .TRUE.
 
-       pw_grid_mol % cutoff = ABS ( cutilev )
-       IF ( SUM ( ABS ( pw_grid_mol % bounds ( :, : ) ) ) == 0 ) THEN
+      pw_grid_mol % cutoff = ABS ( cutilev )
+      IF ( SUM ( ABS ( pw_grid_mol % bounds ( :, : ) ) ) == 0 ) THEN
 
          dr_g(1:3) = pw_grid_g % dr(1:3)
          DO i = 1,3
@@ -531,17 +529,17 @@ CONTAINS
            pw_grid_mol%bounds ( 2, i ) = pw_grid_mol%bounds ( 1, i ) + npts_out(i) - 1
          END DO
 
-       END IF
+      END IF
 
-       IF ( cutilev < 0.0_dp ) THEN
+      IF ( cutilev < 0.0_dp ) THEN
           pw_grid_mol% spherical = .FALSE.
           ecut = 1.e10_dp
-       ELSE
+      ELSE
           pw_grid_mol% spherical = .TRUE.
           ecut = cutilev
-       END IF
+      END IF
 
-       IF ( .NOT. pw_grid_mol % spherical ) THEN
+      IF ( .NOT. pw_grid_mol % spherical ) THEN
 
          IF ( SUM ( ABS ( pw_grid_mol % bounds ( :, : ) ) ) == 0 ) THEN
             CALL stop_program ( "grid_setup", &
@@ -606,59 +604,57 @@ CONTAINS
            side(i) = npts_out(i) * dr_g(i)
          END DO
 
-       END IF  ! not spherical
+      END IF  ! not spherical
 
-       pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
-       pw_grid_mol%dr(:) = dr_g(:)
+      pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
+      pw_grid_mol%dr(:) = dr_g(:)
 
       ! Define the Molecular Box
-       hmat(:,:) = 0.0_dp
-       hmat(1,1) = side(1)
-       hmat(2,2) = side(2)
-       hmat(3,3) = side(3)
-       CALL init_cell(cell_mol,hmat)
+      hmat(:,:) = 0.0_dp
+      hmat(1,1) = side(1)
+      hmat(2,2) = side(2)
+      hmat(3,3) = side(3)
+      CALL init_cell(cell_mol,hmat)
 
-       pw_grid_mol%orthorhombic = .TRUE.
-       pw_grid_mol%dh(:,:) = 0.0_dp
-       pw_grid_mol%dh(1,1) = dr_g(1)
-       pw_grid_mol%dh(2,2) = dr_g(2)
-       pw_grid_mol%dh(3,3) = dr_g(3)
+      pw_grid_mol%orthorhombic = .TRUE.
+      pw_grid_mol%dh(:,:) = 0.0_dp
+      pw_grid_mol%dh(1,1) = dr_g(1)
+      pw_grid_mol%dh(2,2) = dr_g(2)
+      pw_grid_mol%dh(3,3) = dr_g(3)
 
-       npts_out( : ) = pw_grid_mol%npts( : )
+      npts_out( : ) = pw_grid_mol%npts( : )
 
-       CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,error=error)
+      CALL create_gvectors(pw_grid_mol,cell_mol,ecut,blocking,error=error)
 
-       pw_grid_mol%vol = ABS( cell_mol%deth )
-       pw_grid_mol%dvol = pw_grid_mol%vol / REAL( pw_grid_mol%ngpts,KIND=dp )
+      pw_grid_mol%vol = ABS( cell_mol%deth )
+      pw_grid_mol%dvol = pw_grid_mol%vol / REAL( pw_grid_mol%ngpts,KIND=dp )
 
      ! reference grid for the other igrid levels
-       ref_pw_grid_mol => pw_grid_mol
+      ref_pw_grid_mol => pw_grid_mol
 
 
      ! init pw_pools
-       NULLIFY(pw_pools_mol(1)%pool)
-       CALL pw_pool_create(pw_pools_mol(1)%pool,pw_grid=pw_grid_mol,error=error)
+      NULLIFY(pw_pools_mol(1)%pool)
+      CALL pw_pool_create(pw_pools_mol(1)%pool,pw_grid=pw_grid_mol,error=error)
 
      ! init rs_pools
-       drmin = MINVAL ( pw_grid_mol%dr )
-!      IF ( dft_control % qs_control % rs_distributed ) THEN
-!        nsmax = 2*MAX(1,CEILING((radius(1)/drmin))+1
-!      ELSE
-        nsmax = -1
-!      ENDIF
+      drmin = MINVAL ( pw_grid_mol%dr )
+      nsmax = -1
 
 
-       NULLIFY(rs_pools_mol(1)%pool)
-       CALL rs_pool_create(rs_pools_mol(1)%pool,&
+      NULLIFY(rs_pools_mol(1)%pool)
+      CALL rs_pool_create(rs_pools_mol(1)%pool,&
             el_struct=pw_grid_mol,nsmax=nsmax,error=error)
-       CALL pw_grid_release(pw_grid_mol,error=error)
+      CALL pw_grid_release(pw_grid_mol,error=error)
 
 ! And now the other grid levels if it is necessary
-       IF(ngrid_level > 1) THEN
+      IF(ngrid_level > 1) THEN
 
          DO igrid_level = 2,ngrid_level
 
            CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
+           pw_grid_mol%print_section=>print_section
+           CALL section_vals_retain(print_section,error=error)
 !FM           pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM           pw_grid_mol%para%rs_dims ( 2 ) = 1
            IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN

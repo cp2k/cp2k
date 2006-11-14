@@ -99,6 +99,7 @@ CONTAINS
 !   CALL cp_error_check(error,failure)
 
     IF (.NOT. failure) CALL kg_env_release(kg_env,error=error)
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_create_force_env

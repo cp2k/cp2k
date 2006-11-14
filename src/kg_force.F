@@ -832,7 +832,7 @@ END SUBROUTINE kg_calculate_forces
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, matrix_w
+      POINTER                                :: matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: print_section
 
@@ -847,16 +847,16 @@ END SUBROUTINE kg_calculate_forces
     para_env=>kg_env%para_env
 
     NULLIFY( qs_env , kg_fm )
-    CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env, kg_fm_set=kg_fm, error=error)
+    CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env, kg_fm_set=kg_fm, &
+                    scf_control=scf_control, error=error)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
     NULLIFY (force)
-    NULLIFY (matrix_ks)
     NULLIFY (ks_env)
     NULLIFY (particle_set)
     NULLIFY (matrix_s)
-    NULLIFY (scf_control)
+!!    NULLIFY (scf_control)
     NULLIFY (matrix_w)
     NULLIFY (rho)
 
@@ -865,7 +865,8 @@ END SUBROUTINE kg_calculate_forces
                     dft_control=dft_control,&
                     force=force,&
                     particle_set=particle_set,&
-                    scf_control=scf_control,error=error)
+ !!                 scf_control=scf_control,&
+                    error=error)
 
     natom = SIZE(particle_set)
 
@@ -894,7 +895,7 @@ END SUBROUTINE kg_calculate_forces
     CALL kg_qs_energies(kg_env,globenv,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho,error=error)
+                    ks_env=ks_env, matrix_s=matrix_s, rho=rho,error=error)
 
     nspins = dft_control%nspins
 

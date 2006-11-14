@@ -699,7 +699,7 @@ SUBROUTINE kg_env_release(kg_env,error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
-  NULLIFY(kg_env)
+     NULLIFY(kg_env)
 END SUBROUTINE kg_env_release
 
 !***************************************************************************

@@ -181,11 +181,15 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, cell=cell, para_env=para_env, dft_control=dft_control,&
-         particle_set=particle_set, error=error)
+         matrix_ks=matrix_ks, particle_set=particle_set, error=error)
 
 !dbg
-!     CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-!     CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
+    IF(ASSOCIATED(matrix_ks)) THEN
+       CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
+       CALL sm_pools_give_back_matrix_vect(S_sm_pools, matrix_ks,error=error)
+       CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
+    END IF
+!dbg
 
     nspins = dft_control%nspins
     use_tau = dft_control%use_kinetic_energy_density
@@ -194,10 +198,12 @@ CONTAINS
          nspins=nspins,particle_set=particle_set,&
          para_env=para_env, error=error)
 
-    CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
-    ! *** deallocate matrices that will have the wrong structure ***
-    CALL deallocate_matrix_set(matrix_ks,error=error)
-    CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
+!dbg
+!    CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
+!    ! *** deallocate matrices that will have the wrong structure ***
+!    CALL deallocate_matrix_set(matrix_ks,error=error)
+!    CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
+!dbg
 
     ! *** updates rho core ***
     CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
