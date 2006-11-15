@@ -979,7 +979,7 @@ CONTAINS
           "              NO"
        END IF
          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " RMS gradient          = ",maxdum(4)
+          " RMS gradient               = ",maxdum(4)
           WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Conv. limit for RMS grad.  = ",rmsgcon
        IF(conv_rg)THEN
