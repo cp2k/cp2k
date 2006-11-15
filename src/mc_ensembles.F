@@ -693,7 +693,6 @@ CONTAINS
 
                IF(ionode) rand=next_random_number(rng_stream,error=error)
                CALL mp_bcast(rand,source,group)
-
                IF(rand .LT. pmtraion) THEN
 ! change molecular conformation
 ! first, pick a box to do it for
@@ -858,11 +857,11 @@ CONTAINS
 
             IF(MOD(nnstep,iprint) == 0) THEN
                WRITE(com_ene,*) nnstep,old_energy(1:nboxes)
-               DO itype=1,nmol_types
-                  WRITE(com_mol,*) nnstep,nchains(itype,1:nboxes)
-               ENDDO
 
                DO ibox=1,nboxes
+
+! write the molecule information
+                  WRITE(com_mol,*) nnstep,nchains(:,ibox)
 
 ! write the move statistics to file
                   DO itype=1,nmol_types
@@ -1008,7 +1007,7 @@ CONTAINS
          ENDDO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug make sure the energies line up
-         IF(.FALSE.) THEN
+         IF(.TRUE.) THEN
          DO ibox=1,nboxes
             IF(SUM(nchains(:,ibox)) .NE. 0) THEN
                CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
