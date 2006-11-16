@@ -1007,7 +1007,7 @@ CONTAINS
          ENDDO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug make sure the energies line up
-         IF(.TRUE.) THEN
+         IF(.FALSE.) THEN
          DO ibox=1,nboxes
             IF(SUM(nchains(:,ibox)) .NE. 0) THEN
                CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
