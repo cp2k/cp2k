@@ -288,7 +288,7 @@ CONTAINS
        CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
        filename = cp_print_key_generate_filename(logger,print_key,&
             extension=".xyz",middle_name="pos",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Coordinates',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
        IF ( simpar % ensemble == nph_ensemble .OR.&
@@ -302,7 +302,7 @@ CONTAINS
           CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
           filename = cp_print_key_generate_filename(logger,print_key,&
               extension=".cell",my_local=.FALSE.,error=error)
-         WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Simulation Cell',iprint(SIZE(iprint)), &
+         WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Simulation Cell',iprint(SIZE(iprint)), &
               ADJUSTR ( TRIM(filename) )
        END IF
 
@@ -311,7 +311,7 @@ CONTAINS
        CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
        filename = cp_print_key_generate_filename(logger,print_key,&
             extension=".xyz",middle_name="vel",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Velocities',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Velocities',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
        print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%ENERGY",error=error)
@@ -319,7 +319,7 @@ CONTAINS
        CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
        filename =cp_print_key_generate_filename(logger,print_key,&
             extension=".ener",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Energies',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Energies',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
        print_key => section_vals_get_subs_vals(motion_section,"PRINT%RESTART",error=error)
@@ -327,7 +327,7 @@ CONTAINS
        CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
        filename = cp_print_key_generate_filename(logger,print_key,&
             extension=".restart",my_local=.FALSE.,error=error)
-       WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Dump',iprint(SIZE(iprint)), &
+       WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Dump',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
        WRITE (iw,*)
