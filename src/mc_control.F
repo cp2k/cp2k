@@ -334,7 +334,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
 
 ! allocate the array holding the coordiantes, and read in the coordiantes,
 ! and write the dat file so we can make a new force_env
-      IF(nunits_tot == 0) THEN
+      IF(SUM(nchains(:)) == 0) THEN
          ALLOCATE (r(3,nunits(1)),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r",3*nunits(1)*dp_size)
@@ -347,9 +347,8 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
             atom_symbols(iunit)=atom_names(iunit,1)
          ENDDO
 
-         nchains(1)=1
          IF(ionode) THEN
-            CALL mc_make_dat_file_new(r(:,:),atom_symbols,nunits(1),&
+            CALL mc_make_dat_file_new(r(:,:),atom_symbols,0,&
                  box_length(:),dat_file,nchains(:),mc_input_file)
             CALL close_file(unit_number=unit)
          ENDIF
