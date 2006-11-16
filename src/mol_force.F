@@ -127,14 +127,11 @@ SUBROUTINE force_bends ( TYPE, b12, b32, d12, d32, id12, id32, dist, &
 
   SELECT CASE ( TYPE )
   CASE ( "G96" )
-    !denom = id12*id12*id32*id32
-    !energy = 0.5_dp * k * ( COS(theta) - theta0 ) ** 2
-    !fscalar = k*(COS(theta)-theta0)*(1-COS(theta))/dij2
-    !g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
-    !g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
-    !g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
-    !ikuo - energy is correct, need to fix fscalar
-    STOP
+    energy = 0.5_dp * k * ( COS(theta) - theta0 ) ** 2
+    fscalar =-k*(COS(theta)-theta0)
+    g1 = (b32*id32-b12*id12*COS(theta))*id12
+    g3 = (b12*id12-b32*id32*COS(theta))*id32
+    g2 = -g1-g3 
   CASE ( "HARMONIC","CHARMM","G87")
     denom = id12*id12*id32*id32
     energy = 0.5_dp * k * ( theta - theta0 ) ** 2

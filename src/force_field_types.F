@@ -169,11 +169,11 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: impr_k(:)
     REAL(KIND=dp), POINTER                         :: impr_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_c6(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_c12(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c6(:,:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c12(:,:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a_14(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_c6_14(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_c12_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c6_14(:,:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c12_14(:,:)
   END TYPE gromos_info_type
 
   TYPE force_field_type

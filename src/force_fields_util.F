@@ -1479,19 +1479,18 @@ CONTAINS
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
 
-          ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
-             ii = 0
+             ii = 0 
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a_14)
-                IF((name_atm_a)==(gro_info%nonbond_a_14(k))) THEN
+                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a_14(k))) THEN
                    ii = k
                    found_a = .TRUE.
                    EXIT
                 END IF
              END DO
              DO k=1,SIZE(gro_info%nonbond_a_14)
-                IF((name_atm_b)==(gro_info%nonbond_a_14(k))) THEN
+                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a_14(k))) THEN
                    jj = k
                    found_b   = .TRUE.
                    EXIT
@@ -1503,10 +1502,8 @@ CONTAINS
                 potparm_bond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_bond%pot(i,j)%pot%at2        = name_atm_b
                 potparm_bond%pot(i,j)%pot%lj%epsilon = 1.0_dp
-                potparm_bond%pot(i,j)%pot%lj%sigma6  = &
-                  SQRT(gro_info%nonbond_c6_14(ii)*gro_info%nonbond_c6_14(jj))
-                potparm_bond%pot(i,j)%pot%lj%sigma12 = &
-                  SQRT(gro_info%nonbond_c12_14(ii)*gro_info%nonbond_c12_14(jj))
+                potparm_bond%pot(i,j)%pot%lj%sigma6  = gro_info%nonbond_c6_14(ii,jj)
+                potparm_bond%pot(i,j)%pot%lj%sigma12 = gro_info%nonbond_c12_14(ii,jj)
                 potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
@@ -1725,16 +1722,16 @@ CONTAINS
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a)) THEN
-             ii = 0
+             ii = 0 
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a)
-                IF((name_atm_a)==(gro_info%nonbond_a(k))) THEN
+                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
                    ii = k
                    EXIT
                 END IF
              END DO
              DO k=1,SIZE(gro_info%nonbond_a)
-                IF((name_atm_b)==(gro_info%nonbond_a(k))) THEN
+                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
                    jj = k
                    EXIT
                 END IF
@@ -1746,10 +1743,8 @@ CONTAINS
                 potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
                 potparm_nonbond%pot(i,j)%pot%lj%epsilon = 1.0_dp
-                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = &
-                  SQRT(gro_info%nonbond_c6(ii)*gro_info%nonbond_c6(jj))
-                potparm_nonbond%pot(i,j)%pot%lj%sigma12 = &
-                  SQRT(gro_info%nonbond_c12(ii)*gro_info%nonbond_c12(jj))
+                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = gro_info%nonbond_c6(ii,jj)
+                potparm_nonbond%pot(i,j)%pot%lj%sigma12  = gro_info%nonbond_c12(ii,jj)
                 potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&

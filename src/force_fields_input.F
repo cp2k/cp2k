@@ -1489,7 +1489,6 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1596,57 +1595,64 @@ CONTAINS
 
     CALL parser_release(parser,error=error)
 
+!    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! LJPARAMETERS SECTION
+IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
+CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+label = TRIM(avail_section(19))
+CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+IF(found) THEN
+  CALL parser_get_next_line(parser,1,error=error)
+  CALL parser_get_object(parser,ntype,error=error)
+  offset = 0
+  IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
+  ntype=SIZE(namearray)
+  CALL reallocate(gro_info%nonbond_a,1,ntype)
+  CALL reallocate(gro_info%nonbond_a_14,1,ntype)
+  CALL reallocate(gro_info%nonbond_c6,1,ntype,1,ntype)
+  CALL reallocate(gro_info%nonbond_c12,1,ntype,1,ntype)
+  CALL reallocate(gro_info%nonbond_c6_14,1,ntype,1,ntype)
+  CALL reallocate(gro_info%nonbond_c12_14,1,ntype,1,ntype)
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! LJPARAMETERS SECTION
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
-    label = TRIM(avail_section(19))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
-    IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype,error=error)
-      offset = 0
-      IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
-      ntype=SIZE(namearray)
-      DO itype=1,ntype*(ntype+1)/2
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,iatom,error=error)
-        CALL parser_get_object(parser,jatom,error=error)
-        IF(iatom==jatom) THEN
-          CALL reallocate(gro_info%nonbond_a,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_c6,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_c12,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_a_14,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_c6_14,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_c12_14,1,offset+ntype)
-          gro_info%nonbond_a(iatom) = namearray(iatom)
-          gro_info%nonbond_a_14(iatom) = namearray(iatom)
-          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom),error=error)
-          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom),error=error)
-          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom),error=error)
-          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom),error=error)
+  gro_info%nonbond_c12 = 0._dp
+  gro_info%nonbond_c6  = 0._dp
+  gro_info%nonbond_c12_14 = 0._dp
+  gro_info%nonbond_c6_14  = 0._dp
 
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom),l_power=6)
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12(iatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12(iatom),l_power=12)
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6_14(iatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6_14(iatom),l_power=6)
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12_14(iatom))
-          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12_14(iatom),l_power=12)
 
-        END IF
-        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
-      END DO
+  DO itype=1,ntype*(ntype+1)/2
+    CALL parser_get_next_line(parser,1,error=error)
+    CALL parser_get_object(parser,iatom,error=error)
+    CALL parser_get_object(parser,jatom,error=error)
+    IF(iatom==jatom) THEN
+      gro_info%nonbond_a(iatom) = namearray(iatom)
+      gro_info%nonbond_a_14(iatom) = namearray(iatom)
     END IF
-    CALL parser_release(parser,error=error)
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+    CALL parser_get_object(parser,gro_info%nonbond_c12(iatom,jatom),error=error)
+    CALL parser_get_object(parser,gro_info%nonbond_c6(iatom,jatom),error=error)
+    CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom,jatom),error=error)
+    CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom,jatom),error=error)
+    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom,jatom))
+    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom,jatom),l_power=6)
+    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12(iatom,jatom))
+    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12(iatom,jatom),l_power=12)
+    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6_14(iatom,jatom))
+    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6_14(iatom,jatom),l_power=6)
+    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12_14(iatom,jatom))
+    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12_14(iatom,jatom),l_power=12)
+    gro_info%nonbond_c6_14(jatom,iatom)= gro_info%nonbond_c6_14(iatom,jatom)
+    gro_info%nonbond_c12_14(jatom,iatom)= gro_info%nonbond_c12_14(iatom,jatom)
+    gro_info%nonbond_c6(jatom,iatom)= gro_info%nonbond_c6(iatom,jatom)
+    gro_info%nonbond_c12(jatom,iatom)= gro_info%nonbond_c12(iatom,jatom)
+   IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
+  END DO
+END IF
+CALL parser_release(parser,error=error)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 

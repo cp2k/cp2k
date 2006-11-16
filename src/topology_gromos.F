@@ -160,7 +160,7 @@ CONTAINS
       POINTER                                :: namearray1(:), namearray2(:)
     INTEGER :: handle, i, iatom, ibond, icon, iresid, isolvent, itemp, itype, &
       iw, jatom, natom, natom_prev, nbond, nbond_prev, ncon, nsolute, &
-      nsolvent, ntype, offset, offset2
+      nsolvent, ntype, offset, offset2, stat,tmp,ii(50),begin
     INTEGER, POINTER                         :: ba(:), bb(:), na(:)
     LOGICAL                                  :: do_onfo, failure, found
     REAL(KIND=dp), POINTER                   :: ac(:), am(:)
@@ -168,6 +168,9 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
+
+    CHARACTER :: ctemp
+    REAL      :: ftemp
 
     NULLIFY(parser, logger)
     NULLIFY(namearray1,namearray2)
@@ -325,35 +328,66 @@ CONTAINS
         !atom_info%label_resid(iatom)=iresid
         !IF(itemp==1) iresid=iresid+1
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT SOLUTEATOM INFO HERE!!!!"
-        !determine number of skip lines, will ignore exclude
-        CALL parser_get_object(parser,itemp,error=error)
-        itemp=(itemp-1)/6+1
-        CALL parser_get_next_line(parser,itemp,error=error)
-        !read in the 1-4 list
         CALL parser_get_object(parser,ntype,error=error)
-       IF(ntype/=0) THEN
-        itemp=(itemp-1)/6+1
-        offset = 0
+          DO i=1,50
+          ii(i)=-1
+          END DO
+          stat=-1
+          begin=1
+        IF(ntype/=0) THEN
+          DO
+          IF (begin.eq.1) THEN
+            READ(parser%input_line,iostat=stat,FMT=*) itemp,itemp,ctemp,itemp,ftemp,ftemp,&
+                 itemp,itemp,(ii(i),i=begin,ntype)
+           ELSE IF (begin.gt.1) THEN
+            CALL parser_get_next_line(parser,1,error=error)
+            READ(parser%input_line,iostat=stat,FMT=*) (ii(i),i=begin,ntype)
+          END IF
+            DO i=ntype,1,-1 
+              IF (ii(i).lt.0) THEN
+                begin=i
+              END IF
+            END DO
+          IF (stat.eq.0) EXIT
+          END DO
+        END IF
+
+        ! 1-4 list
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,ntype,error=error)
+        IF(ntype/=0) THEN
+          itemp=(itemp-1)/6+1
+          offset = 0
         IF(ASSOCIATED(conn_info%onfo_a)) offset = SIZE(conn_info%onfo_a)
         CALL reallocate(conn_info%onfo_a,1,offset+ntype)
         CALL reallocate(conn_info%onfo_b,1,offset+ntype)
         CALL reallocate(conn_info%onfo_type,1,offset+ntype)
         conn_info%onfo_a(offset+1:offset+ntype)=iatom
-        itype=1
-        DO
-          IF(itype==1) THEN
-            READ(parser%input_line,*) itemp,(conn_info%onfo_b(offset+i),&
-                                       i=1,MIN(6,(ntype-itype+1)))
-            itype=itype+6
-          ELSE
-            READ(parser%input_line,*) (conn_info%onfo_b(offset+itype-1+i),&
-                                       i=1,MIN(14,(ntype-itype+1)))
-            itype=itype+14
+         DO i=1,50
+          ii(i)=-1
+          END DO
+          stat=-1
+          begin=1
+        IF(ntype/=0) THEN
+          DO
+          IF (begin.eq.1) THEN
+            READ(parser%input_line,iostat=stat,FMT=*) itemp,(ii(i),i=begin,ntype)
+           ELSE IF (begin.gt.1) THEN
+            CALL parser_get_next_line(parser,1,error=error)
+            READ(parser%input_line,iostat=stat,FMT=*) (ii(i),i=begin,ntype)
           END IF
-          CALL parser_get_next_line(parser,1,error=error)
-
-          IF(itype>ntype) EXIT
-        END DO
+            DO i=ntype,1,-1 
+              IF (ii(i).lt.0) THEN
+                begin=i
+              END IF
+            END DO
+          IF (stat.eq.0) EXIT
+          END DO
+          DO i=1,ntype
+            conn_info%onfo_b(offset+i)=ii(i)
+          END DO
+        END IF
+        CALL parser_get_next_line(parser,1,error=error)
        ELSE
         CALL parser_get_next_line(parser,1,error=error)
        END IF
