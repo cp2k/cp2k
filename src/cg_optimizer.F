@@ -240,6 +240,7 @@ CONTAINS
        brack_limit        = gopt_param%brack_limit
        use_fit            = gopt_param%use_fit_line_search
        res_lim            = gopt_param%restart_limit
+       step               = gopt_param%initial_step
        ALLOCATE(g (SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(h (SIZE(x0)), stat=stat)
@@ -265,7 +266,6 @@ CONTAINS
           xold = x0
           eold = opt_energy
           emin = MIN(emin, opt_energy)
-          step = 1.0_dp
           ! check for an external exit command
           IF (use_fit) THEN
              CALL linminE(gopt_env, x0, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
@@ -361,7 +361,7 @@ CONTAINS
 !!
 !!   NOTES
 !!     Given as input the vector XVEC and XI, finds the scalar
-!!     xmin that minimizes the energy XVEC+xmin*XI. Replaces XMIN
+!!     xmin that minimizes the energy XVEC+xmin*XI. Replace step
 !!     with the optimal value. Enhanced Version
 !!
 !!   INPUTS
@@ -414,7 +414,7 @@ CONTAINS
        pcom  = xvec
        xicom = xi
        xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
-       step = 0.05_dp
+       step = step * 0.8_dp ! target a little before the minimum for the first point
        ax = 0.0_dp
        xx = step
        CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode, &
@@ -440,6 +440,7 @@ CONTAINS
        END DO
        !
        xicom = xmin*xicom
+       step = xmin
        xvec  = xvec + xicom
        DEALLOCATE(pcom,  stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -516,7 +517,7 @@ CONTAINS
        pcom  = xvec
        xicom = xi
        xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
-       step = 0.05_dp
+       step = step * 0.8_dp ! target a little before the minimum for the first point
        ax = 0.0_dp
        xx = step
        CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode,&
@@ -524,12 +525,14 @@ CONTAINS
        opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
                               xmin, pcom, xicom, output_unit, ionode, globenv, error)
        xicom = xmin*xicom
+       step = xmin
        xvec  = xvec + xicom
        DEALLOCATE(pcom,  stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(xicom, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    write(6,*) "minimum position LinMin",xmin
     CALL timestop(handle)
   END SUBROUTINE LinMin
 

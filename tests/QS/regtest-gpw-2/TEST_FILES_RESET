@@ -96,3 +96,6 @@ H2-geo-2.inp
 
 # no need to scale coordinates in the geometry optimizer
 H2-geo-2.inp
+# new defaults
+H2-geo-3.inp
+H2-geo-4.inp

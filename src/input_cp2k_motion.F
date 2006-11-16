@@ -1174,13 +1174,18 @@ CONTAINS
             description="Specify which method to use to perform a geometry optimization.",&
             usage="OPTIMIZER {BFGS|LBFGS|CG}",&
             enum_c_vals=s2a( "BFGS","LBFGS","CG"),&
+            enum_desc=s2a("Most efficient minimizer, but only for 'small' systems, "//&
+                          "as it relies on diagonalization of a full Hessian matrix",&
+                          "Limit memory variant of the above, can also be applied to large systems, not as well fine-tuned",&
+                          "conjugate gradients, robust minimizer (depending on the line search) also OK for large systems"),&
             enum_i_vals=(/default_bfgs_method_id,default_lbfgs_method_id,default_cg_method_id/),&
             default_i_val=default_bfgs_method_id,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_ITER",&
-            description="Specifies the maximum number of geometry optimization steps.",&
+            description="Specifies the maximum number of geometry optimization steps. "//&
+                        "One step might imply several force evaluations.",&
             usage="MAX_ITER {integer}",&
             default_i_val=200,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1244,12 +1249,20 @@ CONTAINS
             usage="RMS_FORCE {real}",&
             default_r_val=0.00030_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
 
        CALL keyword_create(keyword, name="BRENT_TOL",&
             description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
             usage="BRENT_TOL {real}",&
-            default_r_val=0.0001_dp,error=error)
+            default_r_val=0.01_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INITIAL_STEP",&
+            description="Initial step size used, e.g. for bracketing or minimizers. "//&
+                        "Might need to be reduced for systems with close contacts",&
+            usage="INITIAL_STEP {real}",&
+            default_r_val=0.2_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
@@ -1295,7 +1308,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART",&
-            description="The guess starting HESSIAN is read from the RESTART (only for BFGS)",&
+            description="The guess starting HESSIAN is restarted from the file HESSIAN (only for BFGS)",&
             usage="RESTART",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)

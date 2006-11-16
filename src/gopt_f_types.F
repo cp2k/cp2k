@@ -132,7 +132,7 @@ MODULE gopt_f_types
      INTEGER         :: brent_max_iter, max_steep_steps
      REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error
      REAL(KIND = dp) :: max_dr,max_force,rms_dr,rms_force
-     REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit
+     REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit, initial_step
   END TYPE gopt_param_type
 !!***
   !****************************************************************************
@@ -333,6 +333,9 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
+    ! INTEGER, SAVE :: cp_eval_at_count = 0
+    ! REAL(KIND=dp) :: epot
+
   failure=.FALSE.
   NULLIFY(particles, subsys, cell)
   
@@ -357,6 +360,11 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
 
   CALL force_env_calc_energy_force(gopt_env%force_env,&
        calc_force=PRESENT(gradient),error=error)
+
+  ! CALL force_env_get(gopt_env%force_env,potential_energy=epot, error=error)
+  ! cp_eval_at_count = cp_eval_at_count + 1
+  ! write(6,*) "CP_EVAL_AT ",cp_eval_at_count,epot
+
   ! This call is necessary for QM/MM if a Translation is applied
   ! this makes the geometry optimizer consistent
   idg=0
@@ -395,6 +403,8 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
         END DO
      END IF
   END IF
+
+    
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_eval_at
 
@@ -527,6 +537,7 @@ SUBROUTINE gopt_param_create(gopt_param,error)
      gopt_param%rms_dr = 0.0015_dp
      gopt_param%rms_force = 0.00030_dp
      gopt_param%brent_tol = 1.0E-4_dp
+     gopt_param%initial_step = 0.2_dp
      gopt_param%brent_max_iter = 100
      gopt_param%brack_limit = 100.0_dp
      gopt_param%restart_limit = 0.1_dp
@@ -595,6 +606,7 @@ SUBROUTINE gopt_param_read(gopt_param, root_section, error)
        CALL section_vals_val_get(gopt_section,"RMS_DR",r_val=gopt_param%rms_dr,error=error)
        CALL section_vals_val_get(gopt_section,"RMS_FORCE",r_val=gopt_param%rms_force,error=error)
        CALL section_vals_val_get(gopt_section,"BRENT_TOL",r_val=gopt_param%brent_tol,error=error)
+       CALL section_vals_val_get(gopt_section,"INITIAL_STEP",r_val=gopt_param%initial_step,error=error)
        CALL section_vals_val_get(gopt_section,"BRENT_MAX_ITER",i_val=gopt_param%brent_max_iter,error=error)
        CALL section_vals_val_get(gopt_section,"BRACK_LIMIT",r_val=gopt_param%brack_limit,error=error)
        CALL section_vals_val_get(gopt_section,"CG_RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)

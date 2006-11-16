@@ -229,3 +229,7 @@ silicon_cluster_6.inp
 gly_amber.inp
 #reorganizing data for hbonds in shake.. numerical error due to the tolerance of shake (10^-8)
 water32_hbonds_2.inp
+#new geoopt defaults
+silicon_cluster_4.inp
+silicon_cluster_5.inp
+silicon_cluster_6.inp
