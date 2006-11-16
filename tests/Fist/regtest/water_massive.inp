@@ -1,0 +1,90 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &SPLINE
+        EPS_SPLINE 1.E-5
+      &END
+      &BOND
+        ATOMS O H
+        KIND QUARTIC
+        K 0.4015204 0.0 0.0
+        R0 1.812
+      &END BOND
+      &BOND
+        ATOMS H H
+        KIND QUARTIC
+        K 0.02384043 -0.0506033 0.0287044
+        R0 3.0699
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.7699784
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.3849892
+      &END CHARGE
+      &NONBONDED
+        &IPBV
+          atoms O O
+          RCUT 7.8
+        &END IPBV
+        &IPBV
+          atoms H O
+          RCUT 7.8
+        &END IPBV
+        &IPBV
+          atoms H H
+          RCUT 7.8
+        &END IPBV
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 25
+        O_SPLINE 4
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE ipbv_flex.psf
+      CONNECTIVITY UPSF
+      COORD_FILE ipbv.pdb
+      COORDINATE pdb
+      NHCOPT MASSIVE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+
+  PROJECT IPBV
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 3
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    &BAROSTAT
+      PRESSURE 0.
+      TIMECON 1000
+    &END BAROSTAT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION
