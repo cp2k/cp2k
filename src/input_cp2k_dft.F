@@ -1156,7 +1156,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
-            description="Controls the printing of the Mulliken Population analysis.", &
+            description="Controls the printing of the Mulliken (spin) population analysis.", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             common_iter_levels=1, error=error)
        CALL section_add_subsection(section,print_key,error=error)
