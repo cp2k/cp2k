@@ -1,7 +1,7 @@
 <HTML>
 <HEAD><TITLE> The CP2K project homepage </TITLE>
 <META NAME="description" content="CP2K">
-<META NAME="keywords" contents="Fortran,scientific,computing,CPMD,CP2K,Quickstep,Car-Parrinello,Fist,GPW,GAPW>
+<META NAME="keywords" contents="Fortran,scientific,computing,CPMD,CP2K,Quickstep,Car-Parrinello,Fist,GPW,GAPW">
 <META http-equiv="Pragma" content="no-cache">
 </HEAD>
 
@@ -67,15 +67,15 @@ having CVS write permission.
 <ul>
  <li><a href="download.html">Download and Install</a></li>
  <li><a href="input/index.html">Input reference manual</a></li>
- <li><a href="cp2k_input.htm">Input reference manual</a> (single DHTML page, requires Javascript; Konqueror: ignore error messages, just continue)</li>
+ <li><a href="cp2k_input.htm">Input reference manual</a> (single searchable DHTML page, requires Javascript)</li>
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/cp2k/src/?sortby=date">Browse the sources and follow development</a></li>
  <li><a href="regtest.html">Automatic regression tester</a></li>
  <li><a href="http://developer.berlios.de/projects/cp2k">The Berlios project page</a></li>
  <li><a href="http://developer.berlios.de/forum/forum.php?forum_id=411">Help forum</a></li>
  <li>Goedecker-Teter-Hutter (GTH) pseudopotential parameter sets
  (<a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cp2k">CP2K format</a>,
-  <a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cpmd">CPMD format</a>)
- </li>
+  <a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cpmd">CPMD format</a>)</li>
+ <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/basis_sets">Gaussian basis sets (Quickstep)</a></li>
 </ul>
 
 <H3>Hosted by</H3>
@@ -88,4 +88,3 @@ having CVS write permission.
 
 </BODY>
 </HTML>
-
