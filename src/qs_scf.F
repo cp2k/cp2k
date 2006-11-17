@@ -49,7 +49,6 @@
 !******************************************************************************
 
 MODULE qs_scf
-  USE cp_files,                        ONLY: move_file
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type

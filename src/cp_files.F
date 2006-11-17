@@ -23,10 +23,8 @@ MODULE cp_files
   IMPLICIT NONE
   PRIVATE
 
-
   PUBLIC :: close_file, &
             open_file, &
-            move_file,&
             get_unit_number
 
 !!***
@@ -281,61 +279,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE open_file
-
-  !!****f* cp_files/move_file *
-  !!
-  !!   NAME
-  !!     move_file
-  !!
-  !!   FUNCTION
-  !!     moves the requested files
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     Joost and Teo
-  !!
-  !!*** *********************************************************************
-  SUBROUTINE move_file(Ifilename, Ofilename)
-    CHARACTER(LEN=*), INTENT(IN)             :: Ifilename, Ofilename
-
-    INTEGER, PARAMETER                       :: max_line_length = 1024
-
-    CHARACTER(len=max_line_length)           :: line, myfmt
-    INTEGER                                  :: i, iunit_in, iunit_out
-
-    WRITE(myfmt,'(A,I0,A)') '(A',max_line_length,')'
-
-    CALL open_file(file_name=Ifilename,&
-                   file_action="READ",&
-                   file_pad="YES",&
-                   file_position="REWIND",&
-                   unit_number=iunit_in)
-
-    CALL open_file(file_name=Ofilename,&
-                   file_action="WRITE",&
-                   file_status="REPLACE",&
-                   file_position="REWIND",&
-                   unit_number=iunit_out)
-
-    DO
-       READ(iunit_in,FMT=myfmt,SIZE=i,ADVANCE="NO",EOR=100,ERR=10,END=999) line
-       STOP "No EOR (line too long), file not moved"
-10     CONTINUE
-       STOP "Error, file not moved"
-100    CONTINUE
-       WRITE(iunit_out,'(A)') line(1:i)
-    ENDDO
-999 CONTINUE
-
-    CALL close_file(unit_number=iunit_in,file_status="DELETE")
-    CALL close_file(unit_number=iunit_out)
-    
-  END SUBROUTINE move_file
 
 END MODULE cp_files
 

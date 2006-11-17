@@ -33,7 +33,6 @@
 !*****************************************************************************
 MODULE cp_output_handling
   USE cp_files,                        ONLY: close_file,&
-                                             move_file,&
                                              open_file
   USE input_constants,                 ONLY: debug_print_level,&
                                              high_print_level,&
@@ -62,6 +61,7 @@ MODULE cp_output_handling
                                              default_string_length,&
                                              dp
   USE string_utilities,                ONLY: compress
+  USE machine,                         ONLY: m_mov
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1037,7 +1037,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
                  !
                  ibak=ibak+1
                  filename_bak=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1+MODULO(ibak,3)))
-                 CALL move_file(TRIM(filename), TRIM(filename_bak))
+                 CALL m_mov(TRIM(filename), TRIM(filename_bak))
               END IF
            END IF
            CALL open_file(file_name=filename,file_status="UNKNOWN",&
