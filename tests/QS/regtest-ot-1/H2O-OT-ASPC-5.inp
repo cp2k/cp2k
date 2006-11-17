@@ -16,7 +16,7 @@
       &OT ON
         MINIMIZER DIIS
       &END OT
-      WRITE_RESTART_EACH -2
+      WRITE_HISTORY_RESTART
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

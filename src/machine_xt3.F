@@ -30,7 +30,7 @@ MODULE machine_xt3
 
   PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg,&
-            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c
+            m_abort, m_iargc, m_chdir, m_loc_r, m_loc_c, m_mov
 
 !!*****
 !******************************************************************************
@@ -134,6 +134,19 @@ END SUBROUTINE m_datum
 !   CALL system(cmdstr)
 
   END SUBROUTINE print_memory
+
+! *****************************************************************************
+
+  SUBROUTINE m_mov(source,target)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: source, target
+
+!   ---------------------------------------------------------------------------
+
+    !cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
+    CALL rename(source(1:LEN_TRIM(source)), target(1:LEN_TRIM(target)))
+
+  END SUBROUTINE m_mov
 
 ! *****************************************************************************
 

@@ -2636,10 +2636,17 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
             description="How often the wavefunction restart file should be "//&
             "written during the scf cycle (0=only at the end of each MD step, "//&
-            "-1=never, -2=in addition the extrapolation history is written).",&
+            "-1=never).",&
             usage="WRITE_RESTART_EACH 5", default_i_val=10,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WRITE_HISTORY_RESTART",&
+            description="Writes the history pipeline into files after each MD step.",&
+            usage="WRITE_HISTORY_RESTART TRUE", default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., required=.FALSE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="MAX_ITER_LUMO",&
             variants=(/"MAX_ITER_LUMOS"/),&

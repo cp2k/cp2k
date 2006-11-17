@@ -101,6 +101,8 @@ MODULE scf_control_types
 !!     - write_restart_each: after how many iterations a restart file
 !!       should be written if the convergence is not yet acheived
 !!       (<0 never, 0 only upon convergence)
+!!     - write_history_restart: indicates if history pipline should be
+!!                              written into files at each MD step.
 !!     - nrow_block: number of rows of a full matrix block
 !!     - ncol_block: number of of columns in a block of a full matrix
 !!     - id_nr: unique number to identify an scf control
@@ -136,7 +138,7 @@ MODULE scf_control_types
     INTEGER               :: max_scf,nrow_block,max_scf_hist,&
                              ncol_block,maxl,nkind, write_restart_each
     LOGICAL               :: gradient_functional,gth_potential_present,&
-                             use_cholesky,use_ot
+                             use_cholesky,use_ot,write_history_restart
     INTEGER               :: ref_count,id_nr
     INTEGER, DIMENSION(2) :: added_mos
     INTEGER                               :: roks_scheme
@@ -218,6 +220,7 @@ CONTAINS
       scf_control%eps_jacobi = 0.0_dp
       scf_control%jacobi_threshold = 1.0E-7_dp
       scf_control%write_restart_each=10
+      scf_control%write_history_restart=.FALSE.
       scf_control%added_mos=0
       scf_control%max_scf_hist = 0
       scf_control%gspace_mixing_a = 1.0_dp
@@ -464,6 +467,8 @@ CONTAINS
        scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
        CALL section_vals_val_get(scf_section,"write_restart_each",&
             i_val=scf_control%write_restart_each,error=error)
+       CALL section_vals_val_get(scf_section, "write_history_restart", &
+            l_val=scf_control%write_history_restart, error=error)
 
        ! Read ROKS parameters
 

@@ -49,6 +49,7 @@ MODULE qs_wf_history_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
+  USE input_constants,                 ONLY: history_guess
   USE kg_gpw_fm_mol_types,             ONLY: duplicate_kg_fm_p_type,&
                                              kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
@@ -920,13 +921,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, kg_gpw, kg_fm_mol_set, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(out), OPTIONAL           :: extrapolation_method_nr
-    LOGICAL, INTENT(out), OPTIONAL           :: orthogonal_wf
+    REAL(KIND=dp), INTENT(IN)                :: dt
+    INTEGER, INTENT(OUT), OPTIONAL           :: extrapolation_method_nr
+    LOGICAL, INTENT(OUT), OPTIONAL           :: orthogonal_wf
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kg_fm_mol_set
-    TYPE(cp_error_type), INTENT(inout)  &
+    TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
@@ -984,7 +985,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         actual_extrapolation_method_nr=wf_history%interpolation_method_nr
      END IF
      SELECT CASE(actual_extrapolation_method_nr)
-      CASE(wfi_linear_wf_method_nr)
+     CASE(wfi_linear_wf_method_nr)
          IF (wf_history%snapshot_count<2) THEN
            actual_extrapolation_method_nr=wfi_use_prev_wf_method_nr
         END IF

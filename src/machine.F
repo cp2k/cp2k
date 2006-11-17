@@ -26,62 +26,62 @@ MODULE machine
   USE machine_aix, ONLY    : & 
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __IRIX )
   USE machine_irix, ONLY   : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __G95 )
   USE machine_g95, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __INTEL )
   USE machine_intel, ONLY  : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __PGI )
   USE machine_pgi, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __XT3 )
   USE machine_xt3, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __T3E )
   USE machine_t3e, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __DEC )
   USE machine_dec, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __ABSOFT )
   USE machine_absoft, ONLY : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __SUN )
   USE machine_sun, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __NAG )
   USE machine_nag, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __SX )
   USE machine_sx, ONLY    : &
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #endif
 
   IMPLICIT NONE
@@ -90,7 +90,7 @@ MODULE machine
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+       print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 
 CONTAINS
 

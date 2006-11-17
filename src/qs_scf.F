@@ -97,7 +97,7 @@ MODULE qs_scf
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run, &
-       restart_guess
+       restart_guess, history_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -105,6 +105,7 @@ MODULE qs_scf
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_flush,&
+                                             m_mov,&
                                              m_walltime
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
@@ -235,7 +236,7 @@ CONTAINS
   SUBROUTINE scf(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
+    TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf', &
@@ -248,6 +249,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
+    LOGICAL, SAVE                            :: first_step_flag=.TRUE.
 
     NULLIFY(scf_env)
     failure=.FALSE.
@@ -288,12 +290,19 @@ CONTAINS
 
        CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, scf_section=scf_section, error=error)
 
+       IF ((qs_env%scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
+         qs_env%scf_control%max_scf = 1
+       END IF
+
        CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                            converged=converged, should_stop=should_stop, error=error)
 
        !   *** add the converged wavefunction to the wavefunction history
-       IF (ASSOCIATED(qs_env%wf_history)) THEN
+       IF ((ASSOCIATED(qs_env%wf_history)) .AND. ((qs_env%scf_control%density_guess .NE. history_guess) &
+            .OR. (.NOT. first_step_flag))) THEN
            CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp, error=error)
+       ELSE IF ((qs_env%scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
+         first_step_flag = .FALSE.
        END IF
 
        ! *** compute properties that depend on the converged wavefunction
@@ -384,7 +393,7 @@ CONTAINS
                                                 scf_section, harris_section
     TYPE(virial_type), POINTER               :: virial
     CHARACTER(LEN=default_path_length)       :: file_name, filename1, &
-                                                filename2, cmd
+                                                filename2
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -598,7 +607,7 @@ CONTAINS
           IF (scf_control%write_restart_each>0) THEN
              IF (MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
                 CALL write_mo_set(mos,particle_set,para_env,&
-                    id_nr=1,dft_section=dft_section,error=error)
+                    id_nr=0,dft_section=dft_section,error=error)
              ENDIF
           END IF
 
@@ -624,7 +633,7 @@ CONTAINS
        CALL cleanup_scf_loop(scf_env,error)
 
        ! now, print out energies and charges corresponding to the obtained wfn
-       ! (this actually seems not 100% consistent at this point)
+       ! (this actually is not 100% consistent at this point)!
        CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
                                  dft_control,qs_env%qmmm,gapw,gapw_xc)
 
@@ -635,18 +644,18 @@ CONTAINS
        !   *** Write restart file ***
        IF (scf_control%write_restart_each>=0) THEN
           CALL write_mo_set(mos,particle_set,para_env,&
-               id_nr=1,dft_section=dft_section,error=error)
-       ELSE IF (scf_control%write_restart_each == -2) THEN
-          CALL write_mo_set(mos,particle_set, para_env, &
-               id_nr=1, dft_section=dft_section, error=error)
+               id_nr=0,dft_section=dft_section,error=error)
+       END IF
+       
+       IF (scf_control%write_history_restart) THEN
           nvec = MIN(qs_env%wf_history%memory_depth, qs_env%wf_history%snapshot_count)
 
           IF (para_env%ionode) THEN
             CALL section_vals_val_get(dft_section, "RESTART_FILE_NAME", &
                  c_val=file_name, error=error)
 
-            filename1=file_name
-            filename2=file_name
+            filename1 = file_name
+            filename2 = file_name
             DO i=1,nvec
               IF ((nvec-i) /= 0) THEN
                 filename1((LEN_TRIM(file_name)+1):(LEN(file_name))) = "-"//&
@@ -657,10 +666,13 @@ CONTAINS
                      ADJUSTL(cp_to_string(nvec-i+1))
               END IF
               IF ((nvec-i+1) > 1) THEN
-                CALL move_file(filename1, filename2)
+                CALL m_mov(filename1, filename2)
               END IF
             END DO
-            CALL move_file("RESTART", "RESTART-1")
+            filename1 = file_name
+            filename2((LEN_TRIM(file_name)+1):(LEN(file_name))) = "-"//&
+                 ADJUSTL(cp_to_string(1))
+            CALL m_mov(filename1, filename2)
           END IF
        END IF
 
@@ -1872,7 +1884,7 @@ END SUBROUTINE qs_scf_print_summary
 
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
-       IF (ASSOCIATED(qs_env%wf_history)) THEN
+       IF (ASSOCIATED(qs_env%wf_history)) THEN 
           CALL wfi_extrapolate(qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
@@ -1880,7 +1892,7 @@ END SUBROUTINE qs_scf_print_summary
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
           IF ((.NOT.orthogonal_wf).AND.&
               (scf_env%method == ot_method_nr).AND.&
-              (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
+              (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN 
              DO ispin=1,SIZE(qs_env%mos)
                 CALL get_mo_set(qs_env%mos(ispin)%mo_set, &
                      mo_coeff=mo_coeff, nmo=nmo)

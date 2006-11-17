@@ -640,7 +640,7 @@ CONTAINS
       IF(PRESENT(dft_section)) THEN
         CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
              c_val=file_name,error=error)
-        IF (id_nr/=1) THEN
+        IF (id_nr/=0) THEN
            file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                 ADJUSTL(cp_to_string(id_nr))
         END IF
@@ -813,12 +813,11 @@ CONTAINS
 
 !      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
 !                               natom=natom)
-
       natom = SIZE(particle_set,1)
       CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
            c_val=file_name,error=error)
-      IF (id_nr/=1) THEN
-        file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
+      IF (id_nr/=0) THEN
+        file_name((LEN_TRIM(file_name)+1):LEN(file_name)) = "-"//&
                          ADJUSTL(cp_to_string(id_nr))
       END IF
 
