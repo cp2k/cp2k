@@ -165,7 +165,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iat, iatom, imol, &
                                                 jat, jatom, nat_mol, &
                                                 ngrid_level, nmol_local, &
-                                                num_pe, output_unit
+                                                mepos, num_pe, output_unit
     INTEGER, DIMENSION(:), POINTER           :: index_atom
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: length, Li, ra(3), rab, &
@@ -213,6 +213,7 @@ CONTAINS
     molbox_env%natom = nat_mol
     rab_max = 0.0_dp
     rad_max = 0.0_dp
+
     DO imol = 1,nmol_local
       NULLIFY(fm_mol_iblock,index_atom)
       fm_mol_iblock => fm_mol_blocks(imol)
@@ -239,7 +240,7 @@ CONTAINS
       END DO  ! iat
     END DO
 
-    CALL mp_max(rab_max,para_env%group)
+!    CALL mp_max(rab_max,para_env%group)
 
     molbox_env%rab_max = rab_max
     molbox_env%rad_max = rad_max
@@ -258,6 +259,11 @@ CONTAINS
       END IF
     END DO
     side(1:3) = length
+    IF(nmol_local==0) THEN
+      DO i = 1,3
+      side(i) = SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
+      END DO
+    END IF
 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -280,17 +286,19 @@ CONTAINS
     cell_mol%h_inv(:,:) = 0.0_dp
 
     num_pe = para_env%num_pe
+    mepos = para_env%mepos
+
     molbox_env_p => molbox_env
     CALL get_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol)
     IF (.NOT.ASSOCIATED(new_pw_mol)) THEN
        CALL pw_env_create(new_pw_mol,error=error)
-       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,&
+       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,mepos,&
             error=error,force_env_section=qs_env%input)
        CALL set_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol,&
             force_env_section=qs_env%input,error=error)
        CALL pw_env_release(new_pw_mol,error=error)
     ELSE
-       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,&
+       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,mepos,&
             force_env_section=qs_env%input,error=error)
     END IF
 
@@ -363,7 +371,7 @@ CONTAINS
 !!*** *************************************************************************
 
 
-  SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,&
+  SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,mepos,&
        force_env_section, error)
 
     TYPE(pw_env_type), POINTER               :: pw_mol
@@ -371,7 +379,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_global
     TYPE(dft_control_type), POINTER          :: dft_control
     REAL(dp), INTENT(INOUT)                  :: side(3)
-    INTEGER, INTENT(IN)                      :: num_pe
+    INTEGER, INTENT(IN)                      :: num_pe, mepos
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
@@ -562,7 +570,6 @@ CONTAINS
              ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
              nlowest=npts_out(1)/2**(my_ncommensurate-my_icommensurate)
              CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-
              IF (nlowest==nlowest_new .AND. MODULO(npts_out(1),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
@@ -605,6 +612,7 @@ CONTAINS
          END DO
 
       END IF  ! not spherical
+
 
       pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
       pw_grid_mol%dr(:) = dr_g(:)
@@ -955,178 +963,178 @@ CONTAINS
         NULLIFY(molbox_env, cell_mol, pw_env_mol, rho_mol_blocks)
         molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
         CALL get_molbox_env(molbox_env=molbox_env, natom = nat_mol, cell_mol=cell_mol,&
-                            pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
+                            nmolecule_local=nmol, pw_env_mol=pw_env_mol,&
+                            rho_mol_blocks=rho_mol_blocks)
 
+        IF(nmol>0) THEN 
+          CALL pw_env_get(pw_env=pw_env_mol,auxbas_pw_pool=auxbas_pw_pool,error=error)
+          pw_grid_mol => auxbas_pw_pool%pw_grid
 
-        CALL pw_env_get(pw_env=pw_env_mol,auxbas_pw_pool=auxbas_pw_pool,error=error)
-        pw_grid_mol => auxbas_pw_pool%pw_grid
+          oonat_mol = 1.0_dp/REAL(nat_mol,dp)
 
-        oonat_mol = 1.0_dp/REAL(nat_mol,dp)
-        nmol = SIZE(rho_mol_blocks,1)
-        DO i = 1,3
-!          Lo2(i) = cell_mol%hmat(i,i)/2.0_dp
-          Lo2(i) = pw_grid_mol%dr(i)*FLOOR(pw_grid_mol%npts(i)/2.0_dp)
+          DO i = 1,3
+!            Lo2(i) = cell_mol%hmat(i,i)/2.0_dp
+            Lo2(i) = pw_grid_mol%dr(i)*FLOOR(pw_grid_mol%npts(i)/2.0_dp)
+          END DO
 
-        END DO
+          DO imol = 1,nmol
+            NULLIFY(rho_block,rho_mol,index_atom)
+            rho_block => rho_mol_blocks(imol)
+            CALL get_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol,&
+                                   index_atom=index_atom,&
+                                   r_in_molbox=r_mbox,r_in_totbox=r_tbox)
+            r0(1:3) = 0.0_dp
+            r_ref(1:3) = particle_set( index_atom(1) )%r(1:3)
+            dref(1) = r_ref(1)-FLOOR(r_ref(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
+            dref(2) = r_ref(2)-FLOOR(r_ref(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
+            dref(3) = r_ref(3)-FLOOR(r_ref(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
 
-
-        DO imol = 1,nmol
-          NULLIFY(rho_block,rho_mol,index_atom)
-          rho_block => rho_mol_blocks(imol)
-          CALL get_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol,index_atom=index_atom,&
-                                 r_in_molbox=r_mbox,r_in_totbox=r_tbox)
-          r0(1:3) = 0.0_dp
-          r_ref(1:3) = particle_set( index_atom(1) )%r(1:3)
-          dref(1) = r_ref(1)-FLOOR(r_ref(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
-          dref(2) = r_ref(2)-FLOOR(r_ref(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
-          dref(3) = r_ref(3)-FLOOR(r_ref(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
-
-          DO iat = 1,nat_mol
-            iatom = index_atom(iat)
-            rb(1:3) = particle_set( iatom ) %r(1:3)
-            rab_pbc(:) = pbc(r_ref(:),rb(:), cell)
+            DO iat = 1,nat_mol
+              iatom = index_atom(iat)
+              rb(1:3) = particle_set( iatom ) %r(1:3)
+              rab_pbc(:) = pbc(r_ref(:),rb(:), cell)
+              DO i =1,3
+                r_tbox(i,iat) = r_ref(i) + rab_pbc(i)
+                r0(i) = r0(i) + r_tbox(i,iat)
+              END DO
+            END DO
             DO i =1,3
-              r_tbox(i,iat) = r_ref(i) + rab_pbc(i)
-              r0(i) = r0(i) + r_tbox(i,iat)
+              r0(i) = r0(i)*oonat_mol
             END DO
-          END DO
-          DO i =1,3
-            r0(i) = r0(i)*oonat_mol
-          END DO
-          CALL set_rho_mol_block(rho_block=rho_block,r0_molecule=r0,error=error)
-          dref(1) = r0(1)-FLOOR(r0(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
-          dref(2) = r0(2)-FLOOR(r0(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
-          dref(3) = r0(3)-FLOOR(r0(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
-
-          DO iat = 1,nat_mol
-            rb(1:3) = r_tbox(1:3,iat)
-            rab_pbc(:) = pbc(r0(:),rb(:),cell)
-            DO i = 1,3
-              r_mbox(i,iat) = rab_pbc(i) + Lo2(i) + dref(i)
+            CALL set_rho_mol_block(rho_block=rho_block,r0_molecule=r0,error=error)
+            dref(1) = r0(1)-FLOOR(r0(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
+            dref(2) = r0(2)-FLOOR(r0(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
+            dref(3) = r0(3)-FLOOR(r0(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
+  
+            DO iat = 1,nat_mol
+              rb(1:3) = r_tbox(1:3,iat)
+              rab_pbc(:) = pbc(r0(:),rb(:),cell)
+              DO i = 1,3
+                r_mbox(i,iat) = rab_pbc(i) + Lo2(i) + dref(i)
+              END DO
             END DO
-          END DO
-
-          dref(1) = r_mbox(1,1)-FLOOR(r_mbox(1,1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
-          dref(2) = r_mbox(2,1)-FLOOR(r_mbox(2,1)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
-          dref(3) = r_mbox(3,1)-FLOOR(r_mbox(3,1)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
-
-          IF (.NOT.ASSOCIATED(rho_mol)) THEN
-            my_rebuild_grids=.TRUE.
-            my_rebuild_ao=.FALSE.
-            ALLOCATE(rho_mol,stat=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            IF (.NOT.failure) THEN
-               rho_mol%ref_count=1
-               rho_mol%rho_g_valid=.FALSE.
-               rho_mol%rho_r_valid=.FALSE.
-               rho_mol%tau_g_valid=.FALSE.
-               rho_mol%tau_r_valid=.FALSE.
-               rho_mol%soft_valid = .FALSE.
-               last_rho_id_nr=last_rho_id_nr+1
-               rho_mol%id_nr=last_rho_id_nr
-               rho_mol%rebuild_each=5
-               NULLIFY(rho_mol%rho_r, rho_mol%rho_g, rho_mol%rho_ao, &
-                       rho_mol%tot_rho_r, rho_mol%tot_rho_g, rho_mol%tau_r, rho_mol%tau_g)
-               ALLOCATE(rho_mol%tot_rho_r(nspins),stat=istat)
-               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-               IF (.NOT.failure) rho_mol%tot_rho_r=0.0_dp
-               CALL set_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol,error=error)
-               CALL qs_rho_release(rho_mol,error=error)
-            END IF
-          END IF  ! rho_mol
-          NULLIFY(rho_mol)
-          CALL get_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol)
-
-          ! rho_r
-          IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%rho_r)) THEN
-            IF (.NOT.failure) THEN
-              IF (ASSOCIATED(rho_mol%rho_r)) THEN
-                DO i=1,SIZE(rho_mol%rho_r)
-                   CALL coeff_deallocate(rho_mol%rho_r(i),error=error)
-                END DO
-                DEALLOCATE(rho_mol%rho_r,stat=istat)
-                CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-              END IF
-              ALLOCATE(rho_mol%rho_r(nspins),stat=istat)
+  
+            dref(1) = r_mbox(1,1)-FLOOR(r_mbox(1,1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
+            dref(2) = r_mbox(2,1)-FLOOR(r_mbox(2,1)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
+            dref(3) = r_mbox(3,1)-FLOOR(r_mbox(3,1)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
+  
+            IF (.NOT.ASSOCIATED(rho_mol)) THEN
+              my_rebuild_grids=.TRUE.
+              my_rebuild_ao=.FALSE.
+              ALLOCATE(rho_mol,stat=istat)
               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            END IF
-            IF (.NOT.failure) THEN
-              DO i=1,nspins
-                 CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_r(i),&
-                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
-              END DO
-            END IF
-          END IF
-
-          ! rho_g
-          IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%rho_g)) THEN
-            IF (.NOT.failure) THEN
-              IF (ASSOCIATED(rho_mol%rho_g)) THEN
-                DO i=1,SIZE(rho_mol%rho_g)
-                   CALL coeff_deallocate(rho_mol%rho_g(i),error=error)
-                END DO
-                DEALLOCATE(rho_mol%rho_g,STAT=istat)
-                CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-              END IF
-              ALLOCATE(rho_mol%rho_g(nspins),STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            END IF
-            IF (.NOT.failure) THEN
-              DO i=1,nspins
-                 CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_g(i),&
-                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-              END DO
-            END IF
-          END IF
-
-          ! allocate tau_r and tau_g for use_kinetic_energy_density
-          IF (use_tau) THEN
-
-            ! tau_r
-            IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%tau_r)) THEN
               IF (.NOT.failure) THEN
-                IF (ASSOCIATED(rho_mol%tau_r)) THEN
-                  DO i=1,SIZE(rho_mol%tau_r)
-                     CALL coeff_deallocate(rho_mol%tau_r(i),error=error)
+                 rho_mol%ref_count=1
+                 rho_mol%rho_g_valid=.FALSE.
+                 rho_mol%rho_r_valid=.FALSE.
+                 rho_mol%tau_g_valid=.FALSE.
+                 rho_mol%tau_r_valid=.FALSE.
+                 rho_mol%soft_valid = .FALSE.
+                 last_rho_id_nr=last_rho_id_nr+1
+                 rho_mol%id_nr=last_rho_id_nr
+                 rho_mol%rebuild_each=5
+                 NULLIFY(rho_mol%rho_r, rho_mol%rho_g, rho_mol%rho_ao, &
+                         rho_mol%tot_rho_r, rho_mol%tot_rho_g, rho_mol%tau_r, rho_mol%tau_g)
+                 ALLOCATE(rho_mol%tot_rho_r(nspins),stat=istat)
+                 CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                 IF (.NOT.failure) rho_mol%tot_rho_r=0.0_dp
+                 CALL set_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol,error=error)
+                 CALL qs_rho_release(rho_mol,error=error)
+              END IF
+            END IF  ! rho_mol
+            NULLIFY(rho_mol)
+            CALL get_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol)
+  
+            ! rho_r
+            IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%rho_r)) THEN
+              IF (.NOT.failure) THEN
+                IF (ASSOCIATED(rho_mol%rho_r)) THEN
+                  DO i=1,SIZE(rho_mol%rho_r)
+                     CALL coeff_deallocate(rho_mol%rho_r(i),error=error)
                   END DO
-                  DEALLOCATE(rho_mol%tau_r,stat=istat)
+                  DEALLOCATE(rho_mol%rho_r,stat=istat)
                   CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
                 END IF
-                ALLOCATE(rho_mol%tau_r(nspins),stat=istat)
+                ALLOCATE(rho_mol%rho_r(nspins),stat=istat)
                 CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
               END IF
               IF (.NOT.failure) THEN
                 DO i=1,nspins
-                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_r(i),&
+                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_r(i),&
                         use_data=REALDATA3D,in_space=REALSPACE,error=error)
                 END DO
               END IF
             END IF
-
-            ! tau_g
-            IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%tau_g)) THEN
+  
+            ! rho_g
+            IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%rho_g)) THEN
               IF (.NOT.failure) THEN
-                IF (ASSOCIATED(rho_mol%tau_g)) THEN
-                  DO i=1,SIZE(rho_mol%tau_g)
-                     CALL coeff_deallocate(rho_mol%tau_g(i),error=error)
+                IF (ASSOCIATED(rho_mol%rho_g)) THEN
+                  DO i=1,SIZE(rho_mol%rho_g)
+                     CALL coeff_deallocate(rho_mol%rho_g(i),error=error)
                   END DO
-                  DEALLOCATE(rho_mol%tau_g,STAT=istat)
+                  DEALLOCATE(rho_mol%rho_g,STAT=istat)
                   CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
                 END IF
-                ALLOCATE(rho_mol%tau_g(nspins),STAT=istat)
+                ALLOCATE(rho_mol%rho_g(nspins),STAT=istat)
                 CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
               END IF
               IF (.NOT.failure) THEN
                 DO i=1,nspins
-                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_g(i),&
-                        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_g(i),&
+                       use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
                 END DO
               END IF
             END IF
-          END IF  ! use_tau
+  
+            ! allocate tau_r and tau_g for use_kinetic_energy_density
+            IF (use_tau) THEN
+              ! tau_r
+              IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%tau_r)) THEN
+                IF (.NOT.failure) THEN
+                  IF (ASSOCIATED(rho_mol%tau_r)) THEN
+                    DO i=1,SIZE(rho_mol%tau_r)
+                       CALL coeff_deallocate(rho_mol%tau_r(i),error=error)
+                    END DO
+                    DEALLOCATE(rho_mol%tau_r,stat=istat)
+                    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+                  END IF
+                  ALLOCATE(rho_mol%tau_r(nspins),stat=istat)
+                  CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                END IF
+                IF (.NOT.failure) THEN
+                  DO i=1,nspins
+                     CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_r(i),&
+                          use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                    END DO
+                END IF
+              END IF
+  
+              ! tau_g
+              IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%tau_g)) THEN
+                IF (.NOT.failure) THEN
+                  IF (ASSOCIATED(rho_mol%tau_g)) THEN
+                      DO i=1,SIZE(rho_mol%tau_g)
+                       CALL coeff_deallocate(rho_mol%tau_g(i),error=error)
+                    END DO
+                    DEALLOCATE(rho_mol%tau_g,STAT=istat)
+                    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+                  END IF
+                  ALLOCATE(rho_mol%tau_g(nspins),STAT=istat)
+                  CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                  END IF
+                IF (.NOT.failure) THEN
+                  DO i=1,nspins
+                     CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_g(i),&
+                          use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+                    END DO
+                END IF
+              END IF
+            END IF  ! use_tau
+  
+          END DO  ! imol
 
-        END DO  ! imol
-
+        END IF  ! nmol
       END DO  ! imolecule_kind
     END IF  ! failure
     CALL timestop(0.0_dp,handle)
@@ -1208,9 +1216,9 @@ CONTAINS
         NULLIFY(molbox_env, pw_env_mol, rho_mol_blocks)
         molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
         CALL get_molbox_env(molbox_env=molbox_env, &
-                            pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
+             nmolecule_local=nmol, pw_env_mol=pw_env_mol,&
+             rho_mol_blocks=rho_mol_blocks)
 
-        nmol = SIZE(rho_mol_blocks,1)
 
         DO imol = 1,nmol
           NULLIFY(mol_block)

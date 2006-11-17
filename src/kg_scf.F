@@ -386,7 +386,8 @@ CONTAINS
     END IF
 
     CALL init_kgscf_run(scf_env=scf_env,kg_env=kg_env,&
-                        para_env=para_env,globenv=globenv,scf_section=scf_section,error=error)
+         para_env=para_env,scf_section=scf_section,error=error)
+
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     ks_env=ks_env,&
@@ -817,12 +818,11 @@ CONTAINS
 !!     fully activated 12-04 MI
 !!*** **********************************************************************
 
-  SUBROUTINE init_kgscf_run(scf_env,kg_env,para_env,globenv,scf_section,error)
+  SUBROUTINE init_kgscf_run(scf_env,kg_env,para_env,scf_section,error)
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
@@ -932,7 +932,7 @@ CONTAINS
 
 !   Initializes rho and the mosv
     CALL kgscf_initial_rho(kg_env,kg_fm,qs_env=qs_env,&
-                           globenv=globenv,scf_section=scf_section,error=error)
+                           scf_section=scf_section,error=error)
 
 ! *** method dependent initializations ***
     SELECT CASE (scf_env%method)
@@ -1161,12 +1161,11 @@ CONTAINS
 !!
 !!*************************************************************************
 
-  SUBROUTINE kgscf_first_density_matrix(kg_fm,qs_env,kg_env,globenv,error)
+  SUBROUTINE kgscf_first_density_matrix(kg_fm,qs_env,kg_env,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -1544,12 +1543,11 @@ CONTAINS
 !!
 !!*************************************************************************
 
-  SUBROUTINE kgscf_initial_rho(kg_env, kg_fm, qs_env, globenv, scf_section, error)
+  SUBROUTINE kgscf_initial_rho(kg_env, kg_fm, qs_env, scf_section, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
@@ -1599,7 +1597,7 @@ CONTAINS
 
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL kgscf_first_density_matrix(kg_fm,qs_env=qs_env,&
-               kg_env=kg_env, globenv=globenv, error=error)
+               kg_env=kg_env, error=error)
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)

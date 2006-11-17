@@ -642,7 +642,6 @@ SUBROUTINE kg_env_release(kg_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-
   IF (ASSOCIATED(kg_env)) THEN
      CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
      kg_env%ref_count=kg_env%ref_count-1

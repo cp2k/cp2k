@@ -81,6 +81,7 @@ MODULE qs_environment_types
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE message_passing,              ONLY: mp_sync
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
@@ -1271,6 +1272,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
           CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,qs_env%input,error=error)
         END IF
+        call mp_sync(qs_env%para_env%group)
 
         !Only if do_xas_calculation
         IF(ASSOCIATED(qs_env%xas_env)) THEN

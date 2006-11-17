@@ -69,7 +69,8 @@ MODULE kg_environment
   USE kg_force_types,                  ONLY: allocate_kg_force,&
                                              kg_force_type
   USE kg_gpw_fm_mol_methods,           ONLY: build_local_fm_mol
-  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_create,&
+  USE kg_gpw_fm_mol_types,             ONLY: get_kg_fm_mol_set,&
+                                             kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
                                              kg_fm_mol_set_type,&
                                              kg_fm_p_type
@@ -82,7 +83,7 @@ MODULE kg_environment
                                              int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum
+                                             mp_sum,mp_sync
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
@@ -509,7 +510,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: molch_name
     INTEGER :: ich, iglobal, imol, imolecule_kind, istat, nao_global, nao_max, &
-      nelectron_global, nkind, nmo_max, nmolcharge, nmolecule_kind, nrep, nspins, sumcharge
+      nelectron_global, nkind, nmo_max, nmol_local, nmolcharge, &
+      nmolecule_kind, nrep, nspins, sumcharge
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: added_mos
     INTEGER                                  :: molch_kind, molch_val
@@ -573,7 +575,8 @@ CONTAINS
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
 
-    CALL virial_create ( qs_env % virial, virial_in_use = .FALSE., numer_virial = .FALSE. ,error=error)
+    CALL virial_create ( qs_env % virial, virial_in_use = .FALSE.,&
+         numer_virial = .FALSE. ,error=error)
 
     CALL wfi_create(wf_history,&
                     interpolation_method_nr = &
@@ -730,6 +733,7 @@ CONTAINS
 
     ! Build the full matrix for each molecule
     DO imolecule_kind = 1,nmolecule_kind
+
       molecule_kind => molecule_kind_set(imolecule_kind)
       CALL build_local_fm_mol(kg_fm%kg_fm_mol_set(imolecule_kind),&
                               molecule_kind,&
@@ -745,21 +749,30 @@ CONTAINS
                               error=error)
       ! Initialize the local cell and the pw_env for each molecule kind
       fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
-      CALL build_molbox_env(kg_sub_pw_env%molbox_env_set(imolecule_kind),&
-                       fm_mol_set,qs_env,poisson_section=poisson_section,&
-                       error=error)
 
+      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
+          nmolecule_local=nmol_local)
+      IF(nmol_local>0) THEN 
+
+        CALL build_molbox_env(kg_sub_pw_env%molbox_env_set(imolecule_kind),&
+                              fm_mol_set,qs_env,poisson_section=poisson_section,&
+                              error=error)
+      END IF
+      CALL mp_sync(para_env%group)
+   
       DO imol = 1,distribution_1d%n_el(imolecule_kind)
         iglobal = distribution_1d%list(imolecule_kind)%array(imol)
         kg_fm%imol_local_name(iglobal) = imol
         kg_fm%imol_pe_pos(iglobal) = para_env%mepos
       END DO
 
-      sumcharge = sumcharge + molecule_kind%nmolecule*charge_x_mol(imolecule_kind) 
+!      sumcharge = sumcharge + molecule_kind%nmolecule*charge_x_mol(imolecule_kind) 
+      sumcharge = sumcharge + nmol_local*charge_x_mol(imolecule_kind) 
 
     END DO
 
 !   check that the total charge is correct
+    CALL mp_sum(sumcharge,para_env%group)
     IF(dft_control%charge /= sumcharge) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
          " The charge distributed over the molecules is not equal to the total charge")

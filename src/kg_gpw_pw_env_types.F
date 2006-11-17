@@ -137,7 +137,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_molbox_env(molbox_env, natom, nmolecule_local,&
-                            cell_mol,poisson_env,pw_env_mol,rho_mol_blocks)
+                 cell_mol,poisson_env,pw_env_mol,rho_mol_blocks)
 
     TYPE(kg_molbox_env_type), POINTER        :: molbox_env
     INTEGER, INTENT(OUT), OPTIONAL           :: natom, nmolecule_local
@@ -253,28 +253,32 @@ CONTAINS
 
     DO ikind = 1,n
       nmol = molbox_env_set(ikind)%nmolecule_local
-
-      CALL pw_poisson_release(molbox_env_set(ikind)%poisson_env,error=error)
-      CALL cell_release(molbox_env_set(ikind)%cell_mol,error=error)
-
-      IF (ASSOCIATED(molbox_env_set(ikind)%pw_env_mol%cube_info)) THEN
-
-         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%lb_cube)
-         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%ub_cube)
-         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%sphere_bounds)
-         NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%sphere_bounds_count)
-
-         DO igrid_level=2,SIZE(molbox_env_set(ikind)%pw_env_mol%cube_info)
-            CALL destroy_cube_info(molbox_env_set(ikind)%pw_env_mol%cube_info(igrid_level))
-         END DO
-         DEALLOCATE(molbox_env_set(ikind)%pw_env_mol%cube_info,stat=istat)
-         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+      IF(ASSOCIATED(molbox_env_set(ikind)%poisson_env)) THEN
+        CALL pw_poisson_release(molbox_env_set(ikind)%poisson_env,error=error)
+      END IF
+      IF(ASSOCIATED(molbox_env_set(ikind)%cell_mol)) THEN
+        CALL cell_release(molbox_env_set(ikind)%cell_mol,error=error)
       END IF
 
-      CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,error=error)
+      IF (ASSOCIATED(molbox_env_set(ikind)%pw_env_mol)) THEN
+        IF (ASSOCIATED(molbox_env_set(ikind)%pw_env_mol%cube_info)) THEN
 
-      CALL deallocate_rho_mol_blocks(molbox_env_set(ikind)%rho_mol_blocks,error=error)
+           NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%lb_cube)
+           NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%ub_cube)
+           NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%sphere_bounds)
+           NULLIFY(molbox_env_set(ikind)%pw_env_mol%cube_info(1)%sphere_bounds_count)
 
+           DO igrid_level=2,SIZE(molbox_env_set(ikind)%pw_env_mol%cube_info)
+              CALL destroy_cube_info(molbox_env_set(ikind)%pw_env_mol%cube_info(igrid_level))
+           END DO
+           DEALLOCATE(molbox_env_set(ikind)%pw_env_mol%cube_info,stat=istat)
+           CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        END IF
+        CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,.true.,error=error)
+      END IF
+      IF(ASSOCIATED(molbox_env_set(ikind)%rho_mol_blocks)) THEN
+        CALL deallocate_rho_mol_blocks(molbox_env_set(ikind)%rho_mol_blocks,error=error)
+      END IF
     END DO  ! ikind
     DEALLOCATE(molbox_env_set, STAT = istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)

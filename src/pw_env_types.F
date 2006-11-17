@@ -33,6 +33,7 @@ MODULE pw_env_types
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_release
   USE l_utils,                         ONLY: l_info_release,&
                                              l_info_type
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
@@ -281,8 +282,9 @@ END SUBROUTINE pw_env_retain
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_env_release(pw_env,  error)
+SUBROUTINE pw_env_release(pw_env, kg, error)
     TYPE(pw_env_type), POINTER               :: pw_env
+    LOGICAL, OPTIONAL                        :: kg
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -290,10 +292,11 @@ SUBROUTINE pw_env_release(pw_env,  error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: igrid_level, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,my_kg
 
   failure=.FALSE.
-
+  my_kg = .FALSE.
+  IF(PRESENT(kg)) my_kg = kg
   IF (ASSOCIATED(pw_env)) THEN
      CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
      pw_env%ref_count=pw_env%ref_count-1
@@ -301,7 +304,15 @@ SUBROUTINE pw_env_release(pw_env,  error)
         CALL pw_poisson_release(pw_env%poisson_env, error=error)
         CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
         IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
-           CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, error=error)
+           IF(my_kg) THEN
+             DEALLOCATE (pw_env%gridlevel_info%cutoff,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CALL section_vals_release(pw_env%gridlevel_info%print_section,error=error)
+             DEALLOCATE (pw_env%gridlevel_info%count,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ELSE
+             CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, error=error)
+           END IF
            DEALLOCATE(pw_env%gridlevel_info,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF

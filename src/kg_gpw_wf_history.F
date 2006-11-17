@@ -127,6 +127,7 @@ CONTAINS
     nmolecule_kind=SIZE(set_a,1)
     CPPostcondition(SIZE(set_b,1)==nmolecule_kind,cp_failure_level,routineP,error,failure)
 
+    NULLIFY(mo_coeff_a, mo_coeff_b,s_mo)
     my_alpha = 1.0_dp
     my_beta  = 1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
@@ -137,73 +138,76 @@ CONTAINS
       fm_mol_a => set_a(imolecule_kind)
       fm_mol_b => set_b(imolecule_kind)
 
-      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_a, nmolecule_local=nmol, natom=natom,&
+      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_a, &
+           nmolecule_local=nmol, natom=natom,&
            n_ao = n_ao, n_mo = n_mo, fm_mol_blocks=blocks_a)
-      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_b,fm_mol_blocks=blocks_b)
-      CPPostcondition(SIZE(blocks_b,1)==nmol,cp_failure_level,routineP,error,failure)
-      nspins = 1
-      IF(n_mo(2) /= 0) nspins = 2
+      IF(nmol>0) THEN
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_b,fm_mol_blocks=blocks_b)
+        CPPostcondition(SIZE(blocks_b,1)==nmol,cp_failure_level,routineP,error,failure)
+        nspins = 1
+        IF(n_mo(2) /= 0) nspins = 2
 
-      IF(calculate_density) THEN
-        nmo_max = MAX(n_mo(1),n_mo(2))
-        ALLOCATE(s_mo(n_ao,nmo_max), STAT = istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
+        IF(calculate_density) THEN
+          nmo_max = MAX(n_mo(1),n_mo(2))
+          ALLOCATE(s_mo(n_ao,nmo_max), STAT = istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
 
-      DO imol = 1, nmol
-        NULLIFY(mol_block_a, mos_a, mol_block_b, mos_b)
-        mol_block_a => blocks_a(imol)
-        mol_block_b => blocks_b(imol)
-        CALL get_fm_mol_block(fm_mol_block = mol_block_a,&
-             mos = mos_a )
-        CALL get_fm_mol_block(fm_mol_block = mol_block_b,&
-             mos = mos_b)
+        DO imol = 1, nmol
+          NULLIFY(mol_block_a, mos_a, mol_block_b, mos_b)
+          mol_block_a => blocks_a(imol)
+          mol_block_b => blocks_b(imol)
+          CALL get_fm_mol_block(fm_mol_block = mol_block_a,&
+               mos = mos_a )
+          CALL get_fm_mol_block(fm_mol_block = mol_block_b,&
+               mos = mos_b)
 
-        DO ispin=1,nspins
-          NULLIFY(mo_set_a, mo_set_b)
-          mo_set_a => mos_a(ispin)%mo_set
-          mo_set_b => mos_b(ispin)%mo_set
+          DO ispin=1,nspins
+            NULLIFY(mo_set_a, mo_set_b)
+            mo_set_a => mos_a(ispin)%mo_set
+            mo_set_b => mos_b(ispin)%mo_set
+  
+            CALL get_mol_mo_set(mo_set=mo_set_a, mo = mo_coeff_a,&
+                 nmo=nmo_a)
+            CALL get_mol_mo_set(mo_set=mo_set_b, mo = mo_coeff_b,&
+                 nmo=nmo_b)
 
-          CALL get_mol_mo_set(mo_set=mo_set_a, mo = mo_coeff_a,&
-               nmo=nmo_a)
-          CALL get_mol_mo_set(mo_set=mo_set_b, mo = mo_coeff_b,&
-               nmo=nmo_b)
+            CPPostcondition(nmo_a==nmo_b,cp_failure_level,routineP,error,failure)
 
-          CPPostcondition(nmo_a==nmo_b,cp_failure_level,routineP,error,failure)
+            IF(my_alpha == 1.0_dp) THEN
+              CALL daxpy(SIZE(mo_coeff_a,1)*SIZE(mo_coeff_a,2),&
+                         my_beta, mo_coeff_b(1,1),1,&
+                         mo_coeff_a(1,1),1)
+            ELSE
+              CALL dscal(SIZE(mo_coeff_a,1)*SIZE(mo_coeff_a,2),&
+                         my_alpha,mo_coeff_a(1,1),1)
+              CALL daxpy(SIZE(mo_coeff_a,1)*SIZE(mo_coeff_a,2),&
+                         my_beta, mo_coeff_b(1,1),1,&
+                         mo_coeff_a(1,1),1)
+            END IF
 
-          IF(my_alpha == 1.0_dp) THEN
-            CALL daxpy(SIZE(mo_coeff_a,1)*SIZE(mo_coeff_a,2),&
-                       my_beta, mo_coeff_b(1,1),1,&
-                       mo_coeff_a(1,1),1)
-          ELSE
-            CALL dscal(SIZE(mo_coeff_a,1)*SIZE(mo_coeff_a,2),&
-                       my_alpha,mo_coeff_a(1,1),1)
-            CALL daxpy(SIZE(mo_coeff_a,1)*SIZE(mo_coeff_a,2),&
-                       my_beta, mo_coeff_b(1,1),1,&
-                       mo_coeff_a(1,1),1)
-          END IF
+            IF(calculate_density) THEN
 
-          IF(calculate_density) THEN
-
-            ! Multiply Overlap matric and Coefficient matrix
-            CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
-                                         natom,mo_coeff_a,nmo_a,s_mo,error=error)
-            ! orthogonalize the molecular orbitals
-            CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
+              ! Multiply Overlap matric and Coefficient matrix
+              CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
+                                           natom,mo_coeff_a,nmo_a,s_mo,error=error)
+              ! orthogonalize the molecular orbitals
+              CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
 
 
-            CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
-                 natom, matrix_p(ispin)%matrix, error=error)
-          END IF
-        END DO  ! ispin
+              CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
+                   natom, matrix_p(ispin)%matrix, error=error)
+            END IF
+          END DO  ! ispin
 
-      END DO  ! imol
+        END DO  ! imol
 
-      IF(calculate_density) THEN
-        DEALLOCATE(s_mo, STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
+        IF(calculate_density) THEN
+          DEALLOCATE(s_mo, STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
 
+      END IF  ! nmol
     END DO  ! imolecule_kind
 
 
@@ -291,113 +295,118 @@ CONTAINS
     CPPostcondition(SIZE(set_b,1)==nmolecule_kind,cp_failure_level,routineP,error,failure)
     CPPostcondition(SIZE(set_last,1)==nmolecule_kind,cp_failure_level,routineP,error,failure)
 
+    NULLIFY( mo_coeff_a, mo_coeff_b,mo_coeff_l, mol_csc, ov_b_mol, s_mo, sc_tmp)
+
     my_beta  = 1.0_dp
     IF (PRESENT(beta)) my_beta=beta
 
     DO imolecule_kind = 1, nmolecule_kind
-        NULLIFY(fm_mol_a,fm_mol_b, fm_mol_l, blocks_a, blocks_b, blocks_l)
+      NULLIFY(fm_mol_a,fm_mol_b, fm_mol_l, blocks_a, blocks_b, blocks_l)
       fm_mol_a => set_a(imolecule_kind)
       fm_mol_b => set_b(imolecule_kind)
       fm_mol_l => set_last(imolecule_kind)
 
-      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_a, nmolecule_local=nmol, natom=natom,&
+      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_a,&
+           nmolecule_local=nmol, natom=natom,&
            n_ao = n_ao, n_mo = n_mo, fm_mol_blocks=blocks_a)
-      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_b,fm_mol_blocks=blocks_b)
-      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_l,fm_mol_blocks=blocks_l)
-      CPPostcondition(SIZE(blocks_b,1)==nmol,cp_failure_level,routineP,error,failure)
-      CPPostcondition(SIZE(blocks_l,1)==nmol,cp_failure_level,routineP,error,failure)
-      nspins = 1
-      IF(n_mo(2) /= 0) nspins = 2
+      IF(nmol>0) THEN
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_b,fm_mol_blocks=blocks_b)
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_l,fm_mol_blocks=blocks_l)
+        CPPostcondition(SIZE(blocks_b,1)==nmol,cp_failure_level,routineP,error,failure)
+        CPPostcondition(SIZE(blocks_l,1)==nmol,cp_failure_level,routineP,error,failure)
+        nspins = 1
+        IF(n_mo(2) /= 0) nspins = 2
 
-      ! Allocate the array to store the overlap matrix of step b
-      ALLOCATE(ov_b_mol(n_ao,n_ao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ! Allocate the array CSC
-      ldcsc = MAX(n_mo(1),n_mo(2))
-      ALLOCATE(mol_csc(ldcsc,ldcsc), STAT= istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      IF(calculate_density) THEN
-        nmo_max = MAX(n_mo(1),n_mo(2))
-        ALLOCATE(s_mo(n_ao,nmo_max), STAT = istat)
+        ! Allocate the array to store the overlap matrix of step b
+        ALLOCATE(ov_b_mol(n_ao,n_ao),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
+        ! Allocate the array CSC
+        ldcsc = MAX(n_mo(1),n_mo(2))
+        ALLOCATE(mol_csc(ldcsc,ldcsc), STAT= istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        IF(calculate_density) THEN
+          nmo_max = MAX(n_mo(1),n_mo(2))
+          ALLOCATE(s_mo(n_ao,nmo_max), STAT = istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+  
+        DO imol = 1, nmol
+          NULLIFY(mol_block_a, mos_a, mol_block_b, mos_b, mol_block_l, mos_l)
+          mol_block_a => blocks_a(imol)
+          mol_block_b => blocks_b(imol)
+          mol_block_l => blocks_l(imol)
+          CALL get_fm_mol_block(fm_mol_block = mol_block_a,&
+               mos = mos_a, work = sc_tmp )
+          CPPrecondition(ASSOCIATED(sc_tmp),cp_failure_level,routineP,error,failure)
+          ldsc = SIZE(sc_tmp,1)
+          CPPrecondition(ldsc>=n_ao,cp_failure_level,routineP,error,failure)
+          CALL get_fm_mol_block(fm_mol_block = mol_block_b,&
+               mos = mos_b)
+          CALL get_fm_mol_block(fm_mol_block = mol_block_l,&
+               mos = mos_l)
+  
+          ! Copy the right block of ov_b into the temporary space
+          CALL copy_sparse2mol_block(matrix=ov_b, mol_block=mol_block_b,&
+               matrix_mol_block=ov_b_mol, natom=natom, nrow=n_ao, ncol=n_ao, error=error)
 
-      DO imol = 1, nmol
-        NULLIFY(mol_block_a, mos_a, mol_block_b, mos_b, mol_block_l, mos_l)
-        mol_block_a => blocks_a(imol)
-        mol_block_b => blocks_b(imol)
-        mol_block_l => blocks_l(imol)
-        CALL get_fm_mol_block(fm_mol_block = mol_block_a,&
-             mos = mos_a, work = sc_tmp )
-        CPPrecondition(ASSOCIATED(sc_tmp),cp_failure_level,routineP,error,failure)
-        ldsc = SIZE(sc_tmp,1)
-        CPPrecondition(ldsc>=n_ao,cp_failure_level,routineP,error,failure)
-        CALL get_fm_mol_block(fm_mol_block = mol_block_b,&
-             mos = mos_b)
-        CALL get_fm_mol_block(fm_mol_block = mol_block_l,&
-             mos = mos_l)
 
-        ! Copy the right block of ov_b into the temporary space
-        CALL copy_sparse2mol_block(matrix=ov_b, mol_block=mol_block_b,&
-             matrix_mol_block=ov_b_mol, natom=natom, nrow=n_ao, ncol=n_ao, error=error)
+          DO ispin=1,nspins
+            NULLIFY(mo_set_a, mo_set_b, mo_set_l)
+            NULLIFY(mo_coeff_a, mo_coeff_b, mo_coeff_l)
+  
+            mo_set_a => mos_a(ispin)%mo_set
+            mo_set_b => mos_b(ispin)%mo_set
+            mo_set_l => mos_l(ispin)%mo_set
 
+            CALL get_mol_mo_set(mo_set=mo_set_a, mo = mo_coeff_a,&
+                 nmo=nmo_a)
+            CALL get_mol_mo_set(mo_set=mo_set_b, mo = mo_coeff_b,&
+                 nmo=nmo_b)
+            CALL get_mol_mo_set(mo_set=mo_set_l, mo = mo_coeff_l,&
+                 nmo=nmo_l)
 
-        DO ispin=1,nspins
-          NULLIFY(mo_set_a, mo_set_b, mo_set_l)
-          NULLIFY(mo_coeff_a, mo_coeff_b, mo_coeff_l)
+            CPPostcondition(nmo_a==nmo_b,cp_failure_level,routineP,error,failure)
+            CPPostcondition(nmo_a==nmo_l,cp_failure_level,routineP,error,failure)
 
-          mo_set_a => mos_a(ispin)%mo_set
-          mo_set_b => mos_b(ispin)%mo_set
-          mo_set_l => mos_l(ispin)%mo_set
-
-          CALL get_mol_mo_set(mo_set=mo_set_a, mo = mo_coeff_a,&
-               nmo=nmo_a)
-          CALL get_mol_mo_set(mo_set=mo_set_b, mo = mo_coeff_b,&
-               nmo=nmo_b)
-          CALL get_mol_mo_set(mo_set=mo_set_l, mo = mo_coeff_l,&
-               nmo=nmo_l)
-
-          CPPostcondition(nmo_a==nmo_b,cp_failure_level,routineP,error,failure)
-          CPPostcondition(nmo_a==nmo_l,cp_failure_level,routineP,error,failure)
-
-          CALL DGEMM('N','N',n_ao,nmo_l,n_ao,1.0_dp,ov_b_mol(1,1),n_ao,&
-               mo_coeff_l(1,1),SIZE(mo_coeff_l,1),0.0_dp,sc_tmp(1,1),ldsc)
-          CALL DGEMM('T','N',nmo_b,nmo_b,n_ao,1.0_dp,mo_coeff_b(1,1),n_ao,&
-               sc_tmp(1,1),ldsc,0.0_dp,mol_csc(1,1),ldcsc)
-          CALL DGEMM('N','N',n_ao,nmo_b,nmo_b,1.0_dp,mo_coeff_b(1,1),n_ao,&
-               mol_csc(1,1),ldcsc,0.0_dp,sc_tmp(1,1),ldsc)
-          DO icol = 1,nmo_a
-            DO irow = 1,n_ao
-              mo_coeff_a(irow,icol) = mo_coeff_a(irow,icol) + beta*sc_tmp(irow,icol)
+            CALL DGEMM('N','N',n_ao,nmo_l,n_ao,1.0_dp,ov_b_mol(1,1),n_ao,&
+                 mo_coeff_l(1,1),SIZE(mo_coeff_l,1),0.0_dp,sc_tmp(1,1),ldsc)
+            CALL DGEMM('T','N',nmo_b,nmo_b,n_ao,1.0_dp,mo_coeff_b(1,1),n_ao,&
+                 sc_tmp(1,1),ldsc,0.0_dp,mol_csc(1,1),ldcsc)
+            CALL DGEMM('N','N',n_ao,nmo_b,nmo_b,1.0_dp,mo_coeff_b(1,1),n_ao,&
+                 mol_csc(1,1),ldcsc,0.0_dp,sc_tmp(1,1),ldsc)
+            DO icol = 1,nmo_a
+              DO irow = 1,n_ao
+                mo_coeff_a(irow,icol) = mo_coeff_a(irow,icol) + beta*sc_tmp(irow,icol)
+              END DO
             END DO
-          END DO
 
-          ! Calculate the density matrix with the completed new guess for the mos
-          IF(calculate_density) THEN
-            ! Multiply Overlap matric and Coefficient matrix
-            CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
-                                         natom,mo_coeff_a,nmo_a,s_mo,error=error)
-            ! orthogonalize the molecular orbitals
-            CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
+            ! Calculate the density matrix with the completed new guess for the mos
+            IF(calculate_density) THEN
+              ! Multiply Overlap matric and Coefficient matrix
+              CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
+                                           natom,mo_coeff_a,nmo_a,s_mo,error=error)
+              ! orthogonalize the molecular orbitals
+              CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
 
-            CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
-                 natom, matrix_p(ispin)%matrix, error=error)
-          END IF
+              CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
+                   natom, matrix_p(ispin)%matrix, error=error)
+            END IF
 
-        END DO  ! ispin
+          END DO  ! ispin
 
-      END DO ! imol
-      IF(calculate_density) THEN
-        DEALLOCATE(s_mo, STAT=istat)
+        END DO ! imol
+        IF(calculate_density) THEN
+          DEALLOCATE(s_mo, STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
+        DEALLOCATE(mol_csc,STAT = istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
+  
+        DEALLOCATE(ov_b_mol,STAT = istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      DEALLOCATE(mol_csc,STAT = istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      DEALLOCATE(ov_b_mol,STAT = istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+      END IF  ! nmol
     END DO  ! imolecule_kind
 
 
@@ -457,15 +466,17 @@ CONTAINS
 
     failure = .FALSE.
     nmolecule_kind = SIZE(kg_fm_mol_set)
+    NULLIFY(mo_coeff, s_mo)
 
-      DO imolecule_kind = 1,nmolecule_kind
-        NULLIFY(fm_mol_set,fm_mol_blocks)
-        fm_mol_set => kg_fm_mol_set(imolecule_kind)
-        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
-                              natom = nat_mol, &
-                              n_ao = n_ao , n_mo = nmo_kind, &
-                              fm_mol_blocks = fm_mol_blocks,&
-                              nmolecule_local = nmol_local)
+    DO imolecule_kind = 1,nmolecule_kind
+      NULLIFY(fm_mol_set,fm_mol_blocks)
+      fm_mol_set => kg_fm_mol_set(imolecule_kind)
+      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
+                             natom = nat_mol, &
+                             n_ao = n_ao , n_mo = nmo_kind, &
+                             fm_mol_blocks = fm_mol_blocks,&
+                             nmolecule_local = nmol_local)
+      IF(nmol_local>0) THEN
         nspins = 1
         IF(nmo_kind(2)/=0)  nspins = 2
 
@@ -497,8 +508,8 @@ CONTAINS
 
         DEALLOCATE(s_mo,STAT = istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      END DO  ! imolecule_kind
+      END IF  ! nmol_local
+    END DO  ! imolecule_kind
 
   END SUBROUTINE  kg_gpw_prev_wf
 

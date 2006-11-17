@@ -503,12 +503,19 @@ CONTAINS
         fm_mol_set_b(i)%nmolecule_local = fm_mol_set_a(i)%nmolecule_local
         n_ao = fm_mol_set_a(i)%n_ao
         n_mo = fm_mol_set_a(i)%n_mo
-        nmol = SIZE(fm_mol_set_a(i)%fm_mol_blocks,1)
+        IF(ASSOCIATED(fm_mol_set_a(i)%fm_mol_blocks)) THEN
+          nmol = SIZE(fm_mol_set_a(i)%fm_mol_blocks,1)
+
+          IF(.NOT. ASSOCIATED(fm_mol_set_b(i)%fm_mol_blocks)) THEN
+            CALL allocate_fm_mol_blocks(fm_mol_set_b(i),nmol,error)
+          END IF
+
+        ELSE
+          nmol = 0
+          NULLIFY(fm_mol_set_b(i)%fm_mol_blocks) 
+        END IF
         natom = fm_mol_set_a(i)%natom
 
-        IF(.NOT. ASSOCIATED(fm_mol_set_b(i)%fm_mol_blocks)) THEN
-          CALL allocate_fm_mol_blocks(fm_mol_set_b(i),nmol,error)
-        END IF
 
         DO imol = 1,nmol
           mol_block_a => fm_mol_set_a(i)%fm_mol_blocks(imol)

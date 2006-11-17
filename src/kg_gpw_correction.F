@@ -175,6 +175,7 @@ CONTAINS
 
     NULLIFY(atomic_kind_set,particle_set,para_env,vxc_tau,tau)
     NULLIFY(rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau,input,xc_section_kg)
+    NULLIFY(forces_mol)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          input=input,rho=rho_global,para_env=para_env,error=error)
@@ -296,8 +297,8 @@ CONTAINS
         NULLIFY(molbox,pw_env_mol,cell_mol,rho_mol_blocks)
         molbox => molbox_env(imolecule_kind)
         CALL get_molbox_env(molbox_env=molbox,natom=nat_mol,cell_mol=cell_mol,&
-                            pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
-        nmol_local = SIZE(rho_mol_blocks,1)
+             nmolecule_local=nmol_local, pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
+        IF(nmol_local>0) THEN
         CALL pw_env_get(pw_env=pw_env_mol,auxbas_pw_pool=auxbas_pw_pool,error=error)
 
         NULLIFY(fm_mol,fm_mol_blocks)
@@ -448,9 +449,12 @@ CONTAINS
 
         END DO  ! imol
 
+        END IF  !nmol_local
         IF(ASSOCIATED(forces_mol)) THEN
           DEALLOCATE(forces_mol,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ELSE
+          NULLIFY(forces_mol)
         END IF
 
       END DO ! imolecule_kind

@@ -120,7 +120,7 @@ SUBROUTINE kg_energies ( kg_env, root_section, globenv, error )
 
     ELSE IF ( dft_control % qs_control % method == "KG_POL" ) THEN
 
-      CALL kg_std_energies ( kg_env, root_section, globenv, error )
+      CALL kg_std_energies ( kg_env, root_section, error )
 
     ELSE
 
@@ -320,11 +320,10 @@ END SUBROUTINE kg_only_energies
 !!   MODIFICATION HISTORY
 !!
 !!*** *************************************************************************
-SUBROUTINE kg_std_energies ( kg_env, root_section, globenv, error )
+SUBROUTINE kg_std_energies ( kg_env, root_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -494,7 +493,6 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
                                        calculate_forces=.FALSE., error=error)
-
     CALL kg_qs_env_update(kg_env,qs_env,error=error)
 
     ! add Pauli potential
