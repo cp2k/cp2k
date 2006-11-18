@@ -67,3 +67,5 @@ H+solv1.inp
 # major rewriting of the ddapc module
 H+solv1.inp
 H2O-solv.inp
+#resetting again due to a problem with the regtester (?!)
+H2O-solv.inp
