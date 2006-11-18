@@ -15,11 +15,6 @@
            XYZ [angstrom] 4.0 4.0 4.0
         &END
       &END
-      &MULTIPOLE
-        EWALD_PRECISION 0.00000001
-        RCUT 3.0
-        ANALYTICAL_GTERM
-      &END MULTIPOLE
     &END
     &QS
       EPS_DEFAULT 1.0E-12
@@ -29,6 +24,15 @@
       MAX_SCF 100
       SCF_GUESS ATOMIC
     &END SCF
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MULTIPOLE
+      &MULTIPOLE
+        EWALD_PRECISION 0.00000001
+        RCUT 3.0
+        ANALYTICAL_GTERM
+      &END MULTIPOLE
+    &END
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
@@ -66,5 +70,10 @@
       TIMECON 100.0
       MTS 2
     &END NOSE
+    PV_AVA F
+    PV_NUM F
   &END MD
 &END MOTION
+&DEBUG
+DEBUG_PRESSURE F
+&END

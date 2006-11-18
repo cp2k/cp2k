@@ -34,7 +34,7 @@ MODULE qs_scf_post
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
-  USE cp_ddapc,                        ONLY: get_ddapc
+  USE cp_ddapc_util,                   ONLY: get_ddapc
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -181,8 +181,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
@@ -238,7 +237,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: lowdin_title
     REAL(KIND = dp)           :: q_max
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
-    TYPE(section_vals_type), POINTER :: print_key, input, loc_section
+    TYPE(section_vals_type), POINTER :: print_key, input, loc_section,&
+         density_fit_section
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     CHARACTER(len=default_string_length)     :: iter
@@ -312,12 +312,16 @@ CONTAINS
                "DFT%PRINT%LOWDIN", error=error)
        END IF
 
-
 !    *** Fit charges with the Bloechl scheme
        print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-           error=error),cp_p_file)) THEN
-          CALL get_ddapc(qs_env,.FALSE.,print_key,just_charge=.TRUE.,error=error)
+            error=error),cp_p_file)) THEN
+          unit_nr=cp_print_key_unit_nr(logger,input,"PROPERTIES%FIT_CHARGE",&
+               extension=".Fitcharge",log_filename=.FALSE.,error=error)
+          density_fit_section => section_vals_get_subs_vals(input,"DFT%DENSITY_FITTING",error=error)
+          CALL get_ddapc(qs_env,.FALSE.,density_fit_section,iwc=unit_nr,error=error)
+          CALL cp_print_key_finished_output(unit_nr, logger,input,&
+               "PROPERTIES%FIT_CHARGE", error=error)
        END IF
 
 !    ***  Print Localized orbitals
@@ -794,7 +798,6 @@ CONTAINS
     END IF
 
     ! Calculation of Electric Field Gradients
-
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
                    error=error)
@@ -811,8 +814,7 @@ CONTAINS
 
   SUBROUTINE write_available_results(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
@@ -1074,8 +1076,7 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: print_header
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_stupid_dipole', &
       routineP = moduleN//':'//routineN

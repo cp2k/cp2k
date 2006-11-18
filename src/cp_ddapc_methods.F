@@ -88,8 +88,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: gcut
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(kind=dp), DIMENSION(:), POINTER     :: radii
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_gfunc', &
       routineP = moduleN//':'//routineN
@@ -160,8 +159,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_b_vector', &
       routineP = moduleN//':'//routineN
@@ -248,8 +246,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_A_matrix', &
       routineP = moduleN//':'//routineN
@@ -344,8 +341,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iparticle0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_der_b_vector', &
       routineP = moduleN//':'//routineN
@@ -443,8 +439,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iparticle0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix', &
       routineP = moduleN//':'//routineN
@@ -557,8 +552,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: Vol
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_AmI', &
       routineP = moduleN//':'//routineN
@@ -655,8 +649,7 @@ CONTAINS
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_pot', &
       routineP = moduleN//':'//routineN
@@ -853,8 +846,7 @@ CONTAINS
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_pot', &
       routineP = moduleN//':'//routineN

@@ -64,3 +64,6 @@ H2O-bloechl-Spl.inp
 H2O-solv.inp
 He2H-bloechl-md.inp
 H+solv1.inp
+# major rewriting of the ddapc module
+H+solv1.inp
+H2O-solv.inp

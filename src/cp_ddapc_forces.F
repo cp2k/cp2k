@@ -101,8 +101,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: dq
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_force', &
       routineP = moduleN//':'//routineN
@@ -276,8 +275,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_decpl_ddapc_forces', &
       routineP = moduleN//':'//routineN
@@ -358,8 +356,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE reset_ch_pulay(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reset_ch_pulay', &
       routineP = moduleN//':'//routineN
@@ -413,8 +410,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:)              :: uv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     REAL(KIND=dp), INTENT(INOUT)             :: energy_res
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'evaluate_restraint_functional', &
@@ -491,8 +487,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: n_gauss
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restraint_functional_force', &
       routineP = moduleN//':'//routineN
@@ -589,8 +584,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: dq
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_force', &
       routineP = moduleN//':'//routineN
@@ -717,7 +711,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(LocP,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       M => qs_env%cp_ddapc_env%Mr
+       M => qs_env%cp_ddapc_env%Ms
        CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
        DEALLOCATE(d_el, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -46,6 +46,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC, DIMENSION(3) :: program_name_index=&
        (/do_farming, do_test, do_cp2k/)
 
+  INTEGER, PARAMETER, PUBLIC :: do_full_density=0,&
+                                do_spin_density=1
   ! Method Names
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: method_names=&
        (/"QS        ",&

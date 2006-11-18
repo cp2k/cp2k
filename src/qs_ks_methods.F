@@ -37,7 +37,8 @@ MODULE qs_ks_methods
        coeff_add, coeff_copy, coeff_init, coeff_scale, coeff_subtract, &
        coeff_sumup, coeff_transform_space, coeff_type, coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_ddapc,                        ONLY: cp_ddapc_apply
+  USE cp_ddapc,                        ONLY: cp_ddapc_apply,&
+                                             cp_ddapc_apply_CD
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -76,7 +77,6 @@ MODULE qs_ks_methods
                                              xc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_get,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -186,8 +186,7 @@ CONTAINS
   SUBROUTINE qs_ks_create(ks_env, qs_env, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
       routineP = moduleN//':'//routineN
@@ -304,8 +303,7 @@ CONTAINS
     TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
     LOGICAL, INTENT(IN), OPTIONAL            :: diis_step
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
@@ -971,8 +969,7 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(*), PARAMETER :: routineN = 'calc_v_sic_rspace', &
       routineP = moduleN//':'//routineN
@@ -1021,12 +1018,14 @@ CONTAINS
             "Unknown sic method id",error,failure)
     END SELECT
     ! Correct for  DDAP charges (if any)
-    CALL cp_ddapc_apply(qs_env,&
-                        work_rho,&
-                        ener,&
-                        v_hartree_gspace=work_v,&
-                        calculate_forces=calculate_forces,&
-                        error=error)
+    CALL cp_ddapc_apply_CD(qs_env,&
+                           work_rho,&
+                           ener,&
+                           v_hartree_gspace=work_v,&
+                           calculate_forces=calculate_forces,&
+                           only_decoupling=.TRUE.,&
+                           Itype_of_density="SPIN",&
+                           error=error)
 
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
@@ -1059,8 +1058,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_nuclear_density
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(*), PARAMETER :: routineN = 'calc_rho_tot_gspace', &
       routineP = moduleN//':'//routineN
@@ -1103,8 +1101,7 @@ CONTAINS
     TYPE(coeff_type), INTENT(IN)             :: rho_tot_gspace
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: ispin, n_electrons
     REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r
@@ -1226,8 +1223,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
       POINTER                                :: kg_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
                                                 just_energy, diis_step
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
       routineP = moduleN//':'//routineN
@@ -1370,8 +1366,7 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
                                                 rho_changed, &
                                                 potential_changed, full_reset
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
       routineP = moduleN//':'//routineN
@@ -1452,40 +1447,39 @@ END SUBROUTINE qs_ks_did_change
 !!*** *********************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      just_energy, harris, nsc_force, gapw_xc, error)
-  TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
-  REAL(KIND=dp)                            :: exc
-  TYPE(qs_environment_type), POINTER       :: qs_env
-  LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
-       nsc_force, gapw_xc
-  TYPE(cp_error_type), INTENT(inout)  &
-       :: error
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
+    REAL(KIND=dp)                            :: exc
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
+                                                nsc_force, gapw_xc
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, ispin, nelec_spin(2), &
-       stat, myfun
-  LOGICAL                                  :: failure, harris_flag, &
-       my_gapw_xc, my_just_energy, &
-       nsc_flag, sic_scaling_b_zero, &
-       uf_grid
-  REAL(KIND=dp)                            :: exc_m, my_scaling, nelec_s_inv
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_gspace, rho_m_rspace
-  TYPE(dft_control_type), POINTER          :: dft_control
-  TYPE(harris_env_type), POINTER           :: harris_env
-  TYPE(mo_set_p_type), DIMENSION(:), &
-       POINTER                                :: mo_array
-  TYPE(pw_env_type), POINTER               :: pw_env
-  TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
-       rho_g, rho_r, tau
-  TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
-  TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
-  TYPE(qs_rho_type), POINTER               :: rho_struct
-  TYPE(section_vals_type), POINTER         :: input, xc_section
-  TYPE(virial_type), POINTER               :: virial
+    INTEGER                                  :: handle, ispin, myfun, &
+                                                nelec_spin(2), stat
+    LOGICAL                                  :: failure, harris_flag, &
+                                                my_gapw_xc, my_just_energy, &
+                                                nsc_flag, sic_scaling_b_zero, &
+                                                uf_grid
+    REAL(KIND=dp)                            :: exc_m, my_scaling, nelec_s_inv
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_gspace, rho_m_rspace
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
+                                                rho_g, rho_r, tau
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(virial_type), POINTER               :: virial
 
-  !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
   CALL timeset( routineN ,"I","",handle)
 
@@ -1974,8 +1968,7 @@ END SUBROUTINE qs_vxc_create
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: w_matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -2048,8 +2041,7 @@ END SUBROUTINE qs_vxc_create
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_deriv
     TYPE(real_matrix_type), POINTER          :: w_matrix, s_matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     LOGICAL, PARAMETER                       :: check_gradient = .FALSE., &
                                                 do_symm = .FALSE.
@@ -2130,8 +2122,7 @@ END SUBROUTINE qs_vxc_create
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: matrix_ks, matrix_p, matrix_w
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
 

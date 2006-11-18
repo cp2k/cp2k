@@ -45,3 +45,5 @@ H2O-debug-3.inp    1
 C2H4-meta.inp      1
 # improved atomic_kind
 test-pdb.inp       1
+# Spin density DDAP charges
+H2O+SC.inp         0

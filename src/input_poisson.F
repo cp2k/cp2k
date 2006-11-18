@@ -33,8 +33,7 @@ MODULE input_poisson
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: integer_t,&
-                                             real_t
+  USE input_val_types,                 ONLY: real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -76,8 +75,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_poisson_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_poisson_section', &
       routineP = moduleN//':'//routineN
@@ -163,8 +161,7 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE create_multipole_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_section', &
       routineP = moduleN//':'//routineN
@@ -185,43 +182,6 @@ CONTAINS
             error=error)
 
        NULLIFY(keyword, subsection)
-
-       CALL keyword_create(keyword, name="NUM_GAUSS",&
-            description="Specifies the numbers of gaussian used to fit the QM density for each atomic site.",&
-            usage="NUM_GAUSS {integer}", required=.FALSE.,&
-            n_var=1, type_of_var=integer_t, default_i_val=3, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="PFACTOR",&
-            description="Specifies the progression factor for the gaussian exponent for each atomic site.",&
-            usage="PFACTOR {real}", required=.FALSE.,&
-            n_var=1, type_of_var=real_t, default_r_val=1.5_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MIN_RADIUS",&
-            description="Specifies the smallest radius of the gaussian used in the fit. All other radius are"//&
-            " obtained with the progression factor.",&
-            usage="MIN_RADIUS {real}", required=.FALSE.,&
-            unit_str="angstrom",n_var=1, type_of_var=real_t, default_r_val=0.5_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
-       CALL keyword_create(keyword, name="RADII",&
-            description="Specifies all the radius of the gaussian used in the fit for each atomic site. The use"//&
-            " of this keyword disables all other keywords of this section.",&
-            usage="RADII {real} {real} .. {real}", required=.FALSE.,&
-            unit_str="angstrom",n_var=-1, type_of_var=real_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="GCUT",&
-            description="Cutoff for charge fit in G-space.",&
-            usage="GCUT {real}", required=.FALSE.,&
-            n_var=1, type_of_var=real_t, default_r_val=SQRT(6.0_dp),error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Real space cutoff for the Ewald sum.",&
@@ -266,14 +226,6 @@ CONTAINS
             description="Controls the printing of basic information during the run", &
             print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
-
-       CALL keyword_create(keyword, name="CONDITION_NUMBER",&
-            description="Prints information regarding the condition numbers of the A matrix (to be inverted)",&
-            usage="ANALYTICAL_GTERM <LOGICAL>",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
-
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -305,8 +257,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_screening_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_screening_section', &
       routineP = moduleN//':'//routineN
@@ -377,8 +328,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_mt_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mt_section', &
       routineP = moduleN//':'//routineN
@@ -443,8 +393,7 @@ CONTAINS
 
 SUBROUTINE create_ewald_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ewald_section', &
       routineP = moduleN//':'//routineN
@@ -544,8 +493,7 @@ END SUBROUTINE create_ewald_section
 !!*** **********************************************************************
   SUBROUTINE create_gspace_interp_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gspace_interp_section', &
       routineP = moduleN//':'//routineN

@@ -35,6 +35,8 @@ MODULE qs_environment_methods
                                              coeff_type
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_release
+  USE cp_ddapc_util,                   ONLY: cp_ddapc_init
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -133,8 +135,7 @@ CONTAINS
 SUBROUTINE qs_env_setup(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', &
       routineP = moduleN//':'//routineN
@@ -257,8 +258,7 @@ END SUBROUTINE qs_env_setup
 !!*** **********************************************************************
 SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_s_mstruct', &
       routineP = moduleN//':'//routineN
@@ -308,6 +308,12 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
               qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
       END IF
     END IF
+    
+    ! *** environment for ddapc ***
+    IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
+       CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
+    END IF
+    CALL cp_ddapc_init(qs_env, error)
 
     ! *** tell ks_env ***
     IF (ASSOCIATED(qs_env%ks_env)) THEN
@@ -360,8 +366,7 @@ END SUBROUTINE qs_env_update_s_mstruct
 !!*** **********************************************************************
 SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_pw_env', &
       routineP = moduleN//':'//routineN
@@ -461,8 +466,7 @@ END SUBROUTINE qs_env_rebuild_pw_env
 SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_rho', &
       routineP = moduleN//':'//routineN
@@ -513,8 +517,7 @@ END SUBROUTINE qs_env_rebuild_rho
 !!*** **********************************************************************
 SUBROUTINE qs_env_update_rho_core(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_rho_core', &
       routineP = moduleN//':'//routineN
@@ -582,8 +585,7 @@ END SUBROUTINE qs_env_update_rho_core
       POINTER                                :: atomic_kind_set
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_distribution_2d_create', &
       routineP = moduleN//':'//routineN

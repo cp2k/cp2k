@@ -72,7 +72,7 @@ MODULE cp_output_handling
   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
   PUBLIC :: cp_iter_string, cp_print_key_section_create
   PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
-  PUBLIC :: cp_print_key_generate_filename, cp_print_key_log
+  PUBLIC :: cp_print_key_generate_filename, cp_print_key_log, cp_printkey_is_on
 
 !! flags controlling the printing and storing of a property.
 !!

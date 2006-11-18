@@ -706,9 +706,17 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="numerical_pressure",&
          description="Computes the numerical tensor",&
-         usage="NUMERICAL_PRESSURE <LOGICAL>",default_l_val=.FALSE., error=error)
+         usage="NUMERICAL_PRESSURE <LOGICAL>",default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="DEBUG_PRESSURE",&
+         description="To skip the computation of the PRESSURE in a DEBUG run",&
+         usage="DEBUG_PRESSURE <LOGICAL>",default_l_val=.TRUE.,&
+         lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)    
 
     CALL keyword_create(keyword, name="dx",&
          description=" Setup the DX parameter to evaluate numerical derivatives",&

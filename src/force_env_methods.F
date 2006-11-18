@@ -378,7 +378,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isubsys, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, virial_in_use
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
 
@@ -452,7 +452,9 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%qs_env => qs_env
            CALL qs_env_retain(qs_env,error=error)
            IF (force_env%globenv%run_type_id == qs_debug_run) THEN
-              CALL virial_create(force_env%virial, virial_in_use = .TRUE.,error=error)
+              CALL section_vals_val_get(root_section,"DEBUG%DEBUG_PRESSURE",&
+                   l_val=virial_in_use,error=error)
+              CALL virial_create(force_env%virial, virial_in_use = virial_in_use,error=error)
            ELSE
               CALL virial_create(force_env%virial, virial_in_use = .FALSE.,error=error)
            END IF

@@ -24,52 +24,24 @@ MODULE cp_ddapc
 !!
 !!   SOURCE
 !****************************************************************************  
-  USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
-  USE cp_control_types,                ONLY: ddapc_restraint_type,&
-                                             dft_control_type
-  USE cp_ddapc_forces,                 ONLY: evaluate_restraint_functional,&
-                                             ewald_ddapc_force,&
+  USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&
                                              restraint_functional_force,&
                                              solvation_ddapc_force
-  USE cp_ddapc_methods,                ONLY: build_A_matrix,&
-                                             build_b_vector,&
-                                             build_der_A_matrix,&
-                                             build_der_b_vector
-  USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
-                                             cp_ddapc_decoupling,&
-                                             cp_ddapc_qmmmperiodic,&
-                                             cp_ddapc_release,&
-                                             cp_ddapc_solvationSph,&
-                                             cp_ddapc_type
+  USE cp_ddapc_util,                   ONLY: get_ddapc,&
+                                             modify_hartree_pot,&
+                                             restraint_functional_potential
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE input_constants,                 ONLY: use_multipole
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kahan_sum,                       ONLY: accurate_sum
+                                             section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
-  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             RECIPROCALSPACE,&
-                                             pw_integral_ab,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type
-  USE qs_charges_types,                ONLY: qs_charges_type
+  USE pw_types,                        ONLY: pw_integral_ab
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -79,17 +51,21 @@ MODULE cp_ddapc
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc'
-  PUBLIC :: get_ddapc, cp_ddapc_apply
-  
+
+  PUBLIC :: cp_ddapc_apply_CD,&  ! Apply Coupling/Decoupling to Periodic Images
+            cp_ddapc_apply_RS,&  ! Apply Restraints/Constraints
+            cp_ddapc_apply_RF,&  ! Apply an SCRF (Solvation Scheme)
+            cp_ddapc_apply
+
 CONTAINS
 
-!!****f* cp_ddapc/get_ddapc [1.0] *
+!!****f* cp_ddapc/cp_ddapc_apply [1.0] *
 !!
 !!   NAME
-!!     get_ddapc
+!!     cp_ddapc_apply
 !!
 !!   FUNCTION
-!!     Computes the Density Derived Atomic Point Charges 
+!!     Set of routines to use the Bloechl charges for several tasks
 !!
 !!   NOTES
 !!     -
@@ -103,304 +79,45 @@ CONTAINS
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE get_ddapc(qs_env,calc_force,param_section,&
-       qout1,qout2,out_radii,dq_out,just_charge,ext_rho_tot_g,error)
+  SUBROUTINE cp_ddapc_apply(qs_env, rho_tot_gspace, energy, energy_res,&
+       v_hartree_gspace, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: calc_force
-    TYPE(section_vals_type), POINTER         :: param_section
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: qout1, qout2, out_radii
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      OPTIONAL, POINTER                      :: dq_out
-    LOGICAL, INTENT(in), OPTIONAL            :: just_charge
-    TYPE(pw_type), POINTER, OPTIONAL         :: ext_rho_tot_g
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(coeff_type)                         :: rho_tot_gspace
+    REAL(KIND=dp), INTENT(INOUT)             :: energy, energy_res
+    TYPE(coeff_type)                         :: v_hartree_gspace
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_ddapc', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, handle3, i, &
-                                                ii, iparticle, ispin, iw, &
-                                                iw2, j, n_rep_val, ndim, &
-                                                num_gauss, stat
-    LOGICAL                                  :: apply_restrain, failure, &
-                                                need_f, only_charge
-    REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, gcut,&
-                                                pfact, rcmin, Vol
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv, cv, dqv0, qtot, qv
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: dbv
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: dAm, dqv
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
-    TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
-    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pool
-    TYPE(pw_type), POINTER                   :: rho_tot_g
-    TYPE(qs_charges_type), POINTER           :: qs_charges
-    TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,"I","",handle)
-    failure         = .FALSE.
-    need_f          = .FALSE.
-    only_charge     = .FALSE.
-    apply_restrain  = qs_env%dft_control%qs_control%ddapc_restraint
-    IF (PRESENT(just_charge)) only_charge = just_charge
-    IF (PRESENT(calc_force))  need_f      = calc_force    
-    logger => cp_error_get_logger(error)
-    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
-         radii, inp_radii, particle_set, qs_charges, cp_ddapc_env)
+    failure        = .FALSE.
+    logger         => cp_error_get_logger(error)
     IF (.NOT.failure) THEN
-       !
-       ! Build the total QS density (electron+nuclei) in G-space
-       !
-       CALL get_qs_env(qs_env=qs_env,&
-                       dft_control=dft_control,&
-                       rho=rho,&
-                       rho_core=rho_core,&
-                       rho0_s_gs=rho0_s_gs,&
-                       pw_env=pw_env,&
-                       qs_charges=qs_charges,&
-                       particle_set=particle_set,&
-                       cell=cell,&
-                       super_cell=super_cell,&
-                       error=error)
-       iw=cp_print_key_unit_nr(logger,param_section,&
-            "PROGRAM_RUN_INFO",".totCharge",error=error)
-       iw2=cp_print_key_unit_nr(logger,param_section,&
-            "PROGRAM_RUN_INFO/CONDITION_NUMBER",".totCharge",error=error)
-       IF (iw>0) THEN
-          WRITE(iw,'(T3,A,F15.9)')" Evaluating the DDAPC charges"
-       END IF       
-       CALL pw_env_get(pw_env=pw_env,&
-                       auxbas_pw_pool=auxbas_pool,&
-                       error=error)
-       CALL pw_pool_create_pw(auxbas_pool,rho_tot_g, in_space=RECIPROCALSPACE,&
-            use_data=COMPLEXDATA1D, error=error)
-       IF (PRESENT(ext_rho_tot_g)) THEN
-          CALL pw_transfer(ext_rho_tot_g,rho_tot_g)
-       ELSE
-          IF(dft_control%qs_control%gapw) THEN
-             CALL pw_transfer(rho0_s_gs%pw,rho_tot_g)       
-          ELSE
-             CALL pw_transfer(rho_core%pw,rho_tot_g)       
-          END IF
-          DO ispin=1,SIZE(rho%rho_g)
-             CALL pw_sumup(rho%rho_g(ispin)%pw,rho_tot_g)
-          END DO
-       END IF
-       Vol = rho%rho_r(1)%pw%pw_grid%vol
-       ch_dens = 0.0_dp
-       IF (rho_tot_g%pw_grid%have_g0) ch_dens = rho_tot_g%cc(1)
-       CALL mp_sum(ch_dens,logger%para_env%group)
-       !
-       ! Get Input Parameters
-       !
-       CALL section_vals_val_get(param_section,"RADII",n_rep_val=n_rep_val,error=error)
-       IF (n_rep_val /= 0) THEN
-          CALL section_vals_val_get(param_section,"RADII",r_vals=inp_radii,error=error)
-          num_gauss = SIZE(inp_radii)
-          ALLOCATE(radii(num_gauss), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          radii = inp_radii
-       ELSE
-          CALL section_vals_val_get(param_section,"NUM_GAUSS",i_val=num_gauss,error=error)
-          CALL section_vals_val_get(param_section,"MIN_RADIUS",r_val=rcmin,error=error)
-          CALL section_vals_val_get(param_section,"PFACTOR",r_val=pfact,error=error)
-          ALLOCATE(radii(num_gauss), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
-          DO i = 1, num_gauss
-             radii(i) = rcmin*pfact**(i-1)
-          END DO
-       END IF
-       IF (PRESENT(out_radii)) THEN
-          IF (ASSOCIATED(out_radii)) THEN
-             DEALLOCATE(out_radii, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          ALLOCATE(out_radii(SIZE(radii)), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          out_radii = radii
-       END IF
-       CALL section_vals_val_get(param_section,"GCUT",r_val=gcut,error=error)
-       ! 
-       ! Start with the linear system
-       !
-       IF   (only_charge.AND.(.NOT.apply_restrain)) &
-            CALL cp_ddapc_release(qs_env%cp_ddapc_env,error=error)
-       CALL cp_ddapc_create(qs_env%cp_ddapc_env,&
-                            qs_env%cp_ddapc_ewald,&
-                            particle_set,&
-                            radii,&
-                            cell,&
-                            super_cell,&
-                            rho_tot_g,&
-                            gcut,&
-                            iw,&
-                            iw2,&
-                            Vol, &
-                            param_section,&
-                            (only_charge.OR.apply_restrain),&
-                            qs_env%input,&
-                            error)
-       cp_ddapc_env => qs_env%cp_ddapc_env 
-
-       ndim = SIZE(particle_set)*SIZE(radii) 
-       ALLOCATE(bv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(qv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
-       ALLOCATE(qtot(SIZE(particle_set)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
-       ALLOCATE(cv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL timeset(routineN//"-charges","I","",handle2)
-       bv  = 0.0_dp
-       cv  = 1.0_dp/Vol
-       CALL build_b_vector(bv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-            particle_set, radii, rho_tot_g, gcut, error);  bv = bv / Vol
-       CALL mp_sum(bv,rho_tot_g%pw_grid%para%group)
-       c1 = DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,bv))-ch_dens
-       c1 = c1 / cp_ddapc_env%c0
-       qv = - MATMUL(cp_ddapc_env%AmI,(bv-c1*cv))
-       j  = 0
-       qtot = 0.0_dp
-       DO i = 1, ndim, num_gauss
-          j = j+1
-          DO ii = 1, num_gauss
-             qtot(j) = qtot(j) + qv((i-1)+ii)
-          END DO
-       END DO
-       IF (PRESENT(qout1)) THEN
-          IF (ASSOCIATED(qout1)) THEN
-             CPPostcondition(SIZE(qout1)==SIZE(qv),cp_failure_level,routineP,error,failure)
-          ELSE
-             ALLOCATE(qout1(SIZE(qv)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          qout1 = qv
-       END IF
-       IF (PRESENT(qout2)) THEN
-          IF (ASSOCIATED(qout2)) THEN
-             CPPostcondition(SIZE(qout2)==SIZE(qtot),cp_failure_level,routineP,error,failure)
-          ELSE
-             ALLOCATE(qout2(SIZE(qtot)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          qout2 = qtot
-       END IF
-       
-       CALL print_atomic_charges(particle_set,iw,title=" DDAPC charges:",atomic_charges=qtot)
-
-       CALL timestop(0.0_dp,handle2)
-       !
-       ! If requested evaluate also the correction to derivatives due to Pulay Forces
-       !
-       IF (need_f.AND.(.NOT.(only_charge.AND.(.NOT.apply_restrain)))) THEN 
-          CALL timeset(routineN//"-forces","I","",handle3)
-          IF (iw>0) THEN
-             WRITE(iw,'(T3,A)')" Evaluating DDAPC atomic derivatives .."
-          END IF
-          ALLOCATE(dAm(ndim, ndim,3), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(dbv(ndim,3), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(dqv0(ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(dqv(ndim,SIZE(particle_set),3), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)     
-          !
-          DO iparticle = 1, SIZE(particle_set)
-             dAm = 0.0_dp
-             dbv = 0.0_dp
-             CALL build_der_b_vector(dbv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-                  particle_set, radii, rho_tot_g, gcut, iparticle, error);  dbv = dbv / Vol
-             CALL mp_sum(dbv,rho_tot_g%pw_grid%para%group)
-             IF (debug_this_module) THEN
-                CALL debug_der_b_vector(dbv, particle_set, radii, rho_tot_g,&
-                     gcut, iparticle, Vol, param_section, qs_env, error)
-                cp_ddapc_env => qs_env%cp_ddapc_env 
-             END IF
-             CALL build_der_A_matrix(dAm, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-                  particle_set, radii, rho_tot_g, gcut, iparticle, error);  dAm = dAm /(Vol*Vol)
-             CALL mp_sum(dAm,rho_tot_g%pw_grid%para%group)             
-             IF (debug_this_module) THEN
-                CALL debug_der_A_matrix(dAm, particle_set, radii, rho_tot_g,&
-                     gcut, iparticle, Vol, param_section, qs_env, error)
-                cp_ddapc_env => qs_env%cp_ddapc_env 
-             END IF
-             DO j = 1, 3
-                dqv0 = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),-qv))
-                c3 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,bv)))) + &
-                       DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
-                c3   = c3 / cp_ddapc_env%c0
-                c4 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,cv)))) / &
-                     cp_ddapc_env%c0
-                dqv(:,iparticle,j) = - ( dqv0 + MATMUL(cp_ddapc_env%AmI,dbv(:,j)) - &
-                     c3 * MATMUL(cp_ddapc_env%AmI,cv) + c4 * c1 * MATMUL(cp_ddapc_env%AmI,cv))
-             END DO
-          END DO
-          CPPostcondition(PRESENT(dq_out),cp_failure_level,routineP,error,failure)
-          IF (.NOT.ASSOCIATED(dq_out)) THEN
-             ALLOCATE(dq_out(SIZE(dqv,1),SIZE(dqv,2),SIZE(dqv,3)), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ELSE
-             CPPostcondition(SIZE(dqv,1)==SIZE(dq_out,1),cp_failure_level,routineP,error,failure)
-             CPPostcondition(SIZE(dqv,2)==SIZE(dq_out,2),cp_failure_level,routineP,error,failure)
-             CPPostcondition(SIZE(dqv,3)==SIZE(dq_out,3),cp_failure_level,routineP,error,failure)
-          END IF
-          dq_out = dqv
-          IF (debug_this_module) THEN
-             CALL debug_charge(dqv, qs_env, param_section, particle_set, radii, rho_tot_g, error)
-             cp_ddapc_env => qs_env%cp_ddapc_env 
-          END IF
-          DEALLOCATE(dqv, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(dqv0, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(dAm, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(dbv, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL timestop(0.0_dp,handle3)
-       END IF
-       !
-       ! End of charge fit
-       !
-       DEALLOCATE(radii, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(bv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(cv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(qv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(qtot, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_print_key_finished_output(iw,logger,param_section,&
-            "PROGRAM_RUN_INFO",error=error)
-       CALL cp_print_key_finished_output(iw2,logger,param_section,&
-            "PROGRAM_RUN_INFO/CONDITION_NUMBER",error=error)
-       CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
-            accept_non_compatible=.TRUE.,error=error)
-       IF (only_charge.AND.(.NOT.apply_restrain)) &
-            CALL cp_ddapc_release(qs_env%cp_ddapc_env,error=error)
+       IF (calculate_forces) CALL reset_ch_pulay(qs_env, error=error)
+       ! Decoupling/Recoupling
+       CALL cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace,&
+            calculate_forces, Itype_of_density="FULL DENSITY", error=error)
+       ! Restraints/Constraints
+       CALL cp_ddapc_apply_RS(qs_env, energy, energy_res, v_hartree_gspace,&
+            calculate_forces, error)
+       ! Self Consistent Reaction Field
+       CALL cp_ddapc_apply_RF(qs_env, rho_tot_gspace, energy, v_hartree_gspace,&
+            calculate_forces, Itype_of_density="FULL DENSITY", error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE get_ddapc
+    CALL timestop(0.0_dp, handle)
 
+  END SUBROUTINE cp_ddapc_apply
 
-!!****f* cp_ddapc/cp_ddapc_apply [1.0] *
+!!****f* cp_ddapc/cp_ddapc_apply_CD [1.0] *
 !!
 !!   NAME
-!!     cp_ddapc_apply
+!!     cp_ddapc_apply_CD
 !!
 !!   FUNCTION
 !!     Routine to couple/decouple periodic images with the Bloechl scheme
@@ -423,23 +140,23 @@ CONTAINS
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_ddapc_apply(qs_env,rho_tot_gspace,energy,energy_res,&
-       v_hartree_gspace,calculate_forces,error)
+  SUBROUTINE cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace, &
+       calculate_forces, only_decoupling, Itype_of_density, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
     TYPE(coeff_type)                         :: v_hartree_gspace
-    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
+                                                only_decoupling
+    CHARACTER(LEN=*)                         :: Itype_of_density
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_CD', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw, my_val, stat
-    LOGICAL                                  :: apply_decpl, apply_restrain, &
-                                                failure, need_f
+    INTEGER                                  :: handle, iw, stat
+    LOGICAL                                  :: apply_decpl, failure, &
+                                                my_onlyD, need_f
     REAL(KINd=dp)                            :: e_decpl, e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -448,245 +165,125 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER :: force_env_section, multipole_section, &
-      poisson_section, qmmm_periodic_section, solvation_section
+    TYPE(section_vals_type), POINTER :: density_fit_section, &
+      force_env_section, multipole_section, poisson_section, &
+      qmmm_periodic_section
 
     CALL timeset(routineN,"I","",handle)
     failure        = .FALSE.
-    need_f         = .FALSE.
-    apply_decpl    = .FALSE.
-    apply_restrain = qs_env%dft_control%qs_control%ddapc_restraint.AND.(PRESENT(energy_res))
-    logger => cp_error_get_logger(error)
-    IF (PRESENT(calculate_forces)) need_f = calculate_forces
-    IF (.NOT.failure) THEN
-       NULLIFY(multipole_section, poisson_section, force_env_section, particle_set,&
-               qmmm_periodic_section, charges, radii, dq, cell, super_cell)
+    need_f         = .FALSE. 
+    my_onlyD       = .FALSE.
+    IF (PRESENT(calculate_forces)) need_f   = calculate_forces
+    IF (PRESENT(only_decoupling))  my_onlyD = only_decoupling
+    logger         => cp_error_get_logger(error)
+    apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic
+    IF ((.NOT.failure).AND.(apply_decpl)) THEN
+       ! Initialize
+       NULLIFY(multipole_section,&
+               poisson_section,&
+               force_env_section,&
+               particle_set,&
+               qmmm_periodic_section,&
+               density_fit_section,&
+               charges,&
+               radii,&
+               dq,&
+               cell,&
+               super_cell)
+
        CALL get_qs_env(qs_env=qs_env,&
                        input=force_env_section,&
                        particle_set=particle_set,&
                        cell=cell,&
                        super_cell=super_cell,&
                        error=error)
+       CPPostcondition(ASSOCIATED(qs_env%cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON", error=error)
-       solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF", error=error)
-       !
-       ! Setting up multipole section
-       !
-       IF (apply_restrain) THEN
-          multipole_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT",error=error)
+       density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING", error=error)
+       IF (qs_env%cp_ddapc_ewald%do_decoupling) THEN
+          multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
        END IF
-       IF (.NOT.ASSOCIATED(qs_env%cp_ddapc_ewald)) THEN
-          apply_decpl = .FALSE.
-       ELSE
-          SELECT CASE(qs_env%cp_ddapc_ewald%task)
-          CASE (cp_ddapc_decoupling)
-             apply_decpl = .TRUE.
-             CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
-             SELECT CASE (my_val)
-             CASE (use_multipole)       
-                multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
-             CASE DEFAULT
-                apply_decpl = .FALSE.
-             END SELECT
-          CASE (cp_ddapc_qmmmperiodic)
-             apply_decpl = .TRUE.
-             qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
-             multipole_section       => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
-          CASE (cp_ddapc_solvationSph)
-             apply_decpl = .TRUE.
-             multipole_section       => section_vals_get_subs_vals(solvation_section,"MULTIPOLE", error=error)          
-          CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
+       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
+          qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
+          multipole_section       => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
        ! Start the real calculation
-       IF (apply_decpl.OR.apply_restrain) THEN
-          iw=cp_print_key_unit_nr(logger,multipole_section,"PROGRAM_RUN_INFO",&
-               extension=".fitChargeLog",error=error)
-          ! First we evaluate the charges at the corresponding SCF STEP
-          IF (need_f) THEN
-             CALL reset_ch_pulay(qs_env, error=error)
-             CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii,&
-                  dq_out=dq, ext_rho_tot_g=rho_tot_gspace%pw, error=error)
-          ELSE
-             CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii,&
-                  ext_rho_tot_g=rho_tot_gspace%pw, error=error)
-          END IF          
-       END IF
-       IF (apply_decpl) THEN
-          ! Evaluate the Ewald contribution to the decoupling/coupling E2 and E3
-          IF (iw>0) THEN
-             e_decpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Md,charges))
-             WRITE(iw,'(T3,A,F15.9)')" Decoupling Energy: ", e_decpl
-          END IF
-          SELECT CASE(qs_env%cp_ddapc_ewald%task)
-          CASE (cp_ddapc_qmmmperiodic)
-             IF (iw>0) THEN
-                e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Mr,charges))
-                WRITE(iw,'(T3,A,F15.9)')" Recoupling Energy: ", e_recpl
-             END IF
-          CASE (cp_ddapc_solvationSph)
-             IF (iw>0) THEN
-                e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Mr,charges))
-                WRITE(iw,'(T3,A,F15.9)')" Solvation  Energy: ", e_recpl
-             END IF
-          END SELECT
-          CALL modify_hartree_pot(v_hartree_gspace, rho_tot_gspace, multipole_section, particle_set,&
-               qs_env%cp_ddapc_env%Mt, qs_env%cp_ddapc_env%AmI, radii, charges, error)
-          ! Modify the Hartree potential due to the decoupling/recoupling
-          energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
-       END IF
-       IF (apply_restrain) THEN
-          ! Modify the Hartree potential due to the restrain
-          CALL restraint_functional_potential(v_hartree_gspace, rho_tot_gspace, multipole_section,&
-               particle_set, qs_env%cp_ddapc_env%AmI, radii, charges,&
-               qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)
-       END IF
+       iw=cp_print_key_unit_nr(logger,multipole_section,"PROGRAM_RUN_INFO",&
+            extension=".fitChargeLog",error=error)
+       ! First we evaluate the charges at the corresponding SCF STEP
        IF (need_f) THEN
-          IF (apply_decpl) THEN
-             CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm,&
-                  .FALSE., 1.0_dp, multipole_section, cell, particle_set,&
+          CALL get_ddapc(qs_env,&
+                         need_f,&
+                         density_fit_section,&
+                         qout1=charges,&
+                         out_radii=radii,&
+                         dq_out=dq,&
+                         ext_rho_tot_g=rho_tot_gspace%pw,&
+                         Itype_of_density=Itype_of_density,&
+                         error=error)
+       ELSE
+          CALL get_ddapc(qs_env,&
+                         need_f,&
+                         density_fit_section,&
+                         qout1=charges,&
+                         out_radii=radii,&
+                         ext_rho_tot_g=rho_tot_gspace%pw,&
+                         Itype_of_density=Itype_of_density,&
+                         error=error)
+       END IF
+       ! Evaluate the Ewald contribution to the decoupling/coupling E2 and E3
+       IF (iw>0) THEN
+          e_decpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Md,charges))
+          WRITE(iw,FMT="(T3,A,T60,F20.10)")"Decoupling Energy: ", e_decpl
+       END IF
+       IF ((.NOT.my_onlyD).AND.(qs_env%cp_ddapc_ewald%do_qmmm_periodic).AND.(iw>0)) THEN
+          e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Mr,charges))
+          WRITE(iw,FMT="(T3,A,T60,F20.10)")"Recoupling Energy: ", e_recpl
+       END IF
+       CALL modify_hartree_pot(v_hartree_gspace,&
+                               density_fit_section,&
+                               particle_set,&
+                               qs_env%cp_ddapc_env%Mt,&
+                               qs_env%cp_ddapc_env%AmI,&
+                               radii,&
+                               charges,&
+                               error)
+       ! Modify the Hartree potential due to the decoupling/recoupling
+       energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
+       IF (need_f) THEN
+          CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm,&
+               .FALSE., 1.0_dp, multipole_section, cell, particle_set,&
+               radii, dq, charges, error=error)
+          IF (.NOT.my_onlyD.AND.qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
+             CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_mm,&
+                  .TRUE., -1.0_dp, multipole_section, super_cell, particle_set, &
                   radii, dq, charges, error=error)
-             SELECT CASE(qs_env%cp_ddapc_ewald%task)
-             CASE (cp_ddapc_qmmmperiodic)
-                CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_mm,&
-                     .TRUE., -1.0_dp, multipole_section, super_cell, particle_set, &
-                     radii, dq, charges, error=error)
-             CASE (cp_ddapc_solvationSph)
-                CALL solvation_ddapc_force(qs_env, cell, solvation_section, particle_set,&
-                     radii, dq, charges, error)
-             END SELECT
           END IF
-          IF (apply_restrain) THEN
-             CALL restraint_functional_force(qs_env,&
-                  qs_env%dft_control%qs_control%ddapc_restraint_control, dq, charges,&
-                  SIZE(radii), particle_set, error)
-          END IF
-          CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
        END IF
-       IF (apply_decpl.OR.apply_restrain) THEN
-          ! Clean the allocated arrays
-          DEALLOCATE(charges, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
-          DEALLOCATE(radii, stat=stat)
+       ! Clean the allocated arrays
+       DEALLOCATE(charges, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       DEALLOCATE(radii, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (ASSOCIATED(dq)) THEN
+          DEALLOCATE(dq, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (ASSOCIATED(dq)) THEN
-             DEALLOCATE(dq, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          CALL cp_print_key_finished_output(iw,logger,multipole_section,&
-               "PROGRAM_RUN_INFO",error=error)
        END IF
+       CALL cp_print_key_finished_output(iw,logger,multipole_section,&
+            "PROGRAM_RUN_INFO",error=error)
     END IF
     CALL timestop(0.0_dp, handle)
-  END SUBROUTINE cp_ddapc_apply
+  END SUBROUTINE cp_ddapc_apply_CD
 
-!!****f* cp_ddapc/restraint_functional_potential *
+!!****f* cp_ddapc/cp_ddapc_apply_RS [1.0] *
 !!
 !!   NAME
-!!      restraint_functional_potential
+!!     cp_ddapc_apply_RS
 !!
 !!   FUNCTION
-!!      modify hartree potential to handle restraints in DDAPC scheme
+!!     Routine to apply RESTRAINT/CONSTRAINTS to the density 
+!!     with the Bloechl scheme
 !!
-!!   NOTES
-!!      
-!!
-!!   INPUTS
-!!        
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006  modified [Teo]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
-     multipole_section, particle_set, AmI, radii, charges, ddapc_restraint_control,&
-     energy_res, error)
-    TYPE(coeff_type)                         :: v_hartree_gspace, &
-                                                rho_tot_gspace
-    TYPE(section_vals_type), POINTER         :: multipole_section
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: AmI
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii, charges
-    TYPE(ddapc_restraint_type), &
-      INTENT(INOUT)                          :: ddapc_restraint_control
-    REAL(KIND=dp), INTENT(INOUT)             :: energy_res
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'restraint_functional_potential', &
-      routineP = moduleN//':'//routineN
-
-    COMPLEX(KIND=dp)                         :: g_corr, phase
-    INTEGER                                  :: handle, I, idim, ig, igauss, &
-                                                iparticle, n_gauss, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: arg, fac, fac2, g2, gcut, &
-                                                gcut2, gfunc, gvec(3), rc, &
-                                                rc2, rvec(3), sfac, Vol, w
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, uv
-    TYPE(pw_type), POINTER                   :: g_hartree
-
-    failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
-    NULLIFY(g_hartree)
-    IF (.NOT.failure) THEN
-       n_gauss = SIZE(radii)
-       ALLOCATE(cv(n_gauss*SIZE(particle_set)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(uv(n_gauss*SIZE(particle_set)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       uv      = 0.0_dp
-       CALL evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
-            charges, energy_res, error)
-       !
-       CALL section_vals_val_get(multipole_section,"GCUT",r_val=gcut,error=error)
-       gcut2 = gcut*gcut
-       g_hartree =>  v_hartree_gspace%pw
-       Vol = g_hartree%pw_grid%vol
-       cv   =  1.0_dp/Vol
-       sfac = -1.0_dp/Vol
-       fac  = DOT_PRODUCT(cv, MATMUL(AmI,cv))
-       fac2 = DOT_PRODUCT(cv, MATMUL(AmI,uv))
-       cv   = uv - cv * fac2/fac
-       cv   = MATMUL(AmI,cv)
-       IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
-       DO ig = g_hartree % pw_grid % first_gne0, g_hartree % pw_grid % ngpts_cut_local
-          g2 = g_hartree % pw_grid % gsq ( ig )
-          w  = 4.0_dp * pi * (g2 - gcut2)**2.0_dp/(g2*gcut2)
-          IF (g2 > gcut2) EXIT
-          gvec  = g_hartree % pw_grid % g (:,ig)
-          g_corr = 0.0_dp
-          idim = 0
-          DO iparticle = 1, SIZE(particle_set)
-             DO igauss = 1, SIZE(radii)
-                idim   = idim + 1
-                rc     = radii(igauss)
-                rc2    = rc*rc                
-                rvec   = particle_set(iparticle)%r
-                arg    = DOT_PRODUCT(gvec,rvec)
-                phase  = CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                gfunc  = EXP(-g2*rc2/4.0_dp)
-                g_corr = g_corr + gfunc * cv(idim) * phase 
-             END DO
-          END DO
-          g_corr = g_corr * w
-          g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
-       END DO
-    END IF
-    CALL timestop(0.0_dp, handle)
-  END SUBROUTINE restraint_functional_potential
-
-!!****f* cp_ddapc/modify_hartree_pot [1.0] *
-!!
-!!   NAME
-!!     modify_hartree_pot
-!!
-!!   FUNCTION
-!!     Modify the Hartree potential
 !!
 !!   NOTES
 !!     -
@@ -700,277 +297,113 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE modify_hartree_pot(v_hartree_gspace, rho_tot_gspace, multipole_section, particle_set,&
-       M, AmI, radii, charges, error)
-    TYPE(coeff_type)                         :: v_hartree_gspace, &
-                                                rho_tot_gspace
-    TYPE(section_vals_type), POINTER         :: multipole_section
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M, AmI
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii, charges
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'modify_hartree_pot', &
-      routineP = moduleN//':'//routineN
-
-    COMPLEX(KIND=dp)                         :: g_corr, phase
-    INTEGER                                  :: handle, idim, ig, igauss, &
-                                                iparticle, stat
-    LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: arg, fac, fac2, g2, gcut, &
-                                                gcut2, gfunc, gvec(3), rc, &
-                                                rc2, rvec(3), sfac, Vol, w
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, uv
-    TYPE(pw_type), POINTER                   :: g_hartree
-
-    failure=.FALSE.
-    CALL timeset(routineN,"I","",handle)
-    NULLIFY(g_hartree)
-    IF (.NOT.failure) THEN
-       CALL section_vals_val_get(multipole_section,"GCUT",r_val=gcut,error=error)
-       gcut2 = gcut*gcut
-       g_hartree =>  v_hartree_gspace%pw
-       Vol = g_hartree%pw_grid%vol
-       ALLOCATE(cv(SIZE(M,1)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(uv(SIZE(M,1)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       cv   = 1.0_dp/Vol
-       uv   = MATMUL(M,charges)
-       sfac = -1.0_dp/Vol
-       fac  = DOT_PRODUCT(cv, MATMUL(AmI,cv))
-       fac2 = DOT_PRODUCT(cv, MATMUL(AmI,uv))
-       cv   = uv - cv * fac2/fac
-       cv   = MATMUL(AmI,cv)
-       IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
-       DO ig = g_hartree % pw_grid % first_gne0, g_hartree % pw_grid % ngpts_cut_local
-          g2 = g_hartree % pw_grid % gsq ( ig )
-          w  = 4.0_dp * pi * (g2 - gcut2)**2.0_dp/(g2*gcut2)
-          IF (g2 > gcut2) EXIT
-          gvec  = g_hartree % pw_grid % g (:,ig)
-          g_corr = 0.0_dp
-          idim = 0
-          DO iparticle = 1, SIZE(particle_set)
-             DO igauss = 1, SIZE(radii)
-                idim   = idim + 1
-                rc     = radii(igauss)
-                rc2    = rc*rc                
-                rvec   = particle_set(iparticle)%r
-                arg    = DOT_PRODUCT(gvec,rvec)
-                phase  = CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                gfunc  = EXP(-g2*rc2/4.0_dp)
-                g_corr = g_corr + gfunc * cv(idim) * phase 
-             END DO
-          END DO
-          g_corr = g_corr * w
-          g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
-       END DO
-    END IF
-    CALL timestop(0.0_dp, handle)
-  END SUBROUTINE modify_hartree_pot
-
-!!****f* cp_ddapc/debug_der_b_vector [1.0] *
-!!
-!!   NAME
-!!     debug_der_b_vector
-!!
-!!   FUNCTION
-!!     To Debug the derivative of the B vector for the solution of the 
-!!     linear system
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
-  SUBROUTINE debug_der_b_vector(dbv,  particle_set, radii,&
-       rho_tot_g, gcut, iparticle, Vol, param_section, qs_env, error)
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: dbv
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
-    TYPE(pw_type), POINTER                   :: rho_tot_g
-    REAL(KIND=dp), INTENT(IN)                :: gcut
-    INTEGER, INTENT(in)                      :: iparticle
-    REAL(KIND=dp), INTENT(IN)                :: Vol
-    TYPE(section_vals_type), POINTER         :: param_section
+  SUBROUTINE cp_ddapc_apply_RS(qs_env, energy, energy_res,&
+       v_hartree_gspace, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
+    TYPE(coeff_type)                         :: v_hartree_gspace
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_b_vector', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RS', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, kk, ndim, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, rvec(3), v0
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv1, bv2, ddbv
-    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
-
-    NULLIFY(cp_ddapc_env)
-    failure = .FALSE.
-    CALL timeset(routineN,"I","",handle)
-    IF (.NOT.failure) THEN
-       dx   = 0.01_dp
-       ndim = SIZE(particle_set)*SIZE(radii)
-       ALLOCATE(bv1(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(bv2(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(ddbv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       rvec = particle_set(iparticle)%r                
-       cp_ddapc_env => qs_env%cp_ddapc_env
-       DO i = 1, 3
-          bv1 = 0.0_dp
-          bv2 = 0.0_dp
-          particle_set(iparticle)%r(i) = rvec(i) + dx
-          CALL build_b_vector(bv1, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  bv1 = bv1 / Vol
-          CALL mp_sum(bv1,rho_tot_g%pw_grid%para%group)
-          particle_set(iparticle)%r(i) = rvec(i) - dx
-          CALL build_b_vector(bv2, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  bv2 = bv2 / Vol
-          CALL mp_sum(bv2,rho_tot_g%pw_grid%para%group)
-          ddbv = (bv1 - bv2)/(2.0_dp*dx)
-          DO kk = 1, SIZE(ddbv)
-             IF (ddbv(kk).GT.1.0E-8_dp) THEN
-                v0 = ABS(dbv(kk,i)-ddbv(kk))/ddbv(kk)*100.0_dp
-                WRITE(*,*)"Error % on B ::",v0
-                IF (v0.GT.0.1_dp) THEN
-                   WRITE(*,'(A,2I5,2F15.9)')"ERROR IN DERIVATIVE OF B VECTOR, IPARTICLE, ICOORD:",iparticle,i,&
-                        dbv(kk,i),ddbv(kk)
-                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                END IF
-             END IF
-          END DO
-          particle_set(iparticle)%r = rvec
-       END DO
-       DEALLOCATE(bv1, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(bv2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(ddbv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE debug_der_b_vector
-
-!!****f* cp_ddapc/debug_der_A_matrix [1.0] *
-!!
-!!   NAME
-!!     debug_der_A_matrix
-!!
-!!   FUNCTION
-!!     To Debug the derivative of the A matrix for the solution of the 
-!!     linear system
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
-  SUBROUTINE debug_der_A_matrix(dAm, particle_set, radii,&
-       rho_tot_g, gcut, iparticle, Vol, param_section, qs_env, error)
+    INTEGER                                  :: handle, iw, stat
+    LOGICAL                                  :: apply_restrain, failure, &
+                                                need_f
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN)                             :: dAm
+      POINTER                                :: dq
+    TYPE(cell_type), POINTER                 :: cell, super_cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
-    TYPE(pw_type), POINTER                   :: rho_tot_g
-    REAL(KIND=dp), INTENT(IN)                :: gcut
-    INTEGER, INTENT(in)                      :: iparticle
-    REAL(KIND=dp), INTENT(IN)                :: Vol
-    TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(section_vals_type), POINTER         :: density_fit_section, &
+                                                force_env_section, &
+                                                restraint_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_A_matrix', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, kk, ll, ndim, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, rvec(3), v0
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: Am1, Am2, ddAm
-    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
-
-    failure = .FALSE.
-    NULLIFY(cp_ddapc_env)
     CALL timeset(routineN,"I","",handle)
-    IF (.NOT.failure) THEN
-       dx   = 0.01_dp
-       ndim = SIZE(particle_set)*SIZE(radii)
-       ALLOCATE(Am1(ndim,ndim), stat=stat)
+    failure        = .FALSE.
+    need_f         = .FALSE. 
+    IF (PRESENT(calculate_forces)) need_f = calculate_forces
+    apply_restrain = qs_env%dft_control%qs_control%ddapc_restraint
+    logger         => cp_error_get_logger(error)
+    IF ((.NOT.failure).AND.apply_restrain) THEN
+       ! Initialize
+       NULLIFY(restraint_section, force_env_section, particle_set, charges, &
+            radii, dq, cell, density_fit_section, super_cell)
+
+       CALL get_qs_env(qs_env=qs_env,&
+                       input=force_env_section,&
+                       particle_set=particle_set,&
+                       cell=cell,&
+                       super_cell=super_cell,&
+                       error=error)
+
+       density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING", error=error)
+       restraint_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT",error=error)
+       iw=cp_print_key_unit_nr(logger,restraint_section,"PROGRAM_RUN_INFO",&
+            extension=".fitChargeLog",error=error)
+       ! First we evaluate the charges at the corresponding SCF STEP
+       IF (need_f) THEN
+          CALL get_ddapc(qs_env,&
+                         need_f,&
+                         density_fit_section,&
+                         qout1=charges,&
+                         out_radii=radii,&
+                         dq_out=dq,&
+                         error=error)
+       ELSE
+          CALL get_ddapc(qs_env,&
+                         need_f,&
+                         density_fit_section,&
+                         qout1=charges,&
+                         out_radii=radii,&
+                         error=error)
+       END IF
+       ! Modify the Hartree potential due to the restrain
+       CALL restraint_functional_potential(v_hartree_gspace,&
+                                           density_fit_section,&
+                                           particle_set,&
+                                           qs_env%cp_ddapc_env%AmI,&
+                                           radii,&
+                                           charges,&
+                                           qs_env%dft_control%qs_control%ddapc_restraint_control,&
+                                           energy_res,&
+                                           error)
+       IF (need_f) THEN
+          CALL restraint_functional_force(qs_env,&
+                                          qs_env%dft_control%qs_control%ddapc_restraint_control,&
+                                          dq,&
+                                          charges,&
+                                          SIZE(radii),&
+                                          particle_set,&
+                                          error)
+       END IF
+       ! Clean the allocated arrays
+       DEALLOCATE(charges, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       DEALLOCATE(radii, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(Am2(ndim,ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(ddAm(ndim,ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       rvec = particle_set(iparticle)%r                
-       cp_ddapc_env => qs_env%cp_ddapc_env
-       DO i = 1, 3
-          Am1 = 0.0_dp
-          Am2 = 0.0_dp
-          particle_set(iparticle)%r(i) = rvec(i) + dx
-          CALL build_A_matrix(Am1, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  Am1 = Am1 /(Vol*Vol)
-          CALL mp_sum(Am1,rho_tot_g%pw_grid%para%group)
-          particle_set(iparticle)%r(i) = rvec(i) - dx
-          CALL build_A_matrix(Am2, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  Am2 = Am2 /(Vol*Vol)
-          CALL mp_sum(Am2,rho_tot_g%pw_grid%para%group)
-          ddAm = (Am1 - Am2)/(2.0_dp*dx)
-          DO kk = 1, SIZE(ddAm,1)
-             DO ll = 1, SIZE(ddAm,2)
-                IF (ddAm(kk,ll).GT.1.0E-8_dp) THEN
-                   v0 = ABS(dAm(kk,ll,i)-ddAm(kk,ll))/ddAm(kk,ll)*100.0_dp
-                   WRITE(*,*)"Error % on A ::",v0,Am1(kk,ll), Am2(kk,ll),iparticle,i,kk,ll
-                   IF (v0.GT.0.1_dp) THEN
-                      WRITE(*,'(A,4I5,2F15.9)')"ERROR IN DERIVATIVE OF A MATRIX, IPARTICLE, ICOORD:",iparticle,i,kk,ll,&
-                           dAm(kk,ll,i),ddAm(kk,ll)
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                   END IF
-                END IF
-             END DO
-          END DO
-          particle_set(iparticle)%r = rvec
-       END DO
-       DEALLOCATE(Am1, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(Am2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(ddAm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (ASSOCIATED(dq)) THEN
+          DEALLOCATE(dq, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,restraint_section,&
+            "PROGRAM_RUN_INFO",error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE debug_der_A_matrix
-  
-!!****f* cp_ddapc/debug_charge [1.0] *
+    CALL timestop(0.0_dp, handle)
+  END SUBROUTINE cp_ddapc_apply_RS
+
+!!****f* cp_ddapc/cp_ddapc_apply_RF [1.0] *
 !!
 !!   NAME
-!!     debug_charge
+!!     cp_ddapc_apply_RF
 !!
 !!   FUNCTION
-!!     To Debug the fitted charges
+!!     Routine to apply a reaction field during SCF (SCRF) with the Bloechl scheme
+!!
 !!
 !!   NOTES
 !!     -
@@ -984,71 +417,110 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE debug_charge(dqv, qs_env, param_section, particle_set, radii, &
-       rho_tot_g, error)
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN)                             :: dqv
+  SUBROUTINE cp_ddapc_apply_RF(qs_env,rho_tot_gspace,energy,&
+       v_hartree_gspace,calculate_forces, Itype_of_density, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(pw_type), POINTER                   :: rho_tot_g
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(coeff_type)                         :: rho_tot_gspace
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(coeff_type)                         :: v_hartree_gspace
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
+    CHARACTER(LEN=*)                         :: Itype_of_density
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'debug_charge', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RF', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iparticle, kk, &
-                                                ndim, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, rvec(3)
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ddqv
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: qtot1, qtot2
+    INTEGER                                  :: handle, iw, stat
+    LOGICAL                                  :: apply_solvation, failure, &
+                                                need_f
+    REAL(KINd=dp)                            :: e_recpl
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dq
+    TYPE(cell_type), POINTER                 :: cell, super_cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: density_fit_section, &
+                                                force_env_section, &
+                                                solvation_section
 
-    failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
-    IF (.NOT.failure) THEN
-       WRITE(*,*)"DEBUG_CHARGE_ROUTINE"
-       ndim = SIZE(particle_set)*SIZE(radii)
-       NULLIFY(qtot1, qtot2)
-       ALLOCATE(qtot1(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)  
-       ALLOCATE(qtot2(ndim),stat=stat)
+    failure         = .FALSE.
+    need_f          = .FALSE. 
+    IF (PRESENT(calculate_forces)) need_f = calculate_forces
+    logger          => cp_error_get_logger(error)
+    apply_solvation = qs_env%cp_ddapc_ewald%do_solvation
+    IF ((.NOT.failure).AND.(apply_solvation)) THEN
+       ! Initialize
+       NULLIFY(force_env_section, particle_set, charges, &
+            radii, dq, cell, super_cell)
+
+       CALL get_qs_env(qs_env=qs_env,&
+                       input=force_env_section,&
+                       particle_set=particle_set,&
+                       cell=cell,&
+                       super_cell=super_cell,&
+                       error=error)
+
+       solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF", error=error)
+       ! Start the real calculation
+       iw=cp_print_key_unit_nr(logger,solvation_section,"PROGRAM_RUN_INFO",&
+            extension=".fitChargeLog",error=error)
+       density_fit_section =>  section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING", error=error)
+       ! First we evaluate the charges at the corresponding SCF STEP
+       IF (need_f) THEN
+          CALL get_ddapc(qs_env,&
+                         need_f,&
+                         density_fit_section,&
+                         qout1=charges,&
+                         out_radii=radii,&
+                         dq_out=dq,&
+                         ext_rho_tot_g=rho_tot_gspace%pw,&
+                         Itype_of_density=Itype_of_density,&
+                         error=error)
+       ELSE
+          CALL get_ddapc(qs_env,&
+                         need_f,&
+                         density_fit_section,&
+                         qout1=charges,&
+                         out_radii=radii,&
+                         ext_rho_tot_g=rho_tot_gspace%pw,&
+                         Itype_of_density=Itype_of_density,&
+                         error=error)
+       END IF
+       ! Evaluate the Ewald contribution to the decoupling/coupling E2 and E3
+       IF (iw>0) THEN
+          e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Ms,charges))
+          WRITE(iw,FMT="(T3,A,T60,F20.10)")"Solvation  Energy: ", e_recpl
+       END IF
+       CALL modify_hartree_pot(v_hartree_gspace,&
+                               density_fit_section,&
+                               particle_set,&
+                               qs_env%cp_ddapc_env%Ms,&
+                               qs_env%cp_ddapc_env%AmI,&
+                               radii,&
+                               charges,&
+                               error)
+       ! Modify the Hartree potential due to the reaction field
+       energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
+       IF (need_f) THEN
+          CALL solvation_ddapc_force(qs_env, cell, solvation_section, particle_set,&
+               radii, dq, charges, error)
+       END IF
+       ! Clean the allocated arrays
+       DEALLOCATE(charges, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       DEALLOCATE(radii, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(ddqv(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !
-       dx = 0.001_dp
-       DO iparticle = 1, SIZE(particle_set)
-          rvec = particle_set(iparticle)%r
-          DO i = 1, 3
-             particle_set(iparticle)%r(i) = rvec(i) + dx
-             CALL get_ddapc(qs_env,.FALSE.,param_section,qout1=qtot1,&
-                  ext_rho_tot_g=rho_tot_g,error=error)
-             particle_set(iparticle)%r(i) = rvec(i) - dx
-             CALL get_ddapc(qs_env,.FALSE.,param_section,qout1=qtot2,&
-                  ext_rho_tot_g=rho_tot_g,error=error)
-             ddqv = (qtot1 - qtot2)/(2.0_dp*dx)
-             DO kk = 1, SIZE(qtot1)-1, SIZE(radii)
-                IF (ANY(ddqv(kk:kk+2).GT.1.0E-8_dp)) THEN
-                   WRITE(*,'(A,2F12.6,F12.2)')"Error :",SUM(dqv(kk:kk+2,iparticle,i)),SUM(ddqv(kk:kk+2)),&
-                     ABS((SUM(ddqv(kk:kk+2))-SUM(dqv(kk:kk+2,iparticle,i)))/SUM(ddqv(kk:kk+2))*100.0_dp)
-                END IF
-             END DO
-             particle_set(iparticle)%r = rvec
-          END DO
-       END DO
-       !
-       DEALLOCATE(qtot1, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(qtot2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(ddqv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (ASSOCIATED(dq)) THEN
+          DEALLOCATE(dq, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,solvation_section,&
+            "PROGRAM_RUN_INFO",error=error)
     END IF
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE debug_charge
-  
+    CALL timestop(0.0_dp, handle)
+  END SUBROUTINE cp_ddapc_apply_RF
+
 END MODULE cp_ddapc

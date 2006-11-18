@@ -26,6 +26,7 @@ MODULE kg_environment
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
@@ -616,6 +617,10 @@ CONTAINS
                     subsys=subsys             ,&
                     wf_history=wf_history     ,&
                     error=error                 )
+
+!   *** Setup the grids for the G-space Interpolation if any
+    CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, .FALSE., .FALSE.,&
+         cell, force_env_section, para_env, error)
 
 !    CALL scf_c_release(scf_control,error=error)
     CALL dft_control_release(dft_control, error=error)

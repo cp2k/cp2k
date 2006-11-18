@@ -2,18 +2,10 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    &SCRF
-      EPS_OUT 80.0
-      LMAX 3 
-      &SPHERE
-        RADIUS [angstrom] 6.0
-        &CENTER
-           XYZ [angstrom] 6.0 6.0 6.0
-        &END
-      &END
-    &END
+    CHARGE +1
+    LSD
     &MGRID
-      CUTOFF 50
+      CUTOFF 100
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-8
@@ -22,29 +14,23 @@
       EPS_SCF 1.0E-4
       SCF_GUESS ATOMIC
     &END SCF
-    &POISSON
-      PERIODIC NONE
-      POISSON_SOLVER MULTIPOLE
-      &MULTIPOLE
-        EWALD_PRECISION 0.00000001
-        RCUT 3.0
-        ANALYTICAL_GTERM
-      &END
-    &END
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &DENSITY_FITTING
+      TYPE_OF_DENSITY SPIN
+    &END  
   &END DFT
   &SUBSYS
     &CELL
-      ABC 12.0 12.0 12.0
+      ABC 6.0 6.0 6.0
       UNIT ANGSTROM
     &END CELL
     &COORD
-    O   6.000000    6.000000    6.000000
-    H   6.000000    5.250000    6.520000
-    H   6.000000    6.750000    6.520000
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
@@ -55,18 +41,22 @@
       POTENTIAL GTH-PADE-q6
     &END KIND
   &END SUBSYS
+  &PROPERTIES
+    &FIT_CHARGE
+    &END
+  &END
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
 
   PROJECT H2O
   RUN_TYPE MD
-  PRINT_LEVEL MEDIUM
+  PRINT_LEVEL LOW
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NVE
-    STEPS 2
+    ENSEMBLE NVT
+    STEPS 3
     TIMESTEP 0.1
     TEMPERATURE 300.0
     &NOSE
