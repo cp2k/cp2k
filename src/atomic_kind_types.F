@@ -1164,18 +1164,30 @@ CONTAINS
           EXIT
        END IF
     END DO
-    ! The search for the KIND section failed.. look further before failing the run..
+    ! The search for the KIND section failed.. check for a QM/MM link atom
     IF (k_rep<1) THEN
        ipos = INDEX(atomic_kind%name,"_")
        IF (((ipos == 2).OR.(ipos == 3)).AND.(INDEX(atomic_kind%name,"_ghost")==0)) THEN
           ! If the atm_name could not match any KIND section it maybe be a QM/MM link atom.
           ! ghost atoms will be treated differently.
           akind_name = atomic_kind%name(1:ipos-1)
-       ELSE
-          ! If it's not a link atom let's check for the element and map
-          ! the KIND section to the element.
-          akind_name = atomic_kind%element_symbol(1:2)
+          CALL uppercase(akind_name)
+          DO i_rep=1,n_rep
+             CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+                  c_val=keyword,i_rep_section=i_rep,error=error)
+             CALL uppercase(keyword)
+             IF (keyword==akind_name) THEN
+                k_rep=i_rep
+                EXIT
+             END IF
+          END DO
        END IF
+    END IF
+    ! The search for the KIND section failed.. check element_symbol
+    IF (k_rep<1) THEN
+       ! If it's not a link atom let's check for the element and map
+       ! the KIND section to the element.
+       akind_name = atomic_kind%element_symbol(1:2)
        CALL uppercase(akind_name)
        DO i_rep=1,n_rep
           CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
@@ -1204,8 +1216,8 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
             "No &KIND section was possible to associate to the atomic kind <"//&
             TRIM(akind_name)//">. The KIND section were also scanned for the"//&
-            " corresponding element <"//TRIM(element_symbol)//"> but no match"//&
-            " was found. Check your input file!",para_env)
+            " corresponding element <"//TRIM(atomic_kind%element_symbol)//"> "//&
+            " and for the DEFAULT section but no match was found. Check your input file!",para_env)
     END IF
     ! Defining the element name
     ipos = INDEX(atomic_kind%element_symbol,"_")
