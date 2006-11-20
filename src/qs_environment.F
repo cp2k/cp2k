@@ -526,6 +526,7 @@ CONTAINS
 !   *** Set the actual Harris environment ***
 
     IF (harris_flag) THEN
+      natom = SIZE(particle_set)
       CALL harris_env_create(harris_env=harris_env, natom=natom, &
                              nspins=dft_control%nspins, error=error)
       CALL harris_env_set(harris_env=harris_env, harris_energy=harris_energy, &
