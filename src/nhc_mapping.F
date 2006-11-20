@@ -113,7 +113,7 @@ SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc,para_env )
 ! allocate the index array
     ALLOCATE ( nhc % index ( 1 ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_barostat_setup', &
-      'index', number )
+      'index', 1 )
 
     IF ( simpar % ensemble == npt_f_ensemble ) THEN
       number = 9

@@ -804,7 +804,7 @@ CPSourceFileRef,&
            END IF
         END IF
      CASE default
-        CALL cp_unimplemented_error(routineP, "type "//cp_to_string(i)//&
+        CALL cp_unimplemented_error(routineP, "type "//cp_to_string(type_of_var)//&
              "unknown to the parser"//&
 CPSourceFileRef,&
              error,cp_failure_level)

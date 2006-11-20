@@ -138,7 +138,6 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
     INTEGER                                  :: handle, isubf, iw, iw2, &
-                                                method_name_id, &
                                                 qmmm_coupl_type, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index, qm_subsys_index
@@ -237,7 +236,7 @@ CONTAINS
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist,error=error)
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
             root_section, para_env, globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
-            method_name_id=method_name_id,error=error)
+            error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=mm_cell,error=error)

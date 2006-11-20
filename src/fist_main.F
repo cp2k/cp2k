@@ -83,7 +83,7 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE fist_create_force_env ( force_env, root_section, para_env,globenv, qmmm, qmmm_env, &
-                                   force_env_section, method_name_id,error )
+                                   force_env_section, error )
 
 
 ! Argument
@@ -95,7 +95,6 @@ SUBROUTINE fist_create_force_env ( force_env, root_section, para_env,globenv, qm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    INTEGER, INTENT(in), OPTIONAL            :: method_name_id
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 

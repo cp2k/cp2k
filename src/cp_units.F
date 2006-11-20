@@ -1499,7 +1499,7 @@ FUNCTION cp_unit_transform(value,unit_from,unit_to,defaults,power,error) &
         res=cp_unit_to_cp2k1(value,unit_from,power=my_power,defaults=defaults,&
              error=error)
      ELSE
-        res=cp_unit_from_cp2k1(res,unit_to,power=my_power,error=error)
+        res=cp_unit_from_cp2k1(value,unit_to,power=my_power,error=error)
      END IF
   END IF
 END FUNCTION cp_unit_transform
