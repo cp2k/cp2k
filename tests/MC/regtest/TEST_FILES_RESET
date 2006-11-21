@@ -12,3 +12,5 @@ MC_Fist.inp
 MC_QS.inp
 # changed from an NVT GEMC simulation to NpT
 MC_Fist_box1.inp
+# fixed a bug that read in the volume move percentage incorrectly
+MC_Fist_box1.inp
