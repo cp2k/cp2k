@@ -519,9 +519,9 @@ SUBROUTINE mc_create_bias_force_env (bias_env,r,atom_symbols,nunits_tot,&
 
       IF(ionode) &
            CALL mc_make_dat_file_new(r(:,:),atom_symbols,nunits_tot,&
-           box_length(:),'bias_temp.inp',nchains(:),mc_input_file)
+           box_length(:),'bias_temp.dat',nchains(:),mc_input_file)
 
-      CALL mc_create_force_env(bias_env, para_env, 'bias_temp.inp',error=error)
+      CALL mc_create_force_env(bias_env, para_env, 'bias_temp.dat',error=error)
 
 
 END SUBROUTINE mc_create_bias_force_env

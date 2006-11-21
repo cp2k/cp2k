@@ -228,6 +228,9 @@ CONTAINS
       ALLOCATE (mc_par(1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par",1*dp_size*nboxes)
+      ALLOCATE (pmvol_box(1:nboxes),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "pmvol_box",dp_size*nboxes)
 
       DO ibox=1,nboxes
          CALL get_mc_env ( mc_env(ibox)%mc_env, &
@@ -248,7 +251,7 @@ CONTAINS
          lbias=lbias,iprint=iprint,pmavbmc_mol=pmavbmc_mol,&
          discrete_step=discrete_step,fft_lib=fft_lib,avbmc_atom=avbmc_atom,&
          pmavbmc=pmavbmc,pbias=pbias,mc_molecule_info=mc_molecule_info,&
-         pmrot_mol=pmrot_mol,pmtrans_mol=pmtrans_mol,pmvol_box=pmvol_box,&
+         pmrot_mol=pmrot_mol,pmtrans_mol=pmtrans_mol,pmvol_box=pmvol_box(1),&
          ensemble=ensemble)
 
 ! get some data from the molecule types
@@ -275,9 +278,15 @@ CONTAINS
             cell_file=cell_file(ibox),coords_file=coords_file(ibox),&
             energy_file=energy_file(ibox),&
             displacement_file=displacement_file(ibox),&
-            molecules_file=molecules_file(ibox))
+            molecules_file=molecules_file(ibox),pmvol_box=pmvol_box(ibox))
          ENDDO
       ENDIF
+
+! this is a check we can't do in the input checking
+    IF(pmvol_box(nboxes) .LT. 0.9999E0_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            'The last value of PMVOL_BOX needs to be 1.0')       
+    ENDIF
 
 ! allocate the particle positions array for broadcasting
       ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=istat)
@@ -1120,6 +1129,9 @@ CONTAINS
          CALL mc_averages_release(averages(ibox)%averages)
       ENDDO
 
+      DEALLOCATE(pmvol_box,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "pmvol_box")
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_old")

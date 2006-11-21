@@ -274,17 +274,17 @@ CONTAINS
          CALL get_mc_par(mc_par(1)%mc_par,lbias=lbias)
          IF(ibox == 1) THEN
             CALL mc_input_file_create ( mc_input_file,&
-                 input_file_name,mc_molecule_info,empty_coordinates)
+                 input_file_name,mc_molecule_info,empty_coordinates,error)
          ELSE
             CALL mc_input_file_create ( mc_input_file,&
-                 box2_file,mc_molecule_info,empty_coordinates)
+                 box2_file,mc_molecule_info,empty_coordinates,error)
          ENDIF
          CALL set_mc_par(mc_par(ibox)%mc_par,mc_input_file=mc_input_file)
 
          IF(lbias) THEN
             CALL get_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
             CALL mc_input_file_create ( mc_bias_file,&
-                 "bias_template.inp",mc_molecule_info,empty_coordinates)
+                 "bias_template.inp",mc_molecule_info,empty_coordinates,error)
             CALL set_mc_par(mc_par(ibox)%mc_par,mc_bias_file=mc_bias_file)
          ENDIF
 

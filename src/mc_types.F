@@ -127,7 +127,7 @@ MODULE mc_types
       CHARACTER ( LEN = 200 ) :: fft_lib
       CHARACTER ( LEN = 50 ) :: PROGRAM
       REAL ( dp ),DIMENSION(:),POINTER :: pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,&
-           pbias,pmavbmc_mol,pmvol_box
+           pbias,pmavbmc_mol
       REAL ( dp ) :: discrete_step
       REAL ( dp ) :: rmvolume
       REAL ( dp ),DIMENSION(:),POINTER :: rmbond,rmangle,rmdihedral,rmrot,rmtrans
@@ -135,7 +135,7 @@ MODULE mc_types
       REAL ( dp ) :: pressure
       REAL ( dp ) :: pmavbmc
       REAL ( dp ) :: pmswap
-      REAL ( dp ) :: pmvolume
+      REAL ( dp ) :: pmvolume,pmvol_box
       REAL ( dp ) :: pmtraion
       REAL ( dp ) :: pmtrans
       REAL ( dp ) :: BETA
@@ -316,7 +316,7 @@ CONTAINS
       group
     LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
     REAL(KIND=dp), INTENT(OUT), OPTIONAL :: rmvolume, temp, pressure, BETA, pmswap,&
-         pmvolume, pmtraion, pmtrans
+         pmvolume, pmtraion, pmtrans,pmvol_box
     REAL(KIND=dp),DIMENSION(:),POINTER,OPTIONAL  :: rmbond,rmangle,rmrot,rmtrans,rmdihedral,&
          avbmc_rmin,avbmc_rmax
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
@@ -339,7 +339,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
-    REAL(dp),DIMENSION(:),POINTER,OPTIONAL  :: pmswap_mol,pmvol_box
+    REAL(dp),DIMENSION(:),POINTER,OPTIONAL  :: pmswap_mol
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( nstep ) ) nstep = mc_par % nstep
@@ -372,6 +372,7 @@ CONTAINS
     IF ( PRESENT ( BETA ) ) BETA = mc_par % BETA
     IF ( PRESENT ( pmswap ) ) pmswap = mc_par % pmswap
     IF ( PRESENT ( pmvolume) ) pmvolume = mc_par % pmvolume
+    IF ( PRESENT ( pmvol_box) ) pmvol_box = mc_par % pmvol_box
     IF ( PRESENT ( pmtraion ) ) pmtraion = mc_par % pmtraion
     IF ( PRESENT ( pmtrans ) ) pmtrans = mc_par % pmtrans
     IF ( PRESENT ( pmavbmc) ) pmavbmc = mc_par % pmavbmc
@@ -409,7 +410,6 @@ CONTAINS
     IF ( PRESENT ( mc_bias_file ) ) mc_bias_file => mc_par % mc_bias_file
 
     IF ( PRESENT ( pmswap_mol ) ) pmswap_mol => mc_par % pmswap_mol
-    IF ( PRESENT ( pmvol_box ) ) pmvol_box => mc_par % pmvol_box
 
   END SUBROUTINE get_mc_par
 
@@ -511,7 +511,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temp, pressure
     INTEGER, INTENT(IN), OPTIONAL            :: iuptrans, iupvolume
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmswap, pmvolume, pmtraion, &
-                                                pmtrans, BETA, rcut
+                                                pmtrans, pmvol_box,BETA, rcut
     INTEGER, INTENT(IN), OPTIONAL            :: iprint
     LOGICAL, INTENT(IN), OPTIONAL            :: lbias
     INTEGER, INTENT(IN), OPTIONAL            :: nstep
@@ -521,7 +521,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       POINTER, OPTIONAL  :: mc_molecule_info
     REAL(dp),DIMENSION(:),POINTER,OPTIONAL :: &
          pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
-         avbmc_rmin,avbmc_rmax,pbias,pmvol_box
+         avbmc_rmin,avbmc_rmax,pbias
     INTEGER,DIMENSION(:),POINTER,OPTIONAL :: avbmc_atom
     TYPE(mc_input_file_type),POINTER,OPTIONAL :: mc_input_file,mc_bias_file
 
@@ -553,6 +553,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( rcut ) ) mc_par % rcut = rcut
     IF ( PRESENT ( pressure ) ) mc_par % pressure = pressure
     IF ( PRESENT ( pmvolume ) ) mc_par % pmvolume = pmvolume
+    IF ( PRESENT ( pmvol_box ) ) mc_par % pmvol_box = pmvol_box
     IF ( PRESENT ( pmswap ) ) mc_par % pmswap = pmswap
     IF ( PRESENT ( pmtrans ) ) mc_par % pmtrans = pmtrans
     IF ( PRESENT ( pmtraion ) ) mc_par % pmtraion = pmtraion
@@ -615,11 +616,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( pmswap_mol ) ) THEN
        DO iparm=1,SIZE(pmswap_mol)
           mc_par % pmswap_mol(iparm) = pmswap_mol(iparm)
-       ENDDO
-    ENDIF
-    IF ( PRESENT ( pmvol_box ) ) THEN
-       DO iparm=1,SIZE(pmvol_box)
-          mc_par % pmvol_box(iparm) = pmvol_box(iparm)
        ENDDO
     ENDIF
 
@@ -696,9 +692,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     ALLOCATE (mc_par%pmswap_mol(1:nmol_types),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pmswap_mol",nmol_types*dp_size)
-    ALLOCATE (mc_par%pmvol_box(1:nboxes),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pmvol_box",nboxes*dp_size)
 
     ALLOCATE (mc_par%rmbond(1:nmol_types),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -790,9 +783,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     DEALLOCATE (mc_par%pmswap_mol,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pmswap_mol")
-    DEALLOCATE (mc_par%pmvol_box,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mc_par%pmvol_box")
 
     DEALLOCATE (mc_par%rmbond,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -855,7 +845,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 !!
 !!*****************************************************************************
   SUBROUTINE mc_input_file_create (mc_input_file,input_file_name,&
-       mc_molecule_info,empty_coords)
+       mc_molecule_info,empty_coords,error)
 
 
     TYPE(mc_input_file_type), &
@@ -863,15 +853,21 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     TYPE(mc_molecule_info_type),POINTER  :: mc_molecule_info
     CHARACTER(LEN=*),INTENT(IN)              :: input_file_name
     REAL(dp),DIMENSION(:,:)     :: empty_coords
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_iput_file_info_create'
 
     INTEGER :: istat,unit,nlines,io_stat,iline,idum,abc_row,abc_column,&
          cell_row,cell_column,row_number,irep,nstart,&
-         line_number,nmol_types,iunit
+         line_number,nmol_types,iunit,iw
     INTEGER,DIMENSION(:),POINTER :: nunits
     CHARACTER(default_string_length),DIMENSION(:,:),POINTER :: atom_names
     CHARACTER(default_string_length)   :: line,method_name,cdum
+    TYPE(cp_logger_type), POINTER            :: logger
 !******************************************************************************
+
+! some stuff in case we need to write error messages to the screen
+    logger=>cp_error_get_logger(error)
+    iw = cp_logger_get_default_unit_nr(logger)
 
 ! allocate the array we'll need in case we have an empty box
     CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
@@ -924,9 +920,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 ! first, Let's find the first END after GLOBAL
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&GLOBAL",.TRUE.,&
          mc_input_file%global_row_end,idum)
-    IF(mc_input_file%global_row_end == 0) &
-         CALL stop_program('mc_types.F/mc_input_file_create',&
-         'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
+    IF(mc_input_file%global_row_end == 0) THEN
+       WRITE(iw,*)
+       WRITE(iw,*) 'File name ',input_file_name
+       CALL stop_program('mc_types.F/mc_input_file_create',&
+            'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
+    ENDIF
 
 ! first, let's find the first END after &COORD, and the line of &COORD
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.TRUE.,&
@@ -934,9 +933,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&COORD",.FALSE.,&
          mc_input_file%coord_row_start,idum)
 
-    IF(mc_input_file%coord_row_end == 0) &
-         CALL stop_program('mc_types.F/mc_input_file_create',&
-         'Could not find &END after &COORD (make sure & is the first in the same column after &COORD)')
+    IF(mc_input_file%coord_row_end == 0) THEN
+       WRITE(iw,*)
+       WRITE(iw,*) 'File name ',input_file_name
+       CALL stop_program('mc_types.F/mc_input_file_create',&
+            'Could not find &END after &COORD (make sure & is the first in the same column after &COORD)')
+    ENDIF
 
 ! now the RUN_TYPE
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"RUN_TYPE",.FALSE.,&
@@ -977,8 +979,14 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
        mc_input_file%mol_set_nmol_column(irep)=mc_input_file%mol_set_nmol_column(irep)+5
 
     ENDDO
-    IF(irep .NE. nmol_types) CALL stop_program('mc_types.F/mc_input_file_create',&
-         'Did not find MOL_SET sections for every molecule in the simulation (make sure both input files have all types)')
+    IF(irep .NE. nmol_types) THEN
+       WRITE(iw,*)
+       WRITE(iw,*) 'File name ',input_file_name
+       WRITE(iw,*) 'Number of molecule types ',nmol_types
+       WRITE(iw,*) '&MOL_SET sections found ',irep
+       CALL stop_program('mc_types.F/mc_input_file_create',&
+            'Did not find MOL_SET sections for every molecule in the simulation (make sure both input files have all types)')
+    ENDIF
 
 ! now let's find the type of force_env...right now, I'm only concerned with
 ! KG,QS, and Fist, though it should be trivial to add others
@@ -1260,6 +1268,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"PRESSURE",r_val=mc_par%pressure,error=error)
       CALL section_vals_val_get(mc_section,"TEMP",r_val=mc_par%temp,error=error)
       CALL section_vals_val_get(mc_section,"PMVOLUME",r_val=mc_par%pmvolume,error=error)
+      CALL section_vals_val_get(mc_section,"PMVOL_BOX",r_val=mc_par%pmvol_box,error=error)
       CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
       CALL section_vals_val_get(mc_section,"PMAVBMC",r_val=mc_par%pmavbmc,error=error)
       CALL section_vals_val_get(mc_section,"PMTRANS",r_val=mc_par%pmtrans,error=error)
@@ -1321,10 +1330,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       DO imol=1,SIZE(temp_r_array)
          mc_par%pmswap_mol(imol)=temp_r_array(imol)
       ENDDO
-      CALL section_vals_val_get(mc_section,"PMVOL_BOX",r_vals=temp_r_array,error=error)
-      DO imol=1,SIZE(temp_r_array)
-         mc_par%pmvol_box(imol)=temp_r_array(imol)
-      ENDDO
 
 ! now some logical values
       CALL section_vals_val_get(mc_section,"LBIAS",l_val=mc_par%lbias,error=error)
@@ -1362,7 +1367,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             mc_par % nstep
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmvolume ', &
             mc_par % pmvolume
-         WRITE ( iw, format_box_string ) ' MC| pmvol_box', &
+         WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmvol_box ', &
             mc_par % pmvol_box
          WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
             mc_par % pmswap
@@ -1957,10 +1962,6 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     IF(mc_par%pmrot_mol(nmol_types) .LT. 0.9999E0_dp) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
             'The last value of PMROT_MOL needs to be 1.0')       
-    ENDIF
-    IF(mc_par%pmvol_box(nboxes) .LT. 0.9999E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMVOL_BOX needs to be 1.0')       
     ENDIF
 
  ! some ensembles require multiple boxes or molecule types

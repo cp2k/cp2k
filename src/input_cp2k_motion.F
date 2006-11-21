@@ -990,9 +990,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMVOL_BOX",&
-            description="The probability of changing the volume of a given box.",&
-            usage="PMVOL_BOX {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            description="The probability of attempting a volume move on this box (GEMC_NpT).",&
+            usage="PMVOL_BOX {real}",&
+            type_of_var=real_t, default_r_val=1.0E0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
