@@ -122,19 +122,17 @@ CONTAINS
        ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
        xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
        xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
-       IF (zlb.GT.zub) RETURN
+       IF (zlb.GT.zub .OR. ylb.GT.yub .OR. xlb.GT.xub) RETURN
        DO ig=zlb,zub
           rpg = REAL(ig-gbo(1,3),dp)*dr(3) - rpl(3)
           zap = EXP(-zetp*rpg**2)
           zdat(ig)=scale*W*zap
        ENDDO
-       IF (ylb.GT.yub) RETURN
        DO ig=ylb,yub
           rpg = REAL(ig-gbo(1,2),dp)*dr(2) - rpl(2)
           yap = EXP(-zetp*rpg**2)
           ydat(ig)=yap
        ENDDO
-       IF (xlb.GT.xub) RETURN
        DO ig=xlb,xub
           rpg = REAL(ig-gbo(1,1),dp)*dr(1) - rpl(1)
           xap  = EXP(-zetp*rpg**2)
@@ -155,27 +153,24 @@ CONTAINS
                 yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
                 ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
                 xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
-                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))                
-                IF (zlb.GT.zub) CYCLE
+                xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))   
+                IF (zlb.GT.zub .OR. ylb.GT.yub .OR. xlb.GT.xub) CYCLE
                 DO ig=zlb,zub
                    rpg = REAL(ig-gbo(1,3),dp)*dr(3) - rpl(3)
                    zap = EXP(-zetp*rpg**2)
                    zdat(ig)=scale*W*zap
                 ENDDO
-                IF (ylb.GT.yub) CYCLE
                 DO ig=ylb,yub
                    rpg = REAL(ig-gbo(1,2),dp)*dr(2) - rpl(2)
                    yap = EXP(-zetp*rpg**2)
                    ydat(ig)=yap
                 ENDDO
-                IF (xlb.GT.xub) CYCLE
                 DO ig=xlb,xub
                    rpg = REAL(ig-gbo(1,1),dp)*dr(1) - rpl(1)
                    xap  = EXP(-zetp*rpg**2)
                    xdat(ig)=xap
                 ENDDO
                 CALL collocate_gf_npbc(grid,xdat,ydat,zdat,bo,bo2,zlb,zub,ylb,yub,xlb,xub)
-
              END DO
           END DO
        END DO
