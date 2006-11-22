@@ -1,8 +1,8 @@
 PERL     = perl
 CC       = gcc
 CPP      = cpp
-FC       = mpfort -qsuffix=f=f90
-LD       = mpfort 
+FC       = mpfort -compiler xlf95_r -qsuffix=f=f90
+LD       = mpfort -compiler xlf95_r
 AR       = ar -r
 DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL\
            -D__parallel -D__BLACS -D__SCALAPACK
