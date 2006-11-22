@@ -62,6 +62,7 @@ MODULE pw_types
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
   PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b
+  PUBLIC :: pw_dr2_gg
 
   TYPE pw_type
      REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr, mass_cr
@@ -594,6 +595,87 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
   CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_dr2
+
+!******************************************************************************
+!!****** pw_types/pw_dr2_gg [1.0] *
+!!
+!!   NAME
+!!     pw_dr2_gg
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_dr2(pw, pwdr2)
+!!       Type(pw_type), Intent (IN)               :: pw
+!!       Type(pw_type), DIMENSION(:), Intent (OUT):: pwdr2_gg
+!!     End Subroutine pw_dr2
+!!
+!!   FUNCTION
+!!     Calculate the tensorial 2nd derivative of a plane wave vector
+!!     and divides by |G|^2. pwdr2_gg(G=0) is put to zero.
+!!
+!!   AUTHOR
+!!     RD (20-Nov-2006)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!!     Adapted from pw_dr2
+!!
+!!*****
+!******************************************************************************
+
+SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j )
+
+    TYPE(pw_type), INTENT(IN)                :: pw
+    TYPE(pw_type), INTENT(INOUT)             :: pwdr2_gg
+    INTEGER, INTENT(IN)                      :: i, j
+
+    INTEGER                                  :: cnt, handle, ig
+    REAL(KIND=dp)                            :: flop, gg, o3
+
+!------------------------------------------------------------------------------
+
+  CALL timeset ( 'pw_dr2_gg', 'I', 'Mflops', handle )
+
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2_gg")
+
+  flop = 0.0_dp
+  o3 = 1._dp/3._dp
+
+  IF ( pw % in_space == RECIPROCALSPACE .AND. &
+       pw % in_use == COMPLEXDATA1D ) THEN
+
+    cnt = SIZE ( pw % cc )
+
+    IF ( i == j ) THEN
+!$omp parallel do private (ig)
+      DO ig = pw%pw_grid % first_gne0, cnt
+        gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
+        pwdr2_gg%cc(ig) = gg * pw%cc(ig) / pw%pw_grid%gsq(ig)
+      END DO
+      flop = flop + 6 * cnt
+    ELSE
+!$omp parallel do private (ig)
+      DO ig = pw%pw_grid % first_gne0, cnt
+        pwdr2_gg%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig)) &
+                          / pw%pw_grid%gsq(ig) 
+      END DO
+      flop = flop + 5 * cnt
+    END IF
+
+    IF ( pw%pw_grid % have_g0 ) pwdr2_gg%cc ( 1 ) = 0.0_dp
+
+  ELSE
+
+    CALL stop_program ( "pw_dr2_gg", "no suitable data field" )
+
+  END IF
+
+  flop = flop * 1.e-6_dp
+  CALL timestop ( flop, handle )
+
+END SUBROUTINE pw_dr2_gg
 
 !******************************************************************************
 !!****** pw_types/pw_smoothing [1.0] *

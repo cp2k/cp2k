@@ -39,6 +39,8 @@ MODULE periodic_table
      INTEGER :: e_conv ( 0:3 )
      REAL (KIND=dp) :: heat_of_formation ! in kcal/mol
      REAL (KIND=dp) :: eht_param ( 0:3 ) ! in eV
+     REAL (KIND=dp) :: gyrom_ratio ! in Mhz/Tesla
+     INTEGER :: gyrom_ratio_isotope ! isotope number corresponging with gyrom_ratio
   END TYPE atom
 
   INTEGER, PARAMETER :: nelem = 106
@@ -1257,7 +1259,9 @@ SUBROUTINE init_periodic_table()
   ptable(106) % eht_param(0:3) = (/ z, z, z, z/)
 
 ! Initialize heat of formation
-  CALL init_eheat 
+  CALL init_eheat
+! Initialize gyromagnetic ratio 
+  CALL init_gratio
 
 END SUBROUTINE init_periodic_table
 
@@ -1481,6 +1485,335 @@ SUBROUTINE init_eheat
 
 END SUBROUTINE init_eheat 
 
+SUBROUTINE init_gratio
+! D. M. Granty and R. K. Harris, Encyclopedia of Nuclear 
+! Magnetic Resonance vol. 5 (Wiley, Chichester UK, 1996)
+!
+! gyrom_ratio values in Mhz/Tesla
+!
+! Dummy
+  ptable(0) % gyrom_ratio = 0.0_dp 
+  ptable(0) % gyrom_ratio_isotope = 0
+! Hydrogen
+  ptable(1) % gyrom_ratio = 42.5774690577_dp
+  ptable(1) % gyrom_ratio_isotope = 1
+! Helium
+  ptable(2) % gyrom_ratio = -32.4360299810_dp
+  ptable(2) % gyrom_ratio_isotope = 3
+! Lithium
+  ptable(3) % gyrom_ratio = 16.5484555869_dp
+  ptable(3) % gyrom_ratio_isotope = 7
+! Beryllium
+  ptable(4) % gyrom_ratio = -5.9836942827_dp
+  ptable(4) % gyrom_ratio_isotope = 9
+! Boron
+  ptable(5) % gyrom_ratio = 13.6629814024_dp
+  ptable(5) % gyrom_ratio_isotope = 11
+! Carbon
+  ptable(6) % gyrom_ratio = 10.7083965713_dp
+  ptable(6) % gyrom_ratio_isotope = 13
+! Nitrogen
+  ptable(7) % gyrom_ratio = 3.0777051853_dp
+  ptable(7) % gyrom_ratio_isotope = 14
+! Oxygen
+  ptable(8) % gyrom_ratio = -5.7742686593_dp
+  ptable(8) % gyrom_ratio_isotope = 17
+! Fluorine
+  ptable(9) % gyrom_ratio = 40.0775701637_dp
+  ptable(9) % gyrom_ratio_isotope = 19
+! Neon
+  ptable(10) % gyrom_ratio = -3.3630712715_dp
+  ptable(10) % gyrom_ratio_isotope = 21
+! Sodium
+  ptable(11) % gyrom_ratio = 11.2695216738_dp
+  ptable(11) % gyrom_ratio_isotope = 23
+! Magnesium
+  ptable(12) % gyrom_ratio = -2.6083426159_dp
+  ptable(12) % gyrom_ratio_isotope = 25
+! Aluminium
+  ptable(13) % gyrom_ratio = 11.1030809358_dp
+  ptable(13) % gyrom_ratio_isotope = 27
+! Silicon
+  ptable(14) % gyrom_ratio = -8.4654514231_dp
+  ptable(14) % gyrom_ratio_isotope = 29
+! Phosphorus
+  ptable(15) % gyrom_ratio = 17.2514409015_dp
+  ptable(15) % gyrom_ratio_isotope = 31
+! Sulfur
+  ptable(16) % gyrom_ratio = 3.2717242919_dp
+  ptable(16) % gyrom_ratio_isotope = 33
+! Chlorine
+  ptable(17) % gyrom_ratio = 4.1765408335_dp
+  ptable(17) % gyrom_ratio_isotope = 35
+! Argon
+  ptable(18) % gyrom_ratio = 0.0_dp
+  ptable(18) % gyrom_ratio_isotope = 0
+! Potassium
+  ptable(19) % gyrom_ratio = 1.9895335549_dp
+  ptable(19) % gyrom_ratio_isotope = 39
+! Calcium
+  ptable(20) % gyrom_ratio = -2.8696734409_dp
+  ptable(20) % gyrom_ratio_isotope = 43
+! Scandium
+  ptable(21) % gyrom_ratio = 10.3590726388_dp
+  ptable(21) % gyrom_ratio_isotope = 45
+! Titanium
+  ptable(22) % gyrom_ratio = -2.4040354154_dp
+  ptable(22) % gyrom_ratio_isotope = 47
+! Vanadium
+  ptable(23) % gyrom_ratio = 11.2132801367_dp
+  ptable(23) % gyrom_ratio_isotope = 51
+! Chromium
+  ptable(24) % gyrom_ratio = -2.4115156977_dp
+  ptable(24) % gyrom_ratio_isotope = 53
+! Manganese
+  ptable(25) % gyrom_ratio = 10.5762511769_dp
+  ptable(25) % gyrom_ratio_isotope = 55
+! Iron
+  ptable(26) % gyrom_ratio = 1.3815642187_dp
+  ptable(26) % gyrom_ratio_isotope = 57
+! Cobalt
+  ptable(27) % gyrom_ratio = 10.0776909966_dp
+  ptable(27) % gyrom_ratio_isotope = 59
+! Nickel
+  ptable(28) % gyrom_ratio = -3.8114425772_dp
+  ptable(28) % gyrom_ratio_isotope = 61
+! Copper
+  ptable(29) % gyrom_ratio = 11.3187637358_dp
+  ptable(29) % gyrom_ratio_isotope = 63
+! Zinc
+  ptable(30) % gyrom_ratio = 2.6685318322_dp
+  ptable(30) % gyrom_ratio_isotope = 67
+! Gallium
+  ptable(31) % gyrom_ratio = 10.2477560110_dp
+  ptable(31) % gyrom_ratio_isotope = 69
+! Germanium
+  ptable(32) % gyrom_ratio = -1.4897384913_dp
+  ptable(32) % gyrom_ratio_isotope = 73
+! Arsenic
+  ptable(33) % gyrom_ratio = 7.3150206071_dp
+  ptable(33) % gyrom_ratio_isotope = 75
+! Selenium
+  ptable(34) % gyrom_ratio = 8.1573046941_dp
+  ptable(34) % gyrom_ratio_isotope = 77
+! Bromine
+  ptable(35) % gyrom_ratio = 10.7041503174_dp
+  ptable(35) % gyrom_ratio_isotope = 79
+! Krypton
+  ptable(36) % gyrom_ratio = -1.6442297171_dp
+  ptable(36) % gyrom_ratio_isotope = 83
+! Rubidium
+  ptable(37) % gyrom_ratio = 4.1264181673_dp
+  ptable(37) % gyrom_ratio_isotope = 85
+! Strontium
+  ptable(38) % gyrom_ratio = -1.8524642249_dp
+  ptable(38) % gyrom_ratio_isotope = 87
+! Yttrium
+  ptable(39) % gyrom_ratio = -2.0949232525_dp
+  ptable(39) % gyrom_ratio_isotope = 89
+! Zirconium
+  ptable(40) % gyrom_ratio = -3.9747832953_dp
+  ptable(40) % gyrom_ratio_isotope = 91
+! Niobium
+  ptable(41) % gyrom_ratio = 10.4523417326_dp
+  ptable(41) % gyrom_ratio_isotope = 93
+! Molybdenum
+  ptable(42) % gyrom_ratio = -2.7868030535_dp
+  ptable(42) % gyrom_ratio_isotope = 95
+! Technetium
+  ptable(43) % gyrom_ratio = 9.6225078593_dp
+  ptable(43) % gyrom_ratio_isotope = 99
+! Ruthenium
+  ptable(44) % gyrom_ratio = -2.1915635664_dp
+  ptable(44) % gyrom_ratio_isotope = 101
+! Rhodium
+  ptable(45) % gyrom_ratio = -1.3477240581_dp
+  ptable(45) % gyrom_ratio_isotope = 103
+! Palladium
+  ptable(46) % gyrom_ratio = -1.9576058000_dp
+  ptable(46) % gyrom_ratio_isotope = 105
+! Silver
+  ptable(47) % gyrom_ratio = -1.7330669824_dp
+  ptable(47) % gyrom_ratio_isotope = 107
+! Cadmium
+  ptable(48) % gyrom_ratio = -9.0691469715_dp
+  ptable(48) % gyrom_ratio_isotope = 111
+! Indium
+  ptable(49) % gyrom_ratio = 9.3856853040_dp
+  ptable(49) % gyrom_ratio_isotope = 115
+! Tin
+  ptable(50) % gyrom_ratio = -15.9659464261_dp
+  ptable(50) % gyrom_ratio_isotope = 119
+! Antimony
+  ptable(51) % gyrom_ratio = 10.2551487581_dp
+  ptable(51) % gyrom_ratio_isotope = 121
+! Tellurium
+  ptable(52) % gyrom_ratio = -13.5454231953_dp
+  ptable(52) % gyrom_ratio_isotope = 125
+! Iodine
+  ptable(53) % gyrom_ratio = 8.5777718410_dp
+  ptable(53) % gyrom_ratio_isotope = 127
+! Xenon
+  ptable(54) % gyrom_ratio = -11.8603902888_dp
+  ptable(54) % gyrom_ratio_isotope = 129
+! Cesium
+  ptable(55) % gyrom_ratio = 5.6233482338_dp
+  ptable(55) % gyrom_ratio_isotope = 133
+! Barium
+  ptable(56) % gyrom_ratio = 4.7634278693_dp
+  ptable(56) % gyrom_ratio_isotope = 137
+! Lantanum
+  ptable(57) % gyrom_ratio = 6.0611483090_dp
+  ptable(57) % gyrom_ratio_isotope = 139
+! Cerium
+  ptable(58) % gyrom_ratio = 0.0_dp
+  ptable(58) % gyrom_ratio_isotope = 0
+! Praseodymium
+  ptable(59) % gyrom_ratio = 13.0359039238_dp
+  ptable(59) % gyrom_ratio_isotope = 141
+! Neodymium
+  ptable(60) % gyrom_ratio = -2.3188875208_dp
+  ptable(60) % gyrom_ratio_isotope = 143
+! Promethium
+  ptable(61) % gyrom_ratio = 5.7502680939_dp
+  ptable(61) % gyrom_ratio_isotope = 147
+! Samarium
+  ptable(62) % gyrom_ratio = -1.7745776155_dp
+  ptable(62) % gyrom_ratio_isotope = 147
+! Europium
+  ptable(63) % gyrom_ratio = 4.6742215237_dp
+  ptable(63) % gyrom_ratio_isotope = 153
+! Gadolinium
+  ptable(64) % gyrom_ratio = -1.7139395822_dp
+  ptable(64) % gyrom_ratio_isotope = 157
+! Terbium
+  ptable(65) % gyrom_ratio = 10.2352543902_dp
+  ptable(65) % gyrom_ratio_isotope = 159
+! Dysprosium
+  ptable(66) % gyrom_ratio = 2.0515072165_dp
+  ptable(66) % gyrom_ratio_isotope = 163
+! Holmium
+  ptable(67) % gyrom_ratio = 9.0877472505_dp
+  ptable(67) % gyrom_ratio_isotope = 165
+! Erbium
+  ptable(68) % gyrom_ratio = -1.2279917944_dp
+  ptable(68) % gyrom_ratio_isotope = 167
+! Thulium
+  ptable(69) % gyrom_ratio = -3.5300566378_dp
+  ptable(69) % gyrom_ratio_isotope = 169
+! Ytterbium
+  ptable(70) % gyrom_ratio = -2.0729931338_dp
+  ptable(70) % gyrom_ratio_isotope = 173
+! Lutetium
+  ptable(71) % gyrom_ratio = 4.8625018213_dp
+  ptable(71) % gyrom_ratio_isotope = 175
+! Hafnium
+  ptable(72) % gyrom_ratio = 1.7284226820_dp
+  ptable(72) % gyrom_ratio_isotope = 177
+! Tantalum
+  ptable(73) % gyrom_ratio = 5.1626680440_dp
+  ptable(73) % gyrom_ratio_isotope = 181
+! Tungsten
+  ptable(74) % gyrom_ratio = 1.7956502074_dp
+  ptable(74) % gyrom_ratio_isotope = 183
+! Rhenium
+  ptable(75) % gyrom_ratio = 9.8169951998_dp
+  ptable(75) % gyrom_ratio_isotope = 187
+! Osmium
+  ptable(76) % gyrom_ratio = 3.3536015524_dp
+  ptable(76) % gyrom_ratio_isotope = 189
+! Iridium
+  ptable(77) % gyrom_ratio = 0.8319028875_dp
+  ptable(77) % gyrom_ratio_isotope = 193
+! Platinum
+  ptable(78) % gyrom_ratio = 9.2922613524_dp
+  ptable(78) % gyrom_ratio_isotope = 195
+! Gold
+  ptable(79) % gyrom_ratio = 0.7528983738_dp
+  ptable(79) % gyrom_ratio_isotope = 197
+! Mercury
+  ptable(80) % gyrom_ratio = 7.7123168633_dp
+  ptable(80) % gyrom_ratio_isotope = 199
+! Thallium
+  ptable(81) % gyrom_ratio = 24.9748814221_dp
+  ptable(81) % gyrom_ratio_isotope = 205
+! Lead
+  ptable(82) % gyrom_ratio = 8.8815779373_dp
+  ptable(82) % gyrom_ratio_isotope = 207
+! Bismuth
+  ptable(83) % gyrom_ratio = 6.9630287603_dp
+  ptable(83) % gyrom_ratio_isotope = 209
+! Polonium
+  ptable(84) % gyrom_ratio = 11.7774657888_dp
+  ptable(84) % gyrom_ratio_isotope = 209
+! Astatine
+  ptable(85) % gyrom_ratio = 0.0_dp
+  ptable(85) % gyrom_ratio_isotope = 0
+! Radon
+  ptable(86) % gyrom_ratio = 0.0_dp
+  ptable(86) % gyrom_ratio_isotope = 0
+! Francium
+  ptable(87) % gyrom_ratio = 0.0_dp
+  ptable(87) % gyrom_ratio_isotope = 0
+! Radium
+  ptable(88) % gyrom_ratio = 0.0_dp
+  ptable(88) % gyrom_ratio_isotope = 0
+! Actinium
+  ptable(89) % gyrom_ratio = 5.5704230082_dp
+  ptable(89) % gyrom_ratio_isotope = 227
+! Thorium
+  ptable(90) % gyrom_ratio = 0.6366197724_dp
+  ptable(90) % gyrom_ratio_isotope = 229
+! Proctactinium
+  ptable(91) % gyrom_ratio = 5.1088736732_dp
+  ptable(91) % gyrom_ratio_isotope = 231
+! Uranium
+  ptable(92) % gyrom_ratio = -0.8276057041_dp
+  ptable(92) % gyrom_ratio_isotope = 235
+! Neptunium
+  ptable(93) % gyrom_ratio = 4.9338032358_dp
+  ptable(93) % gyrom_ratio_isotope = 237
+! Plutonium
+  ptable(94) % gyrom_ratio = 1.5469860469_dp
+  ptable(94) % gyrom_ratio_isotope = 239
+! Americum
+  ptable(95) % gyrom_ratio = 2.4509861236_dp
+  ptable(95) % gyrom_ratio_isotope = 243
+! Curium
+  ptable(96) % gyrom_ratio = 0.3183098862_dp
+  ptable(96) % gyrom_ratio_isotope = 247
+! Berkelium
+  ptable(97) % gyrom_ratio = 0.0_dp
+  ptable(97) % gyrom_ratio_isotope = 0
+! Californium
+  ptable(98) % gyrom_ratio = 0.0_dp
+  ptable(98) % gyrom_ratio_isotope = 0
+! Einsteinium
+  ptable(99) % gyrom_ratio = 0.0_dp
+  ptable(99) % gyrom_ratio_isotope = 0
+! Fermium
+  ptable(100) % gyrom_ratio = 0.0_dp
+  ptable(100) % gyrom_ratio_isotope = 0
+! Mendelevium
+  ptable(101) % gyrom_ratio = 0.0_dp
+  ptable(101) % gyrom_ratio_isotope = 0
+! Nobelium
+  ptable(102) % gyrom_ratio = 0.0_dp
+  ptable(102) % gyrom_ratio_isotope = 0
+! Lawrencium
+  ptable(103) % gyrom_ratio = 0.0_dp
+  ptable(103) % gyrom_ratio_isotope = 0
+! Unnilquadium
+  ptable(104) % gyrom_ratio = 0.0_dp
+  ptable(104) % gyrom_ratio_isotope = 0
+! Unnilpentium
+  ptable(105) % gyrom_ratio = 0.0_dp
+  ptable(105) % gyrom_ratio_isotope = 0
+! Unnilhexium
+  ptable(106) % gyrom_ratio = 0.0_dp
+  ptable(106) % gyrom_ratio_isotope = 0
+
+END SUBROUTINE init_gratio
 !******************************************************************************
 
 END MODULE periodic_table
