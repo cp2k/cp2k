@@ -946,8 +946,13 @@ MODULE qs_rho_atom_methods
       DO ia = 1,na
         cosia = lebedev_grid(ll)%r(3,ia)
         grid_atom%cos_phi(ia)   =   cosia
-        grid_atom%theta(ia)     =  &
+        IF ( ABS(lebedev_grid(ll)%r(2,ia)) < EPSILON(1.0_dp) .AND. &
+              ABS(lebedev_grid(ll)%r(1,ia)) < EPSILON(1.0_dp) ) THEN
+          grid_atom%theta(ia)     =  0.0_dp
+        ELSE
+          grid_atom%theta(ia)     =  &
                ATAN2( lebedev_grid(ll)%r(2,ia) , lebedev_grid(ll)%r(1,ia) )
+        END IF
         grid_atom%cos_theta(ia) = COS( grid_atom%theta(ia) )
         phi =  ACOS(cosia)
         IF( grid_atom%sin_phi(ia) < 0.0_dp ) phi = - phi
