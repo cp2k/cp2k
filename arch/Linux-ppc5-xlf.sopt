@@ -1,0 +1,14 @@
+PERL     = perl
+CC       = gcc
+CPP      = cpp
+FC       = xlf95_r -qsuffix=f=f90
+LD       = xlf95_r
+AR       = ar -r 
+DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL
+CPPFLAGS = -C $(DFLAGS) -P -traditional
+FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5
+LDFLAGS  = $(FCFLAGS) -L/apps/lapack-3/64/lib
+
+LIBS     = -llapack_ppc64 -lessl /opt/ibmcmp/xlmass/4.3/lib64/libmass_64.a
+
+OBJECTS_ARCHITECTURE = machine_aix.o

@@ -1,0 +1,16 @@
+PERL     = perl
+CC       = gcc
+CPP      = cpp
+FC       = mpfort -qsuffix=f=f90
+LD       = mpfort 
+AR       = ar -r
+DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL\
+           -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS = -C $(DFLAGS) -P -traditional
+FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5
+LDFLAGS  = $(FCFLAGS) -L/apps/lapack-3/64/lib -L/apps/scalapack/64/lib
+
+LIBS     = -lscalapack /apps/scalapack/64/lib/blacsF77init_MPI-ppc64-0.a /apps/scalapack/64/lib/blacs_MPI-ppc64-0.a\
+           -llapack_ppc64 -lessl /opt/ibmcmp/xlmass/4.3/lib64/libmass_64.a
+
+OBJECTS_ARCHITECTURE = machine_aix.o
