@@ -1,14 +1,14 @@
 PERL     = /usr/bin/perl
 CC       = cc
 CPP      = /usr/bin/cpp 
-FC       = /Users/hutter/bin/g95 
-LD       = /Users/hutter/bin/g95
+FC       = g95 
+LD       = g95
 AR       = ar -r
 RANLIB   = ranlib
 CPPFLAGS = -C -D__G95 -D__FFTSG -traditional
 FCFLAGS  = -O0 -g -cpp -ftrace=full -fbounds-check
 LDFLAGS  = $(FCFLAGS) 
-LIBS     = /Users/hutter/libs/vecLib
+LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Y -Wl,10
 
 OBJECTS_ARCHITECTURE = machine_g95.o
 
