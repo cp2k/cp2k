@@ -46,6 +46,7 @@ MODULE input_section_types
                                              dp
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress,&
+                                             substitute_special_xml_tokens,&
                                              typo_match,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -2254,6 +2255,7 @@ END SUBROUTINE section_vals_write
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_section_xml', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=1000)                      :: string
     CHARACTER(LEN=3)                         :: repeats, required
     INTEGER                                  :: i, l0, l1
     LOGICAL                                  :: failure
@@ -2266,7 +2268,7 @@ END SUBROUTINE section_vals_write
 
       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
 
-!     *** Indentation for current level, next level, etc. ***
+      ! Indentation for current level, next level, etc.
 
       l0 = level
       l1 = level + 1
@@ -2283,12 +2285,13 @@ END SUBROUTINE section_vals_write
         repeats = "no "
       END IF
 
+      CALL substitute_special_xml_tokens(section%description,string,ltu=.FALSE.)
+
       WRITE (UNIT=unit_number,FMT="(A)")&
         REPEAT(" ",l0)//"<SECTION required="""//TRIM(required)//&
         """ repeats="""//TRIM(repeats)//""">",&
         REPEAT(" ",l1)//"<NAME>"//TRIM(section%name)//"</NAME>",&
-        REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(section%description)//&
-        "</DESCRIPTION>"
+        REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(string)//"</DESCRIPTION>"
 
       DO i=-1,section%n_keywords
         IF (ASSOCIATED(section%keywords(i)%keyword)) THEN

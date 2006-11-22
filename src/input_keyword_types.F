@@ -931,7 +931,7 @@ END SUBROUTINE keyword_describe_html
 
     IF (.NOT.failure) THEN
 
-!     *** Indentation for current level, next level, etc. ***
+      ! Indentation for current level, next level, etc.
 
       l0 = level
       l1 = level + 1
@@ -951,7 +951,7 @@ END SUBROUTINE keyword_describe_html
         repeats = "no "
       END IF
 
-!     *** Write (special) keyword element ***
+      ! Write (special) keyword element
 
       IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
         WRITE (UNIT=unit_number,FMT="(A)")&
