@@ -944,6 +944,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"RUN_TYPE",.FALSE.,&
          mc_input_file%run_type_row, mc_input_file%run_type_column)
     mc_input_file%run_type_column=mc_input_file%run_type_column+9
+    IF(mc_input_file%run_type_row == 0) THEN
+       WRITE(iw,*)
+       WRITE(iw,*) 'File name ',input_file_name
+       CALL stop_program('mc_types.F/mc_input_file_create',&
+            'Could not find RUN_TYPE in the input file (should be in the &GLOBAL section).')
+    ENDIF
 
 ! now the CELL stuff..we don't care about REF_CELL since that should
 ! never change if it's there
@@ -962,6 +968,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     ELSE
        CALL mc_parse_text(mc_input_file%text,abc_row+1,nlines-1,&
             "ABC",.FALSE.,mc_input_file%cell_row, mc_input_file%cell_column)
+    ENDIF
+    IF(mc_input_file%cell_row == 0) THEN
+       WRITE(iw,*)
+       WRITE(iw,*) 'File name ',input_file_name
+       CALL stop_program('mc_types.F/mc_input_file_create',&
+            'Could not find &CELL section in the input file.  Or could not find the ABC line after it.')
     ENDIF
 
 ! now we need all the MOL_SET NMOLS indicies
