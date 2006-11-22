@@ -169,7 +169,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: dummy_field, field, label
     INTEGER :: handle, i, iatom, ibond, idum, index_now, ionfo, iphi, &
       itheta, iw, jatom, N, natom, natom_prev, nbond, nbond_prev, nonfo, &
-      nonfo_prev, nphi, nphi_prev, ntheta, ntheta_prev, output_unit, stat
+      nphi, nphi_prev, ntheta, ntheta_prev, output_unit, stat
     LOGICAL                                  :: do_onfo, failure, found, &
                                                 ionode
     TYPE(array1_list_type), DIMENSION(:), &
@@ -411,9 +411,7 @@ CONTAINS
     ! PHI section
     !
     nphi_prev  = 0
-    nonfo_prev = 0
     IF(ASSOCIATED(conn_info%phi_a))   nphi_prev = SIZE(conn_info%phi_a)
-    IF(do_onfo.AND.ASSOCIATED(conn_info%onfo_a)) nonfo_prev = SIZE(conn_info%onfo_a)
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NPHI section'
     label = '!NPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
@@ -429,8 +427,8 @@ CONTAINS
        CALL reallocate(conn_info%phi_c,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_d,1,nphi_prev+nphi)
        IF (do_onfo) THEN
-          CALL reallocate(conn_info%onfo_a,1,nonfo_prev+nphi)
-          CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nphi)
+          CALL reallocate(conn_info%onfo_a,1,nphi_prev+nphi)
+          CALL reallocate(conn_info%onfo_b,1,nphi_prev+nphi)
        END IF
        !Read in the torsion info
        IF (psf_type==do_conn_psf_u) THEN
@@ -464,8 +462,8 @@ CONTAINS
     ! ONFO structure
     !
     IF (do_onfo) THEN
-       conn_info%onfo_a(:) = conn_info%phi_a(:)
-       conn_info%onfo_b(:) = conn_info%phi_d(:)
+       conn_info%onfo_a(nphi_prev+1:) = conn_info%phi_a(nphi_prev+1:)
+       conn_info%onfo_b(nphi_prev+1:) = conn_info%phi_d(nphi_prev+1:)
        ! Reorder bonds
        ALLOCATE(ex_bond_list(natom+natom_prev),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -487,7 +485,7 @@ CONTAINS
        IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
        CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
        nonfo = 0
-       DO ionfo=1, nphi
+       DO ionfo=1, nphi_prev+nphi
        ! Check if the torsion is not shared between angles or bonds
           IF ( ANY(ex_bond_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo)).OR.&
                ANY(ex_bend_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo))) CYCLE
@@ -517,7 +515,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
        N = 0
-       IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo_prev+nonfo
+       IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo
        CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
        nonfo = 0
        DO I=1,natom+natom_prev
@@ -527,13 +525,13 @@ CONTAINS
              ELSE
                 IF (ex_bond_list(I)%array1(ionfo)<=I) CYCLE
                 nonfo = nonfo + 1
-                conn_info%onfo_a(nonfo_prev+nonfo) = I
-                conn_info%onfo_b(nonfo_prev+nonfo) = ex_bond_list(I)%array1(ionfo)
+                conn_info%onfo_a(nonfo) = I
+                conn_info%onfo_b(nonfo) = ex_bond_list(I)%array1(ionfo)
              END IF
           END DO
        END DO
-       CALL reallocate(conn_info%onfo_a,1,nonfo_prev+nonfo)
-       CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nonfo)
+       CALL reallocate(conn_info%onfo_a,1,nonfo)
+       CALL reallocate(conn_info%onfo_b,1,nonfo)
        DO I=1,natom+natom_prev
           DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
