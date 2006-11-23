@@ -49,6 +49,7 @@ MODULE qs_initial_guess
                                              dp,&
                                              dp_size,&
                                              int_size
+  USE machine,                         ONLY: m_mov
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -128,12 +129,12 @@ CONTAINS
     INTEGER :: atom_a, density_guess, group, handle, homo, iatom, id_nr, &
       ikind, iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll, nao, &
       natom, ncount, nelectron, nmo, nset, nspin, qs_env_id, nvec, i, &
-      extrapolation_method_nr
+      extrapolation_method_nr, not_read
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
-                                                ortho_basis, flag, orthogonal_wf
+                                                ortho_basis, orthogonal_wf
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 total_rho, trps1, trps2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
@@ -208,33 +209,44 @@ CONTAINS
     IF (density_guess == restart_guess) THEN
         CALL section_vals_val_get(qs_env%input,"DFT%RESTART_FILE_NAME",&
              c_val=file_name,error=error)
-        IF (id_nr/=0) THEN
-            file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
-                         ADJUSTL(cp_to_string(id_nr))
-        END IF
         INQUIRE(FILE=file_name,exist=exist)
         IF (.NOT. exist) THEN
-           density_guess = atomic_guess
-        ENDIF
+          filename = file_name
+          filename((LEN_TRIM(filename)+1):(LEN(filename))) = "-"//&
+               ADJUSTL(cp_to_string(1))
+          INQUIRE(FILE=filename,exist=exist)
+        END IF
+        IF (.NOT. exist) THEN
+          density_guess = atomic_guess
+        ELSE
+          CALL m_mov(filename, file_name)
+        END IF
     ELSE IF (density_guess == history_guess) THEN
-       flag = .TRUE.
        CALL section_vals_val_get(qs_env%input, "DFT%RESTART_FILE_NAME", &
             c_val=file_name, error=error)
 
        nvec = qs_env%wf_history%memory_depth
+       not_read = nvec+1
        DO i=1,nvec
          filename = file_name
          filename((LEN_TRIM(file_name)+1):LEN(file_name)) = "-"//&
               ADJUSTL(cp_to_string(i))
          INQUIRE(FILE=filename,exist=exist)
-         IF (.NOT. exist) THEN
-           flag = .FALSE.
+         IF ((.NOT. exist) .AND. (i < not_read)) THEN
+           not_read = i
          END IF
        END DO
-       IF (.NOT. flag) THEN
-         density_guess = atomic_guess
-       ENDIF
-    ENDIF
+       IF (not_read == 1) THEN
+         ! Is RESTART present?
+         filename = file_name
+         filename((LEN_TRIM(filename)+1):(LEN(filename))) = "-"//&
+             ADJUSTL(cp_to_string(1))
+         INQUIRE(FILE=filename,exist=exist)
+         IF (.NOT. exist) THEN
+           density_guess = atomic_guess
+         END IF
+       END IF
+    END IF
 
     IF (density_guess == restart_guess) THEN
 
@@ -269,46 +281,47 @@ CONTAINS
        ENDDO
 
     ELSE IF (density_guess == history_guess) THEN
-       DO i=1,nvec
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-         CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
-              id_nr=nvec-i+1,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
+       IF (not_read > 1) THEN
+         DO i=1,not_read-1
+           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
+           CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
+                id_nr=not_read-i,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
 
-         DO ispin=1,nspin
-           IF (scf_control%level_shift /= 0.0_dp) THEN
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                             mo_coeff=mo_coeff)
-             CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-           END IF
+           DO ispin=1,nspin
+             IF (scf_control%level_shift /= 0.0_dp) THEN
+               CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                               mo_coeff=mo_coeff)
+               CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+             END IF
            
-           ! make all nmo vectors present orthonormal
-           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+             ! make all nmo vectors present orthonormal
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                  mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
-           IF(ortho_basis) THEN
-             CALL make_basis_simple(mo_coeff,nmo,error=error)
-           ELSE
-             ! ortho so that one can restart for different positions (basis sets?)
-             CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
-           ENDIF
-           ! only alpha spin is kept for restricted
-           IF (dft_control%restricted) EXIT
-         END DO
-         IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
-         DO ispin=1,nspin
-           CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
-                                         p_rmpv(ispin)%matrix,error=error)
-         ENDDO
+             IF(ortho_basis) THEN
+               CALL make_basis_simple(mo_coeff,nmo,error=error)
+             ELSE
+               ! ortho so that one can restart for different positions (basis sets?)
+               CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix,error=error)
+             ENDIF
+             ! only alpha spin is kept for restricted
+             IF (dft_control%restricted) EXIT
+           END DO
+           IF (dft_control%restricted) CALL mo_set_restrict(mo_array,error=error)
+           DO ispin=1,nspin
+             CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
+                                           p_rmpv(ispin)%matrix,error=error)
+           ENDDO
 
-         ! Write to extrapolation pipeline
-         !IF (i < nvec) THEN
+           ! Write to extrapolation pipeline
            CALL wfi_update(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, error=error)
-         !END IF
-       END DO
+         END DO
 
-       !CALL wfi_extrapolate(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
-       !                     extrapolation_method_nr=extrapolation_method_nr, &
-       !                     orthogonal_wf=orthogonal_wf, error=error)
+         !CALL wfi_extrapolate(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
+         !                     extrapolation_method_nr=extrapolation_method_nr, &
+         !                     orthogonal_wf=orthogonal_wf, error=error)
+
+       END IF
 
     ELSE IF (density_guess == random_guess) THEN
 

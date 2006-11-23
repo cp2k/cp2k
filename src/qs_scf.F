@@ -242,13 +242,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: converged, failure, &
-                                                should_stop
+                                                should_stop, outer_scf_loop
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
     LOGICAL, SAVE                            :: first_step_flag=.TRUE.
+    INTEGER                                  :: max_scf_tmp
 
     NULLIFY(scf_env)
     failure=.FALSE.
@@ -290,7 +291,10 @@ CONTAINS
        CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, scf_section=scf_section, error=error)
 
        IF ((qs_env%scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
+         max_scf_tmp = qs_env%scf_control%max_scf
          qs_env%scf_control%max_scf = 1
+         outer_scf_loop = qs_env%scf_control%outer_scf%have_scf
+         qs_env%scf_control%outer_scf%have_scf = .FALSE.
        END IF
 
        CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
@@ -301,6 +305,8 @@ CONTAINS
             .OR. (.NOT. first_step_flag))) THEN
            CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp, error=error)
        ELSE IF ((qs_env%scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
+         qs_env%scf_control%max_scf = max_scf_tmp
+         qs_env%scf_control%outer_scf%have_scf = outer_scf_loop
          first_step_flag = .FALSE.
        END IF
 
