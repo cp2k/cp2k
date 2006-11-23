@@ -639,19 +639,20 @@ CONTAINS
              ENDIF
              DO k = first, last
                 fix_atom_qmmm=.FALSE.
-                SELECT CASE(cons_info%freeze_qm)
-                CASE(do_constr_atomic)
-                   if (ANY(qmmm_env%qm_atom_index==k)) fix_atom_qmmm=.TRUE.
-                CASE(do_constr_molec)
-                   if (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) fix_atom_qmmm = .TRUE.
-                END SELECT
-                SELECT CASE(cons_info%freeze_mm)
-                CASE(do_constr_atomic)
-                   if (ALL(qmmm_env%qm_atom_index/=k)) fix_atom_qmmm=.TRUE.
-                CASE(do_constr_molec)
-                   if (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) fix_atom_qmmm = .TRUE.
-                END SELECT
-
+                IF (PRESENT(qmmm_env)) THEN
+                   SELECT CASE(cons_info%freeze_qm)
+                   CASE(do_constr_atomic)
+                      IF (ANY(qmmm_env%qm_atom_index==k)) fix_atom_qmmm=.TRUE.
+                   CASE(do_constr_molec)
+                      IF (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) fix_atom_qmmm = .TRUE.
+                   END SELECT
+                   SELECT CASE(cons_info%freeze_mm)
+                   CASE(do_constr_atomic)
+                      IF (ALL(qmmm_env%qm_atom_index/=k)) fix_atom_qmmm=.TRUE.
+                   CASE(do_constr_molec)
+                      IF (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) fix_atom_qmmm = .TRUE.
+                   END SELECT
+                END IF
                 IF  (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
                         nfixed_atoms = nfixed_atoms + 1
                 END IF
@@ -684,25 +685,41 @@ CONTAINS
                 END DO
                 ! QMMM FIXED ATOMS (QM OR MM)
                 fix_atom_qmmm=.FALSE.
-                SELECT CASE(cons_info%freeze_qm)
-                CASE(do_constr_atomic)
-                   if (ANY(qmmm_env%qm_atom_index==k)) fix_atom_qmmm=.TRUE.
-                CASE(do_constr_molec)
-                   if (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) fix_atom_qmmm = .TRUE.
-                END SELECT
-                SELECT CASE(cons_info%freeze_mm)
-                CASE(do_constr_atomic)
-                   if (ALL(qmmm_env%qm_atom_index/=k)) fix_atom_qmmm=.TRUE.
-                CASE(do_constr_molec)
-                   if (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) fix_atom_qmmm = .TRUE.
-                END SELECT
+                fix_atom_mm  =.FALSE.
+                fix_atom_qm  =.FALSE.
+                IF (PRESENT(qmmm_env)) THEN
+                   SELECT CASE(cons_info%freeze_qm)
+                   CASE(do_constr_atomic)
+                      IF (ANY(qmmm_env%qm_atom_index==k)) THEN 
+                         fix_atom_qmmm=.TRUE.
+                         fix_atom_qm = .TRUE.
+                      END IF
+                   CASE(do_constr_molec)
+                      IF (ANY(qmmm_env%qm_molecule_index == molecule_list(j))) THEN 
+                         fix_atom_qmmm = .TRUE.
+                         fix_atom_qm   = .TRUE.
+                      END IF
+                   END SELECT
+                   SELECT CASE(cons_info%freeze_mm)
+                   CASE(do_constr_atomic)
+                      IF (ALL(qmmm_env%qm_atom_index/=k)) THEN 
+                         fix_atom_qmmm=.TRUE.
+                         fix_atom_mm = .TRUE.
+                      END IF
+                   CASE(do_constr_molec)
+                      IF (ALL(qmmm_env%qm_molecule_index /= molecule_list(j))) THEN 
+                         fix_atom_qmmm = .TRUE.
+                         fix_atom_mm = .TRUE.
+                      END IF
+                   END SELECT
+                END IF
                 ! AT THEN END THE FIX_ATOM_MOLNAME
                 IF (fix_fixed_atom.OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
                    kk = kk + 1
                    fixd_list(kk)%fixd  = k
                    fixd_list(kk)%coord = particle_set(k)%r
                    ! Restraint
-                   IF (fix_fixed_atom) THEN
+                   IF     (fix_fixed_atom) THEN
                       fixd_list(kk)%restraint%active = cons_info%fixed_restraint(k2loc)
                       fixd_list(kk)%restraint%k0     = cons_info%fixed_k0(k2loc)
                    ELSEIF (fix_atom_qm) THEN
