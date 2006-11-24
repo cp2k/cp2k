@@ -141,7 +141,7 @@ CONTAINS
 
     CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: cbox, fft_lib, move_type, &
-                                                move_type_avbmc
+                                                move_type_avbmc,cstep
     INTEGER, DIMENSION(1:nboxes)             :: box_flag, cl, data_unit, &
                                                 diff, istep, move_unit, &
                                                 rm
@@ -580,7 +580,7 @@ CONTAINS
                ENDDO
             ENDIF
          ELSEIF ( rand .LT. pmswap) THEN
-
+            
 ! try a swap move
             IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
                WRITE(iw,*) "Attempting a swap move"
@@ -887,14 +887,17 @@ CONTAINS
 
 ! write particle coordinates
                   WRITE(cbox,'(I4)') ibox
+                  WRITE(cstep,'(I8)') nnstep
                   IF(SUM(nchains(:,ibox)) == 0) THEN
                      WRITE(com_crd,*) ' 0'
-                     WRITE(com_crd,*) 'BOX ' // TRIM(ADJUSTL(cbox))
+                     WRITE(com_crd,*) 'BOX ' // TRIM(ADJUSTL(cbox)) // &
+                          ',  STEP ' // TRIM(ADJUSTL(cstep))
                   ELSE
                      CALL write_particle_coordinates(&
                           particles_old(ibox)%list%els,&
                           com_crd,dump_xmol,'POS',&
-                          'BOX ' // TRIM(ADJUSTL(cbox)))
+                          'BOX ' // TRIM(ADJUSTL(cbox))// &
+                          ',  STEP ' // TRIM(ADJUSTL(cstep)))
                   ENDIF
                ENDDO
             ENDIF  ! end the things we only do every iprint moves
