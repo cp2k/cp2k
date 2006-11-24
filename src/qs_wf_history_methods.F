@@ -49,7 +49,6 @@ MODULE qs_wf_history_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
-  USE input_constants,                 ONLY: history_guess
   USE kg_gpw_fm_mol_types,             ONLY: duplicate_kg_fm_p_type,&
                                              kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
@@ -1014,19 +1013,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         !END DO
 
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF (nvec >= wf_history%memory_depth) THEN
-          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          END IF
-        END IF
+        CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
         DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_frozen%rho_ao(ispin)%matrix,&
@@ -1042,19 +1029,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF (nvec >= wf_history%memory_depth) THEN
-          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          END IF
-        END IF
+        CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
         DO ispin=1,SIZE(t0_state%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
@@ -1071,19 +1046,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF (nvec >= wf_history%memory_depth) THEN
-          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          END IF
-        END IF
+        CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
         IF(my_kg_gpw) THEN
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
@@ -1112,19 +1075,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF (nvec >= wf_history%memory_depth) THEN
-          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          END IF
-        END IF
+        CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
         DO ispin=1,SIZE(t0_state%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
@@ -1146,6 +1097,8 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         !FM I do not want globenv here, thus done by the caller
         !FM (btw. it also needs the eigensolver, and unless you relocate it
         !FM gives circular dependencies)
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+        CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
      CASE(wfi_linear_wf_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=2, error=error)
         t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
@@ -1159,19 +1112,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)
         END IF
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF (nvec >= wf_history%memory_depth) THEN
-          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          END IF
-        END IF
+        CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
         IF (.NOT.failure) THEN
            my_orthogonal_wf=.TRUE.
@@ -1225,19 +1166,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)
         END IF
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-        IF (nvec >= wf_history%memory_depth) THEN
-          IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
-            qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
-            qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
-          END IF
-        END IF
+        CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
         IF (.not.failure) THEN
           t0=0.0_dp
@@ -1290,7 +1219,6 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
             qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1347,7 +1275,6 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
             qs_env%scf_control%outer_scf%have_scf = .FALSE.
           ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            qs_env%scf_control%outer_scf%have_scf = .FALSE.
           END IF
         END IF
 
@@ -1438,7 +1365,6 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
           qs_env%scf_control%outer_scf%have_scf = .FALSE.
         ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
           qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-          qs_env%scf_control%outer_scf%have_scf = .FALSE.
         END IF
       END IF
 
@@ -1511,6 +1437,73 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE wfi_extrapolate
+!***************************************************************************
+
+!!****f* qs_wf_history_methods/wfi_set_history_variable [1.0] *
+!!
+!!   NAME
+!!     wfi_set_history_variables
+!!
+!!
+!!   FUNCTION
+!!     Decides if scf control variables has to changed due
+!!     to using a WF extrapolation.
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - qs_env: The QS environment
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     11.2006 created [TdK]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE wfi_set_history_variables(qs_env, nvec, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: nvec
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_set_history_variables', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+
+    IF (.NOT. failure) THEN
+      IF (nvec >= qs_env%wf_history%memory_depth) THEN
+        IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          qs_env%scf_control%outer_scf%have_scf = .FALSE.
+        ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+          qs_env%scf_control%outer_scf%have_scf = .FALSE.
+        ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+          qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+        END IF
+      END IF
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE wfi_set_history_variables
+
 !***************************************************************************
 
 !!****f* qs_wf_history_methods/wfi_update [1.0] *
