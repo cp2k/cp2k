@@ -295,10 +295,10 @@ CONTAINS
                                     mm_cell=mm_cell,&
                                     error=error)
           ENDIF
-          ! Give back rho_tot_t to auxbas_pool
-          CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
-               accept_non_compatible=.TRUE.,error=error)
        END IF
+       ! Give back rho_tot_t to auxbas_pool
+       CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
+            accept_non_compatible=.TRUE.,error=error)
     END IF
     IF (iw>0) THEN
        IF(.NOT. gapw) WRITE(iw,'(T2,"QMMM|",1X,A,T66,F15.9)')&
