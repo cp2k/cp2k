@@ -175,28 +175,130 @@ CONTAINS
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
          extension=".qmmmLog",error=error)
     gapw = dft_control%qs_control%gapw
-    !
-    CALL pw_env_get(pw_env=pw_env,&
-         pw_pools=pw_pools,&
-         auxbas_pw_pool=auxbas_pool,&
-         error=error)
-    CALL pw_pool_create_pw(auxbas_pool,rho_tot_r,&
-         in_space=REALSPACE,use_data=REALDATA3D, error=error)
-
-    ! IF GAPW the core charge is replaced by the compensation charge
-    IF(gapw) THEN
-      CALL pw_transfer(rho0_s_gs%pw,rho_tot_r)
-      !
-      ! QM/MM Nuclear Electrostatic Potential already included through rho0
-      !
-      energy%qmmm_nu = 0.0_dp
+    ! If forces are required allocate these temporary arrays
+    IF (need_f) THEN
+       ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(Forces_added_charges(qmmm_env%added_charges%num_mm_atoms,3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       Forces(:,:)               = 0.0_dp
+       Forces_added_charges(:,:) = 0.0_dp
+    END IF
+    IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+       ! SEMIEMPIRICAL
+       SELECT CASE(qmmm_env%qmmm_coupl_type)
+       CASE(do_qmmm_grid,do_qmmm_gauss)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="QM/MM forces not yet implemented for semiempirical.", &
+               error=error, error_level=cp_failure_level)
+       CASE(do_qmmm_none)
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+               "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+       CASE DEFAULT
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
+ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
     ELSE
-      CALL pw_transfer(rho_core%pw,rho_tot_r)
-      !
-      ! Computes the QM/MM Nuclear Electrostatic Potential
-      !
-      energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw )
-      energy%total = energy%total +  energy%qmmm_nu
+       CALL pw_env_get(pw_env=pw_env,&
+                       pw_pools=pw_pools,&
+                       auxbas_pw_pool=auxbas_pool,&
+                       error=error)
+       CALL pw_pool_create_pw(auxbas_pool,rho_tot_r,&
+                              in_space=REALSPACE,&
+                              use_data=REALDATA3D,&
+                              error=error)
+       ! IF GAPW the core charge is replaced by the compensation charge
+       IF(gapw) THEN
+          CALL pw_transfer(rho0_s_gs%pw,rho_tot_r)
+          !
+          ! QM/MM Nuclear Electrostatic Potential already included through rho0
+          !
+          energy%qmmm_nu = 0.0_dp
+       ELSE
+          CALL pw_transfer(rho_core%pw,rho_tot_r)
+          !
+          ! Computes the QM/MM Nuclear Electrostatic Potential
+          !
+          energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw )
+          energy%total = energy%total +  energy%qmmm_nu
+       END IF
+       IF (need_f) THEN
+          !
+          DO ispin=1,SIZE(rho%rho_r)
+             CALL pw_sumup(rho%rho_r(ispin)%pw,rho_tot_r)
+          END DO
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Evaluating forces on MM atoms due to the:"
+          ! Electrostatic Interaction type...
+          SELECT CASE(qmmm_env%qmmm_coupl_type)
+          CASE(do_qmmm_grid)
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- QM/MM Coupling computed on GRID."
+             ! Compute the MM electrostatic potential on GRID
+             CALL qmmm_forces_on_grid     ( rho=rho_tot_r,&
+                                            v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+                                            qmmm_env=qmmm_env,&
+                                            mm_particles=mm_particles,&
+                                            dvol=rho%rho_r(1)%pw%pw_grid%dvol,&
+                                            Forces=Forces,&
+                                            Forces_added_charges=Forces_added_charges,&
+                                            mm_cell=mm_cell,&
+                                            error=error)
+          CASE(do_qmmm_gauss)
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+                  "- QM/MM Coupling computed collocating the Gaussian Potential Functions."
+             CALL qmmm_forces_with_gaussian(rho=rho_tot_r,&
+                                            qmmm_env=qmmm_env,&
+                                            mm_particles=mm_particles,&
+                                            aug_pools=qmmm_env%aug_pools,&
+                                            auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
+                                            coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
+                                            para_env=para_env,&
+                                            pw_pools=pw_pools,&
+                                            eps_mm_rspace=qmmm_env%eps_mm_rspace,&
+                                            cube_info=ks_qmmm_env_loc%cube_info,&
+                                            Forces=Forces,&
+                                            Forces_added_charges=Forces_added_charges,&
+                                            interp_section=interp_section,&
+                                            iw=iw,&
+                                            mm_cell=mm_cell,&
+                                            error=error)
+          CASE(do_qmmm_none)
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+                  "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+          CASE DEFAULT
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- Unknown Coupling..."
+ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+          !ikuo Temporary change to alleviate compiler problems on Intel with
+          !array dimension of 0
+          IF(qmmm_env%num_mm_atoms/=0) CALL mp_sum(Forces,para_env%group)
+          IF(qmmm_env%added_charges%num_mm_atoms/=0) &
+               CALL mp_sum(Forces_added_charges,para_env%group)
+          ! Debug Forces
+          IF (debug_this_module) THEN
+             ! Print Out Forces
+             IF (iw>0) THEN
+                DO Imm = 1, SIZE(qmmm_env%mm_atom_index)
+                   WRITE(iw,*)"ANALYTICAL FORCES:"
+                   IndMM = qmmm_env%mm_atom_index(Imm)
+                   WRITE(iw,'(I6,3F15.9)') IndMM, Forces(Imm,:)
+                END DO
+             END IF
+             CALL qmmm_debug_forces(rho=rho_tot_r,&
+                                    qs_env=qs_env,&
+                                    qmmm_env=qmmm_env,&
+                                    Analytical_Forces=Forces,&
+                                    mm_particles=mm_particles,&
+                                    mm_atom_index=qmmm_env%mm_atom_index,&
+                                    num_mm_atoms=qmmm_env%num_mm_atoms,&
+                                    Potentials=qmmm_env%Potentials,&
+                                    interp_section=interp_section,&
+                                    mm_cell=mm_cell,&
+                                    error=error)
+          ENDIF
+          ! Give back rho_tot_t to auxbas_pool
+          CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
+               accept_non_compatible=.TRUE.,error=error)
+       END IF
     END IF
     IF (iw>0) THEN
        IF(.NOT. gapw) WRITE(iw,'(T2,"QMMM|",1X,A,T66,F15.9)')&
@@ -208,93 +310,7 @@ CONTAINS
        WRITE(iw,'(T2,"QMMM|",1X,A)')"that includes both QM, QMMM and MM energy terms!" 
     END IF
     IF (need_f) THEN
-       ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(Forces_added_charges(qmmm_env%added_charges%num_mm_atoms,3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !
-       DO ispin=1,SIZE(rho%rho_r)
-          CALL pw_sumup(rho%rho_r(ispin)%pw,rho_tot_r)
-       END DO
-       IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Evaluating forces on MM atoms due to the:"
-       !
-       ! Electrostatic Interaction type...
-       !
-       Forces(:,:)               = 0.0_dp
-       Forces_added_charges(:,:) = 0.0_dp
-       !
-       SELECT CASE(qmmm_env%qmmm_coupl_type)
-       CASE(do_qmmm_grid)
-          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- QM/MM Coupling computed on GRID."
-          ! Compute the MM electrostatic potential on GRID
-          CALL qmmm_forces_on_grid     ( rho=rho_tot_r,&
-               v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-               qmmm_env=qmmm_env,&
-               mm_particles=mm_particles,&
-               dvol=rho%rho_r(1)%pw%pw_grid%dvol,&
-               Forces=Forces,&
-               Forces_added_charges=Forces_added_charges,&
-               mm_cell=mm_cell,&
-               error=error)
-       CASE(do_qmmm_gauss)
-          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- QM/MM Coupling computed collocating the Gaussian Potential Functions."
-          CALL qmmm_forces_with_gaussian(rho=rho_tot_r,&
-               qmmm_env=qmmm_env,&
-               mm_particles=mm_particles,&
-               aug_pools=qmmm_env%aug_pools,&
-               auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
-               coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
-               para_env=para_env,&
-               pw_pools=pw_pools,&
-               eps_mm_rspace=qmmm_env%eps_mm_rspace,&
-               cube_info=ks_qmmm_env_loc%cube_info,&
-               Forces=Forces,&
-               Forces_added_charges=Forces_added_charges,&
-               interp_section=interp_section,&
-               iw=iw,&
-               mm_cell=mm_cell,&
-               error=error)
-       CASE(do_qmmm_none)
-          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
-       CASE DEFAULT
-          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-       !ikuo Temporary change to alleviate compiler problems on Intel with
-       !array dimension of 0
-       IF(qmmm_env%num_mm_atoms/=0) &
-       CALL mp_sum(Forces,para_env%group)
-       IF(qmmm_env%added_charges%num_mm_atoms/=0) &
-       CALL mp_sum(Forces_added_charges,para_env%group)
-       !
-       ! Debug Forces
-       !
-       IF (debug_this_module) THEN
-          !
-          ! Print Out Forces
-          !
-          IF (iw>0) THEN
-             DO Imm = 1, SIZE(qmmm_env%mm_atom_index)
-                WRITE(iw,*)"ANALYTICAL FORCES:"
-                IndMM = qmmm_env%mm_atom_index(Imm)
-                WRITE(iw,'(I6,3F15.9)') IndMM, Forces(Imm,:)
-             END DO
-          END IF
-          CALL qmmm_debug_forces(rho=rho_tot_r,&
-               qs_env=qs_env,&
-               qmmm_env=qmmm_env,&
-               Analytical_Forces=Forces,&
-               mm_particles=mm_particles,&
-               mm_atom_index=qmmm_env%mm_atom_index,&
-               num_mm_atoms=qmmm_env%num_mm_atoms,&
-               Potentials=qmmm_env%Potentials,&
-               interp_section=interp_section,&
-               mm_cell=mm_cell,&
-               error=error)
-       ENDIF
-       !
        ! Transfer Forces
-       !
        DO Imm = 1, qmmm_env%num_mm_atoms
           IndMM = qmmm_env%mm_atom_index(Imm)
           ! Hack: In Forces there the gradients indeed...
@@ -316,9 +332,6 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO",&
          error=error)
-    ! Give back rho_tot_t to auxbas_pool
-    CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
-         accept_non_compatible=.TRUE.,error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_forces

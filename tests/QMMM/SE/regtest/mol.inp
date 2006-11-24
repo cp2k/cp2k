@@ -1,0 +1,88 @@
+
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    &QS
+      METHOD AM1
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/mol.pot
+      parmtype CHM
+      &SPLINE
+        EMAX_SPLINE 100.0
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        NS_MAX 50
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    ECOUPL NONE
+    &QM_KIND C
+      MM_INDEX 33 31 29 27 25 24
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 34 32 30 28 26
+    &END QM_KIND
+    &LINK
+      ALPHA 1.50
+      FIST_SCALE_FACTOR 0.0
+      LINK_TYPE IMOMM
+      MM_INDEX 21
+      QM_INDEX 24
+    &END LINK
+  &END
+  &SUBSYS
+    &CELL
+      ABC 44.6753930  50.3729150  41.3744810
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE ../sample_pdb/mol.pdb
+      COORDINATE pdb
+      CONNECTIVITY PSF
+      CONN_FILE ../sample_psf/mol.psf
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT MOL
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    &G3X3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      MOLNAME WAT
+      ATOMS 1 2 3
+    &END G3X3
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 30
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+  &END MD
+  &PRINT
+    &RESTART OFF
+    &END
+    &TRAJECTORY 
+    &END
+    &VELOCITIES OFF
+    &END
+  &END
+&END MOTION

@@ -120,7 +120,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
+    INTEGER                                  :: handle, iw, iw2
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -153,58 +153,71 @@ CONTAINS
        ! Initializing vectors:
        !        Zeroing v_qmmm_rspace 
        CALL coeff_zero(coeff=ks_qmmm_env_loc%v_qmmm_rspace)
-       !
-       ! Electrostatic Interaction type...
-       !
-       SELECT CASE(qmmm_env%qmmm_coupl_type)
-       CASE(do_qmmm_grid)
-          IF (iw>0) &
-               WRITE(iw,'(T2,"QMMM|",1X,A)')"QM/MM Coupling computed on GRID."
-          ! Compute the MM electrostatic potential on GRID
-          CALL qmmm_electrostatic_on_grid(qmmm_env=qmmm_env,&
-                                          v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-                                          mm_particles=mm_particles,&
-                                          mm_cell=mm_cell,&
-                                          error=error)
-       CASE(do_qmmm_gauss)
-          IF (iw>0) &
-               WRITE(iw,'(T2,"QMMM|",1X,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
-          interp_section => section_vals_get_subs_vals(input_section,&
-               "QMMM%INTERPOLATOR",error=error)
-          CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
-                                          v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-                                          mm_particles=mm_particles,&
-                                          aug_pools=qmmm_env%aug_pools,&
-                                          para_env=para_env,&
-                                          eps_mm_rspace=qmmm_env%eps_mm_rspace,&
-                                          cube_info=ks_qmmm_env_loc%cube_info,&
-                                          pw_pools=pw_pools,&
-                                          auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
-                                          coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
-                                          interp_section=interp_section,&
-                                          mm_cell=mm_cell,&
-                                          error=error)
-       CASE(do_qmmm_none)
-          IF (iw>0)&
-               WRITE(iw,'(T2,"QMMM|",1X,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
-       CASE DEFAULT
-          IF (iw>0) &
-               WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-
+       IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+          ! SEMIEMPIRICAL
+          SELECT CASE(qmmm_env%qmmm_coupl_type)
+          CASE(do_qmmm_grid,do_qmmm_gauss)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="QM/MM electrostatic coupling not yet implemented for semiempirical.", &
+                  error=error, error_level=cp_failure_level)
+          CASE(do_qmmm_none)
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+                  "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+          CASE DEFAULT
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
+ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+       ELSE
+          ! QS 
+          SELECT CASE(qmmm_env%qmmm_coupl_type)
+          CASE(do_qmmm_grid)
+             IF (iw>0) &
+                  WRITE(iw,'(T2,"QMMM|",1X,A)')"QM/MM Coupling computed on GRID."
+             ! Compute the MM electrostatic potential on GRID
+             CALL qmmm_electrostatic_on_grid(qmmm_env=qmmm_env,&
+                                             v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+                                             mm_particles=mm_particles,&
+                                             mm_cell=mm_cell,&
+                                             error=error)
+          CASE(do_qmmm_gauss)
+             IF (iw>0) &
+                  WRITE(iw,'(T2,"QMMM|",1X,A)')&
+                  "QM/MM Coupling computed collocating the Gaussian Potential Functions."
+             interp_section => section_vals_get_subs_vals(input_section,&
+                  "QMMM%INTERPOLATOR",error=error)
+             CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
+                                             v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+                                             mm_particles=mm_particles,&
+                                             aug_pools=qmmm_env%aug_pools,&
+                                             para_env=para_env,&
+                                             eps_mm_rspace=qmmm_env%eps_mm_rspace,&
+                                             cube_info=ks_qmmm_env_loc%cube_info,&
+                                             pw_pools=pw_pools,&
+                                             auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
+                                             coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
+                                             interp_section=interp_section,&
+                                             mm_cell=mm_cell,&
+                                             error=error)
+          CASE(do_qmmm_none)
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+                  "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+          CASE DEFAULT
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
+ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+          ! Dump info on the electrostatic potential if requested
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
+               "POTENTIAL",error=error),cp_p_file)) THEN
+             iw2 = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
+                  extension=".qmmmLog",error=error)
+             CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,iw2>0,&
+                  "QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
+             CALL cp_print_key_finished_output(iw2,logger,print_section,&
+                  "POTENTIAL", error=error)
+          END IF
+       END IF
        CALL cp_print_key_finished_output(iw,logger,print_section,&
             "PROGRAM_RUN_INFO", error=error)
-
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
-            "POTENTIAL",error=error),cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
-               extension=".qmmmLog",error=error)
-          CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw,iw>0,&
-               "QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
-          CALL cp_print_key_finished_output(iw,logger,print_section,&
-               "POTENTIAL", error=error)
-       END IF
        CALL timestop(0.0_dp,handle)
     END IF
   END SUBROUTINE qmmm_el_coupling
