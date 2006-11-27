@@ -126,12 +126,14 @@ CONTAINS
       skip_help, suberror_happened, whole_section
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sll_val_type), POINTER           :: last_val, new_val
+    TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, previous_list, previous_last
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: el
 
     CALL timeset(routineN,handle)
+
+    NULLIFY(previous_list,previous_last)
 
     failure=.FALSE.
     root_sect=.TRUE.
@@ -365,10 +367,16 @@ CONTAINS
                             CALL cp_assert(keyword%repeats,cp_failure_level,cp_assertion_failed,&
                                  routineP,"Keyword "//TRIM(token)//&
                                  " in section "//TRIM(section%name)//" should not repeat.",error,failure)
+                            IF (ASSOCIATED(last_val,previous_list)) THEN
+                               last_val=>previous_last
+                            ELSE
+                               previous_list=>last_val
+                            ENDIF
                             DO WHILE(ASSOCIATED(last_val%rest))
                                last_val => last_val%rest
                             END DO
                             last_val%rest => new_val
+                            previous_last => new_val
                          END IF
                       END IF
                    END IF

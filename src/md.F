@@ -30,6 +30,8 @@ MODULE md
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE cp_linked_list_val,              ONLY: cp_sll_val_type, cp_sll_val_next
+  USE input_val_types,                 ONLY: val_type, val_get
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        dump_xmol, ensemble_name_types, isokin_ensemble, langevin_ensemble, &
@@ -38,7 +40,8 @@ MODULE md
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_list_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp,&
                                              int_size
@@ -556,7 +559,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, istat, iw, &
                                                 natoms, nfixd
-    LOGICAL                                  :: explicit
+    LOGICAL                                  :: explicit, is_ok
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     REAL(KIND=dp)                            :: akin, denom, mass, mass_tot, &
                                                 sc, temp
@@ -570,6 +573,8 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(unit_convert_type), POINTER         :: unit
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
 
 ! -------------------------------------------------------------------------
 
@@ -619,7 +624,10 @@ CONTAINS
 
     IF (explicit) THEN
        akin = 0.0_dp
+       CALL section_vals_list_get(work_section,"_DEFAULT_KEYWORD_",list=list,error=error)
        DO i = 1, natoms
+          is_ok=cp_sll_val_next(list,val,error=error)
+          CALL val_get(val,r_vals=vel,error=error)
           atomic_kind => part ( i ) % atomic_kind
           CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
           mass_tot = mass_tot + mass
@@ -628,7 +636,7 @@ CONTAINS
              part ( i ) % v ( 2 ) = 0.0_dp
              part ( i ) % v ( 3 ) = 0.0_dp
           ELSE
-             CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,r_vals=vel,error=error)
+             ! CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,r_vals=vel,error=error)
              part ( i ) % v  = vel
              vcom  = vcom + mass * part ( i ) % v
              denom = denom + mass

@@ -70,7 +70,7 @@ MODULE input_section_types
 
   PUBLIC :: section_vals_p_type,section_vals_type
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&
-       section_vals_get, section_vals_get_subs_vals, section_vals_val_get,&
+       section_vals_get, section_vals_get_subs_vals, section_vals_val_get, section_vals_list_get, &
        section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
        section_vals_val_set, section_vals_val_unset, section_vals_get_subs_vals3,&
        section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values
@@ -1798,6 +1798,87 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
 
   END IF
 END SUBROUTINE section_vals_val_get
+!***************************************************************************
+
+!!****f* cp_keywords/section_vals_list_get *
+!!
+!!   NAME
+!!     section_vals_list_get
+!!
+!!   FUNCTION
+!!     returns the requested list
+!!
+!!   NOTES
+!!     - most useful if the full list is needed anyway, so that faster iteration can be used
+!!
+!!   INPUTS
+!!     - section: the root section
+!!     - keyword_name: the name of the keyword you want
+!!     - isection: which repetition of the section you are interested in
+!!       (defaults to 1)
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!*** **********************************************************************
+
+
+SUBROUTINE section_vals_list_get(section_vals,keyword_name,i_rep_section,&
+     list,error)
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    INTEGER, OPTIONAL                        :: i_rep_section
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_list_get', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, irk, irs, len_key, &
+                                                my_index, tmp_index
+    TYPE(section_vals_type), POINTER         :: s_vals
+    TYPE(section_type), POINTER              :: section
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+  NULLIFY(list)
+  my_index=INDEX(keyword_name,'%')+1
+  len_key=LEN_TRIM(keyword_name)
+  IF (my_index>1) THEN
+     DO
+        tmp_index=INDEX(keyword_name(my_index:len_key),"%")
+        IF (tmp_index<=0) EXIT
+        my_index=my_index+tmp_index
+     END DO
+     s_vals => section_vals_get_subs_vals(section_vals,keyword_name(1:my_index-2),&
+          error=error)
+  ELSE
+     s_vals=> section_vals
+  END IF
+
+  irs=1
+  IF (PRESENT(i_rep_section)) irs=i_rep_section
+  section => s_vals%section
+  IF (.NOT. failure) THEN
+     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
+     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+          "section "//TRIM(section%name)//" does not contain keyword "//&
+          TRIM(keyword_name(my_index:len_key)),error,failure)
+     CALL cp_assert(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2),&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          "section repetition requested ("//cp_to_string(irs)//&
+          ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
+          //")",error,failure)
+  END IF
+  IF (.NOT. failure) THEN
+     list => s_vals%values(ik,irs)%list
+  ENDIF
+
+END SUBROUTINE section_vals_list_get
 !***************************************************************************
 
 

@@ -31,10 +31,13 @@ MODULE atoms_input
                                              get_cell,&
                                              scaled_to_real
   USE checkpoint_handler,              ONLY: Pwarning
+  USE cp_linked_list_val,              ONLY: cp_sll_val_type, cp_sll_val_next
+  USE input_val_types,                 ONLY: val_type, val_get
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_list_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -93,15 +96,18 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: my_default_index
     INTEGER                                  :: atm_equal_mol, end_c, iatom, &
                                                 ILEN, j, natom, start_c, wrd,&
-                                                output_unit
+                                                output_unit, handle
     LOGICAL                                  :: explicit, failure, &
                                                 my_overwrite, &
-                                                scaled_coordinates, ionode
+                                                scaled_coordinates, ionode, is_ok
     REAL(KIND=dp)                            :: unit_of_length
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sll_val_type), POINTER           :: list 
+    TYPE(val_type), POINTER                  :: val
+
 
     failure=.FALSE.
     my_overwrite = .FALSE.
@@ -118,6 +124,8 @@ CONTAINS
     coord_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
     CALL section_vals_get(coord_section, explicit=explicit, error=error)
     IF (.NOT.explicit) RETURN
+
+    call timeset(routineN,handle)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. get cell and topolgoy%atom_info
@@ -139,10 +147,13 @@ CONTAINS
        CALL Pwarning("Overwriting coordinates. Active coordinates read from &COORD section."//&
             " Active coordinates READ from &COORD section",&
             root_section, error)
+       CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
        DO iatom=1,natom
           ! we use only the first default_string_length characters of each line
-          CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-               i_rep_val=iatom,c_val=line_att,error=error)
+          is_ok=cp_sll_val_next(list,val,error=error)
+          CALL val_get(val,c_val=line_att,error=error)
+          !CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+          !     i_rep_val=iatom,c_val=line_att,error=error)
           ! *** Read name and atomic coordinates ***
           start_c=1
           DO wrd=1,4
@@ -181,10 +192,13 @@ CONTAINS
        CALL reallocate(atom_info%atm_mass,1,natom)
        CALL reallocate(atom_info%atm_charge,1,natom)
 
+       CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
        DO iatom=1,natom
           ! we use only the first default_string_length characters of each line
-          CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-               i_rep_val=iatom,c_val=line_att,error=error)
+          is_ok=cp_sll_val_next(list,val,error=error)
+          CALL val_get(val,c_val=line_att,error=error)
+          !CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+          !     i_rep_val=iatom,c_val=line_att,error=error)
           ILEN = default_string_length
           atom_info%label_molname(iatom) = ""
           atom_info%label_resname(iatom) = ""
@@ -244,6 +258,7 @@ CONTAINS
           atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
        END IF
     END DO
+    CALL timestop(handle)
   END SUBROUTINE read_atoms_input
 
 END MODULE atoms_input
