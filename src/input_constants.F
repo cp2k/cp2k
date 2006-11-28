@@ -264,6 +264,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_rsgrid_distributed=0,&
        do_rsgrid_replicated=1
 
+  INTEGER, PARAMETER, PUBLIC :: do_par_atom=0,&
+                                do_par_grid=1
   !
   ! Output format files
   !

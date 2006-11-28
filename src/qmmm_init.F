@@ -221,6 +221,10 @@ CONTAINS
        CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)
        qmmm_env_qm%compatibility = .NOT.nocompatibility
 
+       ! Parallel scheme for the long range
+       CALL section_vals_val_get(qmmm_section,"PARALLEL_SCHEME",&
+            i_val=qmmm_env_qm%par_scheme,error=error)     
+
        ! Periodic boundary condition calculation
        CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
        qmmm_env_qm%periodic = explicit

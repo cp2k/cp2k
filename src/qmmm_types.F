@@ -174,6 +174,7 @@ MODULE qmmm_types
      LOGICAL                                                 :: move_mm_charges
      LOGICAL                                                 :: add_mm_charges
      LOGICAL                                                 :: periodic
+     INTEGER                                                 :: par_scheme 
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms

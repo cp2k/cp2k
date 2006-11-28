@@ -40,7 +40,9 @@ MODULE qmmm_methods
                                              do_qmmm_none,&
                                              linear_interp,&
                                              spline3_nopbc_interp,&
-                                             spline3_pbc_interp
+                                             spline3_pbc_interp,&
+                                             do_par_grid,&
+                                             do_par_atom
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -701,19 +703,19 @@ CONTAINS
     CASE(linear_interp)
        ! Linear Interpolator
        DO Igrid = auxbas_grid, SIZE(grids)-1
-          CALL pw_restrict_l_NoPBC(grids(Igrid  ) % pw,&
-                               grids(Igrid+1) % pw,&
-                               error)
+          CALL pw_restrict_l_NoPBC(grids(Igrid  )%pw,&
+                                   grids(Igrid+1)%pw,&
+                                   error)
           grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dp)
        END DO
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Interpolator
        DO Igrid =  auxbas_grid, SIZE(grids)-1
-          CALL pw_restrict_s3(grids(Igrid  ) % pw,&
-                             grids(Igrid+1) % pw,&
-                             aug_pools(Igrid+1)%pool,&
-                             param_section=interp_section,&
-                             error=error)
+          CALL pw_restrict_s3(grids(Igrid  )%pw,&
+                              grids(Igrid+1)%pw,&
+                              aug_pools(Igrid+1)%pool,&
+                              param_section=interp_section,&
+                              error=error)
        END DO
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -724,7 +726,7 @@ CONTAINS
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, auxbas_grid, &
          coarser_grid, qmmm_env%pgfs, qmmm_env%potentials, Forces, aug_pools,    &
          mm_cell, qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials,  &
-         iw, error)
+         iw, qmmm_env%par_scheme, error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
 
@@ -733,7 +735,8 @@ CONTAINS
             qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,&
             cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs,&
             qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, &
-            qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials, iw, error)
+            qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials, iw, qmmm_env%par_scheme,&
+            error)
 
     END IF
 
@@ -768,7 +771,7 @@ CONTAINS
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        cube_info, para_env, eps_mm_rspace, auxbas_grid, &
        coarser_grid, pgfs, potentials, Forces, aug_pools, mm_cell, &
-       dOmmOqm, periodic, per_potentials, iw, error)
+       dOmmOqm, periodic, per_potentials, iw, par_scheme, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -792,7 +795,7 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: periodic
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: per_potentials
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw, par_scheme
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -817,7 +820,7 @@ CONTAINS
     NULLIFY(pgf, pot, per_pot)
     ithread = 0
     Icg     = 0
-!
+
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot
@@ -912,10 +915,11 @@ CONTAINS
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
                                            iw=iw,&
+                                           par_scheme=par_scheme,&
                                            error=error)
     ELSE
        CALL qmmm_forces_with_gaussian_LR  (pgfs=pgfs,&
-                                           grid=grids(coarser_grid)%pw,&
+                                           cgrid=grids(coarser_grid)%pw,&
                                            num_mm_atoms=num_mm_atoms,&
                                            mm_charges=mm_charges,&
                                            mm_atom_index=mm_atom_index,&
@@ -929,6 +933,7 @@ CONTAINS
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
                                            iw=iw,&
+                                           par_scheme=par_scheme,&
                                            error=error)
     END IF
 
@@ -961,7 +966,7 @@ CONTAINS
   SUBROUTINE qmmm_forces_with_gaussian_LG  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
                                             mm_particles,mm_el_pot_radius,para_env,&
                                             coarser_grid_level,Forces, per_potentials,&
-                                            aug_pools, mm_cell, dOmmOqm, iw, error)
+                                            aug_pools, mm_cell, dOmmOqm, iw, par_scheme,error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -980,7 +985,7 @@ CONTAINS
       POINTER                                :: aug_pools
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw, par_scheme
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -989,7 +994,7 @@ CONTAINS
 
     INTEGER :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, ij3, ij4, ik1, ik2, &
       ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_i, my_j, my_k, &
-      npts(3), stat
+      npts(3), stat, myind
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
@@ -1008,12 +1013,11 @@ CONTAINS
       DIMENSION(:, :)                        :: LForces
     REAL(KIND=dp), DIMENSION(3)              :: ra, val, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: grid
+      POINTER                                :: grid, grid2
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
-! Statements
-
+    failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     NULLIFY(grid)
     ALLOCATE(LForces(num_mm_atoms,3), stat=stat)
@@ -1023,12 +1027,25 @@ CONTAINS
     dr2c  = cgrid%pw_grid%dr(2)
     dr3c  = cgrid%pw_grid%dr(3)
     dvol  = cgrid%pw_grid%dvol
-    bo    = cgrid%pw_grid%bounds_local
     gbo   = cgrid%pw_grid%bounds
-
+    IF (par_scheme==do_par_grid) THEN
+       bo    =  cgrid%pw_grid%bounds_local
+       grid  => cgrid%cr3d
+    ELSE
+       myind = 0
+       bo    = gbo
+       ALLOCATE(grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       grid  = 0.0_dp
+       bo    = cgrid%pw_grid%bounds_local
+       grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))=cgrid%cr3d
+       CALL mp_sum(grid,para_env%group)
+       bo    = gbo
+    END IF
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        per_pot => per_potentials(IRadTyp)%pot
-       pw => per_pot%TabLR
+       pw    => per_pot%TabLR
+       grid2 => pw%cr3d(:,:,:)
        npts = pw%pw_grid%npts
        dr1  = pw%pw_grid%dr(1)
        dr2  = pw%pw_grid%dr(2)
@@ -1036,8 +1053,11 @@ CONTAINS
        dr1i = 1.0_dp / dr1
        dr2i = 1.0_dp / dr2
        dr3i = 1.0_dp / dr3
-       grid => pw%cr3d(:,:,:)
        Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
+          IF (par_scheme==do_par_atom) THEN
+             myind = myind + 1
+             IF (MOD(myind,para_env%num_pe)/=para_env%mepos) CYCLE
+          END IF
           LIndMM    =   per_pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
@@ -1079,70 +1099,70 @@ CONTAINS
                    ii3 = MODULO(ivec(1)+1,npts(1))+1
                    ii4 = MODULO(ivec(1)+2,npts(1))+1
 
-                   aaa   = grid(ii1,ij1,ik1)
-                   baa   = grid(ii2,ij1,ik1)
-                   caa   = grid(ii3,ij1,ik1)
-                   daa   = grid(ii4,ij1,ik1)
-                   aba   = grid(ii1,ij2,ik1)
-                   bba   = grid(ii2,ij2,ik1)
-                   cba   = grid(ii3,ij2,ik1)
-                   dba   = grid(ii4,ij2,ik1)
-                   aca   = grid(ii1,ij3,ik1)
-                   bca   = grid(ii2,ij3,ik1)
-                   cca   = grid(ii3,ij3,ik1)
-                   dca   = grid(ii4,ij3,ik1)
-                   ada   = grid(ii1,ij4,ik1)
-                   bda   = grid(ii2,ij4,ik1)
-                   cda   = grid(ii3,ij4,ik1)
-                   dda   = grid(ii4,ij4,ik1)
-                   aab   = grid(ii1,ij1,ik2)
-                   bab   = grid(ii2,ij1,ik2)
-                   cab   = grid(ii3,ij1,ik2)
-                   dab   = grid(ii4,ij1,ik2)
-                   abb   = grid(ii1,ij2,ik2)
-                   bbb   = grid(ii2,ij2,ik2)
-                   cbb   = grid(ii3,ij2,ik2)
-                   dbb   = grid(ii4,ij2,ik2)
-                   acb   = grid(ii1,ij3,ik2)
-                   bcb   = grid(ii2,ij3,ik2)
-                   ccb   = grid(ii3,ij3,ik2)
-                   dcb   = grid(ii4,ij3,ik2)
-                   adb   = grid(ii1,ij4,ik2)
-                   bdb   = grid(ii2,ij4,ik2)
-                   cdb   = grid(ii3,ij4,ik2)
-                   ddb   = grid(ii4,ij4,ik2)
-                   aac   = grid(ii1,ij1,ik3)
-                   bac   = grid(ii2,ij1,ik3)
-                   cac   = grid(ii3,ij1,ik3)
-                   dac   = grid(ii4,ij1,ik3)
-                   abc   = grid(ii1,ij2,ik3)
-                   bbc   = grid(ii2,ij2,ik3)
-                   cbc   = grid(ii3,ij2,ik3)
-                   dbc   = grid(ii4,ij2,ik3)
-                   acc   = grid(ii1,ij3,ik3)
-                   bcc   = grid(ii2,ij3,ik3)
-                   ccc   = grid(ii3,ij3,ik3)
-                   dcc   = grid(ii4,ij3,ik3)
-                   adc   = grid(ii1,ij4,ik3)
-                   bdc   = grid(ii2,ij4,ik3)
-                   cdc   = grid(ii3,ij4,ik3)
-                   ddc   = grid(ii4,ij4,ik3)
-                   aad   = grid(ii1,ij1,ik4)
-                   bad   = grid(ii2,ij1,ik4)
-                   cad   = grid(ii3,ij1,ik4)
-                   dad   = grid(ii4,ij1,ik4)
-                   abd   = grid(ii1,ij2,ik4)
-                   bbd   = grid(ii2,ij2,ik4)
-                   cbd   = grid(ii3,ij2,ik4)
-                   dbd   = grid(ii4,ij2,ik4)
-                   acd   = grid(ii1,ij3,ik4)
-                   bcd   = grid(ii2,ij3,ik4)
-                   ccd   = grid(ii3,ij3,ik4)
-                   dcd   = grid(ii4,ij3,ik4)
-                   add   = grid(ii1,ij4,ik4)
-                   bdd   = grid(ii2,ij4,ik4)
-                   cdd   = grid(ii3,ij4,ik4)
-                   ddd   = grid(ii4,ij4,ik4)
+                   aaa   = grid2(ii1,ij1,ik1)
+                   baa   = grid2(ii2,ij1,ik1)
+                   caa   = grid2(ii3,ij1,ik1)
+                   daa   = grid2(ii4,ij1,ik1)
+                   aba   = grid2(ii1,ij2,ik1)
+                   bba   = grid2(ii2,ij2,ik1)
+                   cba   = grid2(ii3,ij2,ik1)
+                   dba   = grid2(ii4,ij2,ik1)
+                   aca   = grid2(ii1,ij3,ik1)
+                   bca   = grid2(ii2,ij3,ik1)
+                   cca   = grid2(ii3,ij3,ik1)
+                   dca   = grid2(ii4,ij3,ik1)
+                   ada   = grid2(ii1,ij4,ik1)
+                   bda   = grid2(ii2,ij4,ik1)
+                   cda   = grid2(ii3,ij4,ik1)
+                   dda   = grid2(ii4,ij4,ik1)
+                   aab   = grid2(ii1,ij1,ik2)
+                   bab   = grid2(ii2,ij1,ik2)
+                   cab   = grid2(ii3,ij1,ik2)
+                   dab   = grid2(ii4,ij1,ik2)
+                   abb   = grid2(ii1,ij2,ik2)
+                   bbb   = grid2(ii2,ij2,ik2)
+                   cbb   = grid2(ii3,ij2,ik2)
+                   dbb   = grid2(ii4,ij2,ik2)
+                   acb   = grid2(ii1,ij3,ik2)
+                   bcb   = grid2(ii2,ij3,ik2)
+                   ccb   = grid2(ii3,ij3,ik2)
+                   dcb   = grid2(ii4,ij3,ik2)
+                   adb   = grid2(ii1,ij4,ik2)
+                   bdb   = grid2(ii2,ij4,ik2)
+                   cdb   = grid2(ii3,ij4,ik2)
+                   ddb   = grid2(ii4,ij4,ik2)
+                   aac   = grid2(ii1,ij1,ik3)
+                   bac   = grid2(ii2,ij1,ik3)
+                   cac   = grid2(ii3,ij1,ik3)
+                   dac   = grid2(ii4,ij1,ik3)
+                   abc   = grid2(ii1,ij2,ik3)
+                   bbc   = grid2(ii2,ij2,ik3)
+                   cbc   = grid2(ii3,ij2,ik3)
+                   dbc   = grid2(ii4,ij2,ik3)
+                   acc   = grid2(ii1,ij3,ik3)
+                   bcc   = grid2(ii2,ij3,ik3)
+                   ccc   = grid2(ii3,ij3,ik3)
+                   dcc   = grid2(ii4,ij3,ik3)
+                   adc   = grid2(ii1,ij4,ik3)
+                   bdc   = grid2(ii2,ij4,ik3)
+                   cdc   = grid2(ii3,ij4,ik3)
+                   ddc   = grid2(ii4,ij4,ik3)
+                   aad   = grid2(ii1,ij1,ik4)
+                   bad   = grid2(ii2,ij1,ik4)
+                   cad   = grid2(ii3,ij1,ik4)
+                   dad   = grid2(ii4,ij1,ik4)
+                   abd   = grid2(ii1,ij2,ik4)
+                   bbd   = grid2(ii2,ij2,ik4)
+                   cbd   = grid2(ii3,ij2,ik4)
+                   dbd   = grid2(ii4,ij2,ik4)
+                   acd   = grid2(ii1,ij3,ik4)
+                   bcd   = grid2(ii2,ij3,ik4)
+                   ccd   = grid2(ii3,ij3,ik4)
+                   dcd   = grid2(ii4,ij3,ik4)
+                   add   = grid2(ii1,ij4,ik4)
+                   bdd   = grid2(ii2,ij4,ik4)
+                   cdd   = grid2(ii3,ij4,ik4)
+                   ddd   = grid2(ii4,ij4,ik4)
 
                    a1  = 3.0_dp + xd1
                    a2  = a1*a1
@@ -1294,7 +1314,7 @@ CONTAINS
                              ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
                              ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
 
-                   fac = cgrid%cr3d(i,j,k)
+                   fac = grid(i,j,k)
                    ft1 = ft1 + val(1) * fac
                    ft2 = ft2 + val(2) * fac
                    ft3 = ft3 + val(3) * fac
@@ -1332,11 +1352,15 @@ CONTAINS
                                             mm_cell=mm_cell,&
                                             dOmmOqm=dOmmOqm,&
                                             iw=iw,&
+                                            par_scheme=par_scheme,&
                                             error=error)
     END IF
-
     DEALLOCATE(LForces, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (par_scheme==do_par_atom) THEN
+       DEALLOCATE(grid,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LG
 
@@ -1362,13 +1386,13 @@ CONTAINS
 !!     08.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces_with_gaussian_LR  (pgfs,grid,num_mm_atoms,mm_charges,mm_atom_index,&
+  SUBROUTINE qmmm_forces_with_gaussian_LR  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
                                             mm_particles,mm_el_pot_radius,para_env,&
                                             coarser_grid_level,Forces, potentials,&
-                                            aug_pools, mm_cell, dOmmOqm, iw, error)
+                                            aug_pools, mm_cell, dOmmOqm, iw, par_scheme,error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
-    TYPE(pw_type), POINTER                   :: grid
+    TYPE(pw_type), POINTER                   :: cgrid
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
@@ -1384,7 +1408,7 @@ CONTAINS
       POINTER                                :: aug_pools
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw, par_scheme
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -1394,7 +1418,7 @@ CONTAINS
     INTEGER                                  :: handle, i, Imm, IndMM, &
                                                 IRadTyp, ix, j, k, LIndMM, &
                                                 my_i, my_j, my_k, n1, n2, n3, &
-                                                stat
+                                                stat, myind
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: dr1, dr2, dr3, dvol, dx, fac, ft1, ft2, ft3, qt, r, r2, &
@@ -1405,29 +1429,45 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
     TYPE(qmmm_pot_type), POINTER             :: pot
-
-! Statements
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+         POINTER                             :: grid
 
     CALL timeset(routineN,"I","",handle)
-
+    failure = .FALSE.
     ALLOCATE(LForces(num_mm_atoms,3), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     LForces = 0.0_dp
-    n1   = grid%pw_grid%npts(1)
-    n2   = grid%pw_grid%npts(2)
-    n3   = grid%pw_grid%npts(3)
-    dr1  = grid%pw_grid%dr(1)
-    dr2  = grid%pw_grid%dr(2)
-    dr3  = grid%pw_grid%dr(3)
-    dvol = grid%pw_grid%dvol
-    bo   = grid%pw_grid%bounds_local
-    gbo  = grid%pw_grid%bounds
-
+    n1   = cgrid%pw_grid%npts(1)
+    n2   = cgrid%pw_grid%npts(2)
+    n3   = cgrid%pw_grid%npts(3)
+    dr1  = cgrid%pw_grid%dr(1)
+    dr2  = cgrid%pw_grid%dr(2)
+    dr3  = cgrid%pw_grid%dr(3)
+    dvol = cgrid%pw_grid%dvol
+    gbo  = cgrid%pw_grid%bounds
+    IF (par_scheme==do_par_grid) THEN
+       bo    =  cgrid%pw_grid%bounds_local
+       grid  => cgrid%cr3d
+    ELSE
+       myind = 0
+       bo    = gbo
+       ALLOCATE(grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       grid  = 0.0_dp
+       bo    = cgrid%pw_grid%bounds_local
+       grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))=cgrid%cr3d
+       CALL mp_sum(grid,para_env%group)
+       bo    = gbo
+    END IF
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pot => potentials(IRadTyp)%pot
        dx     =  Pot%dx
        pot0_2 => Pot%pot0_2
        Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
+          IF (par_scheme==do_par_atom) THEN
+             myind = myind + 1
+             IF (MOD(myind,para_env%num_pe)/=para_env%mepos) CYCLE
+          END IF          
           LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
@@ -1460,7 +1500,7 @@ CONTAINS
                          +pot0_2(2,ix  )*(1.0_dp-4.0_dp*rx+3.0_dp*rx2)     &
                          +pot0_2(1,ix+1)*(6.0_dp*(rx-rx2))                 &
                          +pot0_2(2,ix+1)*(-2.0_dp*rx+3.0_dp*rx2)
-                   fac = grid%cr3d(i,j,k) * Term
+                   fac = grid(i,j,k) * Term
                    IF ( r == 0.0_dp ) THEN
                       rd1 = 1.0_dp
                       rd2 = 1.0_dp
@@ -1494,7 +1534,7 @@ CONTAINS
     IF (debug_this_module) THEN
        CALL debug_qmmm_forces_with_gauss_LR(pgfs=pgfs,&
                                             aug_pools=aug_pools,&
-                                            rho=grid,&
+                                            rho=cgrid,&
                                             num_mm_atoms=num_mm_atoms,&
                                             mm_charges=mm_charges,&
                                             mm_atom_index=mm_atom_index,&
@@ -1507,11 +1547,16 @@ CONTAINS
                                             mm_cell=mm_cell,&
                                             dOmmOqm=dOmmOqm,&
                                             iw=iw,&
+                                            par_scheme=par_scheme,&
                                             error=error)
     END IF
 
     DEALLOCATE(LForces, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (par_scheme==do_par_atom) THEN
+       DEALLOCATE(grid,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LR
 
@@ -1829,7 +1874,8 @@ CONTAINS
   SUBROUTINE debug_qmmm_forces_with_gauss_LG(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
                                              mm_particles, mm_el_pot_radius, num_mm_atoms,&
                                              coarser_grid_level, per_potentials,&
-                                             debug_force, para_env, mm_cell,dOmmOqm,iw,error)
+                                             debug_force, para_env, mm_cell,dOmmOqm,iw,&
+                                             par_scheme,error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1848,7 +1894,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw, par_scheme
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -1894,6 +1940,7 @@ CONTAINS
                                                  per_potentials=per_potentials,&
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&
+                                                 par_scheme=par_scheme,&
                                                  error=error)
 
              energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw )
@@ -1953,7 +2000,8 @@ CONTAINS
   SUBROUTINE debug_qmmm_forces_with_gauss_LR(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
                                              mm_particles, mm_el_pot_radius, num_mm_atoms,&
                                              coarser_grid_level, potentials,&
-                                             debug_force, para_env, mm_cell,dOmmOqm,iw,error)
+                                             debug_force, para_env, mm_cell,dOmmOqm,iw,&
+                                             par_scheme, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1972,7 +2020,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw, par_scheme
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -2018,6 +2066,7 @@ CONTAINS
                                                  potentials=potentials,&
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&
+                                                 par_scheme=par_scheme,&
                                                  error=error)
 
              energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw )

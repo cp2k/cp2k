@@ -38,12 +38,15 @@ MODULE qmmm_electrostatic_methods
                                              do_qmmm_none,&
                                              linear_interp,&
                                              spline3_nopbc_interp,&
-                                             spline3_pbc_interp
+                                             spline3_pbc_interp,&
+                                             do_par_grid,&
+                                             do_par_atom
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sync
+  USE message_passing,                 ONLY: mp_sync,&
+                                             mp_sum
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -289,7 +292,6 @@ CONTAINS
             error)       
 
     END IF
-
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_electrostatic_on_grid
 
@@ -494,7 +496,8 @@ CONTAINS
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, qmmm_env%pgfs,  &
          auxbas_grid, coarser_grid, pw_pools, aug_pools, qmmm_env%potentials,       &
          interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,  &
-         periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials, error=error)
+         periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials, &
+         par_scheme=qmmm_env%par_scheme, error=error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
 
@@ -504,7 +507,8 @@ CONTAINS
          cube_info, para_env, eps_mm_rspace, qmmm_env%added_charges%pgfs,auxbas_grid,     &
          coarser_grid, pw_pools, aug_pools, qmmm_env%added_charges%potentials,            &
          interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,        &
-         periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials, error=error)
+         periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials,&
+         par_scheme=qmmm_env%par_scheme,error=error)
 
     END IF
     CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
@@ -514,8 +518,8 @@ CONTAINS
        ! Linear Interpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_prolongate_l_NoPBC(grids(Ilevel  )%pw,&
-                                   grids(Ilevel-1)%pw,&
-                                   error)
+                                     grids(Ilevel-1)%pw,&
+                                     error)
        END DO
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
@@ -523,10 +527,10 @@ CONTAINS
        CALL timeset("spline3Int","I","",handle2)
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_prolongate_s3(grids(Ilevel  )%pw,&
-                            grids(Ilevel-1)%pw,&
-                            aug_pools(Ilevel)%pool,&
-                            param_section=interp_section,&
-                            error=error)
+                                grids(Ilevel-1)%pw,&
+                                aug_pools(Ilevel)%pool,&
+                                param_section=interp_section,&
+                                error=error)
        END DO
        CALL timestop(0._dp,handle2)
     CASE DEFAULT
@@ -542,7 +546,6 @@ CONTAINS
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
 
     CALL timestop(0.0_dp,handle)
-
   END SUBROUTINE qmmm_elec_with_gaussian
 
 !!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_low [1.0] *
@@ -558,7 +561,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
+!!     - error: variable to control error logging ,stopping,... 
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
@@ -572,13 +575,13 @@ CONTAINS
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
          pw_pools, aug_pools, potentials, interp_section, mm_cell, dOmmOqm,&
-         periodic, per_potentials, error)
+         periodic, per_potentials, par_scheme, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_grid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
+    INTEGER, INTENT(IN)                      :: num_mm_atoms, par_scheme
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -613,8 +616,6 @@ CONTAINS
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
     TYPE(qmmm_pot_type), POINTER             :: pot
-
-!Statements
 
     NULLIFY(pgf, pot, per_pot, xdat, ydat, zdat)
     CALL timeset(routineN,"I","",handle)
@@ -692,6 +693,7 @@ CONTAINS
                                            per_potentials=per_potentials,&
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
+                                           par_scheme=par_scheme,&
                                            error=error)       
     ELSE
        ! Long Range Part of the QM/MM Potential with Gaussians
@@ -706,6 +708,7 @@ CONTAINS
                                            potentials=potentials,&
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
+                                           par_scheme=par_scheme,&
                                            error=error)
     END IF
     CALL timestop(0.0_dp,handle)
@@ -740,7 +743,8 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LG(pgfs, cgrid, mm_charges,&
        mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
-       coarser_grid_level, per_potentials, mm_cell, dOmmOqm, error)
+       coarser_grid_level, per_potentials, mm_cell, dOmmOqm, &
+       par_scheme, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -750,7 +754,7 @@ CONTAINS
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: coarser_grid_level
+    INTEGER, INTENT(IN)                      :: coarser_grid_level, par_scheme
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: per_potentials
     TYPE(cell_type), POINTER                 :: mm_cell
@@ -763,7 +767,7 @@ CONTAINS
 
     INTEGER :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, ij3, ij4, ik1, ik2, &
       ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_j, my_k, &
-      npts(3)
+      npts(3), myind, stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
       acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
@@ -780,18 +784,25 @@ CONTAINS
       POINTER                                :: grid, grid2
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
+    LOGICAL :: failure
 
-! Statements
-
+    failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     NULLIFY(grid, pw)
     dr1c = cgrid%pw_grid%dr(1) 
     dr2c = cgrid%pw_grid%dr(2) 
     dr3c = cgrid%pw_grid%dr(3) 
-    bo   = cgrid%pw_grid%bounds_local
     gbo  = cgrid%pw_grid%bounds
-    grid2=>cgrid%cr3d
-
+    IF (par_scheme==do_par_grid) THEN
+       bo   = cgrid%pw_grid%bounds_local
+       grid2=>cgrid%cr3d
+    ELSE
+       myind = 0
+       bo    = gbo
+       ALLOCATE(grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       grid2 = 0.0_dp
+    END IF
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        per_pot => per_potentials(IRadTyp)%pot
        pw => per_pot%TabLR
@@ -801,6 +812,10 @@ CONTAINS
        dr3  = pw%pw_grid%dr(3)
        grid => pw%cr3d(:,:,:)
        Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
+          IF (par_scheme==do_par_atom) THEN
+             myind = myind + 1
+             IF (MOD(myind,para_env%num_pe)/=para_env%mepos) CYCLE
+          END IF
           LIndMM    =   per_pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
@@ -981,7 +996,13 @@ CONTAINS
           END DO LoopOnGrid
        END DO Atoms
     END DO Radius
-
+    IF (par_scheme==do_par_atom) THEN
+       CALL mp_sum(grid2,para_env%group)
+       bo   = cgrid%pw_grid%bounds_local
+       cgrid%cr3d = cgrid%cr3d+grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))
+       DEALLOCATE(grid2,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LG
 
@@ -1012,7 +1033,8 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LR(pgfs, grid, mm_charges,&
        mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
-       coarser_grid_level, potentials, mm_cell, dOmmOqm, error)
+       coarser_grid_level, potentials, mm_cell, dOmmOqm,&
+       par_scheme, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: grid
@@ -1022,7 +1044,7 @@ CONTAINS
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: coarser_grid_level
+    INTEGER, INTENT(IN)                      :: coarser_grid_level, par_scheme
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
     TYPE(cell_type), POINTER                 :: mm_cell
@@ -1035,7 +1057,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, Imm, IndMM, &
                                                 IRadTyp, ix, j, k, LIndMM, &
-                                                my_j, my_k, n1, n2, n3
+                                                my_j, my_k, n1, n2, n3, myind, stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     REAL(KIND=dp)                            :: dr1, dr2, dr3, dx, qt, r, r2, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
@@ -1044,25 +1066,39 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
     TYPE(qmmm_pot_type), POINTER             :: pot
-
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: grid2
+    LOGICAL :: failure
 ! Statements
 
     CALL timeset(routineN,"I","",handle)
-
+    failure = .FALSE.
     n1  = grid%pw_grid%npts(1)
     n2  = grid%pw_grid%npts(2)
     n3  = grid%pw_grid%npts(3)
     dr1 = grid%pw_grid%dr(1) 
     dr2 = grid%pw_grid%dr(2) 
     dr3 = grid%pw_grid%dr(3) 
-    bo  = grid%pw_grid%bounds_local
     gbo = grid%pw_grid%bounds
-
+    IF (par_scheme==do_par_grid) THEN
+       bo   = grid%pw_grid%bounds_local
+       grid2=>grid%cr3d
+    ELSE
+       myind = 0
+       bo    = gbo
+       ALLOCATE(grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       grid2 = 0.0_dp
+    END IF
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pot => potentials(IRadTyp)%pot
        dx     =  Pot%dx 
        pot0_2 => Pot%pot0_2
        Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
+          IF (par_scheme==do_par_atom) THEN
+             myind = myind + 1
+             IF (MOD(myind,para_env%num_pe)/=para_env%mepos) CYCLE
+          END IF
           LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
@@ -1092,7 +1128,7 @@ CONTAINS
                          +pot0_2(2,ix  )*(rx-2.0_dp*rx2+rx3)             &
                          +pot0_2(1,ix+1)*(3.0_dp*rx2-2.0_dp*rx3)         &
                          +pot0_2(2,ix+1)*(-rx2+rx3)
-                   grid%cr3d(i,j,k) = grid%cr3d(i,j,k) - Term * qt 
+                   grid2(i,j,k) = grid2(i,j,k) - Term * qt 
                    xs1 = xs1 + dr1
                 END DO
                 xs2 = xs2 + dr2
@@ -1100,7 +1136,13 @@ CONTAINS
           END DO LoopOnGrid
        END DO Atoms
     END DO Radius
-
+    IF (par_scheme==do_par_atom) THEN
+       CALL mp_sum(grid2,para_env%group)
+       bo   = grid%pw_grid%bounds_local
+       grid%cr3d=grid%cr3d+grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))
+       DEALLOCATE(grid2,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LR
 

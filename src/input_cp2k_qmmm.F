@@ -144,6 +144,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="parallel_scheme",&
+            description="Chooses the parallel_scheme for the long range Potential ",&
+            usage="parallel_scheme (ATOM|GRID)",&
+            enum_c_vals=s2a( "ATOM","GRID"),&
+            enum_desc=s2a("parallelizes on atoms. grids replicated.",&
+                          "parallelizes on grid slices. atoms replicated."),&
+            enum_i_vals=(/ do_par_atom, do_par_grid /),&
+            default_i_val=do_par_atom, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="use_geep_lib",&
             description=" This keyword enables the use of the internal GEEP library to generate the "//&
             "gaussian expansion of the MM potential. Using this keyword there's no need to provide "//&

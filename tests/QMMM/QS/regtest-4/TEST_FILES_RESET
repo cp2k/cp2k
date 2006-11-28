@@ -21,3 +21,6 @@ crys_per_qmmm_spln.inp
 # changing the definition of ch_dens
 acn-conn-1.inp
 acn-qmmm-re.inp
+# new parallel scheme for QM/MM
+acn-conn-1.inp
+acn-qmmm-re.inp
