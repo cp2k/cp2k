@@ -1231,6 +1231,7 @@ CONTAINS
          IF (molname_generated) my_tag=""
        END IF
        ldum = qmmm_ff_precond_only_qm(my_tag)
+       ldum = qmmm_ff_precond_only_qm(name)
        line = TRIM(name)
        DO k = 1, 3
           WRITE(rcval,"(ES25.16)") particles%els(irk)%r(k)/conv_factor
