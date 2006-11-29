@@ -347,6 +347,13 @@ CONTAINS
                 do_conn_psf,error)
          END DO
        END DO
+       CALL cp_assert(SIZE(topology%atom_info%label_molname)==topology%natoms,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "Number of atoms in connectivity control is larger than the "//&
+            "number of atoms in coordinate control. check coordinates and "//&
+            "connectivity. "//&
+ CPSourceFileRef,&
+            error=error,failure=failure)
     CASE (do_conn_g96,do_conn_g87)
        CALL pre_read_topology_gromos(topology,subsys_section,error)
        CALL read_topology_gromos(topology%conn_file_name,topology,para_env,&

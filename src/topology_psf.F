@@ -102,35 +102,41 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     atom_info => topology%atom_info
 
-    IF (ASSOCIATED(atom_info%label_molname)) &
-      DEALLOCATE(atom_info%label_molname,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(atom_info%label_molname)
+    IF (ASSOCIATED(atom_info%label_molname)) THEN
+       DEALLOCATE(atom_info%label_molname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_molname)
+    END IF
 
-    IF (ASSOCIATED(atom_info%label_resid)) &
-      DEALLOCATE(atom_info%label_resid,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(atom_info%label_resid)
+    IF (ASSOCIATED(atom_info%label_resid)) THEN
+       DEALLOCATE(atom_info%label_resid,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_resid)
+    END IF
 
-    IF (ASSOCIATED(atom_info%label_resname)) &
-      DEALLOCATE(atom_info%label_resname,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(atom_info%label_resname)
+    IF (ASSOCIATED(atom_info%label_resname)) THEN
+       DEALLOCATE(atom_info%label_resname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_resname)
+    END IF
 
-    IF (ASSOCIATED(atom_info%label_atmname)) &
-      DEALLOCATE(atom_info%label_atmname,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(atom_info%label_atmname)
+    IF (ASSOCIATED(atom_info%label_atmname)) THEN
+       DEALLOCATE(atom_info%label_atmname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_atmname)
+    END IF
 
-    IF (ASSOCIATED(atom_info%atm_charge)) &
-      DEALLOCATE(atom_info%atm_charge,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(atom_info%atm_charge)
+    IF (ASSOCIATED(atom_info%atm_charge)) THEN
+       DEALLOCATE(atom_info%atm_charge,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%atm_charge)
+    END IF
 
-    IF (ASSOCIATED(atom_info%atm_mass)) &
-      DEALLOCATE(atom_info%atm_mass,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(atom_info%atm_mass)
+    IF (ASSOCIATED(atom_info%atm_mass)) THEN
+       DEALLOCATE(atom_info%atm_mass,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%atm_mass)
+    END IF
 
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -238,6 +244,13 @@ CONTAINS
        natom = 0
     ELSE
        CALL parser_get_object  (parser,natom,error=error)
+       CALL cp_assert(natom_prev+natom<=topology%natoms,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "Number of atoms in connectivity control is larger than the "//&
+            "number of atoms in coordinate control. check coordinates and "//&
+            "connectivity. "//&
+CPSourceFileRef,&
+             error=error,failure=failure)
        IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ',natom
        !malloc the memory that we need
        CALL reallocate(atom_info%label_molname,1,natom_prev+natom)
