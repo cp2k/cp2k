@@ -156,6 +156,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
              particles=particles, error=error)
 
   nunits_tot=SIZE(particles%els(:))
+  IF(SUM(nchains(:)) == 0) nunits_tot=0
   WRITE(unit,*) nnstep
   WRITE(unit,*) temp,nunits_tot
   WRITE(unit,*) ensemble
@@ -165,22 +166,24 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
 
 ! can't do a simple particles%els%atomic_kind%element_symbol because
 ! of the classical force_env
-  nmol_types=SIZE(molecule_kinds_new%els(:))
-  iparticle=1
-  DO imol_type=1,nmol_types
-     molecule_kind => molecule_kinds_new%els(imol_type)
-     CALL get_molecule_kind(molecule_kind,atom_list=atom_list,&
-          nmolecule=nmolecule,natom=natom)
+  IF(nunits_tot .GT. 0) THEN
+     nmol_types=SIZE(molecule_kinds_new%els(:))
+     iparticle=1
+     DO imol_type=1,nmol_types
+        molecule_kind => molecule_kinds_new%els(imol_type)
+        CALL get_molecule_kind(molecule_kind,atom_list=atom_list,&
+             nmolecule=nmolecule,natom=natom)
 ! write the coordinates out
-     DO ichain=1,nmolecule
-        DO iunit=1,natom
-           WRITE(unit,'(1X,A,1X,3(F15.10,3X))') &
-                TRIM(ADJUSTL(atom_list(iunit)%name)),&
-                particles%els(iparticle)%r(1:3)*angstrom
-           iparticle=iparticle+1
+        DO ichain=1,nmolecule
+           DO iunit=1,natom
+              WRITE(unit,'(1X,A,1X,3(F15.10,3X))') &
+                   TRIM(ADJUSTL(atom_list(iunit)%name)),&
+                   particles%els(iparticle)%r(1:3)*angstrom
+              iparticle=iparticle+1
+           ENDDO
         ENDDO
      ENDDO
-  ENDDO
+  ENDIF
 
   CALL close_file(unit_number=unit)
 
@@ -217,7 +220,8 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, INTENT(IN)                      :: iw,mc_nunits_tot
+    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(INOUT)                      :: mc_nunits_tot
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_restart'
@@ -296,6 +300,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
             WRITE(iw,*) 'Input file units =',mc_nunits_tot
             WRITE(iw,*) 'Restart file units =',nunits_tot
          ENDIF
+         mc_nunits_tot=nunits_tot
       ENDIF
       IF(ensemble .NE. mc_ensemble) THEN
          IF(ionode) THEN

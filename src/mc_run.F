@@ -150,9 +150,10 @@ CONTAINS
     CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: box2_file, dat_file
     INTEGER :: ibox, isos, iw, nboxes, &
-      istat, nmol_types
+      istat, nmol_types,box_number
     LOGICAL                                  :: ionode, lrestart, &
-                                                lterminate,lbias
+                                                lterminate,lbias,&
+                                                lskip_box
     REAL(dp)                                 :: rcut
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -302,9 +303,23 @@ CONTAINS
 
       ENDDO
 
+! figure out if we have an empty box
+      box_number=0
+      lskip_box=.FALSE.
+      DO ibox=1,nboxes
+         IF(nunits_tot(ibox) == 0) THEN
+            IF(lskip_box) THEN
+               CALL stop_program('mc_run.F/do_mon_car',&
+               'More than one box has no atoms in it!')
+            END IF
+            box_number=ibox
+            lskip_box=.TRUE.
+         ENDIF
+      ENDDO
+
 ! in case there was a restart, we need to do this again
       CALL mc_molecule_info_destroy(mc_molecule_info)
-      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error)
+      CALL mc_determine_molecule_info(force_env,mc_molecule_info,error,box_number=box_number)
       CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
            nunits_tot=nunits_tot)
       DO ibox=1,nboxes
