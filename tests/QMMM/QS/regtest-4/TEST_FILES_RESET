@@ -24,3 +24,6 @@ acn-qmmm-re.inp
 # new parallel scheme for QM/MM
 acn-conn-1.inp
 acn-qmmm-re.inp
+# improved parallel scheme for qm/mm. numerical reset
+acn-conn-1.inp
+acn-qmmm-re.inp

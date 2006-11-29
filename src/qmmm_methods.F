@@ -626,9 +626,7 @@ CONTAINS
     DO igrid=1,ngrids
        CALL pw_zero(grids(igrid)%pw)
     END DO
-
     ! Collocate Density on multigrids
-
     lb = rho%pw_grid%bounds_local(1,:)
     ub = rho%pw_grid%bounds_local(2,:)
     grids(auxbas_grid) % pw % cr3d(lb(1):ub(1),&
@@ -697,8 +695,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        NULLIFY(tmp)
     END IF
-    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
+    ! Further setup of parallelization scheme
+    IF (qmmm_env%par_scheme==do_par_atom) THEN
+       CALL mp_sum(grids(auxbas_grid)%pw%cr3d,para_env%group)
+    END IF
     ! RealSpace Interpolation
+    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     SELECT CASE(kind_interp)
     CASE(linear_interp)
        ! Linear Interpolator
@@ -721,7 +723,7 @@ CONTAINS
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-    CALL qmmm_forces_with_gaussian_low(grids, mm_particles,&
+    CALL qmmm_force_with_gaussian_low(grids, mm_particles,&
          qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,&
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, auxbas_grid, &
          coarser_grid, qmmm_env%pgfs, qmmm_env%potentials, Forces, aug_pools,    &
@@ -729,15 +731,13 @@ CONTAINS
          iw, qmmm_env%par_scheme, error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
-
-       CALL qmmm_forces_with_gaussian_low(grids, qmmm_env%added_charges%added_particles,&
+       CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_charges%added_particles,&
             qmmm_env%added_charges%mm_atom_chrg, qmmm_env%added_charges%mm_el_pot_radius,&
             qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,&
             cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs,&
             qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, &
             qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials, iw, qmmm_env%par_scheme,&
             error)
-
     END IF
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
@@ -745,10 +745,10 @@ CONTAINS
 
   END SUBROUTINE qmmm_forces_with_gaussian
 
-!!****f* qmmm_methods/qmmm_forces_with_gaussian_low [1.0] *
+!!****f* qmmm_methods/qmmm_force_with_gaussian_low [1.0] *
 !!
 !!   NAME
-!!     qmmm_forces_with_gaussian_low
+!!     qmmm_force_with_gaussian_low
 !!
 !!   FUNCTION
 !!     Evaluates the contribution to the forces due to the
@@ -767,7 +767,7 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces_with_gaussian_low(grids, mm_particles,&
+  SUBROUTINE qmmm_force_with_gaussian_low(grids, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        cube_info, para_env, eps_mm_rspace, auxbas_grid, &
        coarser_grid, pgfs, potentials, Forces, aug_pools, mm_cell, &
@@ -800,12 +800,13 @@ CONTAINS
                                              :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'qmmm_forces_with_gaussian_low', &
+      routineN = 'qmmm_force_with_gaussian_low', &
+      routineNb= 'qmmm_forces_gaussian_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, Icg, IGauss, ilevel, &
+    INTEGER                                  :: handle, IGauss, ilevel, &
                                                 Imm, IndMM, IRadTyp, handle2,&
-                                                LIndMM, n_rep_real(3), stat
+                                                LIndMM, n_rep_real(3), stat, myind
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvol, height, W
@@ -817,9 +818,9 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,"I","",handle)
-    CALL timeset(routineN//"_GAUSS","I","",handle2)
+    CALL timeset(routineNb//"_G","I","",handle2)
     NULLIFY(pgf, pot, per_pot)
-    Icg     = 0
+    IF (par_scheme==do_par_atom) myind=0
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot
@@ -834,15 +835,18 @@ CONTAINS
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
           dvol      = grids(ilevel)%pw%pw_grid%dvol
-    bo      = grids(ilevel) % pw % pw_grid % bounds_local
-    ALLOCATE (xdat(2,bo(1,1):bo(2,1)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (ydat(2,bo(1,2):bo(2,2)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (zdat(2,bo(1,3):bo(2,3)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          bo        = grids(ilevel) % pw % pw_grid % bounds_local
+          ALLOCATE (xdat(2,bo(1,1):bo(2,1)), STAT=stat)
+ CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (ydat(2,bo(1,2):bo(2,2)), STAT=stat)
+ CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (zdat(2,bo(1,3):bo(2,3)), STAT=stat)
+ CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
-             Icg       =   Icg + 1
+             IF (par_scheme==do_par_atom) THEN
+                myind = myind + 1
+                IF (MOD(myind,para_env%num_pe)/=para_env%mepos) CYCLE Atoms
+             END IF
              LIndMM    =   pot%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
@@ -886,16 +890,16 @@ CONTAINS
                                                      error=error)
              END IF
           END DO Atoms
-    DEALLOCATE (xdat, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (ydat, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (zdat, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (xdat, STAT=stat)
+ CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (ydat, STAT=stat)
+ CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (zdat, STAT=stat)
+ CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO Gaussian
     END DO Radius
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineN//"_REST","I","",handle2)
+    CALL timeset(routineNb//"_R","I","",handle2)
     IF (periodic) THEN
        CALL qmmm_forces_with_gaussian_LG  (pgfs=pgfs,&
                                            cgrid=grids(coarser_grid)%pw,&
@@ -935,7 +939,7 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle2)
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE qmmm_forces_with_gaussian_low
+  END SUBROUTINE qmmm_force_with_gaussian_low
 
 
 !!****f* qmmm_methods/qmmm_forces_with_gaussian_LG [1.0] *
@@ -1025,20 +1029,9 @@ CONTAINS
     dr3c  = cgrid%pw_grid%dr(3)
     dvol  = cgrid%pw_grid%dvol
     gbo   = cgrid%pw_grid%bounds
-    IF (par_scheme==do_par_grid) THEN
-       bo    =  cgrid%pw_grid%bounds_local
-       grid  => cgrid%cr3d
-    ELSE
-       myind = 0
-       bo    = gbo
-       ALLOCATE(grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       grid  = 0.0_dp
-       bo    = cgrid%pw_grid%bounds_local
-       grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))=cgrid%cr3d
-       CALL mp_sum(grid,para_env%group)
-       bo    = gbo
-    END IF
+    bo    =  cgrid%pw_grid%bounds_local
+    grid  => cgrid%cr3d
+    IF (par_scheme==do_par_atom) myind = 0
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        per_pot => per_potentials(IRadTyp)%pot
        pw    => per_pot%TabLR
@@ -1354,10 +1347,6 @@ CONTAINS
     END IF
     DEALLOCATE(LForces, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (par_scheme==do_par_atom) THEN
-       DEALLOCATE(grid,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LG
 
@@ -1442,20 +1431,9 @@ CONTAINS
     dr3  = cgrid%pw_grid%dr(3)
     dvol = cgrid%pw_grid%dvol
     gbo  = cgrid%pw_grid%bounds
-    IF (par_scheme==do_par_grid) THEN
-       bo    =  cgrid%pw_grid%bounds_local
-       grid  => cgrid%cr3d
-    ELSE
-       myind = 0
-       bo    = gbo
-       ALLOCATE(grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       grid  = 0.0_dp
-       bo    = cgrid%pw_grid%bounds_local
-       grid(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))=cgrid%cr3d
-       CALL mp_sum(grid,para_env%group)
-       bo    = gbo
-    END IF
+    bo    =  cgrid%pw_grid%bounds_local
+    grid  => cgrid%cr3d
+    IF (par_scheme==do_par_atom) myind = 0
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pot => potentials(IRadTyp)%pot
        dx     =  Pot%dx
@@ -1550,10 +1528,6 @@ CONTAINS
 
     DEALLOCATE(LForces, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (par_scheme==do_par_atom) THEN
-       DEALLOCATE(grid,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LR
 

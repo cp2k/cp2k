@@ -500,7 +500,6 @@ CONTAINS
          par_scheme=qmmm_env%par_scheme, error=error)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
-
        CALL qmmm_elec_with_gaussian_low( grids, qmmm_env%added_charges%added_particles,   &
          qmmm_env%added_charges%mm_atom_chrg, qmmm_env%added_charges%mm_el_pot_radius,    &
          qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,       & 
@@ -509,10 +508,15 @@ CONTAINS
          interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,        &
          periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials,&
          par_scheme=qmmm_env%par_scheme,error=error)
-
     END IF
-    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
+    ! Sumup all contributions according the parallelization scheme
+    IF (qmmm_env%par_scheme==do_par_atom) THEN
+       DO ilevel=1,SIZE(grids)
+          CALL mp_sum(grids(ilevel)%pw%cr3d,para_env%group)
+       END DO
+    END IF
     ! RealSpace Interpolation
+    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     SELECT CASE(kind_interp)
     CASE(linear_interp)
        ! Linear Interpolator
@@ -602,12 +606,14 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER ::&
+         routineN = 'qmmm_elec_with_gaussian_low', &
+         routineNb= 'qmmm_elec_gaussian_low', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, Icg, IGauss, ilevel, &
+    INTEGER                                  :: handle, IGauss, ilevel, &
                                                 Imm, IndMM, IRadTyp, handle2,&
-                                                LIndMM, n_rep_real(3), stat
+                                                LIndMM, n_rep_real(3), stat, myind
     INTEGER, DIMENSION(2, 3)                 :: bo2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, height, W
@@ -619,8 +625,7 @@ CONTAINS
 
     NULLIFY(pgf, pot, per_pot, xdat, ydat, zdat)
     CALL timeset(routineN,"I","",handle)
-    CALL timeset(routineN//"_GAUSS","I","",handle2)
-    Icg                = 0
+    CALL timeset(routineNb//"_G","I","",handle2)
     bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
     ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -628,7 +633,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    IF (par_scheme==do_par_atom) myind = 0
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot
@@ -643,7 +648,10 @@ CONTAINS
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
           Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
-             Icg       =   Icg + 1
+             IF (par_scheme==do_par_atom) THEN
+                myind = myind + 1
+                IF (MOD(myind,para_env%num_pe)/=para_env%mepos) CYCLE Atoms
+             END IF
              LIndMM    =   pot%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
@@ -678,7 +686,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
     CALL timestop(0.0_dp,handle2)
-    CALL timeset(routineN//"_REST","I","",handle2)
+    CALL timeset(routineNb//"_R","I","",handle2)
     IF (periodic) THEN
        ! Long Range Part of the QM/MM Potential with Gaussians With Periodic Boundary Conditions
        CALL qmmm_elec_with_gaussian_LG    (pgfs=pgfs,&
@@ -793,16 +801,9 @@ CONTAINS
     dr2c = cgrid%pw_grid%dr(2) 
     dr3c = cgrid%pw_grid%dr(3) 
     gbo  = cgrid%pw_grid%bounds
-    IF (par_scheme==do_par_grid) THEN
-       bo   = cgrid%pw_grid%bounds_local
-       grid2=>cgrid%cr3d
-    ELSE
-       myind = 0
-       bo    = gbo
-       ALLOCATE(grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       grid2 = 0.0_dp
-    END IF
+    bo   = cgrid%pw_grid%bounds_local
+    grid2=>cgrid%cr3d
+    IF (par_scheme==do_par_atom) myind = 0
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        per_pot => per_potentials(IRadTyp)%pot
        pw => per_pot%TabLR
@@ -996,16 +997,8 @@ CONTAINS
           END DO LoopOnGrid
        END DO Atoms
     END DO Radius
-    IF (par_scheme==do_par_atom) THEN
-       CALL mp_sum(grid2,para_env%group)
-       bo   = cgrid%pw_grid%bounds_local
-       cgrid%cr3d = cgrid%cr3d+grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))
-       DEALLOCATE(grid2,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LG
-
 
 !!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_LR [1.0] *
 !!
@@ -1069,27 +1062,19 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid2
     LOGICAL :: failure
-! Statements
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
-    n1  = grid%pw_grid%npts(1)
-    n2  = grid%pw_grid%npts(2)
-    n3  = grid%pw_grid%npts(3)
-    dr1 = grid%pw_grid%dr(1) 
-    dr2 = grid%pw_grid%dr(2) 
-    dr3 = grid%pw_grid%dr(3) 
-    gbo = grid%pw_grid%bounds
-    IF (par_scheme==do_par_grid) THEN
-       bo   = grid%pw_grid%bounds_local
-       grid2=>grid%cr3d
-    ELSE
-       myind = 0
-       bo    = gbo
-       ALLOCATE(grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       grid2 = 0.0_dp
-    END IF
+    n1   = grid%pw_grid%npts(1)
+    n2   = grid%pw_grid%npts(2)
+    n3   = grid%pw_grid%npts(3)
+    dr1  = grid%pw_grid%dr(1) 
+    dr2  = grid%pw_grid%dr(2) 
+    dr3  = grid%pw_grid%dr(3) 
+    gbo  = grid%pw_grid%bounds
+    bo   = grid%pw_grid%bounds_local
+    grid2=>grid%cr3d
+    IF (par_scheme==do_par_atom) myind=0
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pot => potentials(IRadTyp)%pot
        dx     =  Pot%dx 
@@ -1136,15 +1121,7 @@ CONTAINS
           END DO LoopOnGrid
        END DO Atoms
     END DO Radius
-    IF (par_scheme==do_par_atom) THEN
-       CALL mp_sum(grid2,para_env%group)
-       bo   = grid%pw_grid%bounds_local
-       grid%cr3d=grid%cr3d+grid2(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))
-       DEALLOCATE(grid2,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LR
-
 
 END MODULE qmmm_electrostatic_methods

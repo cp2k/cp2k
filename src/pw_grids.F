@@ -2667,8 +2667,9 @@ END SUBROUTINE pw_grid_release
 !!             accordingly [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, error)
+  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, pw_mode, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
+    INTEGER, INTENT(IN), OPTIONAL            :: pw_mode
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
@@ -2676,32 +2677,35 @@ END SUBROUTINE pw_grid_release
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, pw_mode_loc
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
     LOGICAL                                  :: failure
-
+    
     failure = .FALSE.
 
     CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
+       pw_mode_loc = pw_grid_in%para%mode
+       IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
        CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group,error=error)
        grid_tag = grid_tag + 1
        pw_grid_out %id_nr = grid_tag
        pw_grid_out % ref_count  = 1
        pw_grid_out % reference  = 0
-
-       pw_grid_out%bounds_local=pw_grid_in%bounds_local
-       IF (pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1).AND.&
-            pw_grid_in%bounds_local(1,1)<=pw_grid_in%bounds(2,1)) THEN
-          pw_grid_out%bounds_local(2,1)=pw_grid_out%bounds_local(2,1)+1
-       END IF
-       pw_grid_out%bounds_local(2,2)=pw_grid_out%bounds_local(2,2)+1
-       pw_grid_out%bounds_local(2,3)=pw_grid_out%bounds_local(2,3)+1
-
        pw_grid_out%bounds=pw_grid_in%bounds
-       pw_grid_out%bounds(2,:)     =  pw_grid_out%bounds(2,:) + 1
-
+       pw_grid_out%bounds(2,:)=pw_grid_out%bounds(2,:) + 1
+       IF (pw_mode_loc==PW_MODE_DISTRIBUTED) THEN
+          pw_grid_out%bounds_local=pw_grid_in%bounds_local
+          IF ( pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1).AND.&
+               pw_grid_in%bounds_local(1,1)<=pw_grid_in%bounds(2,1)) THEN
+             pw_grid_out%bounds_local(2,1)=pw_grid_out%bounds_local(2,1)+1
+          END IF
+          pw_grid_out%bounds_local(2,2)=pw_grid_out%bounds_local(2,2)+1
+          pw_grid_out%bounds_local(2,3)=pw_grid_out%bounds_local(2,3)+1
+       ELSE
+          pw_grid_out%bounds_local = pw_grid_out%bounds
+       END IF
        pw_grid_out%npts            =  pw_grid_in%npts  + 1
        pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
        pw_grid_out%ngpts_cut=0
@@ -2722,15 +2726,16 @@ END SUBROUTINE pw_grid_release
        !para
        CALL mp_comm_dup ( pw_grid_in % para % group, pw_grid_out % para % group )
        CALL mp_environ ( pw_grid_out % para % group_size, &
-            pw_grid_out % para % my_pos, &
-            pw_grid_out % para % group )
+                         pw_grid_out % para % my_pos, &
+                         pw_grid_out % para % group )
        pw_grid_out % para % group_head_id = pw_grid_in % para % group_head_id
        pw_grid_out % para % group_head = &
             ( pw_grid_out % para % group_head_id == pw_grid_out % para % my_pos )
-       pw_grid_out % para % mode = pw_grid_in % para % mode
-       pw_grid_out % para % ray_distribution = pw_grid_in % para % ray_distribution
-       NULLIFY(pw_grid_out % para % yzp, pw_grid_out % para % yzq, &
-            pw_grid_out % para % nyzray, pw_grid_out % para % bo)
+       pw_grid_out % para % mode = pw_mode_loc
+       NULLIFY(pw_grid_out % para % yzp,&
+               pw_grid_out % para % yzq,&
+               pw_grid_out % para % nyzray,&
+               pw_grid_out % para % bo)
        ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
@@ -2738,10 +2743,11 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%para%pos_of_x => pos_of_x
        pw_grid_out % para % rs_dims = pw_grid_in % para % rs_dims
        IF (PRODUCT(pw_grid_in % para % rs_dims)/=0) THEN
-          CALL mp_comm_dup ( pw_grid_in % para % rs_group, pw_grid_out % para % rs_group )
+          CALL mp_comm_dup  ( pw_grid_in  % para % rs_group, &
+                              pw_grid_out % para % rs_group )
           CALL mp_cart_rank ( pw_grid_out % para % rs_group, &
-               pw_grid_out % para % rs_pos, &
-               pw_grid_out % para % rs_mpo )
+                              pw_grid_out % para % rs_pos, &
+                              pw_grid_out % para % rs_mpo )
        ELSE
           pw_grid_out % para % rs_mpo=HUGE(0) !FM copy also from pw_grid_in?
           pw_grid_out % para % rs_pos=HUGE(0)
@@ -2754,8 +2760,8 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%first_gne0=HUGE(0)
        pw_grid_out%nglengths=HUGE(0)
        NULLIFY(pw_grid_out%gidx)
-       pw_grid_out%spherical    =  .FALSE.
-
+       pw_grid_out%spherical                 = .FALSE.
+       pw_grid_out % para % ray_distribution = .FALSE.
     END IF
   END SUBROUTINE pw_grid_create_copy_no_pbc
 

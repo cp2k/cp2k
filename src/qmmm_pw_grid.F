@@ -20,11 +20,12 @@
 MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: do_qmmm_gauss
+  USE input_constants,                 ONLY: do_qmmm_gauss, do_par_atom
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grid_types,                   ONLY: pw_grid_type,&
+       PW_MODE_DISTRIBUTED, PW_MODE_LOCAL
   USE pw_grids,                        ONLY: pw_grid_create_copy_no_pbc,&
                                              pw_grid_release
   USE pw_pool_types,                   ONLY: pw_pool_create,&
@@ -86,6 +87,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pool
+    INTEGER                                  :: pw_mode
 
     NULLIFY(el_struct)
     failure = .FALSE.
@@ -106,10 +108,15 @@ CONTAINS
        DO Ilevel = 1, SIZE(pw_pools)
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
           pool      => pw_pools(Ilevel)%pool
-          NULLIFY(el_struct)          
-          CALL pw_grid_create_copy_no_pbc(pool%pw_grid,el_struct, cell=cell,&
-               error=error)
+          NULLIFY(el_struct)
+          pw_mode = PW_MODE_DISTRIBUTED
+          ! Parallelization scheme
+          IF (qmmm_env%par_scheme==do_par_atom) THEN
+             pw_mode = PW_MODE_LOCAL
+          END IF
 
+          CALL pw_grid_create_copy_no_pbc(pool%pw_grid,el_struct, cell=cell,&
+               pw_mode=pw_mode, error=error)
           CALL pw_pool_create(qmmm_env%aug_pools(Ilevel)%pool,&
                pw_grid=el_struct,error=error)
 
