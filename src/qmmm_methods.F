@@ -804,7 +804,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, Icg, IGauss, ilevel, &
-                                                Imm, IndMM, IRadTyp, ithread, &
+                                                Imm, IndMM, IRadTyp, handle2,&
                                                 LIndMM, n_rep_real(3), stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
@@ -817,10 +817,9 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN//"_GAUSS","I","",handle2)
     NULLIFY(pgf, pot, per_pot)
-    ithread = 0
     Icg     = 0
-
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot
@@ -857,7 +856,6 @@ CONTAINS
                                             pwgrid=grids(ilevel)%pw,&
                                             cube_info=cube_info(ilevel),&
                                             eps_mm_rspace=eps_mm_rspace,&
-                                            ithread=ithread, &
                                             xdat=xdat,&
                                             ydat=ydat,&
                                             zdat=zdat,&
@@ -879,7 +877,6 @@ CONTAINS
                                                      pwgrid=grids(ilevel)%pw,&
                                                      cube_info=cube_info(ilevel),&
                                                      eps_mm_rspace=eps_mm_rspace,&
-                                                     ithread=ithread,&
                                                      aug_pools=aug_pools,&
                                                      debug_force=force,&
                                                      mm_cell=mm_cell,&
@@ -897,8 +894,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO Gaussian
     END DO Radius
-
-
+    CALL timestop(0.0_dp,handle2)
+    CALL timeset(routineN//"_REST","I","",handle2)
     IF (periodic) THEN
        CALL qmmm_forces_with_gaussian_LG  (pgfs=pgfs,&
                                            cgrid=grids(coarser_grid)%pw,&
@@ -936,7 +933,7 @@ CONTAINS
                                            par_scheme=par_scheme,&
                                            error=error)
     END IF
-
+    CALL timestop(0.0_dp,handle2)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_low
 
@@ -1741,7 +1738,7 @@ CONTAINS
 !!
 !!*************************************************************************
   SUBROUTINE debug_integrate_gf_rspace_NoPBC(ilevel, zetp, rp, scale, W, pwgrid, cube_info,&
-                                             eps_mm_rspace, ithread, aug_pools, debug_force,&
+                                             eps_mm_rspace, aug_pools, debug_force,&
                                              mm_cell,auxbas_grid, n_rep_real, iw, error)
     INTEGER, INTENT(IN)                      :: ilevel
     REAL(KIND=dp), INTENT(IN)                :: zetp
@@ -1750,7 +1747,6 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pwgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
-    INTEGER, INTENT(IN), OPTIONAL            :: ithread
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: debug_force
@@ -1807,7 +1803,6 @@ CONTAINS
                                          pwgrid=grids(ilevel)%pw,&
                                          cube_info=cube_info,&
                                          eps_mm_rspace=eps_mm_rspace,&
-                                         ithread=ithread, &
                                          xdat=xdat,&
                                          ydat=ydat,&
                                          zdat=zdat,&

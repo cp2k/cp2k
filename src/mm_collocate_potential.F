@@ -70,20 +70,19 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE collocate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat,bo2, n_rep_real, mm_cell)
+       eps_mm_rspace,xdat,ydat,zdat,bo2, n_rep_real, mm_cell)
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
     REAL(KIND=dp), INTENT(IN)                :: scale, W
     TYPE(pw_type), POINTER                   :: pwgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
-    INTEGER, INTENT(IN), OPTIONAL            :: ithread
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo2
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: ig, ithread_l, ix, iy, iz, &
+    INTEGER                                  :: ig, ix, iy, iz, &
                                                 xlb, xub, ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
@@ -93,12 +92,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
 
-    IF (PRESENT(ithread)) THEN
-       ithread_l=ithread
-    ELSE
-       ithread_l=0
-    ENDIF
-        
     radius = exp_radius( 0, zetp, eps_mm_rspace, scale*W)
     IF (radius .EQ. 0.0_dp ) THEN
        RETURN
@@ -203,14 +196,13 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat,bo,force,n_rep_real, mm_cell)
+       eps_mm_rspace,xdat,ydat,zdat,bo,force,n_rep_real, mm_cell)
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
     REAL(KIND=dp), INTENT(IN)                :: scale, W
     TYPE(pw_type), POINTER                   :: pwgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
-    INTEGER, INTENT(IN), OPTIONAL            :: ithread
     INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo
     REAL(KIND=dp), &
       DIMENSION(2, bo(1, 3):bo(2, 3))        :: zdat
@@ -222,7 +214,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
-    INTEGER                                  :: ig, ithread_l, ix, iy, iz, &
+    INTEGER                                  :: ig, ix, iy, iz, &
                                                 xlb, xub, ylb, yub, zlb, zub
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
@@ -232,12 +224,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
 
-    IF (PRESENT(ithread)) THEN
-       ithread_l=ithread
-    ELSE
-       ithread_l=0
-    ENDIF
-        
     force  = 0.0_dp
     radius = exp_radius( 0, zetp, eps_mm_rspace, scale*W)
     IF (radius .EQ. 0.0_dp ) RETURN

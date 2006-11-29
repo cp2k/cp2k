@@ -606,7 +606,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, Icg, IGauss, ilevel, &
-                                                Imm, IndMM, IRadTyp, ithread, &
+                                                Imm, IndMM, IRadTyp, handle2,&
                                                 LIndMM, n_rep_real(3), stat
     INTEGER, DIMENSION(2, 3)                 :: bo2
     LOGICAL                                  :: failure
@@ -619,8 +619,7 @@ CONTAINS
 
     NULLIFY(pgf, pot, per_pot, xdat, ydat, zdat)
     CALL timeset(routineN,"I","",handle)
-
-    ithread            = 0
+    CALL timeset(routineN//"_GAUSS","I","",handle2)
     Icg                = 0
     bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
     ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
@@ -632,7 +631,7 @@ CONTAINS
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
-       pot => potentials(IRadTyp)%pot 
+       pot => potentials(IRadTyp)%pot
        n_rep_real = 0
        IF (periodic) THEN
           per_pot => per_potentials(IRadTyp)%pot 
@@ -657,7 +656,6 @@ CONTAINS
                                             pwgrid=tmp_grid(ilevel)%pw,&
                                             cube_info=cube_info(ilevel),&
                                             eps_mm_rspace=eps_mm_rspace,&
-                                            ithread=ithread, &
                                             xdat=xdat,&
                                             ydat=ydat,&
                                             zdat=zdat,&
@@ -679,7 +677,8 @@ CONTAINS
        DEALLOCATE (zdat, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-
+    CALL timestop(0.0_dp,handle2)
+    CALL timeset(routineN//"_REST","I","",handle2)
     IF (periodic) THEN
        ! Long Range Part of the QM/MM Potential with Gaussians With Periodic Boundary Conditions
        CALL qmmm_elec_with_gaussian_LG    (pgfs=pgfs,&
@@ -711,6 +710,7 @@ CONTAINS
                                            par_scheme=par_scheme,&
                                            error=error)
     END IF
+    CALL timestop(0.0_dp,handle2)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian_low
