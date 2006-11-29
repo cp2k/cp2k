@@ -46,3 +46,6 @@ C4H10-qmmm-gauss-7.inp
 C4H10-qmmm-gauss-6.inp
 # improved parallel scheme for qm/mm. numerical reset
 C4H10-qmmm-gauss-5.inp
+# more complains from the regtester
+C4H10-qmmm-gauss-7.inp
+C4H10-qmmm-gauss-6.inp
