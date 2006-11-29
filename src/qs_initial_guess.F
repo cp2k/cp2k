@@ -215,11 +215,11 @@ CONTAINS
           filename((LEN_TRIM(filename)+1):(LEN(filename))) = "-"//&
                ADJUSTL(cp_to_string(1))
           INQUIRE(FILE=filename,exist=exist)
-        END IF
-        IF (.NOT. exist) THEN
-          density_guess = atomic_guess
-        ELSE
-          CALL m_mov(filename, file_name)
+          IF (.NOT. exist) THEN
+            density_guess = atomic_guess
+          ELSE
+            CALL m_mov(filename, file_name)
+          END IF
         END IF
     ELSE IF (density_guess == history_guess) THEN
        CALL section_vals_val_get(qs_env%input, "DFT%RESTART_FILE_NAME", &

@@ -1496,6 +1496,7 @@ END SUBROUTINE wfi_extrapolate
           qs_env%scf_control%outer_scf%have_scf = .FALSE.
         ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
           qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+          qs_env%scf_control%outer_scf%eps_scf = qs_env%scf_control%eps_scf_hist
         END IF
       END IF
     END IF
