@@ -475,7 +475,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: bond_section
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pbc_coord
-    LOGICAL                                  :: connectivity_ok
+    LOGICAL                                  :: connectivity_ok, print_info
 
     failure = .FALSE.    
     NULLIFY(logger, particle_set, atomic_kind_set, nonbonded)
@@ -700,8 +700,10 @@ CONTAINS
              IF (.NOT.h_list(iatm1)) CYCLE
              r2_min = HUGE(0.0_dp)
              ibond  = -1
+             print_info = .TRUE.
              DO j = 1,SIZE(bond_list(iatm1)%array1)
                 iatm2 = bond_list(iatm1)%array1(j)
+                print_info = .FALSE.
                 IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
                 k     = bond_list(iatm1)%array2(j)
                 ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
@@ -720,9 +722,9 @@ CONTAINS
                 END IF
              END DO
              IF (ibond == -1) THEN
-                IF (output_unit>0) THEN
+                IF (output_unit>0.AND.print_info) THEN
                    WRITE(output_unit,'(T2,"GENERATE|",1X,A,I10,A)')&
-                        "WARNING:: Hydrogen - Atom Nr:",iatm1," has no connectivity!"
+                        "WARNING:: No connections detected for Hydrogen - Atom Nr:",iatm1," !"
                 END IF
              ELSE
                 n_hydr_bonds = n_hydr_bonds + 1
