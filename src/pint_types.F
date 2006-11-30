@@ -168,8 +168,7 @@ CONTAINS
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_env_create', &
       routineP = moduleN//':'//routineN
@@ -348,8 +347,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 SUBROUTINE pint_retain(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_retain', &
       routineP = moduleN//':'//routineN
@@ -388,8 +386,7 @@ END SUBROUTINE pint_retain
 !!*** **********************************************************************
 SUBROUTINE pint_release(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_release', &
       routineP = moduleN//':'//routineN
@@ -480,8 +477,7 @@ END SUBROUTINE pint_release
 !!*** **********************************************************************
 SUBROUTINE staging_retain(staging_env,error)
     TYPE(staging_env_type), POINTER          :: staging_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_retain', &
       routineP = moduleN//':'//routineN
@@ -520,8 +516,7 @@ END SUBROUTINE staging_retain
 !!*** **********************************************************************
 SUBROUTINE staging_release(staging_env,error)
     TYPE(staging_env_type), POINTER          :: staging_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_release', &
       routineP = moduleN//':'//routineN
@@ -579,8 +574,7 @@ SUBROUTINE staging_init_masses(staging_env,mass,mass_beads,mass_fict,&
       INTENT(out), OPTIONAL                  :: mass_beads, mass_fict
     REAL(kind=dp), DIMENSION(:), &
       INTENT(out), OPTIONAL                  :: Q
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_init_masses', &
       routineP = moduleN//':'//routineN
@@ -656,8 +650,7 @@ SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
     TYPE(section_vals_type), POINTER         :: staging_section
     INTEGER, INTENT(in)                      :: p, ndim
     REAL(kind=dp), INTENT(in)                :: kT
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create', &
       routineP = moduleN//':'//routineN
@@ -724,8 +717,7 @@ SUBROUTINE pint_x2u(pint_env,ux,x,error)
       INTENT(out), OPTIONAL, TARGET          :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: x
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_x2u', &
       routineP = moduleN//':'//routineN
@@ -779,8 +771,7 @@ SUBROUTINE staging_x2u(staging_env,ux,x,error)
       INTENT(out)                            :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: x
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_x2u', &
       routineP = moduleN//':'//routineN
@@ -834,8 +825,7 @@ SUBROUTINE pint_u2x(pint_env,ux,x,error)
       INTENT(in), OPTIONAL, TARGET           :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out), OPTIONAL, TARGET          :: x
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x', &
       routineP = moduleN//':'//routineN
@@ -889,8 +879,7 @@ SUBROUTINE staging_u2x(staging_env,ux,x,error)
       INTENT(in)                             :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: x
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_u2x', &
       routineP = moduleN//':'//routineN
@@ -962,8 +951,7 @@ SUBROUTINE pint_f2uf(pint_env,uf,f,error)
       INTENT(out), OPTIONAL, TARGET          :: uf
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: f
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_f2uf', &
       routineP = moduleN//':'//routineN
@@ -1017,8 +1005,7 @@ SUBROUTINE staging_f2uf(staging_env,uf,f,error)
       INTENT(out)                            :: uf
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: f
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_f2uf', &
       routineP = moduleN//':'//routineN
@@ -1093,8 +1080,7 @@ END SUBROUTINE staging_f2uf
 SUBROUTINE pint_init_v(pint_env,kT,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), INTENT(in), OPTIONAL      :: kT
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_v', &
       routineP = moduleN//':'//routineN
@@ -1149,8 +1135,7 @@ END SUBROUTINE pint_init_v
 !!*** **********************************************************************
 FUNCTION  pint_calc_uf_h(pint_env, error)RESULT(res)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_uf_h', &
@@ -1201,8 +1186,7 @@ FUNCTION  staging_calc_uf_h(staging_env, mass_beads, ux, uf_h, error)RESULT(res)
       INTENT(in)                             :: mass_beads, ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: uf_h
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_calc_uf_h', &
@@ -1285,8 +1269,7 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
       INTENT(out), OPTIONAL, TARGET          :: f
     REAL(kind=dp), DIMENSION(:), &
       INTENT(out), OPTIONAL                  :: e
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_f', &
       routineP = moduleN//':'//routineN
@@ -1349,8 +1332,7 @@ END SUBROUTINE pint_calc_f
 !!*** **********************************************************************
 SUBROUTINE pint_setup(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_setup', &
       routineP = moduleN//':'//routineN
@@ -1421,8 +1403,7 @@ FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: uv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u', &
@@ -1475,8 +1456,7 @@ END FUNCTION pint_calc_e_kin_beads_u
 !!*** **********************************************************************
 SUBROUTINE pint_calc_nh_energy(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_nh_energy', &
       routineP = moduleN//':'//routineN
@@ -1534,8 +1514,7 @@ END SUBROUTINE pint_calc_nh_energy
 !!*** **********************************************************************
 SUBROUTINE pint_step(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_step', &
       routineP = moduleN//':'//routineN
@@ -1678,8 +1657,7 @@ END SUBROUTINE pint_step
 !!*** **********************************************************************
 SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids', &
       routineP = moduleN//':'//routineN
@@ -1753,7 +1731,8 @@ SUBROUTINE pint_write_centroids(pint_env,error)
                    " i =",logger%iter_info%iteration(2),&
                    ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
               CALL write_particle_coordinates(particles%els,&
-                   iunit=unit_nr,FORMAT=i_form,content="POS_VEL",title=title)
+                   iunit=unit_nr,FORMAT=i_form,content="POS_VEL",title=title,&
+                   cell=cell)
               logger%iter_info%iteration(1)=iter
               CALL cp_print_key_finished_output(unit_nr,logger,&
                    print_key,"", local=.FALSE., error=error)
@@ -1788,8 +1767,7 @@ END SUBROUTINE pint_write_centroids
 !!*** **********************************************************************
 SUBROUTINE pint_write_ener(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
@@ -1861,8 +1839,7 @@ END SUBROUTINE pint_write_ener
 !!*** **********************************************************************
 SUBROUTINE pint_start(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_start', &
       routineP = moduleN//':'//routineN
@@ -2048,8 +2025,7 @@ END SUBROUTINE pint_start
 SUBROUTINE pint_write_restart(pint_env,force,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     LOGICAL, INTENT(in), OPTIONAL            :: force
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_restart', &
       routineP = moduleN//':'//routineN
@@ -2089,8 +2065,7 @@ END SUBROUTINE pint_write_restart
 !!*** **********************************************************************
 SUBROUTINE pint_run(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_run', &
       routineP = moduleN//':'//routineN

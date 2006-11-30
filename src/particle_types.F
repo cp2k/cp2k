@@ -134,8 +134,7 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
     TYPE(particle_type), INTENT(in)          :: p_in
     TYPE(particle_type), INTENT(out)         :: p_out
     LOGICAL, INTENT(in)                      :: nullify_non_owned_pointers
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clone_particle', &
       routineP = moduleN//':'//routineN
@@ -445,17 +444,18 @@ END SUBROUTINE clone_particle
 ! *****************************************************************************
 
   SUBROUTINE write_particle_coordinates(particle_set,iunit,FORMAT,&
-                                        content,title)
+                                        content,title,cell)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER                                  :: iunit, FORMAT
     CHARACTER(LEN=*)                         :: content, title
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    INTEGER                                  :: iatom, istat, natom
+    INTEGER                                  :: i, iatom, istat, j, natom
     LOGICAL                                  :: dummy
     REAL(KIND=dp), DIMENSION(3)              :: r
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
@@ -521,9 +521,11 @@ END SUBROUTINE clone_particle
         END SELECT
       END DO
     CASE (dump_dcd)
+       IF (.NOT.(PRESENT(cell))) CALL stop_memory('particle_types','cell not present')
        NULLIFY(x4,y4,z4)
        ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory('particle_types','x4,y4,z4')
+       WRITE(iunit) ((cell%hmat(i,j)*angstrom,i=1,j),j=1,3)
        SELECT CASE (TRIM(content))
        CASE ("POS")
          x4(:) = particle_set(:)%r(1)*angstrom
@@ -571,8 +573,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -629,8 +630,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
@@ -689,8 +689,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_particle_distances'
 
@@ -755,15 +754,14 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: iw
     INTEGER, INTENT(IN), OPTIONAL            :: el_per_part
-    INTEGER, POINTER, DIMENSION(:), OPTIONAL :: Ilist
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: from, iatom, icol, jatom, &
+    INTEGER                                  :: from, i, iatom, icol, jatom, &
                                                 katom, my_el_per_part, natom, &
-                                                to,i
-    INTEGER, POINTER, DIMENSION(:)           :: my_list
+                                                to
+    INTEGER, DIMENSION(:), POINTER           :: my_list
 
     my_el_per_part = 1
     IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
@@ -813,8 +811,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data', &
       routineP = moduleN//':'//routineN
