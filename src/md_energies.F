@@ -142,11 +142,10 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
-
-    DATA init        /.TRUE./
-    DATA init_traj   /.TRUE./
-    DATA init_vel    /.TRUE./
-    DATA init_force  /.TRUE./
+    DATA init        /.TRUE. /
+    DATA init_traj   /.FALSE./
+    DATA init_vel    /.FALSE./
+    DATA init_force  /.FALSE./
 
 
     NULLIFY(logger)
@@ -254,6 +253,9 @@ CONTAINS
     IF (init.AND.(itimes==0)) THEN
        my_pos = "REWIND"
        my_act = "WRITE"
+       init_traj  = .TRUE.
+       init_vel   = .TRUE.
+       init_force = .TRUE. 
     END IF
     my_form = "FORMATTED"
     my_ext  = ".xyz"
