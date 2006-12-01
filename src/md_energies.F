@@ -119,8 +119,7 @@ CONTAINS
                                                 vel
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: is_mixed, qmmm
-    LOGICAL, SAVE                            :: init, init_force, init_traj, &
-                                                init_vel
+    LOGICAL                                  :: init, init_traj, init_vel, init_force
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, epot, &
@@ -142,10 +141,6 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
-    DATA init        /.TRUE. /
-    DATA init_traj   /.FALSE./
-    DATA init_vel    /.FALSE./
-    DATA init_force  /.FALSE./
 
 
     NULLIFY(logger)
@@ -163,7 +158,8 @@ CONTAINS
          t=t,&
          used_time = used_time, &
          simpar=simpar,         &
-         force_env_p=force_env_p )
+         force_env_p=force_env_p, &
+         init=init, init_vel=init_vel, init_traj=init_traj, init_force=init_force )
 
     root_section=>force_env_p(1)%force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -719,6 +715,7 @@ CONTAINS
        END IF
     END IF
     init = .FALSE.
+    CALL set_md_env(md_env,init=init,init_vel=init_vel,init_traj=init_traj, init_force=init_force,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE md_energy

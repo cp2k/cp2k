@@ -55,6 +55,7 @@ MODULE md_environment_types
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
      TYPE ( simulation_parameters_type ), POINTER :: simpar
      TYPE ( reftraj_type ), POINTER :: reftraj_info
+     LOGICAL :: init, init_force, init_traj, init_vel
   END TYPE md_environment_type
 
   TYPE reftraj_type
@@ -81,7 +82,7 @@ CONTAINS
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
                           simpar, nhc_part, nhc_coef, nhc_baro, &
                           npt, force_env_p, para_env, reftraj_info, t,&
-                          md_approach_nr, accepted_md)
+                          md_approach_nr, accepted_md, init, init_force, init_traj, init_vel)
 
 !   Purpose: Get the integrator environment
 
@@ -104,6 +105,7 @@ CONTAINS
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj_info
     REAL(KIND=dp), OPTIONAL, POINTER         :: t
     INTEGER, OPTIONAL, POINTER               :: md_approach_nr, accepted_md
+    LOGICAL, OPTIONAL                        :: init, init_force, init_traj, init_vel
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
       routineP = moduleN//':'//routineN
@@ -125,6 +127,10 @@ CONTAINS
     IF ( PRESENT ( force_env_p ) ) force_env_p => md_env % force_env_p
     IF ( PRESENT ( para_env ) ) para_env => md_env % para_env
     IF ( PRESENT ( reftraj_info ) ) reftraj_info => md_env % reftraj_info
+    IF ( PRESENT (init)) init=md_env%init 
+    IF ( PRESENT (init_force)) init_force=md_env%init_force 
+    IF ( PRESENT (init_traj)) init_traj=md_env%init_traj 
+    IF ( PRESENT (init_vel)) init_vel=md_env%init_vel 
 
   END SUBROUTINE get_md_env
 
@@ -190,6 +196,10 @@ CONTAINS
     md_env % t         = 0.0_dp
     ALLOCATE ( md_env % reftraj_info )
     md_env % reftraj_info % unit =-1
+    md_env%init = .TRUE.
+    md_env%init_force = .FALSE.
+    md_env%init_traj = .FALSE.
+    md_env%init_vel = .FALSE.
 
   END SUBROUTINE md_env_create
 !***************************************************************************
@@ -317,6 +327,7 @@ END SUBROUTINE md_env_release
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
                           nhc_part, nhc_coef, nhc_baro, &
                           npt, force_env_p, para_env, accepted_md, md_approach_nr ,&
+                          init, init_force, init_vel, init_traj, &
                           error)
 
 !   Purpose: Set the integrator environment to the correct program.
@@ -339,12 +350,17 @@ END SUBROUTINE md_env_release
       POINTER                                :: para_env
     INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, OPTIONAL :: init, init_force, init_vel, init_traj
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-
+    
+    IF ( PRESENT (init)) md_env%init = init
+    IF ( PRESENT (init_force)) md_env%init_force = init_force
+    IF ( PRESENT (init_traj)) md_env%init_traj = init_traj
+    IF ( PRESENT (init_vel)) md_env%init_vel = init_vel
     IF ( PRESENT ( cell ) ) md_env % cell => cell
     IF ( PRESENT ( simpar ) ) md_env % simpar => simpar
     IF ( PRESENT ( nhc_part ) ) md_env % nhc_part => nhc_part
