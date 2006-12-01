@@ -1058,7 +1058,7 @@ CONTAINS
 !$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
-!$OMP shared(workt,pabt,ga_gb_function,map_consistent)
+!$OMP shared(workt,pabt,ga_gb_function,map_consistent,error)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           pab => pabt(:,:,ithread)

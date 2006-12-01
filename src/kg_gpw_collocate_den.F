@@ -467,7 +467,7 @@ CONTAINS
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,la_min,lb_min,zeta,zetb) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
-!$OMP shared(workt,pabt,ga_gb_function,map_consistent)
+!$OMP shared(workt,pabt,ga_gb_function,map_consistent,error)
             ithread = 0
 !$          ithread = omp_get_thread_num()
             pab => pabt(:,:,ithread)
@@ -968,7 +968,7 @@ CONTAINS
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,la_min,lb_min,eps_gvg_rspace,zeta,zetb) &
 !$OMP shared(rs_v,igrid_level,cube_info,l_info,nthread,nset_pairs) &
-!$OMP shared(workt,habt,pabt,my_compute_tau,map_consistent,forces_mol,iat,jat)
+!$OMP shared(workt,habt,pabt,my_compute_tau,map_consistent,forces_mol,iat,jat,error)
             ithread = 0
 !$          ithread = omp_get_thread_num()
             hab => habt(:,:,ithread)

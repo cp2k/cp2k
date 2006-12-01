@@ -864,7 +864,7 @@ CONTAINS
 !$OMP parallel &
 !$OMP default(none) &
 !$OMP private(ithread,hab,sab,sdab,work,pab,ilist,iatom,nnode,atom_a,kkind,iac) &
-!$OMP private(sac_ppl_neighbor_list,nneighbor,istat,sac_ppl_neighbor_node,kneighbor) &
+!$OMP private(sac_ppl_neighbor_list,istat,sac_ppl_neighbor_node,nneighbor,kneighbor) &
 !$OMP private(sac_ppnl_neighbor_list,ncol,sac_ppnl_neighbor_node,rac,rac2,dac,nrow) &
 !$OMP private(iset,ncoa,prjc,l,nprjc,lc_max,lc_min,zetc,ncoc,i,first_col,last_jatom) &
 !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
@@ -882,7 +882,7 @@ CONTAINS
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list,rho0_present) &
 !$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,dist_list,qs_env,error) &
-!$OMP shared(atomic_kind_set,virial,use_virial)
+!$OMP shared(atomic_kind_set,virial,use_virial,para_env)
         ithread = 0
 !$      ithread = omp_get_thread_num()
         hab => habt(:,:,ithread)

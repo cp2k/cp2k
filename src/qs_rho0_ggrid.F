@@ -655,7 +655,7 @@ MODULE qs_rho0_ggrid
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
 !$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set)&
 !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
-!$OMP shared(rho0_mpole,r_V0,nspins,rpgf0_s,igrid)
+!$OMP shared(rho0_mpole,r_V0,nspins,rpgf0_s,igrid,error)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()

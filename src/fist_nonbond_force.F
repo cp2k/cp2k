@@ -92,8 +92,11 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: is_eam
     REAL(KIND=dp)                            :: cell_v(3), energy, f_eam, &
-                                                fr(3), fscalar, ptens(3,3), &
+                                                fr(3), fscalar, &
                                                 rab(3), rab2, rab2_max
+    REAL(KIND=dp)                            :: ptens11, ptens12, ptens13, &
+                                                ptens21, ptens22, ptens23, &
+                                                ptens31, ptens32, ptens33
     REAL(KIND=dp), DIMENSION(3)              :: cvi
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -112,7 +115,9 @@ CONTAINS
     ! initializing the potential energy, pressure tensor and force
     pot_nonbond = 0.0_dp
     f_nonbond = 0.0_dp
-    ptens= 0.0_dp
+    ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
+    ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
+    ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     ! starting the force loop
     nkinds = SIZE ( potparm%pot, 1 )
 !$OMP parallel do default(none) &
@@ -121,16 +126,18 @@ CONTAINS
 !$OMP private(spline_data) &
 !$OMP shared(potparm) &
 !$OMP private(is_eam,ab) &
-!$OMP private(neighbor_list_set,neighbor_list) &
 !$OMP shared(nonbonded) &
 !$OMP private(rab,rab2_max) &
-!$OMP private(ilist,nlist,atom_a,atom_b,dra,s2r,npairs,cvi,list,neighbor_node,inode,nnode) &
+!$OMP private(ilist,nlist,atom_a,atom_b,npairs,cvi,list,inode,nnode) &
 !$OMP shared(cell) &
 !$OMP shared(pot_nonbond) &
 !$OMP private(f_eam,pot,fr,fscalar,energy) &
 !$OMP shared(f_nonbond,ptens_nonbond,r_last_update) &
-!$OMP private(drb,rab2) &
-!$OMP shared(particle_set)
+!$OMP private(rab2) &
+!$OMP private(neighbor_kind_pair,cell_v) &
+!$OMP shared(particle_set,r_last_update_pbc) &
+!$OMP reduction(+:ptens11,ptens12,ptens13,ptens21,ptens22,ptens23, &
+!$OMP             ptens31,ptens32,ptens33)
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
@@ -173,20 +180,28 @@ CONTAINS
              f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
              f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
 
-             ptens(1,1) = ptens(1,1) + rab(1)*fr(1)
-             ptens(2,1) = ptens(2,1) + rab(2)*fr(1)
-             ptens(3,1) = ptens(3,1) + rab(3)*fr(1)
-             ptens(1,2) = ptens(1,2) + rab(1)*fr(2)
-             ptens(2,2) = ptens(2,2) + rab(2)*fr(2)
-             ptens(3,2) = ptens(3,2) + rab(3)*fr(2)
-             ptens(1,3) = ptens(1,3) + rab(1)*fr(3)
-             ptens(2,3) = ptens(2,3) + rab(2)*fr(3)
-             ptens(3,3) = ptens(3,3) + rab(3)*fr(3)
+             ptens11 = ptens11 + rab(1)*fr(1)
+             ptens21 = ptens21 + rab(2)*fr(1)
+             ptens31 = ptens31 + rab(3)*fr(1)
+             ptens12 = ptens12 + rab(1)*fr(2)
+             ptens22 = ptens22 + rab(2)*fr(2)
+             ptens32 = ptens32 + rab(3)*fr(2)
+             ptens13 = ptens13 + rab(1)*fr(3)
+             ptens23 = ptens23 + rab(2)*fr(3)
+             ptens33 = ptens33 + rab(3)*fr(3)
 
           END IF
        END DO
     END DO
-    ptens_nonbond = ptens
+    ptens_nonbond(1,1) = ptens11
+    ptens_nonbond(1,2) = ptens12
+    ptens_nonbond(1,3) = ptens13
+    ptens_nonbond(2,1) = ptens21
+    ptens_nonbond(2,2) = ptens22
+    ptens_nonbond(2,3) = ptens23
+    ptens_nonbond(3,1) = ptens31
+    ptens_nonbond(3,2) = ptens32
+    ptens_nonbond(3,3) = ptens33
 
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
