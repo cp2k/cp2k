@@ -30,9 +30,11 @@ MODULE pint_methods
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
   USE pint_types,                      ONLY: pint_calc_uf_h,&
+                                             pint_do_run,&
                                              pint_env_create,&
                                              pint_env_type,&
                                              pint_f2uf,&
+                                             pint_start,&
                                              pint_u2x,&
                                              pint_x2u
   USE replica_methods,                 ONLY: rep_env_test
@@ -168,6 +170,8 @@ SUBROUTINE do_pint_run(para_env,input,error)
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
+    TYPE(pint_env_type), POINTER             :: pint_env
+
     CHARACTER(len=*), PARAMETER :: routineN = 'do_pint_run', &
       routineP = moduleN//':'//routineN
 
@@ -184,12 +188,13 @@ SUBROUTINE do_pint_run(para_env,input,error)
           error=error)
      CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",i_val=do_qs,&
           error=error)
-     CALL rep_env_test(para_env,input,error=error)
+!x     CALL rep_env_test(para_env,input,error=error)
 !x     CALL pint_env_test(para_env,input,error=error)
 !x
-!x     CALL pint_env_create(pint_env,input,para_env,error=error)
-!x     CALL pint_start(pint_env,error=error)
-!x     CALL pint_run(pint_env,error=error)
+
+     CALL pint_env_create(pint_env,input,para_env,error=error)
+     CALL pint_start(pint_env,error=error)
+     CALL pint_do_run(pint_env,error=error)
   END IF
 END SUBROUTINE do_pint_run
 !***************************************************************************

@@ -378,7 +378,8 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
      CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
           new_error=new_error, failure=failure)
      logger => cp_error_get_logger(new_error)
-     md_iter=logger%iter_info%iteration(2)+1
+!     md_iter=logger%iter_info%iteration(2)+1
+     md_iter=logger%iter_info%iteration(2)
      CALL f_env_rm_defaults(f_env,new_error,ierr)
      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 

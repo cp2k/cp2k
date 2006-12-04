@@ -267,6 +267,16 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_par_atom=0,&
                                 do_par_grid=1
   !
+  ! pint coordinate transformations
+  !
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(2), PUBLIC :: transformation_name_types=&
+  (/"NORMAL", "STAGE "/)
+  INTEGER, PARAMETER, PUBLIC :: transformation_normal=1,&
+                                transformation_stage=2
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(2) :: transformation_name_index=&
+       (/transformation_normal,transformation_stage/)
+
+  !
   ! Output format files
   !
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: output_name_types=&

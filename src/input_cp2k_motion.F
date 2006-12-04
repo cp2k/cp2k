@@ -2857,8 +2857,39 @@ SUBROUTINE create_pint_section(section,error)
             repeats=.FALSE., default_i_val=5,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-      
+       CALL keyword_create(keyword, name="transformation",&
+            description="Specifies the coordinate transformation to use",&
+            usage="TRANSFORMATION (NORMAL|STAGE)",&
+            default_i_val=transformation_normal,&
+            enum_c_vals=transformation_name_types,&
+            enum_i_vals=transformation_name_index,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        NULLIFY(subsection,subsubsection)
+       CALL section_create(subsection,name="normalmode",&
+            description="The section that controls the normal mode transformation",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="Q_CENTROID",&
+            description="Value of the thermostat mass of centroid degree of freedom",&
+            repeats=.FALSE., default_r_val=-1.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="Q_BEAD",&
+            description="Value of the thermostat mass of non-centroid degrees of freedom",&
+            repeats=.FALSE., default_r_val=-1.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="MODEFACTOR",&
+            description="mass scale factor for non-centroid degrees of freedom",&
+            repeats=.FALSE., default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_create(subsection,name="staging",&
             description="The section that controls the staging transformation",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -2933,6 +2964,13 @@ SUBROUTINE create_pint_section(section,error)
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"restart",&
             description="Controls how often a restart is written", &
+            print_level=low_print_level,each=(/20/),add_last=(/1/),&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+       CALL cp_print_key_section_create(print_key,"ener_info",&
+            description="Controls how often energy info is written", &
             print_level=low_print_level,each=(/20/),add_last=(/1/),&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)

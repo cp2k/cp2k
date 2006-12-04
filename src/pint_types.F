@@ -19,6 +19,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     02.2006 created
+!!     11.2006 modified so it might actually work [hforbert]
 !!
 !!   SOURCE
 !****************************************************************************
@@ -37,15 +38,23 @@ MODULE pint_types
                                              f_env_rm_defaults,&
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
-  USE input_constants,                 ONLY: dump_dcd
+  USE input_constants,                 ONLY: dump_dcd,&
+                                             pint_run,&
+                                             transformation_normal,&
+                                             transformation_stage
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_val_set,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_write
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
+  USE mathconstants,                   ONLY: pi, twopi
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -68,15 +77,20 @@ MODULE pint_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_types'
 
-  INTEGER, SAVE, PRIVATE :: last_pint_id=0, last_staging_id=0
+  INTEGER, SAVE, PRIVATE :: last_pint_id=0, last_staging_id=0, &
+                            last_normalmode_id=0
 
-  PUBLIC :: pint_env_type, staging_env_type
+  PUBLIC :: pint_env_type, staging_env_type, normalmode_env_type
   PUBLIC :: pint_env_create, pint_retain, pint_release,&
        pint_x2u, pint_u2x, pint_f2uf, pint_calc_uf_h,&
+       pint_calc_e_kin_beads_u, pint_calc_nh_energy, pint_calc_e_vir, &
        pint_calc_f, pint_init_v, pint_write_centroids, pint_write_ener,&
-       pint_write_restart, pint_step, pint_start, pint_run
+       pint_write_restart, pint_step, pint_start, pint_do_run, pint_setup
   PUBLIC :: staging_env_create, staging_x2u, staging_u2x, staging_f2uf,&
-       staging_init_masses
+       staging_init_masses, staging_release, staging_retain, staging_calc_uf_h
+  PUBLIC :: normalmode_env_create, normalmode_x2u, normalmode_u2x, &
+            normalmode_f2uf, normalmode_init_masses, normalmode_release, &
+            normalmode_retain, normalmode_calc_uf_h
 !***
 !****************************************************************************
 
@@ -89,7 +103,52 @@ MODULE pint_types
   !!     environment for a path integral run
   !!
   !!   NOTES
-  !!     -
+  !!   
+  !!   ref_count     - reference count of this data structure
+  !!   id_nr         - identification number of this data structure
+  !!   p             - number of replicas/beads
+  !!   nnos          - nose hoover chain length
+  !!   nrespa        - number of respa steps
+  !!   iter          - current iteration number
+  !!   ndim          - number of coordinates per replica/bead
+  !!   transform     - type of transform (normalmode or staging)
+  !!   v_tol         - velocity tolerance for rescaling
+  !!   kT            - boltzmann factor times temperature
+  !!   beta          - 1/kT
+  !!   dt            - time step for dynamic
+  !!   e_pot_h       - potential energy in harmonic springs
+  !!   e_kin_beads   - (fictious) kinetic energy of the beads
+  !!   e_pot_t       - potential energy of thermostats
+  !!   e_kin_t       - kinetic energy of thermostats
+  !!   e_vir         - virial estimator of the (real) kinetic energy
+  !!   t             - current simulation time
+  !!   replicas      - replica environment for force calculations
+  !!   input         - input data structure
+  !!   staging_env   - description for the staging transformation
+  !!   normalmode_env - description for the normal mode transformation
+  !!   randomG       - random number stream descriptor
+  !!   mass          - real masses
+  !!   e_pot_bead    - array with last energies from QS per replica
+  !!   x             - array with real space coordinates
+  !!   v             - array with real space velocities 
+  !!   f             - array with real space forces
+  !!   mass_beads    - masses of the beads for harmonic forces (harmonic mass)
+  !!   mass_fict     - fictious mass of the beads for dynamics (kinetic mass)
+  !!   ux            - array with transformed space coordinates
+  !!   uv            - array with transformed velocities
+  !!   uv_t          - array with temporary transformed velocities
+  !!   uv_new        - array with new transformed velocities
+  !!   uf            - array with transformed accelerations (QS part)
+  !!   uf_h          - array with harmonic part transformed forces
+  !!                   (sometimes with uf added)
+  !!   tx            - nose hoover chain positions
+  !!   tv            - nose hoover chain velocities 
+  !!   tv_t          - nose hoover chain velocities (temporary)
+  !!   tv_old        - nose hoover chain velocities (older)
+  !!   tv_new        - nose hoover chain velocities (newer)
+  !!   tf            - nose hoover chain forces (?)
+  !!   Q             - nose hoover chain masses
+  !! 
   !!
   !!   ATTRIBUTES
   !!     -
@@ -97,15 +156,20 @@ MODULE pint_types
   !!   AUTHOR
   !!     fawzi
   !!
+  !!   MODIFICATION HISTORY
+  !!     Added some comments - hforbert
+  !!     Added normal mode transformation - hforbert
+  !!
   !!   SOURCE
   !***************************************************************************
   TYPE pint_env_type
-     INTEGER :: ref_count, id_nr, p,nnos,nrespa, iter,ndim
+     INTEGER :: ref_count, id_nr, p,nnos,nrespa, iter,ndim, transform
      REAL(kind=dp) :: v_tol,kT,beta,dt,&
-          e_pot_h, e_kin_beads, e_pot_t, e_kin_t,t
+          e_pot_h, e_kin_beads, e_pot_t, e_kin_t, e_vir, t
      TYPE(replica_env_type), POINTER :: replicas
      TYPE(section_vals_type), POINTER :: input
      TYPE(staging_env_type), POINTER :: staging_env
+     TYPE(normalmode_env_type), POINTER :: normalmode_env
      TYPE(rng_stream_type), POINTER :: randomG
      REAL(kind=dp), DIMENSION(:), POINTER :: mass,e_pot_bead
      REAL(kind=dp), DIMENSION(:,:), POINTER :: x,v,f,mass_beads,&
@@ -125,7 +189,16 @@ MODULE pint_types
   !!     data to perform the staging transformation
   !!
   !!   NOTES
-  !!     -
+  !!
+  !!   ref_count     - reference count of this data structure
+  !!   id_nr         - identification number of this data structure
+  !!   nseg
+  !!   j
+  !!   p
+  !!   w_p
+  !!   w_j
+  !!   Q_stage
+  !!   Q_end
   !!
   !!   ATTRIBUTES
   !!     -
@@ -139,6 +212,44 @@ MODULE pint_types
      INTEGER :: id_nr,ref_count,nseg,j,p
      REAL(kind=dp) w_p,w_j,Q_stage,Q_end
   END TYPE staging_env_type
+  !!***
+  !****************************************************************************
+
+  !!****s* pint_types/normalmode_env_type *
+  !!
+  !!   NAME
+  !!     normalmode_env_type
+  !!
+  !!   FUNCTION
+  !!     data to perform the normalmode transformation
+  !!
+  !!   NOTES
+  !!
+  !!   ref_count     - reference count of this data structure
+  !!   id_nr         - identification number of this data structure
+  !!   p             - number of beads
+  !!   Q_bead        - thermostat mass for a non-centroid bead
+  !!   Q_centroid    - thermostat mass for a centroid degree of freedom
+  !!   modefactor    - mass scale factor for non-centroid degrees of freedom
+  !!   harm          - factor for harmonic potential ( w_p^2/modefactor )
+  !!   x2u           - transformation matrix real coord to normal mode space
+  !!   u2x           - transformation matrix normal mode coord to real space
+  !!
+  !!   This could be done via FFT calls as well, but for now...
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     hforbert
+  !!
+  !!   SOURCE
+  !***************************************************************************
+  TYPE normalmode_env_type
+     INTEGER :: id_nr,ref_count,p
+     REAL(kind=dp) :: Q_bead, Q_centroid, modefactor, harm
+     REAL(kind=dp), DIMENSION(:,:), POINTER :: x2u, u2x
+  END TYPE normalmode_env_type
   !!***
   !****************************************************************************
 
@@ -163,6 +274,10 @@ CONTAINS
 !!   AUTHOR
 !!     fawzi
 !!
+!!   MODIFICATION HISTORY
+!!     Fixed some bugs - hforbert
+!!     Added normal mode transformation - hforbert
+!!
 !!*** **********************************************************************
   SUBROUTINE pint_env_create(pint_env,input,para_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -185,7 +300,8 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(section_vals_type), POINTER         :: pint_section, staging_section
+    TYPE(section_vals_type), POINTER         :: pint_section,transform_section,&
+                                                nose_section
 
     failure=.FALSE.
     NULLIFY(f_env,subsys,particles)
@@ -198,6 +314,8 @@ CONTAINS
        pint_section => section_vals_get_subs_vals(input,"MOTION%PINT",&
             error=error)
        CALL section_vals_val_get(pint_section,"p",i_val=nrep,error=error)
+       CALL section_vals_val_get(pint_section,"proc_per_replica",&
+            i_val=prep,error=error)
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
        IF (.NOT. ASSOCIATED(rep_env)) RETURN
@@ -209,23 +327,33 @@ CONTAINS
        last_pint_id=last_pint_id+1
        pint_env%id_nr=last_pint_id
        pint_env%ref_count=1
-       NULLIFY(pint_env%replicas,pint_env%input,pint_env%staging_env)
-       CALL section_vals_val_get(pint_section,"p",i_val=pint_env%p,error=error)
-       CALL section_vals_val_get(pint_section,"proc_per_replica",&
-            i_val=prep,error=error)
+       NULLIFY(pint_env%replicas,pint_env%input,pint_env%staging_env,&
+               pint_env%normalmode_env)
+       pint_env%p=nrep
        pint_env%replicas => rep_env
        pint_env%ndim=rep_env%ndim
-       CALL section_vals_val_get(staging_section,"nnos",i_val=pint_env%nnos,&
+       pint_env%input => input
+       CALL section_vals_retain(pint_env%input,error=error)
+
+       CALL section_vals_val_get(pint_section,"nrespa",i_val=pint_env%nrespa,&
             error=error)
-       CALL section_vals_val_get(staging_section,"nrespa",i_val=pint_env%nrespa,&
+       CALL section_vals_val_get(pint_section,"Temp",r_val=pint_env%kT,&
             error=error)
-       CALL section_vals_val_get(staging_section,"Temp",r_val=pint_env%kT,&
+       CALL section_vals_val_get(pint_section,"dt",r_val=pint_env%dt,&
             error=error)
-       CALL section_vals_val_get(staging_section,"dt",r_val=pint_env%dt,&
+       CALL section_vals_val_get(pint_section,"transformation",&
+            i_val=pint_env%transform, error=error)
+
+       nose_section => section_vals_get_subs_vals(input,"MOTION%PINT%NOSE",&
             error=error)
-       CALL section_vals_val_get(staging_section,"v_tol_nose",r_val=pint_env%v_tol,&
+       CALL section_vals_val_get(nose_section,"nnos",i_val=pint_env%nnos,&
             error=error)
        pint_env%beta=1._dp/pint_env%kT
+!TODO
+! v_tol not in current input structure
+! should also probably be part of nose_section
+!       CALL section_vals_val_get(transform_section,"v_tol_nose",r_val=pint_env%v_tol,&
+!            error=error)
 
        seed(:,:) = next_rng_seed(error=error)
        CALL create_rng_stream(pint_env%randomG,&
@@ -241,8 +369,13 @@ CONTAINS
        pint_env%e_kin_beads=0._dp
        pint_env%e_pot_t=0._dp
        pint_env%e_kin_t=0._dp
+       pint_env%e_vir=0._dp
        pint_env%iter=0
-       pint_env%t=0._dp
+       CALL section_vals_val_get(pint_section,"iteration",i_val=pint_env%iter,&
+            error=error)
+       pint_env%t=pint_env%iter*pint_env%dt
+
+!TODO: rearrange to use standard nose hoover chain functions/data types
 
        ALLOCATE(&
             pint_env%x(pint_env%p,pint_env%ndim),          &
@@ -281,10 +414,18 @@ CONTAINS
        pint_env%tv_new   = 0._dp
        pint_env%tf       = 0._dp
 
-       staging_section => section_vals_get_subs_vals(input,"MOTION%PINT%STAGING",&
-            error=error)
-       CALL staging_env_create(pint_env%staging_env,staging_section,p=pint_env%p,&
-            ndim=pint_env%ndim,kT=pint_env%kT, error=error)
+       IF (pint_env%transform == transformation_stage) THEN
+          transform_section => section_vals_get_subs_vals(input,&
+             "MOTION%PINT%STAGING",error=error)
+          CALL staging_env_create(pint_env%staging_env,transform_section,&
+             p=pint_env%p,ndim=pint_env%ndim,kT=pint_env%kT, error=error)
+       ELSE
+          transform_section => section_vals_get_subs_vals(input,&
+             "MOTION%PINT%NORMALMODE",error=error)
+          CALL normalmode_env_create(pint_env%normalmode_env,&
+             transform_section,p=pint_env%p,kT=pint_env%kT,error=error)
+          CPPostcondition(pint_env%nrespa*twopi/(sqrt(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10,cp_warning_level,routineP,error,failure)
+       END IF
        ALLOCATE(pint_env%mass(pint_env%ndim),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
@@ -298,18 +439,19 @@ CONTAINS
             error=new_error)
 
        idim=0
-       DO iat=1,pint_env%ndim
+       DO iat=1,pint_env%ndim/3
           CALL get_atomic_kind(particles%els(iat)%atomic_kind,mass=mass)
           DO idir=1,3
              idim=idim+1
              pint_env%mass(idim)=mass
           END DO
        END DO
-       CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "md & force_eval lost sychro "//&
-CPSourceFileRef,&
-            error,failure)
+!       CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
+!            cp_failure_level,cp_assertion_failed,routineP,&
+!            "md & force_eval lost synchro "//CPSourceFileRef,&
+!            error,failure)
+       ! set to iter-1 since the initial force evaluation will increment it
+       logger%iter_info%iteration(2)=pint_env%iter-1
        CALL f_env_rm_defaults(f_env,new_error,ierr)
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
@@ -317,10 +459,15 @@ CPSourceFileRef,&
             pint_env%mass_beads(pint_env%p,pint_env%ndim),&
             pint_env%mass_fict(pint_env%p,pint_env%ndim),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-       CALL staging_init_masses(pint_env%staging_env,mass=pint_env%mass,&
-            mass_beads=pint_env%mass_beads,mass_fict=pint_env%mass_fict,&
-            Q=pint_env%Q,error=error)
-
+       IF (pint_env%transform == transformation_stage) THEN
+          CALL staging_init_masses(pint_env%staging_env,mass=pint_env%mass,&
+               mass_beads=pint_env%mass_beads,mass_fict=pint_env%mass_fict,&
+               Q=pint_env%Q,error=error)
+       ELSE 
+          CALL normalmode_init_masses(pint_env%normalmode_env, &
+               mass=pint_env%mass, mass_beads=pint_env%mass_beads, &
+               mass_fict=pint_env%mass_fict, Q=pint_env%Q, error=error)
+       END IF
     END IF
   END SUBROUTINE pint_env_create
 !***************************************************************************
@@ -383,6 +530,9 @@ END SUBROUTINE pint_retain
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!
+!!   MODIFICATION HISTORY
+!!     Added normal mode transformation - hforbert
+!!
 !!*** **********************************************************************
 SUBROUTINE pint_release(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -402,7 +552,12 @@ SUBROUTINE pint_release(pint_env,error)
      IF (pint_env%ref_count==0) THEN
         CALL rep_env_release(pint_env%replicas,error=error)
         CALL section_vals_release(pint_env%input,error=error)
-        CALL staging_release(pint_env%staging_env,error=error)
+        IF (ASSOCIATED(pint_env%staging_env)) THEN
+           CALL staging_release(pint_env%staging_env,error=error)
+        END IF
+        IF (ASSOCIATED(pint_env%normalmode_env)) THEN
+           CALL normalmode_release(pint_env%normalmode_env,error=error)
+        END IF
         CALL delete_rng_stream(pint_env%randomG,error=error)
 
         DEALLOCATE(pint_env%mass,stat=stat)
@@ -659,7 +814,6 @@ SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  NULLIFY(staging_section)
 
   CPPrecondition(.NOT.ASSOCIATED(staging_env),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -688,6 +842,261 @@ SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
 END SUBROUTINE staging_env_create
 !***************************************************************************
 
+!!****f* pint_types/normalmode_retain [1.0] *
+!!
+!!   NAME
+!!     normalmode_retain
+!!
+!!   FUNCTION
+!!     retains a normalmode_env
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - normalmode_env: the normalmode_env to retain
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+SUBROUTINE normalmode_retain(normalmode_env,error)
+
+   TYPE(normalmode_env_type), POINTER          :: normalmode_env
+   TYPE(cp_error_type), INTENT(inout)          :: error
+
+   CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_retain', &
+      routineP = moduleN//':'//routineN
+
+   LOGICAL                                  :: failure
+
+   failure=.FALSE.
+
+   CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,error,failure)
+   IF (.NOT. failure) THEN
+      CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      normalmode_env%ref_count=normalmode_env%ref_count+1
+   END IF
+
+END SUBROUTINE normalmode_retain
+!***************************************************************************
+
+!!****f* pint_types/normalmode_release [1.0] *
+!!
+!!   NAME
+!!     normalmode_release
+!!
+!!   FUNCTION
+!!     releases the normalmode environment
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - normalmode_env: the normalmode_env to release
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+SUBROUTINE normalmode_release(normalmode_env,error)
+
+   TYPE(normalmode_env_type), POINTER       :: normalmode_env
+   TYPE(cp_error_type), INTENT(inout)       :: error
+
+   CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_release', &
+      routineP = moduleN//':'//routineN
+
+   INTEGER                                  :: stat
+   LOGICAL                                  :: failure
+
+   failure=.FALSE.
+
+   IF (ASSOCIATED(normalmode_env)) THEN
+      CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      normalmode_env%ref_count=normalmode_env%ref_count-1
+      IF (normalmode_env%ref_count==0) THEN
+         DEALLOCATE(normalmode_env,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+   END IF
+   NULLIFY(normalmode_env)
+
+END SUBROUTINE normalmode_release
+!***************************************************************************
+
+!!****f* pint_types/normalmode_init_masses [1.0] *
+!!
+!!   NAME
+!!     normalmode_init_masses
+!!
+!!   FUNCTION
+!!     initializes the masses and fictitious masses compatible with the
+!!     normal mode information
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - normalmode_env: the definition of the normal mode transformation
+!!     - masses: *input* the masses of the particles
+!!     - mass_beads: masses of the beads
+!!     - mass_fict: the fictitious masses
+!!     - Q: masses of the nose thermostats
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+SUBROUTINE normalmode_init_masses(normalmode_env,mass,mass_beads,mass_fict,&
+     Q,error)
+
+   TYPE(normalmode_env_type), POINTER       :: normalmode_env
+   REAL(kind=dp), DIMENSION(:), INTENT(in)  :: mass
+   REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(out), OPTIONAL                 :: mass_beads, mass_fict
+   REAL(kind=dp), DIMENSION(:), &
+      INTENT(out), OPTIONAL                 :: Q
+   TYPE(cp_error_type), INTENT(inout)       :: error
+
+   CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_init_masses', &
+      routineP = moduleN//':'//routineN
+
+   INTEGER                                  :: i, iat, ib, stat
+   LOGICAL                                  :: failure
+   REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: scal
+
+   failure=.FALSE.
+
+   IF (.NOT. failure) THEN
+      IF (PRESENT(Q)) THEN
+         Q=normalmode_env%Q_bead
+         Q(1)=normalmode_env%Q_centroid
+      END IF
+      IF (PRESENT(mass_beads).OR.PRESENT(mass_fict)) THEN
+         IF (PRESENT(mass_beads)) THEN
+            DO iat=1,SIZE(mass)
+               mass_beads(1,iat)=0.0_dp
+               DO ib=2,normalmode_env%p
+                  mass_beads(ib,iat)=mass(iat)
+               END DO
+            END DO
+         END IF
+         IF (PRESENT(mass_fict)) THEN
+            DO iat=1,SIZE(mass)
+               DO ib=1,normalmode_env%p
+                  mass_fict(ib,iat)=mass(iat)
+               END DO
+            END DO
+         END IF
+      END IF
+   END IF
+
+END SUBROUTINE normalmode_init_masses
+!***************************************************************************
+
+!!****f* pint_types/normalmode_env_create *
+!!
+!!   NAME
+!!     normalmode_env_create
+!!
+!!   FUNCTION
+!!     creates the data needed for a normal mode transformation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+SUBROUTINE normalmode_env_create(normalmode_env,normalmode_section,p,kT,error)
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
+    TYPE(section_vals_type), POINTER         :: normalmode_section
+    INTEGER, INTENT(in)                      :: p
+    REAL(kind=dp), INTENT(in)                :: kT
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat, i,j, k, li
+    LOGICAL                                  :: failure
+    REAL(kind=dp),DIMENSION(p)               :: lambda
+
+  failure=.FALSE.
+
+  CPPrecondition(.NOT.ASSOCIATED(normalmode_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     ALLOCATE(normalmode_env,stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     ALLOCATE(normalmode_env%x2u(p,p),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     ALLOCATE(normalmode_env%u2x(p,p),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     last_normalmode_id=last_normalmode_id+1
+     normalmode_env%id_nr=last_normalmode_id
+     normalmode_env%ref_count=1
+
+     normalmode_env%p=p
+
+     CALL section_vals_val_get(normalmode_section,"Q_CENTROID", &
+                               r_val=normalmode_env%Q_centroid,error=error)
+     CALL section_vals_val_get(normalmode_section,"Q_BEAD", &
+                               r_val=normalmode_env%Q_bead,error=error)
+     CALL section_vals_val_get(normalmode_section,"MODEFACTOR", &
+                               r_val=normalmode_env%modefactor,error=error)
+
+     IF (normalmode_env%Q_centroid < 0.0_dp) THEN
+        normalmode_env%Q_centroid = 1.0_dp/(kT*p)
+     END IF
+     IF (normalmode_env%Q_bead < 0.0_dp) THEN
+        normalmode_env%Q_bead = 1.0_dp/(kT*p)
+     END IF
+
+     normalmode_env%harm = p*kT*kT/normalmode_env%modefactor
+
+     ! set up the transformation matrices
+     DO i = 1, p
+        lambda(i) = 2.0_dp*(1.0_dp - COS(pi*(i/2)*2.0_dp/p))
+        DO j = 1, p
+           k = ((i/2)*(j-1))/p
+           k = (i/2)*(j-1)-k*p
+           li = 2*(i-2*(i/2))*p-p
+           normalmode_env%u2x(j,i)=SQRT(2.0_dp/p)*SIN(twopi*(k+0.125_dp*li)/p)
+        END DO
+     END DO
+     lambda(1) = 1.0_dp/(p*normalmode_env%modefactor)
+     DO i = 1, p
+        DO j = 1, p
+           normalmode_env%x2u(i,j)=SQRT(lambda(i)*normalmode_env%modefactor)*&
+                                   normalmode_env%u2x(j,i)
+        END DO
+     END DO
+     DO i = 1, p
+        DO j = 1, p
+           normalmode_env%u2x(i,j)=normalmode_env%u2x(i,j)/ &
+                                   SQRT(lambda(j)*normalmode_env%modefactor)
+        END DO
+     END DO
+  END IF
+END SUBROUTINE normalmode_env_create
+!***************************************************************************
+
 !!****f* pint_types/pint_x2u *
 !!
 !!   NAME
@@ -709,6 +1118,9 @@ END SUBROUTINE staging_env_create
 !!
 !!   AUTHOR
 !!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     Added normal mode transformation by hforbert
 !!
 !!*** **********************************************************************
 SUBROUTINE pint_x2u(pint_env,ux,x,error)
@@ -737,7 +1149,11 @@ SUBROUTINE pint_x2u(pint_env,ux,x,error)
      CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
 
-     CALL staging_x2u(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
+     IF (pint_env%transform == transformation_stage) THEN
+       CALL staging_x2u(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
+     ELSE
+       CALL normalmode_x2u(pint_env%normalmode_env,ux=my_ux,x=my_x,error=error)
+     END IF
   END IF
 END SUBROUTINE pint_x2u
 !***************************************************************************
@@ -797,6 +1213,56 @@ SUBROUTINE staging_x2u(staging_env,ux,x,error)
 END SUBROUTINE staging_x2u
 !***************************************************************************
 
+!!****f* pint_types/normalmode_x2u *
+!!
+!!   NAME
+!!     normalmode_x2u
+!!
+!!   FUNCTION
+!!     Transforms from the x into the u variables using a normal mode
+!!     transformation for the positions
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - normalmode_env: the environment for the normal mode transformation
+!!     - ux: will contain the u variable
+!!     - x: the positions to transform
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+SUBROUTINE normalmode_x2u(normalmode_env,ux,x,error)
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(out)                            :: ux
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: x
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_x2u', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: k, s
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL DGEMM('N','N',normalmode_env%p,SIZE(x,2),normalmode_env%p,1.0_dp,&
+        normalmode_env%x2u(1,1),SIZE(normalmode_env%x2u,1),x(1,1),SIZE(x,1),&
+        0.0_dp,ux,SIZE(ux,1))
+  END IF
+END SUBROUTINE normalmode_x2u
+!***************************************************************************
+
 !!****f* pint_types/pint_u2x *
 !!
 !!   NAME
@@ -817,6 +1283,9 @@ END SUBROUTINE staging_x2u
 !!
 !!   AUTHOR
 !!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     Added normal mode transformation by hforbert
 !!
 !!*** **********************************************************************
 SUBROUTINE pint_u2x(pint_env,ux,x,error)
@@ -845,7 +1314,11 @@ SUBROUTINE pint_u2x(pint_env,ux,x,error)
      CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
 
-     CALL staging_u2x(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
+     IF (pint_env%transform == transformation_stage) THEN
+       CALL staging_u2x(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
+     ELSE
+       CALL normalmode_u2x(pint_env%normalmode_env,ux=my_ux,x=my_x,error=error)
+     END IF
   END IF
 END SUBROUTINE pint_u2x
 !***************************************************************************
@@ -923,6 +1396,55 @@ SUBROUTINE staging_u2x(staging_env,ux,x,error)
 END SUBROUTINE staging_u2x
 !***************************************************************************
 
+!!****f* pint_types/normalmode_u2x *
+!!
+!!   NAME
+!!     normalmode_u2x
+!!
+!!   FUNCTION
+!!     transform from the u variable to the x (back normal mode transformation
+!!     for the positions)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - normalmode_env: the environment for the normal mode transformation
+!!     - ux: the u variable (positions to be backtransformed)
+!!     - x: will contain the positions
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+SUBROUTINE normalmode_u2x(normalmode_env,ux,x,error)
+    TYPE(normalmode_env_type), POINTER          :: normalmode_env
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: ux
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(out)                            :: x
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_u2x', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL DGEMM('N','N',normalmode_env%p,SIZE(ux,2),normalmode_env%p,1.0_dp,&
+        normalmode_env%u2x(1,1),SIZE(normalmode_env%u2x,1),ux(1,1),SIZE(ux,1),&
+        0.0_dp,x,SIZE(x,1))
+  END IF
+END SUBROUTINE normalmode_u2x
+!***************************************************************************
+
 !!****f* pint_types/pint_f2uf *
 !!
 !!   NAME
@@ -936,13 +1458,19 @@ END SUBROUTINE staging_u2x
 !!
 !!   INPUTS
 !!     - pint_env: the path integral environment
-!!     - uf: will contain the forces after for the tranformed variable
+!!     - uf: will contain the accelerations for the transformed variables
+!!       afterwards
 !!     - f: the forces to transform
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     Added normal mode transformation by hforbert
+!!     Divide forces by the number of beads, since the replication
+!!       environment (should) give raw forces. hforbert
 !!
 !!*** **********************************************************************
 SUBROUTINE pint_f2uf(pint_env,uf,f,error)
@@ -971,8 +1499,12 @@ SUBROUTINE pint_f2uf(pint_env,uf,f,error)
      CPPrecondition(ASSOCIATED(my_uf),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(my_f),cp_failure_level,routineP,error,failure)
 
-     CALL staging_f2uf(pint_env%staging_env,uf=my_uf,f=my_f,error=error)
-     my_uf=my_uf/pint_env%mass_fict
+     IF (pint_env%transform == transformation_stage) THEN
+       CALL staging_f2uf(pint_env%staging_env,uf=my_uf,f=my_f,error=error)
+     ELSE
+       CALL normalmode_f2uf(pint_env%normalmode_env,uf=my_uf,f=my_f,error=error)
+     END IF
+     my_uf=my_uf/pint_env%mass_fict/REAL(pint_env%p,dp)
   END IF
 END SUBROUTINE pint_f2uf
 !***************************************************************************
@@ -990,7 +1522,7 @@ END SUBROUTINE pint_f2uf
 !!
 !!   INPUTS
 !!     - staging_env: the environment for the staging transformation
-!!     - uf: will contain the forces after for the tranformed variable
+!!     - uf: will contain the forces after for the transformed variable
 !!     - f: the forces to transform
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
@@ -1054,6 +1586,53 @@ SUBROUTINE staging_f2uf(staging_env,uf,f,error)
 END SUBROUTINE staging_f2uf
 !***************************************************************************
 
+!!****f* pint_types/normalmode_f2uf *
+!!
+!!   NAME
+!!     normalmode_f2uf
+!!
+!!   FUNCTION
+!!     normalmode transformation for the forces
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - normalmode_env: the environment for the normal mode transformation
+!!     - uf: will contain the forces for the transformed variables afterwards
+!!     - f: the forces to transform
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+SUBROUTINE normalmode_f2uf(normalmode_env,uf,f,error)
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(out)                            :: uf
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: f
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_f2uf', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL DGEMM('T','N',normalmode_env%p,SIZE(f,2),normalmode_env%p,1.0_dp,&
+        normalmode_env%u2x(1,1),SIZE(normalmode_env%u2x,1),f(1,1),SIZE(f,1),&
+        0.0_dp,uf,SIZE(uf,1))
+  END IF
+END SUBROUTINE normalmode_f2uf
+!***************************************************************************
+
 !!****f* pint_types/pint_init_v *
 !!
 !!   NAME
@@ -1096,7 +1675,7 @@ SUBROUTINE pint_init_v(pint_env,kT,error)
   DO idim=1,SIZE(pint_env%uv,2)
      DO ib=1,SIZE(pint_env%uv,1)
         pint_env%uv(ib,idim) = next_random_number(rng_stream=pint_env%randomG,&
-                                                  variance=kT/pint_env%mass_fict(ib,idim),&
+                                                  variance=mykT/pint_env%mass_fict(ib,idim),&
                                                   error=error)
      END DO
   END DO
@@ -1104,7 +1683,7 @@ SUBROUTINE pint_init_v(pint_env,kT,error)
      DO ib=1,SIZE(pint_env%tv,2)
         DO inos=1,SIZE(pint_env%tv,1)
            pint_env%tv(inos,ib,idim) = next_random_number(rng_stream=pint_env%randomG,&
-                                                          variance=kT/pint_env%Q(ib),&
+                                                          variance=mykT/pint_env%Q(ib),&
                                                           error=error)
         END DO
      END DO
@@ -1132,6 +1711,9 @@ END SUBROUTINE pint_init_v
 !!   AUTHOR
 !!     fawzi
 !!
+!!   MODIFICATION HISTORY
+!!     Added normal mode transformation by hforbert
+!!
 !!*** **********************************************************************
 FUNCTION  pint_calc_uf_h(pint_env, error)RESULT(res)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1149,8 +1731,13 @@ FUNCTION  pint_calc_uf_h(pint_env, error)RESULT(res)
   failure=.FALSE.
 
   IF (.NOT. failure) THEN
-     pint_env%e_pot_h=staging_calc_uf_h(pint_env%staging_env,&
-          pint_env%mass_beads,pint_env%ux,pint_env%uf_h,error=error)
+     IF (pint_env%transform == transformation_stage) THEN
+        pint_env%e_pot_h=staging_calc_uf_h(pint_env%staging_env,&
+             pint_env%mass_beads,pint_env%ux,pint_env%uf_h,error=error)
+     ELSE
+        pint_env%e_pot_h=normalmode_calc_uf_h(pint_env%normalmode_env,&
+             pint_env%mass_beads,pint_env%ux,pint_env%uf_h,error=error)
+     END IF
      res=pint_env%e_pot_h
      pint_env%uf_h=pint_env%uf_h/pint_env%mass_fict
   END IF
@@ -1216,7 +1803,7 @@ FUNCTION  staging_calc_uf_h(staging_env, mass_beads, ux, uf_h, error)RESULT(res)
 
      DO idim=1,SIZE(mass_beads,2)
         DO ist=1,staging_env%nseg
-           e_h=0.5*e_h+mass_beads(1,idim)*staging_env%w_j**2*&
+           e_h=e_h+0.5*mass_beads(1,idim)*staging_env%w_j**2*&
                 (ux(iii(ist),idim)-ux(jjj(ist),idim))**2
            uf_h(iii(ist),idim)=mass_beads(1,idim)*staging_env%w_j**2*(&
                 2._dp*ux(iii(ist),idim)&
@@ -1234,6 +1821,68 @@ FUNCTION  staging_calc_uf_h(staging_env, mass_beads, ux, uf_h, error)RESULT(res)
      res=e_h
   END IF
 END FUNCTION staging_calc_uf_h
+!***************************************************************************
+
+!!****f* pint_types/normalmode_calc_uf_h *
+!!
+!!   NAME
+!!     normalmode_calc_uf_h
+!!
+!!   FUNCTION
+!!     calculates the harmonic force in the normal mode basis
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - normalmode_env: the normal mode environment
+!!     - mass_beads: the masses of the beads
+!!     - ux: the positions of the beads in the staging basis
+!!     - uf_h: the harmonic forces (not accelerations)
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Harald Forbert
+!!
+!!*** **********************************************************************
+FUNCTION  normalmode_calc_uf_h(normalmode_env, mass_beads, ux, uf_h, error)RESULT(res)
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: mass_beads, ux
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(out)                            :: uf_h
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+    REAL(kind=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_calc_uf_h', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idim, ibead
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: f,e_h
+
+  failure=.FALSE.
+
+  IF (.NOT. failure) THEN
+     e_h=0._dp
+     DO idim = 1, SIZE(mass_beads,2)
+
+        ! starting at 2 since the centroid is at 1 and it's mass_beads
+        ! SHOULD be zero anyways:
+
+        DO ibead = 2, normalmode_env%p
+           f = - mass_beads(ibead,idim)*normalmode_env%harm*ux(ibead,idim)
+           uf_h(ibead,idim)= f
+           ! - to cancel the - in the force f. 
+           e_h = e_h - 0.5_dp*ux(ibead,idim)*f
+        END DO
+
+     END DO
+     res=e_h
+  END IF
+END FUNCTION normalmode_calc_uf_h
 !***************************************************************************
 
 !!****f* pint_types/pint_calc_f *
@@ -1291,7 +1940,7 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
            pint_env%replicas%r(idim,ib)=my_x(ib,idim)
         END DO
      END DO
-     CALL rep_env_calc_e_f(pint_env%replicas,error=error)
+     CALL rep_env_calc_e_f(pint_env%replicas,calc_f=.TRUE.,error=error)
      my_f => pint_env%f
      IF (PRESENT(f)) my_f => f
      DO idim=1,pint_env%ndim
@@ -1300,11 +1949,11 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
         END DO
      END DO
      IF (PRESENT(e)) THEN
-        e=pint_env%replicas%f(SIZE(pint_env%replicas%f,2),:)
+        e=pint_env%replicas%f(SIZE(pint_env%replicas%f,1),:)
      ELSE
-        pint_env%e_pot_bead = pint_env%replicas%f(SIZE(pint_env%replicas%f,2),:)
+        pint_env%e_pot_bead = pint_env%replicas%f(SIZE(pint_env%replicas%f,1),:)
      END IF
-     res=SUM(pint_env%replicas%f(:,SIZE(pint_env%replicas%f)))
+!     res=SUM(pint_env%replicas%f(:,SIZE(pint_env%replicas%f)))
 !          /REAL(SIZE(pint_env%replicas%f),dp)
   END IF
 END SUBROUTINE pint_calc_f
@@ -1328,6 +1977,10 @@ END SUBROUTINE pint_calc_f
 !!
 !!   AUTHOR
 !!     fawzi
+!! 
+!!   MODIFICATION HISTORY
+!!     Added nh_energy calculation - hforbert
+!!     Bug fixes for no thermostats - hforbert
 !!
 !!*** **********************************************************************
 SUBROUTINE pint_setup(pint_env,error)
@@ -1343,6 +1996,7 @@ SUBROUTINE pint_setup(pint_env,error)
 
   failure=.FALSE.
 
+
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1350,32 +2004,36 @@ SUBROUTINE pint_setup(pint_env,error)
      e_h=pint_calc_uf_h(pint_env,error=error)
      CALL pint_calc_f(pint_env,error=error)
      CALL pint_f2uf(pint_env,error=error)
+     e_h=e_h+pint_calc_e_kin_beads_u(pint_env,error=error)
+     e_h=e_h+pint_calc_e_vir(pint_env,error=error)
      DO idim=1,SIZE(pint_env%uf_h,2)
         DO ib=1,SIZE(pint_env%uf_h,1)
            pint_env%uf_h(ib,idim)=pint_env%uf_h(ib,idim)&
                 +REAL(pint_env%nrespa,dp)*pint_env%uf(ib,idim)
         END DO
      END DO
-     DO idim=1,SIZE(pint_env%uf_h,2)
-        DO ib=1,SIZE(pint_env%uf_h,1)
-           pint_env%tf(1,ib,idim)=(pint_env%mass_fict(ib,idim)*pint_env%uv(ib,idim)**2&
-                -pint_env%kT)/pint_env%Q(ib)
-        END DO
-     END DO
-
-     DO idim=1,pint_env%ndim
-        DO ib=1,pint_env%p
-           DO inos=1,pint_env%nnos-1
-              pint_env%tf(inos+1,ib,idim)=pint_env%tv(inos,ib,idim)**2-&
-                   pint_env%kT/pint_env%Q(ib)
-           END DO
-           DO inos=1,pint_env%nnos-1
-              pint_env%tf(inos,ib,idim)=pint_env%tf(inos,ib,idim)&
-                   -pint_env%tv(inos,ib,idim)*pint_env%tv(inos+1,ib,idim)
+     IF (pint_env%nnos > 0) THEN
+        DO idim=1,SIZE(pint_env%uf_h,2)
+           DO ib=1,SIZE(pint_env%uf_h,1)
+              pint_env%tf(1,ib,idim)=(pint_env%mass_fict(ib,idim)*&
+                   pint_env%uv(ib,idim)**2-pint_env%kT)/pint_env%Q(ib)
            END DO
         END DO
-     END DO
 
+        DO idim=1,pint_env%ndim
+           DO ib=1,pint_env%p
+              DO inos=1,pint_env%nnos-1
+                 pint_env%tf(inos+1,ib,idim)=pint_env%tv(inos,ib,idim)**2-&
+                      pint_env%kT/pint_env%Q(ib)
+              END DO
+              DO inos=1,pint_env%nnos-1
+                 pint_env%tf(inos,ib,idim)=pint_env%tf(inos,ib,idim)&
+                      -pint_env%tv(inos,ib,idim)*pint_env%tv(inos+1,ib,idim)
+              END DO
+           END DO
+        END DO
+        CALL pint_calc_nh_energy(pint_env,error=error)
+     END IF
   END IF
 END SUBROUTINE pint_setup
 !***************************************************************************
@@ -1398,6 +2056,9 @@ END SUBROUTINE pint_setup
 !!   AUTHOR
 !!     fawzi
 !!
+!!   MODIFICATION HISTORY
+!!     Bug fix to give my_uv a default location if not given in call - hforbert
+!!
 !!*** **********************************************************************
 FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1415,11 +2076,11 @@ FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
 
   failure=.FALSE.
 
-
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   res=-1.0_dp
   IF (.NOT. failure) THEN
+     my_uv => pint_env%uv
      IF (PRESENT(uv)) my_uv => uv
      res=0._dp
      DO idim=1,pint_env%ndim
@@ -1431,6 +2092,64 @@ FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
      IF (.not.PRESENT(uv)) pint_env%e_kin_beads=res
   END IF
 END FUNCTION pint_calc_e_kin_beads_u
+!***************************************************************************
+
+!!****f* pint_types/pint_calc_e_vir *
+!!
+!!   NAME
+!!     pint_calc_e_vir
+!!
+!!   FUNCTION
+!!     calculate the virial estimator of the real (quantum) kinetic
+!!     energy
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     hforbert
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+FUNCTION pint_calc_e_vir(pint_env,error) RESULT(res)
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(kind=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_vir', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ib, idim
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: xc
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  res=-1.0_dp
+  IF (.NOT. failure) THEN
+     res=0._dp
+     DO idim=1,pint_env%ndim
+        ! calculate the centroid
+        xc = 0._dp
+        DO ib=1,pint_env%p
+           xc = xc + pint_env%x(ib,idim)
+        END DO
+        xc = xc/REAL(pint_env%p,dp)
+        DO ib=1,pint_env%p
+           res=res+(pint_env%x(ib,idim)-xc)*pint_env%f(ib,idim)
+        END DO
+     END DO
+     res=0.5_dp*(REAL(pint_env%ndim,dp)*pint_env%kT-res/REAL(pint_env%p,dp))
+     pint_env%e_vir=res
+  END IF
+END FUNCTION pint_calc_e_vir
 !***************************************************************************
 
 !!****f* pint_types/pint_calc_nh_energy *
@@ -1511,6 +2230,9 @@ END SUBROUTINE pint_calc_nh_energy
 !!   AUTHOR
 !!     fawzi
 !!
+!!   MODIFICATION HISTORY
+!!     various bug fixes - hforbert
+!!
 !!*** **********************************************************************
 SUBROUTINE pint_step(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1539,16 +2261,18 @@ SUBROUTINE pint_step(pint_env,error)
      dti22=dti**2/2._dp
      DO iresp=1,pint_env%nrespa
         ! integrate bead positions
-        IF (pint_env%nnos>1) THEN
-           pint_env%ux=pint_env%ux+dti*pint_env%uv+dti22*(pint_env%uf_h-pint_env%uv*pint_env%tv(1,:,:))
+        IF (pint_env%nnos>0) THEN
+           pint_env%ux=pint_env%ux+dti*pint_env%uv+dti22* &
+                       (pint_env%uf_h-pint_env%uv*pint_env%tv(1,:,:))
         ELSE
            pint_env%ux=pint_env%ux+dti*pint_env%uv+dti22*pint_env%uf_h
         END IF
         ! integrate nh vars
         pint_env%tx=pint_env%tx+dti*pint_env%tv+dti22*pint_env%tf
         ! integrate v at half step
-        IF (pint_env%nnos>1) THEN
-           pint_env%uv_t=pint_env%uv+dti2*(pint_env%uf_h-pint_env%uv*pint_env%tv(1,:,:))
+        IF (pint_env%nnos>0) THEN
+           pint_env%uv_t=pint_env%uv+dti2* &
+                         (pint_env%uf_h-pint_env%uv*pint_env%tv(1,:,:))
         ELSE
            pint_env%uv_t=pint_env%uv+dti2*pint_env%uf_h
         END IF
@@ -1579,7 +2303,7 @@ SUBROUTINE pint_step(pint_env,error)
               pint_env%uv_new=pint_env%uv_t/(1.+dti2*pint_env%tv(1,:,:))
               DO idim=1,pint_env%ndim
                  DO ib=1,pint_env%p
-                    pint_env%tf(0,ib,idim)=(pint_env%mass_fict(ib,idim)*&
+                    pint_env%tf(1,ib,idim)=(pint_env%mass_fict(ib,idim)*&
                          pint_env%uv_new(ib,idim)**2-pint_env%kT)/&
                          pint_env%Q(ib)
                  END DO
@@ -1611,7 +2335,7 @@ SUBROUTINE pint_step(pint_env,error)
               pint_env%tv=pint_env%tv_new
               IF (tol <= pint_env%v_tol) EXIT
            END DO
-           CPPostcondition(tol>pint_env%v_tol,cp_warning_level,routineP,error,failure)
+!           CPPostcondition(tol>pint_env%v_tol,cp_warning_level,routineP,error,failure)
         ELSE
            pint_env%uv=pint_env%uv_t
         ENDIF
@@ -1619,18 +2343,20 @@ SUBROUTINE pint_step(pint_env,error)
            pint_env%tf(inos,:,:)=pint_env%tf(inos,:,:)&
                 -pint_env%tv(inos,:,:)*pint_env%tv(inos+1,:,:)
         END DO
-        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-             f_env=f_env,new_error=new_error, failure=failure)
-        logger => cp_error_get_logger(new_error)
-        CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
-             cp_failure_level,cp_assertion_failed,routineP,&
-             "md & force_eval lost sychro "//&
-CPSourceFileRef,&
-             error,failure)
-        CALL f_env_rm_defaults(f_env,new_error,ierr)
-        pint_env%iter=pint_env%iter+1
-        pint_env%t=pint_env%t+pint_env%dt
      END DO
+     e_h=pint_calc_e_kin_beads_u(pint_env,error=error)
+     e_h=pint_calc_e_vir(pint_env,error=error)
+     CALL pint_calc_nh_energy(pint_env,error=error)
+     pint_env%iter=pint_env%iter+1
+     pint_env%t=pint_env%t+pint_env%dt
+     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+          f_env=f_env,new_error=new_error, failure=failure)
+     logger => cp_error_get_logger(new_error)
+     CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          "md & force_eval lost sychro "//CPSourceFileRef,&
+          error,failure)
+     CALL f_env_rm_defaults(f_env,new_error,ierr)
   END IF
 END SUBROUTINE pint_step
 !***************************************************************************
@@ -1654,6 +2380,9 @@ END SUBROUTINE pint_step
 !!   AUTHOR
 !!     fawzi
 !!
+!!   MODIFICATION HISTORY
+!!     various bug fixes - hforbert
+!!
 !!*** **********************************************************************
 SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1664,7 +2393,7 @@ SUBROUTINE pint_write_centroids(pint_env,error)
 
     CHARACTER(len=default_string_length)     :: ext, form, title
     INTEGER                                  :: i_form, iat, ib, idim, idir, &
-                                                ierr, iter, unit_nr
+                                                ierr, iter, unit_nr, handle
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: nb, ss, ss2
     TYPE(cell_type), POINTER                 :: cell
@@ -1693,13 +2422,14 @@ SUBROUTINE pint_write_centroids(pint_env,error)
         CASE default
            form="FORMATTED"
         END SELECT
+        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+             f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+        logger => cp_error_get_logger(new_error)
         IF (BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
-             basis_section=print_key, error=error),cp_p_file)) THEN
+             basis_section=print_key, error=new_error),cp_p_file)) THEN
            unit_nr=cp_print_key_unit_nr(logger=logger, basis_section=print_key,&
-                print_key_path="",extension="."//TRIM(ext), local=.FALSE., file_form=form, error=error)
-           CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,f_env=f_env,&
-                new_error=new_error, failure=failure)
-           logger => cp_error_get_logger(new_error)
+                print_key_path="",extension="."//TRIM(ext), local=.FALSE.,&
+                file_form=form, error=new_error)
            IF (unit_nr>0) THEN
               iter=logger%iter_info%iteration(1)
               logger%iter_info%iteration(1)=0
@@ -1713,14 +2443,14 @@ SUBROUTINE pint_write_centroids(pint_env,error)
 
               nb=REAL(pint_env%p,dp)
               idim=0
-              DO iat=1,pint_env%ndim
+              DO iat=1,pint_env%ndim/3
                  DO idir=1,3
                     idim=idim+1
                     ss=0._dp
                     ss2=0._dp
                     DO ib=1,pint_env%p
-                       ss=ss+pint_env%x(idim,ib)
-                       ss2=ss2+pint_env%x(idim,ib)**2
+                       ss=ss+pint_env%x(ib,idim)
+                       ss2=ss2+pint_env%x(ib,idim)**2
                     END DO
                     particles%els(iat)%r(idir)=ss/nb
                     particles%els(iat)%v(idir)=SQRT(ss2/nb-(ss/nb)**2)
@@ -1735,11 +2465,11 @@ SUBROUTINE pint_write_centroids(pint_env,error)
                    cell=cell)
               logger%iter_info%iteration(1)=iter
               CALL cp_print_key_finished_output(unit_nr,logger,&
-                   print_key,"", local=.FALSE., error=error)
-END IF
-           CALL f_env_rm_defaults(f_env,new_error,ierr)
-           CPAssert(ierr/=0,cp_failure_level,routineP,error,failure)
+                   print_key,"", local=.FALSE., error=new_error)
+           END IF
         END IF
+        CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
+        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
      END IF
   END IF
 END SUBROUTINE pint_write_centroids
@@ -1764,6 +2494,9 @@ END SUBROUTINE pint_write_centroids
 !!   AUTHOR
 !!     fawzi
 !!
+!!   MODIFICATION HISTORY
+!!     various bug fixes - hforbert
+!!
 !!*** **********************************************************************
 SUBROUTINE pint_write_ener(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1772,11 +2505,13 @@ SUBROUTINE pint_write_ener(pint_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iter, unit_nr
+    INTEGER                                  :: iter, unit_nr, ierr, handle
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: cons, t, used_time
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_error_type)                      :: new_error
 
   failure=.FALSE.
 
@@ -1786,28 +2521,38 @@ SUBROUTINE pint_write_ener(pint_env,error)
      IF (pint_env%replicas%cart%mepos(2)==0) THEN
         print_key => section_vals_get_subs_vals(pint_env%input,&
              "MOTION%PINT%PRINT%ENER_INFO", error=error)
+        CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+             f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+        logger => cp_error_get_logger(new_error)
         IF (BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
-             basis_section=print_key, error=error),cp_p_file)) THEN
+             basis_section=print_key, error=new_error),cp_p_file)) THEN
            unit_nr=cp_print_key_unit_nr(logger,print_key,"",&
-                extension=".ener", local=.FALSE., error=error)
+                extension=".ener", local=.FALSE., error=new_error)
            IF (unit_nr>0) THEN
              ! please change also the corresponding format explaination above
              ! keep the constant of motion the true constant of motion !
-             ! "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
+             ! "Step Nr.    Time[fs]  Kin.[a.u.]  VirialKin[a.u.]   Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
              !
-              cons=(SUM(pint_env%e_pot_bead)+pint_env%e_pot_h+&
-                   pint_env%e_kin_beads+pint_env%e_pot_t+pint_env%e_kin_t)
-              t=cp_unit_from_cp2k(pint_env%t,"fs",error=error)
+              cons=(SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)+&
+                   pint_env%e_pot_h+pint_env%e_kin_beads+pint_env%e_pot_t+&
+                   pint_env%e_kin_t)
+              t=cp_unit_from_cp2k(pint_env%t,"fs",error=new_error)
               used_time=0._dp ! to do
-              WRITE (unit_nr,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.9)")&
-                   pint_env%iter,t,pint_env%e_kin_beads/REAL(pint_env%p,dp),&
-                   SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp),&
-                   cons,used_time
+              WRITE (unit_nr,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.9,F20.9)")&
+                   pint_env%iter,t,0.5_dp*REAL(pint_env%p,dp)*&
+                   REAL(pint_env%ndim,dp)*pint_env%kT-pint_env%e_pot_h,&
+                   pint_env%e_vir,&
+                   cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/&
+                   REAL(pint_env%p,dp)/REAL(pint_env%ndim,dp),"K",&
+                   error=new_error),SUM(pint_env%e_pot_bead)/&
+                   REAL(pint_env%p,dp),cons,used_time
               CALL m_flush(unit_nr)
            END IF
            CALL cp_print_key_finished_output(unit_nr,logger,print_key,"",&
-                local=.FALSE., error=error)
+                local=.FALSE., error=new_error)
         END IF
+        CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
+        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
      END IF
   END IF
 END SUBROUTINE pint_write_ener
@@ -1835,6 +2580,7 @@ END SUBROUTINE pint_write_ener
 !!
 !!   MODIFICATION HISTORY
 !!     11.2003 created [fawzi]
+!!     actually ASSIGN input pointer [hforbert]
 !!
 !!*** **********************************************************************
 SUBROUTINE pint_start(pint_env,error)
@@ -1859,6 +2605,7 @@ SUBROUTINE pint_start(pint_env,error)
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     input => pint_env%input
      CALL pint_init_v(pint_env,error=error)
      CALL section_vals_val_get(input,"MOTION%PINT%INIT%CENTROID_SPEED",&
           l_val=centroid_speed,error=error)
@@ -1886,10 +2633,10 @@ SUBROUTINE pint_start(pint_env,error)
         IF (n_rep_val>0) THEN
            CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
            CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                i_rep_val=ib,r_vals=r_vals,error=error)
+                r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
-                cp_failure_level,cp_assertion_failed,"Invalid size of MOTION%PINT%NOSE%COORD "//&
-CPSourceFileRef,&
+                cp_failure_level,cp_assertion_failed,&
+                "Invalid size of MOTION%PINT%NOSE%COORD "//CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -1911,10 +2658,10 @@ CPSourceFileRef,&
         IF (n_rep_val>0) THEN
            CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
            CALL section_vals_val_get(velocity_section,"_DEFAULT_KEYWORD_",&
-                i_rep_val=ib,r_vals=r_vals,error=error)
+                r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
-                cp_failure_level,cp_assertion_failed,"Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
-CPSourceFileRef,&
+                cp_failure_level,cp_assertion_failed,&
+                "Invalid size of MOTION%PINT%NOSE%VELOCITY "//CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -1939,10 +2686,10 @@ CPSourceFileRef,&
         IF (n_rep_val>0) THEN
            CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
            CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                i_rep_val=ib,r_vals=r_vals,error=error)
-           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,cp_failure_level,&
-                cp_assertion_failed,"Invalid size of MOTION%PINT%BEADS%COORD "//&
-CPSourceFileRef,&
+                r_vals=r_vals,error=error)
+           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
+                cp_failure_level,cp_assertion_failed,&
+                "Invalid size of MOTION%PINT%BEADS%COORD "//CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -1964,10 +2711,10 @@ CPSourceFileRef,&
         IF (n_rep_val>0) THEN
            CPPrecondition(n_rep_val==1,cp_failure_level,routineP,error,failure)
            CALL section_vals_val_get(velocity_section,"_DEFAULT_KEYWORD_",&
-                i_rep_val=ib,r_vals=r_vals,error=error)
-           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,cp_failure_level,&
-                cp_assertion_failed,"Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
-CPSourceFileRef,&
+                r_vals=r_vals,error=error)
+           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
+                cp_failure_level,cp_assertion_failed,&
+                "Invalid size of MOTION%PINT%BEAD%VELOCITY "//CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -1976,6 +2723,7 @@ CPSourceFileRef,&
                  pint_env%v(ib,idim)=r_vals(ii)
               END DO
            END DO
+           CALL pint_x2u(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
         END IF
      END IF
 
@@ -1984,18 +2732,18 @@ CPSourceFileRef,&
      IF (randomize_pos) THEN
         DO idim=1,pint_env%ndim
            DO ib=1,pint_env%p
-              pint_env%x(ib,idim) = pint_env%x(ib,idim) +&
-                                    next_random_number(rng_stream=pint_env%randomG,&
-                                                       variance=pint_env%beta/&
-                                                                &SQRT(12.0_dp*pint_env%mass(idim)),&
-                                    error=error)
+              pint_env%x(ib,idim) = pint_env%x(ib,idim) + &
+                              next_random_number(rng_stream=pint_env%randomG,&
+                                 variance=pint_env%beta/&
+                                 SQRT(12.0_dp*pint_env%mass(idim)),&
+                                 error=error)
            END DO
         END DO
      END IF
   END IF
 
   CALL pint_setup(pint_env,error=error)
-  CALL pint_write_restart(pint_env,error=error)
+!  CALL pint_write_restart(pint_env,error=error)
 
 END SUBROUTINE pint_start
 !***************************************************************************
@@ -2031,19 +2779,141 @@ SUBROUTINE pint_write_restart(pint_env,force,error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    INTEGER                                  :: i, handle, unit_nr, ierr
+    INTEGER                                  :: idim, ibead, inos
+    REAL(KIND=dp)                            :: econs
+
+    TYPE(section_vals_type), POINTER         :: input, sec
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_error_type)                      :: new_error
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
   failure=.FALSE.
 
-  IF (.NOT. failure) THEN
-     ! to do
+  NULLIFY(input,sec)
+  CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     input => pint_env%input
+     sec => section_vals_get_subs_vals(input,"MOTION%PINT",error=error)
+     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+          f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+     logger => cp_error_get_logger(new_error)
+!    TODO: mepos(2)==0 enough??
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,sec,&
+         "PRINT%RESTART",error=new_error),cp_p_file).AND.&
+         (pint_env%replicas%cart%mepos(2)==0)) THEN
+
+        unit_nr = cp_print_key_unit_nr(logger,sec,"PRINT%RESTART",&
+                  extension=".restart",  do_backup=.TRUE., error=new_error)
+        sec => section_vals_get_subs_vals(input,"MOTION%PINT%BEADS%COORD",&
+                                          error=new_error) 
+        NULLIFY(r_vals)
+        ALLOCATE(r_vals(pint_env%p*pint_env%ndim),stat=ierr)
+        CPAssert(ierr==0, cp_failure_level, routineP, new_error, failure)
+        i=1
+        CALL pint_u2x(pint_env,error=new_error)
+        DO idim=1, pint_env%ndim
+           DO ibead=1, pint_env%p
+              r_vals(i)=pint_env%x(ibead,idim)
+              i = i+1
+           END DO
+        END DO
+        CALL section_vals_val_set(sec,"_DEFAULT_KEYWORD_",r_vals_ptr=r_vals,&
+                                  error=new_error)
+        NULLIFY(r_vals)
+        sec => section_vals_get_subs_vals(input,"MOTION%PINT%BEADS%VELOCITY",&
+                                          error=new_error) 
+        ALLOCATE(r_vals(pint_env%p*pint_env%ndim),stat=ierr)
+        CPAssert(ierr==0, cp_failure_level, routineP, new_error, failure)
+        i=1
+        CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=new_error)
+        DO idim=1, pint_env%ndim
+           DO ibead=1, pint_env%p
+              r_vals(i)=pint_env%v(ibead,idim)
+              i = i+1
+           END DO
+        END DO
+        CALL section_vals_val_set(sec,"_DEFAULT_KEYWORD_",r_vals_ptr=r_vals,&
+                                  error=new_error)
+        NULLIFY(r_vals)
+        IF (pint_env%nnos > 0) THEN
+           sec => section_vals_get_subs_vals(input,"MOTION%PINT%NOSE%COORD",&
+                                             error=new_error) 
+           ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),stat=ierr)
+           CPAssert(ierr==0, cp_failure_level, routineP, new_error, failure)
+           i=1
+           DO idim=1, pint_env%ndim
+              DO ibead=1, pint_env%p
+                 DO inos=1, pint_env%nnos
+                    r_vals(i)=pint_env%tx(inos,ibead,idim)
+                    i = i+1
+                 END DO
+              END DO
+           END DO
+           CALL section_vals_val_set(sec,"_DEFAULT_KEYWORD_",r_vals_ptr=&
+                                     r_vals,error=new_error)
+           NULLIFY(r_vals)
+           sec => section_vals_get_subs_vals(input,&
+                      "MOTION%PINT%NOSE%VELOCITY",error=new_error) 
+           ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),stat=ierr)
+           CPAssert(ierr==0, cp_failure_level, routineP, new_error, failure)
+           i=1
+           DO idim=1, pint_env%ndim
+              DO ibead=1, pint_env%p
+                 DO inos=1, pint_env%nnos
+                    r_vals(i)=pint_env%tv(inos,ibead,idim)
+                    i = i+1
+                 END DO
+              END DO
+           END DO
+           CALL section_vals_val_set(sec,"_DEFAULT_KEYWORD_",r_vals_ptr=&
+                                     r_vals,error=new_error)
+           NULLIFY(r_vals)
+        END IF
+        sec => section_vals_get_subs_vals(input,"MOTION%PINT",error=new_error) 
+        CALL section_vals_val_set(sec,"ITERATION",i_val=pint_env%iter,&
+                                  error=new_error)
+!       TODO wf history saving?
+        IF (unit_nr>0) THEN
+           ! for some reason runtype is set to mol_dyn_run,
+           ! put for writing the restart we dont want that:
+           CALL section_vals_val_get(input,"GLOBAL%RUN_TYPE",i_val=i,&
+                                     error=new_error)
+           CALL section_vals_val_set(input,"GLOBAL%RUN_TYPE",i_val=pint_run,&
+                                     error=new_error)
+!       TODO: GLOBAL%OUTPUT_FILE_NAME also got stumped.. ignoring for now
+           CALL section_vals_write(input,unit_nr=unit_nr,hide_root=.TRUE.,&
+                                   error=new_error)
+           CALL section_vals_val_set(input,"GLOBAL%RUN_TYPE",i_val=i,&
+                                     error=new_error)
+        END IF
+        CALL cp_print_key_finished_output(unit_nr,logger,sec,"PRINT%RESTART",&
+                                          error=new_error)
+     END IF
+     CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
+     CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+
+     ! do some output here for now:
+     IF (pint_env%replicas%cart%mepos(2)==0) THEN
+        logger => cp_error_get_logger(error)
+        unit_nr = cp_logger_get_default_unit_nr(logger=logger)
+        WRITE (unit_nr,"(A,I8,T38,A,F20.9)") "Iteration = ",pint_env%iter,&
+              " EffPot = ",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
+        WRITE (unit_nr,"(A,F20.9,T38,A,F20.9)") "ThermKin = ",0.5_dp* &
+              REAL(pint_env%p,dp)*REAL(pint_env%ndim,dp)*pint_env%kT-&
+              pint_env%e_pot_h," VirKin = ",pint_env%e_vir
+        CALL m_flush(unit_nr)
+     END IF 
   END IF
 END SUBROUTINE pint_write_restart
 !***************************************************************************
 
-!!****f* pint_types/pint_run [1.0] *
+!!****f* pint_types/pint_do_run [1.0] *
 !!
 !!   NAME
-!!     pint_run
+!!     pint_do_run
 !!
 !!   FUNCTION
 !!     runs the dynamic
@@ -2061,13 +2931,15 @@ END SUBROUTINE pint_write_restart
 !!
 !!   MODIFICATION HISTORY
 !!     11.2003 created [fawzi]
+!!     renamed from pint_run to pint_do_run because of conflicting name
+!!        of pint_run in input_constants - hforbert
 !!
 !!*** **********************************************************************
-SUBROUTINE pint_run(pint_env,error)
+SUBROUTINE pint_do_run(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_run', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_do_run', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, num_steps
@@ -2098,7 +2970,7 @@ SUBROUTINE pint_run(pint_env,error)
      ! set last flag!!!
      CALL pint_write_restart(pint_env,error=error)
   END IF
-END SUBROUTINE pint_run
+END SUBROUTINE pint_do_run
 !***************************************************************************
 
 END MODULE pint_types
