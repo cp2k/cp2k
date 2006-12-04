@@ -1021,7 +1021,7 @@ CONTAINS
 
 ! first, the environment to which we added a molecule
          CALL get_mc_par(mc_par(insert_box)%mc_par,mc_input_file=mc_input_file)
-         CALL mc_make_dat_file_new(r_cbmc(:,:),atom_names_insert(:),ins_atoms,&
+          IF(ionode) CALL mc_make_dat_file_new(r_cbmc(:,:),atom_names_insert(:),ins_atoms,&
               abc_insert(:),dat_file(insert_box),nchains_test(:,insert_box),&
               mc_input_file)
          test_env_bias(insert_box)%force_env => test_env(insert_box)%force_env
@@ -1038,7 +1038,7 @@ CONTAINS
 ! now the environment that has one less molecule
          IF (SUM(nchains_test(:,remove_box)) == 0) THEN
             CALL get_mc_par(mc_par(remove_box)%mc_par,mc_input_file=mc_input_file)
-            CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+             IF(ionode) CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
                  abc_remove(:),dat_file(remove_box),nchains_test(:,remove_box),&
                  mc_input_file)
              test_env_bias(remove_box)%force_env => test_env(remove_box)%force_env
@@ -1049,7 +1049,7 @@ CONTAINS
             bias_energy_new(remove_box)=0.0E0_dp
          ELSE
             CALL get_mc_par(mc_par(remove_box)%mc_par,mc_input_file=mc_input_file)
-            CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
+            IF(ionode) CALL mc_make_dat_file_new(remove_coords(:,:),atom_names_remove(:),rem_atoms,&
                  abc_remove(:),dat_file(remove_box),nchains_test(:,remove_box),&
                  mc_input_file)
             test_env_bias(remove_box)%force_env => test_env(remove_box)%force_env
