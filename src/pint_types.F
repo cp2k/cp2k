@@ -290,7 +290,7 @@ CONTAINS
 
     INTEGER                                  :: iat, ib, idim, idir, ierr, &
                                                 nrep, prep, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, wrong_input
     REAL(kind=dp)                            :: mass
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
     TYPE(cp_error_type)                      :: new_error
@@ -424,7 +424,8 @@ CONTAINS
              "MOTION%PINT%NORMALMODE",error=error)
           CALL normalmode_env_create(pint_env%normalmode_env,&
              transform_section,p=pint_env%p,kT=pint_env%kT,error=error)
-          CPPostcondition(pint_env%nrespa*twopi/(sqrt(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10,cp_warning_level,routineP,error,failure)
+          wrong_input=pint_env%nrespa*twopi/(sqrt(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10
+          CPPostcondition(wrong_input,cp_warning_level,routineP,error,failure)
        END IF
        ALLOCATE(pint_env%mass(pint_env%ndim),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -448,7 +449,8 @@ CONTAINS
        END DO
 !       CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
 !            cp_failure_level,cp_assertion_failed,routineP,&
-!            "md & force_eval lost synchro "//CPSourceFileRef,&
+!            "md & force_eval lost synchro "//&
+!            CPSourceFileRef,&
 !            error,failure)
        ! set to iter-1 since the initial force evaluation will increment it
        logger%iter_info%iteration(2)=pint_env%iter-1
@@ -2354,7 +2356,8 @@ SUBROUTINE pint_step(pint_env,error)
      logger => cp_error_get_logger(new_error)
      CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
           cp_failure_level,cp_assertion_failed,routineP,&
-          "md & force_eval lost sychro "//CPSourceFileRef,&
+          "md & force_eval lost sychro "//&
+          CPSourceFileRef,&
           error,failure)
      CALL f_env_rm_defaults(f_env,new_error,ierr)
   END IF
@@ -2636,7 +2639,8 @@ SUBROUTINE pint_start(pint_env,error)
                 r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
                 cp_failure_level,cp_assertion_failed,&
-                "Invalid size of MOTION%PINT%NOSE%COORD "//CPSourceFileRef,&
+                "Invalid size of MOTION%PINT%NOSE%COORD "//&
+                CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -2661,7 +2665,8 @@ SUBROUTINE pint_start(pint_env,error)
                 r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
                 cp_failure_level,cp_assertion_failed,&
-                "Invalid size of MOTION%PINT%NOSE%VELOCITY "//CPSourceFileRef,&
+                "Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
+                CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -2689,7 +2694,8 @@ SUBROUTINE pint_start(pint_env,error)
                 r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
                 cp_failure_level,cp_assertion_failed,&
-                "Invalid size of MOTION%PINT%BEADS%COORD "//CPSourceFileRef,&
+                "Invalid size of MOTION%PINT%BEADS%COORD "//&
+                CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -2714,7 +2720,8 @@ SUBROUTINE pint_start(pint_env,error)
                 r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
                 cp_failure_level,cp_assertion_failed,&
-                "Invalid size of MOTION%PINT%BEAD%VELOCITY "//CPSourceFileRef,&
+                "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
+                CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
