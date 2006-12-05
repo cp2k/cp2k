@@ -34,6 +34,7 @@ MODULE pint_methods
                                              pint_env_create,&
                                              pint_env_type,&
                                              pint_f2uf,&
+                                             pint_release,&
                                              pint_start,&
                                              pint_u2x,&
                                              pint_x2u
@@ -192,9 +193,11 @@ SUBROUTINE do_pint_run(para_env,input,error)
 !x     CALL pint_env_test(para_env,input,error=error)
 !x
 
+     NULLIFY(pint_env)
      CALL pint_env_create(pint_env,input,para_env,error=error)
      CALL pint_start(pint_env,error=error)
      CALL pint_do_run(pint_env,error=error)
+     CALL pint_release(pint_env,error=error)
   END IF
 END SUBROUTINE do_pint_run
 !***************************************************************************
