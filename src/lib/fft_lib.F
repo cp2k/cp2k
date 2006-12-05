@@ -51,7 +51,7 @@ SUBROUTINE fft_get_lengths ( fft_type, data, max_length )
 
   INTEGER, INTENT(IN)              :: fft_type
   INTEGER, DIMENSION(*)            :: data
-  INTEGER, INTENT(IN)              :: max_length
+  INTEGER, INTENT(INOUT)           :: max_length
 
   SELECT CASE ( fft_type )
     CASE DEFAULT
