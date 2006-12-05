@@ -2128,7 +2128,7 @@ FUNCTION pint_calc_e_vir(pint_env,error) RESULT(res)
 
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: xc
+    REAL(kind=dp)                            :: xcl
 
   failure=.FALSE.
 
@@ -2139,13 +2139,13 @@ FUNCTION pint_calc_e_vir(pint_env,error) RESULT(res)
      res=0._dp
      DO idim=1,pint_env%ndim
         ! calculate the centroid
-        xc = 0._dp
+        xcl = 0._dp
         DO ib=1,pint_env%p
-           xc = xc + pint_env%x(ib,idim)
+           xcl = xcl + pint_env%x(ib,idim)
         END DO
-        xc = xc/REAL(pint_env%p,dp)
+        xcl = xcl/REAL(pint_env%p,dp)
         DO ib=1,pint_env%p
-           res=res+(pint_env%x(ib,idim)-xc)*pint_env%f(ib,idim)
+           res=res+(pint_env%x(ib,idim)-xcl)*pint_env%f(ib,idim)
         END DO
      END DO
      res=0.5_dp*(REAL(pint_env%ndim,dp)*pint_env%kT-res/REAL(pint_env%p,dp))
