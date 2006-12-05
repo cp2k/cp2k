@@ -504,6 +504,8 @@ CONTAINS
            ener_mix=cp_print_key_unit_nr(logger,motion_section,"PRINT%MIXED_ENERGIES",&
                 extension=".ener", file_position=my_pos, file_action=my_act,&
                 middle_name="mix", error=error)
+       ELSE
+           ener_mix=-1
        ENDIF
        IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
