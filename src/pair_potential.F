@@ -451,7 +451,7 @@ CONTAINS
   !!
   !!   NAME
   !!     get_nonbond_storage
-  !!
+  !! 
   !!   FUNCTION
   !!     Prescreening of the effective bonds evaluations. linear scaling algorithm
   !!
@@ -721,9 +721,9 @@ CONTAINS
              CASE(gp_type)
                 check = .TRUE.
                 IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters /= &
-                     potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) check = .FALSE.
+                        potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) check = .FALSE.
                 IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values /= &
-                     potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values))     check = .FALSE.
+                        potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values))     check = .FALSE.
              CASE default
                 check = .TRUE.
              END SELECT
@@ -742,6 +742,8 @@ CONTAINS
                 tmp_index(tmpij(2),tmpij(1))=nunique
              END DO
              istart = j
+             locij = my_index(j)
+             CALL get_indexes(locij,ntype,tmpij0)
           END DO
           nunique = nunique + 1
           iend    = ndim
