@@ -2128,7 +2128,7 @@ FUNCTION pint_calc_e_vir(pint_env,error) RESULT(res)
 
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: xcl
+    REAL(kind=dp)                            :: xcentroid
 
   failure=.FALSE.
 
@@ -2139,13 +2139,13 @@ FUNCTION pint_calc_e_vir(pint_env,error) RESULT(res)
      res=0._dp
      DO idim=1,pint_env%ndim
         ! calculate the centroid
-        xcl = 0._dp
+        xcentroid = 0._dp
         DO ib=1,pint_env%p
-           xcl = xcl + pint_env%x(ib,idim)
+           xcentroid = xcentroid + pint_env%x(ib,idim)
         END DO
-        xcl = xcl/REAL(pint_env%p,dp)
+        xcentroid = xcentroid/REAL(pint_env%p,dp)
         DO ib=1,pint_env%p
-           res=res+(pint_env%x(ib,idim)-xcl)*pint_env%f(ib,idim)
+           res=res+(pint_env%x(ib,idim)-xcentroid)*pint_env%f(ib,idim)
         END DO
      END DO
      res=0.5_dp*(REAL(pint_env%ndim,dp)*pint_env%kT-res/REAL(pint_env%p,dp))
@@ -2414,7 +2414,7 @@ SUBROUTINE pint_write_centroids(pint_env,error)
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (pint_env%replicas%cart%mepos(2)==0) THEN
+     IF (pint_env%replicas%para_env%ionode) THEN
         print_key => section_vals_get_subs_vals(pint_env%input,&
              "MOTION%PINT%PRINT%CENTROIDS", error=error)
         CALL section_vals_val_get(print_key,"format",c_val=ext,i_val=i_form,&
@@ -2521,7 +2521,7 @@ SUBROUTINE pint_write_ener(pint_env,error)
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (pint_env%replicas%cart%mepos(2)==0) THEN
+     IF (pint_env%replicas%para_env%ionode) THEN
         print_key => section_vals_get_subs_vals(pint_env%input,&
              "MOTION%PINT%PRINT%ENER_INFO", error=error)
         CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
@@ -2807,10 +2807,9 @@ SUBROUTINE pint_write_restart(pint_env,force,error)
      CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
           f_env=f_env,new_error=new_error, failure=failure, handle=handle)
      logger => cp_error_get_logger(new_error)
-!    TODO: mepos(2)==0 enough??
      IF (BTEST(cp_print_key_should_output(logger%iter_info,sec,&
          "PRINT%RESTART",error=new_error),cp_p_file).AND.&
-         (pint_env%replicas%cart%mepos(2)==0)) THEN
+         (pint_env%replicas%para_env%ionode)) THEN
 
         unit_nr = cp_print_key_unit_nr(logger,sec,"PRINT%RESTART",&
                   extension=".restart",  do_backup=.TRUE., error=new_error)
@@ -2903,7 +2902,7 @@ SUBROUTINE pint_write_restart(pint_env,force,error)
      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
      ! do some output here for now:
-     IF (pint_env%replicas%cart%mepos(2)==0) THEN
+     IF (pint_env%replicas%para_env%ionode) THEN
         logger => cp_error_get_logger(error)
         unit_nr = cp_logger_get_default_unit_nr(logger=logger)
         WRITE (unit_nr,"(A,I8,T38,A,F20.9)") "Iteration = ",pint_env%iter,&
