@@ -720,10 +720,22 @@ CONTAINS
                                  check, error)
              CASE(gp_type)
                 check = .TRUE.
-                IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters /= &
-                        potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) check = .FALSE.
-                IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values /= &
-                        potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values))     check = .FALSE.
+                IF  (ASSOCIATED(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters).AND.&
+                     ASSOCIATED(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) THEN
+                   IF  (SIZE(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters)==&
+                        SIZE(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) THEN
+                      IF  (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%parameters /= &
+                               potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%parameters)) check = .FALSE.
+                   END IF
+                END IF
+                IF  (ASSOCIATED(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values).AND.&
+                     ASSOCIATED(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values)) THEN
+                   IF  (SIZE(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values)==&
+                        SIZE(potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values)) THEN
+                      IF (ANY(potparm%pot(tmpij(1) ,tmpij(2) )%pot%gp%values /= &
+                              potparm%pot(tmpij0(1),tmpij0(2))%pot%gp%values))     check = .FALSE.
+                   END IF
+                END IF
              CASE default
                 check = .TRUE.
              END SELECT
