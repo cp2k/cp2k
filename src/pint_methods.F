@@ -116,7 +116,7 @@ SUBROUTINE pint_env_test(para_env,input,error)
         CALL cp_log(logger,cp_note_level+1,routineP,"diff_r1="//cp_to_string(err),&
              local=.FALSE.)
 
-        e_h=pint_calc_uf_h(pint_env,error=error)
+        CALL pint_calc_uf_h(pint_env,e_h=e_h,error=error)
         c=-pint_env%staging_env%w_p**2
         pint_env%f=0._dp
         DO idim=1,pint_env%ndim

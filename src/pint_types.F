@@ -354,6 +354,10 @@ CONTAINS
 ! should also probably be part of nose_section
 !       CALL section_vals_val_get(transform_section,"v_tol_nose",r_val=pint_env%v_tol,&
 !            error=error)
+!MK ... but we have to initialise v_tol
+       pint_env%v_tol = 0.0_dp ! to be fixed
+
+       NULLIFY (pint_env%randomG)
 
        seed(:,:) = next_rng_seed(error=error)
        CALL create_rng_stream(pint_env%randomG,&
@@ -1699,7 +1703,7 @@ SUBROUTINE pint_init_v(pint_env,kT,error)
 END SUBROUTINE pint_init_v
 !***************************************************************************
 
-!!****f* pint_types/pint_calc_uf_h *
+!!****s* pint_types/pint_calc_uf_h *
 !!
 !!   NAME
 !!     pint_calc_uf_h
@@ -1723,13 +1727,13 @@ END SUBROUTINE pint_init_v
 !!     Added normal mode transformation by hforbert
 !!
 !!*** **********************************************************************
-FUNCTION  pint_calc_uf_h(pint_env, error)RESULT(res)
+SUBROUTINE pint_calc_uf_h(pint_env,e_h,error)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(kind=dp)                            :: res
+    REAL(KIND=dp), INTENT(OUT)               :: e_h
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_uf_h', &
-      routineP = moduleN//':'//routineN
+                                   routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -1740,16 +1744,24 @@ FUNCTION  pint_calc_uf_h(pint_env, error)RESULT(res)
 
   IF (.NOT. failure) THEN
      IF (pint_env%transform == transformation_stage) THEN
-        pint_env%e_pot_h=staging_calc_uf_h(pint_env%staging_env,&
-             pint_env%mass_beads,pint_env%ux,pint_env%uf_h,error=error)
+        CALL staging_calc_uf_h(pint_env%staging_env,&
+                               pint_env%mass_beads,&
+                               pint_env%ux,&
+                               pint_env%uf_h,&
+                               pint_env%e_pot_h,&
+                               error=error)
      ELSE
-        pint_env%e_pot_h=normalmode_calc_uf_h(pint_env%normalmode_env,&
-             pint_env%mass_beads,pint_env%ux,pint_env%uf_h,error=error)
+        CALL normalmode_calc_uf_h(pint_env%normalmode_env,&
+                                  pint_env%mass_beads,&
+                                  pint_env%ux,&
+                                  pint_env%uf_h,&
+                                  pint_env%e_pot_h,&
+                                  error=error)
      END IF
-     res=pint_env%e_pot_h
+     e_h=pint_env%e_pot_h
      pint_env%uf_h=pint_env%uf_h/pint_env%mass_fict
   END IF
-END FUNCTION pint_calc_uf_h
+END SUBROUTINE pint_calc_uf_h
 !***************************************************************************
 
 !!****f* pint_types/staging_calc_uf_h *
@@ -1775,14 +1787,14 @@ END FUNCTION pint_calc_uf_h
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION  staging_calc_uf_h(staging_env, mass_beads, ux, uf_h, error)RESULT(res)
+SUBROUTINE staging_calc_uf_h(staging_env,mass_beads,ux,uf_h,e_h,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(in)                             :: mass_beads, ux
+      POINTER                                :: mass_beads, ux
     REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(out)                            :: uf_h
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(kind=dp)                            :: res
+      POINTER                                :: uf_h
+    REAL(KIND=dp), INTENT(OUT)               :: e_h
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_calc_uf_h', &
       routineP = moduleN//':'//routineN
@@ -1790,12 +1802,13 @@ FUNCTION  staging_calc_uf_h(staging_env, mass_beads, ux, uf_h, error)RESULT(res)
     INTEGER                                  :: idim, isg, ist, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii, jjj, kkk
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: d, e_h, f
+    REAL(kind=dp)                            :: d, f
 
   failure=.FALSE.
 
   IF (.NOT. failure) THEN
-     e_h=0._dp
+
+     e_h = 0.0_dp
 
      ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg),&
           kkk(staging_env%nseg),stat=stat)
@@ -1826,9 +1839,8 @@ FUNCTION  staging_calc_uf_h(staging_env, mass_beads, ux, uf_h, error)RESULT(res)
            END DO
         END DO
      END DO
-     res=e_h
   END IF
-END FUNCTION staging_calc_uf_h
+END SUBROUTINE staging_calc_uf_h
 !***************************************************************************
 
 !!****f* pint_types/normalmode_calc_uf_h *
@@ -1854,27 +1866,27 @@ END FUNCTION staging_calc_uf_h
 !!     Harald Forbert
 !!
 !!*** **********************************************************************
-FUNCTION  normalmode_calc_uf_h(normalmode_env, mass_beads, ux, uf_h, error)RESULT(res)
+SUBROUTINE normalmode_calc_uf_h(normalmode_env,mass_beads,ux,uf_h,e_h,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
     REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(in)                             :: mass_beads, ux
+      POINTER                                :: mass_beads, ux
     REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(out)                            :: uf_h
-    TYPE(cp_error_type), INTENT(inout)  &
+      POINTER                                :: uf_h
+    REAL(KIND=dp), INTENT(OUT)               :: e_h
+    TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
-    REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_calc_uf_h', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, ibead
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: f,e_h
+    REAL(kind=dp)                            :: f
 
   failure=.FALSE.
 
   IF (.NOT. failure) THEN
-     e_h=0._dp
+     e_h = 0.0_dp
      DO idim = 1, SIZE(mass_beads,2)
 
         ! starting at 2 since the centroid is at 1 and it's mass_beads
@@ -1888,9 +1900,8 @@ FUNCTION  normalmode_calc_uf_h(normalmode_env, mass_beads, ux, uf_h, error)RESUL
         END DO
 
      END DO
-     res=e_h
   END IF
-END FUNCTION normalmode_calc_uf_h
+END SUBROUTINE normalmode_calc_uf_h
 !***************************************************************************
 
 !!****f* pint_types/pint_calc_f *
@@ -2009,7 +2020,7 @@ SUBROUTINE pint_setup(pint_env,error)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL pint_x2u(pint_env,error=error)
-     e_h=pint_calc_uf_h(pint_env,error=error)
+     CALL pint_calc_uf_h(pint_env=pint_env,e_h=e_h,error=error)
      CALL pint_calc_f(pint_env,error=error)
      CALL pint_f2uf(pint_env,error=error)
      e_h=e_h+pint_calc_e_kin_beads_u(pint_env,error=error)
@@ -2294,7 +2305,7 @@ SUBROUTINE pint_step(pint_env,error)
         pint_env%tv_t=pint_env%tv_t+dti2*pint_env%tf
 
         ! calc forces at new pos
-        e_h=pint_calc_uf_h(pint_env,error=error)
+        CALL pint_calc_uf_h(pint_env=pint_env,e_h=e_h,error=error)
         IF (iresp==pint_env%nrespa) THEN
            CALL pint_u2x(pint_env,error=error)
            CALL pint_calc_f(pint_env,error=error)
@@ -2516,7 +2527,7 @@ SUBROUTINE pint_write_ener(pint_env,error)
 
     INTEGER                                  :: iter, unit_nr, ierr, handle
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: cons, t, used_time
+    REAL(kind=dp)                            :: cons, t, used_time, temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
     TYPE(f_env_type), POINTER                :: f_env
@@ -2547,13 +2558,15 @@ SUBROUTINE pint_write_ener(pint_env,error)
                    pint_env%e_kin_t)
               t=cp_unit_from_cp2k(pint_env%t,"fs",error=new_error)
               used_time=0._dp ! to do
+
+              temp = cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/&
+                                       REAL(pint_env%p,dp)/REAL(pint_env%ndim,dp),&
+                                       "K",error=new_error)
+
               WRITE (unit_nr,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.9,F20.9)")&
                    pint_env%iter,t,0.5_dp*REAL(pint_env%p,dp)*&
                    REAL(pint_env%ndim,dp)*pint_env%kT-pint_env%e_pot_h,&
-                   pint_env%e_vir,&
-                   cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/&
-                   REAL(pint_env%p,dp)/REAL(pint_env%ndim,dp),"K",&
-                   error=new_error),SUM(pint_env%e_pot_bead)/&
+                   pint_env%e_vir,temp,SUM(pint_env%e_pot_bead)/&
                    REAL(pint_env%p,dp),cons,used_time
               CALL m_flush(unit_nr)
            END IF
