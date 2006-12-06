@@ -507,14 +507,14 @@ CONTAINS
        ELSE
            ener_mix=-1
        ENDIF
-       IF ( simpar % ensemble == nph_ensemble .OR.&
+       IF    ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
                simpar % ensemble == npt_i_ensemble.OR.&
                simpar % ensemble == npt_f_ensemble ) THEN
          box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
               extension=".cell", file_position=my_pos, file_action=my_act,&
-              file_form=my_form, error=error)
+              file_form="FORMATTED", error=error)
        ELSE
          box = 0
        END IF
@@ -527,7 +527,7 @@ CONTAINS
        IF( virial % pv_availability ) THEN
          str = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
               extension=".stress", file_position=my_pos, file_action=my_act,&
-              file_form=my_form, error=error)
+              file_form="FORMATTED", error=error)
        ELSE
          str = 0
        END IF
