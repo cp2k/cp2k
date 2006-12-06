@@ -730,10 +730,16 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: dummy
 
   IF (ASSOCIATED(tddfpt_control%lumos)) THEN
      DO ispin=1, SIZE(tddfpt_control%lumos)
         CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix,error=error)
+        !MK the following line just avoids a crash of TDDFT runs using
+        !MK the sdbg version compiled with the NAG compiler when
+        !MK tddfpt_control%lumos is deallocated. This is most likely a
+        !MK compiler bug and thus the line might become obsolete
+        dummy = ASSOCIATED(tddfpt_control%lumos(ispin)%matrix)
      END DO
      DEALLOCATE(tddfpt_control%lumos,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
