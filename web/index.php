@@ -65,17 +65,18 @@ having CVS write permission.
 
 <h3>Links</h3>
 <ul>
- <li><a href="download.html">Download and Install</a></li>
- <li><a href="input/index.html">Input reference manual</a></li>
- <li><a href="cp2k_input.htm">Input reference manual</a> (single searchable DHTML page, requires Javascript)</li>
+ <li><a href="download.html">Download and Install</a> CP2K </li>
+ <li> Input reference manual <a href="input/index.html">HTML</a> or <a href="cp2k_input.htm"> DHTML </A> (requires Javascript)</li>
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/cp2k/src/?sortby=date">Browse the sources and follow development</a></li>
  <li><a href="regtest.html">Automatic regression tester</a></li>
  <li><a href="http://developer.berlios.de/projects/cp2k">The Berlios project page</a></li>
  <li><a href="http://developer.berlios.de/forum/forum.php?forum_id=411">Help forum</a></li>
+ <li><a href="http://developer.berlios.de/bugs/?group_id=129">Bug reporting</a> (please provide all necessary information to reproduce, including the needed inputs!)</li>
+ <li><a href="http://developer.berlios.de/patch/?group_id=129">send patches</a></li>
  <li>Goedecker-Teter-Hutter (GTH) pseudopotential parameter sets
  (<a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cp2k">CP2K format</a>,
   <a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cpmd">CPMD format</a>)</li>
- <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/basis_sets">Gaussian basis sets (Quickstep)</a></li>
+ <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/basis_sets">Gaussian basis sets generator for Quickstep</a></li>
 </ul>
 
 <H3>Hosted by</H3>
