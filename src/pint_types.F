@@ -2023,8 +2023,8 @@ SUBROUTINE pint_setup(pint_env,error)
      CALL pint_calc_uf_h(pint_env=pint_env,e_h=e_h,error=error)
      CALL pint_calc_f(pint_env,error=error)
      CALL pint_f2uf(pint_env,error=error)
-     e_h=e_h+pint_calc_e_kin_beads_u(pint_env,error=error)
-     e_h=e_h+pint_calc_e_vir(pint_env,error=error)
+     CALL pint_calc_e_kin_beads_u(pint_env,error=error)
+     CALL pint_calc_e_vir(pint_env,error=error)
      DO idim=1,SIZE(pint_env%uf_h,2)
         DO ib=1,SIZE(pint_env%uf_h,1)
            pint_env%uf_h(ib,idim)=pint_env%uf_h(ib,idim)&
@@ -2057,7 +2057,7 @@ SUBROUTINE pint_setup(pint_env,error)
 END SUBROUTINE pint_setup
 !***************************************************************************
 
-!!****f* pint_types/pint_calc_e_kin_beads_u *
+!!****s* pint_types/pint_calc_e_kin_beads_u *
 !!
 !!   NAME
 !!     pint_calc_e_kin_beads_u
@@ -2079,12 +2079,12 @@ END SUBROUTINE pint_setup
 !!     Bug fix to give my_uv a default location if not given in call - hforbert
 !!
 !!*** **********************************************************************
-FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
+SUBROUTINE pint_calc_e_kin_beads_u(pint_env,uv,e_k,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: uv
     TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(kind=dp)                            :: res
+    REAL(kind=dp), OPTIONAL, INTENT(out)     :: e_k
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u', &
       routineP = moduleN//':'//routineN
@@ -2092,6 +2092,7 @@ FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_uv
+    REAL(kind=dp)                            :: res
 
   failure=.FALSE.
 
@@ -2110,7 +2111,8 @@ FUNCTION pint_calc_e_kin_beads_u(pint_env,uv,error) RESULT(res)
      res=res*0.5
      IF (.not.PRESENT(uv)) pint_env%e_kin_beads=res
   END IF
-END FUNCTION pint_calc_e_kin_beads_u
+  IF (PRESENT(e_k)) e_k=res
+END SUBROUTINE pint_calc_e_kin_beads_u
 !***************************************************************************
 
 !!****f* pint_types/pint_calc_e_vir *
@@ -2135,17 +2137,17 @@ END FUNCTION pint_calc_e_kin_beads_u
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-FUNCTION pint_calc_e_vir(pint_env,error) RESULT(res)
+SUBROUTINE pint_calc_e_vir(pint_env,e_vir,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(kind=dp)                            :: res
+    REAL(kind=dp), OPTIONAL, INTENT(out)     :: e_vir
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_vir', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: xcentroid
+    REAL(kind=dp)                            :: xcentroid, res
 
   failure=.FALSE.
 
@@ -2168,7 +2170,8 @@ FUNCTION pint_calc_e_vir(pint_env,error) RESULT(res)
      res=0.5_dp*(REAL(pint_env%ndim,dp)*pint_env%kT-res/REAL(pint_env%p,dp))
      pint_env%e_vir=res
   END IF
-END FUNCTION pint_calc_e_vir
+  IF (PRESENT(e_vir)) e_vir=res
+END SUBROUTINE pint_calc_e_vir
 !***************************************************************************
 
 !!****f* pint_types/pint_calc_nh_energy *
@@ -2363,8 +2366,8 @@ SUBROUTINE pint_step(pint_env,error)
                 -pint_env%tv(inos,:,:)*pint_env%tv(inos+1,:,:)
         END DO
      END DO
-     e_h=pint_calc_e_kin_beads_u(pint_env,error=error)
-     e_h=pint_calc_e_vir(pint_env,error=error)
+     CALL pint_calc_e_kin_beads_u(pint_env,error=error)
+     CALL pint_calc_e_vir(pint_env,error=error)
      CALL pint_calc_nh_energy(pint_env,error=error)
      pint_env%iter=pint_env%iter+1
      pint_env%t=pint_env%t+pint_env%dt
