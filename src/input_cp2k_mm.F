@@ -395,9 +395,9 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EMAX_ACCURACY",&
             description="Specify the maximum value of energy used to check the accuracy"//&
-            " requested through EPS_SPLINE. Energy values larger than MAX_ENERGY"//&
+            " requested through EPS_SPLINE. Energy values larger than EMAX_ACCURACY"//&
             " generally do not  satisfy the requested accuracy",&
-            usage="MAX_ENERGY <REAL>", default_r_val=0.02_dp,error=error)
+            usage="EMAX_ACCURACY <REAL>", default_r_val=0.02_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     
@@ -540,7 +540,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
             description="specifies the bend potential of the MM system."//&
-            "Functional Form (G97): K*(COS(THETA)-THETA0)^2"//&
+            "Functional Form (G96): K*(COS(THETA)-THETA0)^2"//&
             "Functional Form (HARMONIC/CHARMM/G87): K*(THETA-THETA0)^2",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)

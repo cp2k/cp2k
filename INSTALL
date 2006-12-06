@@ -33,7 +33,7 @@ How to compile CP2K code
      http://www.netlib.org/scalapack/ (see also http://www.netlib.org/lapack-dev/)
 
  2d) fftw can be used to improve FFT speed (depending on architecture)
-     the current version of the code works with FFTW 2.X or FFTW 3.X (use -D__FFTW2 *or* -D__FFW3)
+     the current version of the code works with FFTW 2.X or FFTW 3.X (use -D__FFTW2 *or* -D__FFTW3)
      http://www.fftw.org/
 
  3) to compile the code:
