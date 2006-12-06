@@ -662,18 +662,58 @@ CPSourceFileRef,&
                         "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
                         "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
 
-       ! google search
        WRITE(unit_nr,*) '<H2>Search the input</H2>'
-       WRITE(unit_nr,*) '<FORM method=GET action="http://www.google.com/search">'
-       WRITE(unit_nr,*) '<input type=hidden name=ie value=UTF-8><input type=hidden name=oe value=UTF-8>'
-       WRITE(unit_nr,*) '<TABLE bgcolor="#FFFFFF"><tr><td><A HREF="http://www.google.com/">'
-       WRITE(unit_nr,*) '<IMG SRC="http://www.google.com/logos/Logo_25wht.gif" border="0" ALT="Google"></A>'
-       WRITE(unit_nr,*) '</td><td><INPUT TYPE=text name=q size=31 maxlength=255 value="">'
-       WRITE(unit_nr,*) '<INPUT type=submit name=btnG VALUE="CP2K Input Search">'
-       WRITE(unit_nr,*) '<font size=-2><input type=hidden name=domains value="http://cp2k.berlios.de/input/">'
-       WRITE(unit_nr,*) '<br><input type=radio name=sitesearch value=""> WWW'
-       WRITE(unit_nr,*) '<input type=radio name=sitesearch value="http://cp2k.berlios.de/input/" checked>'
-       WRITE(unit_nr,*) 'http://cp2k.berlios.de/input/ <br></font></td></tr></TABLE></FORM>'
+
+       WRITE(unit_nr,*) '<TABLE><TR><TD>'    
+       ! Yahoo seems to actually search our pages 
+
+WRITE(unit_nr,*) ' <!-- START CODE --> '
+WRITE(unit_nr,*) ' 	<div id="ysrchForm" style="border:1px solid #7E9DB9;'
+WRITE(unit_nr,*) '                                background:#FFFFFF;'
+WRITE(unit_nr,*) '                                width:300px;'
+WRITE(unit_nr,*) '                                margin:0 auto;'
+WRITE(unit_nr,*) '                                padding:20px; '
+WRITE(unit_nr,*) '                                position:relative;'
+WRITE(unit_nr,*) '                              ">'
+WRITE(unit_nr,*) '           <form id="searchBoxForm_undefined" action="http://search.yahoo.com/search" style="padding:0;">'
+WRITE(unit_nr,*) '                         '
+WRITE(unit_nr,*) ' 			<input name="ei" value="UTF-8" type="hidden">'
+WRITE(unit_nr,*) ' 			<input name="fr" value="ystg" type="hidden"><div style="padding:0 80px 0 0;zoom:1;">'
+WRITE(unit_nr,*) ' 					<input type="text" id="searchTerm"'
+WRITE(unit_nr,*) ' 						onFocus="this.style.background=''#fff'';"'
+WRITE(unit_nr,*) ' 						onBlur="if(this.value=='''')this.style.background='//&
+                 '''#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif) 3px center  no-repeat''"'
+WRITE(unit_nr,*) ' name="p" style=" margin:1px 0; width:100%; border:1px solid #7E9DB9; color:#666666; height:18px; '//&
+                 'padding:0px 3px; background:#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif)'//& 
+                 ' 3px center no-repeat; position:relative;">'
+WRITE(unit_nr,*) ' <input type="submit" id="btn_undefined" value="Search" '
+WRITE(unit_nr,*) ' style=" padding-bottom:2px; position:absolute; right:20px; top:20px; margin:0px; height:22px; width:65px; ">'
+WRITE(unit_nr,*) ' </div><ul style="color:#666666;'
+WRITE(unit_nr,*) '            font:11px/11px normal Arial, Helvetica, sans-serif;'
+WRITE(unit_nr,*) ' 	   margin:0;'
+WRITE(unit_nr,*) ' 	   padding:0;'
+WRITE(unit_nr,*) ' 	   text-align:left;'
+WRITE(unit_nr,*) ' 	   list-style-type:none;radios"><li style="display:inline;padding-right:10px;">'
+WRITE(unit_nr,*) ' <input name="vs" id="web_radio" value=""    type="radio" style="vertical-align:middle;margin-right:5px; ">'
+WRITE(unit_nr,*) ' <label for="web_radio" style="vertical-align:middle;">Web</label>'
+WRITE(unit_nr,*) ' </li><li style="display:inline;padding-right:10px;">'
+WRITE(unit_nr,*) ' <input name="vs" id="site_radio" value="cp2k.berlios.de"   checked="checked" type="radio"'//&
+                 ' style="vertical-align:middle;margin-right:5px; ">'
+WRITE(unit_nr,*) ' <label for="site_radio" style="vertical-align:middle;">this Site</label>'
+WRITE(unit_nr,*) ' </li></ul></form></div>'
+WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
+       ! google search (does currently not seem to like our input reference manual)
+       ! WRITE(unit_nr,*) '<FORM method=GET action="http://www.google.com/search">'
+       ! WRITE(unit_nr,*) '<input type=hidden name=ie value=UTF-8><input type=hidden name=oe value=UTF-8>'
+       ! WRITE(unit_nr,*) '<TABLE bgcolor="#FFFFFF"><tr><td><A HREF="http://www.google.com/">'
+       ! WRITE(unit_nr,*) '<IMG SRC="http://www.google.com/logos/Logo_25wht.gif" border="0" ALT="Google"></A>'
+       ! WRITE(unit_nr,*) '</td><td><INPUT TYPE=text name=q size=31 maxlength=255 value="">'
+       ! WRITE(unit_nr,*) '<INPUT type=submit name=btnG VALUE="CP2K Input Search">'
+       ! WRITE(unit_nr,*) '<font size=-2><input type=hidden name=domains value="cp2k.berlios.de">'
+       ! WRITE(unit_nr,*) '<br><input type=radio name=sitesearch value=""> WWW'
+       ! WRITE(unit_nr,*) '<input type=radio name=sitesearch value="cp2k.berlios.de" checked>'
+       ! WRITE(unit_nr,*) 'cp2k.berlios.de<br></font></td></tr></TABLE></FORM>'
+       WRITE(unit_nr,*) '</TD></TR></TABLE>'
 
        WRITE(unit_nr,*) "<H2>Input structure</H2>"
        WRITE(unit_nr,*) "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
