@@ -662,7 +662,7 @@ CPSourceFileRef,&
                         "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
                         "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
 
-       WRITE(unit_nr,*) '<H2>Search the input</H2>'
+       WRITE(unit_nr,*) '<H2>Search input reference manual</H2>'
 
        WRITE(unit_nr,*) '<TABLE><TR><TD>'    
        ! Yahoo seems to actually search our pages 
