@@ -838,7 +838,10 @@ CONTAINS
             atom_names_remove(iatom)=atom_names(iatom,molecule_type)
          ENDDO
 
-! chains is already where it should be, because we need at least 1 molecule in the box
+! need to adjust nchains, because otherwise if we are removing a molecule type
+! that is not the first molecule, the dat file will have two molecules in it but
+! only the coordinates for one
+         nchains(molecule_type,remove_box)=nchains(molecule_type,remove_box)-1
          IF(ionode) THEN
             IF(lbias) THEN
                CALL get_mc_par(mc_par(remove_box)%mc_par,mc_bias_file=mc_bias_file)
@@ -853,6 +856,7 @@ CONTAINS
             ENDIF
 
          ENDIF
+         nchains(molecule_type,remove_box)=nchains(molecule_type,remove_box)+1
 
       ELSE
          DO iatom=1,start_atom_rem-1
