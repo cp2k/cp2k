@@ -36,7 +36,10 @@ MODULE cp_ddapc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE input_constants,                 ONLY: do_spin_density
+
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_integral_ab
@@ -80,11 +83,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_apply(qs_env, rho_tot_gspace, energy, energy_res,&
-       v_hartree_gspace, calculate_forces, error)
+       v_hartree_gspace, v_spin_ddapc_rest_g, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy, energy_res
-    TYPE(coeff_type)                         :: v_hartree_gspace
+    TYPE(coeff_type)                         :: v_hartree_gspace, v_spin_ddapc_rest_g
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -104,7 +107,7 @@ CONTAINS
        CALL cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace,&
             calculate_forces, Itype_of_density="FULL DENSITY", error=error)
        ! Restraints/Constraints
-       CALL cp_ddapc_apply_RS(qs_env, energy, energy_res, v_hartree_gspace,&
+       CALL cp_ddapc_apply_RS(qs_env, energy, energy_res, v_hartree_gspace, v_spin_ddapc_rest_g, &
             calculate_forces, error)
        ! Self Consistent Reaction Field
        CALL cp_ddapc_apply_RF(qs_env, rho_tot_gspace, energy, v_hartree_gspace,&
@@ -298,13 +301,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_apply_RS(qs_env, energy, energy_res,&
-       v_hartree_gspace, calculate_forces, error)
+       v_hartree_gspace, v_spin_ddapc_rest_g, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
-    TYPE(coeff_type)                         :: v_hartree_gspace
+    TYPE(coeff_type)                         :: v_hartree_gspace, v_spin_ddapc_rest_g
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER                                  :: my_id
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RS', &
       routineP = moduleN//':'//routineN
@@ -362,16 +366,21 @@ CONTAINS
                          out_radii=radii,&
                          error=error)
        END IF
-       ! Modify the Hartree potential due to the restrain
-       CALL restraint_functional_potential(v_hartree_gspace,&
-                                           density_fit_section,&
-                                           particle_set,&
-                                           qs_env%cp_ddapc_env%AmI,&
-                                           radii,&
-                                           charges,&
-                                           qs_env%dft_control%qs_control%ddapc_restraint_control,&
-                                           energy_res,&
-                                           error)
+
+       ! Modify the Hartree potential due to the restrain or the v_spin_ddapc_rest_g
+       CALL section_vals_val_get(density_fit_section,"TYPE_OF_DENSITY",i_val=my_id,error=error)
+       IF (my_id==do_spin_density) THEN
+          CALL restraint_functional_potential(v_spin_ddapc_rest_g, density_fit_section,&
+                                           particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
+                                           qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)
+       ELSE
+          CALL restraint_functional_potential(v_hartree_gspace, density_fit_section,&
+                                           particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
+                                           qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)
+       ENDIF
+
+
+
        IF (need_f) THEN
           CALL restraint_functional_force(qs_env,&
                                           qs_env%dft_control%qs_control%ddapc_restraint_control,&

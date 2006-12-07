@@ -47,3 +47,5 @@ C2H4-meta.inp      1
 test-pdb.inp       1
 # Spin density DDAP charges
 H2O+SC.inp         0
+# spin restraint
+spin_restraint.inp 1

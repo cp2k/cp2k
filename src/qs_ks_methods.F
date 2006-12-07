@@ -74,7 +74,8 @@ MODULE qs_ks_methods
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
                                              sic_none,&
-                                             xc_none
+                                             xc_none, &
+                                             do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -311,11 +312,11 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
     INTEGER                                  :: dir, handle, ig, ispin, k, &
                                                 k2, n, nspins, output_unit, &
-                                                stat
+                                                stat, my_id
     LOGICAL                                  :: do_ep, failure, gapw, &
                                                 gapw_xc, ionode, &
                                                 my_diis_step, my_kg_gpw, &
-                                                use_virial
+                                                use_virial, ltmp, ddapc_restraint_is_spin
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p
@@ -325,7 +326,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: ep_pot_r_coeff, ep_rho_g, &
                                                 ep_rho_r, rho_tot_gspace, &
-                                                v_hartree_gspace, v_sic_rspace
+                                                v_hartree_gspace, v_sic_rspace, &
+                                                v_spin_ddapc_rest_g,v_spin_ddapc_rest_r
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
@@ -525,19 +527,42 @@ CONTAINS
        END IF
 
        ! In case decouple periodic images and/or apply restraints to charges
+       ddapc_restraint_is_spin=.FALSE.
+       IF (qs_env%dft_control%qs_control%ddapc_restraint) THEN
+           CALL section_vals_val_get(input,"DFT%DENSITY_FITTING%TYPE_OF_DENSITY",i_val=my_id,error=error)
+           IF (my_id==do_spin_density) ddapc_restraint_is_spin=.TRUE.
+       ENDIF
+       IF (ddapc_restraint_is_spin) THEN
+         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
+                                 coeff=v_spin_ddapc_rest_g, &
+                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
+         CALL coeff_zero(v_spin_ddapc_rest_g)
+         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
+                                 coeff=v_spin_ddapc_rest_r, &
+                                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+       ENDIF
+
        CALL cp_ddapc_apply(qs_env,&
                            rho_tot_gspace,&
                            energy%hartree,&
                            energy%ddapc_restraint,&
                            v_hartree_gspace,&
+                           v_spin_ddapc_rest_g=v_spin_ddapc_rest_g,&
                            calculate_forces=calculate_forces,&
                            error=error)
 
        IF (.NOT. just_energy) THEN
-          CALL coeff_transform_space(v_hartree_gspace,&
-               ks_env%v_hartree_rspace)
-          CALL coeff_scale(ks_env%v_hartree_rspace, &
-               ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+          CALL coeff_transform_space(v_hartree_gspace, ks_env%v_hartree_rspace)
+          CALL coeff_scale(ks_env%v_hartree_rspace, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+          IF (ddapc_restraint_is_spin) THEN
+             CALL coeff_transform_space(v_spin_ddapc_rest_g,v_spin_ddapc_rest_r)
+             CALL coeff_scale(v_spin_ddapc_rest_r,v_spin_ddapc_rest_r%pw%pw_grid%dvol)
+          ENDIF
+       ENDIF
+
+       IF (ddapc_restraint_is_spin) THEN
+            CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_spin_ddapc_rest_g,&
+                                         error=error)
        ENDIF
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,&
@@ -636,6 +661,9 @@ CONTAINS
 
           IF (ASSOCIATED(v_rspace_new)) THEN
              IF(gapw_xc) THEN
+               ! not implemented (or at least not tested)
+               CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
+
                DO ispin=1,nspins
                  !Only the xc potential, because it has to be integrated with the soft basis
                   v_rspace_new(ispin)%pw%cr3d  =&
@@ -670,6 +698,16 @@ CONTAINS
                        v_rspace_new(ispin)%pw%pw_grid%dvol * &
                        v_rspace_new(ispin)%pw%cr3d + &
                        ks_env%v_hartree_rspace%pw%cr3d
+
+                  IF (ddapc_restraint_is_spin) THEN
+                     IF (ispin==1) THEN
+                        v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                                 +v_spin_ddapc_rest_r%pw%cr3d
+                     ELSE
+                        v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                                 -v_spin_ddapc_rest_r%pw%cr3d
+                     ENDIF
+                  ENDIF
 
                   ! the electrostatic sic contribution
                   SELECT CASE (dft_control%sic_method_id)
@@ -718,9 +756,9 @@ CONTAINS
              DEALLOCATE(v_rspace_new,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           ELSE
-             IF (dft_control%sic_method_id .NE. sic_none) THEN
-                STOP "Nope"
-             ENDIF
+             ! not implemented (or at least not tested)
+             CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
+             CPPrecondition(.NOT.ddapc_restraint_is_spin,cp_failure_level,routineP,error,failure)
              DO ispin=1,nspins
                 ! add only v_hartree
                  IF (do_ep) THEN
@@ -744,6 +782,7 @@ CONTAINS
                  END IF
              END DO
           END IF ! ASSOCIATED(v_rspace_new)
+
 
           IF (ASSOCIATED(v_tau_rspace)) THEN
              DO ispin=1,nspins
@@ -774,6 +813,12 @@ CONTAINS
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
        END IF  ! .NOT. just energy
+
+       IF (ddapc_restraint_is_spin) THEN
+           CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_spin_ddapc_rest_r,&
+                                        error=error)
+       ENDIF
+
 
        IF(my_kg_gpw) THEN
          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
