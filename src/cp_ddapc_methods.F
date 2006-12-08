@@ -49,7 +49,7 @@ MODULE cp_ddapc_methods
 
   IMPLICIT NONE
   PRIVATE
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_methods'  
   PUBLIC :: ddapc_eval_gfunc,&
             build_b_vector,&
@@ -447,7 +447,7 @@ CONTAINS
     INTEGER :: e_dim, handle, idim1, idim2, ig, igauss1, igauss2, igmax, &
       iparticle1, iparticle2, istart_g, s_dim, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: arg1, factor, g2, gcut2
+    REAL(KIND=dp)                            :: arg1, factor, g2, gcut2, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: my_Amw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_Am
@@ -498,15 +498,21 @@ CONTAINS
                    DO ig = s_dim, igmax
                       my_Amw(ig) =  my_Am(1,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
                    END DO
-                   dAm (idim1,idim2,1) = accurate_sum(my_Amw)
+                   tmp = accurate_sum(my_Amw)
+                   dAm (idim1,idim2,1) = tmp
+                   dAm (idim2,idim1,1) = tmp
                    DO ig = s_dim, igmax
                       my_Amw(ig) =  my_Am(2,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
                    END DO
-                   dAm (idim1,idim2,2) = accurate_sum(my_Amw)
+                   tmp = accurate_sum(my_Amw)
+                   dAm (idim1,idim2,2) = tmp
+                   dAm (idim2,idim1,2) = tmp
                    DO ig = s_dim, igmax
                       my_Amw(ig) =  my_Am(3,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
                    END DO
-                   dAm (idim1,idim2,3) = accurate_sum(my_Amw)
+                   tmp = accurate_sum(my_Amw)
+                   dAm (idim1,idim2,3) = tmp
+                   dAm (idim2,idim1,3) = tmp
                 END DO
              END DO
           END DO
