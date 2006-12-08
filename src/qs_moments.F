@@ -120,7 +120,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (matrix_s)
+    NULLIFY (atomic_kind_set,cell,matrix_s,particle_set,sab_orb)
+    NULLIFY (neighbor_list,neighbor_list_set,neighbor_node,orb_basis_set)
+
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
 
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
