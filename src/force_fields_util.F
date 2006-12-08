@@ -1415,17 +1415,16 @@ CONTAINS
                       charge(i) = 0.0_dp
                       found     = .TRUE.
                       EXIT
-                   CASE default
-                      IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                                                fatal=fatal,&
-                                                                type_name="Charge",&
-                                                                array=Ainfo,&
-                                                                error=error)
                    END SELECT
                 END IF
              END DO
           END IF
        END IF
+       IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
+                                                 fatal=fatal,&
+                                                 type_name="Charge",&
+                                                 array=Ainfo,&
+                                                 error=error)
        !
        ! QM/MM modifications
        !
@@ -2023,10 +2022,13 @@ CONTAINS
     failure = .FALSE.
     nsize   = 0
     fmt     = 1
+    my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)//&
+                '",T40,"(",A4,")")'
     IF (PRESENT(atm2)) fmt = fmt+1
     IF (PRESENT(atm3)) fmt = fmt+1
     IF (PRESENT(atm4)) fmt = fmt+1
     CALL integer_to_string(fmt-1,sfmt)
+    IF (fmt>1) &
     my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)//&
                 '",T40,"(",A4,'//TRIM(sfmt)//'(",",A4),")")'
     IF (.NOT.failure) THEN
