@@ -99,3 +99,5 @@ H2-geo-2.inp
 # new defaults
 H2-geo-3.inp
 H2-geo-4.inp
+# move to MD
+spin_restraint.inp
