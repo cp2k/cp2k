@@ -395,11 +395,6 @@ CONTAINS
 
     ELSE IF (density_guess == atomic_guess) THEN
 
-      IF (dft_control%restricted) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Option not yet implemented")
-      END IF
-
       group = qs_env%para_env%group
 
       natom = SIZE(particle_set)
