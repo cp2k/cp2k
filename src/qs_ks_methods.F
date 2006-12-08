@@ -113,6 +113,7 @@ MODULE qs_ks_methods
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_force_types,                  ONLY: qs_force_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
@@ -1019,12 +1020,15 @@ CONTAINS
     CHARACTER(*), PARAMETER :: routineN = 'calc_v_sic_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nelec, nelec_a, nelec_b
+    INTEGER                                  :: nelec, nelec_a, nelec_b,i,nforce
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: ener, scaling
+    REAL(kind=dp)                            :: ener, scaling, full_scaling
     TYPE(coeff_type)                         :: work_rho, work_v
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: store_forces
 
     failure = .FALSE.
     NULLIFY(mo_array)
@@ -1062,7 +1066,22 @@ CONTAINS
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
             "Unknown sic method id",error,failure)
     END SELECT
+
     ! Correct for  DDAP charges (if any)
+    ! storing whatever force might be there from previous decoupling
+    CALL get_qs_env(qs_env=qs_env,force=force,error=error)
+    nforce=0
+    DO i=1,SIZE(force)
+       nforce=nforce+SIZE(force(i)%ch_pulay,2)
+    ENDDO
+    ALLOCATE(store_forces(3,nforce))
+    nforce=0
+    DO i=1,SIZE(force)
+       store_forces(1:3,nforce+1:nforce+SIZE(force(i)%ch_pulay,2))=force(i)%ch_pulay(:,:)
+       force(i)%ch_pulay(:,:)=0.0_dp
+       nforce=nforce+SIZE(force(i)%ch_pulay,2)
+    ENDDO
+
     CALL cp_ddapc_apply_CD(qs_env,&
                            work_rho,&
                            ener,&
@@ -1074,13 +1093,21 @@ CONTAINS
 
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
-       energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
+       full_scaling= - dft_control % sic_scaling_a 
     CASE ( sic_ad )
-       energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
+       full_scaling= - dft_control % sic_scaling_a * nelec
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
             "Unknown sic method id",error,failure)
     END SELECT
+    energy%hartree=energy%hartree + full_scaling * ener
+
+    ! add scaled forces, restoring the old
+    nforce=0
+    DO i=1,SIZE(force)
+       force(i)%ch_pulay(:,:)=force(i)%ch_pulay(:,:)*full_scaling + store_forces(1:3,nforce+1:nforce+SIZE(force(i)%ch_pulay,2))
+       nforce=nforce+SIZE(force(i)%ch_pulay,2)
+    ENDDO
 
     IF (.NOT. just_energy) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&

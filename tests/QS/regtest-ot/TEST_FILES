@@ -19,3 +19,6 @@ He2_lumos.inp 0
 # check that ot / geo / mo can be used together
 H2O-geo-ot-evals.inp 1
 H2O-geo-ot-mols.inp 1
+# sic ddapc decoupled
+C2H4-init.inp      1
+sic_ddapc_rt.inp   1
