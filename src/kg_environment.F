@@ -196,7 +196,7 @@ CONTAINS
     CALL timeset(routineN,"I",'',handle)
     ionode = para_env%ionode
     logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     was_present = .FALSE.
 
     ! nullifying  pointers

@@ -786,7 +786,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind, natom_molkind, &
                                                 nmol_molkind
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: nel_molkind
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, ionode
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: eig_buffer, occ_buffer
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: mo_buffer
@@ -811,7 +811,12 @@ CONTAINS
     group = para_env%group
     source = para_env%source
     logger=>cp_error_get_logger(error)
-    output_unit=cp_logger_get_default_unit_nr(logger)
+    ionode = para_env%ionode
+    IF(ionode) THEN
+       output_unit=cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
 
     method ="KG_GPW"
     nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
