@@ -1,3 +1,5 @@
 #
 # Handling properly bad starting geometries
 2gly_EB-NEB.inp
+# Problem in sync of regtester
+2gly_EB-NEB.inp
