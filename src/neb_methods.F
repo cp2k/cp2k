@@ -394,7 +394,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: set_err
     LOGICAL                                  :: converged, diis_on, do_ls, &
                                                 failure, skip_ls
-    REAL(KIND=dp)                            :: norm, stepsize, stepsize0
+    REAL(KIND=dp)                            :: norm, stepsize, stepsize0, max_stepsize
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err, forces, sline
 
@@ -412,6 +412,7 @@ CONTAINS
        CALL section_vals_val_get(diis_section,"MAX_STEPS",i_val=max_steps, error=error)
        CALL section_vals_val_get(diis_section,"N_DIIS",i_val=n_diis, error=error)
        CALL section_vals_val_get(diis_section,"STEPSIZE",r_val=stepsize0, error=error)
+       CALL section_vals_val_get(diis_section,"MAX_STEPSIZE",r_val=max_stepsize, error=error)
        CALL section_vals_val_get(diis_section,"NO_LS",l_val=skip_ls, error=error)
        CALL section_vals_val_get(diis_section,"MAX_SD_STEPS",i_val=max_sd_steps, error=error)
        stepsize = stepsize0
@@ -464,16 +465,20 @@ CONTAINS
              converged = .TRUE.
              EXIT
           END IF
-          sline = forces/norm * stepsize0
+          sline = forces / norm
           IF (do_ls.AND.(.NOT.skip_ls)) THEN
-             sline = forces / norm
              CALL neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces,&
                   vels, particle_set, iw, output_unit, distances, diis_section, error)
-             sline = stepsize*sline
              IF (output_unit>0) &
-                  WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD linesearch",&
+                  WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD after linesearch",&
+                  stepsize
+          ELSE
+             stepsize = min(norm*stepsize0,max_stepsize)
+             IF (output_unit>0) &
+                  WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD no linesearch performed",&
                   stepsize
           END IF
+          sline = stepsize*sline
           diis_on = accept_diis_step(istep>max_sd_steps,n_diis,err,crr,set_err,sline,coords,&
                                      output_unit,error)
           IF (diis_on) THEN 

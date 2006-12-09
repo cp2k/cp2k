@@ -395,7 +395,7 @@ CONTAINS
 
     INTEGER                                  :: i, np, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, b, xa, xb, xc, ya, yb
+    REAL(KIND=dp)                            :: a, b, xa, xb, xc, ya, yb, max_stepsize
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Icoord
 
@@ -404,10 +404,11 @@ CONTAINS
        ALLOCATE(Icoord(SIZE(coords,1),SIZE(coords,2)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL section_vals_val_get(diis_section,"NP_LS", i_val=np, error=error)
+       CALL section_vals_val_get(diis_section,"MAX_STEPSIZE", r_val=max_stepsize, error=error)
        Icoord = coords
        xa = 0.0_dp
        ya = SUM(sline*forces)
-       xb = xa + SUM(sline*forces)*stepsize
+       xb = xa + min(SUM(sline*forces)*stepsize,max_stepsize)
        xc = xb
        i  = 1
        DO WHILE (i<=np-1)
@@ -422,6 +423,10 @@ CONTAINS
           a  = (ya-yb)/(2.0_dp*(xa-xb))
           b  = ya - 2.0_dp*a*xa
           xc = -b/(2.0_dp*a)
+          IF (xc>max_stepsize) THEN
+             xc = max_stepsize
+             EXIT
+          END IF
           ! No Extrapolation .. only interpolation
           IF ((xc<=MIN(xa,xb) .OR. xc>=MAX(xa,xb)).AND.(ABS(xa-xb)>1.0E-5_dp)) THEN
              IF (output_unit>0) WRITE(output_unit,'(T2,2(A,I5),A)')&

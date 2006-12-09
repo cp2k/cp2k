@@ -7,3 +7,7 @@
 2gly_DIIS-NEB.inp
 2gly_DIIS-OEP-NEB.inp
 2gly_DIIS-SD-NEB.inp
+# improving the geometry optimizer
+2gly_DIIS-NEB.inp
+2gly_DIIS-OEP-NEB.inp
+2gly_DIIS-SD-NEB.inp

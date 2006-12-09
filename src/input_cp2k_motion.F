@@ -3235,6 +3235,14 @@ SUBROUTINE create_neb_section(section,error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
+       CALL keyword_create(keyword, name="MAX_STEPSIZE",&
+            description="Maximum stepsize used for the line search, sometimes this parameter"//&
+            "can be reduced to stablize the LS for particularly difficult initial geometries",&
+            usage="MAX_STEPSIZE <REAL>",&
+            default_r_val=2.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        CALL keyword_create(keyword, name="NP_LS",&
             description="Number of points used in the line search SD.",&
             usage="NP_LS <INTEGER>",&
