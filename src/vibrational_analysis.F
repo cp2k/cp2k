@@ -33,11 +33,14 @@ MODULE vibrational_analysis
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
-  USE force_env_types,                 ONLY: force_env_get
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -45,6 +48,12 @@ MODULE vibrational_analysis
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diamat_all
+  USE message_passing,                 ONLY: mp_sum
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_matrix
   USE physcon,                         ONLY: angstrom,&
@@ -55,30 +64,6 @@ MODULE vibrational_analysis
                                              rep_env_release,&
                                              rep_env_write,&
                                              replica_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE cell_types,                      ONLY: cell_type
-  USE colvar_methods,                  ONLY: colvar_eval_mol_f
-  USE colvar_types,                    ONLY: colvar_counters,&
-                                             colvar_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
-  USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: colvar_constraint_type,&
-                                             fixd_constraint_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type
-  USE molecule_types_new,              ONLY: get_molecule,&
-                                             local_colvar_constraint_type,&
-                                             molecule_type
-  USE message_passing,                 ONLY: mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -114,17 +99,18 @@ CONTAINS
   SUBROUTINE vb_anal(input, para_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vb_anal', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
-    INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, iparticle1, &
-      iparticle2, iseq, isubsys, j, l, n_rep, ncoord, nrep, nRotTrM, nvib, &
-      output_unit, prep, stat, natoms, imap, ip1, ip2
-    LOGICAL                                  :: failure, keep_rotations
+    INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
+      iparticle1, iparticle2, iseq, isubsys, j, n_rep, natoms, ncoord, nrep, &
+      nRotTrM, nvib, output_unit, prep, stat
+    INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
+    LOGICAL                                  :: failure, keep_rotations, &
+                                                something_frozen
     REAL(KIND=dp)                            :: dx, norm, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, konst, &
                                                 mass, pos0, rmass
@@ -140,8 +126,6 @@ CONTAINS
       POINTER                                :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    INTEGER, DIMENSION(:), POINTER           :: Mlist, Clist
-    LOGICAL :: something_frozen
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -442,14 +426,14 @@ CONTAINS
   SUBROUTINE get_moving_atoms(force_env, Ilist, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, DIMENSION(:), POINTER           :: Ilist
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_moving_atoms', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ii, ikind, iparticle, iparticle_local, isubsys, &
-      nfixed_atoms, nkind, nparticle_local, stat, ndim
+      ndim, nfixed_atoms, nkind, nparticle_local, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: fixme
     LOGICAL                                  :: failure
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -463,7 +447,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: fixme
 
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -547,9 +530,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iw, nvib
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: k, m, freq
-    INTEGER, POINTER, DIMENSION(:)           :: Mlist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
+    INTEGER, DIMENSION(:), POINTER           :: Mlist
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: from, iatom, icol, j, jatom, &
@@ -611,10 +594,10 @@ CONTAINS
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
     INTEGER, INTENT(OUT)                     :: dof
-    INTEGER, INTENT(IN)                      :: iw, natoms
+    INTEGER, INTENT(IN)                      :: iw
     LOGICAL, INTENT(IN)                      :: ionode, keep_rotations
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(IN)                      :: natoms
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
       routineP = moduleN//':'//routineN
@@ -786,11 +769,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
-    INTEGER, INTENT(IN)                      :: dof, natoms
+    INTEGER, INTENT(IN)                      :: dof
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dout
     LOGICAL, OPTIONAL                        :: full
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(IN)                      :: natoms
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_D_matrix', &
       routineP = moduleN//':'//routineN

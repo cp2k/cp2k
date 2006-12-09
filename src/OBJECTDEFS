@@ -263,6 +263,12 @@ OBJECTS_GENERIC =\
  mt_util.o\
  mulliken.o\
  nddo_methods.o\
+ neb_IO.o\
+ neb_methods.o\
+ neb_md_utils.o\
+ neb_opt_utils.o\
+ neb_types.o\
+ neb_utils.o\
  nhc_mapping.o\
  orbital_pointers.o\
  orbital_symbols.o\
@@ -396,6 +402,7 @@ OBJECTS_GENERIC =\
  replica_methods.o\
  replica_types.o\
  restraint.o\
+ rmsd.o\
  s_square_methods.o\
  scf_control_types.o\
  semi_empirical_integrals.o\

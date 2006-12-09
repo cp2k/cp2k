@@ -48,10 +48,10 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       bsse_run, do_cp2k, do_eip, do_ep, do_farming, do_fist, do_kg, do_qmmm, &
-       do_qs, do_test, do_mixed, electronic_spectra_run, energy_force_run, &
-       energy_run, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
-       none_run, pint_run, qs_debug_run, vib_anal
+       bsse_run, do_cp2k, do_ep, do_farming, do_fist, do_kg, do_mixed, &
+       do_neb, do_qmmm, do_qs, do_test, electronic_spectra_run, &
+       energy_force_run, energy_run, geo_opt_run, linear_response_run, &
+       mol_dyn_run, mon_car_run, none_run, pint_run, qs_debug_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section
@@ -78,6 +78,7 @@ MODULE cp2k_runs
                                              mp_environ,&
                                              mp_sum,&
                                              mp_sync
+  USE neb_methods,                     ONLY: neb
   USE pint_methods,                    ONLY: do_pint_run
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
@@ -144,8 +145,8 @@ CONTAINS
 
     CHARACTER(LEN=512)                       :: matching_string(15), &
                                                 unknown_string
-    INTEGER :: f_env_handle, i, ierr, matching_rank(15), mc_method, &
-      method_name_id, new_env_id, prog_name_id, run_type_id, unit_nr
+    INTEGER :: f_env_handle, i, ierr, matching_rank(15), method_name_id, &
+      new_env_id, prog_name_id, run_type_id, unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
@@ -156,8 +157,8 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                glob_section, hmc_section, &
-                                                input_file, root_section
+                                                glob_section, input_file, &
+                                                root_section
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -291,10 +292,10 @@ CONTAINS
           CASE (energy_run, energy_force_run)
              IF(  method_name_id /= do_qs .AND.&
                   method_name_id /= do_kg .AND.&
-                  method_name_id  /= do_qmmm .AND.&
-                  method_name_id  /= do_ep .AND.&
-                  method_name_id  /= do_mixed .AND.&
-                  method_name_id  /= do_fist )  &
+                  method_name_id /= do_qmmm .AND.&
+                  method_name_id /= do_ep .AND.&
+                  method_name_id /= do_mixed .AND.&
+                  method_name_id /= do_fist )  &
 
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Energy/Force run not available for all methods "//&
@@ -350,6 +351,8 @@ CPSourceFileRef,&
              END SELECT
           CASE (vib_anal)
              CALL vb_anal(root_section,para_env,error=suberror)
+          CASE (do_neb)
+             CALL neb(root_section,para_env,globenv,error=suberror)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -410,8 +413,7 @@ CPSourceFileRef,&
   RECURSIVE SUBROUTINE farming_run(root_section,para_env, error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
       routineP = moduleN//':'//routineN
@@ -632,8 +634,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE write_cp2k_html_manual(error)
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_cp2k_html_manual', &
       routineP = moduleN//':'//routineN
@@ -668,7 +669,7 @@ CPSourceFileRef,&
        ! Yahoo seems to actually search our pages 
 
 WRITE(unit_nr,*) ' <!-- START CODE --> '
-WRITE(unit_nr,*) ' 	<div id="ysrchForm" style="border:1px solid #7E9DB9;'
+WRITE(unit_nr,*) '         <div id="ysrchForm" style="border:1px solid #7E9DB9;'
 WRITE(unit_nr,*) '                                background:#FFFFFF;'
 WRITE(unit_nr,*) '                                width:300px;'
 WRITE(unit_nr,*) '                                margin:0 auto;'
@@ -677,11 +678,11 @@ WRITE(unit_nr,*) '                                position:relative;'
 WRITE(unit_nr,*) '                              ">'
 WRITE(unit_nr,*) '           <form id="searchBoxForm_undefined" action="http://search.yahoo.com/search" style="padding:0;">'
 WRITE(unit_nr,*) '                         '
-WRITE(unit_nr,*) ' 			<input name="ei" value="UTF-8" type="hidden">'
-WRITE(unit_nr,*) ' 			<input name="fr" value="ystg" type="hidden"><div style="padding:0 80px 0 0;zoom:1;">'
-WRITE(unit_nr,*) ' 					<input type="text" id="searchTerm"'
-WRITE(unit_nr,*) ' 						onFocus="this.style.background=''#fff'';"'
-WRITE(unit_nr,*) ' 						onBlur="if(this.value=='''')this.style.background='//&
+WRITE(unit_nr,*) '                         <input name="ei" value="UTF-8" type="hidden">'
+WRITE(unit_nr,*) '                         <input name="fr" value="ystg" type="hidden"><div style="padding:0 80px 0 0;zoom:1;">'
+WRITE(unit_nr,*) '                                         <input type="text" id="searchTerm"'
+WRITE(unit_nr,*) '                                                 onFocus="this.style.background=''#fff'';"'
+WRITE(unit_nr,*) '                                                 onBlur="if(this.value=='''')this.style.background='//&
                  '''#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif) 3px center  no-repeat''"'
 WRITE(unit_nr,*) ' name="p" style=" margin:1px 0; width:100%; border:1px solid #7E9DB9; color:#666666; height:18px; '//&
                  'padding:0px 3px; background:#fff url(http://us.i1.yimg.com/us.yimg.com/i/us/sch/gr/horiz_pwrlogo_red2.gif)'//& 
@@ -690,10 +691,10 @@ WRITE(unit_nr,*) ' <input type="submit" id="btn_undefined" value="Search" '
 WRITE(unit_nr,*) ' style=" padding-bottom:2px; position:absolute; right:20px; top:20px; margin:0px; height:22px; width:65px; ">'
 WRITE(unit_nr,*) ' </div><ul style="color:#666666;'
 WRITE(unit_nr,*) '            font:11px/11px normal Arial, Helvetica, sans-serif;'
-WRITE(unit_nr,*) ' 	   margin:0;'
-WRITE(unit_nr,*) ' 	   padding:0;'
-WRITE(unit_nr,*) ' 	   text-align:left;'
-WRITE(unit_nr,*) ' 	   list-style-type:none;radios"><li style="display:inline;padding-right:10px;">'
+WRITE(unit_nr,*) '            margin:0;'
+WRITE(unit_nr,*) '            padding:0;'
+WRITE(unit_nr,*) '            text-align:left;'
+WRITE(unit_nr,*) '            list-style-type:none;radios"><li style="display:inline;padding-right:10px;">'
 WRITE(unit_nr,*) ' <input name="vs" id="web_radio" value=""    type="radio" style="vertical-align:middle;margin-right:5px; ">'
 WRITE(unit_nr,*) ' <label for="web_radio" style="vertical-align:middle;">Web</label>'
 WRITE(unit_nr,*) ' </li><li style="display:inline;padding-right:10px;">'
@@ -734,8 +735,7 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
 
   SUBROUTINE write_xml_file(error)
 
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xml_file', &
       routineP = moduleN//':'//routineN
@@ -818,9 +818,10 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
 
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: failure, success
+    TYPE(cp_error_type)                      :: error
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type)                      :: error !XXXXXXXXXXXX uninitiliased error
 
+!XXXXXXXXXXXX uninitiliased error
 
     failure=.FALSE.
 

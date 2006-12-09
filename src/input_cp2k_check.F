@@ -30,15 +30,9 @@ MODULE input_cp2k_check
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
-  USE input_constants,                 ONLY: xc_funct_blyp,&
-                                             xc_funct_bp,&
-                                             xc_funct_hcth120,&
-                                             xc_funct_no_shortcut,&
-                                             xc_none,&
-                                             xc_funct_olyp,&
-                                             xc_funct_pade,&
-                                             xc_funct_pbe,&
-                                             xc_funct_tpss
+  USE input_constants,                 ONLY: &
+       xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
+       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_none
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
@@ -89,16 +83,17 @@ CONTAINS
   SUBROUTINE check_cp2k_input(input_file,para_env,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iforce_eval, &
                                                 nforce_eval
-    LOGICAL                                  :: explicit, failure, explicit_mix
-    TYPE(section_vals_type), POINTER         :: section, section2, sections ,section3
+    LOGICAL                                  :: explicit, explicit_mix, &
+                                                failure
+    TYPE(section_vals_type), POINTER         :: section, section2, section3, &
+                                                sections
 
     CALL timeset(routineN,handle)
 
@@ -178,8 +173,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE xc_functionals_expand(functionals,error)
     TYPE(section_vals_type), POINTER         :: functionals
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_expand', &
       routineP = moduleN//':'//routineN
@@ -272,8 +266,7 @@ END SUBROUTINE xc_functionals_expand
 SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart', &
       routineP = moduleN//':'//routineN
@@ -290,10 +283,9 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: r_section, restart_input, &
-                                                section, section1, section2, &
-                                                sections1, sections2, &
-                                                work_section
+    TYPE(section_vals_type), POINTER :: r_section, rep_sections, &
+      restart_input, section, section1, section2, sections1, sections2, &
+      work_section
 
   CALL timeset(routineN,handle)
 
@@ -368,7 +360,6 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            END IF
 
         END DO
-
         CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&
              error=error)
         IF (flag) THEN
@@ -395,6 +386,11 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
               CALL section_vals_val_get(restart_input,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
               CALL section_vals_val_set(input_file,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
            END IF
+        END IF
+        CALL section_vals_val_get(r_section,"RESTART_NEB",l_val=flag,error=error)
+        IF (flag) THEN
+           rep_sections => section_vals_get_subs_vals(restart_input,"MOTION%NEB%REPLICA",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%NEB%REPLICA",rep_sections,error=error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,&
              error=error)

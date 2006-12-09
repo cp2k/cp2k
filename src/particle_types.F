@@ -444,117 +444,180 @@ END SUBROUTINE clone_particle
 ! *****************************************************************************
 
   SUBROUTINE write_particle_coordinates(particle_set,iunit,FORMAT,&
-                                        content,title,cell)
+       content,title,cell,array)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER                                  :: iunit, FORMAT
     CHARACTER(LEN=*)                         :: content, title
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: array
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    INTEGER                                  :: i, iatom, istat, j, natom
+    INTEGER                                  :: i, iatom, istat, j, natom, &
+                                                stat
     LOGICAL                                  :: dummy
-    REAL(KIND=dp), DIMENSION(3)              :: r
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: arr
+    REAL(KIND=dp), DIMENSION(3)              :: f, r, v
     REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
 
     natom = SIZE(particle_set)
-
+    IF (PRESENT(array)) THEN
+       SELECT CASE(TRIM(content))
+       CASE ("POS_VEL","POS_VEL_FORCE")
+          CALL stop_program ("particle_types","illegal usage of write_particle_coordinates")
+       END SELECT
+    END IF
     SELECT CASE (FORMAT)
     CASE (dump_xmol)
-      WRITE(iunit,"(I8)") natom
-      WRITE(iunit,"(A)")  TRIM(title)
-      DO iatom=1,natom
-         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-              element_symbol=element_symbol)
-         IF (LEN_TRIM(element_symbol) == 0)  THEN
-            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                 name=atm_name)
-            dummy = qmmm_ff_precond_only_qm(id1=atm_name)
-            my_format="(A4,"
-            name = TRIM(atm_name)
-         ELSE
-            my_format="(T2,A2,"
-            name = TRIM(element_symbol)
-         END IF
-       SELECT CASE (TRIM(content))
-         CASE ("POS")
-          r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),r(1:3)
-        CASE ("VEL")
-          WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),&
-                                            particle_set(iatom)%v(1:3)
-        CASE ("FORCE")
-          WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),&
-                                            particle_set(iatom)%f(1:3)
-        CASE ("POS_VEL")
-          r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,TRIM(my_format)//"1X,6F20.10)") TRIM(name),r(1:3),&
-                                            particle_set(iatom)%v(1:3)
-        CASE ("POS_VEL_FORCE")
-          r(:) = particle_set(iatom)%r(:)*angstrom
-          WRITE (iunit,TRIM(my_format)//"1X,9F20.10)") TRIM(name),r(1:3),&
-                                                 particle_set(iatom)%v(1:3),&
-                                                 particle_set(iatom)%f(1:3)
-        END SELECT
-      END DO
+       WRITE(iunit,"(I8)") natom
+       WRITE(iunit,"(A)")  TRIM(title)
+       DO iatom=1,natom
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+               element_symbol=element_symbol)
+          IF (LEN_TRIM(element_symbol) == 0)  THEN
+             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                  name=atm_name)
+             dummy = qmmm_ff_precond_only_qm(id1=atm_name)
+             my_format="(A4,"
+             name = TRIM(atm_name)
+          ELSE
+             my_format="(T2,A2,"
+             name = TRIM(element_symbol)
+          END IF
+          SELECT CASE (TRIM(content))
+          CASE ("POS")
+             IF (PRESENT(array)) THEN
+                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)*angstrom
+             ELSE
+                r(:) = particle_set(iatom)%r(:)*angstrom
+             END IF
+             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),r(1:3)
+          CASE ("VEL")
+             IF (PRESENT(array)) THEN
+                v(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+             ELSE
+                v(:) = particle_set(iatom)%v(:)
+             END IF
+             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),v(1:3)
+          CASE ("FORCE")
+             IF (PRESENT(array)) THEN
+                f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+             ELSE
+                f(:) = particle_set(iatom)%f(:)
+             END IF
+             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),f(1:3)
+          CASE ("POS_VEL")
+             r(:) = particle_set(iatom)%r(:)*angstrom
+             WRITE (iunit,TRIM(my_format)//"1X,6F20.10)") TRIM(name),r(1:3),&
+                  particle_set(iatom)%v(1:3)
+          CASE ("POS_VEL_FORCE")
+             r(:) = particle_set(iatom)%r(:)*angstrom
+             WRITE (iunit,TRIM(my_format)//"1X,9F20.10)") TRIM(name),r(1:3),&
+                  particle_set(iatom)%v(1:3),&
+                  particle_set(iatom)%f(1:3)
+          END SELECT
+       END DO
     CASE (dump_atomic)
-      DO iatom=1,natom
-        SELECT CASE (TRIM(content))
-        CASE ("POS")
-         r(:) = particle_set(iatom)%r(:)
-         WRITE (iunit,"(3F20.10)") r(1:3)
-        CASE ("VEL")
-          WRITE (iunit,"(3F20.10)")particle_set(iatom)%v(1:3)
-        CASE ("FORCE")
-          WRITE (iunit,"(3F20.10)") particle_set(iatom)%f(1:3)
-        CASE ("POS_VEL")
-          WRITE (iunit,"(6F20.10)")particle_set(iatom)%r(1:3),&
-                                   particle_set(iatom)%v(1:3)
-        CASE ("POS_VEL_FORCE")
-          r(:) = particle_set(iatom)%r(:)
-          WRITE (iunit,"(9F20.10)")r(1:3),&
-                                   particle_set(iatom)%v(1:3),&
-                                   particle_set(iatom)%f(1:3)
-        END SELECT
-      END DO
+       DO iatom=1,natom
+          SELECT CASE (TRIM(content))
+          CASE ("POS")
+             IF (PRESENT(array)) THEN
+                r(:) = array((iatom-1)*3+1:(iatom-1)*3+3)*angstrom
+             ELSE
+                r(:) = particle_set(iatom)%r(:)*angstrom
+             END IF
+             WRITE (iunit,"(3F20.10)") r(1:3)
+          CASE ("VEL")
+             IF (PRESENT(array)) THEN
+                v(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+             ELSE
+                v(:) = particle_set(iatom)%v(:)
+             END IF
+             WRITE (iunit,"(3F20.10)")v(1:3)
+          CASE ("FORCE")
+             IF (PRESENT(array)) THEN
+                f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+             ELSE
+                f(:) = particle_set(iatom)%f(:)
+             END IF
+             WRITE (iunit,"(3F20.10)") f(1:3)
+          CASE ("POS_VEL")
+             WRITE (iunit,"(6F20.10)")particle_set(iatom)%r(1:3),&
+                  particle_set(iatom)%v(1:3)
+          CASE ("POS_VEL_FORCE")
+             r(:) = particle_set(iatom)%r(:)
+             WRITE (iunit,"(9F20.10)")r(1:3),&
+                  particle_set(iatom)%v(1:3),&
+                  particle_set(iatom)%f(1:3)
+          END SELECT
+       END DO
     CASE (dump_dcd)
        IF (.NOT.(PRESENT(cell))) CALL stop_memory('particle_types','cell not present')
+       IF (PRESENT(array)) THEN
+          ALLOCATE(arr(3,natom),stat=stat)
+          IF (stat /=0) CALL stop_program ("particle_types","arr")
+          arr = RESHAPE(array,(/3,natom/))
+       END IF
        NULLIFY(x4,y4,z4)
        ALLOCATE(x4(natom),y4(natom),z4(natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory('particle_types','x4,y4,z4')
        WRITE(iunit) ((cell%hmat(i,j)*angstrom,i=1,j),j=1,3)
        SELECT CASE (TRIM(content))
        CASE ("POS")
-         x4(:) = particle_set(:)%r(1)*angstrom
-         y4(:) = particle_set(:)%r(2)*angstrom
-         z4(:) = particle_set(:)%r(3)*angstrom
-         WRITE(iunit) x4
-         WRITE(iunit) y4
-         WRITE(iunit) z4
+          IF (PRESENT(array)) THEN
+             x4(:) = arr(1,:)*angstrom
+             y4(:) = arr(2,:)*angstrom
+             z4(:) = arr(3,:)*angstrom
+          ELSE
+             x4(:) = particle_set(:)%r(1)*angstrom
+             y4(:) = particle_set(:)%r(2)*angstrom
+             z4(:) = particle_set(:)%r(3)*angstrom
+          END IF
+          WRITE(iunit) x4
+          WRITE(iunit) y4
+          WRITE(iunit) z4
        CASE ("VEL")
-         x4(:) = particle_set(:)%v(1)*angstrom/femtoseconds
-         y4(:) = particle_set(:)%v(2)*angstrom/femtoseconds
-         z4(:) = particle_set(:)%v(3)*angstrom/femtoseconds
-         WRITE(iunit) x4
-         WRITE(iunit) y4
-         WRITE(iunit) z4
-        CASE ("FORCE")
-         x4(:) = particle_set(:)%f(1)
-         y4(:) = particle_set(:)%f(2)
-         z4(:) = particle_set(:)%f(3)
-         WRITE(iunit) x4
-         WRITE(iunit) y4
-         WRITE(iunit) z4
+          IF (PRESENT(array)) THEN
+             x4(:) = arr(1,:)*angstrom*femtoseconds
+             y4(:) = arr(2,:)*angstrom*femtoseconds
+             z4(:) = arr(3,:)*angstrom*femtoseconds
+          ELSE
+             x4(:) = particle_set(:)%v(1)*angstrom*femtoseconds
+             y4(:) = particle_set(:)%v(2)*angstrom*femtoseconds
+             z4(:) = particle_set(:)%v(3)*angstrom*femtoseconds
+          END IF
+          WRITE(iunit) x4
+          WRITE(iunit) y4
+          WRITE(iunit) z4
+       CASE ("FORCE")
+          IF (PRESENT(array)) THEN
+             x4(:) = arr(1,:)
+             y4(:) = arr(2,:)
+             z4(:) = arr(3,:)
+          ELSE
+             x4(:) = particle_set(:)%f(1)
+             y4(:) = particle_set(:)%f(2)
+             z4(:) = particle_set(:)%f(3)
+          END IF
+          WRITE(iunit) x4
+          WRITE(iunit) y4
+          WRITE(iunit) z4
        CASE DEFAULT
-         CALL stop_program ("particle_types","illegal dcd dump type")
+          CALL stop_program ("particle_types","illegal dcd dump type")
        END SELECT
+       IF (PRESENT(array)) THEN
+          DEALLOCATE(arr,STAT=istat)
+          IF (istat /= 0) CALL stop_memory('particle_types','arr')
+       END IF
        DEALLOCATE(x4,y4,z4,STAT=istat)
        IF (istat /= 0) CALL stop_memory('particle_types','x4,y4,z4')
     CASE DEFAULT
-      CALL stop_program ("particle_types","illegal dump type")
+       CALL stop_program ("particle_types","illegal dump type")
     END SELECT
 
   END SUBROUTINE write_particle_coordinates

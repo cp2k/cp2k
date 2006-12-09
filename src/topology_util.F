@@ -111,20 +111,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_reorder_atoms', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length), &
-      POINTER                                :: telement(:), &
-                                                tlabel_atmname(:), &
-                                                molname(:),&
-                                                tlabel_molname(:),&
-                                                tlabel_resname(:)
     CHARACTER(LEN=default_string_length)     :: mol_id
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: molname(:), telement(:), &
+                                                tlabel_atmname(:), &
+                                                tlabel_molname(:), &
+                                                tlabel_resname(:)
     INTEGER :: handle, i, iatm, iindex, imol, imol_ref, iref, iund, iw, j, &
-      location, max_mol_num, n, natom, old_hash, old_mol, stat, unique_mol,&
-      natom_loc, output_unit
+      location, max_mol_num, n, natom, natom_loc, old_hash, old_mol, &
+      output_unit, stat, unique_mol
     INTEGER, POINTER :: atm_map1(:), atm_map2(:), atm_map3(:), &
-      map_atom_type(:), map_mol_hash(:),mol_bnd(:,:), mol_hash(:), &
-      new_position(:), order(:), wrk(:), mol_num(:)
-    LOGICAL                                  :: failure, matches, ionode
+      map_atom_type(:), map_mol_hash(:), mol_bnd(:,:), mol_hash(:), &
+      mol_num(:), new_position(:), order(:), wrk(:)
+    LOGICAL                                  :: failure, ionode, matches
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tr
     REAL(KIND=dp), POINTER                   :: tatm_charge(:), tatm_mass(:)
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -818,11 +817,12 @@ CONTAINS
 !******************************************************************************
   RECURSIVE SUBROUTINE give_back_molecule(icheck, bond_list,i,mol_natom,mol_map,my_mol)
     LOGICAL, DIMENSION(:), POINTER           :: icheck
-    INTEGER, DIMENSION(:), POINTER           :: mol_map
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
-    INTEGER, INTENT(IN)                      :: i, my_mol
+    INTEGER, INTENT(IN)                      :: i
     INTEGER, INTENT(INOUT)                   :: mol_natom
+    INTEGER, DIMENSION(:), POINTER           :: mol_map
+    INTEGER, INTENT(IN)                      :: my_mol
 
     INTEGER                                  :: j, k
 
@@ -927,8 +927,7 @@ CONTAINS
       INTENT(INOUT)                          :: work
     INTEGER, DIMENSION(:), INTENT(IN)        :: list1, list2, list3
     INTEGER, INTENT(IN)                      :: N
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure2d', &
       routineP = moduleN//':'//routineN
@@ -1007,12 +1006,12 @@ CONTAINS
   SUBROUTINE find_molecule(atom_bond_list,mol_info,mol_name)
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(IN)                             :: atom_bond_list
-    CHARACTER(LEN=default_string_length),&
-         POINTER, DIMENSION(:)               :: mol_name
     INTEGER, DIMENSION(:), POINTER           :: mol_info
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: mol_name
 
-    INTEGER                                  :: I, N, nmol
     CHARACTER(LEN=default_string_length)     :: my_mol_name
+    INTEGER                                  :: I, N, nmol
 
     N=SIZE(atom_bond_list)
     nmol=0
@@ -1050,11 +1049,11 @@ CONTAINS
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(IN)                             :: atom_bond_list
     INTEGER, DIMENSION(:), POINTER           :: mol_info
-    CHARACTER(LEN=default_string_length),&
-         INTENT(IN)                          :: my_mol_name
-    CHARACTER(LEN=default_string_length),&
-         POINTER, DIMENSION(:)               :: mol_name
     INTEGER, INTENT(IN)                      :: iatom, imol
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: my_mol_name
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: mol_name
 
     INTEGER                                  :: atom_b, i
 
@@ -1103,16 +1102,17 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
-    INTEGER                                  :: handle, i, iatom, ielem, &
-                                                ielem_found, iw, natom, &
-                                                nelem, stat, n_rep, i_rep
-    LOGICAL                                  :: element_found, failure, user_defined
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: keyword
+    INTEGER                                  :: handle, i, i_rep, iatom, &
+                                                ielem, ielem_found, iw, &
+                                                n_rep, natom, nelem, stat
+    LOGICAL                                  :: element_found, failure, &
+                                                user_defined
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mass
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: kind_section
-    CHARACTER(LEN=default_string_length),&
-         POINTER, DIMENSION(:)               :: keyword
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: mass
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -1394,8 +1394,8 @@ CONTAINS
                                                 element_symbol, keyword
     INTEGER                                  :: i, i_rep, n_rep, output_unit
     LOGICAL                                  :: failure, found, ionode
-    TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: kind_section
 
     NULLIFY(logger)
     NULLIFY(logger)

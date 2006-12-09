@@ -49,9 +49,13 @@ MODULE input_cp2k_restarts
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
-  USE input_constants,                 ONLY: &
-       mol_dyn_run, mon_car_run, pint_run, use_unit_angstrom, &
-       use_unit_bohr, use_unit_scaled_angstrom, use_unit_scaled_bohr
+  USE input_constants,                 ONLY: mol_dyn_run,&
+                                             mon_car_run,&
+                                             pint_run,&
+                                             use_unit_angstrom,&
+                                             use_unit_bohr,&
+                                             use_unit_scaled_angstrom,&
+                                             use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
@@ -117,8 +121,8 @@ CONTAINS
 !!
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Joost VandeVondele
@@ -127,7 +131,8 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,root_section,force_env_section,error)
+  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,root_section,force_env_section,&
+       coords, vels,  error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -136,8 +141,9 @@ CONTAINS
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: coords, vels
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
       routineP = moduleN//':'//routineN
@@ -165,7 +171,7 @@ CONTAINS
        sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
-       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,error)
+       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,error)
 
        CALL m_datum(datx)
        CALL m_getcwd(cwd)
@@ -225,11 +231,11 @@ CONTAINS
 !!     Updates the whole input file for the restart
 !!
 !!   NOTES
-!!
+!!     
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -238,7 +244,7 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,root_section,error)
+  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -246,8 +252,9 @@ CONTAINS
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: coords, vels
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', &
       routineP = moduleN//':'//routineN
@@ -271,46 +278,47 @@ CONTAINS
     ! Can handle md_env or force_env
     !
     lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(kg_env)
-    CPPrecondition(lcond,cp_failure_level,routineP,error,failure)
-    IF (PRESENT(md_env)) THEN
-       CALL get_md_env ( md_env=md_env,&
-                         force_env_p=force_env_p)
-
-       CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
-       my_force_env => force_env_p(1)%force_env
-    ELSE IF (PRESENT(force_env)) THEN
-       my_force_env => force_env
+    IF (lcond) THEN
+       IF (PRESENT(md_env)) THEN
+          CALL get_md_env ( md_env=md_env,&
+               force_env_p=force_env_p)
+          
+          CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
+          my_force_env => force_env_p(1)%force_env       
+       ELSE IF (PRESENT(force_env)) THEN 
+          my_force_env => force_env
+       END IF
+       !
+       ! Let's set up kg_env
+       !
+       IF (PRESENT(kg_env)) THEN
+          my_kg_env => kg_env
+       ELSEIF (ASSOCIATED(my_force_env)) THEN 
+          my_kg_env => my_force_env%kg_env
+       END IF
+       !
+       ! meta_env
+       !
+       IF (PRESENT(meta_env)) THEN
+          my_meta_env => meta_env
+       ELSEIF (ASSOCIATED(my_force_env)) THEN 
+          my_meta_env => my_force_env%meta_env
+       END IF
+       !
+       ! The real restart setting...
+       !
+       motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+       CALL update_motion(motion_section,md_env,my_force_env,my_kg_env,my_meta_env,&
+            logger,coords,vels,error)
+       !
+       ! Update one force_env_section per time..
+       !
+       IF (ASSOCIATED(my_force_env)) &
+            CALL update_force_eval(force_env=my_force_env,logger=logger,&
+            root_section=root_section,error=error)
     END IF
-    !
-    ! Let's set up kg_env
-    !
-    IF (PRESENT(kg_env)) THEN
-       my_kg_env => kg_env
-    ELSEIF (ASSOCIATED(my_force_env)) THEN
-       my_kg_env => my_force_env%kg_env
-    END IF
-    !
-    ! meta_env
-    !
-    IF (PRESENT(meta_env)) THEN
-       my_meta_env => meta_env
-    ELSEIF (ASSOCIATED(my_force_env)) THEN
-       my_meta_env => my_force_env%meta_env
-    END IF
-    !
-    ! The real restart setting...
-    !
-    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-    CALL update_motion(motion_section,md_env,my_force_env,my_kg_env,my_meta_env,&
-         logger,error)
-    !
-    ! Update one force_env_section per time..
-    !
-    IF (ASSOCIATED(my_force_env)) &
-         CALL update_force_eval(force_env=my_force_env,logger=logger,root_section=root_section,error=error)
-
     CALL timestop(handle)
-
+       
   END SUBROUTINE update_input
 
 !!****f* input_cp2k_restarts/update_motion [1.0] *
@@ -322,11 +330,11 @@ CONTAINS
 !!     Updates the motion section of the input file
 !!
 !!   NOTES
-!!
+!!     
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -335,7 +343,8 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,meta_env,logger,error)
+  SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,meta_env,logger,&
+       coords,vels,error)
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -343,16 +352,16 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: coords, vels
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, i, iatom, icoef, iel, ikind, ioff, iproc, &
-      irep, j, my_accepted_md, my_itimes, my_md_approach_nr, n_el, natom, &
-      nhc_len, nkind, nsgf, nsgf_max, num_nhc, numneed, offset, stat, &
-      tot_nhcneed
+      irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, nsgf_max, &
+      num_nhc, numneed, offset, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, POINTER                         :: accepted_md, INDEX(:), &
                                                 itimes, md_approach_nr, &
@@ -362,7 +371,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, vbuffer
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
-                                                veta, work
+                                                my_c, my_v, veta, work
     REAL(KIND=dp), POINTER                   :: t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -374,11 +383,11 @@ CONTAINS
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_coef( : ), &
                                                 nhc_part( : )
     TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(section_vals_type), POINTER         :: replica_section, work_section
 
     failure = .FALSE.
     CALL timeset(routineN,"I",'',handle)
-    NULLIFY (para_env,logger,nhc_part,nhc_baro,npt,para_env)
+    NULLIFY (logger,nhc_part,nhc_baro,npt,para_env)
     NULLIFY (atomic_kind_set, work_section, dyn_coeff_set, md_approach_nr, accepted_md)
     NULLIFY (atomic_kind, coeffs, aux_basis_set, nhc_coef, t, itimes)
     IF (PRESENT(md_env)) THEN
@@ -401,7 +410,7 @@ CONTAINS
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-
+    
     IF (ASSOCIATED(itimes)) THEN
        IF (itimes>=0) THEN
           my_itimes = itimes
@@ -438,7 +447,7 @@ CONTAINS
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
-       ! nhc_part%eta
+       ! nhc_part%eta  
        !-----------------------------------------------------------------------------
        ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -472,7 +481,7 @@ CONTAINS
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
-       ! nhc_part % veta
+       ! nhc_part % veta   
        !-----------------------------------------------------------------------------
        ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -542,7 +551,7 @@ CONTAINS
        ! nhc_part % mass
        !-----------------------------------------------------------------------------
        ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)    
        DO iproc=1,para_env%num_pe
           CALL reallocate(work,1,nhc_per_proc(iproc)*nhc_len)
           CALL reallocate(index,1,nhc_per_proc(iproc))
@@ -571,11 +580,11 @@ CONTAINS
        END DO
 
        DEALLOCATE ( work, STAT = stat )
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        DEALLOCATE ( index, STAT = stat )
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        DEALLOCATE ( nhc_per_proc, STAT = stat )
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
 
        IF ( nhc_part ( 1 ) % dis_type=='INTER_REP' ) THEN
           eta  = 0.0_dp
@@ -608,8 +617,8 @@ CONTAINS
        ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+       
        counter = 0
        DO i=1,SIZE(nhc_baro(1)%nvt,1)
           DO j=1,SIZE(nhc_baro(1)%nvt,2)
@@ -620,17 +629,17 @@ CONTAINS
              mnhc(counter)= nhc_baro(1)%nvt(i,j)%mass
           END DO
        END DO
-
+       
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
-
+       
     END IF
     IF (ASSOCIATED(npt)) THEN
        ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(mnhc(SIZE(npt,1)*SIZE(npt,2)), STAT = stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+       
        counter = 0
        DO i=1,SIZE(npt,1)
           DO j=1,SIZE(npt,2)
@@ -643,15 +652,16 @@ CONTAINS
        CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
     END IF
     !
-    ! COEFFICIENTS
+    ! COEFFICIENTS 
     !
     IF (ASSOCIATED(kg_env)) THEN
        CALL get_kg_env(kg_env=kg_env,&
             atomic_kind_set=atomic_kind_set,&
-            dyn_coeff_set=dyn_coeff_set,error=error)
-
+            dyn_coeff_set=dyn_coeff_set,&
+            error=error)
+       
        IF (ASSOCIATED(dyn_coeff_set)) THEN
-
+          
           nsgf_max=0
           n_el=0
           DO ikind=1,SIZE(atomic_kind_set)
@@ -665,17 +675,17 @@ CONTAINS
              nsgf_max=MAX(nsgf_max,nsgf)
              n_el = n_el + natom
           END DO
-
+          
           ALLOCATE (pbuffer(n_el,nsgf_max),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           ALLOCATE (vbuffer(n_el,nsgf_max),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           ALLOCATE (cindex(n_el),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+          
           pbuffer(:,:)=0.0_dp
           vbuffer(:,:)=0.0_dp
-
+          
           cindex(:)=0
           nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
           offset = 0
@@ -701,7 +711,7 @@ CONTAINS
           CALL mp_sum(pbuffer,para_env%group)
           CALL mp_sum(vbuffer,para_env%group)
           CALL mp_sum(cindex, para_env%group)
-
+          
           ALLOCATE(INDEX(SIZE(cindex)),stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           index = cindex
@@ -713,20 +723,20 @@ CONTAINS
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
              buffer = pbuffer(irep,:)
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=buffer,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep,error=error)    
           END DO
           work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%VELOCITY",error=error)
           DO irep = 1, SIZE(index)
              ALLOCATE(buffer(SIZE(vbuffer,2)),stat=stat)
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             buffer = vbuffer(irep,:)
+             buffer = vbuffer(irep,:)       
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=buffer,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep,error=error)    
           END DO
           DEALLOCATE (pbuffer,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           DEALLOCATE (vbuffer,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           DEALLOCATE (cindex,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
@@ -743,8 +753,8 @@ CONTAINS
           ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+          
           counter = 0
           DO i=1,SIZE(nhc_coef(1)%nvt,1)
              DO j=1,SIZE(nhc_coef(1)%nvt,2)
@@ -755,9 +765,9 @@ CONTAINS
                 mnhc(counter)= nhc_coef(1)%nvt(i,j)%mass
              END DO
           END DO
-
+          
           work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
-          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+          CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
        END IF
     END IF
 
@@ -778,16 +788,59 @@ CONTAINS
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0",error=error)
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%ss0,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep,error=error) 
           END DO
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_VVP",error=error)
           DO irep = 1, meta_env%n_colvar
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_val=meta_env%metavar(irep)%vvp,&
-                  i_rep_val=irep,error=error)
+                  i_rep_val=irep,error=error) 
           END DO
        END IF
     END IF
 
+    IF (PRESENT(coords).OR.(PRESENT(vels))) THEN
+       ! Update NEB section
+       replica_section => section_vals_get_subs_vals(motion_section,"NEB%REPLICA",error=error)
+       IF (PRESENT(coords)) THEN
+          ! Allocate possible missing sections
+          DO
+             IF (SIZE(coords,2)<=SIZE(replica_section%values,2)) EXIT
+             CALL section_vals_add_values(replica_section,error=error)
+          END DO
+          ! Write Values
+          DO isec = 1, SIZE(coords,2)
+             CALL section_vals_val_unset(replica_section,"XYZ_COORD_FILENAME",i_rep_section=isec,error=error) 
+             work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
+             DO irep = 1, SIZE(coords,1)/3
+                i = (irep-1)*3
+                ALLOCATE(my_c(3),stat=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+                my_c = coords(i+1:i+3,isec)
+                CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=my_c,&
+                     i_rep_val=irep,error=error) 
+             END DO
+          END DO
+       END IF
+       IF (PRESENT(vels)) THEN
+          ! Allocate possible missing sections
+          DO
+             IF (SIZE(vels,2)<=SIZE(replica_section%values,2)) EXIT
+             CALL section_vals_add_values(replica_section,error=error)
+          END DO
+          ! Write Values
+          DO isec = 1, SIZE(vels,2)
+             work_section => section_vals_get_subs_vals3(replica_section,"VELOCITY",i_rep_section=isec,error=error)
+             DO irep = 1, SIZE(vels,1)/3
+                i = (irep-1)*3
+                ALLOCATE(my_v(3),stat=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+                my_v = vels(i+1:i+3,isec)
+                CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=my_v,&
+                     i_rep_val=irep,error=error) 
+             END DO
+          END DO
+       END IF
+    END IF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE update_motion
@@ -801,11 +854,11 @@ CONTAINS
 !!     Set the nose structure like restart
 !!
 !!   NOTES
-!!
+!!     
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -818,8 +871,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: work_section
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eta, veta, fnhc, mnhc
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_template_restart', &
       routineP = moduleN//':'//routineN
@@ -836,7 +888,7 @@ CONTAINS
           CALL section_vals_val_set(coord,"_DEFAULT_KEYWORD_",r_vals_ptr=eta,error=error)
        ELSE
           DEALLOCATE(eta, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
     IF (PRESENT(veta)) THEN
@@ -845,7 +897,7 @@ CONTAINS
           CALL section_vals_val_set(velocity,"_DEFAULT_KEYWORD_",r_vals_ptr=veta,error=error)
        ELSE
           DEALLOCATE(veta, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
     IF (PRESENT(fnhc)) THEN
@@ -854,7 +906,7 @@ CONTAINS
           CALL section_vals_val_set(force,"_DEFAULT_KEYWORD_",r_vals_ptr=fnhc,error=error)
        ELSE
           DEALLOCATE(fnhc, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
     IF (PRESENT(mnhc)) THEN
@@ -863,7 +915,7 @@ CONTAINS
           CALL section_vals_val_set(mass,"_DEFAULT_KEYWORD_",r_vals_ptr=mnhc,error=error)
        ELSE
           DEALLOCATE(mnhc, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
   END SUBROUTINE set_template_restart
@@ -877,11 +929,11 @@ CONTAINS
 !!     Updates the force_eval section of the input file
 !!
 !!   NOTES
-!!
+!!     
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -894,8 +946,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
       routineP = moduleN//':'//routineN
@@ -912,7 +963,7 @@ CONTAINS
     skip_vel_section =((myid /= mol_dyn_run).AND.&
                        (myid /= mon_car_run).AND.&
                        (myid /= pint_run))
-
+                       
     ! Go on updatig the force_env_section
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
@@ -937,11 +988,11 @@ CONTAINS
 !!     Updates the rng section of the input file
 !!
 !!   NOTES
-!!
+!!     
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -957,8 +1008,7 @@ CONTAINS
 
     TYPE(section_vals_type), POINTER         :: rng_section
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng', &
       routineP = moduleN//':'//routineN
@@ -1006,8 +1056,8 @@ CONTAINS
           DO iparticle_local=1,nparticle_local
             IF (iparticle == local_particles%list(iparticle_kind)%array(iparticle_local)) THEN
               CALL dump_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
-                                              &rng(iparticle_local)%stream,&
-                                   rng_record=rng_record,error=error)
+                   &rng(iparticle_local)%stream,&
+                   rng_record=rng_record, error=error)
               CALL string_to_ascii(rng_record,ascii(:,iparticle))
             END IF
           END DO
@@ -1039,11 +1089,11 @@ CONTAINS
 !!     Updates the subsys section of the input file
 !!
 !!   NOTES
-!!
+!!     
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -1056,8 +1106,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN)                      :: skip_vel_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
@@ -1088,7 +1137,7 @@ CONTAINS
     CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
     DO isubsys=1,SIZE(subsys)
        CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles, molecules_new=molecules, error=error)
+            particles=particles, molecules_new=molecules, error=error)       
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
        SELECT CASE(my_unit)
@@ -1110,7 +1159,7 @@ CONTAINS
        END IF
        !
        ! CELL
-       !
+       ! 
        work_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1164,11 +1213,11 @@ CONTAINS
 !!     routine to dump coordinates.. fast implementation
 !!
 !!   NOTES
-!!
+!!     
 !!
 !!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Teodoro Laino
@@ -1183,8 +1232,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_new_list_type), POINTER         :: molecules
     REAL(KIND=dp)                            :: conv_factor
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
@@ -1292,8 +1340,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: velocity_section
     TYPE(particle_list_type), POINTER        :: particles
     REAL(KIND=dp)                            :: conv_factor
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_velocity_val_set', &
       routineP = moduleN//':'//routineN
@@ -1384,8 +1431,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: rng_section
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, DIMENSION(:, :)                 :: ascii
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_rng_val_set', &
       routineP = moduleN//':'//routineN
@@ -1486,8 +1532,7 @@ CONTAINS
 
     TYPE(section_vals_type), POINTER         :: ss_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ss', &
       routineP = moduleN//':'//routineN
@@ -1576,8 +1621,7 @@ CONTAINS
 
     TYPE(section_vals_type), POINTER         :: ds_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ds', &
       routineP = moduleN//':'//routineN
@@ -1666,8 +1710,7 @@ CONTAINS
 
     TYPE(section_vals_type), POINTER         :: ww_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ww', &
       routineP = moduleN//':'//routineN

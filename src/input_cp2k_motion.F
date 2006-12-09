@@ -77,8 +77,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_motion_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_motion_section', &
       routineP = moduleN//':'//routineN
@@ -123,6 +122,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
        
        CALL create_pint_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_neb_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -250,8 +253,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_constraint_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_constraint_section', &
       routineP = moduleN//':'//routineN
@@ -339,8 +341,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE restraint_info_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restraint_info_section', &
       routineP = moduleN//':'//routineN
@@ -394,8 +395,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_collective_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_collective_section', &
       routineP = moduleN//':'//routineN
@@ -469,8 +469,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_fixed_atom_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fixed_atom_section', &
       routineP = moduleN//':'//routineN
@@ -563,8 +562,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_g3x3_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_g3x3_section', &
       routineP = moduleN//':'//routineN
@@ -638,8 +636,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_hbonds_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hbonds_section', &
       routineP = moduleN//':'//routineN
@@ -717,8 +714,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_g4x6_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_g4x6_section', &
       routineP = moduleN//':'//routineN
@@ -792,8 +788,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_mc_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mc_section', &
       routineP = moduleN//':'//routineN
@@ -1148,8 +1143,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_geoopt_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_geoopt_section', &
       routineP = moduleN//':'//routineN
@@ -1362,8 +1356,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_metadyn_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metadyn_section', &
       routineP = moduleN//':'//routineN
@@ -1497,8 +1490,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_fp_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fp_section', &
       routineP = moduleN//':'//routineN
@@ -1620,8 +1612,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_metadyn_history(section, metadyn_section, error)
     TYPE(section_type), POINTER              :: section, metadyn_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metadyn_history', &
       routineP = moduleN//':'//routineN
@@ -1731,8 +1722,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_metavar_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metavar_section', &
       routineP = moduleN//':'//routineN
@@ -1827,16 +1817,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_md_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_md_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER :: baro_section, coeff_section, hmc_section, &
-      nose_section, print_key, subsection, uni_section
+    TYPE(section_type), POINTER              :: baro_section, coeff_section, &
+                                                nose_section, print_key, &
+                                                subsection, uni_section
 
     failure=.FALSE.
 
@@ -2047,8 +2037,7 @@ END SUBROUTINE create_md_section
 
 SUBROUTINE create_respa_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_respa_section', &
       routineP = moduleN//':'//routineN
@@ -2101,8 +2090,7 @@ END SUBROUTINE create_respa_section
 
 SUBROUTINE create_qs_md_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_md_section', &
       routineP = moduleN//':'//routineN
@@ -2158,8 +2146,7 @@ END SUBROUTINE create_qs_md_section
 
 SUBROUTINE create_uniaxial_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_uniaxial_section', &
       routineP = moduleN//':'//routineN
@@ -2248,8 +2235,7 @@ SUBROUTINE create_uniaxial_section(section, error)
 
 SUBROUTINE create_barostat_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_section', &
       routineP = moduleN//':'//routineN
@@ -2343,8 +2329,7 @@ SUBROUTINE create_barostat_section(section, error)
 
 SUBROUTINE create_coeff_section(coeff_section, error)
     TYPE(section_type), POINTER              :: coeff_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_coeff_section', &
       routineP = moduleN//':'//routineN
@@ -2487,8 +2472,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 
 SUBROUTINE create_nose_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_nose_section', &
       routineP = moduleN//':'//routineN
@@ -2583,8 +2567,7 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_force_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_section', &
       routineP = moduleN//':'//routineN
@@ -2637,8 +2620,7 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_mass_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mass_section', &
       routineP = moduleN//':'//routineN
@@ -2690,8 +2672,7 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_velocity_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section', &
       routineP = moduleN//':'//routineN
@@ -2710,7 +2691,7 @@ END SUBROUTINE create_nose_section
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify velocities of the system",repeats=.FALSE.,&
+            description="Specify velocities of the system",repeats=.TRUE.,&
             usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2742,8 +2723,7 @@ END SUBROUTINE create_nose_section
   SUBROUTINE create_coord_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section', &
       routineP = moduleN//':'//routineN
@@ -2762,7 +2742,7 @@ END SUBROUTINE create_nose_section
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify positions of the system",repeats=.FALSE.,&
+            description="Specify positions of the system",repeats=.TRUE.,&
             usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2792,8 +2772,7 @@ END SUBROUTINE create_nose_section
 !!*** **********************************************************************
 SUBROUTINE create_pint_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_pint_section', &
       routineP = moduleN//':'//routineN
@@ -2996,6 +2975,329 @@ SUBROUTINE create_pint_section(section,error)
 
     END IF
   END SUBROUTINE create_pint_section
+!***************************************************************************
+
+!!****f* input_cp2k_motion/create_neb_section *
+!!
+!!   NAME
+!!     create_neb_section
+!!
+!!   FUNCTION
+!!     creates the section for a NEB run
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the pint section
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino 09.2006 [tlaino]
+!!
+!!*** **********************************************************************
+SUBROUTINE create_neb_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_neb_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsubsection
+
+  failure=.FALSE.  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+       CALL section_create(section,name="neb",&
+            description="The section that controls a NEB run",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword, print_key, subsection, subsubsection)
+
+       CALL keyword_create(keyword, name="NPROC_REP",&
+            description="Specify the number of processors to be used per replica "//&
+            "environment (for parallel runs)",&
+            default_i_val=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NEB_TYPE",&
+            description="Specifies the type of NEB calculation",&
+            usage="NEB_TYPE (EB|B_NEB|IT-NEB|CI-NEB)",&
+            default_i_val=do_it_neb,&
+            enum_c_vals=(/"B-NEB ",&
+                          "IT-NEB",&
+                          "CI-NEB",&
+                          "EB    "/),&
+            enum_desc=s2a( "Bisection NEB",&
+                           "Improved tangent NEB",&
+                           "Climbing Image NEB",&
+                           "Elastic Band (Hamiltonian formulation)"),&
+            enum_i_vals=(/do_b_neb,do_it_neb,do_ci_neb,do_eb/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUMBER_OF_REPLICA",&
+            description="Specify the number of Replica to use in the NEB",&
+            default_i_val=10, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ROTATE_FRAMES",&
+            description="Compute at each NEB step the RMSD and rotate the frames in order"//&
+            " to minimize it.",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="OPTIMIZE_END_POINTS",&
+            description="Performs also an optimization of the end points of the band.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K_SPRING",&
+            variants=(/"K"/),&
+            description="Specify the value of the spring constant",&
+            default_r_val=0.02_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Convergence_control
+       CALL section_create(subsection,name="CONVERGENCE_CONTROL",&
+            description="Setup parameters to control the convergence criteria for NEB",&
+            repeats=.FALSE., required=.FALSE., error=error)
+       CALL keyword_create(keyword, name="MAX_DR",&
+            description="Tolerance on the maximum value of the displacement on the NEB.",&
+            usage="MAX_DR {real}",&
+            default_r_val=0.0002_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_FORCE",&
+            description="Tolerance on the maximum value of Forces on the NEB.",&
+            usage="MAX_FORCE {real}",&
+            default_r_val=0.00045_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMS_DR",&
+            description="Tolerance on RMS displacements on the NEB.",&
+            usage="RMS_DR {real}",&
+            default_r_val=0.0001_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMS_FORCE",&
+            description="Tolerance on RMS Forces on the NEB.",&
+            usage="RMS_FORCE {real}",&
+            default_r_val=0.00030_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection, subsubsection)
+       ! CI-NEB section
+       CALL section_create(subsection,name="CI_NEB",&
+            description="Controls parameters for CI-NEB type calculation only.",&
+            repeats=.FALSE., required=.FALSE., error=error)
+       CALL keyword_create(keyword, name="NSTEPS_IT",&
+            description="Specify the number of steps of IT-NEB to perform before "//&
+            "switching on the CI algorithm",&
+            default_i_val=5, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! MD optimization section
+       CALL section_create(subsection,name="MD",&
+            description="Activate the MD based optimization procedure for NEB",&
+            repeats=.FALSE., required=.TRUE., error=error)
+       CALL keyword_create(keyword, name="MAX_STEPS",&
+            description="Specify the maximum number of MD steps",&
+            default_i_val=100, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="timestep",&
+             description="The length of an integration step",&
+             usage="timestep 1.0",&
+             default_r_val=cp_unit_to_cp2k(value=0.5_dp,&
+                                           unit_str="fs",&
+                                           error=error),&
+             unit_str="fs",&
+             error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="TEMPERATURE",&
+            description="Specify the initial temperature",&
+            default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
+                                          unit_str="K",&
+                                          error=error),&
+             unit_str="K",&
+             error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       ! Temp_control
+       CALL section_create(subsubsection,name="TEMP_CONTROL",&
+            description="Setup parameters to control the temperature during a NEB MD run.",&
+            repeats=.FALSE., required=.TRUE., error=error)
+       CALL keyword_create(keyword, name="TEMPERATURE",&
+            description="Specify the target temperature",&
+            type_of_var=real_t,unit_str="K",error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+       CALL keyword_create(keyword, name="TEMP_TOL",&
+            description="Specify the tolerance on the temperature for rescaling",&
+             default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
+                                           unit_str="K",&
+                                           error=error),&
+             unit_str="K",&
+             error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="TEMP_TOL_STEPS",&
+            description="Specify the number of steps to apply a temperature control",&
+            default_i_val=0, error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+       ! Vel_control
+       CALL section_create(subsubsection,name="VEL_CONTROL",&
+            description="Setup parameters to control the velocity during a NEB MD run.",&
+            repeats=.FALSE., required=.TRUE., error=error)
+       CALL keyword_create(keyword, name="ANNEALING",&
+            description="Specify the annealing coefficient",&
+            default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="PROJ_VELOCITY_VERLET",&
+            description="Uses a Projected Velocity Verlet instead of a normal Velocity Verlet."//&
+            " Every time the cosine between velocities and forces is < 0 velocities are"//&
+            " zeroed.",&
+            usage="PROJ_VELOCITY_VERLET <LOGICAL>",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="SD_LIKE",&
+            description="Zeros velocity at each MD step emulating a steepest descent like"//&
+            "(SD_LIKE) approach",&
+            usage="SD_LIKE <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+       ! End of MD
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! DIIS optimization section
+       CALL section_create(subsection,name="DIIS",&
+            description="Activate the DIIS based optimization procedure for NEB",&
+            repeats=.FALSE., required=.TRUE., error=error)
+
+       CALL keyword_create(keyword, name="MAX_SD_STEPS",&
+            description="Specify the maximum number of SD steps to perform"//&
+            " before switching on DIIS (the minimum number will always be equal to N_DIIS).",&
+            default_i_val=1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_STEPS",&
+            description="Specify the maximum number of optimization steps",&
+            default_i_val=100, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="N_DIIS",&
+            variants=(/"NDIIS"/),&
+            description="Number of history vectors to be used with DIIS",&
+            usage="N_DIIS 4",&
+            default_i_val=7,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="STEPSIZE",&
+            description="Initial stepsize used for the line search, sometimes this parameter"//&
+            "can be reduced to stablize DIIS",&
+            usage="STEPSIZE <REAL>",&
+            default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="NP_LS",&
+            description="Number of points used in the line search SD.",&
+            usage="NP_LS <INTEGER>",&
+            default_i_val=2,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       ! replica section: to specify coordinates and velocities (possibly) of the
+       ! different replica used in the NEB
+       CALL section_create(subsection,name="replica",&
+            description="Specify coordinates and velocities (possibly) of the replica",&
+            repeats=.TRUE., required=.TRUE., error=error)
+       CALL keyword_create(keyword, name="XYZ_COORD_FILENAME",&
+            description="Name of the xyz file with coordinates (alternative to &COORD section)",&
+            usage="XYZ_COORD_FILENAME <CHAR>",&
+            default_lc_val="",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_coord_section(subsubsection,"NEB",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL create_velocity_section(subsubsection,"NEB",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+       ! Print key section
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing basic info about the NEB run", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"convergence_info",&
+            description="Controls the printing of the convergence criteria during a NEB run", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"replica_info",&
+            description="Controls the printing of each replica info during a NEB run", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+       CALL cp_print_key_section_create(print_key,"ENERGY",&
+            description="Controls the printing of the ENER file in a NEB run", &
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+    END IF
+  END SUBROUTINE create_neb_section
 !***************************************************************************
 
 END MODULE input_cp2k_motion

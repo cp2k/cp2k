@@ -26,19 +26,19 @@ MODULE cp_control_utils
        do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, &
        do_method_eht, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
        do_method_kg_pol, do_method_mndo, do_method_pdg, do_method_pm3, &
-       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
-       do_s2_constraint, do_s2_restraint, electronic_spectra_run, &
-       elstr_method_name, energy_force_run, energy_run, geo_opt_run, &
-       linear_response_run, mol_dyn_run, mon_car_run, op_loc_berry, &
-       op_loc_boys, pint_run, qs_debug_run, quadrature_name, sic_ad, &
-       sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
-       state_loc_fromitoj, state_loc_list, state_loc_upton, &
+       do_neb, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
+       do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
+       electronic_spectra_run, elstr_method_name, energy_force_run, &
+       energy_run, geo_opt_run, linear_response_run, mol_dyn_run, &
+       mon_car_run, op_loc_berry, op_loc_boys, pint_run, qs_debug_run, &
+       quadrature_name, sic_ad, sic_mauri_spz, sic_mauri_us, sic_none, &
+       state_loc_all, state_loc_fromitoj, state_loc_list, state_loc_upton, &
        tddfpt_excitations, vib_anal, xc_debug_new_routine, xc_deriv_fd, &
        xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
-       xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
+       xc_deriv_spline3_smooth, xc_new_f_routine, xc_none, xc_old_f_routine, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine, xc_none
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -80,17 +80,16 @@ CONTAINS
   SUBROUTINE read_dft_control(dft_control,root_section, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: root_section, dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_dft_control (MODULE dft_types)"
 
     CHARACTER(len=default_string_length)     :: basis_set_file_name, &
                                                 potential_file_name
-    INTEGER                                  :: excitations, run_id, method_id
-    LOGICAL                                  :: failure, l_param, was_present,&
-                                                is_present, not_SE
+    INTEGER                                  :: excitations, method_id, run_id
+    LOGICAL                                  :: failure, is_present, l_param, &
+                                                not_SE, was_present
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
     TYPE(section_vals_type), POINTER         :: scf_section, tmp_section, &
                                                 xc_fun_section, xc_section
@@ -168,7 +167,7 @@ CONTAINS
     CASE (energy_run,mon_car_run,electronic_spectra_run,&
           bsse_run,linear_response_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal)
+    CASE (mol_dyn_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal,do_neb)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type ")
@@ -214,8 +213,7 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_mgrid_control "
 
@@ -313,15 +311,14 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: qs_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_qs_section "
 
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
-    REAL(dp)                                 :: value,tmpsqrt
+    REAL(dp)                                 :: tmpsqrt, value
     TYPE(section_vals_type), POINTER :: ddapc_restraint_section, loc_section, &
       mull_section, s2_restraint_section, se_section
 
@@ -555,20 +552,17 @@ CONTAINS
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt_control', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, kenergy_den, &
-                                                was_present
-    TYPE(section_vals_type), POINTER         :: sic_section, t_section, &
-                                                xc_section
+    LOGICAL                                  :: failure, kenergy_den
+    TYPE(section_vals_type), POINTER         :: sic_section, t_section
 
     failure=.FALSE.
     kenergy_den = .FALSE.
-    NULLIFY(sic_section, t_section, xc_section )
+    NULLIFY(sic_section, t_section)
     t_section => section_vals_get_subs_vals(dft_section,"TDDFPT",error=error)
 
     CALL section_vals_val_get(t_section,"CONVERGENCE", &
@@ -628,14 +622,13 @@ CONTAINS
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_dft_control'
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, il, output_unit, myfun
+    INTEGER                                  :: ifun, il, myfun, output_unit
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
@@ -795,8 +788,7 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_qs_control'
 
@@ -1030,8 +1022,7 @@ CONTAINS
 !!*** **********************************************************************
 FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_rho_smooth_id
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=10)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_rho_smooth_label', &
@@ -1084,8 +1075,7 @@ END FUNCTION xc_get_rho_smooth_label
 !!*** **********************************************************************
 FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_deriv_method_id
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=20)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_deriv_method_label', &
@@ -1142,8 +1132,7 @@ END FUNCTION xc_get_deriv_method_label
 !!*** **********************************************************************
 FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_functional_routine_id
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=20)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_routine_label', &

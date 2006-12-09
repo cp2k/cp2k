@@ -1,0 +1,90 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parmfile ../amber/mol.pot
+      parmtype CHM
+      &SPLINE
+        EMAX_ACCURACY 500.0
+        EMAX_SPLINE  1.0E10
+        EPS_SPLINE 1.0E-6
+        R0_NB 0.0001
+        RCUT_NB  20.0
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+        SPLINE_INFO
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30.0 30.0 30.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE_NAME ../amber/mol.pdb
+      COORDINATE PDB
+      CONNECTIVITY UPSF
+      CONN_FILE  ../amber/mol.psf
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROJECT GLYGLY
+  RUN_TYPE NEB
+&END GLOBAL
+&MOTION
+  &PRINT
+    &VELOCITIES OFF
+    &END
+  &END
+  &NEB
+    NPROC_REP 1
+    NEB_TYPE IT-NEB
+    NUMBER_OF_REPLICA 5
+    K_SPRING 0.05
+    &CONVERGENCE_CONTROL
+      #MAX_DR 0.01
+      MAX_FORCE 0.001
+      #RMS_DR 0.02
+      RMS_FORCE 0.0005
+    &END
+    ROTATE_FRAMES F
+    &DIIS
+     MAX_STEPS 22
+     MAX_SD_STEPS 20
+    &END
+    &REPLICA
+      XYZ_COORD_FILENAME  ../amber/MOL.0.xyz
+    &END
+    &REPLICA
+      XYZ_COORD_FILENAME  ../amber/MOL.1.xyz
+    &END
+    &REPLICA
+      XYZ_COORD_FILENAME  ../amber/MOL.2.xyz
+    &END
+    &REPLICA
+      XYZ_COORD_FILENAME  ../amber/MOL.3.xyz
+    &END
+    &REPLICA
+      XYZ_COORD_FILENAME  ../amber/MOL.4.xyz
+    &END
+    &PROGRAM_RUN_INFO 
+    &END
+    &CONVERGENCE_INFO
+    &END
+  &END NEB
+&END MOTION
