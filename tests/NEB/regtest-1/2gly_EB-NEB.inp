@@ -74,11 +74,11 @@
         ANNEALING 0.999
         PROJ_VELOCITY_VERLET F
       &END
-      #&TEMP_CONTROL
-      #  TEMPeRATURE 100.0
-      #  TEMP_TOL 50.
-      #  TEMP_TOL_STEPS 100
-      #&END
+      &TEMP_CONTROL
+        TEMPeRATURE 100.0
+        TEMP_TOL 50.
+        TEMP_TOL_STEPS 100
+      &END
     &END
     &REPLICA
       XYZ_COORD_FILENAME  ../amber/MOL.0.xyz

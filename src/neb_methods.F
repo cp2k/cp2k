@@ -393,7 +393,7 @@ CONTAINS
                                                 n_diis, stat
     INTEGER, DIMENSION(:), POINTER           :: set_err
     LOGICAL                                  :: converged, diis_on, do_ls, &
-                                                failure
+                                                failure, skip_ls
     REAL(KIND=dp)                            :: norm, stepsize, stepsize0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err, forces, sline
@@ -412,6 +412,7 @@ CONTAINS
        CALL section_vals_val_get(diis_section,"MAX_STEPS",i_val=max_steps, error=error)
        CALL section_vals_val_get(diis_section,"N_DIIS",i_val=n_diis, error=error)
        CALL section_vals_val_get(diis_section,"STEPSIZE",r_val=stepsize0, error=error)
+       CALL section_vals_val_get(diis_section,"NO_LS",l_val=skip_ls, error=error)
        CALL section_vals_val_get(diis_section,"MAX_SD_STEPS",i_val=max_sd_steps, error=error)
        stepsize = stepsize0
        ! Initial setup for DIIS
@@ -463,8 +464,8 @@ CONTAINS
              converged = .TRUE.
              EXIT
           END IF
-          sline = forces * stepsize0
-          IF (do_ls) THEN
+          sline = forces/norm * stepsize0
+          IF (do_ls.AND.(.NOT.skip_ls)) THEN
              sline = forces / norm
              CALL neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces,&
                   vels, particle_set, iw, output_unit, distances, diis_section, error)

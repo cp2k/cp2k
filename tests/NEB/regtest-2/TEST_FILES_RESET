@@ -1,1 +1,5 @@
 #
+# Handling properly bad starting geometries
+2gly_DIIS-NEB.inp
+2gly_DIIS-OEP-NEB.inp
+2gly_DIIS-SD-NEB.inp

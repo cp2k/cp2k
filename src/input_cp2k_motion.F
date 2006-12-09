@@ -3242,6 +3242,13 @@ SUBROUTINE create_neb_section(section,error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
+       CALL keyword_create(keyword, name="NO_LS",&
+            description="Does not perform LS during SD. Useful in combination with a proper STEPSIZE"//&
+            " for particularly out of equilibrium starting geometries.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
