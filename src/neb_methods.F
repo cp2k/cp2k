@@ -393,7 +393,7 @@ CONTAINS
                                                 n_diis, stat
     INTEGER, DIMENSION(:), POINTER           :: set_err
     LOGICAL                                  :: converged, diis_on, do_ls, &
-                                                failure, skip_ls
+                                                failure, skip_ls, check_diis
     REAL(KIND=dp)                            :: norm, stepsize, stepsize0, max_stepsize
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err, forces, sline
@@ -415,6 +415,7 @@ CONTAINS
        CALL section_vals_val_get(diis_section,"MAX_STEPSIZE",r_val=max_stepsize, error=error)
        CALL section_vals_val_get(diis_section,"NO_LS",l_val=skip_ls, error=error)
        CALL section_vals_val_get(diis_section,"MAX_SD_STEPS",i_val=max_sd_steps, error=error)
+       CALL section_vals_val_get(diis_section,"CHECK_DIIS",l_val=check_diis, error=error)
        stepsize = stepsize0
        ! Initial setup for DIIS
        ALLOCATE (forces(3*SIZE(particle_set),SIZE(coords,2)),stat=stat)
@@ -480,11 +481,12 @@ CONTAINS
           END IF
           sline = stepsize*sline
           diis_on = accept_diis_step(istep>max_sd_steps,n_diis,err,crr,set_err,sline,coords,&
-                                     output_unit,error)
+                                     output_unit,check_diis,error)
           IF (diis_on) THEN 
              neb_env%opt_type_label= "DIIS"
-             do_ls                 = .FALSE.
           END IF
+          do_ls = .TRUE.
+          IF (count(set_err==-1)==1) do_ls = .FALSE.
           coords = coords + sline
           ! Compute forces
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&

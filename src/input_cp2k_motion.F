@@ -3257,6 +3257,14 @@ SUBROUTINE create_neb_section(section,error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CHECK_DIIS",&
+            description="Performes a series of checks on the DIIS solution in order to accept the DIIS step."//&
+            " If set to .FALSE. the only check performed is that the angle between the DIIS solution and the"//&
+            " reference vector is less than Pi/2. Can be useful if many DIIS steps are rejected.",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

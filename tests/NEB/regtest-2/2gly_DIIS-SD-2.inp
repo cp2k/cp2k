@@ -64,8 +64,9 @@
     &END
     ROTATE_FRAMES F
     &DIIS
-     MAX_STEPS 12
-     MAX_SD_STEPS 10
+     MAX_STEPS 20
+     N_DIIS 5
+     CHECK_DIIS .FALSE.
     &END
     &REPLICA
       XYZ_COORD_FILENAME  ../amber/MOL.0.xyz

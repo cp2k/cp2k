@@ -74,8 +74,8 @@ CONTAINS
 !!   SOURCE
 !****************************************************************************
   FUNCTION accept_diis_step(apply_diis, n_diis,err,crr,set_err,sline,coords,&
-       output_unit,error) RESULT(accepted)
-    LOGICAL, INTENT(IN)                      :: apply_diis
+       output_unit,check_diis,error) RESULT(accepted)
+    LOGICAL, INTENT(IN)                      :: apply_diis, check_diis
     INTEGER, INTENT(IN)                      :: n_diis
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: err, crr
     INTEGER, DIMENSION(:), POINTER           :: set_err
@@ -208,7 +208,7 @@ CONTAINS
              step = step - crr(:,n_diis)
              ref  = err(:,n_diis)
              increase_error = check_diis_solution(jv,n_diis,cwrk,step,ref,&
-                                                  output_unit,error)
+                                                  output_unit,check_diis,error)
              ! possibly enlarge the error space
              IF (increase_error) THEN
                 accepted = .TRUE.
@@ -284,11 +284,13 @@ CONTAINS
 !!
 !!   SOURCE
 !****************************************************************************
-  FUNCTION check_diis_solution(nv, n_diis, cwrk, step, ref, output_unit, error) RESULT(accepted)
+  FUNCTION check_diis_solution(nv, n_diis, cwrk, step, ref, output_unit, check_diis, error)&
+   RESULT(accepted)
     INTEGER, INTENT(IN)                      :: nv, n_diis
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwrk, step, ref
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN)                      :: check_diis
     LOGICAL                                  :: accepted
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_diis_solution', &
@@ -311,7 +313,11 @@ CONTAINS
           norm1 = SQRT(DOT_PRODUCT(ref,ref))
           norm2 = SQRT(DOT_PRODUCT(step,step))
           costh = DOT_PRODUCT(ref,step)/(norm1*norm2)
-          IF (costh < acceptance_factor(MIN(10,nv))) accepted = .FALSE.
+          IF (check_diis) THEN
+             IF (costh < acceptance_factor(MIN(10,nv))) accepted = .FALSE.
+          ELSE
+             IF (costh <= 0.0_dp) accepted = .FALSE.
+          END IF
           IF (output_unit > 0.AND.(.NOT.accepted))  THEN
              WRITE(output_unit,'(T2,"DIIS|",A)')&
                   "The direction of the DIIS step, can be compared to the reference step.",&
@@ -322,7 +328,7 @@ CONTAINS
                   acceptance_factor(MIN(10,nv)),"> ."
           END IF
        END IF
-       IF (accepted) THEN
+       IF (accepted.AND.check_diis) THEN
           ! (b) The length of the DIIS step is limited to be no more than 10 times
           !     the reference step
           IF (norm1 > norm2*10.0_dp) accepted = .FALSE.
@@ -332,7 +338,7 @@ CONTAINS
                   "the reference step. Value exceeded. Reset DIIS!"
           END IF
        END IF
-       IF (accepted) THEN
+       IF (accepted.AND.check_diis) THEN
           ! (d) If the DIIS matrix is nearly singular, the norm of the DIIS step
           !     vector becomes small and cwrk/norm1 becomes large, signaling a
           !     numerical stability problems. If the magnitude of cwrk/norm1 
@@ -424,6 +430,9 @@ CONTAINS
           b  = ya - 2.0_dp*a*xa
           xc = -b/(2.0_dp*a)
           IF (xc>max_stepsize) THEN
+             IF (output_unit>0) WRITE(output_unit,'(T2,2(A,F6.3),A)')&
+                  "LS| Predicted stepsize (",xc,") greater than allowed stepsize (",&
+                  max_stepsize,").  Reset!"
              xc = max_stepsize
              EXIT
           END IF
