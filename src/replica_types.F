@@ -199,7 +199,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
     INTEGER :: comm_cart, comm_f, comm_inter_rep, i, i0, ierr, ip, ir, irep, &
       lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr
     INTEGER, DIMENSION(2)                    :: dims, pos
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, ionode
     LOGICAL, DIMENSION(2)                    :: rdim
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
@@ -211,12 +211,17 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
   NULLIFY(cart,para_env_f,para_env_inter_rep)
   IF (.NOT. failure) THEN
      logger => cp_error_get_logger(error)
+     ionode = para_env%mepos==para_env%source
+     IF (ionode) THEN
+        unit_nr=cp_logger_get_default_unit_nr(logger)
+     ELSE
+        unit_nr=-1
+     END IF
      new_env_id=-1
      my_prep=MIN(prep,para_env%num_pe)
      dims(1)=my_prep
      dims(2)=MIN(para_env%num_pe/my_prep,nrep)
-     IF (dims(1)*dims(2)/=para_env%num_pe) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+     IF ((dims(1)*dims(2)/=para_env%num_pe).AND.(unit_nr>0)) THEN
         WRITE(unit_nr,"(/,' WARNING',/,' number of processors not divisible in replica creation,')")
         WRITE(unit_nr,"(' wasting ',i4,' processors')") para_env%num_pe-dims(1)*dims(2)
      END IF

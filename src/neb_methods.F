@@ -137,10 +137,15 @@ CONTAINS
        CALL section_vals_val_get(neb_section,"NPROC_REP",i_val=prep, error=error)
        nrep = MAX(1,para_env%num_pe/prep)
        IF (output_unit>0) THEN
-          WRITE(output_unit,'(T2,"NEB|",3(A,I5))')"NUMBER OF REPLICAS:",nrep,&
-               "NUMBER OF PROCS:",para_env%num_pe,"NUMBER OF PROCS PER REPLICA:",prep
+          WRITE(output_unit,'(T2,"NEB|",3(A,I5))')" NUMBER OF REPLICAS:",nrep,&
+               " NUMBER OF PROCS:",para_env%num_pe," NUMBER OF PROCS PER REPLICA:",prep
        END IF
-       CPPostconditionNoFail(nrep*prep==para_env%num_pe,cp_warning_level,routineP,error)
+       IF (nrep*prep/=para_env%num_pe.AND.output_unit>0) THEN
+          WRITE(output_unit,'(T2,"NEB|",A,I5)')" NUMBER OF TOTALLY REQUESTED PROCESSORS:",&
+               para_env%num_pe," IS NOT COMPATIBLE WITH THE NUMBER OF PROCESSORS REQUESTED PER REPLICA:",&
+               prep," AND THE NUMBER OF REPLICAS:",nrep
+          WRITE(output_unit,'(T2,"NEB| ",I0,A)')para_env%num_pe-nrep*prep," PROCESSORS WILL BE WASTED!"
+       END IF
        ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
        CALL section_vals_get(force_env_section,n_repetition=irep,error=error)
