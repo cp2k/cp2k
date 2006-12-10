@@ -1087,7 +1087,6 @@ CONTAINS
                            ener,&
                            v_hartree_gspace=work_v,&
                            calculate_forces=calculate_forces,&
-                           only_decoupling=.TRUE.,&
                            Itype_of_density="SPIN",&
                            error=error)
 

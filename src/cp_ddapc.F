@@ -144,13 +144,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace, &
-       calculate_forces, only_decoupling, Itype_of_density, error)
+       calculate_forces, Itype_of_density, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     TYPE(coeff_type)                         :: v_hartree_gspace
-    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
-                                                only_decoupling
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     CHARACTER(LEN=*)                         :: Itype_of_density
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -159,7 +158,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iw, stat
     LOGICAL                                  :: apply_decpl, failure, &
-                                                my_onlyD, need_f
+                                                need_f
     REAL(KINd=dp)                            :: e_decpl, e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -175,9 +174,7 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure        = .FALSE.
     need_f         = .FALSE. 
-    my_onlyD       = .FALSE.
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
-    IF (PRESENT(only_decoupling))  my_onlyD = only_decoupling
     logger         => cp_error_get_logger(error)
     apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic
     IF ((.NOT.failure).AND.(apply_decpl)) THEN
@@ -239,7 +236,7 @@ CONTAINS
           e_decpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Md,charges))
           WRITE(iw,FMT="(T3,A,T60,F20.10)")"Decoupling Energy: ", e_decpl
        END IF
-       IF ((.NOT.my_onlyD).AND.(qs_env%cp_ddapc_ewald%do_qmmm_periodic).AND.(iw>0)) THEN
+       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic.AND.(iw>0)) THEN
           e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Mr,charges))
           WRITE(iw,FMT="(T3,A,T60,F20.10)")"Recoupling Energy: ", e_recpl
        END IF
@@ -257,7 +254,7 @@ CONTAINS
           CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm,&
                .FALSE., 1.0_dp, multipole_section, cell, particle_set,&
                radii, dq, charges, error=error)
-          IF (.NOT.my_onlyD.AND.qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
+          IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
              CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_mm,&
                   .TRUE., -1.0_dp, multipole_section, super_cell, particle_set, &
                   radii, dq, charges, error=error)
