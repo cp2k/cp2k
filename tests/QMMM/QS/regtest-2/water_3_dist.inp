@@ -1,0 +1,149 @@
+
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 50
+      &INTERPOLATOR
+        EPS_R 1.0e-6
+        EPS_X 1.0e-6
+        MAXITER 100
+      &END INTERPOLATOR
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      MAX_SCF 5
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &QMMM
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 4
+    &MM_KIND H
+      RADIUS 0.54
+    &END MM_KIND
+    &MM_KIND O
+      RADIUS 0.73
+    &END MM_KIND
+    &PRINT
+      &MM_POTENTIAL
+      &END MM_POTENTIAL
+    &END PRINT
+    &QM_KIND H
+      MM_INDEX 2 3
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 1
+    &END QM_KIND
+  &END
+  &MM
+    &FORCEFIELD
+      parmfile ../../../Fist/sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE pme
+        ALPHA .44
+        NS_MAX 25
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+OT   -0.757  -5.616  -7.101    MOL1 
+HT   -1.206  -5.714  -6.262    MOL1 
+HT    0.024  -5.102  -6.896    MOL1 
+OT  -11.317  -2.629  -9.689    MOL2 
+HT  -11.021  -3.080 -10.480    MOL2 
+HT  -10.511  -2.355  -9.252    MOL2 
+    &END
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 3
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE
+        ATOMS 2 3
+      &END DISTANCE
+    &END COLVAR
+    &TOPOLOGY
+    &END TOPOLOGY
+    &KIND H
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+
+  PROJECT water_3
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      TARGET 1.8897268
+      MOLNAME MOL1
+      COLVAR 1
+    &END COLLECTIVE
+    &COLLECTIVE
+      TARGET 1.8897268
+      MOLNAME MOL1
+      COLVAR 2
+    &END COLLECTIVE
+    &COLLECTIVE
+      TARGET 3.0859239
+      MOLNAME MOL1
+      COLVAR 3
+    &END COLLECTIVE
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TIMESTEP 1.0
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

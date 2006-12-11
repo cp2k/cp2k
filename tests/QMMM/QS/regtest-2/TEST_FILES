@@ -21,3 +21,5 @@ H2O-qmmm-gauss-14-geep-15.inp  1
 H2O-qmmm-gauss-14-geep-16.inp  1
 H2O-qmmm-gauss-14-geep-17.inp  1
 H2O-qmmm-gauss-14-geep-18.inp  1
+#constraints
+water_3_dist.inp               2

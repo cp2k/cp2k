@@ -24,6 +24,7 @@
 MODULE topology_constraint_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_counters,&
@@ -158,7 +159,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: hbonds_section
     TYPE(constr_list_type), POINTER, DIMENSION(:)  :: constr_x_mol
     INTEGER :: output_unit
-    LOGICAL :: ionode, ishbond
+    LOGICAL :: ionode, ishbond, ldummy
     INTEGER, POINTER, DIMENSION(:) :: inds
     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: cnds
 
@@ -228,7 +229,9 @@ CONTAINS
              DO i = 1, SIZE(cnds)
                 DO k = 1, SIZE(molecule_kind_set)
                    molecule_kind => molecule_kind_set(k)
-                   IF (cnds(i) == molecule_kind%name) constr_x_mol(k)%constr(1) = 1
+                   name = molecule_kind%name
+                   ldummy = qmmm_ff_precond_only_qm(id1=name)
+                   IF (cnds(i) == name) constr_x_mol(k)%constr(1) = 1
                 END DO
              END DO
           END IF
@@ -261,6 +264,7 @@ CONTAINS
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol)
+             ldummy = qmmm_ff_precond_only_qm(id1=name)
              IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
              IF (.NOT.ishbond) THEN
                 j = bond_list(k)%b
@@ -268,6 +272,7 @@ CONTAINS
                 atomic_kind => atom_list(j)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name,element_symbol=element_symbol)
+                ldummy = qmmm_ff_precond_only_qm(id1=name)
                 IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
              END IF
              IF (ishbond) THEN
@@ -305,6 +310,7 @@ CONTAINS
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol)
+             ldummy = qmmm_ff_precond_only_qm(id1=name)
              IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
              IF (.NOT.ishbond) THEN
                 j = bond_list(k)%b
@@ -312,6 +318,7 @@ CONTAINS
                 atomic_kind => atom_list(j)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name,element_symbol=element_symbol)
+                ldummy = qmmm_ff_precond_only_qm(id1=name)
                 IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
              END IF
              IF (ishbond) THEN
@@ -323,6 +330,7 @@ CONTAINS
                       IF (bond_list(k)%b==j) atomic_kind => atom_list(bond_list(k)%a)%atomic_kind
                       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name,element_symbol=element_symbol)
+                      ldummy = qmmm_ff_precond_only_qm(id1=name)
                       DO m = 1, SIZE(hdist)
                          IF (TRIM(name)==TRIM(atom_typeh(m))) EXIT
                          IF (TRIM(element_symbol)==TRIM(atom_typeh(m))) EXIT
@@ -625,6 +633,7 @@ CONTAINS
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list, name=molname)
+          ldummy = qmmm_ff_precond_only_qm(id1=molname)
           WHERE(molname.EQ.cons_info%fixed_molnames)
             missed_molname=.FALSE.
           END WHERE
@@ -786,10 +795,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'give_constraint_array', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL :: failure, ldummy
     INTEGER :: handle, i, k, isize, stat
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    CHARACTER(LEN=default_string_length)     :: myname
+    CHARACTER(LEN=default_string_length)     :: myname, name
 
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -813,7 +822,9 @@ CONTAINS
              myname = const_molname(i)
              DO k = 1, SIZE(molecule_kind_set)
                 molecule_kind => molecule_kind_set(k)
-                IF (molecule_kind%name==myname) THEN
+                name = molecule_kind%name
+                ldummy = qmmm_ff_precond_only_qm(id1=name)
+                IF (name==myname) THEN
                    isize = SIZE(constr_x_mol(k)%constr)
                    CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
                    constr_x_mol(k)%constr(isize+1) = i

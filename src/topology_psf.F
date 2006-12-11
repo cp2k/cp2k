@@ -353,7 +353,7 @@ CPSourceFileRef,&
           IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
                (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
                (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
-             IF(iw>0) WRITE(iw,'(T2,A)') "PSF_INFO| PARA_RES, bond between molecules atom ",&
+             IF(iw>0) WRITE(iw,'(T2,A,2I6)') "PSF_INFO| PARA_RES, bond between molecules atom ",&
                   iatom,jatom
              i = i + 1
              CALL reallocate(conn_info%c_bond_a,1,i)
