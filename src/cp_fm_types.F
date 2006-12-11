@@ -436,23 +436,27 @@ CPSourceFileRef,&
 !!*** *********************************************************************
 
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
+
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: beta
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
-    INTEGER                                  :: i, matrix_size
+    INTEGER                                  :: i, matrix_size, n
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     matrix_size = SIZE(matrix%local_data,1)*SIZE(matrix%local_data,2)
+
     CALL dcopy (matrix_size, alpha, 0, matrix%local_data, 1)
+
     IF (PRESENT(beta)) THEN
-      DO i=1,matrix%matrix_struct%nrow_global
+      n = MIN(matrix%matrix_struct%nrow_global,matrix%matrix_struct%ncol_global)
+      DO i=1,n
          CALL cp_fm_set_element(matrix,i,i,beta,error=error)
-      ENDDO
-    ENDIF
+      END DO
+    END IF
 
   END SUBROUTINE cp_fm_set_all
 

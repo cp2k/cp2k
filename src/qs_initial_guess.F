@@ -345,11 +345,6 @@ CONTAINS
 
     ELSE IF (density_guess == core_guess) THEN
 
-       IF (dft_control%restricted) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                           "Option not yet implemented")
-       END IF
-
        ispin = 1
 
        ! Load core Hamiltonian into work matrix
@@ -513,41 +508,50 @@ CONTAINS
 
         CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
 
-        ! do we require an initial wavefunction ?
-        ! assume p is a projector (it is not ..) and generate an initial
-        ! wavefunction and the corresponding dm
+        ! The orbital transformation method (OT) requires not only an
+        ! initial density matrix, but also an initial wavefunction (MO set)
 
         IF (scf_control%use_ot) THEN
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                          mo_coeff=mo_coeff,&
-                          nmo=nmo)
-          CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
 
-          ! multiply times PS
+          IF (dft_control%restricted.AND.(ispin == 2)) THEN
 
-          IF (ortho_basis) THEN
-            CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+            CALL mo_set_restrict(mo_array,error=error)
+
           ELSE
-            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+
+            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                            mo_coeff=mo_coeff,&
+                            nmo=nmo)
+            CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+            CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+
+            ! multiply times PS
+
+            IF (ortho_basis) THEN
+              CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+            ELSE
+              CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+            END IF
+
+            ! here we could easily multiply with the diag that we actually have replicated already
+
+            CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo,error=error)
+            CALL cp_fm_release(sv,error=error)
+
+            ! and ortho the result
+
+            IF (ortho_basis) THEN
+              CALL make_basis_simple(mo_coeff,nmo,error=error)
+            ELSE
+              CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+            END IF
+
           END IF
-
-          ! here we could easily multiply with the diag that we actually have replicated already
-
-          CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo,error=error)
-          CALL cp_fm_release(sv,error=error)
-
-          ! and ortho the result
-
-          IF (ortho_basis) THEN
-            CALL make_basis_simple(mo_coeff,nmo,error=error)
-          ELSE
-            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
-          ENDIF
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                         p_rmpv(ispin)%matrix,&
                                         error=error)
+
         END IF
 
       END DO
