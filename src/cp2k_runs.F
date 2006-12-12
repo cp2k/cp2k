@@ -219,6 +219,7 @@ CONTAINS
        glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
        CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
             error=error)
+       logger => cp_error_get_logger(error)
        IF (echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
