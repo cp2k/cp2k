@@ -541,7 +541,7 @@ CONTAINS
   !!*** *************************************************************************
 
   SUBROUTINE initialize_velocities(simpar,part,para_env,globenv,molecule_kinds,&
-                                   print_section,work_section,error)
+                                   print_section,work_section,force_rescaling,error)
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -551,6 +551,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: print_section, work_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: force_rescaling
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -656,6 +657,16 @@ CONTAINS
        temp = 0.0_dp
        IF (simpar % nfree /= 0) THEN
           temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+          IF (PRESENT(force_rescaling)) THEN
+            IF (force_rescaling) THEN
+               sc = SQRT ( simpar % temp_ext / temp )
+               DO i = 1, natoms
+                  part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
+                  part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
+                  part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
+               END DO
+            END IF
+          END IF
        END IF
        vcom_new=vcom
     ELSE
@@ -706,8 +717,6 @@ CONTAINS
              sc = SQRT ( simpar % temp_ext / temp )
           END IF
           DO i = 1, natoms
-             atomic_kind => part ( i ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
              part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
              part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
              part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )

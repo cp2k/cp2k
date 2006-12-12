@@ -149,3 +149,5 @@ water_3_dist_3.inp        2
 water32_hbonds_3.inp      2
 water32_hbonds_4.inp      2
 water_massive.inp         2
+# applying constraint to the 0 step of MD
+water_3_dist_startC.inp   2

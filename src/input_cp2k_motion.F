@@ -283,6 +283,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CONSTRAIN_INIT",&
+            description="Apply constraints to the initial position and velocities."//&
+            " Default is to apply constraints only after the first MD steps.",&
+            usage="CONSTRAIN_INIT <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_hbonds_section(subsection, error=error)
        CALL restraint_info_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)

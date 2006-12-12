@@ -40,7 +40,9 @@ MODULE md_run
                                              lnhc_dealloc,&
                                              lnhc_init,&
                                              npt_dealloc
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
+                                             force_env_shake,&
+                                             force_env_rattle
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
@@ -51,7 +53,8 @@ MODULE md_run
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
   USE input_constants,                 ONLY: langevin_ensemble
-  USE input_cp2k_restarts,             ONLY: write_restart
+  USE input_cp2k_restarts,             ONLY: write_restart,&
+                                             update_subsys
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -147,7 +150,7 @@ CONTAINS
                                                 istat, istep, isubsys, &
                                                 iter_level, nbeads
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: failure, should_stop, apply_cns0
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: t, used_time
@@ -340,8 +343,52 @@ CONTAINS
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
                       t = t, used_time = used_time )
-
+    apply_cns0 = .false.
+    IF (simpar%constraint) &
+    CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAIN_INIT",l_val=apply_cns0,error=error)
     DO ibead = 1, nbeads
+       IF (apply_cns0) THEN
+          CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
+               calc_force=.TRUE.,error=error)          
+          CALL force_env_shake(force_env_p(ibead)%force_env,0.1_dp,simpar%shake_tol,&
+               simpar%info_constraint,compold=.TRUE.,error=error)
+          CALL force_env_rattle(force_env_p(ibead)%force_env,0.1_dp,simpar%shake_tol,&
+               simpar%info_constraint,reset=.TRUE.,error=error)
+          IF (simpar%do_respa)THEN
+             CALL force_env_calc_energy_force ( &
+                  force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+                  calc_force=.TRUE.,error=error)
+             CALL force_env_shake(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+                  0.1_dp,simpar%shake_tol,simpar%info_constraint,compold=.TRUE.,error=error)
+             CALL force_env_rattle(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+                  0.1_dp,simpar%shake_tol,simpar%info_constraint,reset=.TRUE.,error=error)          
+          END IF
+          ! Reinitialize velocities rescaling properly after rattle
+          CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
+               force_env_section=force_env_section, error=error )
+          DO isubsys=1,SIZE(subsys)
+             subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
+                                                          i_rep_section=isubsys,&
+                                                          error=error)
+             CALL update_subsys(subsys_section,force_env_p(ibead)%force_env,.FALSE.,error)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                                molecule_kinds_new=molecule_kinds_new,&
+                                particles=particles,&
+                                error=error)
+             NULLIFY (work_section)
+             work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+             print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
+             CALL initialize_velocities(simpar,particles%els,&
+                                        molecule_kinds=molecule_kinds_new,&
+                                        para_env=para_env,&
+                                        globenv=globenv,&
+                                        print_section=print_section,&
+                                        work_section=work_section,&
+                                        force_rescaling=.TRUE.,&
+                                        error=error)
+          END DO
+       END IF
+
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.,error=error)
        IF (simpar%do_respa)THEN

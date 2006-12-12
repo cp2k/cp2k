@@ -99,7 +99,8 @@ MODULE input_cp2k_restarts
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts'
 
-  PUBLIC :: write_restart
+  PUBLIC :: write_restart,&
+            update_subsys
 
 !!*****
 !******************************************************************************
@@ -963,7 +964,7 @@ CONTAINS
     skip_vel_section =((myid /= mol_dyn_run).AND.&
                        (myid /= mon_car_run).AND.&
                        (myid /= pint_run))
-                       
+
     ! Go on updatig the force_env_section
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
