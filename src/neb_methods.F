@@ -463,6 +463,7 @@ CONTAINS
        ! Main SD/DIIS loop
        set_err = -1
        DO istep = 1, max_steps
+          CALL cp_iterate(logger%iter_info,iter_nr=istep,error=error)
           neb_env%opt_type_label="SD"
           ! Perform one step of SD with line search
           norm = SQRT(SUM(forces*forces))
