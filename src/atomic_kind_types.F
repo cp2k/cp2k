@@ -1110,12 +1110,12 @@ CONTAINS
   SUBROUTINE read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,&
        no_fail, error)
 
-!   Purpose: Read an atomic kind data set from the input file.
+    !   Purpose: Read an atomic kind data set from the input file.
 
-!   History: - Creation (09.02.2002,MK)
-!            - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
+    !   History: - Creation (09.02.2002,MK)
+    !            - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(section_vals_type), POINTER         :: kind_section
@@ -1123,17 +1123,17 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     LOGICAL, INTENT(IN)                      :: no_fail
     TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+         :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-      keyword, orb_basis_set_name, potential_name, potential_type
+         keyword, orb_basis_set_name, potential_name, potential_type
     INTEGER                                  :: i, i_rep, ipos, k_rep, n_rep, &
-                                                naux, ngrid_ang, ngrid_rad, &
-                                                norb, z
+         naux, ngrid_ang, ngrid_rad, &
+         norb, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff_correction
@@ -1271,7 +1271,7 @@ CONTAINS
             keyword_name="ELEC_CONF",n_rep_val=i,error=error)
        IF (i>0) THEN
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-                                    keyword_name="ELEC_CONF",i_vals=elec_conf,error=error)
+               keyword_name="ELEC_CONF",i_vals=elec_conf,error=error)
           CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
        ENDIF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
@@ -1284,19 +1284,18 @@ CONTAINS
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="POTENTIAL",c_val=potential_name,error=error)
-
        ! assign atom dependent defaults, only H special case
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,n_rep_val=i,&
             keyword_name="HARD_EXP_RADIUS",error=error)
        IF (i==0) THEN
-         IF (z==1) THEN
-            atomic_kind%hard_radius=1.2_dp
-         ELSE
-            atomic_kind%hard_radius=0.8_dp*bohr
-         ENDIF
+          IF (z==1) THEN
+             atomic_kind%hard_radius=1.2_dp
+          ELSE
+             atomic_kind%hard_radius=0.8_dp*bohr
+          ENDIF
        ELSE
-         CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-              keyword_name="HARD_EXP_RADIUS",r_val=atomic_kind%hard_radius,error=error)
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+               keyword_name="HARD_EXP_RADIUS",r_val=atomic_kind%hard_radius,error=error)
        ENDIF
 
        ! assign atom dependent defaults, only H special case
@@ -1305,12 +1304,12 @@ CONTAINS
        IF (i==0) THEN
           atomic_kind%hard0_radius=atomic_kind%hard_radius
        ELSE
-         CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-              keyword_name="RHO0_EXP_RADIUS",r_val=atomic_kind%hard0_radius,error=error)
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+               keyword_name="RHO0_EXP_RADIUS",r_val=atomic_kind%hard0_radius,error=error)
        ENDIF
        CALL cp_assert(atomic_kind%hard_radius>=atomic_kind%hard0_radius,&
-             cp_failure_level,cp_assertion_failed,routineP,&
-             "rc0 should be <= rc",error,failure)
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "rc0 should be <= rc",error,failure)
 
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="MAX_RAD_LOCAL",r_val=atomic_kind%max_rad_local,error=error)
@@ -1332,117 +1331,120 @@ CONTAINS
 
     atomic_kind%mass = atomic_kind%mass*massunit
 
-!   *** Allocate and initialise the orbital basis set data set structure ***
+    !   *** Allocate and initialise the orbital basis set data set structure ***
     CALL init_orbital_pointers(5) ! debug the SUN optimizer
 
     IF (orb_basis_set_name /= '') THEN
-      CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
-      CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
-                              atomic_kind%orb_basis_set,para_env,force_env_section,error)
-      CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
-                             norm_type=norb)
+       CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
+       CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
+            atomic_kind%orb_basis_set,para_env,force_env_section,error)
+       CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+            norm_type=norb)
     END IF
 
-!   *** Allocate and initialise the auxiliary basis set data set structure ***
+    !   *** Allocate and initialise the auxiliary basis set data set structure ***
 
     IF (aux_basis_set_name /= '') THEN
 
-      CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
-      CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
-                              atomic_kind%aux_basis_set,para_env,force_env_section,error)
-      CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
-                             norm_type=naux)
+       CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
+       CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
+            atomic_kind%aux_basis_set,para_env,force_env_section,error)
+       CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
+            norm_type=naux)
     END IF
 
-!   *** Allocate and initialise the potential data set structure ***
+    !   *** Allocate and initialise the potential data set structure ***
 
     IF (potential_name /= '') THEN
 
-      ipos = INDEX(potential_name,"-")
+       ipos = INDEX(potential_name,"-")
 
-      IF (ipos > 1) THEN
-        potential_type = potential_name(:ipos-1)
-      ELSE
-        potential_type = potential_name
-      END IF
+       IF (ipos > 1) THEN
+          potential_type = potential_name(:ipos-1)
+       ELSE
+          potential_type = potential_name
+       END IF
 
-      CALL uppercase(potential_type)
-      dft_section => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
-      SELECT CASE (TRIM(potential_type))
-      CASE ("ALL")
-        CALL allocate_potential(atomic_kind%all_potential)
-        CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%all_potential,zeff_correction,para_env,&
-                            dft_section,error)
-        CALL set_potential(atomic_kind%all_potential,z=z)
-        CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
-        IF (.NOT.ASSOCIATED(elec_conf)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
-          CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
-        END IF
-        IF (atomic_kind%ghost) THEN
-          atomic_kind%mass = 0.0_dp
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               elec_conf=elec_conf)
-          elec_conf(:) = 0
-          CALL get_potential(potential=atomic_kind%all_potential,&
-                             elec_conf=elec_conf)
-          elec_conf(:) = 0
-          CALL set_potential(potential=atomic_kind%all_potential,&
-                             zeff=0.0_dp,&
-                             zeff_correction=0.0_dp)
-        END IF
-      CASE ("GTH")
-        IF (atomic_kind%ghost) THEN
-          IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
-          atomic_kind%mass = 0.0_dp
-        ELSE
-          CALL allocate_potential(atomic_kind%gth_potential)
+       CALL uppercase(potential_type)
+       dft_section => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
+       SELECT CASE (TRIM(potential_type))
+       CASE ("ALL")
+          CALL allocate_potential(atomic_kind%all_potential)
           CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                              atomic_kind%gth_potential,zeff_correction,para_env,&
-                              dft_section,error)
-          CALL set_potential(atomic_kind%gth_potential,z=z)
+               atomic_kind%all_potential,zeff_correction,para_env,&
+               dft_section,error)
+          CALL set_potential(atomic_kind%all_potential,z=z)
           CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
           IF (.NOT.ASSOCIATED(elec_conf)) THEN
-            CALL get_potential(potential=atomic_kind%gth_potential,elec_conf=elec_conf)
-            CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+             CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
+             CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
           END IF
-        END IF
-      CASE ("ELP")
-        CALL allocate_potential(atomic_kind%elp_potential)
-        CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%elp_potential,para_env,&
-                            dft_section,error)
-      CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "An invalid potential type <"//&
-                          TRIM(potential_name)//"> was specified "//&
-                          "for the atomic kind <"//&
-                          TRIM(atomic_kind%name),para_env)
-      END SELECT
+          IF (atomic_kind%ghost) THEN
+             atomic_kind%mass = 0.0_dp
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  elec_conf=elec_conf)
+             elec_conf(:) = 0
+             CALL get_potential(potential=atomic_kind%all_potential,&
+                  elec_conf=elec_conf)
+             elec_conf(:) = 0
+             CALL set_potential(potential=atomic_kind%all_potential,&
+                  zeff=0.0_dp,&
+                  zeff_correction=0.0_dp)
+          END IF
+       CASE ("GTH")
+          IF (atomic_kind%ghost) THEN
+             IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
+             atomic_kind%mass = 0.0_dp
+          ELSE
+             CALL allocate_potential(atomic_kind%gth_potential)
+             CALL read_potential(atomic_kind%element_symbol,potential_name,&
+                  atomic_kind%gth_potential,zeff_correction,para_env,&
+                  dft_section,error)
+             CALL set_potential(atomic_kind%gth_potential,z=z)
+             CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
+             IF (.NOT.ASSOCIATED(elec_conf)) THEN
+                CALL get_potential(potential=atomic_kind%gth_potential,elec_conf=elec_conf)
+                CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+             END IF
+          END IF
+       CASE ("ELP")
+          CALL allocate_potential(atomic_kind%elp_potential)
+          CALL read_potential(atomic_kind%element_symbol,potential_name,&
+               atomic_kind%elp_potential,para_env,&
+               dft_section,error)
+       CASE DEFAULT
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "An invalid potential type <"//&
+               TRIM(potential_name)//"> was specified "//&
+               "for the atomic kind <"//&
+               TRIM(atomic_kind%name),para_env)
+       END SELECT
 
     ELSE
-
-      CALL allocate_potential(atomic_kind%all_potential)
-      CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction)
-      CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
-      IF (.NOT.ASSOCIATED(elec_conf)) THEN
-        CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
-        CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
-      END IF
-      IF (atomic_kind%ghost) THEN
-        atomic_kind%mass = 0.0_dp
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             elec_conf=elec_conf)
-        elec_conf(:) = 0
-        CALL get_potential(potential=atomic_kind%all_potential,&
-                           elec_conf=elec_conf)
-        elec_conf(:) = 0
-        CALL set_potential(potential=atomic_kind%all_potential,&
-                           zeff=0.0_dp,&
-                           zeff_correction=0.0_dp)
-      END IF
-
+       IF (atomic_kind%gpw_type_forced) THEN
+          IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
+          atomic_kind%mass = 0.0_dp
+       ELSE
+          CALL allocate_potential(atomic_kind%all_potential)
+          CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction)
+          CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
+          IF (.NOT.ASSOCIATED(elec_conf)) THEN
+             CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
+             CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+          END IF
+          IF (atomic_kind%ghost) THEN
+             atomic_kind%mass = 0.0_dp
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  elec_conf=elec_conf)
+             elec_conf(:) = 0
+             CALL get_potential(potential=atomic_kind%all_potential,&
+                  elec_conf=elec_conf)
+             elec_conf(:) = 0
+             CALL set_potential(potential=atomic_kind%all_potential,&
+                  zeff=0.0_dp,&
+                  zeff_correction=0.0_dp)
+          END IF
+       END IF
     END IF
 
   END SUBROUTINE read_atomic_kind

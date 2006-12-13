@@ -852,9 +852,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="POTENTIAL",&
             variants=(/ "POT" /),&
-            description="The element of the actual kind "//&
-            "(if not given it is inferred from the kind name)",&
-            usage="POTENTIAL ghost", type_of_var=char_t, n_var=1,&
+            description="The name of the pseudopotential for the defined kind.",&
+            usage="POTENTIAL <PSEUDO-POTENTIAL-NAME>", default_c_val="", n_var=1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

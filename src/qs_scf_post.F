@@ -228,7 +228,7 @@ CONTAINS
     TYPE (evals_p_type), DIMENSION(:), POINTER  :: unoccupied_evals
     INTEGER            ::  handle, ispin, istat, n, nmo, output_unit,i
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr, idir
-    LOGICAL            :: homoEQnmo
+    LOGICAL            :: homoEQnmo, ghost
     CHARACTER(LEN=default_string_length)  :: filename
     CHARACTER(LEN=default_string_length)  :: title
     CHARACTER(LEN=default_string_length)  :: mulliken_title
@@ -453,13 +453,17 @@ CONTAINS
              dipole=0.0_dp
              ! charges of the atoms involved
              DO i=1,SIZE(particle_set)
-                CALL get_atomic_kind(particle_set(i)%atomic_kind,gth_potential=gth_potential)
-                CALL get_potential(gth_potential,zeff=zeff)
-                CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-                DO idir=1,3
-                   r_pbc(idir) = particle_set(i) % r(idir)!-0.5_dp*cell%hmat(idir,idir)
-                END DO
-                dipole=dipole + zeff*r_pbc
+                CALL get_atomic_kind(particle_set(i)%atomic_kind,ghost=ghost,&
+                     gth_potential=gth_potential)
+                zeff = 0.0_dp
+                IF (.NOT.ghost) THEN
+                   CALL get_potential(gth_potential,zeff=zeff)
+                   CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
+                   DO idir=1,3
+                      r_pbc(idir) = particle_set(i) % r(idir)!-0.5_dp*cell%hmat(idir,idir)
+                   END DO
+                   dipole=dipole + zeff*r_pbc
+                END IF
              END DO
           END IF
           DO ispin=1,dft_control%nspins
