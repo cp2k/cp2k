@@ -151,3 +151,5 @@ water32_hbonds_4.inp      2
 water_massive.inp         2
 # applying constraint to the 0 step of MD
 water_3_dist_startC.inp   2
+# just keep echo_input alive
+acn-3.inp                 0
