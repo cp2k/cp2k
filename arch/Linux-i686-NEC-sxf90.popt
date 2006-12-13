@@ -1,5 +1,5 @@
 PERL     = perl
-CC       = sxc++
+CC       = gcc
 CPP      = /sx5/usr/lib/sxcpp
 FC       = sxmpif90
 FC_fixed = sxmpif90

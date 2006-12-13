@@ -1,6 +1,6 @@
 PERL     = perl
 CC       = gcc
-CPP      = /sx5/usr/lib/sxcpp
+CPP      = /SX/usr/lib/sxcpp
 FC       = sxf90
 FC_fixed = sxf90
 LD       = sxf90
@@ -20,7 +20,7 @@ FCFLAGS2   -f4 -Cvopt -ftrace\
   -Wf"-pvctl vr256 noassume loopcnt=100000 vwork=stack vworksz=100M"
   
 
-LDFLAGS  = -ftrace -L /sx5/usr/local/mathkeisan/lib -L /sx5/usr/local/asl/lib
+LDFLAGS  = -ftrace
 LIBS     = -llapack -lblas
 
 OBJECTS_ARCHITECTURE = machine_sx.o
