@@ -45,8 +45,9 @@ FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
 LIB_TARGETS = sopt/lib sdbg/lib popt/lib pdbg/lib ssmp/lib psmp/lib
 ALL_TARGETS = sopt/all sdbg/all popt/all pdbg/all ssmp/all psmp/all
-CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
-                  sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
+CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean ssmp/clean psmp/clean\
+                  sopt/realclean sdbg/realclean popt/realclean pdbg/realclean\
+                  ssmp/realclean psmp/realclean
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
          $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) dependencies leap2fist\
          leapdep fes fesdep
