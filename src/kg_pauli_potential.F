@@ -26,6 +26,7 @@ MODULE kg_pauli_potential
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -61,8 +62,7 @@ MODULE kg_pauli_potential
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_overlap,                      ONLY: atom_overlap_matrix,&
-                                             block_p_type
+  USE qs_overlap,                      ONLY: atom_overlap_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type

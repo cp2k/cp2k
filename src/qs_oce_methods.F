@@ -27,6 +27,7 @@ MODULE qs_oce_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE block_p_types,                   ONLY: block_p_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              pi
@@ -38,7 +39,7 @@ MODULE qs_oce_methods
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
-  USE qs_neighbor_list_types,          ONLY: block_p_type,&
+  USE qs_neighbor_list_types,          ONLY: &
                                              reduced_3c_list_type
   USE qs_oce_types,                    ONLY: dist_list_4oce_type,&
                                              oce_matrix_type

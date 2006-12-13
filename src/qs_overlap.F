@@ -28,6 +28,7 @@ MODULE qs_overlap
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE block_p_types,                   ONLY: block_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -72,16 +73,10 @@ MODULE qs_overlap
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_overlap'
 
-! *** Global types ***
-  TYPE block_p_type
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-  END TYPE block_p_type
-
 ! *** Public subroutines ***
 
   PUBLIC :: build_overlap_matrix, &
-            atom_overlap_matrix, &
-            block_p_type
+            atom_overlap_matrix
 
 ! *****************************************************************************
 

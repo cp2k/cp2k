@@ -27,6 +27,7 @@ MODULE qs_moments
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE kinds,                           ONLY: dp
@@ -73,11 +74,6 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: ref_point
     TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
-
-    TYPE block_p_type
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-    END TYPE block_p_type
-
     CHARACTER(LEN=*), PARAMETER :: routineN = "build_moment_matrix", &
       routineP = moduleN//':'//routineN
 

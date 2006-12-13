@@ -21,6 +21,7 @@
 
 MODULE qs_neighbor_list_types
 
+  USE block_p_types,                   ONLY: block_p_type
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -34,10 +35,6 @@ MODULE qs_neighbor_list_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_list_types'
 
 ! *** Definition of the data types for a linked list of neighbors ***
-
-  TYPE block_p_type
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-  END TYPE block_p_type
 
   TYPE qlist_type
     TYPE(block_p_type), DIMENSION(:), POINTER :: sac
@@ -98,8 +95,7 @@ MODULE qs_neighbor_list_types
             neighbor_list_type,&
             neighbor_node_type,&
             qlist_type,&
-            reduced_3c_list_type,&
-            block_p_type
+            reduced_3c_list_type
 
 ! *** Public subroutines ***
 

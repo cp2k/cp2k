@@ -18,6 +18,7 @@ OBJECTS_GENERIC =\
  bessel_lib.o\
  beta_gamma_psi.o\
  bfgs_optimizer.o\
+ block_p_types.o\
  bsse.o\
  cell_types.o\
  cg_optimizer.o\

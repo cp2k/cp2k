@@ -87,6 +87,7 @@ MODULE qs_core_hamiltonian
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE block_p_types,                   ONLY: block_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -122,7 +123,7 @@ MODULE qs_core_hamiltonian
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_list_types,          ONLY: &
-       block_p_type, find_neighbor_list, first_list, first_node, &
+       find_neighbor_list, first_list, first_node, &
        get_neighbor_list, get_neighbor_list_set, get_neighbor_node, &
        neighbor_list_set_p_type, neighbor_list_type, neighbor_node_type, &
        next, qlist_type, reduced_3c_list_type

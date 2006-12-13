@@ -30,6 +30,7 @@ MODULE qs_loc_utils
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -62,7 +63,7 @@ MODULE qs_loc_utils
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: &
-       block_p_type, first_list, first_node, get_neighbor_list, &
+       first_list, first_node, get_neighbor_list, &
        get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
        neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: get_block_node,&
