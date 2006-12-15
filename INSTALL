@@ -36,6 +36,12 @@ How to compile CP2K code
      the current version of the code works with FFTW 2.X or FFTW 3.X (use -D__FFTW2 *or* -D__FFTW3)
      http://www.fftw.org/
 
+ 2e) Hartree-Fock exchange (optional) requires the libint package to be installed, and a Fortran compiler that
+     supports ISO_C_BINDING and Fortran procedure pointers (g95, xlf90 ?) (use -D__LIBINT). 
+     Tested against libinit-1.1.2, and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5
+     (check your include/libint/libint.h to see if it matches)
+     http://www.ccmst.gatech.edu/evaleev/libint/
+
  3) to compile the code:
 
  3a) You will need to make sure that the architecture dependent file (settings such as the compiler name 
