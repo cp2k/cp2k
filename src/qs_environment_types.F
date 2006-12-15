@@ -145,6 +145,7 @@ MODULE qs_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
+  USE x_hf,                            ONLY: x_hf_type, x_hf_release
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type
@@ -258,6 +259,7 @@ MODULE qs_environment_types
 !!                   and force type and the rho structure to pass the density of
 !!                   the harris energy functional to the force calculation
 !!     - ep_qs_env: environment to perform an ep calculation
+!!     - x        : contains data used in Hartree-Fock-Exchange calculations
 !!
 !!   AUTHOR
 !!     Matthias Krack & fawzi
@@ -323,7 +325,8 @@ MODULE qs_environment_types
     TYPE(virial_type), POINTER                            :: virial
     REAL(KIND = dp), DIMENSION(:,:), POINTER              :: outer_scf_history
     INTEGER                                               :: outer_scf_ihistory
-    TYPE(ep_qs_type), POINTER :: ep_qs_env
+    TYPE(ep_qs_type), POINTER                             :: ep_qs_env
+    TYPE(x_hf_type),POINTER                               :: x_data
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -375,7 +378,7 @@ CONTAINS
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
-                        outer_scf_ihistory,ep_qs_env,error)
+                        outer_scf_ihistory,ep_qs_env,x_data,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -476,6 +479,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
+    TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
     TYPE(cp_error_type), INTENT(INOUT)  &
                                              :: error
 
@@ -598,6 +602,7 @@ CONTAINS
     IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
     IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
     IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
+    IF (PRESENT(x_data)) x_data => qs_env%x_data
 
   END SUBROUTINE get_qs_env
 
@@ -671,6 +676,8 @@ CONTAINS
     NULLIFY (qs_env%cp_ddapc_ewald)
     NULLIFY (qs_env%outer_scf_history)
     NULLIFY (qs_env%ep_qs_env)
+    NULLIFY (qs_env%x_data)
+    
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -709,7 +716,7 @@ CONTAINS
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
                         kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
-                        outer_scf_ihistory,ep_qs_env)
+                        outer_scf_ihistory,ep_qs_env,x_data)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -791,6 +798,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
+    TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
@@ -983,6 +991,7 @@ CONTAINS
        CALL ep_qs_release(qs_env%ep_qs_env,error=error)
        qs_env%ep_qs_env => ep_qs_env
     END IF
+    IF (PRESENT(x_data)) qs_env%x_data => x_data
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
@@ -1302,6 +1311,9 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
         CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
         CALL ep_qs_release(qs_env%ep_qs_env,error=error)
+        IF(ASSOCIATED(qs_env%x_data)) THEN
+          CALL x_hf_release(qs_env%x_data, error=error)
+        END IF
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

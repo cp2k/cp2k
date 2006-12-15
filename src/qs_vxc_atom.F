@@ -30,7 +30,8 @@ MODULE qs_vxc_atom
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: tddfpt_excitations,&
-                                             tddfpt_triplet
+                                             tddfpt_triplet,&
+                                             xc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -98,7 +99,7 @@ CONTAINS
     INTEGER                                  :: bo(2), handle, i, iat, iatom, &
                                                 ikind, ir, istat, mepos, na, &
                                                 natom, nkind, nr, nspins, &
-                                                num_pe
+                                                num_pe, myfun
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: gradient_f, lsd, paw_atom
@@ -157,214 +158,221 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
-    CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
-         r_val=density_cut,error=error)
-    CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
-         r_val=gradient_cut,error=error)
-    CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
-         r_val=tau_cut,error=error)
+    IF(myfun == xc_none) THEN
+      energy%exc1 = 0.0_dp
+      rho_atom_set(:)%exc_h = 0.0_dp
+      rho_atom_set(:)%exc_s = 0.0_dp
+    ELSE
+      CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
+           r_val=density_cut,error=error)
+      CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
+           r_val=gradient_cut,error=error)
+      CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
+           r_val=tau_cut,error=error)
 
-    lsd = dft_control%lsd
-    nspins = dft_control%nspins
-    needs = xc_functionals_get_needs(xc_fun_section,&
-                                     lsd=lsd,&
-                                     add_basic_components=.TRUE.,&
-                                     error=error)
+      lsd = dft_control%lsd
+      nspins = dft_control%nspins
+      needs = xc_functionals_get_needs(xc_fun_section,&
+                                       lsd=lsd,&
+                                       add_basic_components=.TRUE.,&
+                                       error=error)
 
-    gradient_f = (needs%drho.OR.needs%drho_spin)
+      gradient_f = (needs%drho.OR.needs%drho_spin)
 
-    nkind = SIZE(atomic_kind_set)
+      nkind = SIZE(atomic_kind_set)
 
-    ! Put to 0 the energy contribution from the one center XC terms
+      ! Put to 0 the energy contribution from the one center XC terms
 
-    energy%exc1 = 0.0_dp
+      energy%exc1 = 0.0_dp
 
-    ! Nullify some pointers for work-arrays
+      ! Nullify some pointers for work-arrays
 
-    NULLIFY (rho_h,drho_h,rho_s,drho_s,weight)
-    NULLIFY (vxc_h,vxc_s,vxg_h,vxg_s)
+      NULLIFY (rho_h,drho_h,rho_s,drho_s,weight)
+      NULLIFY (vxc_h,vxc_s,vxg_h,vxg_s)
+  
+      ! Here starts the loop over all the atoms
+  
+      DO ikind = 1,nkind
+  
+        atom_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
+                             natom=natom,paw_atom=paw_atom,&
+                             harmonics=harmonics,grid_atom=grid_atom)
+  
+        IF (.NOT.paw_atom) CYCLE
+  
+        nr = grid_atom%nr
+        na = grid_atom%ng_sphere
+  
+        ! Prepare the structures needed to calculate and store the xc derivatives
+  
+        ! Array dimension: here anly one dimensional arrays are used,
+        ! i.e. only the first column of deriv_data is read.
+        ! The other to dimensions  are set to size equal 1
+        bounds(1:2,1:3) = 1
+        bounds(2,1) = na
+        bounds(2,2) = nr
+  
+        ! create a place where to put the derivatives
+        CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
+        ! create the place where to store the argument for the functionals
+        CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=density_cut,&
+                               drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
+                               error=error)
+        CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=density_cut,&
+                               drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
+                               error=error)
 
-    ! Here starts the loop over all the atoms
+        ! allocate the required 3d arrays where to store rho and drho
+        CALL xc_rho_set_atom_update(rho_set_h,needs,nspins,bounds)
+        CALL xc_rho_set_atom_update(rho_set_s,needs,nspins,bounds)
 
-    DO ikind = 1,nkind
+        CALL reallocate(rho_h,1,na,1,nspins)
+        CALL reallocate(rho_s,1,na,1,nspins)
+        weight => grid_atom%weight
+        CALL reallocate(vxc_h,1,na,1,nr,1,nspins)
+        CALL reallocate(vxc_s,1,na,1,nr,1,nspins)
 
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                           natom=natom,paw_atom=paw_atom,&
-                           harmonics=harmonics,grid_atom=grid_atom)
-
-      IF (.NOT.paw_atom) CYCLE
-
-      nr = grid_atom%nr
-      na = grid_atom%ng_sphere
-
-      ! Prepare the structures needed to calculate and store the xc derivatives
-
-      ! Array dimension: here anly one dimensional arrays are used,
-      ! i.e. only the first column of deriv_data is read.
-      ! The other to dimensions  are set to size equal 1
-      bounds(1:2,1:3) = 1
-      bounds(2,1) = na
-      bounds(2,2) = nr
-
-      ! create a place where to put the derivatives
-      CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
-      ! create the place where to store the argument for the functionals
-      CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=density_cut,&
-                             drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
-                             error=error)
-      CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=density_cut,&
-                             drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
-                             error=error)
-
-      ! allocate the required 3d arrays where to store rho and drho
-      CALL xc_rho_set_atom_update(rho_set_h,needs,nspins,bounds)
-      CALL xc_rho_set_atom_update(rho_set_s,needs,nspins,bounds)
-
-      CALL reallocate(rho_h,1,na,1,nspins)
-      CALL reallocate(rho_s,1,na,1,nspins)
-      weight => grid_atom%weight
-      CALL reallocate(vxc_h,1,na,1,nr,1,nspins)
-      CALL reallocate(vxc_s,1,na,1,nr,1,nspins)
-
-      IF (gradient_f) THEN
-        CALL reallocate(drho_h,1,4,1,na,1,nr,1,nspins)
-        CALL reallocate(drho_s,1,4,1,na,1,nr,1,nspins)
-        CALL reallocate(vxg_h,1,3,1,na,1,nr,1,nspins)
-        CALL reallocate(vxg_s,1,3,1,na,1,nr,1,nspins)
-      END IF
-
-      ! Distribute the atoms of this kind
-
-      num_pe = para_env%num_pe
-      mepos  = para_env%mepos
-      bo = get_limit( natom, num_pe, mepos )
-
-      DO iat = bo(1),bo(2) !1,natom
-        iatom = atom_list(iat)
-
-        rho_atom_set(iatom)%exc_h = 0.0_dp
-        rho_atom_set(iatom)%exc_s = 0.0_dp
-
-        rho_atom => rho_atom_set(iatom)
         IF (gradient_f) THEN
-          NULLIFY(r_h,r_s,dr_h,dr_s,r_h_d,r_s_d)
-          CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
-                            rho_rad_s=r_s,drho_rad_h=dr_h,&
-                            drho_rad_s=dr_s,rho_rad_h_d=r_h_d,&
-                            rho_rad_s_d=r_s_d)
-          drho_h = 0.0_dp
-          drho_s = 0.0_dp
-        ELSE
-          NULLIFY(r_h,r_s)
-          CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
-                            rho_rad_s=r_s)
+          CALL reallocate(drho_h,1,4,1,na,1,nr,1,nspins)
+          CALL reallocate(drho_s,1,4,1,na,1,nr,1,nspins)
+          CALL reallocate(vxg_h,1,3,1,na,1,nr,1,nspins)
+          CALL reallocate(vxg_s,1,3,1,na,1,nr,1,nspins)
         END IF
 
-        DO ir = 1,nr
-          CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
-                                ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
-                                r_h_d, r_s_d, drho_h, drho_s, error=error)
-          CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error=error)
-          CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error=error)
-        END DO
+        ! Distribute the atoms of this kind
 
-        !-------------------!
-        ! hard atom density !
-        !-------------------!
-        CALL xc_dset_zero_all(deriv_set, error)
-        CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
-                          lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, error=error)
-        rho_atom%exc_h = rho_atom%exc_h + exc_h
+        num_pe = para_env%num_pe
+        mepos  = para_env%mepos
+        bo = get_limit( natom, num_pe, mepos )
 
-        !-------------------!
-        ! soft atom density !
-        !-------------------!
-        CALL xc_dset_zero_all(deriv_set, error)
-        CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
-                          lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, error=error)
-        rho_atom%exc_s = rho_atom%exc_s + exc_s
+        DO iat = bo(1),bo(2) !1,natom
+          iatom = atom_list(iat)
 
-        ! Add contributions to the exc energy
+          rho_atom_set(iatom)%exc_h = 0.0_dp
+          rho_atom_set(iatom)%exc_s = 0.0_dp
 
-        energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
-
-        ! Integration to get the matrix elements relative to the vxc_atom
-        ! here the products with the primitives is done: gaVxcgb
-        ! internal transformation to get the integral in cartesian Gaussians
-
-        IF (.NOT.energy_only) THEN
-          atom_kind => atomic_kind_set(ikind)
+          rho_atom => rho_atom_set(iatom)
           IF (gradient_f) THEN
-            CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
-                            rho_atom,drho_h,drho_s,nspins,error=error)
+            NULLIFY(r_h,r_s,dr_h,dr_s,r_h_d,r_s_d)
+            CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
+                              rho_rad_s=r_s,drho_rad_h=dr_h,&
+                              drho_rad_s=dr_s,rho_rad_h_d=r_h_d,&
+                              rho_rad_s_d=r_s_d)
+            drho_h = 0.0_dp
+            drho_s = 0.0_dp
           ELSE
-            CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error=error)
+            NULLIFY(r_h,r_s)
+            CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
+                              rho_rad_s=r_s)
           END IF
-        END IF  ! energy_only
-        NULLIFY (r_h,r_s,dr_h,dr_s)
-      END DO ! iat
 
-      ! Release the xc structure used to store the xc derivatives
-      CALL xc_dset_release(deriv_set, error=error)
-      CALL xc_rho_set_release(rho_set_h,error=error)
-      CALL xc_rho_set_release(rho_set_s,error=error)
+          DO ir = 1,nr
+            CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
+                                  ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
+                                  r_h_d, r_s_d, drho_h, drho_s, error=error)
+            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error=error)
+            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error=error)
+          END DO
 
-    END DO ! ikind
+          !-------------------!
+          ! hard atom density !
+          !-------------------!
+          CALL xc_dset_zero_all(deriv_set, error)
+          CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
+                            lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, error=error)
+          rho_atom%exc_h = rho_atom%exc_h + exc_h
 
-    CALL mp_sum(energy%exc1,para_env%group)
+          !-------------------!
+          ! soft atom density !
+          !-------------------!
+          CALL xc_dset_zero_all(deriv_set, error)
+          CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
+                            lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, error=error)
+          rho_atom%exc_s = rho_atom%exc_s + exc_s
 
-    IF (ASSOCIATED(rho_h)) THEN
-      DEALLOCATE (rho_h,STAT=istat)
-      IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "rho_h")
-    END IF
+          ! Add contributions to the exc energy
+  
+          energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
 
-    IF (ASSOCIATED(rho_s)) THEN
-      DEALLOCATE (rho_s,STAT=istat)
-      IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "rho_s")
-    END IF
+          ! Integration to get the matrix elements relative to the vxc_atom
+          ! here the products with the primitives is done: gaVxcgb
+          ! internal transformation to get the integral in cartesian Gaussians
 
-    IF (ASSOCIATED(vxc_h)) THEN
-      DEALLOCATE (vxc_h,STAT=istat)
-      IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+          IF (.NOT.energy_only) THEN
+            atom_kind => atomic_kind_set(ikind)
+            IF (gradient_f) THEN
+              CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
+                              rho_atom,drho_h,drho_s,nspins,error=error)
+            ELSE
+              CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error=error)
+            END IF
+          END IF  ! energy_only
+          NULLIFY (r_h,r_s,dr_h,dr_s)
+        END DO ! iat
+
+        ! Release the xc structure used to store the xc derivatives
+        CALL xc_dset_release(deriv_set, error=error)
+        CALL xc_rho_set_release(rho_set_h,error=error)
+        CALL xc_rho_set_release(rho_set_s,error=error)
+
+      END DO ! ikind
+
+      CALL mp_sum(energy%exc1,para_env%group)
+
+      IF (ASSOCIATED(rho_h)) THEN
+        DEALLOCATE (rho_h,STAT=istat)
+        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "rho_h")
+      END IF
+
+      IF (ASSOCIATED(rho_s)) THEN
+        DEALLOCATE (rho_s,STAT=istat)
+        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+                                          "rho_s")
+      END IF
+
+      IF (ASSOCIATED(vxc_h)) THEN
+        DEALLOCATE (vxc_h,STAT=istat)
+        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "vxc_h")
-    END IF
-
-    IF (ASSOCIATED(vxc_s)) THEN
-      DEALLOCATE (vxc_s,STAT=istat)
-      IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "vxc_s")
-    END IF
-
-    IF (gradient_f) THEN
-
-      IF (ASSOCIATED(drho_h)) THEN
-        DEALLOCATE (drho_h,STAT=istat)
-        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "drho_h")
       END IF
 
-      IF (ASSOCIATED(drho_s)) THEN
-        DEALLOCATE (drho_s,STAT=istat)
+      IF (ASSOCIATED(vxc_s)) THEN
+        DEALLOCATE (vxc_s,STAT=istat)
         IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "drho_s")
+                                          "vxc_s")
       END IF
 
-      IF (ASSOCIATED(vxg_h)) THEN
-        DEALLOCATE (vxg_h,STAT=istat)
-        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "vxg_h")
+      IF (gradient_f) THEN
+
+        IF (ASSOCIATED(drho_h)) THEN
+          DEALLOCATE (drho_h,STAT=istat)
+          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+                                            "drho_h")
+        END IF
+
+        IF (ASSOCIATED(drho_s)) THEN
+          DEALLOCATE (drho_s,STAT=istat)
+          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+                                            "drho_s")
+        END IF
+
+        IF (ASSOCIATED(vxg_h)) THEN
+          DEALLOCATE (vxg_h,STAT=istat)
+          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+                                            "vxg_h")
+        END IF
+
+        IF (ASSOCIATED(vxg_s)) THEN
+          DEALLOCATE (vxg_s,STAT=istat)
+          IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+                                            "vxg_s")
+        END IF
+
       END IF
 
-      IF (ASSOCIATED(vxg_s)) THEN
-        DEALLOCATE (vxg_s,STAT=istat)
-        IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                          "vxg_s")
-      END IF
-
-    END IF
+    END IF !xc_none
 
     CALL timestop(0.0_dp,handle)
 

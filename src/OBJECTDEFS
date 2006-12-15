@@ -144,6 +144,7 @@ OBJECTS_GENERIC =\
  force_fields.o\
  force_fields_input.o\
  force_fields_util.o\
+ four_center_integrals.o\
  fparser.o\
  fp_types.o\
  fp_methods.o\
@@ -223,6 +224,7 @@ OBJECTS_GENERIC =\
  lapack.o\
  lebedev.o\
  level_shift.o\
+ libint_interface.o\
  library_tests.o\
  linear_systems.o\
  lowdin.o\
@@ -442,6 +444,7 @@ OBJECTS_GENERIC =\
  virial_types.o\
  whittaker.o\
  wiener_process.o\
+ x_hf.o\
  xas_control.o\
  xas_env_types.o\
  xas_methods.o\

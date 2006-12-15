@@ -66,6 +66,7 @@ MODULE qs_ks_methods
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE ep_qs_types,                     ONLY: ep_qs_type
+  USE four_center_integrals,           ONLY: integrate_four_center
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -78,6 +79,7 @@ MODULE qs_ks_methods
                                              do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
+                                             section_vals_get,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -132,7 +134,8 @@ MODULE qs_ks_methods
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type,&
                                              set_matrix,&
-                                             transfer_matrix
+                                             transfer_matrix,&
+                                             cp_sm_scale_and_add
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -317,7 +320,8 @@ CONTAINS
     LOGICAL                                  :: do_ep, failure, gapw, &
                                                 gapw_xc, ionode, &
                                                 my_diis_step, my_kg_gpw, &
-                                                use_virial, ltmp, ddapc_restraint_is_spin
+                                                use_virial, ltmp, ddapc_restraint_is_spin,&
+                                                do_hf
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p
@@ -349,7 +353,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_s, my_rho
-    TYPE(section_vals_type), POINTER         :: input, scf_section
+    TYPE(section_vals_type), POINTER         :: input, scf_section, hf_section
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
@@ -400,6 +404,9 @@ CONTAINS
     do_ep=ASSOCIATED(ep_qs_env)
     IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces.and.&
          ASSOCIATED(ep_qs_env%dH_coeffs)
+
+    hf_section => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
+    CALL section_vals_get(hf_section,explicit=do_hf,error=error)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
@@ -616,6 +623,19 @@ CONTAINS
        IF (gapw .OR. gapw_xc) THEN
           CALL calculate_vxc_atom(qs_env,just_energy,error)
        END IF
+       
+       ! *** Add Hartree-Fock contribution if required ***
+       IF ( do_hf ) THEN
+         DO ispin = 1,nspins
+       	   CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
+         END DO
+         CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                    para_env,ks_env%s_mstruct_changed,error)
+         ! *** Add Core-Hamiltonian-Matrix ***
+         DO ispin=1,nspins
+            CALL cp_sm_scale_and_add(ks_matrix(ispin)%matrix,matrix_b=matrix_h(1)%matrix,error=error)
+         END DO
+       END IF 
 
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
@@ -654,11 +674,13 @@ CONTAINS
              END IF
           END IF
 
-          ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
-
-          DO ispin=1,nspins
-            CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
-          END DO
+          IF( .NOT.do_hf ) THEN
+            ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
+           
+            DO ispin=1,nspins
+             CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
+            END DO
+          END IF
 
           IF (ASSOCIATED(v_rspace_new)) THEN
              IF(gapw_xc) THEN
@@ -939,7 +961,7 @@ CONTAINS
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + &
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
-            energy%exc + energy%exc1 + &
+            energy%exc + energy%exc1 + energy%ex + &
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint
 

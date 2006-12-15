@@ -2605,6 +2605,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_hf_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_xc_potential_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -2612,6 +2616,72 @@ CONTAINS
     END IF
   END SUBROUTINE create_xc_section
   !***************************************************************************
+
+!!****f* input_cp2k_dft/create_hf_section [1.0] *
+!!
+!!   NAME
+!!     create_hf_section
+!!
+!!   FUNCTION
+!!     creates the input section for the hf part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Manuel/Joost
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hf_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"HF",&
+            description="Sets up the Hartree-Fock parameters if requested ",&
+            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="FRACTION",&
+            description="The fraction of Hartree-Fock to add to the total energy. "//&
+                        "1.0 implies standard Hartree-Fock if used with XC_FUNCTION NONE.",&
+            usage="FRACTION 1.0", default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_SCHWARZ",&
+            description="Screens the 4-center integrals using the schwarz inequality",&
+            usage="EPS_SCHWARZ 1.0E-6", default_r_val=1.0E-10_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="MAX_MEMORY",&
+            description="Defines the maximum amount of memory [MB] used to store precomputed "//&
+                         "four-center integrals",&
+            usage="MAX_MEMORY 512", default_i_val=512,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_hf_section
+!***************************************************************************
 
   !!****f* input_cp2k_dft/create_scf_section *
   !!

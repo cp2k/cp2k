@@ -90,7 +90,8 @@ MODULE qs_environment
                                              state_loc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -145,6 +146,7 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
+  USE x_hf,                            ONLY: x_hf_create
   USE xas_control,                     ONLY: write_xas_control
 #include "cp_common_uses.h"
 
@@ -192,7 +194,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: harris_flag, my_qmmm, &
-                                                my_qmmm_periodic, use_ref_cell
+                                                my_qmmm_periodic, use_ref_cell, do_hf
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -210,7 +212,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                harris_section, kind_section
+                                                harris_section, kind_section, hf_section
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -302,6 +304,12 @@ CONTAINS
     IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
     IF (.NOT.PRESENT(subsystem)) CALL cp_subsys_release(my_subsystem,error=error)
+
+    do_hf =.FALSE.
+    hf_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
+    CALL section_vals_get(hf_section,explicit=do_hf,error=error)
+    IF (do_hf) CALL x_hf_create(qs_env%x_data,hf_section,error=error)
+
 
   END SUBROUTINE qs_init
 
