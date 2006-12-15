@@ -158,6 +158,9 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
+    CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",&
+                               i_val=myfun,error=error)
+
     IF(myfun == xc_none) THEN
       energy%exc1 = 0.0_dp
       rho_atom_set(:)%exc_h = 0.0_dp
