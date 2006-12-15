@@ -78,7 +78,7 @@ MODULE libint_interface
   REAL(KIND=C_DOUBLE)                :: global_T  = 0.0_dp
 
   INTERFACE
-    FUNCTION build(lib, np) BIND(C, name="build_eri")
+    FUNCTION build(lib, np) BIND(C)
       IMPORT
       TYPE(C_PTR)                    :: build
       TYPE(lib_int)                  :: lib
