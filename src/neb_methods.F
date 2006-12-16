@@ -66,6 +66,7 @@ MODULE neb_methods
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE termination,                     ONLY: external_control
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -186,12 +187,12 @@ CONTAINS
              neb_env%opt_type_label = "MOLECULAR DYNAMICS"
              md_section => section_vals_get_subs_vals(neb_section,"MD",error=error)
              CALL neb_md(rep_env, neb_env, coords, vels, particle_set, output_unit,&
-                  md_section, logger, error)
+                  md_section, logger, globenv, error)
           CASE(neb_diis_opt)
              neb_env%opt_type_label = "DIIS"
              diis_section => section_vals_get_subs_vals(neb_section,"DIIS",error=error)
              CALL neb_diis(rep_env, neb_env, coords, vels, particle_set, output_unit,&
-                  diis_section, logger, error)
+                  diis_section, logger, globenv, error)
           END SELECT
           CALL f_env_rm_defaults(f_env,new_error,ierr)
           DEALLOCATE(neb_env, stat=stat)
@@ -233,7 +234,7 @@ CONTAINS
 !!   SOURCE
 !****************************************************************************
   SUBROUTINE neb_md(rep_env, neb_env, coords, vels, particle_set, output_unit,&
-       md_section, logger, error)
+       md_section, logger, globenv, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(neb_type), OPTIONAL, POINTER        :: neb_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
@@ -242,6 +243,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_md', &
@@ -249,7 +251,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ind, iparticle, &
                                                 istep, iw, k, max_steps, stat
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged, failure, should_stop
     REAL(KIND=dp)                            :: dm, dt, my_mass
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), ALLOCATABLE, &
@@ -328,6 +330,9 @@ CONTAINS
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
+          ! Check for an external exit command
+          CALL external_control(should_stop,"NEB",globenv,error)
+          IF(should_stop) EXIT
           ! Control on velocity - II part [check vels VS forces, Steepest Descent like]
           CALL control_vels_b(vels, forces, vc_section, error)
           ! Velocity Verlet (second part)
@@ -383,7 +388,7 @@ CONTAINS
 !!   SOURCE
 !****************************************************************************
   SUBROUTINE neb_diis(rep_env, neb_env, coords, vels, particle_set, output_unit,&
-       diis_section, logger, error)
+       diis_section, logger, globenv, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(neb_type), OPTIONAL, POINTER        :: neb_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
@@ -392,6 +397,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(section_vals_type), POINTER         :: diis_section
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_diis', &
@@ -402,7 +408,7 @@ CONTAINS
                                                 n_diis, stat
     INTEGER, DIMENSION(:), POINTER           :: set_err
     LOGICAL                                  :: converged, diis_on, do_ls, &
-                                                failure, skip_ls, check_diis
+                                                failure, skip_ls, check_diis, should_stop
     REAL(KIND=dp)                            :: norm, stepsize, stepsize0, max_stepsize
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err, forces, sline
@@ -504,6 +510,9 @@ CONTAINS
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
+          ! Check for an external exit command
+          CALL external_control(should_stop,"NEB",globenv,error)
+          IF(should_stop) EXIT
           ! Dump Infos
           CALL dump_neb_info(neb_env=neb_env,&
                              coords=coords,&
