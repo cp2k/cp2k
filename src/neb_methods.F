@@ -48,7 +48,7 @@ MODULE neb_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE neb_IO,                          ONLY: dump_neb_info,&
+  USE neb_io,                          ONLY: dump_neb_info,&
                                              read_neb_section
   USE neb_md_utils,                    ONLY: control_vels_a,&
                                              control_vels_b

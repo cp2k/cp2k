@@ -266,7 +266,7 @@ OBJECTS_GENERIC =\
  mt_util.o\
  mulliken.o\
  nddo_methods.o\
- neb_IO.o\
+ neb_io.o\
  neb_methods.o\
  neb_md_utils.o\
  neb_opt_utils.o\
