@@ -107,7 +107,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ierr, ihandle, &
                                                 irep, nrep, output_unit, &
-                                                prep, stat
+                                                prep, stat, iw
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
     TYPE(cp_error_type)                      :: new_error
@@ -177,9 +177,13 @@ CONTAINS
           CALL read_neb_section(neb_env,neb_section,error=error)
           ! Collecting the coordinates of the starting replicas of the NEB
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. START"
+          iw = cp_print_key_unit_nr(logger,motion_section,"NEB%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
+            extension=".nebLog",error=error)
           CALL build_replica_coords(neb_section, particle_set,&
-               coords, vels, neb_env, rep_env%ndim, output_unit, globenv, &
+               coords, vels, neb_env, rep_env%ndim, iw, globenv, &
                rep_env%para_env, logger, error)
+          CALL cp_print_key_finished_output(iw,logger,motion_section,&
+               "NEB%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
           ! Perform NEB optimization
           SELECT CASE(neb_env%opt_type)

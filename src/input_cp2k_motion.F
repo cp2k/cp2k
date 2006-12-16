@@ -3303,6 +3303,14 @@ SUBROUTINE create_neb_section(section,error)
             description="Controls the printing basic info about the NEB run", &
             print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
+
+       CALL keyword_create(keyword, name="INITIAL_CONFIGURATION_INFO",&
+            description="Print information for the setup of the initial configuration.",&
+            usage="INITIAL_CONFIGURATION_INFO <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
