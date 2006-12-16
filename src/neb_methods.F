@@ -151,12 +151,14 @@ CONTAINS
        CALL section_vals_get(force_env_section,n_repetition=irep,error=error)
        CPPostcondition(irep==1,cp_failure_level,routineP,error,failure)
        ! Create Replica Environments
+       IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
        IF (debug_this_module) THEN
           CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                error=error)
        END IF
+       IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. END"
        IF (ASSOCIATED(rep_env)) THEN
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                new_error=new_error, failure=failure)
@@ -173,9 +175,11 @@ CONTAINS
           neb_env%neb_section          => neb_section
           CALL read_neb_section(neb_env,neb_section,error=error)
           ! Collecting the coordinates of the starting replicas of the NEB
+          IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. START"
           CALL build_replica_coords(neb_section, particle_set,&
                coords, vels, neb_env, rep_env%ndim, output_unit, globenv, &
                rep_env%para_env, logger, error)
+          IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
           ! Perform NEB optimization
           SELECT CASE(neb_env%opt_type)
           CASE(neb_md_opt)
