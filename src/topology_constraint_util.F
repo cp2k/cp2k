@@ -38,7 +38,9 @@ MODULE topology_constraint_util
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_get,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE input_constants,                 ONLY: do_constr_none, do_constr_atomic, do_constr_molec
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -61,6 +63,7 @@ MODULE topology_constraint_util
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type,&
                                              constr_list_type
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -132,7 +135,7 @@ CONTAINS
                                                 fix_fixed_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
@@ -156,12 +159,15 @@ CONTAINS
       DIMENSION(:), POINTER                  :: lg4x6
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(section_vals_type), POINTER         :: hbonds_section
+    TYPE(section_vals_type), POINTER         :: hbonds_section,&
+                                                fixd_restr_rest,&
+                                                colvar_rest
     TYPE(constr_list_type), POINTER, DIMENSION(:)  :: constr_x_mol
-    INTEGER :: output_unit
+    INTEGER :: output_unit, gind
     LOGICAL :: ionode, ishbond, ldummy
     INTEGER, POINTER, DIMENSION(:) :: inds
     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: cnds
+    LOGICAL :: restart_restraint_pos, restart_restraint_clv
 
     failure = .FALSE.
     NULLIFY(logger, constr_x_mol)
@@ -179,6 +185,12 @@ CONTAINS
     cons_info => topology%cons_info
     hbonds_section => section_vals_get_subs_vals(input_file,&
          "MOTION%CONSTRAINT%HBONDS",error=error)
+    fixd_restr_rest => section_vals_get_subs_vals(input_file,&
+         "MOTION%CONSTRAINT%FIX_ATOM_RESTART",error=error)
+    CALL section_vals_get(fixd_restr_rest,explicit=restart_restraint_pos, error=error)
+    colvar_rest => section_vals_get_subs_vals(input_file,&
+         "MOTION%CONSTRAINT%COLVAR_RESTART",error=error)
+    CALL section_vals_get(colvar_rest,explicit=restart_restraint_clv, error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. NULLIFY the molecule_set(imol)%lci via set_molecule_set
@@ -196,7 +208,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 2. Add more stuff to cons_info%const_dist_* if constraint hydrogen is on
+    ! 2. Add more stuff to COLVAR constraint if constraint hydrogen is on
     !-----------------------------------------------------------------------------
     IF(topology%const_hydr) THEN
        topology%const_colv = .TRUE.
@@ -322,6 +334,7 @@ CONTAINS
                 IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
              END IF
              IF (ishbond) THEN
+                nhdist = nhdist + 1
                 rvec = particle_set(offset+bond_list(k)%a)%r-particle_set(offset+bond_list(k)%b)%r
                 rmod = SQRT(DOT_PRODUCT(rvec,rvec))
                 IF (ASSOCIATED(hdist)) THEN
@@ -340,7 +353,6 @@ CONTAINS
                       END IF
                    END IF
                 END IF
-                nhdist = nhdist + 1
                 cons_info%const_colv_mol(nhdist+n_start_colv)     = i
                 cons_info%const_colv_molname(nhdist+n_start_colv) = "UNDEF"
                 cons_info%const_colv_target(nhdist+n_start_colv)  = rmod
@@ -362,7 +374,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 3. Set the distance constraint molecule_kind_set(ikind)%colv_list
+    ! 3. Set the COLVAR constraint molecule_kind_set(ikind)%colv_list
     !-----------------------------------------------------------------------------
     IF(topology%const_colv) THEN
        CALL give_constraint_array(cons_info%const_colv_mol,&
@@ -370,6 +382,7 @@ CONTAINS
                                   constr_x_mol,&
                                   molecule_kind_set,&
                                   error)
+       gind = 0
        DO ii = 1, SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -381,11 +394,15 @@ CONTAINS
           DO kk = 1, SIZE(constr_x_mol(ii)%constr)
              j = constr_x_mol(ii)%constr(kk)
              ncolv_mol = ncolv_mol + 1
+             gind = gind + 1
              kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
              ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(j)%colvar%type_id
              colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(j)%colvar%i_atom
+             ! Restraint
+             colv_list(ncolv_mol)%restraint%active = cons_info%colv_restraint(j)
+             colv_list(ncolv_mol)%restraint%k0     = cons_info%colv_k0(j)
              IF (cons_info%const_colv_target(j)==-HUGE(0.0_dp)) THEN
                 CALL colvar_eval_mol_f(cons_info%colvar_set(j)%colvar, topology%cell,&
                      particle_set, error=error)
@@ -393,14 +410,23 @@ CONTAINS
              ELSE
                 colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
              END IF
+             ! In case of Restraint let's check for possible restart values
+             IF (colv_list(ncolv_mol)%restraint%active) THEN
+                IF (restart_restraint_clv) THEN
+                   CALL section_vals_val_get(colvar_rest,"_DEFAULT_KEYWORD_",&
+                              i_rep_val=gind, r_val=rmod, error=error)
+                   colv_list(ncolv_mol)%expected_value = rmod
+                ELSE
+                   rmod = colv_list(ncolv_mol)%expected_value
+                   CALL section_vals_val_set(colvar_rest,"_DEFAULT_KEYWORD_",&
+                        i_rep_val=gind, r_val=rmod, error=error)
+                END IF
+             END IF
              ! Only if torsion let's take into account the singularity in the definition
              ! of the dihedral
              IF (cons_info%colvar_set(j)%colvar%type_id==torsion_colvar_id) THEN
                 cons_info%colvar_set(j)%colvar%torsion_param%o0=colv_list(ncolv_mol)%expected_value
              END IF
-             ! Restraint
-             colv_list(ncolv_mol)%restraint%active = cons_info%colv_restraint(j)
-             colv_list(ncolv_mol)%restraint%k0     = cons_info%colv_k0(j)
           END DO
           CALL setup_colvar_counters(colv_list,ncolv)
           CALL set_molecule_kind(molecule_kind,colv_list=colv_list,ncolv=ncolv)
@@ -721,13 +747,25 @@ CONTAINS
                          fix_atom_mm = .TRUE.
                       END IF
                    END SELECT
+                   ! We should never reach this point but let's check it anyway
+                   IF (fix_atom_qm.AND.fix_atom_mm) THEN
+                      CALL stop_program(TRIM(routineN),"Atom number: "//cp_to_string(k)//&
+                           " has been defined both QM and MM. General Error!")
+                   END IF
                 END IF
-                ! AT THEN END THE FIX_ATOM_MOLNAME
+                ! Check that the fixed atom constraint/restraint is unique
+                IF ((fix_fixed_atom.AND.fix_atom_qmmm).OR.(fix_fixed_atom.AND.fix_atom_molname)&
+                     .OR.(fix_atom_qmmm.AND.fix_atom_molname)) THEN 
+                   CALL stop_program(TRIM(routineN),"Atom number: "//cp_to_string(k)//&
+                        " has been constrained/restrained to be fixed in more than one"//&
+                        " input section. Check and correct your input file!")
+                END IF
+                ! Let's store the atom index
                 IF (fix_fixed_atom.OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
                    kk = kk + 1
                    fixd_list(kk)%fixd  = k
                    fixd_list(kk)%coord = particle_set(k)%r
-                   ! Restraint
+                   ! Possibly Restraint
                    IF     (fix_fixed_atom) THEN
                       fixd_list(kk)%restraint%active = cons_info%fixed_restraint(k2loc)
                       fixd_list(kk)%restraint%k0     = cons_info%fixed_k0(k2loc)
@@ -741,10 +779,25 @@ CONTAINS
                       fixd_list(kk)%restraint%active = cons_info%fixed_mol_restraint(k1loc)
                       fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)
                    ELSE
-                      ! should never reach this point
+                      ! Should never reach this point
                       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                    END IF
-                   IF (fixd_list(kk)%restraint%active) nfixd_restraint = nfixd_restraint+ 1
+                   IF (fixd_list(kk)%restraint%active) THEN 
+                      nfixd_restraint = nfixd_restraint+ 1
+                      IF (restart_restraint_pos) THEN
+                         ! Read  coord0 value for restraint
+                         CALL section_vals_val_get(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
+                              i_rep_val=nfixd_restraint, r_vals=r, error=error)
+                         fixd_list(kk)%coord = r
+                      ELSE
+                         ! Write coord0 value for restraint
+                         ALLOCATE(r(3),stat=stat)
+                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                         r = fixd_list(kk)%coord
+                         CALL section_vals_val_set(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
+                              i_rep_val=nfixd_restraint, r_vals_ptr=r, error=error)                         
+                      END IF
+                   END IF
                 END IF
              END DO
           END DO

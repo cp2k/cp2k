@@ -613,7 +613,7 @@ CONTAINS
                              nfixd=nfixd,&
                              fixd_list=fixd_list)
       DO ifixd=1,nfixd
-        is_fixed(fixd_list(ifixd)%fixd) = .TRUE.
+         IF (.NOT.fixd_list(ifixd)%restraint%active) is_fixed(fixd_list(ifixd)%fixd) = .TRUE.
       END DO
     END DO
 

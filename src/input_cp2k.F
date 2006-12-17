@@ -983,6 +983,13 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_CONSTRAINT",&
+            description="Restarts constraint section. It's necessary when doing restraint"//&
+            " calculation to have a perfect energy conservation. For constraints only it's"//&
+            " use is optional.",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
             description="Takes the given path "//&
             "from the EXTERNAL file",&

@@ -311,6 +311,14 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_f_a_rest_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_clv_rest_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_collective_section(subsection, error=error)
        CALL restraint_info_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -326,6 +334,112 @@ CONTAINS
 
   END SUBROUTINE create_constraint_section
 !***************************************************************************
+
+!!****f* input_cp2k_subsys/create_clv_rest_section [1.0] *
+!!
+!!   NAME
+!!     create_clv_rest_section
+!!
+!!   FUNCTION
+!!     Create the restart section for colvar restraints
+!!     This section will be only used for restraint restarts. 
+!!     Constraints are handled automatically
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_clv_rest_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_rest_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY( keyword)
+       CALL section_create(section,name="COLVAR_RESTART",&
+            description="Specify restart position only for COLVAR restraints.",&
+            n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The restarting values for COLVAR restraints."//&
+            " The order is an internal order. So if you decide to modify these values by hand"//&
+            " first think what you're doing!",repeats=.TRUE.,&
+            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+    END IF
+
+  END SUBROUTINE create_clv_rest_section
+
+!!****f* input_cp2k_subsys/create_f_a_rest_section [1.0] *
+!!
+!!   NAME
+!!     create_f_a_rest_section
+!!
+!!   FUNCTION
+!!     Create the restart section for fixed atoms restraints
+!!     This section will be only used for restraint restarts. 
+!!     Constraints are handled automatically
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_f_a_rest_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_f_a_rest_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY( keyword)
+       CALL section_create(section,name="FIX_ATOM_RESTART",&
+            description="Specify restart position only for FIXED_ATOMS restraints.",&
+            n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The restarting position of fixed atoms for restraints."//&
+            " The order is an internal order. So if you decide to modify these values by hand"//&
+            " first think what you're doing!",repeats=.TRUE.,&
+            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+    END IF
+
+  END SUBROUTINE create_f_a_rest_section
 
 !!****f* input_cp2k_subsys/restraint_info_section [1.0] *
 !!
@@ -658,7 +772,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="HBONDS",&
             description="This section is used to set bonds constraints involving Hydrogen atoms",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)

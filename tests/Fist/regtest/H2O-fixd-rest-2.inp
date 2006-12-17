@@ -1,0 +1,66 @@
+
+&FORCE_EVAL
+   METHOD FIST
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE ../sample_pdb/water_1.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROJECT water_1
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+  &CONSTRAINT
+    &FIXED_ATOMS
+      LIST 1 2 3
+      &RESTRAINT
+          K   [kcalmol*angstrom^-2] 100.0
+      &END
+    &END 
+  &END CONSTRAINT
+&END MOTION
+&EXT_RESTART
+  RESTART_FILE_NAME water_1-1.restart
+&END

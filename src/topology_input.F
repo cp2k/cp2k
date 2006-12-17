@@ -391,7 +391,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               isize = SIZE(cons_info%fixed_atoms)
            END IF
            !Check for restraints
-           IF (n_rep /=0) THEN
+           IF ((isize-isize_old)>0) THEN
               CALL check_restraint(fix_atom_section,&
                                    is_restraint=cons_info%fixed_restraint(isize_old+1), &
                                    k0=cons_info%fixed_k0(isize_old+1),&
@@ -422,7 +422,6 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
            END IF
            CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",n_rep_val=nrep,i_rep_section=ig,error=error)
            IF (nrep==1) THEN
-              write(6,*) " IG -- ", IG
               CPPostcondition(cons_info%freeze_mm==do_constr_none,cp_failure_level,routineP,error,failure)
               CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_val=cons_info%freeze_mm,i_rep_section=ig,error=error)
            END IF
@@ -447,11 +446,10 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
            END IF
 
         END DO
-        IF (isize /= 0 .OR. (cons_info%freeze_mm/=do_constr_none)&
-             .OR. (cons_info%freeze_qm/=do_constr_none) &
-             .OR. SIZE(cons_info%fixed_molnames,1)>0    ) THEN
+        IF ( (isize/=0).OR.(msize/=0).OR.&
+             (cons_info%freeze_mm/=do_constr_none).OR.&
+             (cons_info%freeze_qm/=do_constr_none) ) THEN
            topology%const_atom    = .TRUE.
-!TL           cons_info%nfixed_atoms =  isize
         END IF
      END IF
      ! Collective Constraints

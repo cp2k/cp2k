@@ -153,3 +153,8 @@ water_massive.inp         2
 water_3_dist_startC.inp   2
 # just keep echo_input alive
 acn-3.inp                 0
+# Restart of restraints
+H2O-fixd-rest.inp         2
+H2O-fixd-rest-2.inp       2
+H2O-restraint_1.inp       2
+H2O-restraint_2.inp       2

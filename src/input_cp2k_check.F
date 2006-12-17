@@ -488,6 +488,14 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%FORCE",&
                 section,error=error)
         END IF
+        CALL section_vals_val_get(r_section,"RESTART_CONSTRAINT",l_val=flag,&
+             error=error)
+        IF (flag) THEN
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%CONSTRAINT",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%CONSTRAINT",&
+                section,error=error)
+        END IF
         CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag,&
              error=error)
         IF (flag) THEN
