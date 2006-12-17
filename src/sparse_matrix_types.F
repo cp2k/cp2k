@@ -914,12 +914,14 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER                                  :: iblock_col, iblock_row, icol, &
                                                 icol_block, irow, irow_block, &
-                                                istat, ncol, nrow
+                                                istat, ncol, nrow, handle
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the input matrix ***
+
+    CALL timeset(routine,handle)
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
       CALL stop_program(routine,"The input matrix pointer is not associated")
@@ -971,6 +973,8 @@ END SUBROUTINE cp_sm_scale_and_add
       END DO
 
     END DO
+ 
+    CALL timestop(handle)
 
   END SUBROUTINE copy_local_sm_to_replicated_fm
 
