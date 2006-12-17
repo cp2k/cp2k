@@ -6,7 +6,7 @@
 !!****** cp2k/cp2k [1.0] *
 !!
 !!   NAME
-!!     cp2k, The main program  
+!!     cp2k, The main program    
 !!
 !!   COPYRIGHT
 !!I---------------------------------------------------------------------------I
