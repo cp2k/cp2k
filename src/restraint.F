@@ -36,6 +36,7 @@ MODULE restraint
                                              fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
+                                             fixd_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -400,16 +401,20 @@ CONTAINS
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    
+    NULLIFY(fixd_list)    
 
     failure = .FALSE.
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, colv_list = colv_list )
+    CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
     DO iconst = 1, SIZE(colv_list)
        IF (.NOT.colv_list(iconst)%restraint%active) CYCLE
        ! Update colvar
        CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, &
-            particles=particle_set, error=error)
+            particles=particle_set, fixd_list=fixd_list, error=error)
 
        k    = colv_list ( iconst )%restraint%k0
        targ = colv_list ( iconst )%expected_value

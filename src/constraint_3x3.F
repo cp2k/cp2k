@@ -27,6 +27,7 @@ MODULE constraint_3x3
                                              matvec_3x3
   USE molecule_kind_types,             ONLY: g3x3_constraint_type,&
                                              get_molecule_kind,&
+                                             fixd_constraint_type,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              local_g3x3_constraint_type,&
@@ -34,6 +35,7 @@ MODULE constraint_3x3
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -85,12 +87,16 @@ CONTAINS
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
     idtsq = 1.0_dp/dt/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list )
+    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
+         g3x3_list = g3x3_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     DO iconst = 1, ng3x3
        IF (g3x3_list(iconst)%restraint%active) CYCLE
@@ -116,6 +122,14 @@ CONTAINS
             lg3x3 ( iconst ) % rc_old )
        lg3x3 ( iconst ) % fc = -2.0_dp*( lg3x3 ( iconst ) % rb_old - &
             lg3x3 ( iconst ) % rc_old )
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp 
+          END IF
+       END IF
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,lg3x3 ( iconst ) % fa )
        amat(1,2)=imass1*DOTPROD_3D(r0_12, lg3x3 ( iconst) % fb )
@@ -130,8 +144,8 @@ CONTAINS
        ! Iterate until convergence:
        max_sigma = -1.0E+10_dp
        CONS: DO WHILE (ABS(max_sigma)>=shake_tol)
-          max_sigma=0.0_dp
           ishake=ishake+1
+          max_sigma=0.0_dp
           vec= lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa *(imass1+imass2) + &
                lg3x3 ( iconst ) % lambda ( 2 ) * imass1*lg3x3 ( iconst ) % fb - &
                lg3x3 ( iconst ) % lambda ( 3 ) * imass2*lg3x3 ( iconst ) % fc
@@ -148,13 +162,12 @@ CONTAINS
           bvec(3,1)=g3x3_list ( iconst ) % dbc * g3x3_list ( iconst) % dbc &
                -dtsqby2*dtsqby2*DOTPROD_3D(vec,vec)-DOTPROD_3D(r0_23,r0_23)
           bvec = bvec * idtsq
-
           ! get lambda
           atemp = amat
           CALL solve_system ( atemp, 3, bvec )
           lg3x3 ( iconst ) % lambda ( : ) = bvec ( :, 1 )
 
-          fc1=lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
+          fc1= lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
                lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb
           fc2=-lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
                lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
@@ -236,12 +249,16 @@ CONTAINS
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
     idtsq = 1.0_dp/dt/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list )
+    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
+         g3x3_list = g3x3_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     DO iconst = 1, ng3x3
        IF (g3x3_list(iconst)%restraint%active) CYCLE
@@ -267,6 +284,14 @@ CONTAINS
             lg3x3 ( iconst ) % rc_old )
        lg3x3 ( iconst ) % fc = -2.0_dp*( lg3x3 ( iconst ) % rb_old - &
             lg3x3 ( iconst ) % rc_old )
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp 
+          END IF
+       END IF
        ! rotate fconst:
        CALL matvec_3x3 (f_roll1, r_shake, lg3x3 ( iconst ) % fa )
        CALL matvec_3x3 (f_roll2, r_shake, lg3x3 ( iconst ) % fb )
@@ -397,11 +422,15 @@ CONTAINS
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     idt = 1.0_dp/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list )
+    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
+         g3x3_list = g3x3_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     DO iconst = 1, SIZE ( g3x3_list )
        IF (g3x3_list(iconst)%restraint%active) CYCLE
@@ -426,7 +455,14 @@ CONTAINS
        lg3x3 ( iconst ) % fa = -2.0_dp* r12
        lg3x3 ( iconst ) % fb = -2.0_dp* r13
        lg3x3 ( iconst ) % fc = -2.0_dp* r23
-
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
+          END IF
+       END IF
        ! roll the fc
        CALL MATVEC_3x3 (f_roll1, r_rattle, lg3x3 ( iconst ) % fa )
        CALL MATVEC_3x3 (f_roll2, r_rattle, lg3x3 ( iconst ) % fb )
@@ -504,11 +540,15 @@ CONTAINS
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     idt = 1.0_dp/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list )
+    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
+         g3x3_list = g3x3_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     DO iconst = 1, SIZE ( g3x3_list )
        IF (g3x3_list(iconst)%restraint%active) CYCLE
@@ -533,7 +573,14 @@ CONTAINS
        lg3x3 ( iconst ) % fa = -2.0_dp* r12
        lg3x3 ( iconst ) % fb = -2.0_dp* r13
        lg3x3 ( iconst ) % fc = -2.0_dp* r23
-
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
+          END IF
+       END IF
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,lg3x3 ( iconst ) % fa )
        amat(1,2)=imass1*DOTPROD_3D(r12,lg3x3 ( iconst ) % fb )
@@ -551,12 +598,11 @@ CONTAINS
        bvec(3,1)=DOTPROD_3D(r23,v23)
        bvec=-bvec*2.0_dp*idt
 
-
        ! get lambda
        CALL solve_system ( amat, 3, bvec )
        lg3x3 ( iconst ) % lambda ( : )=bvec ( :, 1 )
 
-       fc1=lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
+       fc1= lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
             lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb
        fc2=-lg3x3 ( iconst ) % lambda ( 1 ) * lg3x3 ( iconst ) % fa + &
             lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc

@@ -40,6 +40,7 @@ MODULE colvar_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE molecule_kind_types,             ONLY: fixd_constraint_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE particle_list_types,             ONLY: particle_list_type
@@ -266,13 +267,15 @@ CONTAINS
   !!     Teodoro Laino
   !!
   !!*** **********************************************************************
-  SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, pos, error)
+  SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, pos, fixd_list, error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: pos
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER, OPTIONAL        :: fixd_list
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
 
@@ -309,6 +312,17 @@ CONTAINS
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+       ! Possibly zero the COLVAR gradients
+       IF (PRESENT(fixd_list)) THEN
+          IF (ASSOCIATED(fixd_list)) THEN
+             IF (SIZE(fixd_list)>0) THEN
+                DO i = 1, SIZE(colvar%i_atom)
+                   j = colvar%i_atom(i)
+                   IF (ANY(fixd_list(:)%fixd==j)) colvar%dsdr(:,i) = 0.0_dp
+                END DO
+             END IF
+          END IF
+       END IF
     END IF
 
   END SUBROUTINE colvar_eval_mol_f

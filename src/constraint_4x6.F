@@ -27,6 +27,7 @@ MODULE constraint_4x6
                                              matvec_3x3
   USE molecule_kind_types,             ONLY: g4x6_constraint_type,&
                                              get_molecule_kind,&
+                                             fixd_constraint_type,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              local_g4x6_constraint_type,&
@@ -84,12 +85,16 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
     idtsq = 1.0_dp/dt/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
+    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6,&
+         fixd_list=fixd_list, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, ng4x6
        IF (g4x6_list(iconst)%restraint%active) CYCLE
@@ -128,6 +133,15 @@ CONTAINS
             lg4x6 ( iconst ) % rd_old )
        lg4x6 ( iconst ) % ff = -2.0_dp*( lg4x6 ( iconst ) % rc_old - &
             lg4x6 ( iconst ) % rd_old )
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp
+          END IF
+       END IF
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,lg4x6 ( iconst ) % fa )
        amat(1,2)=imass1*DOTPROD_3D(r0_12, lg4x6 ( iconst) % fb )
@@ -236,7 +250,7 @@ CONTAINS
                lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
           fc4=-lg4x6 ( iconst ) % lambda ( 3 ) * lg4x6 ( iconst ) % fc - &
                lg4x6 ( iconst ) % lambda ( 5 ) * lg4x6 ( iconst ) % fe - &
-               lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff 
+               lg4x6 ( iconst ) % lambda ( 6 ) * lg4x6 ( iconst ) % ff
           r1 ( : ) = pos ( :, index_a ) + imass1*dtsqby2*fc1 ( : )
           r2 ( : ) = pos ( :, index_b ) + imass2*dtsqby2*fc2 ( : )
           r3 ( : ) = pos ( :, index_c ) + imass3*dtsqby2*fc3 ( : )
@@ -327,12 +341,16 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
     idtsq = 1.0_dp/dt/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
+    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6,&
+         fixd_list=fixd_list, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, ng4x6
        IF (g4x6_list(iconst)%restraint%active) CYCLE
@@ -371,6 +389,15 @@ CONTAINS
             lg4x6 ( iconst ) % rd_old )
        lg4x6 ( iconst ) % ff = -2.0_dp*( lg4x6 ( iconst ) % rc_old - &
             lg4x6 ( iconst ) % rd_old )
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp  
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp  
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp 
+          END IF
+       END IF
        ! rotate fconst:
        CALL matvec_3x3 (f_roll1, r_shake, lg4x6 ( iconst ) % fa )
        CALL matvec_3x3 (f_roll2, r_shake, lg4x6 ( iconst ) % fb )
@@ -582,11 +609,15 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     idt = 1.0_dp/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
+    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6,&
+         fixd_list=fixd_list, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, SIZE ( g4x6_list )
        IF (g4x6_list(iconst)%restraint%active) CYCLE
@@ -625,6 +656,15 @@ CONTAINS
        lg4x6 ( iconst ) % fd = -2.0_dp* r23
        lg4x6 ( iconst ) % fe = -2.0_dp* r24
        lg4x6 ( iconst ) % ff = -2.0_dp* r34
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp
+          END IF
+       END IF
        !
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,lg4x6 ( iconst ) % fa )
@@ -743,11 +783,15 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
 
+    NULLIFY(fixd_list)
     idt = 1.0_dp/dt
     dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
+    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6,&
+         fixd_list=fixd_list, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, SIZE ( g4x6_list )
        IF (g4x6_list(iconst)%restraint%active) CYCLE
@@ -786,6 +830,15 @@ CONTAINS
        lg4x6 ( iconst ) % fd = -2.0_dp* r23
        lg4x6 ( iconst ) % fe = -2.0_dp* r24
        lg4x6 ( iconst ) % ff = -2.0_dp* r34
+       ! Possibly zero the g3x3 gradients
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
+             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp
+          END IF
+       END IF
        ! roll the fc
        CALL MATVEC_3x3 (f_roll1, r_rattle, lg4x6 ( iconst ) % fa )
        CALL MATVEC_3x3 (f_roll2, r_rattle, lg4x6 ( iconst ) % fb )

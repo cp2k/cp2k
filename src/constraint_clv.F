@@ -216,7 +216,10 @@ CONTAINS
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    
+    NULLIFY(fixd_list)
     failure = .FALSE.
     ishake = 0
     max_sigma = -1.0E+10_dp
@@ -226,7 +229,7 @@ CONTAINS
        max_sigma = 0.0_dp
        ishake  = ishake + 1
        molecule_kind => molecule % molecule_kind
-       CALL get_molecule_kind ( molecule_kind, colv_list = colv_list )
+       CALL get_molecule_kind ( molecule_kind, colv_list=colv_list, fixd_list=fixd_list )
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
 
        IF (ishake==1) THEN
@@ -246,7 +249,7 @@ CONTAINS
              IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar
              CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-                  pos=pos, error=error)
+                  pos=pos, fixd_list=fixd_list, error=error)
              lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
                   colv_list ( iconst ) % expected_value
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
@@ -268,7 +271,7 @@ CONTAINS
        DO iconst = 1, SIZE(colv_list)
           IF (colv_list(iconst)%restraint%active) CYCLE
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-               pos=pos, error=error)
+               pos=pos, fixd_list=fixd_list, error=error)
           lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
                colv_list ( iconst ) % expected_value
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
@@ -317,7 +320,10 @@ CONTAINS
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    
+    NULLIFY(fixd_list)
     irattle   = 0
     max_sigma = -1.0E+10_dp
     dtby2     = dt*.5_dp
@@ -325,14 +331,14 @@ CONTAINS
        max_sigma = 0.0_dp
        irattle = irattle + 1
        molecule_kind => molecule % molecule_kind
-       CALL get_molecule_kind ( molecule_kind, colv_list = colv_list )
+       CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
        IF (irattle==1) THEN
           DO iconst = 1, SIZE(colv_list)
              IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar_old
              CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
-                  particles=particle_set, error=error)
+                  particles=particle_set, fixd_list=fixd_list, error=error)
              ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
@@ -405,7 +411,10 @@ CONTAINS
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    
+    NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
     dtby2 = dt*.5_dp
     max_sigma = -1.0E+10_dp
@@ -414,7 +423,7 @@ CONTAINS
        max_sigma = 0.0_dp
        ishake = ishake + 1
        molecule_kind => molecule % molecule_kind
-       CALL get_molecule_kind ( molecule_kind, colv_list = colv_list )
+       CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
        IF (ishake==1) THEN
           DO iconst = 1, SIZE(colv_list)
@@ -433,7 +442,7 @@ CONTAINS
              IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar
              CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-                  pos=pos, error=error)
+                  pos=pos, fixd_list=fixd_list, error=error)
              lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
                   colv_list ( iconst ) % expected_value
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
@@ -457,7 +466,7 @@ CONTAINS
        DO iconst = 1, SIZE(colv_list)
           IF (colv_list(iconst)%restraint%active) CYCLE
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
-               pos=pos, error=error)
+               pos=pos, fixd_list=fixd_list, error=error)
           lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
                colv_list ( iconst ) % expected_value
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
@@ -508,7 +517,10 @@ CONTAINS
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    
+    NULLIFY(fixd_list)
     dtby2 = dt*.5_dp
     max_sigma = -1.0E+10_dp
     irattle = 0
@@ -516,14 +528,14 @@ CONTAINS
        max_sigma = 0.0_dp
        irattle = irattle + 1
        molecule_kind => molecule % molecule_kind
-       CALL get_molecule_kind ( molecule_kind, colv_list = colv_list )
+       CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
        IF (irattle==1) THEN
           DO iconst = 1, SIZE ( colv_list )
              IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar_old
              CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
-                  particles=particle_set, error=error)
+                  particles=particle_set, fixd_list=fixd_list, error=error)
              ! Update velocities
              CALL update_con_colv(vel, dtby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&

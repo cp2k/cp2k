@@ -47,6 +47,7 @@ MODULE constraint
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
+                                             fixd_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -451,7 +452,10 @@ CONTAINS
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    
+    NULLIFY(fixd_list)
     nkind = SIZE ( molecule_kind_set )
     DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
@@ -460,14 +464,15 @@ CONTAINS
           molecule => molecule_set ( i )
           molecule_kind => molecule % molecule_kind
           CALL get_molecule_kind ( molecule_kind, ng3x3=n3x3con, ng4x6=n4x6con, & 
-               colv_list=colv_list, g3x3_list=g3x3_list, g4x6_list=g4x6_list )
+               colv_list=colv_list, g3x3_list=g3x3_list, g4x6_list=g4x6_list,&
+               fixd_list=fixd_list )
           CALL get_molecule ( molecule, first_atom=first_atom, &
                lcolv=lcolv, lg3x3=lg3x3, lg4x6=lg4x6 )
           ! Collective constraints
           IF (ASSOCIATED(colv_list)) THEN
              DO iconst = 1, SIZE(colv_list)
                 CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
-                     particles=particle_set, error=error)
+                     particles=particle_set, fixd_list=fixd_list, error=error)
              ENDDO
           END IF
           ! 3x3 constraints
