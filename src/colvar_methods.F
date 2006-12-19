@@ -40,9 +40,9 @@ MODULE colvar_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE molecule_kind_types,             ONLY: fixd_constraint_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
+  USE molecule_kind_types,             ONLY: fixd_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
@@ -92,8 +92,7 @@ CONTAINS
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), POINTER         :: colvar_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
       routineP = moduleN//':'//routineN
@@ -201,12 +200,12 @@ CONTAINS
        WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
        SELECT CASE(colvar%type_id)
        CASE(angle_colvar_id)
-          WRITE ( iw, '( A,T71,3I5)' )   ' COLVARS| ANGLE          >>> ATOMS:',&
+          WRITE ( iw, '( A,T66,3I5)' )   ' COLVARS| ANGLE          >>> ATOMS:',&
                colvar%angle_param%i_at_angle
        CASE(plane_distance_colvar_id)
-          WRITE ( iw, '( A,T61,3I5)' )   ' COLVARS| PLANE DISTANCE    - PLANE  >>> ATOMS:',&
+          WRITE ( iw, '( A,T66,3I5)' )   ' COLVARS| PLANE DISTANCE    - PLANE  >>> ATOMS:',&
                colvar%plane_distance_param%plane
-          WRITE ( iw, '( A,T61,1I5)' )   ' COLVARS| PLANE DISTANCE    - POINT  >>>  ATOM:',&
+          WRITE ( iw, '( A,T76,1I5)' )   ' COLVARS| PLANE DISTANCE    - POINT  >>>  ATOM:',&
                colvar%plane_distance_param%point
        CASE(torsion_colvar_id)
           WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> ATOMS:',&
@@ -275,9 +274,8 @@ CONTAINS
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: pos
     TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER, OPTIONAL        :: fixd_list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+      DIMENSION(:), OPTIONAL, POINTER        :: fixd_list
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_mol_f', &
       routineP = moduleN//':'//routineN
@@ -351,8 +349,7 @@ CONTAINS
   SUBROUTINE colvar_eval_glob_f(isubsys,icolvar,force_env,error)
     INTEGER                                  :: isubsys, icolvar
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_glob_f', &
       routineP = moduleN//':'//routineN
@@ -413,8 +410,7 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'plane_distance_colvar', &
       routineP = moduleN//':'//routineN
@@ -517,8 +513,7 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotation_colvar', &
       routineP = moduleN//':'//routineN
@@ -639,8 +634,7 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'angle_colvar', &
       routineP = moduleN//':'//routineN
@@ -710,8 +704,7 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dist_colvar', &
       routineP = moduleN//':'//routineN
@@ -772,8 +765,7 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coord_colvar', &
       routineP = moduleN//':'//routineN
@@ -857,8 +849,7 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_colvar', &
       routineP = moduleN//':'//routineN

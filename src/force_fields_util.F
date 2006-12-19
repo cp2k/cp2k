@@ -144,8 +144,7 @@ CONTAINS
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
       routineP = moduleN//':'//routineN
@@ -1946,8 +1945,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: array
     INTEGER, INTENT(IN)                      :: output_unit, iw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_FF_missing_par', &
       routineP = moduleN//':'//routineN
@@ -1960,9 +1958,9 @@ CONTAINS
        IF (output_unit>0) THEN
           WRITE(output_unit,*)
           WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
-               " WARNING: Non Critical ForceField Parameter missing!   Calculation proceeding.",&
-               " Non Critical Parameters are:   Urey-Bradley,   Torsions,  Impropers  and  1-4",&
-               " All missing parameters will give a zero contribution to the potential energy!"
+               " WARNING: A non Critical ForceField parameter is missing! CP2K GOES!",&
+               " Non critical parameters are:Urey-Bradley,Torsions,Impropers and 1-4",&
+               " All missing parameters will not contribute to the potential energy!"
           IF (fatal.OR.iw>0) THEN
              WRITE(output_unit,*)
              DO i = 1,SIZE(array)
@@ -1971,7 +1969,7 @@ CONTAINS
           END IF
           IF (.NOT.fatal.AND.iw<0) THEN
              WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
-                  " Activate the print key FF_INFO to have a list of missing parameters."
+                  " Activate the print key FF_INFO to have a list of missing parameters"
              WRITE(output_unit,*)
           END IF
        END IF
@@ -2006,8 +2004,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT), OPTIONAL         :: fatal
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: array
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'store_FF_missing_par', &
       routineP = moduleN//':'//routineN
@@ -2169,8 +2166,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
       routineP = moduleN//':'//routineN
@@ -2178,8 +2174,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atmname, molname
     INTEGER                                  :: handle, iatom, imol, iw
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: qeff, qeff_mol, qeff_sum
-    REAL(KIND=dp)                            :: mass, mass_mol, mass_sum
+    REAL(KIND=dp)                            :: mass, mass_mol, mass_sum, &
+                                                qeff, qeff_mol, qeff_sum
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2264,8 +2260,7 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
       routineP = moduleN//':'//routineN

@@ -26,10 +26,8 @@ MODULE topology_input
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_p_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_conn_mol_set,&
-                                             do_conn_psf,&
-                                             do_coord_off,&
-                                             do_constr_none
+  USE input_constants,                 ONLY: do_constr_none,&
+                                             do_coord_off
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -89,8 +87,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
     TYPE(section_vals_type), POINTER         :: topology_section
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
@@ -110,14 +107,16 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology % charge_beta,error=error)
      CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology % para_res,error=error)
      CALL section_vals_val_get(topology_section,"DUMP_TOP",l_val=topology % dump_topology,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology % reorder_atom,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology % reorder_atom,&
+          error=error)
      CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",&
           l_val=topology%create_molecules,error=error)
      CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology % molecules_check,error=error)
      ! Character
      CALL section_vals_val_get(topology_section,"COORD_FILE",n_rep_val=n_rep, error=error)
      IF (n_rep /=0) THEN
-        CALL section_vals_val_get(topology_section,"COORD_FILE",c_val=topology % coord_file_name,error=error)
+        CALL section_vals_val_get(topology_section,"COORD_FILE",c_val=topology % coord_file_name,&
+             error=error)
      END IF
      CALL section_vals_val_get(topology_section,"CONN_FILE",n_rep_val=n_rep, error=error)
      IF (n_rep /=0) THEN
@@ -169,22 +168,17 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(section_vals_type), POINTER         :: constraint_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: icolvar, ig, isize,&
-                                                isize_old, j, jj, msize,&
-                                                msize_old, n_rep, ncons, stat,&
-                                                nrep
+    INTEGER :: freeze_mm, freeze_qm, icolvar, ig, isize, isize_old, j, jj, &
+      msize, msize_old, n_rep, ncons, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
     LOGICAL                                  :: explicit, failure
-    INTEGER                                  :: freeze_mm, &
-                                                freeze_qm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
     TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(section_vals_type), POINTER         :: collective_section, &
@@ -205,6 +199,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
      CALL check_restraint(hbonds_section,&
                           is_restraint=cons_info%hbonds_restraint, &
                           k0=cons_info%hbonds_k0,&
+                          label="HBONDS",&
                           error=error)
      ! G3X3
      CALL section_vals_get(g3x3_section,explicit=explicit, n_repetition=ncons, error=error)
@@ -237,6 +232,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 is_restraint=cons_info%g33_restraint(ig), &
                                 k0=cons_info%g33_k0(ig),&
                                 i_rep_section=ig,&
+                                label="G3X3",&
                                 error=error)
            cons_info%const_g33_mol(ig)     = 0
            cons_info%const_g33_molname(ig) = "UNDEF"
@@ -309,6 +305,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 is_restraint=cons_info%g46_restraint(ig), &
                                 k0=cons_info%g46_k0(ig),&
                                 i_rep_section=ig,&
+                                label="G4X6",&
                                 error=error)
            cons_info%const_g46_mol(ig)     = 0
            cons_info%const_g46_molname(ig) = "UNDEF"
@@ -366,7 +363,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         DO ig = 1, ncons
            isize_old  = isize
            msize_old  = msize
-           CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, n_rep_val=n_rep, error=error)
+           CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig,&
+                n_rep_val=n_rep, error=error)
            IF (n_rep /= 0) THEN
               CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, &
                    i_vals=tmplist, error=error)
@@ -376,7 +374,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               CALL reallocate(cons_info%fixed_k0,1,isize+SIZE(tmplist))
               isize = SIZE(cons_info%fixed_atoms)
            END IF
-           CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, n_rep_val=n_rep, error=error)
+           CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig,&
+                n_rep_val=n_rep, error=error)
            IF (n_rep /= 0) THEN
               CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, &
                    i_vals=tmplist, error=error)
@@ -396,11 +395,13 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                    is_restraint=cons_info%fixed_restraint(isize_old+1), &
                                    k0=cons_info%fixed_k0(isize_old+1),&
                                    i_rep_section=ig,&
+                                   label="FIXED ATOM",&
                                    error=error)
               cons_info%fixed_restraint(isize_old+1:isize)=cons_info%fixed_restraint(isize_old+1)
               cons_info%fixed_k0(isize_old+1:isize)=cons_info%fixed_k0(isize_old+1)
            END IF
-           CALL section_vals_val_get(fix_atom_section,"MOLNAME", i_rep_section=ig, n_rep_val=n_rep, error=error)
+           CALL section_vals_val_get(fix_atom_section,"MOLNAME", i_rep_section=ig,&
+                n_rep_val=n_rep, error=error)
            IF (n_rep /= 0) THEN
               CALL section_vals_val_get(fix_atom_section,"MOLNAME", i_rep_section=ig, &
                    c_vals=tmpstringlist, error=error)
@@ -416,25 +417,31 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                    is_restraint=cons_info%fixed_mol_restraint(msize_old+1), &
                                    k0=cons_info%fixed_mol_k0(msize_old+1),&
                                    i_rep_section=ig,&
+                                   label="FIXED ATOM",&
                                    error=error)
               cons_info%fixed_mol_restraint(msize_old+1:msize)=cons_info%fixed_mol_restraint(msize_old+1)
               cons_info%fixed_mol_k0(msize_old+1:msize)=cons_info%fixed_mol_k0(msize_old+1)
            END IF
-           CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",n_rep_val=nrep,i_rep_section=ig,error=error)
+           CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",n_rep_val=nrep,&
+                i_rep_section=ig,error=error)
            IF (nrep==1) THEN
               CPPostcondition(cons_info%freeze_mm==do_constr_none,cp_failure_level,routineP,error,failure)
-              CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_val=cons_info%freeze_mm,i_rep_section=ig,error=error)
+              CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_val=cons_info%freeze_mm,&
+                   i_rep_section=ig,error=error)
            END IF
-           CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",n_rep_val=nrep,i_rep_section=ig,error=error)
+           CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",n_rep_val=nrep,i_rep_section=ig,&
+                error=error)
            IF (nrep==1) THEN
               CPPostcondition(cons_info%freeze_qm==do_constr_none,cp_failure_level,routineP,error,failure)
-              CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",i_val=cons_info%freeze_qm,i_rep_section=ig,error=error)
+              CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",i_val=cons_info%freeze_qm,&
+                   i_rep_section=ig,error=error)
            END IF
            IF (cons_info%freeze_mm/=do_constr_none) THEN
               CALL check_restraint(fix_atom_section,&
                                    is_restraint=cons_info%fixed_mm_restraint, &
                                    k0=cons_info%fixed_mm_k0,&
                                    i_rep_section=ig,&
+                                   label="FIXED ATOM",&
                                    error=error)
            END IF
            IF (cons_info%freeze_qm/=do_constr_none) THEN
@@ -442,6 +449,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                    is_restraint=cons_info%fixed_qm_restraint, &
                                    k0=cons_info%fixed_qm_k0,&
                                    i_rep_section=ig,&
+                                   label="FIXED ATOM",&
                                    error=error)
            END IF
 
@@ -457,7 +465,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
      IF (explicit) THEN
         topology%const_colv = .TRUE.
         DO ig = 1, ncons
-           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
+           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar,&
+                error=error)
            CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
         END DO
         cons_info%nconst_colv = ncons
@@ -478,6 +487,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 is_restraint=cons_info%colv_restraint(ig), &
                                 k0=cons_info%colv_k0(ig),&
                                 i_rep_section=ig,&
+                                label="COLLECTIVE",&
                                 error=error)
            cons_info%const_colv_mol(ig)     = 0
            cons_info%const_colv_molname(ig) = "UNDEF"
@@ -537,32 +547,46 @@ END SUBROUTINE read_constraints_section
 !!
 !******************************************************************************
 
-SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, error)
+SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label, error)
     TYPE(section_vals_type), POINTER         :: cons_section
     LOGICAL, INTENT(OUT)                     :: is_restraint
     REAL(KIND=dp), INTENT(OUT)               :: k0
     INTEGER, INTENT(IN), OPTIONAL            :: i_rep_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_restraint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit, failure
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: explicit, failure, ionode
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restraint_section
 
   failure      = .FALSE.
   is_restraint = .FALSE.
+  logger => cp_error_get_logger(error)
+  ionode = logger%para_env%mepos==logger%para_env%source
+  IF (ionode) THEN
+     output_unit= cp_logger_get_default_unit_nr(logger)
+  ELSE
+     output_unit = -1
+  END IF
   CALL section_vals_get(cons_section,explicit=explicit, error=error)
   IF (explicit) THEN
-     restraint_section => section_vals_get_subs_vals(cons_section,"RESTRAINT",i_rep_section=i_rep_section,error=error)
+     restraint_section => section_vals_get_subs_vals(cons_section,"RESTRAINT",&
+          i_rep_section=i_rep_section,error=error)
      CALL section_vals_get(restraint_section,explicit=is_restraint, error=error)
      IF (is_restraint) THEN        
         CALL section_vals_val_get(restraint_section,"K",r_val=k0,error=error)
+        IF (output_unit>0) THEN
+           WRITE(output_unit,FMT='(T2,"RESTRAINT|",1X,A,F9.6)')&
+                "Active restraint on "//label//" section Nr."//&
+                cp_to_string(i_rep_section)//". K [a.u.]=",k0
+        END IF
      END IF
   END IF
-
-  END SUBROUTINE check_restraint
+END SUBROUTINE check_restraint
 
 END MODULE topology_input
 
