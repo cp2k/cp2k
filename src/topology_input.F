@@ -562,6 +562,7 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label,
     LOGICAL                                  :: explicit, failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restraint_section
+    CHARACTER(LEN=default_string_length)     :: nlabel
 
   failure      = .FALSE.
   is_restraint = .FALSE.
@@ -580,9 +581,10 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label,
      IF (is_restraint) THEN        
         CALL section_vals_val_get(restraint_section,"K",r_val=k0,error=error)
         IF (output_unit>0) THEN
+           nlabel = cp_to_string(i_rep_section)
            WRITE(output_unit,FMT='(T2,"RESTRAINT|",1X,A,F9.6)')&
                 "Active restraint on "//label//" section Nr."//&
-                cp_to_string(i_rep_section)//". K [a.u.]=",k0
+                TRIM(nlabel)//". K [a.u.]=",k0
         END IF
      END IF
   END IF
