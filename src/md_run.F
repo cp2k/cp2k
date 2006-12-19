@@ -350,18 +350,18 @@ CONTAINS
        IF (apply_cns0) THEN
           CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
                calc_force=.TRUE.,error=error)          
-          CALL force_env_shake(force_env_p(ibead)%force_env,0.1_dp,simpar%shake_tol,&
-               simpar%info_constraint,compold=.TRUE.,error=error)
-          CALL force_env_rattle(force_env_p(ibead)%force_env,0.1_dp,simpar%shake_tol,&
-               simpar%info_constraint,reset=.TRUE.,error=error)
+          CALL force_env_shake(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
+               log_unit=simpar%info_constraint,compold=.TRUE.,error=error)
+          CALL force_env_rattle(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
+               log_unit=simpar%info_constraint,reset=.TRUE.,error=error)
           IF (simpar%do_respa)THEN
              CALL force_env_calc_energy_force ( &
                   force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
                   calc_force=.TRUE.,error=error)
              CALL force_env_shake(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                  0.1_dp,simpar%shake_tol,simpar%info_constraint,compold=.TRUE.,error=error)
+                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,compold=.TRUE.,error=error)
              CALL force_env_rattle(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                  0.1_dp,simpar%shake_tol,simpar%info_constraint,reset=.TRUE.,error=error)          
+                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,reset=.TRUE.,error=error)          
           END IF
           ! Reinitialize velocities rescaling properly after rattle
           CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &

@@ -1115,7 +1115,8 @@ END SUBROUTINE mixed_energy_forces
 SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
      reset,error)
   TYPE(force_env_type), POINTER            :: force_env
-  REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+  REAL(kind=dp), INTENT(IN), OPTIONAL      :: dt
+  REAL(kind=dp), INTENT(IN)                :: shake_tol
   INTEGER, INTENT(in), OPTIONAL            :: log_unit
   REAL(KIND=dp), DIMENSION(:, :), &
        INTENT(INOUT), OPTIONAL, TARGET        :: pos, vel
@@ -1141,6 +1142,7 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
   TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
   INTEGER :: nparticle_kind, iparticle_kind, nparticle_local, iparticle_local,&
        iparticle
+  REAL(KIND=dp) :: mydt
 
   failure=.FALSE.
 
@@ -1154,6 +1156,8 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
           my_pos,my_vel)
      IF (PRESENT(pos)) my_pos => pos
      IF (PRESENT(vel)) my_vel => vel
+     mydt = 0.1_dp
+     IF (PRESENT(dt)) mydt = dt
      CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
      DO isub=1,SIZE(subsys)
         CALL cp_subsys_get(subsys(isub)%subsys, &
@@ -1202,17 +1206,19 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
 
         CALL shake_control( local_molecules=local_molecules,&
              molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
-             particle_set=particles%els, pos=my_pos, vel=my_vel, dt=dt,&
+             particle_set=particles%els, pos=my_pos, vel=my_vel, dt=mydt,&
              shake_tol=shake_tol, log_unit=my_log_unit, cell=cell, error=error )
 
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN
            IF (reset) THEN
               DO i = 1,SIZE(molecules%els)
-                 DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
-                    ! Reset langrange multiplier
-                    molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
-                 END DO
+                 IF (ASSOCIATED(molecules%els(i)%lci%lcolv)) THEN
+                    DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
+                       ! Reset langrange multiplier
+                       molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
               END DO
            END IF
         END IF
@@ -1240,6 +1246,8 @@ END SUBROUTINE force_env_shake
 !!
 !!   FUNCTION
 !!     perform rattle (enforcing of constraints on velocities)
+!!     This routine can be easily adapted to performe rattle on whatever
+!!     other vector different from forces..
 !!
 !!   NOTES
 !!     -
@@ -1260,10 +1268,11 @@ END SUBROUTINE force_env_shake
 !!*** **********************************************************************
 SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
   TYPE(force_env_type), POINTER            :: force_env
-  REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+  REAL(kind=dp), INTENT(in), OPTIONAL      :: dt
+  REAL(kind=dp), INTENT(in)                :: shake_tol
   INTEGER, INTENT(in), OPTIONAL            :: log_unit
   REAL(KIND=dp), DIMENSION(:, :), &
-       INTENT(INOUT), OPTIONAL, TARGET        :: vel
+       INTENT(INOUT), OPTIONAL, TARGET     :: vel
   LOGICAL, INTENT(IN), OPTIONAL            :: reset
   TYPE(cp_error_type), INTENT(inout)  &
        :: error
@@ -1286,6 +1295,7 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
   TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
   INTEGER :: nparticle_kind, iparticle_kind, nparticle_local, iparticle_local,&
        iparticle
+  REAL(KIND=dp) :: mydt
 
   failure=.FALSE.
 
@@ -1298,6 +1308,8 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
      NULLIFY(subsys,cell,molecules,molecule_kinds,local_molecules,particles,&
           my_vel)
      IF (PRESENT(vel)) my_vel => vel
+     mydt = 0.1_dp
+     IF (PRESENT(dt)) mydt = dt
      CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
      DO isub=1,SIZE(subsys)
         CALL cp_subsys_get(subsys(isub)%subsys, &
@@ -1323,29 +1335,31 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
               END DO
            END DO
         END IF
-
+        
         CALL rattle_control( local_molecules=local_molecules,&
              molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
-             particle_set=particles%els, vel=my_vel, dt=dt,&
+             particle_set=particles%els, vel=my_vel, dt=mydt,&
              shake_tol=shake_tol, log_unit=my_log_unit, cell=cell, error=error )
 
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN
            IF (reset) THEN
               DO i = 1,SIZE(molecules%els)
-                 DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
-                    ! Reset langrange multiplier
-                    molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
-                 END DO
+                 IF (ASSOCIATED(molecules%els(i)%lci%lcolv)) THEN
+                    DO j = 1, SIZE(molecules%els(i)%lci%lcolv)
+                       ! Reset langrange multiplier
+                       molecules%els(i)%lci%lcolv(j)%lambda = 0.0_dp
+                    END DO
+                 END IF
               END DO
            END IF
         END IF
 
         IF (has_vel) THEN
            CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel)
-           DEALLOCATE(my_vel,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
+        DEALLOCATE(my_vel,stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
      END DO
   END IF
   CALL timestop(handle)
