@@ -162,3 +162,5 @@ H2O-restraint_2.inp       2
 ethene_colv3.inp          2
 nh3_4x6_fixd.inp          2
 water_3_g3x3_fxd.inp      2
+#bug fix for nonbonded14
+test_pair.inp            11

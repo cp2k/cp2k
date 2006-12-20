@@ -239,8 +239,8 @@ CONTAINS
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
           ntot=nlj+nwl+ngd
           IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngp,gp=.TRUE.,error=error)
-             CALL read_gp_section(inp_info%nonbonded,tmp_section2,ntot,error)
+             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngp,gp=.TRUE.,error=error)
+             CALL read_gp_section(inp_info%nonbonded14,tmp_section2,ntot,error)
           END IF
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"CHARGE",error=error)

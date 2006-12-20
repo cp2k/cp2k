@@ -309,7 +309,7 @@ CONTAINS
 
        IF (print_forces>0 .AND. need_f) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T66,F20.9,/)')&
+          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
           CALL force_env_get(force_env, subsys=subsys, error=error)         
           DO isubsys=1,SIZE(subsys)
@@ -323,7 +323,7 @@ CONTAINS
        ! Dump force_eval energy..
        IF (output_unit>0.AND.(.NOT.need_f)) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T66,F20.9,/)')&
+          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
        END IF
     END IF

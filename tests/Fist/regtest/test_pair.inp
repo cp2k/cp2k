@@ -1,0 +1,121 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &BOND
+        ATOMS O H
+        KIND HARMONIC
+        K 0.0
+        R0 1.0
+      &END BOND
+      &BOND
+        ATOMS O O
+        KIND HARMONIC
+        K 0.0
+        R0 1.0
+      &END BOND
+      
+      &BEND
+        ATOMS H O O
+        KIND HARMONIC
+        K 0.0
+        THETA0 0.0
+      &END BEND
+      
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+
+      &SPLINE
+        RCUT_NB 10.0
+        EMAX_SPLINE 0.5
+        EMAX_ACCURACY 0.5
+      &END SPLINE
+
+      &NONBONDED
+        &GENPOT
+          atoms H H 
+          FUNCTION 0.0/r
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          atoms O H 
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          atoms O O
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED
+
+
+      &NONBONDED14
+        &GENPOT
+          atoms H H 
+          FUNCTION -1/r
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          atoms O H 
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          atoms O O
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED14
+
+
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      PERIODIC NONE
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE H2O2.xyz
+      COORDINATE XYZ
+      &GENERATE
+        CREATE_MOLECULES T
+      &END GENERATE
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+        XYZ_INFO T
+      &END TOPOLOGY_INFO
+    &END PRINT
+  &END SUBSYS
+  &PRINT
+    &FORCES
+      EACH 1
+    &END FORCES
+  &END PRINT
+&END FORCE_EVAL
+&GLOBAL
+  FFT_LIB FFTW3
+  PROJECT peroxide
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

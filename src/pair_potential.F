@@ -91,10 +91,10 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
+  FUNCTION ener_pot ( pot, r, vdw_scale14 )
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
-    REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
+    REAL(KIND=dp), INTENT(IN)                :: r
     REAL(KIND=dp)                            :: vdw_scale14, ener_pot
 
     INTEGER                                  :: i, index, n
@@ -318,9 +318,10 @@ CONTAINS
           potparm%pot(i,j)%pot %energy_cutoff = 0.0_dp
           potparm%pot(i,j)%pot %e_cutoff_coul = 0.0_dp
           IF (scale_cutoff) THEN
-             potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,qi,qj,hicut,my_vdw_scale14)
+             potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,hicut,my_vdw_scale14)
              potparm%pot(i,j)%pot %e_cutoff_coul &
-                  = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
+                  = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_type,alpha,eps0,&
+                  my_ei_scale14, my_do_14 )
           END IF
 
           ! Find the real locut according emax_spline
@@ -332,8 +333,9 @@ CONTAINS
           DO ilevel=1,2
              dx2 = dx2 / 100.0_dp
              DO jx = 1, 100
-                e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                  + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
+                e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
+                  + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                                my_ei_scale14, my_do_14 )
                 IF (ABS(e) > emax_spline) THEN
                    locut_found = x
                    found_locut = .TRUE.
@@ -354,8 +356,9 @@ CONTAINS
              x2  = 1.0_dp/hicut**2
              DO jx = 1, npoints + 1     ! jx: loop over 1/distance**2
                 x = SQRT ( 1.0_dp/x2 )
-                e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
+                e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
+                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                                   my_ei_scale14, my_do_14 )
                 spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
                 spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
                 x2 = x2 + dx2
@@ -378,8 +381,9 @@ CONTAINS
              xsav = hicut
              DO jx = 1, 5*npoints
                 x = x2
-                e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
+                e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
+                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                                   my_ei_scale14, my_do_14 )
                 IF (e<max_energy) THEN
                    xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
                    diffmax = MAX(diffmax,xdum1)
@@ -420,8 +424,9 @@ CONTAINS
              x2  = locut + dx2
              DO jx = 1, 5000
                 x = x2
-                e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
+                e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
+                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                                   my_ei_scale14, my_do_14 )
                 WRITE(1000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
                 x2 = x2 + dx2
              END DO
@@ -856,7 +861,7 @@ CONTAINS
     rij = SQRT ( rijsq )
 
     ! non-bond energy
-    energy = ener_pot ( potparm%pot(iatom,jatom)%pot, qi, qj, rij, 1.0_dp)
+    energy = ener_pot ( potparm%pot(iatom,jatom)%pot, rij, 1.0_dp)
 
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
