@@ -23,6 +23,7 @@ MODULE fist_intra_force
 
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp
+  USE cell_types,                      ONLY: cell_type, pbc
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
                                              force_imp_torsions,&
@@ -79,7 +80,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                   particle_set, pot_bond, pot_bend, pot_urey_bradley, &
                   pot_torsion, pot_imp_torsion, pot_onef, pv_bond, pv_bend,     &
                   pv_urey_bradley, pv_torsion, pv_imp_torsion, pv_onef, &
-                  f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef )
+                  f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef, cell )
 
 ! parses up intramolecular properties
 
@@ -100,6 +101,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: f_bond, f_bend, f_torsion, &
                                                 f_ub, f_imptor, f_onef
+    TYPE(cell_type), POINTER                 :: cell
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_intra_control', &
       routineP = moduleN//':'//routineN
@@ -189,6 +191,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_a = bond_list ( ibond ) % a + first_atom - 1
         index_b = bond_list ( ibond ) % b + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rij = pbc(rij,cell)
         CALL force_bonds(bond_list(ibond)%bond_kind%name, rij, &
                          bond_list ( ibond ) % bond_kind % r0, &
                          bond_list ( ibond ) % bond_kind % k, &
@@ -226,6 +229,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_a = ub_list ( ibend ) % a + first_atom - 1
         index_b = ub_list ( ibend ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rij = pbc(rij,cell)
         CALL force_bonds (ub_list(ibend) % ub_kind % name, rij, &
                           ub_list ( ibend ) % ub_kind % r0, &
                           ub_list ( ibend ) % ub_kind % k, energy, fscalar)
@@ -261,6 +265,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_c = bend_list ( ibend ) % c + first_atom - 1
         b12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         b32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
+        b12 = pbc(b12,cell)
+        b32 = pbc(b32,cell)
         d12 = SQRT(DOT_PRODUCT(b12,b12))
         id12 = 1.0_dp/d12
         d32 = SQRT(DOT_PRODUCT(b32,b32))
@@ -316,6 +322,9 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
+        t12 = pbc(t12,cell)
+        t32 = pbc(t32,cell)
+        t43 = pbc(t43,cell)
         s32 = SQRT(DOT_PRODUCT(t32,t32))
         is32 = 1.0_dp/s32
         dist1 = DOT_PRODUCT(t12,t32)
