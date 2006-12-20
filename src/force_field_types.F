@@ -97,7 +97,7 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_c(:)
-    REAL(KIND=dp), POINTER                         :: ub_k(:)
+    REAL(KIND=dp), POINTER                         :: ub_k(:,:)
     REAL(KIND=dp), POINTER                         :: ub_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)

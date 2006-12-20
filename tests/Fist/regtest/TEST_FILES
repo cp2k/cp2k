@@ -164,3 +164,5 @@ nh3_4x6_fixd.inp          2
 water_3_g3x3_fxd.inp      2
 #bug fix for nonbonded14
 test_pair.inp            11
+test_ub1.inp             11
+test_ub2.inp             11

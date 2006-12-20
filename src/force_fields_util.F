@@ -962,7 +962,7 @@ CONTAINS
                      ((chm_info%ub_b(k))==(name_atm_b)) .AND. &
                      ((chm_info%ub_c(k))==(name_atm_a))) ) THEN
                    ub_list(j)%ub_kind%name   = "CHARMM"
-                   ub_list(j)%ub_kind%k      = chm_info%ub_k(k)
+                   ub_list(j)%ub_kind%k(1)   = chm_info%ub_k(k)
                    ub_list(j)%ub_kind%r0     = chm_info%ub_r0(k)
                    IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
                         TRIM(name_atm_b)," ",TRIM(name_atm_c)
@@ -984,7 +984,7 @@ CONTAINS
                      ((inp_info%ub_b(k))==(name_atm_b)) .AND. &
                      ((inp_info%ub_c(k))==(name_atm_a))) ) THEN
                    ub_list(j)%ub_kind%name   = inp_info%ub_kind(k)
-                   ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
+                   ub_list(j)%ub_kind%k(:)   = inp_info%ub_k(:,k)
                    ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
                    IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)

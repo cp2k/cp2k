@@ -284,7 +284,7 @@ CONTAINS
           CALL reallocate(inp_info%ub_a,1,nubs)
           CALL reallocate(inp_info%ub_b,1,nubs)
           CALL reallocate(inp_info%ub_c,1,nubs)
-          CALL reallocate(inp_info%ub_k,1,nubs)
+          CALL reallocate(inp_info%ub_k,1,3,1,nubs)
           CALL reallocate(inp_info%ub_r0,1,nubs)
           CALL read_ubs_section(inp_info%ub_kind,inp_info%ub_a, inp_info%ub_b, inp_info%ub_c,&
                inp_info%ub_k, inp_info%ub_r0, tmp_section, ntot, error)
@@ -1195,8 +1195,9 @@ CONTAINS
   SUBROUTINE read_ubs_section(ub_kind,ub_a, ub_b, ub_c, ub_k, ub_r0, section, start, error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: ub_kind, ub_a, ub_b, ub_c
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_k, ub_r0
-    TYPE(section_vals_type), POINTER         :: section
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ub_k
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_r0
+    TYPE(section_vals_type), POINTER         :: section, subsection
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout)  &
                                              :: error
@@ -1206,22 +1207,34 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
-    LOGICAL                                  :: failure
+    INTEGER                                  :: isec, k, n_items
+    LOGICAL                                  :: failure, explicit
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
 
     failure = .FALSE.
     NULLIFY(atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
-       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
-       ub_kind(start+isec) = atm_names(1)
-       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       ub_a(start+isec) = atm_names(1)
-       ub_b(start+isec) = atm_names(2)
-       ub_c(start+isec) = atm_names(3)
-       CALL uppercase(ub_a(start+isec))
-       CALL uppercase(ub_b(start+isec))
-       CALL uppercase(ub_c(start+isec))
+       subsection => section_vals_get_subs_vals(section,"UB",i_rep_section=isec,error=error)
+       CALL section_vals_get(subsection,explicit=explicit,error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(subsection,"KIND",c_vals=atm_names,error=error)
+          ub_kind(start+isec) = atm_names(1)
+          CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+          ub_a(start+isec) = atm_names(1)
+          ub_b(start+isec) = atm_names(2)
+          ub_c(start+isec) = atm_names(3)
+          CALL uppercase(ub_a(start+isec))
+          CALL uppercase(ub_b(start+isec))
+          CALL uppercase(ub_c(start+isec))
+          CALL section_vals_val_get(subsection,"K",r_vals=Kvals,error=error)
+          CPPostcondition(SIZE(Kvals) <= 3, cp_failure_level, routineP, error, failure)
+          ub_k(:,start+isec) = 0.0_dp
+          DO k=1,SIZE(Kvals)
+             ub_k(k,start+isec) = Kvals(k)
+          END DO
+          CALL section_vals_val_get(subsection,"R0",r_val=ub_r0(start+isec),error=error)
+       END IF
     END DO
   END SUBROUTINE read_ubs_section
 

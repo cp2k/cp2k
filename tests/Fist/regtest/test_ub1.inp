@@ -1,0 +1,94 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &BOND
+        ATOMS O H
+        KIND HARMONIC
+        K 0.0
+        R0 1.0
+      &END BOND
+      &BOND
+        ATOMS O O
+        KIND HARMONIC
+        K 0.0
+        R0 1.0
+      &END BOND
+      
+      &BEND
+        ATOMS H O O
+        KIND HARMONIC
+        K 0.0
+        THETA0 0.0
+        &UB
+          K 1.0
+          R0 2.0
+        &END UB
+      &END BEND
+      
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+
+      &NONBONDED
+        &GENPOT
+          atoms H H 
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          atoms O H 
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          atoms O O
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED
+
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      PERIODIC NONE
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE H2O2.xyz
+      COORDINATE XYZ
+      &GENERATE
+        CREATE_MOLECULES T
+      &END GENERATE
+      EXCLUDE_VDW 1-3 
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+        XYZ_INFO T
+      &END TOPOLOGY_INFO
+    &END PRINT
+  &END SUBSYS
+  &PRINT
+    &FORCES
+      EACH 1
+    &END FORCES
+  &END PRINT
+&END FORCE_EVAL
+&GLOBAL
+  FFT_LIB FFTW3
+  PROJECT peroxide
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL

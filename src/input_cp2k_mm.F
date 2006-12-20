@@ -556,7 +556,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="KIND",&
             description="kind of bend",&
-            usage="KIND {KIND1}", required=.FALSE., type_of_var=lchar_t,&
+            usage="KIND {G96|HARMONIC|CHARMM|G87}", required=.FALSE., type_of_var=lchar_t,&
             default_lc_val="CHARMM",&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -577,15 +577,26 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="UB",&
-            description="specifies the UB potential of the MM system."//&
-            "Functional Form (CHARMM): K*(R-R0)^2",&
+            description="specifies the bond potential the MM system"//&
+            "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"//&
+            "Functional Form (G96): 1/4*K*(R-R0)^2"//&
+            "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
+       CALL keyword_create(keyword, name="KIND",&
+            description="kind of bond",&
+            usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}",&
+            required=.FALSE., type_of_var=lchar_t,&
+            default_lc_val="CHARMM",&
+            n_var=1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="K",&
-            description="force constant",&
+            description="Defines the force constant of the potential. For QUARTIC potentials"//&
+            " three numbers are expected.",&
             usage="K {real}", required=.TRUE., type_of_var=real_t,&
-            default_r_val=0.0_dp,&
             n_var=-1, unit_str="hartree*bohr^-2",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
