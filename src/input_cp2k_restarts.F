@@ -362,7 +362,7 @@ CONTAINS
 
     INTEGER :: counter, handle, i, iatom, icoef, iel, ikind, ioff, iproc, &
       irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, nsgf_max, &
-      num_nhc, numneed, offset, stat, tot_nhcneed
+      num_nhc, numneed, offset, stat, tot_nhcneed, handle2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, POINTER                         :: accepted_md, INDEX(:), &
                                                 itimes, md_approach_nr, &
@@ -412,6 +412,7 @@ CONTAINS
        END IF
     END IF
     
+    CALL timeset(routineN//"_COUNTERS","I",'',handle2)
     IF (ASSOCIATED(itimes)) THEN
        IF (itimes>=0) THEN
           my_itimes = itimes
@@ -421,9 +422,9 @@ CONTAINS
           CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
        END IF
     END IF
-    !
+    CALL timestop(0.0_dp,handle2)
     ! PARTICLE THERMOSTAT
-    !
+    CALL timeset(routineN//"_NHC","I",'',handle2)
     IF (ASSOCIATED(nhc_part)) THEN
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
@@ -605,9 +606,9 @@ CONTAINS
        work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
     END IF
-    !
+    CALL timestop(0.0_dp,handle2)
     ! BAROSTAT
-    !
+    CALL timeset(routineN//"_BAROSTAT","I",'',handle2)
     IF (ASSOCIATED(nhc_baro)) THEN
        nhc_len     = SIZE(nhc_baro(1)%nvt,1)
        tot_nhcneed = SIZE(nhc_baro(1)%nvt,2)
@@ -635,6 +636,8 @@ CONTAINS
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
        
     END IF
+    CALL timestop(0.0_dp,handle2)
+    CALL timeset(routineN//"_NPT","I",'',handle2)
     IF (ASSOCIATED(npt)) THEN
        ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)), STAT = stat )
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -652,9 +655,9 @@ CONTAINS
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
        CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
     END IF
-    !
+    CALL timestop(0.0_dp,handle2)
     ! COEFFICIENTS 
-    !
+    CALL timeset(routineN//"_KG","I",'',handle2)
     IF (ASSOCIATED(kg_env)) THEN
        CALL get_kg_env(kg_env=kg_env,&
             atomic_kind_set=atomic_kind_set,&
@@ -771,7 +774,8 @@ CONTAINS
           CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
        END IF
     END IF
-
+    CALL timestop(0.0_dp,handle2)
+    CALL timeset(routineN//"_META","I",'',handle2)
     IF (ASSOCIATED(meta_env)) THEN
        CALL section_vals_val_set(meta_env%metadyn_section,"STEP_START_VAL",&
             i_val=meta_env%n_steps,error=error)
@@ -798,7 +802,8 @@ CONTAINS
           END DO
        END IF
     END IF
-
+    CALL timestop(0.0_dp,handle2)
+    CALL timeset(routineN//"_NEB","I",'',handle2)
     IF (PRESENT(coords).OR.(PRESENT(vels))) THEN
        ! Update NEB section
        replica_section => section_vals_get_subs_vals(motion_section,"NEB%REPLICA",error=error)
@@ -842,6 +847,7 @@ CONTAINS
           END DO
        END IF
     END IF
+    CALL timestop(0.0_dp,handle2)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE update_motion
