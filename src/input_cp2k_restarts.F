@@ -360,9 +360,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, i, iatom, icoef, iel, ikind, ioff, iproc, &
-      irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, nsgf_max, &
-      num_nhc, numneed, offset, stat, tot_nhcneed, handle2
+    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, ioff, &
+      iproc, irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, &
+      nsgf_max, num_nhc, numneed, offset, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, POINTER                         :: accepted_md, INDEX(:), &
                                                 itimes, md_approach_nr, &
@@ -372,7 +372,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, vbuffer
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
-                                                my_c, my_v, veta, work
+                                                veta, work
     REAL(KIND=dp), POINTER                   :: t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -817,14 +817,7 @@ CONTAINS
           DO isec = 1, SIZE(coords,2)
              CALL section_vals_val_unset(replica_section,"XYZ_COORD_FILENAME",i_rep_section=isec,error=error) 
              work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
-             DO irep = 1, SIZE(coords,1)/3
-                i = (irep-1)*3
-                ALLOCATE(my_c(3),stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-                my_c = coords(i+1:i+3,isec)
-                CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=my_c,&
-                     i_rep_val=irep,error=error) 
-             END DO
+             CALL section_neb_coord_val_set(work_section,coords(:,isec),SIZE(coords,1),error)
           END DO
        END IF
        IF (PRESENT(vels)) THEN
@@ -836,14 +829,7 @@ CONTAINS
           ! Write Values
           DO isec = 1, SIZE(vels,2)
              work_section => section_vals_get_subs_vals3(replica_section,"VELOCITY",i_rep_section=isec,error=error)
-             DO irep = 1, SIZE(vels,1)/3
-                i = (irep-1)*3
-                ALLOCATE(my_v(3),stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
-                my_v = vels(i+1:i+3,isec)
-                CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=my_v,&
-                     i_rep_val=irep,error=error) 
-             END DO
+             CALL section_neb_coord_val_set(work_section,vels(:,isec),SIZE(vels,1),error)
           END DO
        END IF
     END IF
@@ -851,6 +837,97 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE update_motion
+
+!!****f* input_cp2k_restarts/section_neb_coord_val_set [1.0] *
+!!
+!!   NAME
+!!     section_neb_coord_val_set
+!!
+!!   FUNCTION
+!!     routine to dump NEB coordinates and velocities section.. fast implementation
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     12.2006 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE section_neb_coord_val_set(coord_section, coords, nsize, error)
+
+    TYPE(section_vals_type), POINTER         :: coord_section
+    INTEGER, INTENT(IN)                      :: nsize
+    REAL(KIND=dp), DIMENSION(*)              :: coords
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: i, ik, irk, Nlist, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_c
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+    failure=.FALSE.
+    NULLIFY(my_val, old_val, section, vals)
+    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    section => coord_section%section
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+         "section "//TRIM(section%name)//" does not contain keyword "//&
+         "_DEFAULT_KEYWORD_",error,failure)
+    DO
+       IF (SIZE(coord_section%values,2)==1) EXIT
+       CALL section_vals_add_values(coord_section,error=error)
+    END DO
+    vals  => coord_section%values(ik,1)%list
+    Nlist = 0
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+    DO irk=1,nsize/3
+       i = (irk-1)*3
+       ALLOCATE(my_c(3),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+       my_c = coords(i+1:i+3)
+       CALL val_create(my_val,r_vals_ptr=my_c,error=error)
+
+       IF (Nlist /= 0) THEN
+          IF (irk==1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk==1) THEN
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             vals => new_pos
+          ELSE
+             NULLIFY(new_pos%rest)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             new_pos => new_pos%rest
+          END IF
+       END IF
+       NULLIFY(my_val)
+    END DO
+    coord_section%values(ik,1)%list => vals
+  END SUBROUTINE section_neb_coord_val_set
+
 
 !!****f* input_cp2k_restarts/set_template_restart [1.0] *
 !!
@@ -1209,7 +1286,6 @@ CONTAINS
     END DO
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_subsys
-
 
 !!****f* input_cp2k_restarts/section_coord_val_set [1.0] *
 !!
