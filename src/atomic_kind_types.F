@@ -1380,7 +1380,6 @@ CONTAINS
              CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
           END IF
           IF (atomic_kind%ghost) THEN
-             atomic_kind%mass = 0.0_dp
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   elec_conf=elec_conf)
              elec_conf(:) = 0
@@ -1394,7 +1393,6 @@ CONTAINS
        CASE ("GTH")
           IF (atomic_kind%ghost) THEN
              IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
-             atomic_kind%mass = 0.0_dp
           ELSE
              CALL allocate_potential(atomic_kind%gth_potential)
              CALL read_potential(atomic_kind%element_symbol,potential_name,&
@@ -1423,7 +1421,6 @@ CONTAINS
     ELSE
        IF (atomic_kind%gpw_type_forced) THEN
           IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
-          atomic_kind%mass = 0.0_dp
        ELSE
           CALL allocate_potential(atomic_kind%all_potential)
           CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction)
@@ -1433,7 +1430,6 @@ CONTAINS
              CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
           END IF
           IF (atomic_kind%ghost) THEN
-             atomic_kind%mass = 0.0_dp
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   elec_conf=elec_conf)
              elec_conf(:) = 0
@@ -1525,6 +1521,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(semi_empirical_type), POINTER       :: se_parameter
+    LOGICAL                                  :: ghost
 
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
@@ -1532,7 +1529,7 @@ CONTAINS
                          orb_basis_set=orb_basis_set,&
                          all_potential=all_potential,&
                          elp_potential=elp_potential,&
-                         gth_potential=gth_potential)
+                         gth_potential=gth_potential, ghost=ghost)
 
     IF (method_name_id == do_qs) THEN
       IF (z < 0) THEN
@@ -1543,7 +1540,7 @@ CONTAINS
         IF ((.NOT.ASSOCIATED(gth_potential)).AND.&
             (.NOT.ASSOCIATED(all_potential)).AND.&
             (.NOT.ASSOCIATED(elp_potential)).AND.&
-            (mass > 0.0_dp)) THEN
+            (.NOT.ghost)) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                       "No potential type was defined for the "//&
                       "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
