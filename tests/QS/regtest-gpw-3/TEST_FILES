@@ -40,3 +40,5 @@ H+solv1.inp        1
 H2O-solv.inp       1
 #XC_FUN NONE
 H2O-xc_none.inp    1
+# ghost atom dynamics
+dynamics.inp       1
