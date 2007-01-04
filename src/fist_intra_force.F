@@ -158,6 +158,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 !$OMP shared(f_torsion,pv_torsion,pot_torsion) &
 !$OMP shared(f_imptor,pv_imp_torsion,pot_imp_torsion) &
 !$OMP shared(f_onef,pv_onef,pot_onef) &
+!$OMP shared(cell) &
 
 !$OMP private(imol)&
 !$OMP private(spline_data,molecule_kind,molecule,i) &

@@ -134,7 +134,9 @@ CONTAINS
 !$OMP private(neighbor_kind_pair,cell_v) &
 !$OMP shared(particle_set,r_last_update_pbc) &
 !$OMP reduction(+:ptens11,ptens12,ptens13,ptens21,ptens22,ptens23, &
-!$OMP             ptens31,ptens32,ptens33)
+!$OMP             ptens31,ptens32,ptens33) &
+!$OMP private(ipair) 
+
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
