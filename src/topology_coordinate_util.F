@@ -117,8 +117,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
       routineP = moduleN//':'//routineN
@@ -139,8 +138,8 @@ CONTAINS
     LOGICAL                                  :: failure, found, my_qmmm
     REAL(KIND=dp)                            :: alpha_core_charge, qeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
-    TYPE(array1_list_type), &
-      DIMENSION(:), POINTER                  :: ex_bend_list, ex_bond_list, &
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: ex_bend_list, ex_bond_list, &
                                                 ex_onfo_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list

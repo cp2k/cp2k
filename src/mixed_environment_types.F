@@ -35,12 +35,12 @@ MODULE mixed_environment_types
                                              cp_subsys_set,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE mixed_energy_types,               ONLY: deallocate_mixed_energy,&
-                                             mixed_energy_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE mixed_energy_types,              ONLY: deallocate_mixed_energy,&
+                                             mixed_energy_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -134,7 +134,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mixed_environment_type), INTENT(IN)  :: mixed_env
+    TYPE(mixed_environment_type), INTENT(IN) :: mixed_env
     TYPE(atomic_kind_type), OPTIONAL, &
       POINTER                                :: atomic_kind_set( : )
     TYPE(particle_type), OPTIONAL, POINTER   :: particle_set( : )
@@ -153,8 +153,7 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_mixed_env', &
       routineP = moduleN//':'//routineN
@@ -201,10 +200,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mixed_environment_type), INTENT(OUT) :: mixed_env
+    TYPE(mixed_environment_type), &
+      INTENT(OUT)                            :: mixed_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -232,7 +231,7 @@ CONTAINS
 
 !   Purpose: Set the MIXED environment.
 
-    TYPE(mixed_environment_type), POINTER     :: mixed_env
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(atomic_kind_type), OPTIONAL, &
       POINTER                                :: atomic_kind_set( : )
     TYPE(particle_type), OPTIONAL, POINTER   :: particle_set( : )
@@ -247,10 +246,9 @@ CONTAINS
       POINTER                                :: mixed_energy
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
-     TYPE(section_vals_type), OPTIONAL, &
+    TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mixed_env', &
       routineP = moduleN//':'//routineN
@@ -364,10 +362,9 @@ CONTAINS
 !
 !*** **********************************************************************
 SUBROUTINE mixed_env_create(mixed_env,para_env,error)
-    TYPE(mixed_environment_type), POINTER     :: mixed_env
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_create', &
       routineP = moduleN//':'//routineN
@@ -413,9 +410,8 @@ END SUBROUTINE mixed_env_create
 !
 !*** **********************************************************************
 SUBROUTINE mixed_env_retain(mixed_env,error)
-    TYPE(mixed_environment_type), POINTER     :: mixed_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_retain', &
       routineP = moduleN//':'//routineN
@@ -460,9 +456,8 @@ END SUBROUTINE mixed_env_retain
 !
 !*** **********************************************************************
 SUBROUTINE mixed_env_release(mixed_env,error)
-    TYPE(mixed_environment_type), POINTER     :: mixed_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_release', &
       routineP = moduleN//':'//routineN

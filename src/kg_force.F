@@ -150,8 +150,7 @@ SUBROUTINE kg_force_control ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     LOGICAL                                  :: kgpol
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -194,8 +193,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
 
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kgpol_calculate_forces (MODULE kg_force)"
@@ -521,8 +519,7 @@ END SUBROUTINE kgpol_calculate_forces
 SUBROUTINE kg_calculate_forces ( kg_env, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_calculate_forces (MODULE kg_force)"
@@ -807,8 +804,7 @@ END SUBROUTINE kg_calculate_forces
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_qs_calculate_forces', &
       routineP = moduleN//':'//routineN

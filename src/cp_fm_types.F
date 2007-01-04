@@ -267,8 +267,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_fm_retain(matrix,error)
     TYPE(cp_fm_type), POINTER                :: matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_retain', &
       routineP = moduleN//':'//routineN
@@ -311,8 +310,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_fm_release(matrix,error)
     TYPE(cp_fm_type), POINTER                :: matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_release', &
       routineP = moduleN//':'//routineN
@@ -366,8 +364,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: ncol, start_col
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_init_random', &
       routineP = moduleN//':'//routineN
@@ -440,12 +437,11 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: beta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, matrix_size, n
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     matrix_size = SIZE(matrix%local_data,1)*SIZE(matrix%local_data,2)
 
@@ -622,8 +618,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
     REAL(KIND=dp), INTENT(IN)                :: alpha
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icol_local, ipcol, iprow, &
                                                 irow_local, mypcol, myprow, &
@@ -708,8 +703,7 @@ CPSourceFileRef,&
                                                 n_cols
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_submatrix', &
       routineP = moduleN//':'//routineN
@@ -865,8 +859,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(in), OPTIONAL            :: start_row, start_col, n_rows, &
                                                 n_cols
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_submatrix', &
       routineP = moduleN//':'//routineN
@@ -1057,8 +1050,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), INTENT(OUT)               :: a_max
     INTEGER, INTENT(OUT), OPTIONAL           :: ir_max, ic_max
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_maxabsval', &
       routineP = moduleN//':'//routineN
@@ -1282,8 +1274,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write', &
       routineP = moduleN//':'//routineN
@@ -1400,8 +1391,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
 
     TYPE(cp_fm_type), POINTER                :: source, destination
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_matrix', &
       routineP = moduleN//':'//routineN
@@ -1540,8 +1530,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
     REAL(KIND=dp), INTENT(IN)                :: alpha
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_add_to_element', &
       routineP = moduleN//':'//routineN

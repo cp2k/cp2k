@@ -77,8 +77,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
     LOGICAL, INTENT(IN), OPTIONAL            :: energy_only
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &
       routineP = moduleN//':'//routineN
@@ -257,8 +256,7 @@ CONTAINS
     REAL(dp)                                 :: exc
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_2nd_deriv_of_r', &
       routineP = moduleN//':'//routineN
@@ -495,8 +493,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: rho
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho
     INTEGER, INTENT(IN)                      :: na, ir
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_rho_set', &
       routineP = moduleN//':'//routineN

@@ -28,8 +28,6 @@ MODULE mixed_environment
                                              get_cell,&
                                              read_cell,&
                                              write_cell
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
@@ -39,16 +37,15 @@ MODULE mixed_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
-  USE mixed_energy_types,               ONLY: allocate_mixed_energy,&
-                                             mixed_energy_type
-  USE mixed_environment_types,          ONLY: mixed_environment_type,&
-                                             get_mixed_env,&
-                                             set_mixed_env
   USE global_types,                    ONLY: global_environment_type
-  USE header,                          ONLY: fist_header
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE mixed_energy_types,              ONLY: allocate_mixed_energy,&
+                                             mixed_energy_type
+  USE mixed_environment_types,         ONLY: get_mixed_env,&
+                                             mixed_environment_type,&
+                                             set_mixed_env
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -61,10 +58,7 @@ MODULE mixed_environment
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_fist_particle_coordinates,&
-                                             write_particle_distances
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
@@ -105,18 +99,17 @@ CONTAINS
 
 SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_section, error )
 
-    TYPE(mixed_environment_type), POINTER     :: mixed_env
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init'
 
-    INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure,use_ref_cell
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -133,8 +126,7 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: cell_section,colvar_section                                                
-                                                
+    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section
 
   CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.
@@ -212,13 +204,12 @@ END SUBROUTINE mixed_init
 !   History: - Creation (11.06,fschiff)
 
 !   ***************************************************************************
-    TYPE(mixed_environment_type), POINTER     :: mixed_env
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(IN)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init_subsys'
 
@@ -227,14 +218,13 @@ END SUBROUTINE mixed_init
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(mixed_energy_type), POINTER          :: mixed_energy
+    TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: grid_print_section
 
   CALL timeset(routineN,"I",'',handle)
   NULLIFY ( mixed_energy, local_molecules, local_particles)

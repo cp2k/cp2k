@@ -188,8 +188,7 @@ END SUBROUTINE rep_env_init_low
 SUBROUTINE rep_env_test(para_env,input,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_test', &
       routineP = moduleN//':'//routineN
@@ -351,8 +350,7 @@ END SUBROUTINE rep_env_test
 SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     LOGICAL, OPTIONAL                        :: calc_f
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int', &
       routineP = moduleN//':'//routineN
@@ -452,10 +450,11 @@ RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id,calc_f,ierr)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_error_type)                      :: error, new_error
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type)                      :: error ! XXXXXXXXXXXXX uninitialized
+
+! XXXXXXXXXXXXX uninitialized
 
   failure=.FALSE.
   rep_env => rep_envs_get_rep_env(rep_env_id,error=error) ! XXXXXXXXXXXXX uninitialized error

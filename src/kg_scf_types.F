@@ -127,8 +127,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE kg_scf_env_retain(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_retain', &
       routineP = moduleN//':'//routineN
@@ -161,8 +160,7 @@ END SUBROUTINE kg_scf_env_retain
 !!*** **********************************************************************
 SUBROUTINE kg_scf_env_release(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_release', &
       routineP = moduleN//':'//routineN

@@ -172,8 +172,7 @@ CONTAINS
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_create', &
       routineP = moduleN//':'//routineN
@@ -247,14 +246,13 @@ CONTAINS
   SUBROUTINE kg_qs_scf(kg_env,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_qs_scf', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: handle
+    LOGICAL                                  :: failure
     TYPE(kg_environment_type), POINTER       :: my_kg_env
     TYPE(kg_scf_env_type), POINTER           :: scf_env
 
@@ -315,8 +313,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
@@ -346,7 +343,6 @@ CONTAINS
                                                 scf_section
 
 !   ---------------------------------------------------------------------------
-
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
@@ -824,8 +820,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kgscf_run', &
       routineP = moduleN//':'//routineN
@@ -1014,8 +1009,7 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: ndep
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL, INTENT(IN)                      :: do_orthogonalization
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ortho_per_molecule', &
       routineP = moduleN//':'//routineN
@@ -1166,8 +1160,7 @@ CONTAINS
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kgscf_first_density_matrix', &
       routineP = moduleN//':'//routineN
@@ -1549,8 +1542,7 @@ CONTAINS
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kgscf_initial_rho', &
       routineP = moduleN//':'//routineN
@@ -1634,8 +1626,7 @@ CONTAINS
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_cleanup', &
       routineP = moduleN//':'//routineN
@@ -1728,14 +1719,13 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE kg_scf_env_did_change(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_did_change', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    integer :: handle
 
 !    -------------------------------------------------------------------------
 

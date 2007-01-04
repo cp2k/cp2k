@@ -123,10 +123,10 @@ MODULE qs_core_hamiltonian
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_list_types,          ONLY: &
-       find_neighbor_list, first_list, first_node, &
-       get_neighbor_list, get_neighbor_list_set, get_neighbor_node, &
-       neighbor_list_set_p_type, neighbor_list_type, neighbor_node_type, &
-       next, qlist_type, reduced_3c_list_type
+       find_neighbor_list, first_list, first_node, get_neighbor_list, &
+       get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
+       neighbor_list_type, neighbor_node_type, next, qlist_type, &
+       reduced_3c_list_type
   USE qs_oce_methods,                  ONLY: set_up_oce
   USE qs_oce_types,                    ONLY: &
        allocate_oce_set, allocate_vtriple, build_reduced_3c_lists, &

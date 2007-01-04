@@ -76,8 +76,7 @@ CONTAINS
 !!*** **********************************************************************
 FUNCTION outer_loop_variables_count(scf_control,error) RESULT(res)
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     SELECT CASE(scf_control%outer_scf%type)
@@ -113,8 +112,7 @@ END FUNCTION outer_loop_variables_count
 SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_gradient', &
       routineP = moduleN//':'//routineN
@@ -190,8 +188,7 @@ END SUBROUTINE
 SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_optimize', &
       routineP = moduleN//':'//routineN
@@ -288,8 +285,7 @@ END SUBROUTINE outer_loop_optimize
 SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_update_qs_env', &
       routineP = moduleN//':'//routineN
@@ -345,8 +341,7 @@ END SUBROUTINE outer_loop_update_qs_env
 !!*** **********************************************************************
 SUBROUTINE outer_loop_extrapolate(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_extrapolate', &
       routineP = moduleN//':'//routineN

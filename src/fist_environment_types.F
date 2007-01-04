@@ -182,8 +182,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
       routineP = moduleN//':'//routineN
@@ -237,8 +236,7 @@ CONTAINS
 
     TYPE(fist_environment_type), INTENT(OUT) :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -297,8 +295,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
       routineP = moduleN//':'//routineN
@@ -439,8 +436,7 @@ CONTAINS
 SUBROUTINE fist_env_create(fist_env,para_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_create', &
       routineP = moduleN//':'//routineN
@@ -489,8 +485,7 @@ END SUBROUTINE fist_env_create
 !*** **********************************************************************
 SUBROUTINE fist_env_retain(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_retain', &
       routineP = moduleN//':'//routineN
@@ -538,8 +533,7 @@ END SUBROUTINE fist_env_retain
 !*** **********************************************************************
 SUBROUTINE fist_env_release(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
       routineP = moduleN//':'//routineN

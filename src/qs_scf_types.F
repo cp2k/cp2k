@@ -143,8 +143,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_env_create(scf_env,  error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', &
       routineP = moduleN//':'//routineN
@@ -221,8 +220,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE scf_env_retain(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_retain', &
       routineP = moduleN//':'//routineN
@@ -270,14 +268,13 @@ END SUBROUTINE scf_env_retain
 !!*** **********************************************************************
 SUBROUTINE scf_env_did_change(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    INTEGER  :: handle
 
  CALL timeset(routineN,"I","",handle)
 
@@ -327,8 +324,7 @@ END SUBROUTINE scf_env_did_change
 !!*** **********************************************************************
 SUBROUTINE scf_env_release(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_release', &
       routineP = moduleN//':'//routineN

@@ -113,8 +113,7 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     LOGICAL, INTENT(in), OPTIONAL            :: root_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_parse', &
       routineP = moduleN//':'//routineN
@@ -126,7 +125,8 @@ CONTAINS
       skip_help, suberror_happened, whole_section
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, previous_list, previous_last
+    TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, &
+                                                previous_last, previous_list
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: el
@@ -442,8 +442,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
     TYPE(cp_unit_type), POINTER              :: unit
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(val_type), OPTIONAL, POINTER        :: default_value
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
       routineP = moduleN//':'//routineN

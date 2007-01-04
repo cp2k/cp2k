@@ -25,9 +25,9 @@ MODULE constraint_3x3
   USE linear_systems,                  ONLY: solve_system
   USE mathlib,                         ONLY: dotprod_3d,&
                                              matvec_3x3
-  USE molecule_kind_types,             ONLY: g3x3_constraint_type,&
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             g3x3_constraint_type,&
                                              get_molecule_kind,&
-                                             fixd_constraint_type,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              local_g3x3_constraint_type,&
@@ -35,7 +35,6 @@ MODULE constraint_3x3
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -83,12 +82,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 1)           :: bvec
     REAL(KIND=dp), DIMENSION(3, 3)           :: amat, atemp
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
 
     NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
@@ -245,12 +244,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 1)           :: bvec
     REAL(KIND=dp), DIMENSION(3, 3)           :: amat, atemp
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
 
     NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
@@ -418,12 +417,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 1)           :: bvec
     REAL(KIND=dp), DIMENSION(3, 3)           :: amat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
 
     NULLIFY(fixd_list)
     idt = 1.0_dp/dt
@@ -536,12 +535,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 1)           :: bvec
     REAL(KIND=dp), DIMENSION(3, 3)           :: amat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
 
     NULLIFY(fixd_list)
     idt = 1.0_dp/dt

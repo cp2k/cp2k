@@ -28,8 +28,7 @@ CONTAINS
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_parse_input', &
       routineP = moduleN//':'//routineN

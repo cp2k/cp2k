@@ -60,8 +60,8 @@ MODULE cp_output_handling
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE string_utilities,                ONLY: compress
   USE machine,                         ONLY: m_mov
+  USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -198,8 +198,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: filename
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
     LOGICAL, INTENT(IN), OPTIONAL            :: store
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
       routineP = moduleN//':'//routineN
@@ -380,8 +379,7 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: used_print_key
     LOGICAL, INTENT(out), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output', &
@@ -484,8 +482,7 @@ CONTAINS
 FUNCTION cp_printkey_is_on(iteration_info,print_key,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_on', &
@@ -539,8 +536,7 @@ END FUNCTION cp_printkey_is_on
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
     LOGICAL, INTENT(out), OPTIONAL           :: first_time
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
@@ -628,8 +624,7 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: print_key
     LOGICAL, INTENT(in), OPTIONAL            :: for_file
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=9*max_iter_r_level)        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', &
@@ -715,8 +710,7 @@ SUBROUTINE cp_iterate(iteration_info,last,iter_nr,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     LOGICAL, INTENT(in), OPTIONAL            :: last
     INTEGER, INTENT(in), OPTIONAL            :: iter_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterate', &
       routineP = moduleN//':'//routineN
@@ -768,8 +762,7 @@ SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(LEN=*), INTENT(IN)             :: level_name
     INTEGER, INTENT(out), OPTIONAL           :: n_rlevel_new
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
       routineP = moduleN//':'//routineN
@@ -816,8 +809,7 @@ END SUBROUTINE cp_add_iter_level
 SUBROUTINE cp_rm_iter_level(iteration_info,n_rlevel_att,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     INTEGER, INTENT(in), OPTIONAL            :: n_rlevel_att
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rm_iter_level', &
       routineP = moduleN//':'//routineN
@@ -894,8 +886,7 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
     CHARACTER(len=*), INTENT(in)             :: extension
     LOGICAL, INTENT(IN)                      :: my_local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=default_path_length)       :: filename
 
     CHARACTER(len=default_path_length)       :: postfix, root
@@ -968,8 +959,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: file_form, file_position, &
                                                 file_action
     LOGICAL, INTENT(in), OPTIONAL            :: do_backup, on_file
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
@@ -1093,8 +1083,7 @@ END FUNCTION cp_print_key_unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: print_key_path
     LOGICAL, INTENT(in), OPTIONAL            :: local, ignore_should_output, &
                                                 on_file
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_finished_output', &
       routineP = moduleN//':'//routineN
@@ -1178,8 +1167,7 @@ END FUNCTION cp_print_key_unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
     LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output, on_file
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_log', &
       routineP = moduleN//':'//routineN
@@ -1244,8 +1232,7 @@ SUBROUTINE cp_iter_compare(iter1,iter2,equal,common_equal, ascending,&
     LOGICAL, INTENT(out), OPTIONAL           :: equal, common_equal, &
                                                 ascending, descending
     INTEGER, INTENT(out), OPTIONAL           :: offset, common_offset
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_compare', &
       routineP = moduleN//':'//routineN

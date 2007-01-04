@@ -75,10 +75,8 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE fix_atom_control( force_env, error, w)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL                               :: w
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: w
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fix_atom_control', &
       routineP = moduleN//':'//routineN
@@ -202,8 +200,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv', &
       routineP = moduleN//':'//routineN
@@ -213,12 +210,12 @@ CONTAINS
     REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
                                                 fdotf_sum, max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    
+
     NULLIFY(fixd_list)
     failure = .FALSE.
     ishake = 0
@@ -310,19 +307,18 @@ CONTAINS
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, iconst, irattle
     REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum, &
                                                 max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    
+
     NULLIFY(fixd_list)
     irattle   = 0
     max_sigma = -1.0E+10_dp
@@ -401,19 +397,18 @@ CONTAINS
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, iconst, ishake
     REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
                                                 fdotf_sum, max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    
+
     NULLIFY(fixd_list)
     dtsqby2 = dt*dt*.5_dp
     dtby2 = dt*.5_dp
@@ -507,19 +502,18 @@ CONTAINS
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, iconst, irattle
     REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum, &
                                                 max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    
+
     NULLIFY(fixd_list)
     dtby2 = dt*.5_dp
     max_sigma = -1.0E+10_dp
@@ -601,8 +595,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: rmat
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_con_colv', &
       routineP = moduleN//':'//routineN
@@ -658,8 +651,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: rmat
     REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_Jac_colvar', &
@@ -716,8 +708,7 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: veps, rmat
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rattle_con_eval', &

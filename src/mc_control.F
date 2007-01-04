@@ -44,17 +44,17 @@ MODULE mc_control
                                              section_vals_type,&
                                              section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              dp_size,&
-                                             int_size,&
-                                             default_string_length
+                                             int_size
   USE mc_misc,                         ONLY: mc_make_dat_file_new
-  USE mc_types,                        ONLY: get_mc_par,&
-                                             mc_simulation_parameters_type,&
-                                             set_mc_par,&
+  USE mc_types,                        ONLY: get_mc_molecule_info,&
+                                             get_mc_par,&
+                                             mc_input_file_type,&
                                              mc_molecule_info_type,&
-                                             get_mc_molecule_info,&
-                                             mc_input_file_type
+                                             mc_simulation_parameters_type,&
+                                             set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: atom_type,&
@@ -112,17 +112,17 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
     INTEGER, INTENT(IN)                      :: nnstep
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nchains
     TYPE(force_env_type), POINTER            :: force_env
-    INTEGER,DIMENSION(:),INTENT(IN)          :: nchains
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_mc_restart'
 
     CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: restart_file_name
-    INTEGER                                  :: handle, ichain, iunit, &
-                                                unit,iparticle,natom,&
-                                                nmolecule,nunits_tot,imol_type,&
-                                                nmol_types
+    INTEGER                                  :: handle, ichain, imol_type, &
+                                                iparticle, iunit, natom, &
+                                                nmol_types, nmolecule, &
+                                                nunits_tot, unit
     REAL(KIND=dp)                            :: temp
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
@@ -221,21 +221,23 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(IN)                      :: iw
-    INTEGER, INTENT(INOUT)                      :: mc_nunits_tot
+    INTEGER, INTENT(INOUT)                   :: mc_nunits_tot
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_restart'
 
+    CHARACTER(5), ALLOCATABLE, DIMENSION(:)  :: atom_symbols
+    CHARACTER(default_string_length), &
+      DIMENSION(:, :), POINTER               :: atom_names
     CHARACTER(LEN=20)                        :: ensemble, mc_ensemble
     CHARACTER(LEN=40)                        :: dat_file, restart_file_name
-    INTEGER :: group, handle, i, ipart, istat, iunit, &
-      nstart, nunits_tot, print_level, source, unit, nmol_types
+    INTEGER                                  :: group, handle, i, ipart, &
+                                                istat, iunit, nmol_types, &
+                                                nstart, nunits_tot, &
+                                                print_level, source, unit
+    INTEGER, DIMENSION(:), POINTER           :: nchains, nunits
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: mc_temp, rand, temp
-    CHARACTER(5), ALLOCATABLE, &
-      DIMENSION(:)                        :: atom_symbols
-    CHARACTER(default_string_length), POINTER, &
-      DIMENSION(:,:)                        :: atom_names
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, box_length
@@ -243,10 +245,10 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
-    INTEGER,DIMENSION(:),POINTER    :: nunits,nchains
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
-    TYPE(mc_input_file_type),POINTER :: mc_input_file
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -427,14 +429,12 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv_new
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: method_name_id, &
-                                                nforce_eval
+    INTEGER                                  :: method_name_id, nforce_eval
     LOGICAL                                  :: failure
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -506,16 +506,18 @@ END SUBROUTINE mc_create_force_env
 SUBROUTINE mc_create_bias_force_env (bias_env,r,atom_symbols,nunits_tot,&
             para_env, box_length,nchains,mc_input_file,ionode,error)
 
-    REAL(dp),DIMENSION(:,:),INTENT(INOUT)       :: r
-    CHARACTER(default_string_length),DIMENSION(:),INTENT(IN) :: atom_symbols
-    INTEGER,INTENT(IN)                       :: nunits_tot
-    INTEGER,DIMENSION(:),POINTER             :: nchains
     TYPE(force_env_type), POINTER            :: bias_env
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: r
+    CHARACTER(default_string_length), &
+      DIMENSION(:), INTENT(IN)               :: atom_symbols
+    INTEGER, INTENT(IN)                      :: nunits_tot
     TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(IN)                             :: box_length
+    INTEGER, DIMENSION(:), POINTER           :: nchains
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file
     LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    REAL(KIND=dp), DIMENSION(1:3),INTENT(IN)            :: box_length
-    TYPE(mc_input_file_type),POINTER :: mc_input_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_bias_force_env', &
       routineP = moduleN//':'//routineN

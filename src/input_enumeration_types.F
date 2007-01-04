@@ -111,8 +111,7 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
     CHARACTER(len=*), DIMENSION(:), &
       INTENT(in), OPTIONAL                   :: desc
     LOGICAL, INTENT(in), OPTIONAL            :: strict
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_create', &
       routineP = moduleN//':'//routineN
@@ -182,8 +181,7 @@ END SUBROUTINE enum_create
 !!*** **********************************************************************
 SUBROUTINE enum_retain(enum,error)
     TYPE(enumeration_type), POINTER          :: enum
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_retain', &
       routineP = moduleN//':'//routineN
@@ -221,8 +219,7 @@ SUBROUTINE enum_retain(enum,error)
 !!*** **********************************************************************
 SUBROUTINE enum_release(enum,error)
     TYPE(enumeration_type), POINTER          :: enum
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_release', &
       routineP = moduleN//':'//routineN
@@ -273,8 +270,7 @@ SUBROUTINE enum_release(enum,error)
 FUNCTION enum_i2c(enum,i,error) RESULT(res)
     TYPE(enumeration_type), POINTER          :: enum
     INTEGER, INTENT(in)                      :: i
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=default_string_length)     :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_i2c', &
@@ -338,8 +334,7 @@ END FUNCTION enum_i2c
 FUNCTION enum_c2i(enum,c,error) RESULT(res)
     TYPE(enumeration_type), POINTER          :: enum
     CHARACTER(len=*), INTENT(in)             :: c
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_c2i', &

@@ -109,10 +109,8 @@ CONTAINS
     INTEGER, INTENT(INOUT)                   :: nelectron_global, nao_global, &
                                                 nao_max, nmo_max
     REAL(dp), DIMENSION(2), INTENT(INOUT)    :: maxocc_global
-    INTEGER                                  :: mol_charge
-    INTEGER                                  :: mol_multiplicity
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER                                  :: mol_charge, mol_multiplicity
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_local_fm_mol', &
       routineP = moduleN//':'//routineN
@@ -277,8 +275,7 @@ CONTAINS
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     INTEGER                                  :: natom
     TYPE(real_matrix_type), POINTER          :: p_ispin
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mol_density_matrix', &
       routineP = moduleN//':'//routineN
@@ -400,8 +397,7 @@ CONTAINS
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pmat
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mol_density_matrix', &
       routineP = moduleN//':'//routineN
@@ -476,8 +472,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: use_cholesky
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_eigensolver', &
       routineP = moduleN//':'//routineN
@@ -640,8 +635,7 @@ CONTAINS
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: overlap
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_orthonormality', &
       routineP = moduleN//':'//routineN
@@ -752,8 +746,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: otype
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: matrix_p, work
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mol_make_basis', &
       routineP = moduleN//':'//routineN
@@ -846,8 +839,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: vectors
     INTEGER, INTENT(IN)                      :: nmo
     REAL(dp), DIMENSION(:, :), POINTER       :: mat_x_vec
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_sparse_mol_mo', &
       routineP = moduleN//':'//routineN

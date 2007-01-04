@@ -64,9 +64,9 @@ MODULE f77_interface
                                              do_ep,&
                                              do_fist,&
                                              do_kg,&
+                                             do_mixed,&
                                              do_qmmm,&
                                              do_qs,&
-                                             do_mixed,&
                                              method_names
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_cp2k_check,                ONLY: check_cp2k_input
@@ -88,7 +88,7 @@ MODULE f77_interface
   USE metadynamics,                    ONLY: metadyn_read
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
-  USE mixed_main,                       ONLY: mixed_create_force_env
+  USE mixed_main,                      ONLY: mixed_create_force_env
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: init_physcon
   USE qmmm_init,                       ONLY: qmmm_create_force_env
@@ -204,8 +204,10 @@ CONTAINS
 
     INTEGER                                  :: mpi_comm_default, stat, &
                                                 unit_nr
+    TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_error_type)                      :: error ! XXXXXXXXXXXXXXXX not initialised ?
+
+! XXXXXXXXXXXXXXXX not initialised ?
 
     IF (.NOT. module_initialized) THEN
        IF (init_mpi) THEN
@@ -329,8 +331,7 @@ CONTAINS
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_dealloc', &
       routineP = moduleN//':'//routineN
@@ -374,14 +375,13 @@ END SUBROUTINE f_env_dealloc
 SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      id_nr,error)
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(cp_error_type), INTENT(inout),  &
+    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: template_error
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(timer_env_type), POINTER            :: timer_env
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     INTEGER, INTENT(in)                      :: id_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', &
       routineP = moduleN//':'//routineN

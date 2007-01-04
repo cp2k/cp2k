@@ -26,7 +26,6 @@ MODULE kg_environment
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
-  USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
@@ -39,6 +38,7 @@ MODULE kg_environment
                                              read_qs_section,&
                                              write_dft_control,&
                                              write_qs_control
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -59,8 +59,8 @@ MODULE kg_environment
   USE header,                          ONLY: kg_header
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_val_get,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
                                              kg_energy_type
   USE kg_environment_methods,          ONLY: kg_env_setup
@@ -79,12 +79,13 @@ MODULE kg_environment
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_create,&
                                              kg_sub_pw_env_release,&
                                              kg_sub_pw_env_type
-  USE kinds,                           ONLY: default_string_length,& 
+  USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum,mp_sync
+                                             mp_sum,&
+                                             mp_sync
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
@@ -159,8 +160,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'kg_init'
 
@@ -414,8 +414,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &
@@ -503,23 +502,20 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: molch_name
-    INTEGER :: ich, iglobal, imol, imolecule_kind, istat, nao_global, nao_max, &
-      nelectron_global, nkind, nmo_max, nmol_local, nmolcharge, &
-      nmolecule_kind, nrep, nspins, sumcharge
+    INTEGER :: ich, iglobal, imol, imolecule_kind, istat, molch_kind, &
+      molch_val, nao_global, nao_max, nelectron_global, nkind, nmo_max, &
+      nmol_local, nmolcharge, nmolecule_kind, nrep, nspins, sumcharge
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: added_mos
-    INTEGER                                  :: molch_kind, molch_val
-    INTEGER, DIMENSION(:), POINTER           :: charge_x_mol
-    INTEGER, DIMENSION(:), POINTER           :: mult_x_mol
-    LOGICAL                                  :: explicit, failure, nmo_eq_nao, &
-                                                use_ref_cell
+    INTEGER, DIMENSION(:), POINTER           :: charge_x_mol, mult_x_mol
+    LOGICAL                                  :: explicit, failure, &
+                                                nmo_eq_nao, use_ref_cell
     REAL(dp)                                 :: maxocc_global(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -547,7 +543,8 @@ CONTAINS
       POINTER                                :: qs_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: mol_charge_section, poisson_section
+    TYPE(section_vals_type), POINTER         :: mol_charge_section, &
+                                                poisson_section
 
     failure=.FALSE.
 

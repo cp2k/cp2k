@@ -123,8 +123,7 @@ CONTAINS
     CHARACTER(len=*), INTENT(in)             :: desc
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d_ptr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_create', &
       routineP = moduleN//':'//routineN
@@ -183,8 +182,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE xc_derivative_retain(deriv,error)
     TYPE(xc_derivative_type), POINTER        :: deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_retain', &
       routineP = moduleN//':'//routineN
@@ -231,8 +229,7 @@ END SUBROUTINE xc_derivative_retain
 
     TYPE(xc_derivative_type), POINTER        :: derivative
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_release', &
       routineP = moduleN//':'//routineN
@@ -322,8 +319,7 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
     REAL(kind=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: deriv_data
     LOGICAL, INTENT(in), OPTIONAL            :: accept_null_data
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_get', &
       routineP = moduleN//':'//routineN

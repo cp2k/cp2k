@@ -65,8 +65,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: special_dimension
     REAL(KIND=dp), INTENT(in)                :: slab_size
     TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn', &
       routineP = moduleN//':'//routineN
@@ -242,8 +241,7 @@ CONTAINS
   SUBROUTINE mt1din(screen_function,iz,error)
     TYPE(pw_type), POINTER                   :: screen_function
     INTEGER, INTENT(IN)                      :: iz
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mt1din', &
       routineP = moduleN//':'//routineN

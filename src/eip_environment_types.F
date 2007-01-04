@@ -197,8 +197,7 @@ CONTAINS
   SUBROUTINE eip_env_retain(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_retain', &
       routineP = moduleN//':'//routineN
@@ -243,8 +242,7 @@ CONTAINS
   SUBROUTINE eip_env_release(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_release', &
       routineP = moduleN//':'//routineN
@@ -379,8 +377,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: eip_kinetic_energy, &
                                                 eip_potential_energy
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_get', &
       routineP = moduleN//':'//routineN
@@ -526,8 +523,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eip_kinetic_energy, &
                                                 eip_potential_energy
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_set', &
       routineP = moduleN//':'//routineN
@@ -661,8 +657,7 @@ CONTAINS
   SUBROUTINE eip_env_clear(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_clear', &
       routineP = moduleN//':'//routineN
@@ -740,8 +735,7 @@ CONTAINS
   SUBROUTINE eip_env_create(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_create', &
       routineP = moduleN//':'//routineN

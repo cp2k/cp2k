@@ -88,10 +88,10 @@ MODULE qs_environment
                                              restart_guess,&
                                              state_loc_all,&
                                              state_loc_none
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -187,14 +187,13 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: harris_flag, my_qmmm, &
-                                                my_qmmm_periodic, use_ref_cell, do_hf
+    LOGICAL                                  :: do_hf, harris_flag, my_qmmm, &
+                                                my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -212,7 +211,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                harris_section, kind_section, hf_section
+                                                harris_section, hf_section, &
+                                                kind_section
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -333,8 +333,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'qs_init_subsys'
 
@@ -885,8 +884,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &

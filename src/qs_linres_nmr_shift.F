@@ -118,8 +118,7 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ispin, iB
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
       routineP = moduleN//':'//routineN
@@ -565,8 +564,7 @@ CONTAINS
     TYPE(coeff_type)                         :: shift_pw_rspace
     INTEGER, INTENT(IN)                      :: i_B, idir
     TYPE(section_vals_type), POINTER         :: nmr_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
       routineP = moduleN//':'//routineN
@@ -725,8 +723,7 @@ CONTAINS
     TYPE(coeff_type)                         :: funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
     REAL(dp), INTENT(IN)                     :: my_chi
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
       routineP = moduleN//':'//routineN
@@ -791,8 +788,7 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: nmr_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_print_shift', &
       routineP = moduleN//':'//routineN

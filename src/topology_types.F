@@ -30,9 +30,9 @@ MODULE topology_types
                                              colvar_release
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
+                                             do_constr_none,&
                                              do_nhcopt_global,&
-                                             do_skip_13,&
-                                             do_constr_none
+                                             do_skip_13
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -367,8 +367,7 @@ CONTAINS
   SUBROUTINE deallocate_topology (topology, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: istat
 
@@ -568,8 +567,7 @@ CONTAINS
 
   SUBROUTINE deallocate_constraint(constraint_info, error)
     TYPE(constraint_info_type), POINTER      :: constraint_info
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
       routineP = moduleN//':'//routineN

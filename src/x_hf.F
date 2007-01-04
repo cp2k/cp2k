@@ -21,13 +21,10 @@
 !!
 !****************************************************************************
 MODULE x_hf   
-  USE kinds,                           ONLY: dp,dp_size
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_get,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-
-
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,14 +69,14 @@ MODULE x_hf
   SUBROUTINE x_hf_create(x_data,hf_section,error)
     TYPE(x_hf_type), POINTER                 :: x_data
     TYPE(section_vals_type), POINTER         :: hf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: number_of_precalc_integrals,&
-                                                max_memory, stat
-    LOGICAL                                  :: failure
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'x_hf_create',&
-                                                routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: max_memory, &
+                                                number_of_precalc_integrals, &
+                                                stat
 
     CALL section_vals_val_get(hf_section,"MAX_MEMORY",i_val=max_memory,error=error)
     number_of_precalc_integrals = max_memory * 1024*1024/dp_size
@@ -91,13 +88,13 @@ MODULE x_hf
 
   SUBROUTINE x_hf_release(x_data,error)
     TYPE(x_hf_type), POINTER                 :: x_data
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_release', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'x_hf_release',&
-                                                routineP = moduleN//':'//routineN
 
     DEALLOCATE(x_data%x_buffer,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -70,8 +70,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
                                                 calc_forces
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_energies', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"

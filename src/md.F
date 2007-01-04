@@ -25,23 +25,26 @@ MODULE md
                                              get_atomic_kind
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+                                             cp_sll_val_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE cp_linked_list_val,              ONLY: cp_sll_val_type, cp_sll_val_next
-  USE input_val_types,                 ONLY: val_type, val_get
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        dump_xmol, ensemble_name_types, isokin_ensemble, langevin_ensemble, &
        nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, output_name_types
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
+       output_name_types
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_list_get,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_list_get
+                                             section_vals_val_get
+  USE input_val_types,                 ONLY: val_get,&
+                                             val_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp,&
                                              int_size
@@ -552,8 +555,7 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: print_section, work_section
     LOGICAL, INTENT(IN), OPTIONAL            :: force_rescaling
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities'
 
@@ -568,13 +570,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(unit_convert_type), POINTER         :: unit
-    TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
 
 ! -------------------------------------------------------------------------

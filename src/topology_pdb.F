@@ -99,8 +99,7 @@ CONTAINS
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
       routineP = moduleN//':'//routineN
@@ -257,8 +256,7 @@ CONTAINS
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb', &
       routineP = moduleN//':'//routineN

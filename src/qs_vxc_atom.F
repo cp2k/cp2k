@@ -90,16 +90,15 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: energy_only
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bo(2), handle, i, iat, iatom, &
-                                                ikind, ir, istat, mepos, na, &
-                                                natom, nkind, nr, nspins, &
-                                                num_pe, myfun
+                                                ikind, ir, istat, mepos, &
+                                                myfun, na, natom, nkind, nr, &
+                                                nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: gradient_f, lsd, paw_atom
@@ -388,8 +387,7 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
       routineP = moduleN//':'//routineN
@@ -669,8 +667,7 @@ CONTAINS
       POINTER                                :: r_h_d, r_s_d
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: drho_h, drho_s
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rho_angular', &
       routineP = moduleN//':'//routineN
@@ -782,8 +779,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(rho_atom_type), POINTER             :: rho_atom
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_noGC'
 
@@ -960,8 +956,7 @@ CONTAINS
     TYPE(rho_atom_type), POINTER             :: rho_atom
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_GC'
 

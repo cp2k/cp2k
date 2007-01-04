@@ -34,17 +34,19 @@ MODULE topology_psf
                                              parser_release,&
                                              parser_search_string,&
                                              parser_test_next_token
+  USE force_fields_input,              ONLY: read_chrg_section
   USE input_constants,                 ONLY: do_conn_psf,&
                                              do_conn_psf_u,&
                                              do_skip_14
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -52,8 +54,6 @@ MODULE topology_psf
                                              topology_parameters_type
   USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
-  USE termination,                     ONLY: stop_program
-  USE force_fields_input,              ONLY: read_chrg_section
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -173,9 +173,9 @@ CONTAINS
     CHARACTER(LEN=2*default_string_length)   :: psf_format
     CHARACTER(LEN=3)                         :: c_int
     CHARACTER(LEN=default_string_length)     :: dummy_field, field, label
-    INTEGER :: handle, i, iatom, ibond, idum, index_now, ionfo, iphi, &
-      itheta, iw, jatom, N, natom, natom_prev, nbond, nbond_prev, nonfo, &
-      nphi, nphi_prev, ntheta, ntheta_prev, output_unit, stat
+    INTEGER :: handle, i, iatom, ibond, idum, index_now, ionfo, iphi, itheta, &
+      iw, jatom, N, natom, natom_prev, nbond, nbond_prev, nonfo, nphi, &
+      nphi_prev, ntheta, ntheta_prev, output_unit, stat
     LOGICAL                                  :: do_onfo, failure, found, &
                                                 ionode
     TYPE(array1_list_type), DIMENSION(:), &
@@ -635,7 +635,8 @@ CPSourceFileRef,&
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section, force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section, &
+                                                force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
@@ -644,16 +645,16 @@ CPSourceFileRef,&
     CHARACTER(LEN=2*default_string_length)   :: psf_format
     CHARACTER(LEN=default_string_length)     :: c_int, my_tag1, my_tag2, &
                                                 my_tag3, record
-    INTEGER                                  :: file_unit, handle, i, iw, j, nchg, stat
-    LOGICAL                                  :: failure, ldum, explicit
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: charge_atm
+    INTEGER                                  :: file_unit, handle, i, iw, j, &
+                                                nchg, stat
+    LOGICAL                                  :: explicit, failure, ldum
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp, charges
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: charges
     TYPE(section_vals_type), POINTER         :: tmp_section
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: charge_atm
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp
 
     failure = .FALSE.
     NULLIFY(logger)

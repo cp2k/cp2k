@@ -96,8 +96,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
@@ -194,8 +193,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', &
       routineP = moduleN//':'//routineN
@@ -386,8 +384,7 @@ CONTAINS
     LOGICAL                                  :: ionode
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMinE', &
       routineP = moduleN//':'//routineN
@@ -493,8 +490,7 @@ CONTAINS
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMin', &
       routineP = moduleN//':'//routineN
@@ -532,7 +528,7 @@ CONTAINS
        DEALLOCATE(xicom, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    write(6,*) "minimum position LinMin",xmin
+    WRITE(6,*) "minimum position LinMin",xmin
     CALL timestop(handle)
   END SUBROUTINE LinMin
 
@@ -572,8 +568,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: histpoint
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak', &
       routineP = moduleN//':'//routineN
@@ -771,8 +766,7 @@ CONTAINS
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: dbrent
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_dbrent', &
@@ -930,8 +924,7 @@ CONTAINS
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: my_val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d', &
@@ -987,8 +980,7 @@ CONTAINS
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     REAL(KIND=dp)                            :: fval
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: my_val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d', &
@@ -1048,8 +1040,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION FindMin(x,y,dy,error) RESULT(res)
     REAL(kind=dp), DIMENSION(:)              :: x, y, dy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FindMin', &

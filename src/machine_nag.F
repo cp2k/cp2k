@@ -158,9 +158,10 @@ END SUBROUTINE m_datum
 
 ! *****************************************************************************
 
-  SUBROUTINE m_mov(source,target)
+  SUBROUTINE m_mov(source,TARGET)
 
-    CHARACTER(LEN=*), INTENT(IN)             :: source, target
+    CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
+
     CHARACTER(LEN=2*default_string_length+4) :: cmd
 
 !   ---------------------------------------------------------------------------

@@ -720,12 +720,13 @@ CONTAINS
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: charge_x_mol
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: charge_x_mol
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'num_ao_el_per_molecule'
 
-    INTEGER                                  :: iatom, imol, my_charge, n_ao, natom, &
-                                                nelectron, nmol_kind, nsgf
+    INTEGER                                  :: iatom, imol, my_charge, n_ao, &
+                                                natom, nelectron, nmol_kind, &
+                                                nsgf
     REAL(KIND=dp)                            :: zeff, zeff_correction
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -934,8 +935,7 @@ CONTAINS
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind', &
       routineP = moduleN//':'//routineN
@@ -1001,8 +1001,7 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set', &
       routineP = moduleN//':'//routineN

@@ -37,13 +37,12 @@ MODULE preconditioner
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_diag,&
                                              cp_fm_get_info,&
                                              cp_fm_init_random,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
-                                             cp_fm_get_element,&
-                                             cp_fm_get_diag,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
@@ -856,16 +855,22 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     REAL(KIND=dp)                            :: energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp),PARAMETER                  :: eval_shift=5.0_dp ! arbitrary upshift of the occupied evals
-    REAL(KIND=dp),PARAMETER                  :: fudge_factor=2.0_dp ! fudge factor for taking the error estimate into account
+    REAL(KIND=dp), PARAMETER                 :: eval_shift = 5.0_dp , &
+                                                fudge_factor = 2.0_dp 
 
     INTEGER                                  :: k, n
-    REAL(KIND=dp)                            :: error_estimate, preconditioner_shift
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, evals, diag
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_sc0, matrix_hc0,matrix_shc0,matrix_s1, matrix_tmp, matrix_tmp2
-    TYPE(cp_error_type)                      :: sub_error
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: error_estimate, &
+                                                preconditioner_shift
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, diag, evals
+    TYPE(cp_error_type)                      :: sub_error
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_hc0, matrix_s1, &
+                                                matrix_sc0, matrix_shc0, &
+                                                matrix_tmp, matrix_tmp2
+
+! arbitrary upshift of the occupied evals
+! fudge factor for taking the error estimate into account
 
     CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k,error=error)
 
@@ -900,7 +905,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
     ALLOCATE(diag(k))
     CALL cp_fm_get_diag(matrix_s1,diag,error=error)
-    error_estimate=MAXVAL(sqrt(abs(diag-c0_evals**2)))
+    error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
     DEALLOCATE(diag)
     CALL cp_fm_release(matrix_s1,error=error)
     CALL cp_fm_release(matrix_shc0,error=error)
@@ -933,7 +938,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
        ALLOCATE(evals(n))
        CALL cp_fm_syevd(matrix_tmp,matrix_tmp2,evals,error)
        CALL cp_fm_release(matrix_tmp2,error=error)
-       write(6,*) "evals ",evals
+       WRITE(6,*) "evals ",evals
        DEALLOCATE(evals)
     ENDIF
 
@@ -992,16 +997,15 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     REAL(KIND=dp)                            :: energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp), PARAMETER                 :: lambda = 10.0_dp, fudge_factor=0.25_dp
+    REAL(KIND=dp), PARAMETER                 :: fudge_factor = 0.25_dp, &
+                                                lambda = 10.0_dp
 
-    INTEGER                                  :: k, n, i, j
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: norms, shifted_evals,diag
-    REAL(KIND=dp)                            :: val, error_estimate
+    INTEGER                                  :: k, n
+    REAL(KIND=dp)                            :: error_estimate
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag, norms, shifted_evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_hc0, matrix_left, matrix_shc0, &
-                                                matrix_pre, matrix_s1, &
-                                                matrix_s2, matrix_sc0, &
-                                                matrix_tmp, ortho
+    TYPE(cp_fm_type), POINTER :: matrix_hc0, matrix_left, matrix_pre, &
+      matrix_s1, matrix_s2, matrix_sc0, matrix_shc0, matrix_tmp, ortho
 
     IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm,error)
     CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k,error=error)
@@ -1044,7 +1048,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,matrix_shc0,matrix_shc0,0.0_dp,matrix_s1,error=error)
        ALLOCATE(diag(k))
        CALL cp_fm_get_diag(matrix_s1,diag,error=error)
-       error_estimate=MAXVAL(sqrt(abs(diag-c0_evals**2)))
+       error_estimate=MAXVAL(SQRT(ABS(diag-c0_evals**2)))
        DEALLOCATE(diag)
        CALL cp_fm_release(matrix_s1,error=error)
        CALL cp_fm_release(matrix_shc0,error=error)

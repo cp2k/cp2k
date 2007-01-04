@@ -326,8 +326,7 @@ MODULE qs_rho0_methods
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(local_rho_type), OPTIONAL, POINTER  :: tddft_local_rho_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho0'
 

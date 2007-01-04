@@ -87,8 +87,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_grid_change', &
       routineP = moduleN//':'//routineN

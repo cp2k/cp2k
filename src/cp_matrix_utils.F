@@ -141,8 +141,7 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: block_row
     TYPE(real_block_node_type), OPTIONAL, &
       POINTER                                :: block_node
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_b_i_init', &
       routineP = moduleN//':'//routineN
@@ -220,8 +219,7 @@ CONTAINS
       POINTER                                :: matrix
     TYPE(real_block_node_type), OPTIONAL, &
       POINTER                                :: block_node
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_b_i_get', &
       routineP = moduleN//':'//routineN
@@ -317,8 +315,7 @@ CONTAINS
       POINTER                                :: matrix
     TYPE(real_block_node_type), OPTIONAL, &
       POINTER                                :: block_node
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_b_i_next', &
@@ -409,8 +406,7 @@ SUBROUTINE cp_sm_write(matrix,unit_nr,long_description,local,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_write', &
       routineP = moduleN//':'//routineN
@@ -512,8 +508,7 @@ END SUBROUTINE cp_sm_write
 SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'sm_struct_add_sm_local_blocks', &

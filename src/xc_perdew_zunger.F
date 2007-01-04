@@ -94,8 +94,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pz_info', &
       routineP = moduleN//':'//routineN
@@ -173,8 +172,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pz_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -323,8 +321,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pz_lsd_eval', &
       routineP = moduleN//':'//routineN

@@ -72,41 +72,44 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmoments
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: ref_point
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
-    CHARACTER(LEN=*), PARAMETER :: routineN = "build_moment_matrix", &
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_moment_matrix', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND = dp), DIMENSION(3)                         :: rab, rac, rbc, ra, rb, rc
-    REAL(KIND = dp), DIMENSION(:), POINTER                :: set_radius_a,set_radius_b
-    INTEGER, DIMENSION(:), POINTER                        :: la_max,la_min,lb_max,&
-                                                             lb_min,npgfa,npgfb,&
-                                                             nsgfa,nsgfb
-    REAL(KIND = dp), DIMENSION(:,:), POINTER              :: rpgfa,rpgfb,sphi_a,&
-                                                             sphi_b,zeta,zetb
-    INTEGER, DIMENSION(:,:), POINTER                      :: first_sgfa,first_sgfb
-
-    TYPE(block_p_type), DIMENSION(:), ALLOCATABLE         :: mint
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE          :: work
-    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE        :: mab
-
-    INTEGER                                               :: nm, i, nkind, &
-       natom, ikind, jkind,ilist, nlist, inode, nnode, iatom, jatom, iab, &
-       last_jatom, nseta, nsetb, iset, jset, ncoa, ncob, sgfa, sgfb, istat, &
-       maxsgf, maxco, icol, irow
-    TYPE(cell_type), POINTER                              :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER                       :: atomic_kind
-    TYPE(neighbor_list_set_type), POINTER                 :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER                     :: neighbor_list
-    TYPE(neighbor_node_type), POINTER                     :: neighbor_node
-    TYPE(gto_basis_set_type), POINTER                     :: orb_basis_set
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_s
-    INTEGER                                               :: handle
-    REAL(KIND = dp)                                       :: rab2, dab
-    LOGICAL                                               :: failure, new_atom_b
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, jatom, jkind, jset, last_jatom, maxco, maxsgf, natom, ncoa, &
+      ncob, nkind, nlist, nm, nnode, nseta, nsetb, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, rab2
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: mab
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc, rc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: mint
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
 
 ! ------------------------------------------------------------------------------
 

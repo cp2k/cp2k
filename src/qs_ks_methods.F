@@ -71,15 +71,15 @@ MODULE qs_ks_methods
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
-  USE input_constants,                 ONLY: sic_ad,&
+  USE input_constants,                 ONLY: do_spin_density,&
+                                             sic_ad,&
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
                                              sic_none,&
-                                             xc_none, &
-                                             do_spin_density
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             xc_none
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_get,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -131,11 +131,11 @@ MODULE qs_ks_methods
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_fock_matrix
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE s_square_methods,                ONLY: s2_restraint
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+                                             real_matrix_p_type,&
                                              real_matrix_type,&
                                              set_matrix,&
-                                             transfer_matrix,&
-                                             cp_sm_scale_and_add
+                                             transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -315,13 +315,10 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
     INTEGER                                  :: dir, handle, ig, ispin, k, &
-                                                k2, n, nspins, output_unit, &
-                                                stat, my_id
-    LOGICAL                                  :: do_ep, failure, gapw, &
-                                                gapw_xc, ionode, &
-                                                my_diis_step, my_kg_gpw, &
-                                                use_virial, ltmp, ddapc_restraint_is_spin,&
-                                                do_hf
+                                                k2, my_id, n, nspins, &
+                                                output_unit, stat
+    LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, failure, gapw, gapw_xc, &
+      ionode, my_diis_step, my_kg_gpw, use_virial
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p
@@ -329,10 +326,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: ep_pot_r_coeff, ep_rho_g, &
-                                                ep_rho_r, rho_tot_gspace, &
-                                                v_hartree_gspace, v_sic_rspace, &
-                                                v_spin_ddapc_rest_g,v_spin_ddapc_rest_r
+    TYPE(coeff_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
+      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
@@ -353,7 +348,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_s, my_rho
-    TYPE(section_vals_type), POINTER         :: input, scf_section, hf_section
+    TYPE(section_vals_type), POINTER         :: hf_section, input, scf_section
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
@@ -627,7 +622,7 @@ CONTAINS
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hf ) THEN
          DO ispin = 1,nspins
-       	   CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
+                  CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
          CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
                                     para_env,ks_env%s_mstruct_changed,error)
@@ -1042,15 +1037,17 @@ CONTAINS
     CHARACTER(*), PARAMETER :: routineN = 'calc_v_sic_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nelec, nelec_a, nelec_b,i,nforce
+    INTEGER                                  :: i, nelec, nelec_a, nelec_b, &
+                                                nforce
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: ener, scaling, full_scaling
+    REAL(kind=dp)                            :: ener, full_scaling, scaling
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: store_forces
     TYPE(coeff_type)                         :: work_rho, work_v
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: store_forces
 
     failure = .FALSE.
     NULLIFY(mo_array)

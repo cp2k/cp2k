@@ -152,8 +152,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE wfs_create(snapshot, error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create', &
       routineP = moduleN//':'//routineN
@@ -206,8 +205,7 @@ END SUBROUTINE wfs_create
     TYPE(qs_wf_snapshot_type), POINTER       :: input_snapshot, &
                                                 output_snapshot
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_duplicate_snapshot', &
       routineP = moduleN//':'//routineN
@@ -360,8 +358,7 @@ END SUBROUTINE wfs_create
     TYPE(qs_wf_snapshot_type), POINTER       :: input_snapshot, &
                                                 output_snapshot
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_copy_snapshot', &
       routineP = moduleN//':'//routineN
@@ -508,8 +505,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: dt
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kg_fm_mol_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update', &
       routineP = moduleN//':'//routineN
@@ -713,8 +709,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: interpolation_method_nr
     INTEGER, INTENT(in), OPTIONAL            :: extrapolation_order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create', &
       routineP = moduleN//':'//routineN
@@ -830,8 +825,7 @@ END SUBROUTINE wfi_create
 !!*** **********************************************************************
 FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
     INTEGER, INTENT(in)                      :: method_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=30)                        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label', &
@@ -926,14 +920,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kg_fm_mol_set
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: actual_extrapolation_method_nr, &
-                                                handle, i, ispin, k, n, &
+    INTEGER                                  :: actual_extrapolation_method_nr&
+                                                , handle, i, ispin, k, n, &
                                                 nmo, nvec, output_unit
     LOGICAL                                  :: failure, ionode, my_kg_gpw, &
                                                 my_orthogonal_wf
@@ -1468,8 +1461,7 @@ END SUBROUTINE wfi_extrapolate
   SUBROUTINE wfi_set_history_variables(qs_env, nvec, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: nvec
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_set_history_variables', &
       routineP = moduleN//':'//routineN
@@ -1545,8 +1537,7 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, kg_fm_mol_set, error)
     REAL(KIND=dp), INTENT(in)                :: dt
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kg_fm_mol_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_update', &
       routineP = moduleN//':'//routineN
@@ -1603,8 +1594,7 @@ END SUBROUTINE wfi_update
     TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
                                                 output_wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_duplicate_history', &
       routineP = moduleN//':'//routineN
@@ -1699,8 +1689,7 @@ END SUBROUTINE wfi_update
     TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
                                                 output_wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_copy_history', &
       routineP = moduleN//':'//routineN
@@ -1775,8 +1764,7 @@ END SUBROUTINE wfi_update
 SUBROUTINE wfi_change_memory_depth(wf_history,memory_depth,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: memory_depth
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_change_memory_depth', &
       routineP = moduleN//':'//routineN

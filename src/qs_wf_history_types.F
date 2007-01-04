@@ -237,8 +237,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE wfs_retain(snapshot,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_retain', &
       routineP = moduleN//':'//routineN
@@ -286,8 +285,7 @@ END SUBROUTINE wfs_retain
 !!*** **********************************************************************
 SUBROUTINE wfs_release(snapshot,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_release', &
       routineP = moduleN//':'//routineN
@@ -361,8 +359,7 @@ END SUBROUTINE wfs_release
 !!*** **********************************************************************
 SUBROUTINE wfi_retain(wf_history,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_retain', &
       routineP = moduleN//':'//routineN
@@ -410,8 +407,7 @@ END SUBROUTINE wfi_retain
 !!*** **********************************************************************
 SUBROUTINE wfi_release(wf_history,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_release', &
       routineP = moduleN//':'//routineN
@@ -476,8 +472,7 @@ END SUBROUTINE wfi_release
 FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(qs_wf_snapshot_type), POINTER       :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_snapshot', &
@@ -531,8 +526,7 @@ END FUNCTION wfi_get_snapshot
 SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     LOGICAL, INTENT(in), OPTIONAL            :: flush_buffer
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_clear_history', &
       routineP = moduleN//':'//routineN

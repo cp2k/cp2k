@@ -64,9 +64,9 @@ MODULE neb_methods
                                              rep_env_release,&
                                              rep_env_write,&
                                              replica_env_type
+  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE termination,                     ONLY: external_control
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -106,8 +106,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ierr, ihandle, &
-                                                irep, nrep, output_unit, &
-                                                prep, stat, iw
+                                                irep, iw, nrep, output_unit, &
+                                                prep, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
     TYPE(cp_error_type)                      :: new_error
@@ -255,7 +255,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ind, iparticle, &
                                                 istep, iw, k, max_steps, stat
-    LOGICAL                                  :: converged, failure, should_stop
+    LOGICAL                                  :: converged, failure, &
+                                                should_stop
     REAL(KIND=dp)                            :: dm, dt, my_mass
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), ALLOCATABLE, &
@@ -411,9 +412,11 @@ CONTAINS
                                                 max_sd_steps, max_steps, &
                                                 n_diis, stat
     INTEGER, DIMENSION(:), POINTER           :: set_err
-    LOGICAL                                  :: converged, diis_on, do_ls, &
-                                                failure, skip_ls, check_diis, should_stop
-    REAL(KIND=dp)                            :: norm, stepsize, stepsize0, max_stepsize
+    LOGICAL                                  :: check_diis, converged, &
+                                                diis_on, do_ls, failure, &
+                                                should_stop, skip_ls
+    REAL(KIND=dp)                            :: max_stepsize, norm, stepsize, &
+                                                stepsize0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: crr, err, forces, sline
 
@@ -494,7 +497,7 @@ CONTAINS
                   WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD after linesearch",&
                   stepsize
           ELSE
-             stepsize = min(norm*stepsize0,max_stepsize)
+             stepsize = MIN(norm*stepsize0,max_stepsize)
              IF (output_unit>0) &
                   WRITE(output_unit,'(T2,A,T69,F12.6)')"SD| Stepsize in SD no linesearch performed",&
                   stepsize
@@ -506,7 +509,7 @@ CONTAINS
              neb_env%opt_type_label= "DIIS"
           END IF
           do_ls = .TRUE.
-          IF (count(set_err==-1)==1) do_ls = .FALSE.
+          IF (COUNT(set_err==-1)==1) do_ls = .FALSE.
           coords = coords + sline
           ! Compute forces
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&

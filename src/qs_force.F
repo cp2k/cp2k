@@ -105,8 +105,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
       routineP = moduleN//':'//routineN
@@ -432,8 +431,7 @@ CONTAINS
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_forces', &
       routineP = moduleN//':'//routineN

@@ -98,8 +98,7 @@ CONTAINS
       POINTER                                :: set_b
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_p, matrix_s
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_linear', &
       routineP = moduleN//':'//routineN
@@ -261,8 +260,7 @@ CONTAINS
       POINTER                                :: set_last
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_p, matrix_s
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_ps', &
       routineP = moduleN//':'//routineN
@@ -442,8 +440,7 @@ CONTAINS
       POINTER                                :: kg_fm_mol_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_gpw_prev_wf', &
       routineP = moduleN//':'//routineN

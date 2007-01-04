@@ -100,8 +100,7 @@ CONTAINS
   SUBROUTINE kg_diis_b_retain(diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: diis_buffer
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_retain', &
       routineP = moduleN//':'//routineN
@@ -146,8 +145,7 @@ CONTAINS
   SUBROUTINE kg_diis_b_release(diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: diis_buffer
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_release', &
       routineP = moduleN//':'//routineN
@@ -203,8 +201,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: imol
     TYPE(mol_diis_block_type), OPTIONAL, &
       POINTER                                :: mol_diis_iblock
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER              :: routineN = 'get_mol_diis_set'
 
@@ -226,8 +223,7 @@ CONTAINS
 
     TYPE(mol_diis_buffer_set_type), POINTER  :: mol_diis_buffer_set
     INTEGER, INTENT(IN)                      :: nmol_global, nmol_local
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_diis_block'
 
@@ -257,8 +253,7 @@ CONTAINS
     TYPE(mol_diis_buffer_set_type), &
       DIMENSION(:), POINTER                  :: mol_diis_buffer_set
     INTEGER, INTENT(IN)                      :: nmol_kind
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER              :: routineN = 'init_mol_diis_set'
 
@@ -360,8 +355,7 @@ CONTAINS
 
     TYPE(mol_diis_buffer_set_type), POINTER  :: mol_diis_buffer_set
     INTEGER, INTENT(IN)                      :: nmol_local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_diis_block'
 

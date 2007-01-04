@@ -36,11 +36,11 @@ MODULE mc_types
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
                                              force_env_p_type,&
+                                             force_env_type,&
                                              use_fist_force,&
-                                             use_qs_force,&
-                                             use_kg_force
+                                             use_kg_force,&
+                                             use_qs_force
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
@@ -49,26 +49,25 @@ MODULE mc_types
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length,&
-                                             int_size,&
-                                             dp_size
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size,&
+                                             int_size
   USE mathconstants,                   ONLY: pi
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             atom_type
+  USE molecule_kind_types,             ONLY: atom_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_list_types,             ONLY: particle_list_p_type
   USE physcon,                         ONLY: boltzmann,&
                                              joule
-  USE string_utilities,                ONLY: xstring,&
-                                             uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE string_utilities,                ONLY: uppercase,&
+                                             xstring
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -251,16 +250,18 @@ CONTAINS
 !!     MJM
 !!
 !!*****************************************************************************
-   TYPE(mc_input_file_type),POINTER :: mc_input_file
-   INTEGER,INTENT(OUT),OPTIONAL :: run_type_row,&
-        run_type_column,coord_row_start,coord_row_end,&
-        cell_row,cell_column,global_row_end,in_use,nunits_empty
-   INTEGER,DIMENSION(:),POINTER,OPTIONAL :: &
-        mol_set_nmol_row,mol_set_nmol_column
-   CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER,&
-        OPTIONAL :: text,atom_names_empty
-   REAL(dp),DIMENSION(:,:),POINTER,OPTIONAL :: coordinates_empty
-   
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file
+    INTEGER, INTENT(OUT), OPTIONAL :: run_type_row, run_type_column, &
+      coord_row_start, coord_row_end, cell_row, cell_column, global_row_end
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: mol_set_nmol_row, &
+                                                mol_set_nmol_column
+    INTEGER, INTENT(OUT), OPTIONAL           :: in_use
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), OPTIONAL, POINTER        :: text, atom_names_empty
+    INTEGER, INTENT(OUT), OPTIONAL           :: nunits_empty
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: coordinates_empty
+
    IF(PRESENT(in_use)) in_use=mc_input_file%in_use
    IF(PRESENT(run_type_row)) run_type_row=mc_input_file%run_type_row
    IF(PRESENT(run_type_column)) run_type_column=mc_input_file%run_type_column
@@ -311,35 +312,46 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    INTEGER, INTENT(OUT), OPTIONAL :: nstep, iuptrans, iupvolume, &
-      nmoves, nswapmoves, rm, cl, diff, nstart, source, &
-      group
+    INTEGER, INTENT(OUT), OPTIONAL           :: nstep, iuptrans, iupvolume, &
+                                                nmoves, nswapmoves, rm, cl, &
+                                                diff, nstart, source, group
     LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: rmvolume, temp, pressure, BETA, pmswap,&
-         pmvolume, pmtraion, pmtrans,pmvol_box
-    REAL(KIND=dp),DIMENSION(:),POINTER,OPTIONAL  :: rmbond,rmangle,rmrot,rmtrans,rmdihedral,&
-         avbmc_rmin,avbmc_rmax
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rmvolume
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: rmbond, rmangle, rmrot, &
+                                                rmtrans
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temp, pressure, BETA, pmswap, &
+                                                pmvolume, pmtraion, pmtrans
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
       restart_file_name, molecules_file, moves_file, coords_file, &
       energy_file, displacement_file, cell_file, dat_file, data_file, &
       box2_file, fft_lib
     INTEGER, INTENT(OUT), OPTIONAL           :: iprint
-    INTEGER,DIMENSION(:),POINTER,OPTIONAL    :: avbmc_atom
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcut
     LOGICAL, INTENT(OUT), OPTIONAL           :: ldiscrete
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: discrete_step,pmavbmc
-    REAL(KIND=dp), DIMENSION(:), POINTER,OPTIONAL     :: pmavbmc_mol, pbias,&
-         pmtrans_mol,pmrot_mol,pmtraion_mol
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: discrete_step, pmavbmc
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: pbias
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: avbmc_atom
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: avbmc_rmin, avbmc_rmax, &
+                                                rmdihedral
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input_file
     TYPE(mc_molecule_info_type), OPTIONAL, &
       POINTER                                :: mc_molecule_info
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: pmswap_mol
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: pmavbmc_mol, pmtrans_mol, &
+                                                pmrot_mol, pmtraion_mol
     TYPE(mc_input_file_type), OPTIONAL, &
-      POINTER                                :: mc_input_file,mc_bias_file
+      POINTER                                :: mc_input_file, mc_bias_file
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmvol_box
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
-    REAL(dp),DIMENSION(:),POINTER,OPTIONAL  :: pmswap_mol
+
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( nstep ) ) nstep = mc_par % nstep
@@ -438,18 +450,24 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-   TYPE(mc_molecule_info_type), &
-        POINTER                                :: mc_molecule_info
-   INTEGER, INTENT(OUT), OPTIONAL :: nmol_types,nchain_total,nboxes
-   CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER,OPTIONAL :: names
-   CHARACTER ( LEN = default_string_length ),DIMENSION(:,:),&
-        POINTER,OPTIONAL :: atom_names
-   REAL ( dp ),DIMENSION(:,:),POINTER,OPTIONAL :: conf_prob,mass
-   INTEGER, DIMENSION(:,:),POINTER,OPTIONAL :: nchains
-   INTEGER,DIMENSION(:),POINTER,OPTIONAL :: nunits,mol_type,nunits_tot,in_box
-   
-   CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_molecule_info', &
-        routineP = moduleN//':'//routineN
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+    INTEGER, INTENT(OUT), OPTIONAL           :: nmol_types, nchain_total, &
+                                                nboxes
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), OPTIONAL, POINTER        :: names
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: conf_prob
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: nchains
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nunits, mol_type, nunits_tot, &
+                                                in_box
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: atom_names
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: mass
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_molecule_info', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -503,31 +521,41 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       POINTER                                :: mc_par
     INTEGER, INTENT(IN), OPTIONAL            :: rm, cl, diff, nstart
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume
-    REAL(KIND=dp), DIMENSION(:),POINTER, OPTIONAL      :: rmbond, rmangle, &
-                                                rmdihedral, rmrot, rmtrans
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM,ensemble
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: rmbond, rmangle, rmdihedral, &
+                                                rmrot, rmtrans
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM
     INTEGER, INTENT(IN), OPTIONAL            :: nmoves, nswapmoves
     LOGICAL, INTENT(IN), OPTIONAL            :: lstop
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temp, pressure
     INTEGER, INTENT(IN), OPTIONAL            :: iuptrans, iupvolume
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmswap, pmvolume, pmtraion, &
-                                                pmtrans, pmvol_box,BETA, rcut
+                                                pmtrans, BETA, rcut
     INTEGER, INTENT(IN), OPTIONAL            :: iprint
     LOGICAL, INTENT(IN), OPTIONAL            :: lbias
     INTEGER, INTENT(IN), OPTIONAL            :: nstep
     LOGICAL, INTENT(IN), OPTIONAL            :: lrestart, ldiscrete
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: discrete_step, pmavbmc
-    TYPE(mc_molecule_info_type), &
-      POINTER, OPTIONAL  :: mc_molecule_info
-    REAL(dp),DIMENSION(:),POINTER,OPTIONAL :: &
-         pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
-         avbmc_rmin,avbmc_rmax,pbias
-    INTEGER,DIMENSION(:),POINTER,OPTIONAL :: avbmc_atom
-    TYPE(mc_input_file_type),POINTER,OPTIONAL :: mc_input_file,mc_bias_file
+    TYPE(mc_molecule_info_type), OPTIONAL, &
+      POINTER                                :: mc_molecule_info
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: pmavbmc_mol, pmtrans_mol, &
+                                                pmrot_mol, pmtraion_mol, &
+                                                pmswap_mol, avbmc_rmin, &
+                                                avbmc_rmax
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: avbmc_atom
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: pbias
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: ensemble
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmvol_box
+    TYPE(mc_input_file_type), OPTIONAL, &
+      POINTER                                :: mc_input_file, mc_bias_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
       routineP = moduleN//':'//routineN
-    INTEGER :: iparm
+
+    INTEGER                                  :: iparm
+
 !   ---------------------------------------------------------------------------
 ! These are the only values that change during the course of the simulation
 ! or are computed outside of this module
@@ -669,12 +697,13 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
 
     TYPE(mc_simulation_parameters_type), &
-         POINTER                               :: mc_par
-    INTEGER,INTENT(IN)                       :: nmol_types,nboxes
-    
+      POINTER                                :: mc_par
+    INTEGER, INTENT(IN)                      :: nmol_types, nboxes
+
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_sim_par_create'
 
-    INTEGER :: istat
+    INTEGER                                  :: istat
+
 !******************************************************************************
 
     NULLIFY(mc_par)
@@ -757,11 +786,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
 
     TYPE(mc_simulation_parameters_type), &
-         POINTER                               :: mc_par
-    
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_sim_par_destroy'
+      POINTER                                :: mc_par
 
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_sim_par_destroy'
+
+    INTEGER                                  :: istat
+
 !******************************************************************************
 
     DEALLOCATE (mc_par%mc_input_file,STAT=istat)
@@ -848,24 +878,26 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
        mc_molecule_info,empty_coords,error)
 
 
-    TYPE(mc_input_file_type), &
-         POINTER                               :: mc_input_file
-    TYPE(mc_molecule_info_type),POINTER  :: mc_molecule_info
-    CHARACTER(LEN=*),INTENT(IN)              :: input_file_name
-    REAL(dp),DIMENSION(:,:)     :: empty_coords
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file
+    CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+    REAL(dp), DIMENSION(:, :)                :: empty_coords
     TYPE(cp_error_type), INTENT(inout)       :: error
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_iput_file_info_create'
 
-    INTEGER :: istat,unit,nlines,io_stat,iline,idum,abc_row,abc_column,&
-         cell_row,cell_column,row_number,irep,nstart,&
-         line_number,nmol_types,iunit,iw
-    INTEGER,DIMENSION(:),POINTER :: nunits
-    CHARACTER(default_string_length),DIMENSION(:,:),POINTER :: atom_names
-    CHARACTER(default_string_length)   :: line,method_name,cdum
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_file_create'
+
+    CHARACTER(default_string_length)         :: cdum, line, method_name
+    CHARACTER(default_string_length), &
+      DIMENSION(:, :), POINTER               :: atom_names
+    INTEGER :: abc_column, abc_row, cell_column, cell_row, idum, iline, &
+      io_stat, irep, istat, iunit, iw, line_number, nlines, nmol_types, &
+      nstart, row_number, unit
+    INTEGER, DIMENSION(:), POINTER           :: nunits
     TYPE(cp_logger_type), POINTER            :: logger
-!******************************************************************************
 
+!******************************************************************************
 ! some stuff in case we need to write error messages to the screen
+
     logger=>cp_error_get_logger(error)
     iw = cp_logger_get_default_unit_nr(logger)
 
@@ -1041,12 +1073,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
   SUBROUTINE mc_input_file_destroy(mc_input_file)
 
 
-    TYPE(mc_input_file_type), &
-         POINTER                               :: mc_input_file
-    
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_iput_file_info_create'
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file
 
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_file_destroy'
+
+    INTEGER                                  :: istat
+
 !******************************************************************************
 
     DEALLOCATE (mc_input_file%mol_set_nmol_row,STAT=istat)
@@ -1098,17 +1130,20 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
      row_number,column_number)
 
-  INTEGER,INTENT(IN) :: nstart,nend
-  LOGICAL,INTENT(IN) :: lend
-  CHARACTER(LEN=*),DIMENSION(:),INTENT(IN) :: text
-  CHARACTER(LEN=*),INTENT(IN) :: string_search
-  INTEGER,INTENT(OUT) :: row_number,column_number
-  
-  CHARACTER(default_string_length) :: text_temp
-  INTEGER :: index_string,iline,string_size,jline
-!*****************************************************************************
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(IN)                             :: text
+    INTEGER, INTENT(IN)                      :: nstart, nend
+    CHARACTER(LEN=*), INTENT(IN)             :: string_search
+    LOGICAL, INTENT(IN)                      :: lend
+    INTEGER, INTENT(OUT)                     :: row_number, column_number
 
+    CHARACTER(default_string_length)         :: text_temp
+    INTEGER                                  :: iline, index_string, jline, &
+                                                string_size
+
+!*****************************************************************************
 ! did not see any string utilities in the code to help, so here I go
+
   row_number=0
   column_number=0
 
@@ -1179,18 +1214,20 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_section'
 
-    INTEGER                                  :: handle, ia, ie, iw, &
-                                                method_name_id, stop_num,&
-                                                itype,imol
+    CHARACTER(LEN=5)                         :: box_string, molecule_string, &
+                                                tab_box_string, tab_string, &
+                                                tab_string_int
+    CHARACTER(LEN=default_string_length)     :: format_box_string, &
+                                                format_string, &
+                                                format_string_int
+    INTEGER                                  :: handle, ia, ie, imol, itype, &
+                                                iw, method_name_id, stop_num
+    INTEGER, DIMENSION(:), POINTER           :: temp_i_array
     LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:), POINTER          :: temp_r_array
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mc_section
-    CHARACTER(LEN=5)     :: molecule_string,tab_string,tab_string_int,box_string,&
-         tab_box_string
-    CHARACTER(LEN=default_string_length)     :: format_string,format_string_int,&
-         format_box_string
-    REAL(dp),DIMENSION(:),POINTER :: temp_r_array
-    INTEGER,DIMENSION(:),POINTER :: temp_i_array
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1622,37 +1659,39 @@ END SUBROUTINE find_mc_rcut
 SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_number,&
      coordinates_empty)
 
-    TYPE(cp_error_type), INTENT(inout)  :: error
-    TYPE(force_env_p_type), DIMENSION(:),POINTER &
-         :: force_env
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
-    INTEGER,INTENT(IN),OPTIONAL :: box_number
-    REAL(dp),DIMENSION(:,:),POINTER,OPTIONAL :: coordinates_empty
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: box_number
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: coordinates_empty
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_determine_molecule_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: names_init
+    INTEGER :: first_mol, iatom, ibox, imol, imolecule, istat, itype, &
+      iunique, iunit, jtype, last_mol, natom, natoms_large, nbend, nbond, &
+      nboxes, nmol_types, nmolecule, ntorsion, ntypes, skip_box, &
+      this_molecule, total
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    LOGICAL                                  :: lnew_type
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(mol_kind_new_list_p_type), DIMENSION(:),POINTER &
-         :: molecule_kinds_new
-    TYPE(particle_list_p_type),DIMENSION(:),POINTER :: particles
-    TYPE(molecule_kind_type), POINTER  :: molecule_kind
-    CHARACTER(LEN=default_string_length) :: name
-    CHARACTER(LEN=default_string_length),DIMENSION(:),ALLOCATABLE :: &
-         names_init
-    INTEGER :: total,nbond,nbend,ntorsion,istat,ibox,ntypes,&
-         itype,imolecule,jtype,iunique,natom,natoms_large,&
-         nmolecule,nboxes, first_mol,last_mol,this_molecule,imol,iatom,&
-         skip_box,iunit
-    LOGICAL :: lnew_type
-    INTEGER :: nmol_types
-    INTEGER,DIMENSION(:),POINTER :: molecule_list
-    TYPE(atom_type),DIMENSION(:),POINTER :: atom_list
-    TYPE(atomic_kind_type),POINTER :: atomic_kind
-!**********************************************************************
+    TYPE(mol_kind_new_list_p_type), &
+      DIMENSION(:), POINTER                  :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_list_p_type), &
+      DIMENSION(:), POINTER                  :: particles
 
+!**********************************************************************
 ! how many simulation boxes do we have?
+
     nboxes=SIZE(force_env(:))
 
 ! allocate the pointer
@@ -1661,7 +1700,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
 
 ! if box_number is present, that box is supposed to be empty,
 ! so we don't count it in anything
-    IF(present(box_number)) THEN
+    IF(PRESENT(box_number)) THEN
        skip_box=box_number
     ELSE
        skip_box=0
@@ -1888,11 +1927,13 @@ END SUBROUTINE MC_DETERMINE_MOLECULE_INFO
 !!*****************************************************************************
 SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
- 
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_info_destroy', &
       routineP = moduleN//':'//routineN
-    INTEGER :: istat
+
+    INTEGER                                  :: istat
+
 !*****************************************************************************
 
     DEALLOCATE(mc_molecule_info%nchains,stat=istat)
@@ -1941,13 +1982,17 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 !!     MJM
 !!
 !!*****************************************************************************
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_info_destroy'
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
 
-    INTEGER           :: nmol_types,nboxes,imol_type
-    INTEGER,DIMENSION(:),POINTER :: nunits
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_parameters_check'
+
+    INTEGER                                  :: imol_type, nboxes, nmol_types
+    INTEGER, DIMENSION(:), POINTER           :: nunits
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+
 !******************************************************************************
+
     CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info)
 
     CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&

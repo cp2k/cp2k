@@ -168,8 +168,7 @@ CONTAINS
   SUBROUTINE harris_energy_retain(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_retain', &
       routineP = moduleN//':'//routineN
@@ -222,8 +221,7 @@ CONTAINS
   SUBROUTINE harris_energy_release(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_release', &
       routineP = moduleN//':'//routineN
@@ -312,8 +310,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartree_elec, Ehartree_core, &
       Exc, integral_vxc, Ecore, Ecore_overlap, Ecore_self, EII, &
       Eharris_correction, sum_of_eigenvalues, Eharris
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_get', &
       routineP = moduleN//':'//routineN
@@ -415,8 +412,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL :: Ehartree_elec, Ehartree_core, Exc, &
       integral_vxc, Ecore, Ecore_overlap, Ecore_self, EII, &
       Eharris_correction, sum_of_eigenvalues, Eharris
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_set', &
       routineP = moduleN//':'//routineN
@@ -487,8 +483,7 @@ CONTAINS
   SUBROUTINE harris_energy_clear(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_clear', &
       routineP = moduleN//':'//routineN
@@ -553,8 +548,7 @@ CONTAINS
   SUBROUTINE harris_energy_create(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_create', &
       routineP = moduleN//':'//routineN

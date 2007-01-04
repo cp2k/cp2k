@@ -76,8 +76,7 @@ CONTAINS
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
     TYPE(mol_diis_block_type), POINTER       :: mol_diis_iblock
     INTEGER, INTENT(IN)                      :: nao
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'alloc_mol_diis_iblock', &
       routineP = moduleN//':'//routineN
@@ -138,8 +137,7 @@ CONTAINS
   SUBROUTINE kg_diis_b_clear(scf_diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_clear', &
       routineP = moduleN//':'//routineN
@@ -170,8 +168,7 @@ CONTAINS
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
     INTEGER, INTENT(IN)                      :: nbuffer, nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_create', &
       routineP = moduleN//':'//routineN
@@ -235,8 +232,7 @@ CONTAINS
       POINTER                                :: matrix_ks
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: overlap
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_A', &
       routineP = moduleN//':'//routineN
@@ -416,8 +412,7 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_p
     LOGICAL, INTENT(IN)                      :: do_iter, diis_step, &
                                                 do_level_shift, use_jacobi
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_B', &
       routineP = moduleN//':'//routineN

@@ -71,8 +71,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(out)               :: e_bc
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"

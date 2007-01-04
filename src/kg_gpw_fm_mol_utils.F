@@ -100,8 +100,7 @@ CONTAINS
       POINTER                                :: fm_mol_set
     TYPE(real_matrix_type), POINTER          :: w_matrix
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'calculate_w_matrix_per_molecule', &
@@ -266,8 +265,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: upper_dec, vectors_out
     CHARACTER(LEN=*), INTENT(IN)             :: op
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: pos
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_cholesky_restore', &
       routineP = moduleN//':'//routineN
@@ -429,8 +427,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nrow
     REAL(dp), DIMENSION(:)                   :: eigenvalues
     REAL(dp), DIMENSION(:, :)                :: matrix_out
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_syevd', &
       routineP = moduleN//':'//routineN
@@ -503,8 +500,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ldv, ncv
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: eigenvalues
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_syevx', &
       routineP = moduleN//':'//routineN
@@ -592,8 +588,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: mo
     INTEGER, INTENT(IN)                      :: mepos, num_pe
     INTEGER, INTENT(IN), OPTIONAL            :: ncol, start_col
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER              :: routineN = 'mol_mo_random'
 
@@ -664,8 +659,7 @@ CONTAINS
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     REAL(dp), DIMENSION(:, :)                :: matrix_mol_block
     INTEGER, INTENT(IN)                      :: natom, nrow, ncol
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_sparse2mol_block', &
       routineP = moduleN//':'//routineN
@@ -771,8 +765,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_mol_restart', &
       routineP = moduleN//':'//routineN
@@ -1015,8 +1008,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_mol_restart', &
       routineP = moduleN//':'//routineN

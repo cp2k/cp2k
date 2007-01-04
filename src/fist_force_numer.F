@@ -2179,8 +2179,7 @@ SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_p
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_part
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, id, natoms
     REAL(KIND=dp)                            :: eminus, eplus

@@ -27,40 +27,28 @@ MODULE pair_potential
   USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE fparser,                         ONLY: EvalErrType,&
+                                             evalf,&
+                                             finalizef,&
+                                             initf,&
+                                             parsef
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE pair_potential_types,            ONLY: compare_pot,&
-                                             ea_type,&
-                                             b4_type,&
-                                             bm_type,&
-                                             ft_type,&
-                                             gp_type,&
-                                             gw_type,&
-                                             ip_type,&
-                                             list_pot,&
-                                             lj_charmm_type,&
-                                             lj_type,&
-                                             nn_type,&
-                                             pair_potential_pp_type,&
-                                             pair_potential_single_type,&
-                                             wl_type
+  USE pair_potential_types,            ONLY: &
+       b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
+       ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
+       pair_potential_pp_type, pair_potential_single_type, wl_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              potential_s,&
                                              spline_env_create,&
                                              spline_environment_type
+  USE string_table,                    ONLY: str2id
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-  USE fparser,                         ONLY: initf,&
-                                             parsef,&
-                                             evalf,&
-                                             EvalErrMsg,&
-                                             finalizef,&
-                                             EvalErrType
-  USE termination,                     ONLY: stop_program
-  USE string_table,                    ONLY: str2id
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -252,15 +240,14 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
     LOGICAL, INTENT(IN), OPTIONAL            :: do_14
     LOGICAL, INTENT(IN)                      :: scale_cutoff
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ewald_type, handle, i, &
                                                 ilevel, j, jx, n, ncount, &
-                                                npoints, ntype, ngp
+                                                ngp, npoints, ntype
     LOGICAL                                  :: failure, found_locut, my_do_14
     REAL(KIND=dp) :: alpha, diffmax, dx2, e, eps0, hicut, locut, locut_found, &
       my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, &
@@ -476,8 +463,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nonbond_storage', &
       routineP = moduleN//':'//routineN

@@ -200,8 +200,7 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: n_el
     INTEGER, INTENT(in), OPTIONAL            :: n_lists
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_create', &
       routineP = moduleN//':'//routineN
@@ -287,8 +286,7 @@ END SUBROUTINE distribution_1d_create
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_retain(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_retain', &
       routineP = moduleN//':'//routineN
@@ -336,8 +334,7 @@ END SUBROUTINE distribution_1d_retain
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_release(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_release', &
       routineP = moduleN//':'//routineN
@@ -411,8 +408,7 @@ END SUBROUTINE distribution_1d_release
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: nparticle_kind, nparticle
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set', &
       routineP = moduleN//':'//routineN
@@ -491,8 +487,7 @@ END SUBROUTINE distribution_1d_release
 SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in), OPTIONAL            :: i_list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_sort_list', &
       routineP = moduleN//':'//routineN
@@ -582,8 +577,7 @@ SUBROUTINE distribution_1d_search_el(distribution_1d, element, found, i_list_to_
     LOGICAL, INTENT(out)                     :: found
     INTEGER, INTENT(in), OPTIONAL            :: i_list_to_search
     INTEGER, INTENT(out), OPTIONAL           :: i_pos, i_list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_search_el', &
       routineP = moduleN//':'//routineN
@@ -655,8 +649,7 @@ END SUBROUTINE distribution_1d_search_el
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_build_gdist', &
       routineP = moduleN//':'//routineN
@@ -833,8 +826,7 @@ END SUBROUTINE distribution_1d_build_gdist
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_destroy_gdist(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'distribution_1d_destroy_gdist', &
@@ -890,8 +882,7 @@ END SUBROUTINE distribution_1d_destroy_gdist
 SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_write', &
       routineP = moduleN//':'//routineN

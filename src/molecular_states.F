@@ -96,8 +96,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=default_string_length)     :: filename
     INTEGER                                  :: i, imol, iproc, isos, j, k, &

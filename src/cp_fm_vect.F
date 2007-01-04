@@ -77,8 +77,7 @@ CONTAINS
   SUBROUTINE cp_fm_vect_dealloc(matrixes, error)
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_dealloc', &
       routineP = moduleN//':'//routineN
@@ -134,8 +133,7 @@ SUBROUTINE cp_fm_vect_copy(matrixes, copy, error)
       INTENT(in)                             :: matrixes
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: copy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_copy', &
       routineP = moduleN//':'//routineN
@@ -199,8 +197,7 @@ END SUBROUTINE cp_fm_vect_copy
       POINTER                                :: matrixes
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_write', &
       routineP = moduleN//':'//routineN
@@ -270,8 +267,7 @@ SUBROUTINE cp_fm_vect_set_all(matrixes,value,error)
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: value
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_set_all', &
       routineP = moduleN//':'//routineN

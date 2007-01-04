@@ -40,21 +40,20 @@ MODULE pint_types
   USE force_env_types,                 ONLY: force_env_get
   USE input_constants,                 ONLY: dump_dcd,&
                                              pint_run,&
-                                             transformation_normal,&
                                              transformation_stage
-  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_retain,&
-                                             section_vals_val_set,&
                                              section_vals_type,&
                                              section_vals_val_get,&
+                                             section_vals_val_set,&
                                              section_vals_write
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE mathconstants,                   ONLY: pi, twopi
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -300,8 +299,8 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(section_vals_type), POINTER         :: pint_section,transform_section,&
-                                                nose_section
+    TYPE(section_vals_type), POINTER         :: nose_section, pint_section, &
+                                                transform_section
 
     failure=.FALSE.
     NULLIFY(f_env,subsys,particles)
@@ -428,7 +427,7 @@ CONTAINS
              "MOTION%PINT%NORMALMODE",error=error)
           CALL normalmode_env_create(pint_env%normalmode_env,&
              transform_section,p=pint_env%p,kT=pint_env%kT,error=error)
-          wrong_input=pint_env%nrespa*twopi/(sqrt(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10
+          wrong_input=pint_env%nrespa*twopi/(SQRT(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10
           CPPostcondition(wrong_input,cp_warning_level,routineP,error,failure)
        END IF
        ALLOCATE(pint_env%mass(pint_env%ndim),stat=stat)
@@ -872,13 +871,13 @@ END SUBROUTINE staging_env_create
 !!*** **********************************************************************
 SUBROUTINE normalmode_retain(normalmode_env,error)
 
-   TYPE(normalmode_env_type), POINTER          :: normalmode_env
-   TYPE(cp_error_type), INTENT(inout)          :: error
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-   CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_retain', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_retain', &
       routineP = moduleN//':'//routineN
 
-   LOGICAL                                  :: failure
+    LOGICAL                                  :: failure
 
    failure=.FALSE.
 
@@ -913,14 +912,14 @@ END SUBROUTINE normalmode_retain
 !!*** **********************************************************************
 SUBROUTINE normalmode_release(normalmode_env,error)
 
-   TYPE(normalmode_env_type), POINTER       :: normalmode_env
-   TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-   CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_release', &
       routineP = moduleN//':'//routineN
 
-   INTEGER                                  :: stat
-   LOGICAL                                  :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
    failure=.FALSE.
 
@@ -969,20 +968,19 @@ END SUBROUTINE normalmode_release
 SUBROUTINE normalmode_init_masses(normalmode_env,mass,mass_beads,mass_fict,&
      Q,error)
 
-   TYPE(normalmode_env_type), POINTER       :: normalmode_env
-   REAL(kind=dp), DIMENSION(:), INTENT(in)  :: mass
-   REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(out), OPTIONAL                 :: mass_beads, mass_fict
-   REAL(kind=dp), DIMENSION(:), &
-      INTENT(out), OPTIONAL                 :: Q
-   TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
+    REAL(kind=dp), DIMENSION(:), INTENT(in)  :: mass
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(out), OPTIONAL                  :: mass_beads, mass_fict
+    REAL(kind=dp), DIMENSION(:), &
+      INTENT(out), OPTIONAL                  :: Q
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-   CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_init_masses', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_init_masses', &
       routineP = moduleN//':'//routineN
 
-   INTEGER                                  :: i, iat, ib, stat
-   LOGICAL                                  :: failure
-   REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: scal
+    INTEGER                                  :: iat, ib
+    LOGICAL                                  :: failure
 
    failure=.FALSE.
 
@@ -1042,9 +1040,9 @@ SUBROUTINE normalmode_env_create(normalmode_env,normalmode_section,p,kT,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, i,j, k, li
+    INTEGER                                  :: i, j, k, li, stat
     LOGICAL                                  :: failure
-    REAL(kind=dp),DIMENSION(p)               :: lambda
+    REAL(kind=dp), DIMENSION(p)              :: lambda
 
   failure=.FALSE.
 
@@ -1254,13 +1252,11 @@ SUBROUTINE normalmode_x2u(normalmode_env,ux,x,error)
       INTENT(out)                            :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: x
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_x2u', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, s
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -1432,13 +1428,12 @@ END SUBROUTINE staging_u2x
 !!
 !!*** **********************************************************************
 SUBROUTINE normalmode_u2x(normalmode_env,ux,x,error)
-    TYPE(normalmode_env_type), POINTER          :: normalmode_env
+    TYPE(normalmode_env_type), POINTER       :: normalmode_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in)                             :: ux
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(out)                            :: x
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_u2x', &
       routineP = moduleN//':'//routineN
@@ -1733,7 +1728,7 @@ SUBROUTINE pint_calc_uf_h(pint_env,e_h,error)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_uf_h', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -1789,10 +1784,7 @@ END SUBROUTINE pint_calc_uf_h
 !!*** **********************************************************************
 SUBROUTINE staging_calc_uf_h(staging_env,mass_beads,ux,uf_h,e_h,error)
     TYPE(staging_env_type), POINTER          :: staging_env
-    REAL(kind=dp), DIMENSION(:, :), &
-      POINTER                                :: mass_beads, ux
-    REAL(kind=dp), DIMENSION(:, :), &
-      POINTER                                :: uf_h
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: mass_beads, ux, uf_h
     REAL(KIND=dp), INTENT(OUT)               :: e_h
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1868,18 +1860,14 @@ END SUBROUTINE staging_calc_uf_h
 !!*** **********************************************************************
 SUBROUTINE normalmode_calc_uf_h(normalmode_env,mass_beads,ux,uf_h,e_h,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
-    REAL(kind=dp), DIMENSION(:, :), &
-      POINTER                                :: mass_beads, ux
-    REAL(kind=dp), DIMENSION(:, :), &
-      POINTER                                :: uf_h
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: mass_beads, ux, uf_h
     REAL(KIND=dp), INTENT(OUT)               :: e_h
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_calc_uf_h', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idim, ibead
+    INTEGER                                  :: ibead, idim
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: f
 
@@ -1944,7 +1932,6 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
 
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: res
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_x
 
   failure=.FALSE.
@@ -2083,16 +2070,16 @@ SUBROUTINE pint_calc_e_kin_beads_u(pint_env,uv,e_k,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(in), OPTIONAL, TARGET           :: uv
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: e_k
     TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(kind=dp), OPTIONAL, INTENT(out)     :: e_k
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_uv
     REAL(kind=dp)                            :: res
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_uv
 
   failure=.FALSE.
 
@@ -2139,15 +2126,15 @@ END SUBROUTINE pint_calc_e_kin_beads_u
 !!*** **********************************************************************
 SUBROUTINE pint_calc_e_vir(pint_env,e_vir,error)
     TYPE(pint_env_type), POINTER             :: pint_env
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: e_vir
     TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(kind=dp), OPTIONAL, INTENT(out)     :: e_vir
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_vir', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: xcentroid, res
+    REAL(kind=dp)                            :: res, xcentroid
 
   failure=.FALSE.
 
@@ -2415,8 +2402,9 @@ SUBROUTINE pint_write_centroids(pint_env,error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: ext, form, title
-    INTEGER                                  :: i_form, iat, ib, idim, idir, &
-                                                ierr, iter, unit_nr, handle
+    INTEGER                                  :: handle, i_form, iat, ib, &
+                                                idim, idir, ierr, iter, &
+                                                unit_nr
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: nb, ss, ss2
     TYPE(cell_type), POINTER                 :: cell
@@ -2528,13 +2516,13 @@ SUBROUTINE pint_write_ener(pint_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iter, unit_nr, ierr, handle
+    INTEGER                                  :: handle, ierr, iter, unit_nr
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: cons, t, used_time, temp
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key
-    TYPE(f_env_type), POINTER                :: f_env
+    REAL(kind=dp)                            :: cons, t, temp, used_time
     TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(section_vals_type), POINTER         :: print_key
 
   failure=.FALSE.
 
@@ -2807,16 +2795,14 @@ SUBROUTINE pint_write_restart(pint_env,force,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_restart', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, ibead, idim, ierr, &
+                                                inos, unit_nr
     LOGICAL                                  :: failure
-    INTEGER                                  :: i, handle, unit_nr, ierr
-    INTEGER                                  :: idim, ibead, inos
-    REAL(KIND=dp)                            :: econs
-
-    TYPE(section_vals_type), POINTER         :: input, sec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
+    TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(cp_error_type)                      :: new_error
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
+    TYPE(section_vals_type), POINTER         :: input, sec
 
   failure=.FALSE.
 

@@ -96,8 +96,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
     REAL(KIND=dp), OPTIONAL                  :: strength
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
       routineP = moduleN//':'//routineN
@@ -212,8 +211,7 @@ CONTAINS
     REAL(kind=dp)                            :: energy
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     LOGICAL                                  :: just_energy
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_restraint', &
       routineP = moduleN//':'//routineN

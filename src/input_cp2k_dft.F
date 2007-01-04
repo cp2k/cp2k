@@ -2639,8 +2639,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_hf_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_section', &
       routineP = moduleN//':'//routineN

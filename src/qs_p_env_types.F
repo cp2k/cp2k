@@ -191,8 +191,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE p_env_retain(p_env,error)
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_retain', &
       routineP = moduleN//':'//routineN
@@ -241,8 +240,7 @@ END SUBROUTINE p_env_retain
   SUBROUTINE p_env_release(p_env, error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
       routineP = moduleN//':'//routineN
@@ -359,8 +357,7 @@ END SUBROUTINE p_env_retain
     TYPE(qs_p_env_type), POINTER             :: p_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write', &
       routineP = moduleN//':'//routineN

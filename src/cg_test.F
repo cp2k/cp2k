@@ -48,8 +48,7 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE clebsch_gordon_test (error)
 
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: l = 7
 

@@ -209,8 +209,7 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_kg_env', &
       routineP = moduleN//':'//routineN
@@ -288,8 +287,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -377,8 +375,7 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_kg_env', &
       routineP = moduleN//':'//routineN
@@ -548,8 +545,7 @@ CONTAINS
 SUBROUTINE kg_env_create(kg_env,para_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
       routineP = moduleN//':'//routineN
@@ -590,8 +586,7 @@ END SUBROUTINE kg_env_create
 !***************************************************************************
 SUBROUTINE kg_env_retain(kg_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_retain', &
       routineP = moduleN//':'//routineN
@@ -632,8 +627,7 @@ END SUBROUTINE kg_env_retain
 !!*** **********************************************************************
 SUBROUTINE kg_env_release(kg_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_release', &
       routineP = moduleN//':'//routineN

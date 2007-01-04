@@ -63,9 +63,9 @@ MODULE qs_loc_utils
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, &
-       get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
-       neighbor_list_type, neighbor_node_type, next
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
@@ -118,8 +118,7 @@ CONTAINS
       POINTER                                :: zij_fm_set
     TYPE(cp_fm_type), POINTER                :: vectors
     INTEGER                                  :: sweeps
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotation_pipek', &
       routineP = moduleN//':'//routineN
@@ -253,8 +252,7 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: zij_fm_set
     REAL(dp), INTENT(OUT)                    :: tolerance
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iatom, istat, istate, jstate, &
                                                 natom, ncol_local, &
@@ -338,8 +336,7 @@ CONTAINS
       POINTER                                :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, OPTIONAL                        :: onlyspin1
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
       routineP = moduleN//':'//routineN
@@ -573,8 +570,7 @@ END SUBROUTINE qs_loc_env_init
 ! globals
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
       routineP = moduleN//':'//routineN

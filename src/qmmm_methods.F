@@ -35,14 +35,13 @@ MODULE qmmm_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE input_constants,                 ONLY: do_qmmm_gauss,&
+  USE input_constants,                 ONLY: do_par_atom,&
+                                             do_qmmm_gauss,&
                                              do_qmmm_grid,&
                                              do_qmmm_none,&
                                              linear_interp,&
                                              spline3_nopbc_interp,&
-                                             spline3_pbc_interp,&
-                                             do_par_grid,&
-                                             do_par_atom
+                                             spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -127,8 +126,7 @@ CONTAINS
       POINTER                                :: mm_particles
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces', &
       routineP = moduleN//':'//routineN
@@ -369,8 +367,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: dvol
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid', &
       routineP = moduleN//':'//routineN
@@ -453,8 +450,7 @@ CONTAINS
       POINTER                                :: Potentials
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid_low', &
       routineP = moduleN//':'//routineN
@@ -596,8 +592,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: interp_section
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian', &
       routineP = moduleN//':'//routineN
@@ -796,17 +791,16 @@ CONTAINS
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: per_potentials
     INTEGER, INTENT(IN)                      :: iw, par_scheme
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'qmmm_force_with_gaussian_low', &
-      routineNb= 'qmmm_forces_gaussian_low', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_force_with_gaussian_low', &
+      routineNb = 'qmmm_forces_gaussian_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, IGauss, ilevel, &
-                                                Imm, IndMM, IRadTyp, handle2,&
-                                                LIndMM, n_rep_real(3), stat, myind
+    INTEGER                                  :: handle, handle2, IGauss, &
+                                                ilevel, Imm, IndMM, IRadTyp, &
+                                                LIndMM, myind, n_rep_real(3), &
+                                                stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvol, height, W
@@ -987,15 +981,14 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LG', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, ij3, ij4, ik1, ik2, &
       ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_i, my_j, my_k, &
-      npts(3), stat, myind
+      myind, npts(3), stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
@@ -1395,16 +1388,15 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LR', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, Imm, IndMM, &
                                                 IRadTyp, ix, j, k, LIndMM, &
-                                                my_i, my_j, my_k, n1, n2, n3, &
-                                                stat, myind
+                                                my_i, my_j, my_k, myind, n1, &
+                                                n2, n3, stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: dr1, dr2, dr3, dvol, dx, fac, ft1, ft2, ft3, qt, r, r2, &
@@ -1414,9 +1406,9 @@ CONTAINS
       DIMENSION(:, :)                        :: LForces
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
-    TYPE(qmmm_pot_type), POINTER             :: pot
     REAL(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                             :: grid
+      POINTER                                :: grid
+    TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -1568,8 +1560,7 @@ CONTAINS
       POINTER                                :: Potentials
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_debug_forces', &
       routineP = moduleN//':'//routineN
@@ -1728,8 +1719,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: auxbas_grid
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_integrate_gf_rspace_NoPBC', &
@@ -1864,8 +1854,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_qmmm_forces_with_gauss_LG', &
@@ -1990,8 +1979,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_qmmm_forces_with_gauss_LR', &

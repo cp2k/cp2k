@@ -119,8 +119,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_force_control', &
       routineP = moduleN//':'//routineN
@@ -537,8 +536,7 @@ SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
@@ -582,8 +580,7 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zeta
     INTEGER                                  :: i, iparticle_kind, j

@@ -331,8 +331,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(tddfpt_env_type), INTENT(IN)        :: t_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'find_contributions', &
       routineP = moduleN//':'//routineN

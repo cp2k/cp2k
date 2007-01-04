@@ -98,8 +98,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lda_info', &
       routineP = moduleN//':'//routineN
@@ -211,8 +210,7 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -322,8 +320,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: pbe_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -485,8 +482,7 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
       INTENT(in)                             :: norm_drho, rho_1_3, rho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
     TYPE(section_vals_type), POINTER         :: pbe_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -1424,8 +1420,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: pbe_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -1600,8 +1595,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     TYPE(section_vals_type), POINTER         :: pbe_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_calc', &
       routineP = moduleN//':'//routineN

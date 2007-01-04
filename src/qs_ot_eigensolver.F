@@ -87,8 +87,7 @@ CONTAINS
     REAL(KIND=dp)                            :: eps_gradient
     INTEGER, INTENT(IN)                      :: iter_max
     INTEGER, INTENT(IN), OPTIONAL            :: size_ortho_space
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_eigensolver', &
       routineP = moduleN//':'//routineN

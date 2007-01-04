@@ -67,8 +67,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_coordinate_control', &
       routineP = moduleN//':'//routineN
@@ -146,15 +145,15 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_connectivity_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: first_atom, handle, i, &
                                                 imolecule, iw, last_atom, &
-                                                natom, qm_mol_num, stat, output_unit
+                                                natom, output_unit, &
+                                                qm_mol_num, stat
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
                                                 qm_molecule_index
     LOGICAL                                  :: detected_link, failure, ionode

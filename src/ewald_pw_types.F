@@ -98,8 +98,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE ewald_pw_retain(ewald_pw,error)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_retain', &
       routineP = moduleN//':'//routineN
@@ -131,8 +130,7 @@ SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, force_env_sect
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_create', &
       routineP = moduleN//':'//routineN
@@ -174,8 +172,7 @@ END SUBROUTINE ewald_pw_create
 
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_release', &
       routineP = moduleN//':'//routineN
@@ -230,8 +227,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
       routineP = moduleN//':'//routineN
@@ -426,8 +422,7 @@ END SUBROUTINE ewald_pw_init
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_set', &
       routineP = moduleN//':'//routineN

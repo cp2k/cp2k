@@ -108,8 +108,7 @@ CONTAINS
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     INTEGER, INTENT(in)                      :: nbuffer
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_create', &
       routineP = moduleN//':'//routineN
@@ -178,8 +177,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     INTEGER, INTENT(IN)                      :: nspin
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -317,8 +315,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: s_matrix
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: roks
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step', &
       routineP = moduleN//':'//routineN
@@ -650,8 +647,7 @@ CONTAINS
   SUBROUTINE qs_diis_b_clear(diis_buffer,error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_clear', &
       routineP = moduleN//':'//routineN

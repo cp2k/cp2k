@@ -271,8 +271,7 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: matrix_b
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: beta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_scale_and_add', &
       routineP = moduleN//':'//routineN
@@ -497,8 +496,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_real_matrix_block', &
       routineP = moduleN//':'//routineN
@@ -610,8 +608,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_1d_block_node', &
       routineP = moduleN//':'//routineN
@@ -912,9 +909,10 @@ END SUBROUTINE cp_sm_scale_and_add
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE copy_local_sm_to_replicated_fm (MODULE sparse_matrix_types)"
 
-    INTEGER                                  :: iblock_col, iblock_row, icol, &
-                                                icol_block, irow, irow_block, &
-                                                istat, ncol, nrow, handle
+    INTEGER                                  :: handle, iblock_col, &
+                                                iblock_row, icol, icol_block, &
+                                                irow, irow_block, istat, &
+                                                ncol, nrow
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
 
@@ -2244,8 +2242,7 @@ END SUBROUTINE cp_sm_scale_and_add
   SUBROUTINE transfer_real_matrix(source_matrix,target_matrix ,error)
 
     TYPE(real_matrix_type), POINTER          :: source_matrix, target_matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_real_matrix', &
       routineP = moduleN//':'//routineN
@@ -2345,8 +2342,7 @@ END SUBROUTINE cp_sm_scale_and_add
   SUBROUTINE remove_real_matrix_block(matrix,block_row, block_col, error)
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(in)                      :: block_row, block_col
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'remove_real_matrix_block', &
       routineP = moduleN//':'//routineN
@@ -2468,8 +2464,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !!*** **********************************************************************
 FUNCTION cp_sm_get_id_nr(matrix,error) RESULT(res)
     TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_get_id_nr', &
@@ -2520,8 +2515,7 @@ END FUNCTION cp_sm_get_id_nr
 SUBROUTINE cp_sm_set(matrix,name,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_set', &
       routineP = moduleN//':'//routineN
@@ -2571,8 +2565,7 @@ END SUBROUTINE cp_sm_set
 SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_get_block_list', &
       routineP = moduleN//':'//routineN
@@ -2647,8 +2640,7 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), INTENT(out)               :: maxabsval
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_maxabsval', &
       routineP = moduleN//':'//routineN
@@ -2724,8 +2716,7 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), INTENT(out)               :: trace
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_scalar', &
       routineP = moduleN//':'//routineN
@@ -2828,8 +2819,7 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
     TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_vector', &
       routineP = moduleN//':'//routineN

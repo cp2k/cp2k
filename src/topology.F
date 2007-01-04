@@ -305,18 +305,19 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: map0 = ICHAR("0"), &
+                                                map9 = ICHAR("9")
 
     CHARACTER(len=default_string_length)     :: element0, filename, my_element
     CHARACTER(len=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: elements
-    INTEGER                                  :: handle, handle2, i, j, k, i_rep, &
-                                                id, imol, iw, n_rep, nmol, stat, itmp
+    INTEGER                                  :: handle, handle2, i, i_rep, &
+                                                id, imol, itmp, iw, j, k, &
+                                                n_rep, nmol, stat
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
-    INTEGER, PARAMETER                       :: map0 = ICHAR("0"),&
-                                                map9 = ICHAR("9")
-    
+
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

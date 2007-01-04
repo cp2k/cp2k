@@ -101,7 +101,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     REAL(KIND=dp)                            :: cutoff, ecut
     TYPE(cell_type), POINTER                 :: box_s, unit_box

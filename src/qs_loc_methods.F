@@ -128,8 +128,7 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
       routineP = moduleN//':'//routineN
@@ -290,8 +289,7 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
       routineP = moduleN//':'//routineN
@@ -377,8 +375,7 @@ CONTAINS
       POINTER                                :: zij_fm_set
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
       routineP = moduleN//':'//routineN
@@ -523,8 +520,7 @@ CONTAINS
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
       routineP = moduleN//':'//routineN
@@ -679,8 +675,7 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section
     LOGICAL, INTENT(IN), OPTIONAL            :: onlyspin1
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
@@ -850,8 +845,7 @@ CONTAINS
     CHARACTER(LEN=*)                         :: root
     INTEGER, INTENT(IN), OPTIONAL            :: iter, ispin, idir
     INTEGER, OPTIONAL                        :: stride, state0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
       routineP = moduleN//':'//routineN

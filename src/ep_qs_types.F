@@ -117,8 +117,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE ep_qs_retain(ep_qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_retain', &
       routineP = moduleN//':'//routineN
@@ -157,8 +156,7 @@ END SUBROUTINE ep_qs_retain
 !!*** **********************************************************************
 SUBROUTINE ep_qs_release(ep_qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_release', &
       routineP = moduleN//':'//routineN
@@ -210,8 +208,7 @@ SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: dH_coeffs_ptr, dS_coeffs_ptr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_set', &
       routineP = moduleN//':'//routineN

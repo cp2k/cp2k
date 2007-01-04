@@ -142,8 +142,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
@@ -225,8 +224,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd', &
       routineP = moduleN//':'//routineN
@@ -600,8 +598,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug', &
       routineP = moduleN//':'//routineN
@@ -922,8 +919,7 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     LOGICAL, INTENT(in)                      :: needs_basic_components
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create', &
       routineP = moduleN//':'//routineN
@@ -1015,8 +1011,7 @@ END SUBROUTINE xc_rho_set_and_dset_create
     REAL(kind=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: e_0
     REAL(kind=dp), INTENT(in), OPTIONAL      :: e_0_scale_factor
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'smooth_cutoff', &
       routineP = moduleN//':'//routineN
@@ -1222,8 +1217,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create', &
@@ -1238,8 +1232,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: dealloc_pw_to_deriv, failure, &
-                                                has_tau, lsd, zero_result, &
-                                                use_virial
+                                                has_tau, lsd, use_virial, &
+                                                zero_result
     REAL(KIND=dp)                            :: density_smooth_cut_range, &
                                                 drho_cutoff, my_rho, ndr, &
                                                 rho_cutoff
@@ -1253,8 +1247,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
     TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv, pw_to_deriv_rho
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, vxc_g, &
-                                                virial_pw
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, &
+                                                virial_pw, vxc_g
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -1937,8 +1931,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: exc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_exc_calc', &
@@ -2046,8 +2039,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
     REAL(kind=dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: vxg
     REAL(kind=dp), INTENT(in), OPTIONAL      :: tddfpt_fac
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
       routineP = moduleN//':'//routineN
@@ -3137,8 +3129,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
       routineP = moduleN//':'//routineN
@@ -3188,8 +3179,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho', &
       routineP = moduleN//':'//routineN

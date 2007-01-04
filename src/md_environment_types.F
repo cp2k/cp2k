@@ -105,7 +105,8 @@ CONTAINS
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj_info
     REAL(KIND=dp), OPTIONAL, POINTER         :: t
     INTEGER, OPTIONAL, POINTER               :: md_approach_nr, accepted_md
-    LOGICAL, OPTIONAL                        :: init, init_force, init_traj, init_vel
+    LOGICAL, OPTIONAL                        :: init, init_force, init_traj, &
+                                                init_vel
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
       routineP = moduleN//':'//routineN
@@ -146,8 +147,7 @@ CONTAINS
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', &
       routineP = moduleN//':'//routineN
@@ -229,8 +229,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE md_env_retain(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_retain', &
       routineP = moduleN//':'//routineN
@@ -271,8 +270,7 @@ END SUBROUTINE md_env_retain
 !!*** **********************************************************************
 SUBROUTINE md_env_release(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
@@ -349,14 +347,15 @@ END SUBROUTINE md_env_release
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
+    LOGICAL, OPTIONAL                        :: init, init_force, init_vel, &
+                                                init_traj
     TYPE(cp_error_type), INTENT(inout)       :: error
-    LOGICAL, OPTIONAL :: init, init_force, init_vel, init_traj
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    
+
     IF ( PRESENT (init)) md_env%init = init
     IF ( PRESENT (init_force)) md_env%init_force = init_force
     IF ( PRESENT (init_traj)) md_env%init_traj = init_traj

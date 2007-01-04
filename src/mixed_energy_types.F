@@ -57,7 +57,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mixed_energy_type), POINTER          :: mixed_energy
+    TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE allocate_mixed_energy (MODULE mixed_energy_types)"
@@ -85,10 +85,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mixed_energy_type), POINTER          :: mixed_energy
+    TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_mixed_energy (MODULE mixed_energy_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine = &
+      "SUBROUTINE deallocate_mixed_energy (MODULE mixed_energy_types)"
 
     INTEGER                                  :: istat
 
@@ -114,7 +114,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mixed_energy_type), POINTER          :: mixed_energy
+    TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_mixed_energy (MODULE mixed_energy_types)"

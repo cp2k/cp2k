@@ -75,8 +75,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_env_create', &
       routineP = moduleN//':'//routineN
@@ -202,8 +201,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE mc_env_retain(mc_env, error)
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_retain', &
       routineP = moduleN//':'//routineN
@@ -244,8 +242,7 @@ END SUBROUTINE mc_env_retain
 !!*** **********************************************************************
 SUBROUTINE mc_env_release(mc_env, error)
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_release', &
       routineP = moduleN//':'//routineN

@@ -91,8 +91,7 @@ CONTAINS
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: xa_parameter, scaling
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp)                            :: my_scaling, my_xparam
 
@@ -147,8 +146,7 @@ ELSE
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: xa_parameter
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -222,8 +220,7 @@ ELSE
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: xa_parameter
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lsd_eval', &
       routineP = moduleN//':'//routineN

@@ -656,8 +656,7 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_rho0_info'
 

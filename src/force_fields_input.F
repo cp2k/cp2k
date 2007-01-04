@@ -50,26 +50,18 @@ MODULE force_fields_input
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE pair_potential_types,            ONLY: b4_type,&
-                                             gp_type,&
-                                             bm_type,&
-                                             ea_type,&
-                                             eam_pot_type,&
-                                             ft_type,&
-                                             gw_type,&
-                                             ip_type,&
-                                             lj_charmm_type,&
-                                             pair_potential_p_type,&
-                                             pair_potential_reallocate,&
-                                             pair_potential_single_type,&
-                                             wl_type
+  USE pair_potential_types,            ONLY: &
+       b4_type, bm_type, ea_type, eam_pot_type, ft_type, gp_type, gw_type, &
+       ip_type, lj_charmm_type, pair_potential_p_type, &
+       pair_potential_reallocate, pair_potential_single_type, wl_type
   USE physcon,                         ONLY: bohr
-  USE string_utilities,                ONLY: uppercase, compress
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -116,15 +108,15 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nbends, nbmhft, nbonds, nchg, &
-                                                neam, nb4, nbm, ngd, nipbv, nlj, ntors, &
-                                                ntot, nubs, nwl, ngp
+    INTEGER                                  :: nb4, nbends, nbm, nbmhft, &
+                                                nbonds, nchg, neam, ngd, ngp, &
+                                                nipbv, nlj, ntors, ntot, &
+                                                nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -475,8 +467,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_section', &
       routineP = moduleN//':'//routineN
@@ -521,8 +512,7 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_lj_section', &
       routineP = moduleN//':'//routineN
@@ -571,8 +561,7 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_wl_section', &
       routineP = moduleN//':'//routineN
@@ -622,8 +611,7 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gd_section', &
       routineP = moduleN//':'//routineN
@@ -677,8 +665,7 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ipbv_section', &
       routineP = moduleN//':'//routineN
@@ -723,15 +710,14 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bmhft_section', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items, i
+    INTEGER                                  :: i, isec, n_items
     REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -782,20 +768,18 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_b4_section', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, istat, n_items
-    INTEGER                                  :: i, ir, n_rep, np1, np2
+    INTEGER                                  :: i, ir, isec, istat, n_items, &
+                                                n_rep, np1, np2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, c, r1, r2, r3, rcut
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff1, coeff2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: list
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff1, coeff2, list
 
     failure = .FALSE.
     NULLIFY(coeff1,coeff2)
@@ -883,20 +867,19 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gp_section', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names, parameters,&
-                                                variables, fun
-    INTEGER                                  :: isec, n_items
-    INTEGER                                  :: n_rep, idim, stat,i
+      DIMENSION(:), POINTER                  :: atm_names, fun, parameters, &
+                                                variables
+    INTEGER                                  :: i, idim, isec, n_items, &
+                                                n_rep, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: values
-    REAL(KIND=dp) :: rcut
+    REAL(KIND=dp)                            :: rcut
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: values
 
     failure = .FALSE.
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -905,13 +888,13 @@ CONTAINS
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        CALL section_vals_val_get(section,"FUNCTION",i_rep_section=isec,c_vals=fun,error=error)
        CALL section_vals_val_get(section,"PARAMETERS",n_rep_val=n_rep,i_rep_section=isec,error=error)
-       IF (n_rep /= 0) then
+       IF (n_rep /= 0) THEN
          CALL section_vals_val_get(section,"PARAMETERS",i_rep_section=isec,c_vals=parameters,error=error)
          CALL section_vals_val_get(section,"VALUES",i_rep_section=isec,r_vals=values,error=error)
          IF (ALL(parameters=="")) THEN
             NULLIFY(parameters, values)
          ELSE
-            CPPostcondition(size(values)==size(parameters),cp_failure_level,routineP,error,failure)
+            CPPostcondition(SIZE(values)==SIZE(parameters),cp_failure_level,routineP,error,failure)
          ENDIF
        ENDIF
        CALL section_vals_val_get(section,"VARIABLES",i_rep_section=isec,c_vals=variables,error=error)
@@ -975,8 +958,7 @@ CONTAINS
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bm_section', &
       routineP = moduleN//':'//routineN
@@ -984,10 +966,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items
-    INTEGER                                  :: n_rep
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a1, a2, b1, b2, c, d
-    REAL(KIND=dp)                            :: f0, r0, beta, rcut
+    REAL(KIND=dp)                            :: a1, a2, b1, b2, beta, c, d, &
+                                                f0, r0, rcut
 
     failure = .FALSE.
     CALL section_vals_get(section,n_repetition=n_items,error=error)
@@ -1044,8 +1025,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_chrg_section', &
       routineP = moduleN//':'//routineN
@@ -1087,8 +1067,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bonds_section', &
       routineP = moduleN//':'//routineN
@@ -1143,8 +1122,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bends_section', &
       routineP = moduleN//':'//routineN
@@ -1197,10 +1175,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: ub_kind, ub_a, ub_b, ub_c
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ub_k
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_r0
-    TYPE(section_vals_type), POINTER         :: section, subsection
+    TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ubs_section', &
       routineP = moduleN//':'//routineN
@@ -1208,8 +1185,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, k, n_items
-    LOGICAL                                  :: failure, explicit
+    LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
+    TYPE(section_vals_type), POINTER         :: subsection
 
     failure = .FALSE.
     NULLIFY(atm_names)
@@ -1264,8 +1242,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: torsion_m
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_torsions_section', &
       routineP = moduleN//':'//routineN
@@ -1320,8 +1297,7 @@ CONTAINS
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(section_vals_type), POINTER         :: ff_section
 
@@ -1355,8 +1331,7 @@ CONTAINS
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos', &
       routineP = moduleN//':'//routineN
@@ -1703,8 +1678,7 @@ CALL parser_release(parser,error=error)
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm', &
       routineP = moduleN//':'//routineN
@@ -2101,8 +2075,7 @@ CALL parser_release(parser,error=error)
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_data', &
       routineP = moduleN//':'//routineN

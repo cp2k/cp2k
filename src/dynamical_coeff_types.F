@@ -119,8 +119,7 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: distribution
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_create', &
       routineP = moduleN//':'//routineN
@@ -175,8 +174,7 @@ END SUBROUTINE dyn_coeff_set_create
 SUBROUTINE dyn_coeff_set_retain(dyn_coeff_set, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_retain', &
       routineP = moduleN//':'//routineN
@@ -198,8 +196,7 @@ END SUBROUTINE dyn_coeff_set_retain
 SUBROUTINE dyn_coeff_set_release(dyn_coeff_set, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_release', &
       routineP = moduleN//':'//routineN
@@ -244,8 +241,7 @@ SUBROUTINE get_dyn_coeff_set(dyn_coeff_set,distribution, coeffs_of_kind,&
     INTEGER, INTENT(out), OPTIONAL           :: ncoefs, mass_storage
     REAL(kind=dp), INTENT(OUT), OPTIONAL     :: global_mass
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_dyn_coeff_set', &
       routineP = moduleN//':'//routineN
@@ -283,8 +279,7 @@ END SUBROUTINE get_dyn_coeff_set
 SUBROUTINE dyn_coeff_create(coeffs, error)
 
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_create', &
       routineP = moduleN//':'//routineN
@@ -309,8 +304,7 @@ END SUBROUTINE dyn_coeff_create
 SUBROUTINE dyn_coeff_release(coeffs, error)
 
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_release', &
       routineP = moduleN//':'//routineN
@@ -354,8 +348,7 @@ SUBROUTINE setup_dyn_coeff(coeffs,aux_basis_set,&
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     INTEGER, INTENT(in)                      :: n_els
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_dyn_coeff', &
       routineP = moduleN//':'//routineN
@@ -394,8 +387,7 @@ SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
     INTEGER, INTENT(OUT), OPTIONAL           :: n_els, ncoef_atom, &
                                                 ncoef_of_kind, id_nr, &
                                                 ref_count
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_dyn_coeff', &
       routineP = moduleN//':'//routineN
@@ -426,8 +418,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: work_section
     LOGICAL, INTENT(IN), OPTIONAL            :: skipvel
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_initialize', &
       routineP = moduleN//':'//routineN
@@ -560,8 +551,7 @@ END SUBROUTINE dyn_coeff_set_initialize
       INTENT(INOUT)                          :: mbuffer
     TYPE(section_vals_type), POINTER         :: storage_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_masses', &
       routineP = moduleN//':'//routineN
@@ -686,8 +676,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_vel', &
       routineP = moduleN//':'//routineN

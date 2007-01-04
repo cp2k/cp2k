@@ -137,14 +137,14 @@ END SUBROUTINE m_datum
 
 ! *****************************************************************************
 
-  SUBROUTINE m_mov(source,target)
+  SUBROUTINE m_mov(source,TARGET)
 
-    CHARACTER(LEN=*), INTENT(IN)             :: source, target
+    CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
 !   ---------------------------------------------------------------------------
+!cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
 
-    !cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL rename(source(1:LEN_TRIM(source)), target(1:LEN_TRIM(target)))
+    CALL rename(source(1:LEN_TRIM(source)), TARGET(1:LEN_TRIM(TARGET)))
 
   END SUBROUTINE m_mov
 

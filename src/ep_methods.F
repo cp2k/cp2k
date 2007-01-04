@@ -216,8 +216,7 @@ CONTAINS
   SUBROUTINE ep_calculation(qs_env,globenv, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calculation', &
       routineP = moduleN//':'//routineN
@@ -429,8 +428,7 @@ CONTAINS
   SUBROUTINE print_qs_energies(qs_env,output_unit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_qs_energies', &
       routineP = moduleN//':'//routineN
@@ -814,8 +812,7 @@ CONTAINS
   SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_finish_qs_init', &
       routineP = moduleN//':'//routineN
@@ -915,8 +912,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_env_transfer_psi0(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_transfer_psi0', &
       routineP = moduleN//':'//routineN
@@ -1118,8 +1114,7 @@ CONTAINS
   SUBROUTINE stupid_solve(ep_env,eps_r,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     REAL(KIND=dp), INTENT(in)                :: eps_r
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'stupid_solve', &
       routineP = moduleN//':'//routineN
@@ -1403,8 +1398,7 @@ CONTAINS
       INTENT(in)                             :: v
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout)                          :: res
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_ep', &
       routineP = moduleN//':'//routineN
@@ -1481,8 +1475,7 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(len=*), INTENT(in)             :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write_ep_matrix', &
       routineP = moduleN//':'//routineN
@@ -1587,8 +1580,7 @@ CONTAINS
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: wf_coeff
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_localize_matrix', &
       routineP = moduleN//':'//routineN
@@ -1714,8 +1706,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE qs_check_i_alloc(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -1860,8 +1851,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_env_calc_e0(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e0', &
       routineP = moduleN//':'//routineN
@@ -2384,8 +2374,7 @@ CONTAINS
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: w_matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_w_matrix_full', &
       routineP = moduleN//':'//routineN
@@ -2461,8 +2450,7 @@ CONTAINS
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_fm_p_type), DIMENSION(:)         :: dc_dr
     INTEGER, INTENT(in)                      :: imol, iat, idir
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_dc_dr_fdiff', &
       routineP = moduleN//':'//routineN
@@ -2591,8 +2579,7 @@ CONTAINS
   !!*** *************************************************************************
   SUBROUTINE ep_calc_f_sub(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_f_sub', &
       routineP = moduleN//':'//routineN
@@ -3004,8 +2991,7 @@ CONTAINS
       DIMENSION(:, :), POINTER               :: local_sm
     CHARACTER(len=*), INTENT(in)             :: name
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: symmetry
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_local_empty_sm', &
       routineP = moduleN//':'//routineN
@@ -3103,8 +3089,7 @@ CONTAINS
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: local_sm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_local_sm', &
       routineP = moduleN//':'//routineN
@@ -3171,8 +3156,7 @@ CONTAINS
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: local_sm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_give_back_local_sm', &
       routineP = moduleN//':'//routineN
@@ -3240,8 +3224,7 @@ CONTAINS
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: local_sm
     INTEGER                                  :: ispin
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_full_to_local_sm', &
       routineP = moduleN//':'//routineN

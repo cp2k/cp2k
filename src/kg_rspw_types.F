@@ -81,8 +81,7 @@ SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
       OPTIONAL, POINTER                      :: pw_pools
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_get', &
       routineP = moduleN//':'//routineN
@@ -113,8 +112,7 @@ END SUBROUTINE kg_rspw_get
 !***************************************************************************
 SUBROUTINE kg_rspw_retain(kg_rspw,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_retain', &
       routineP = moduleN//':'//routineN
@@ -146,8 +144,7 @@ END SUBROUTINE kg_rspw_retain
 
 
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_release', &
       routineP = moduleN//':'//routineN

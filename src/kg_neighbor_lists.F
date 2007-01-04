@@ -78,8 +78,7 @@ CONTAINS
   SUBROUTINE build_kg_neighbor_lists(kg_env,para_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists'
 
@@ -115,8 +114,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists1'
 
@@ -480,8 +478,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists2'
 

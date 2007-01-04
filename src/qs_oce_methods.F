@@ -39,8 +39,7 @@ MODULE qs_oce_methods
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
-  USE qs_neighbor_list_types,          ONLY: &
-                                             reduced_3c_list_type
+  USE qs_neighbor_list_types,          ONLY: reduced_3c_list_type
   USE qs_oce_types,                    ONLY: dist_list_4oce_type,&
                                              oce_matrix_type
   USE sparse_matrix_types,             ONLY: add_1d_block_node,&
@@ -436,8 +435,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nder
     TYPE(dist_list_4oce_type), &
       DIMENSION(:), POINTER                  :: dist_list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_up_oce'
 

@@ -896,8 +896,7 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_all_potential'
 
@@ -1024,8 +1023,7 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_elp_potential'
 
@@ -1178,8 +1176,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gth_potential'
 
@@ -1636,8 +1633,7 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=20)                        :: string
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1682,8 +1678,7 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1723,8 +1718,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=20)                        :: string
     INTEGER                                  :: i, j, l

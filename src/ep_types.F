@@ -243,8 +243,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_energy_zero(ep_energy,error)
     TYPE(ep_energy_type), INTENT(out)        :: ep_energy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_energy_zero', &
       routineP = moduleN//':'//routineN
@@ -281,8 +280,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_env_retain(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_retain', &
       routineP = moduleN//':'//routineN
@@ -324,8 +322,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_env_release(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_release', &
       routineP = moduleN//':'//routineN
@@ -429,8 +426,7 @@ CONTAINS
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: at2sub
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_get', &
       routineP = moduleN//':'//routineN
@@ -501,8 +497,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_create', &
       routineP = moduleN//':'//routineN
@@ -609,8 +604,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_envs_add_ep_env(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_add_ep_env', &
       routineP = moduleN//':'//routineN
@@ -673,8 +667,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_envs_rm_ep_env(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_rm_ep_env', &
       routineP = moduleN//':'//routineN
@@ -731,8 +724,7 @@ CONTAINS
   SUBROUTINE ep_env_calc_e_f(ep_env,calc_f,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     LOGICAL, INTENT(in)                      :: calc_f
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e_f', &
       routineP = moduleN//':'//routineN
@@ -777,8 +769,7 @@ CONTAINS
   SUBROUTINE ep_dealloc_local_sm(local_sm,error)
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: local_sm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_dealloc_local_sm', &
       routineP = moduleN//':'//routineN
@@ -826,8 +817,7 @@ CONTAINS
   SUBROUTINE ep_force_create(force,nat,error)
     TYPE(ep_force_type), POINTER             :: force
     INTEGER, INTENT(in)                      :: nat
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_create', &
       routineP = moduleN//':'//routineN
@@ -873,8 +863,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_force_zero(force,error)
     TYPE(ep_force_type), POINTER             :: force
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_zero', &
       routineP = moduleN//':'//routineN
@@ -912,8 +901,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_force_retain(force,error)
     TYPE(ep_force_type), POINTER             :: force
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_retain', &
       routineP = moduleN//':'//routineN
@@ -951,8 +939,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE ep_force_release(force,error)
     TYPE(ep_force_type), POINTER             :: force
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_release', &
       routineP = moduleN//':'//routineN

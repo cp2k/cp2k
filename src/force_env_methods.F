@@ -25,9 +25,9 @@
 MODULE force_env_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cell_types,                      ONLY: cell_type
-  USE constraint,                      ONLY: shake_control,&
+  USE constraint,                      ONLY: getold,&
                                              rattle_control,&
-                                             getold
+                                             shake_control
   USE constraint_clv,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -60,19 +60,19 @@ MODULE force_env_methods
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_p_type, &
        force_env_pos_get, force_env_type, use_eip_force, use_ep_force, &
-       use_fist_force, use_kg_force, use_pol_force, use_qmmm, use_qs_force, &
-       use_prog_name,use_mixed_force
+       use_fist_force, use_kg_force, use_mixed_force, use_pol_force, &
+       use_prog_name, use_qmmm, use_qs_force
   USE fp_methods,                      ONLY: fp_eval
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
-  USE input_constants,                 ONLY: qs_debug_run,&
+  USE input_constants,                 ONLY: dump_xmol,&
+                                             qs_debug_run,&
                                              use_bazant_eip,&
-                                             use_lenosky_eip,&
-                                             method_names, &
-                                             dump_xmol
+                                             use_lenosky_eip
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_retain,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kg_energy,                       ONLY: kg_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_retain,&
@@ -84,22 +84,20 @@ MODULE force_env_methods
   USE kg_rspw_methods,                 ONLY: kg_rspw_rebuild
   USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
-  USE input_section_types,             ONLY: section_vals_val_get
   USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
                                              meta_env_type
-  USE mixed_energy_types,              ONLY:mixed_energy_type
-  USE mixed_environment_types,         ONLY: mixed_env_retain,&
-                                             mixed_environment_type,&
-                                             get_mixed_env,&
-                                             set_mixed_env
+  USE mixed_energy_types,              ONLY: mixed_energy_type
+  USE mixed_environment_types,         ONLY: get_mixed_env,&
+                                             mixed_env_retain,&
+                                             mixed_environment_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             write_qs_particle_coordinates,&
+                                             update_particle_set,&
                                              write_particle_coordinates,&
-                                             update_particle_set
+                                             write_qs_particle_coordinates
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
   USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
@@ -179,27 +177,26 @@ CONTAINS
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
-         consistent_energies, &
-         skip_external_control
-    TYPE(cp_error_type), INTENT(inout)  &
-         :: error
+                                                consistent_energies, &
+                                                skip_external_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nat, stat, output_unit, isubsys, print_forces
+    INTEGER                                  :: isubsys, nat, output_unit, &
+                                                print_forces, stat
     LOGICAL                                  :: energy_consistency, failure, &
-         my_skip, need_f, ionode
+                                                ionode, my_skip, need_f
     REAL(kind=dp)                            :: e_pot
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(virial_type), POINTER               :: virial
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
-
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -372,14 +369,13 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
       OPTIONAL, POINTER                      :: sub_force_env
     TYPE(qmmm_env_qm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(mixed_environment_type), OPTIONAL, &
-      POINTER                                :: mixed_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(ep_env_type), OPTIONAL, POINTER     :: ep_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(mixed_environment_type), OPTIONAL, &
+      POINTER                                :: mixed_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
       routineP = moduleN//':'//routineN
@@ -623,8 +619,7 @@ SUBROUTINE ep_create_force_env(force_env,root_section, para_env, globenv, error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_force_env', &
       routineP = moduleN//':'//routineN
@@ -676,8 +671,7 @@ END SUBROUTINE ep_create_force_env
 RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set_cell', &
       routineP = moduleN//':'//routineN
@@ -768,8 +762,7 @@ END SUBROUTINE force_env_set_cell
 RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_trasl,error)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, only_apply_trasl
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
       routineP = moduleN//':'//routineN
@@ -988,8 +981,7 @@ END SUBROUTINE qmmm_energy_and_forces
 !!*** **********************************************************************
 SUBROUTINE apply_qmmm_trasl(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
   SELECT CASE(force_env%in_use)
   CASE(use_qmmm)
@@ -1021,17 +1013,21 @@ END SUBROUTINE apply_qmmm_trasl
 !!***************************************************************************
 SUBROUTINE mixed_energy_forces(force_env,error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error    
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iparticle
+    LOGICAL                                  :: failure, need_f
+    REAL(KIND=dp)                            :: energy_ox, energy_red, lambda
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys_red, subsys_ox, subsys_mix
-    CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_force', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp)                            :: energy_red, energy_ox, lambda
-    TYPE(mixed_energy_type),POINTER:: mixed_energy
-    TYPE(particle_list_type), POINTER        :: particles_red, particles_ox, particles_mix
-    INTEGER                                  :: iparticle
-    LOGICAL                                  :: failure, need_f 
+      DIMENSION(:), POINTER                  :: subsys_mix, subsys_ox, &
+                                                subsys_red
+    TYPE(mixed_energy_type), POINTER         :: mixed_energy
+    TYPE(particle_list_type), POINTER        :: particles_mix, particles_ox, &
+                                                particles_red
     TYPE(section_vals_type), POINTER         :: force_env_section
 
     failure=.FALSE.
@@ -1114,35 +1110,32 @@ END SUBROUTINE mixed_energy_forces
 !!*** **********************************************************************
 SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
      reset,error)
-  TYPE(force_env_type), POINTER            :: force_env
-  REAL(kind=dp), INTENT(IN), OPTIONAL      :: dt
-  REAL(kind=dp), INTENT(IN)                :: shake_tol
-  INTEGER, INTENT(in), OPTIONAL            :: log_unit
-  REAL(KIND=dp), DIMENSION(:, :), &
-       INTENT(INOUT), OPTIONAL, TARGET        :: pos, vel
-  LOGICAL, INTENT(IN), OPTIONAL            :: compold, reset
-  TYPE(cp_error_type), INTENT(inout)  &
-       :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(kind=dp), INTENT(IN), OPTIONAL      :: dt
+    REAL(kind=dp), INTENT(IN)                :: shake_tol
+    INTEGER, INTENT(in), OPTIONAL            :: log_unit
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL, TARGET        :: pos, vel
+    LOGICAL, INTENT(IN), OPTIONAL            :: compold, reset
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'force_env_shake', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_shake', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, ip, isub, &
-       my_log_unit, stat, i, j
-  LOGICAL                                  :: failure, has_pos, has_vel
-  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_pos, my_vel
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(cp_subsystem_p_type), &
-       DIMENSION(:), POINTER                  :: subsys
-  TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-  TYPE(mol_new_list_type), POINTER         :: molecules
-  TYPE(particle_list_type), POINTER        :: particles
-  TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-       local_particles
-  TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-  INTEGER :: nparticle_kind, iparticle_kind, nparticle_local, iparticle_local,&
-       iparticle
-  REAL(KIND=dp) :: mydt
+    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, isub, &
+      j, my_log_unit, nparticle_kind, nparticle_local, stat
+    LOGICAL                                  :: failure, has_pos, has_vel
+    REAL(KIND=dp)                            :: mydt
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_pos, my_vel
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
 
@@ -1267,35 +1260,32 @@ END SUBROUTINE force_env_shake
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
-  TYPE(force_env_type), POINTER            :: force_env
-  REAL(kind=dp), INTENT(in), OPTIONAL      :: dt
-  REAL(kind=dp), INTENT(in)                :: shake_tol
-  INTEGER, INTENT(in), OPTIONAL            :: log_unit
-  REAL(KIND=dp), DIMENSION(:, :), &
-       INTENT(INOUT), OPTIONAL, TARGET     :: vel
-  LOGICAL, INTENT(IN), OPTIONAL            :: reset
-  TYPE(cp_error_type), INTENT(inout)  &
-       :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: dt
+    REAL(kind=dp), INTENT(in)                :: shake_tol
+    INTEGER, INTENT(in), OPTIONAL            :: log_unit
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL, TARGET        :: vel
+    LOGICAL, INTENT(IN), OPTIONAL            :: reset
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'force_env_rattle', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_rattle', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, ip, isub, &
-       my_log_unit, stat, i, j
-  LOGICAL                                  :: failure, has_vel
-  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_vel
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(cp_subsystem_p_type), &
-       DIMENSION(:), POINTER                  :: subsys
-  TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-  TYPE(mol_new_list_type), POINTER         :: molecules
-  TYPE(particle_list_type), POINTER        :: particles
-  TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-       local_particles
-  TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-  INTEGER :: nparticle_kind, iparticle_kind, nparticle_local, iparticle_local,&
-       iparticle
-  REAL(KIND=dp) :: mydt
+    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, isub, &
+      j, my_log_unit, nparticle_kind, nparticle_local, stat
+    LOGICAL                                  :: failure, has_vel
+    REAL(KIND=dp)                            :: mydt
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_vel
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
 

@@ -143,8 +143,7 @@ CONTAINS
   SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,force_env_section,error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_release', &
       routineP = moduleN//':'//routineN
@@ -209,8 +208,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env, error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_retain', &
       routineP = moduleN//':'//routineN

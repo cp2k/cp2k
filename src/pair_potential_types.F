@@ -21,8 +21,8 @@
 
 MODULE pair_potential_types
 
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE splines,                         ONLY: spline_data_copy,&
                                              spline_data_release,&
@@ -215,8 +215,7 @@ CONTAINS
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot1, pot2
     LOGICAL, INTENT(OUT)                     :: compare
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compare_pot', &
       routineP = moduleN//':'//routineN
@@ -284,8 +283,7 @@ CONTAINS
   SUBROUTINE pair_potential_single_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_create', &
       routineP = moduleN//':'//routineN
@@ -333,8 +331,7 @@ CONTAINS
   SUBROUTINE pair_potential_single_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_clean', &
       routineP = moduleN//':'//routineN
@@ -383,8 +380,7 @@ CONTAINS
   SUBROUTINE pair_potential_single_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_copy', &
       routineP = moduleN//':'//routineN
@@ -443,8 +439,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE pair_potential_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_type), POINTER       :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_copy', &
       routineP = moduleN//':'//routineN
@@ -482,8 +477,7 @@ CONTAINS
   SUBROUTINE pair_potential_single_release ( potparm, error )
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'pair_potential_single_release', &
@@ -532,8 +526,7 @@ CONTAINS
   SUBROUTINE pair_potential_pp_create ( potparm, nkinds, error )
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: nkinds
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_pp_create', &
       routineP = moduleN//':'//routineN
@@ -584,8 +577,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE pair_potential_pp_release ( potparm, error )
     TYPE(pair_potential_pp_type), POINTER    :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_pp_release', &
       routineP = moduleN//':'//routineN
@@ -632,8 +624,7 @@ CONTAINS
   SUBROUTINE pair_potential_p_create ( potparm, ndim, ub, lb, error )
     TYPE(pair_potential_p_type), POINTER     :: potparm
     INTEGER, INTENT(IN), OPTIONAL            :: ndim, ub, lb
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_p_create', &
       routineP = moduleN//':'//routineN
@@ -692,8 +683,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE pair_potential_p_release ( potparm, error )
     TYPE(pair_potential_p_type), POINTER     :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_p_release', &
       routineP = moduleN//':'//routineN
@@ -735,8 +725,7 @@ CONTAINS
   SUBROUTINE pair_potential_p_copy(source, dest, istart, iend, error)
     TYPE(pair_potential_p_type), POINTER     :: source, dest
     INTEGER, INTENT(IN), OPTIONAL            :: istart, iend
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_p_copy', &
       routineP = moduleN//':'//routineN
@@ -784,16 +773,16 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
                                                 goodwin, eam, bmhft, ipbv, &
                                                 buck4r, buckmo, gp
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ipot, lb1_old, ub1_old
-    LOGICAL                                  :: check, failure, lbmhft, lbuck4r, &
-                                                lbuckmo, leam, lgoodwin, lipbv, &
-                                                llj, llj_charmm, lwilliams, lgp
+    LOGICAL                                  :: check, failure, lbmhft, &
+                                                lbuck4r, lbuckmo, leam, &
+                                                lgoodwin, lgp, lipbv, llj, &
+                                                llj_charmm, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
@@ -939,8 +928,7 @@ CONTAINS
   SUBROUTINE pair_potential_gp_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_create', &
       routineP = moduleN//':'//routineN
@@ -977,14 +965,13 @@ CONTAINS
   SUBROUTINE pair_potential_gp_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_copy', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: idim, stat
     LOGICAL                                  :: failure
-    INTEGER :: idim, stat
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -1031,8 +1018,7 @@ CONTAINS
   SUBROUTINE pair_potential_gp_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_clean', &
       routineP = moduleN//':'//routineN
@@ -1070,8 +1056,7 @@ CONTAINS
   SUBROUTINE pair_potential_gp_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_release', &
       routineP = moduleN//':'//routineN
@@ -1117,8 +1102,7 @@ CONTAINS
   SUBROUTINE pair_potential_lj_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_create', &
       routineP = moduleN//':'//routineN
@@ -1155,8 +1139,7 @@ CONTAINS
   SUBROUTINE pair_potential_lj_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_copy', &
       routineP = moduleN//':'//routineN
@@ -1196,8 +1179,7 @@ CONTAINS
   SUBROUTINE pair_potential_lj_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_clean', &
       routineP = moduleN//':'//routineN
@@ -1233,8 +1215,7 @@ CONTAINS
   SUBROUTINE pair_potential_lj_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_release', &
       routineP = moduleN//':'//routineN
@@ -1272,8 +1253,7 @@ CONTAINS
   SUBROUTINE pair_potential_williams_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_williams_create', &
@@ -1311,8 +1291,7 @@ CONTAINS
   SUBROUTINE pair_potential_williams_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_williams_copy', &
       routineP = moduleN//':'//routineN
@@ -1352,8 +1331,7 @@ CONTAINS
   SUBROUTINE pair_potential_williams_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_williams_clean', &
@@ -1390,8 +1368,7 @@ CONTAINS
   SUBROUTINE pair_potential_williams_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_williams_release', &
@@ -1430,8 +1407,7 @@ CONTAINS
   SUBROUTINE pair_potential_goodwin_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_goodwin_create', &
@@ -1469,8 +1445,7 @@ CONTAINS
   SUBROUTINE pair_potential_goodwin_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_copy', &
       routineP = moduleN//':'//routineN
@@ -1512,8 +1487,7 @@ CONTAINS
   SUBROUTINE pair_potential_goodwin_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_clean', &
       routineP = moduleN//':'//routineN
@@ -1551,8 +1525,7 @@ CONTAINS
   SUBROUTINE pair_potential_goodwin_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_goodwin_release', &
@@ -1591,8 +1564,7 @@ CONTAINS
   SUBROUTINE pair_potential_eam_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_create', &
       routineP = moduleN//':'//routineN
@@ -1629,8 +1601,7 @@ CONTAINS
   SUBROUTINE pair_potential_eam_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_copy', &
       routineP = moduleN//':'//routineN
@@ -1679,8 +1650,7 @@ CONTAINS
   SUBROUTINE pair_potential_eam_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_clean', &
       routineP = moduleN//':'//routineN
@@ -1726,8 +1696,7 @@ CONTAINS
   SUBROUTINE pair_potential_eam_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_release', &
       routineP = moduleN//':'//routineN
@@ -1765,8 +1734,7 @@ CONTAINS
   SUBROUTINE pair_potential_bmhft_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_create', &
       routineP = moduleN//':'//routineN
@@ -1803,8 +1771,7 @@ CONTAINS
   SUBROUTINE pair_potential_bmhft_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_copy', &
       routineP = moduleN//':'//routineN
@@ -1845,8 +1812,7 @@ CONTAINS
   SUBROUTINE pair_potential_bmhft_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_clean', &
       routineP = moduleN//':'//routineN
@@ -1883,8 +1849,7 @@ CONTAINS
   SUBROUTINE pair_potential_bmhft_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_release', &
       routineP = moduleN//':'//routineN
@@ -1922,8 +1887,7 @@ CONTAINS
   SUBROUTINE pair_potential_ipbv_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_create', &
       routineP = moduleN//':'//routineN
@@ -1960,8 +1924,7 @@ CONTAINS
   SUBROUTINE pair_potential_ipbv_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_copy', &
       routineP = moduleN//':'//routineN
@@ -2002,8 +1965,7 @@ CONTAINS
   SUBROUTINE pair_potential_ipbv_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_clean', &
       routineP = moduleN//':'//routineN
@@ -2040,8 +2002,7 @@ CONTAINS
   SUBROUTINE pair_potential_ipbv_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_release', &
       routineP = moduleN//':'//routineN
@@ -2079,11 +2040,9 @@ CONTAINS
   SUBROUTINE pair_potential_buck4r_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_buck4r_create', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -2118,8 +2077,7 @@ CONTAINS
   SUBROUTINE pair_potential_buck4r_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_copy', &
       routineP = moduleN//':'//routineN
@@ -2166,11 +2124,9 @@ CONTAINS
   SUBROUTINE pair_potential_buck4r_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_buck4r_clean', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_clean', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -2211,8 +2167,7 @@ CONTAINS
   SUBROUTINE pair_potential_buck4r_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_buck4r_release', &
@@ -2251,11 +2206,9 @@ CONTAINS
   SUBROUTINE pair_potential_buckmo_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_buckmo_create', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -2290,8 +2243,7 @@ CONTAINS
   SUBROUTINE pair_potential_buckmo_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_copy', &
       routineP = moduleN//':'//routineN
@@ -2337,11 +2289,9 @@ CONTAINS
   SUBROUTINE pair_potential_buckmo_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_buckmo_clean', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_clean', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -2381,8 +2331,7 @@ CONTAINS
   SUBROUTINE pair_potential_buckmo_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_buckmo_release', &

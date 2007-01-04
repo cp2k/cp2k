@@ -101,8 +101,7 @@ MODULE qs_rho_atom_methods
     TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: tot_rho1_h, tot_rho1_s
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom', &
       routineP = moduleN//':'//routineN
@@ -1145,8 +1144,7 @@ MODULE qs_rho_atom_methods
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     INTEGER, INTENT(IN)                      :: iatom, ispin, nr, max_iso_not0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -1199,8 +1197,7 @@ MODULE qs_rho_atom_methods
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     INTEGER, INTENT(IN)                      :: iatom, ispin
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_rho_atom_rad', &
       routineP = moduleN//':'//routineN

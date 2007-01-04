@@ -75,8 +75,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_info', &
       routineP = moduleN//':'//routineN
@@ -169,8 +168,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -266,8 +264,7 @@ CONTAINS
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     INTEGER, INTENT(IN)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_calc', &
       routineP = moduleN//':'//routineN

@@ -81,8 +81,7 @@ CONTAINS
   SUBROUTINE cp_fm_cholesky_decompose(matrix,n,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_decompose', &
       routineP = moduleN//':'//routineN

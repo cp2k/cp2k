@@ -32,9 +32,9 @@ MODULE four_center_integrals
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE libint_interface,                ONLY: lib_int,&
-                                             evaluate_eri,&
-                                             initialize_libint
+  USE libint_interface,                ONLY: evaluate_eri,&
+                                             initialize_libint,&
+                                             lib_int
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum

@@ -176,8 +176,7 @@ CONTAINS
   SUBROUTINE scf_c_create(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_create', &
       routineP = moduleN//':'//routineN
@@ -300,8 +299,7 @@ CONTAINS
   SUBROUTINE scf_c_retain(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_retain', &
       routineP = moduleN//':'//routineN
@@ -349,8 +347,7 @@ CONTAINS
   SUBROUTINE scf_c_release(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_release', &
       routineP = moduleN//':'//routineN
@@ -402,8 +399,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: root_section, &
                                                 force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
@@ -411,8 +407,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: PARAMETER, r_vals
-    TYPE(section_vals_type), POINTER         :: harris_section, &
-                                                outer_scf_section, scf_section
+    TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section
 
 ! -------------------------------------------------------------------------
 
@@ -587,8 +582,7 @@ CONTAINS
 
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
       routineP = moduleN//':'//routineN

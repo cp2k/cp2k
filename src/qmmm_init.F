@@ -53,9 +53,9 @@ MODULE qmmm_init
                                              force_env_type
   USE force_field_types,               ONLY: input_info_type
   USE force_fields_input,              ONLY: read_gd_section,&
+                                             read_gp_section,&
                                              read_lj_section,&
-                                             read_wl_section,&
-                                             read_gp_section
+                                             read_wl_section
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: qmmm_header
   USE input_constants,                 ONLY: &
@@ -129,8 +129,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_create_force_env', &
       routineP = moduleN//':'//routineN
@@ -454,8 +453,7 @@ CONTAINS
                                                 mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms
     REAL(dp), DIMENSION(:), POINTER          :: mm_link_scale_factor
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: I, ilink, IndMM
     REAL(dp)                                 :: qi, rc, ri
@@ -527,8 +525,7 @@ CONTAINS
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(IN)                      :: nocompatibility
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: I, ind1, ind2, IndMM, iw
     REAL(KIND=dp)                            :: qi, qtot, rc, ri
@@ -611,8 +608,7 @@ CONTAINS
  SUBROUTINE print_qmmm_links( qmmm_section, qmmm_links, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, iw, mm_index, qm_index
     REAL(KIND=dp)                            :: alpha
@@ -687,8 +683,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type', &
       routineP = moduleN//':'//routineN
@@ -780,8 +775,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
    CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                             mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
@@ -843,8 +837,7 @@ CONTAINS
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp)                            :: maxchrg
 
@@ -928,8 +921,7 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     REAL(KIND=dp), INTENT(OUT)               :: eps_mm_rspace
     LOGICAL, INTENT(OUT)                     :: qmmm_link
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm', &
       routineP = moduleN//':'//routineN
@@ -1102,8 +1094,7 @@ CPSourceFileRef,&
                                                 fist_scale_charge_link
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     LOGICAL, INTENT(OUT)                     :: qmmm_link
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm', &
       routineP = moduleN//':'//routineN
@@ -1157,16 +1148,16 @@ CPSourceFileRef,&
   SUBROUTINE read_qmmm_ff_section(qmmm_ff_section, inp_info, error)
     TYPE(section_vals_type), POINTER         :: qmmm_ff_section
     TYPE(input_info_type), POINTER           :: inp_info
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: n_gd, n_lj, n_wl, np, n_gp
-    TYPE(section_vals_type), POINTER         :: gd_section, lj_section, &
-                                                wl_section, gp_section
+    INTEGER                                  :: n_gd, n_gp, n_lj, n_wl, np
+    TYPE(section_vals_type), POINTER         :: gd_section, gp_section, &
+                                                lj_section, wl_section
 
-    !
-    ! NONBONDED
-    !
+!
+! NONBONDED
+!
+
     lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES",error=error)
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
@@ -1264,8 +1255,7 @@ CPSourceFileRef,&
     LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm_link
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: fist_scale_charge_link
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qm_atom_list', &
       routineP = moduleN//':'//routineN
@@ -1437,8 +1427,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links', &
       routineP = moduleN//':'//routineN
@@ -1585,8 +1574,7 @@ CPSourceFileRef,&
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'move_or_add_atoms', &
       routineP = moduleN//':'//routineN
@@ -1728,8 +1716,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(in), OPTIONAL            :: move
     INTEGER, INTENT(OUT), OPTIONAL           :: ind1
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_add_set_type', &
       routineP = moduleN//':'//routineN
@@ -1797,8 +1784,7 @@ CPSourceFileRef,&
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: dr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell', &
       routineP = moduleN//':'//routineN

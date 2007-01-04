@@ -96,8 +96,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_overlap_matrix'
 
@@ -492,8 +491,7 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:)         :: sint
     REAL(KIND=dp), DIMENSION(:, :)           :: sab, work
     REAL(KIND=dp), DIMENSION(:, :, :)        :: ai_work
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, iblock, iset, jset, &
                                                 maxder, ncoa, ncob, sgfa, sgfb

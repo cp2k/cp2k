@@ -84,8 +84,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: qmmm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mm_potential', &
       routineP = moduleN//':'//routineN
@@ -216,8 +215,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
     INTEGER, INTENT(IN)                      :: num_geep_gauss
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential', &
       routineP = moduleN//':'//routineN

@@ -69,8 +69,7 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_fm_syevd'
 

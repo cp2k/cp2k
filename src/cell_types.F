@@ -105,8 +105,7 @@ CONTAINS
 
   SUBROUTINE cell_clone (cell_in, cell_out, error)
     TYPE(cell_type), POINTER                 :: cell_in, cell_out
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_clone', &
       routineP = moduleN//':'//routineN
@@ -714,8 +713,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: alpha, beta, gamma
@@ -816,8 +814,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
     LOGICAL, INTENT(IN), OPTIONAL            :: orthorhombic
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
       routineP = moduleN//':'//routineN
@@ -866,8 +863,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cell_retain(cell,error)
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain', &
       routineP = moduleN//':'//routineN
@@ -909,8 +905,7 @@ END SUBROUTINE cell_retain
 !!*** **********************************************************************
 SUBROUTINE cell_release(cell,error)
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', &
       routineP = moduleN//':'//routineN

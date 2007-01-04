@@ -89,8 +89,7 @@ CONTAINS
 SUBROUTINE  debug_control ( force_env, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ewald_type, group, i, iatom, &
                                                 ir, isos, iw, iwf, natoms

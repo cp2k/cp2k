@@ -180,8 +180,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, OPTIONAL                        :: max_cache
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create', &
       routineP = moduleN//':'//routineN
@@ -240,8 +239,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_pool_retain(pool,error)
     TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_retain', &
       routineP = moduleN//':'//routineN
@@ -292,8 +290,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_pool_flush_cache(pool, error)
     TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -395,8 +392,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pw_pool_release(pool,error)
     TYPE(pw_pool_type), POINTER              :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_release', &
       routineP = moduleN//':'//routineN
@@ -457,8 +453,8 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION try_pop(list,error) RESULT(res)
     TYPE(cp_sll_pw_type), POINTER            :: list
-    TYPE(pw_type), POINTER                   :: res
     TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(pw_type), POINTER                   :: res
 
     IF (ASSOCIATED(list)) THEN
        res => cp_sll_pw_get_first_el(list,error=error)
@@ -504,8 +500,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create_pw', &
       routineP = moduleN//':'//routineN
@@ -639,8 +634,7 @@ CPSourceFileRef,&
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_type), POINTER                   :: pw
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw', &
       routineP = moduleN//':'//routineN
@@ -823,8 +817,7 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
     TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create_cr3d', &
       routineP = moduleN//':'//routineN
@@ -908,8 +901,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_cr3d', &
       routineP = moduleN//':'//routineN
@@ -1008,8 +1000,7 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_init_coeff', &
       routineP = moduleN//':'//routineN
@@ -1058,8 +1049,7 @@ SUBROUTINE pw_pool_give_back_coeff(pool,coeff,accept_non_compatible,error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(coeff_type), INTENT(INOUT)          :: coeff
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_coeff', &
       routineP = moduleN//':'//routineN
@@ -1112,8 +1102,7 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
     INTEGER, INTENT(in)                      :: use_data
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     INTEGER, INTENT(in), OPTIONAL            :: in_space
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_create_pws', &
       routineP = moduleN//':'//routineN
@@ -1164,8 +1153,7 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: pws
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_pws', &
       routineP = moduleN//':'//routineN
@@ -1225,8 +1213,7 @@ SUBROUTINE pw_pools_init_coeffs(pools, coeffs, use_data,&
     INTEGER, INTENT(in)                      :: use_data
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     INTEGER, INTENT(in), OPTIONAL            :: in_space
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_init_coeffs', &
       routineP = moduleN//':'//routineN
@@ -1275,8 +1262,7 @@ SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(coeff_type), DIMENSION(:), POINTER  :: coeffs
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_coeffs', &
       routineP = moduleN//':'//routineN
@@ -1323,8 +1309,7 @@ END SUBROUTINE pw_pools_give_back_coeffs
 SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_copy', &
       routineP = moduleN//':'//routineN
@@ -1375,8 +1360,7 @@ END SUBROUTINE pw_pools_copy
 SUBROUTINE pw_pools_dealloc(pools,error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_dealloc', &
       routineP = moduleN//':'//routineN
@@ -1423,8 +1407,7 @@ END SUBROUTINE pw_pools_dealloc
 SUBROUTINE pw_pools_flush_cache(pools,error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -1468,8 +1451,7 @@ END SUBROUTINE pw_pools_flush_cache
 SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER                                  :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_write', &
       routineP = moduleN//':'//routineN

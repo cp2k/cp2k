@@ -327,8 +327,7 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: density_matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, imo
 
@@ -364,8 +363,7 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: density_matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: alpha
@@ -626,8 +624,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     REAL(KIND=dp)                            :: mo_mag_min, mo_mag_max
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_magnitude'
 

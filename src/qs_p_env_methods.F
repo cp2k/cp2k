@@ -171,8 +171,7 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: orthogonal_orbitals
     TYPE(linres_control_type), OPTIONAL, &
       POINTER                                :: linres_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_create', &
       routineP = moduleN//':'//routineN
@@ -414,8 +413,7 @@ CONTAINS
   SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -502,8 +500,7 @@ CONTAINS
 SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_struct_changed, grid_changed
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_did_change', &
       routineP = moduleN//':'//routineN
@@ -593,8 +590,7 @@ END SUBROUTINE p_env_did_change
       OPTIONAL, POINTER                      :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout), OPTIONAL                :: Hrho_psi0d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed', &
       routineP = moduleN//':'//routineN
@@ -863,8 +859,7 @@ END SUBROUTINE p_env_did_change
       INTENT(in)                             :: v
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout)                          :: res
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1', &
       routineP = moduleN//':'//routineN
@@ -935,8 +930,7 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: spin
     TYPE(cp_fm_type), POINTER                :: v, res
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin', &
       routineP = moduleN//':'//routineN
@@ -1040,8 +1034,7 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: res
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2', &
       routineP = moduleN//':'//routineN
@@ -1152,8 +1145,7 @@ END SUBROUTINE p_env_did_change
       INTENT(inout)                          :: v
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: n_cols
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_preortho', &
       routineP = moduleN//':'//routineN
@@ -1299,8 +1291,7 @@ END SUBROUTINE p_env_did_change
       INTENT(inout)                          :: v
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: n_cols
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_postortho', &
       routineP = moduleN//':'//routineN
@@ -1446,8 +1437,7 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout)                          :: res
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2_fawzi', &
       routineP = moduleN//':'//routineN

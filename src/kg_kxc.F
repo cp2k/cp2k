@@ -89,8 +89,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(out)               :: e1_xc, e2_xc
     TYPE(section_vals_type), POINTER         :: xc_section
     LOGICAL, INTENT(in)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "calc_kxc_derivatives (MODULE kg_kxc)"
@@ -149,8 +148,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: order
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_derivatives', &
       routineP = moduleN//':'//routineN

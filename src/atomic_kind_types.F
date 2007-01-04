@@ -44,12 +44,12 @@ MODULE atomic_kind_types
        write_potential
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
-                                             do_qs,&
+                                             do_method_am1,&
                                              do_method_eht,&
                                              do_method_mndo,&
-                                             do_method_am1,&
+                                             do_method_pdg,&
                                              do_method_pm3,&
-                                             do_method_pdg
+                                             do_qs
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -1038,8 +1038,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_gapw_basis_set'
 
@@ -1122,18 +1121,17 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     LOGICAL, INTENT(IN)                      :: no_fail
-    TYPE(cp_error_type), INTENT(inout)  &
-         :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-         keyword, orb_basis_set_name, potential_name, potential_type
+      keyword, orb_basis_set_name, potential_name, potential_type
     INTEGER                                  :: i, i_rep, ipos, k_rep, n_rep, &
-         naux, ngrid_ang, ngrid_rad, &
-         norb, z
+                                                naux, ngrid_ang, ngrid_rad, &
+                                                norb, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff_correction
@@ -1460,15 +1458,15 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind_set'
 
-    INTEGER                                  :: ikind, nkind, method, qs_method
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER                                  :: ikind, method, nkind, &
+                                                qs_method
     LOGICAL                                  :: no_fail
-    
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
     no_fail = .FALSE.
     ! between all methods only SE does not need a KIND section.
     ! At this stage we still don't know if we are in a SE run or not..
@@ -1506,22 +1504,20 @@ CONTAINS
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: method_name_id, z
-    LOGICAL                                  :: defined
+    LOGICAL                                  :: defined, ghost
     REAL(dp)                                 :: mass
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(semi_empirical_type), POINTER       :: se_parameter
-    LOGICAL                                  :: ghost
 
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
@@ -1585,8 +1581,7 @@ CONTAINS
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind_set'
 
@@ -1720,8 +1715,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind', &
       routineP = moduleN//':'//routineN
@@ -1791,8 +1785,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind_set', &
       routineP = moduleN//':'//routineN
@@ -1846,8 +1839,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
       routineP = moduleN//':'//routineN

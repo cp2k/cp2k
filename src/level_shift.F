@@ -70,8 +70,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_rho_type)                        :: rho
     TYPE(coeff_type), POINTER                :: rho_core
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: handle, ispin, power
     REAL(KIND=dp)                            :: core_eshift, &
@@ -222,8 +221,7 @@ CONTAINS
     REAL(KIND=dp)                            :: center(3)
     INTEGER                                  :: power
     LOGICAL                                  :: ionode
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, j, k, m, n
     REAL(KIND=dp)                            :: boxl(3), dipole(3), monopole, &

@@ -36,7 +36,6 @@ MODULE restraint
                                              fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
-                                             fixd_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -76,8 +75,7 @@ CONTAINS
   SUBROUTINE restraint_control( force_env, error )
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_control', &
       routineP = moduleN//':'//routineN
@@ -239,8 +237,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_3x3', &
       routineP = moduleN//':'//routineN
@@ -305,8 +302,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_4x6', &
       routineP = moduleN//':'//routineN
@@ -388,8 +384,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv', &
       routineP = moduleN//':'//routineN
@@ -398,12 +393,12 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: k, tab, targ
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    
+
     NULLIFY(fixd_list)    
 
     failure = .FALSE.

@@ -77,11 +77,11 @@ MODULE qs_environment_types
                                              kg_sub_pw_env_retain,&
                                              kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sync
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
-  USE message_passing,              ONLY: mp_sync
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
@@ -145,7 +145,8 @@ MODULE qs_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
-  USE x_hf,                            ONLY: x_hf_type, x_hf_release
+  USE x_hf,                            ONLY: x_hf_release,&
+                                             x_hf_type
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type
@@ -480,8 +481,7 @@ CONTAINS
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -618,8 +618,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -778,8 +777,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: ecoul_1c
     TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: VH_3c_list
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
@@ -1022,8 +1020,7 @@ CONTAINS
 SUBROUTINE qs_env_create(qs_env,para_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', &
       routineP = moduleN//':'//routineN
@@ -1067,8 +1064,7 @@ END SUBROUTINE qs_env_create
 !!*** **********************************************************************
 SUBROUTINE qs_env_retain(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_retain', &
       routineP = moduleN//':'//routineN
@@ -1110,8 +1106,7 @@ END SUBROUTINE qs_env_retain
 !!*** **********************************************************************
 SUBROUTINE qs_env_release(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_release', &
       routineP = moduleN//':'//routineN
@@ -1281,7 +1276,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
           CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,qs_env%input,error=error)
         END IF
-        call mp_sync(qs_env%para_env%group)
+        CALL mp_sync(qs_env%para_env%group)
 
         !Only if do_xas_calculation
         IF(ASSOCIATED(qs_env%xas_env)) THEN
@@ -1355,8 +1350,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
     TYPE(cp_fm_type), POINTER                :: v_matrix
     INTEGER, INTENT(in)                      :: ispin
     INTEGER, INTENT(in), OPTIONAL            :: n_col
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'qs_env_reorthogonalize_vectors', &

@@ -819,8 +819,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gto_basis_set'
 
@@ -1173,8 +1172,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1248,8 +1246,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ipgf, iset, ishell
 
@@ -1291,8 +1288,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1521,8 +1517,7 @@ CONTAINS
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, OPTIONAL                        :: ngauss
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_gto_from_sto_basis'
     INTEGER, PARAMETER                       :: maxng = 6

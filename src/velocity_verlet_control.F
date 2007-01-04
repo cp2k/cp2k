@@ -71,8 +71,7 @@ SUBROUTINE velocity_verlet ( md_env, error )
 
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, in_use
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )

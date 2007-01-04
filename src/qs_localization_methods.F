@@ -426,8 +426,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
     LOGICAL, INTENT(out), OPTIONAL           :: converged
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)

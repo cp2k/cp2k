@@ -140,8 +140,7 @@ CONTAINS
   SUBROUTINE rs_grid_allocate_1 ( rs, error )
 
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_allocate_1', &
       routineP = moduleN//':'//routineN
@@ -195,8 +194,7 @@ CONTAINS
   SUBROUTINE rs_grid_deallocate_1 ( rs, error )
 
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_1', &
       routineP = moduleN//':'//routineN
@@ -230,8 +228,7 @@ CONTAINS
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_n', &
       routineP = moduleN//':'//routineN
@@ -271,8 +268,7 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
@@ -465,8 +461,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_n', &
       routineP = moduleN//':'//routineN
@@ -973,8 +968,7 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
     INTEGER, INTENT(in), OPTIONAL            :: stride
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_to_cube', &
       routineP = moduleN//':'//routineN
@@ -1055,8 +1049,7 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
     INTEGER, INTENT(in), OPTIONAL            :: stride
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, nsmax
     TYPE(realspace_grid_type), POINTER       :: rs_local
@@ -1118,8 +1111,7 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
@@ -1167,8 +1159,7 @@ END SUBROUTINE rs_grid_create
 !!*** **********************************************************************
 SUBROUTINE rs_grid_retain(rs_grid, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain', &
       routineP = moduleN//':'//routineN
@@ -1210,8 +1201,7 @@ END SUBROUTINE rs_grid_retain
 !!*** **********************************************************************
 SUBROUTINE rs_grid_release(rs_grid,error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release', &
       routineP = moduleN//':'//routineN
@@ -1264,8 +1254,7 @@ SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax,  error)
     INTEGER, INTENT(in), OPTIONAL            :: ndim
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_create', &
       routineP = moduleN//':'//routineN
@@ -1315,8 +1304,7 @@ END SUBROUTINE rs_grid_p_create
 SUBROUTINE rs_grid_p_release(rs_grid,error)
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_grid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_release', &
       routineP = moduleN//':'//routineN

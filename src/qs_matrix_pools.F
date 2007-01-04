@@ -157,8 +157,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE mpools_retain(mpools, error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_retain', &
       routineP = moduleN//':'//routineN
@@ -206,8 +205,7 @@ END SUBROUTINE mpools_retain
 !!*** **********************************************************************
 SUBROUTINE mpools_release(mpools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_release', &
       routineP = moduleN//':'//routineN
@@ -281,8 +279,7 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
       mosub_mosub_fm_pools
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: S_sm_pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_set', &
       routineP = moduleN//':'//routineN
@@ -389,8 +386,7 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
                                                 maxmo_maxmo_fm_pool
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: S_sm_pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_get', &
       routineP = moduleN//':'//routineN
@@ -463,8 +459,7 @@ END SUBROUTINE mpools_get
 !!*** **********************************************************************
 SUBROUTINE mpools_create(mpools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_create', &
       routineP = moduleN//':'//routineN
@@ -542,8 +537,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
     INTEGER, INTENT(in)                      :: nrow_block, ncol_block
     INTEGER, DIMENSION(2), INTENT(IN), &
       OPTIONAL                               :: nmosub
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_fm_pools', &
       routineP = moduleN//':'//routineN
@@ -931,8 +925,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_s_sm_pools', &
       routineP = moduleN//':'//routineN

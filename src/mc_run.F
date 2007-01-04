@@ -49,17 +49,17 @@
 
 MODULE mc_run
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_types,                 ONLY: force_env_release,&
+  USE force_env_types,                 ONLY: force_env_p_type,&
+                                             force_env_release,&
                                              force_env_type,&
-                                             force_env_p_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_val_get,&
-                                             section_vals_get,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_release,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart
@@ -69,21 +69,13 @@ MODULE mc_run
                                              mc_env_release,&
                                              mc_environment_p_type,&
                                              set_mc_env
-  USE mc_types,                        ONLY: find_mc_rcut,&
-                                             get_mc_par,&
-                                             mc_simulation_parameters_p_type,&
-                                             read_mc_section,&
-                                             set_mc_par,&
-                                             get_mc_molecule_info,&
-                                             mc_determine_molecule_info,&
-                                             mc_sim_par_create,&
-                                             mc_sim_par_destroy,&
-                                             mc_molecule_info_type,&
-                                             mc_molecule_info_destroy,&
-                                             mc_input_file_type,&
-                                             mc_input_file_create,&
-                                             mc_input_file_destroy,&
-                                             mc_input_parameters_check
+  USE mc_types,                        ONLY: &
+       find_mc_rcut, get_mc_molecule_info, get_mc_par, &
+       mc_determine_molecule_info, mc_input_file_create, &
+       mc_input_file_destroy, mc_input_file_type, mc_input_parameters_check, &
+       mc_molecule_info_destroy, mc_molecule_info_type, mc_sim_par_create, &
+       mc_sim_par_destroy, mc_simulation_parameters_p_type, read_mc_section, &
+       set_mc_par
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -137,41 +129,38 @@ CONTAINS
 
 
     TYPE(force_env_type), POINTER            :: force_env_1
-    TYPE(force_env_p_type), DIMENSION(:),POINTER &
-         :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*)                         :: input_file_name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mon_car', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=20)                        :: ensemble
     CHARACTER(LEN=40)                        :: box2_file, dat_file
-    INTEGER :: ibox, isos, iw, nboxes, &
-      istat, nmol_types,box_number
-    LOGICAL                                  :: ionode, lrestart, &
-                                                lterminate,lbias,&
-                                                lskip_box
+    INTEGER                                  :: box_number, ibox, isos, &
+                                                istat, iw, nboxes, nmol_types
+    INTEGER, DIMENSION(:), POINTER           :: nunits_tot
+    LOGICAL                                  :: ionode, lbias, lrestart, &
+                                                lskip_box, lterminate
     REAL(dp)                                 :: rcut
+    REAL(dp), DIMENSION(:, :), POINTER       :: empty_coordinates
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
     TYPE(force_env_type), POINTER            :: force_env_2
     TYPE(global_environment_type), POINTER   :: globenv_2
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
+    TYPE(mc_input_file_type), POINTER        :: mc_bias_file, mc_input_file
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mc_simulation_parameters_p_type), &
-      DIMENSION(:),POINTER                                :: mc_par
-    TYPE(mc_molecule_info_type), POINTER        :: mc_molecule_info
-    TYPE(mc_input_file_type), POINTER        :: mc_input_file,&
-         mc_bias_file
+      DIMENSION(:), POINTER                  :: mc_par
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section,&
-                                                mc_section
-    INTEGER,DIMENSION(:),POINTER             :: nunits_tot
-    REAL(dp),DIMENSION(:,:),POINTER          :: empty_coordinates
+                                                mc_section, root_section
+
 !************************************************************************
 
       NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
@@ -424,18 +413,22 @@ CONTAINS
 !!
 !!**************************************************************************
     SUBROUTINE equilize_mc_sim_parameters(mc_par,iw,ionode)
-      INTEGER,INTENT(IN) :: iw
-      LOGICAL,INTENT(IN) :: ionode
-      TYPE(mc_simulation_parameters_p_type),DIMENSION(:),POINTER :: mc_par
+    TYPE(mc_simulation_parameters_p_type), &
+      DIMENSION(:), POINTER                  :: mc_par
+    INTEGER, INTENT(IN)                      :: iw
+    LOGICAL, INTENT(IN)                      :: ionode
 
-      INTEGER :: nstep,iupvolume,iuptrans,nmoves,nswapmoves,iprint
-      REAL(dp) :: temp,pressure,pmswap,pmvolume,pmtraion,pmtrans,BETA,&
-           rcut
-      LOGICAL :: lbias,lstop,lrestart
-      INTEGER,DIMENSION(:),POINTER :: avbmc_atom
-      REAL(dp),DIMENSION(:),POINTER :: avbmc_rmin,avbmc_rmax,pbias,pmswap_mol,&
-           pmtrans_mol,pmrot_mol,pmtraion_mol,pmavbmc_mol
-      CHARACTER(20) :: ensemble
+    CHARACTER(20)                            :: ensemble
+    INTEGER                                  :: iprint, iuptrans, iupvolume, &
+                                                nmoves, nstep, nswapmoves
+    INTEGER, DIMENSION(:), POINTER           :: avbmc_atom
+    LOGICAL                                  :: lbias, lrestart, lstop
+    REAL(dp)                                 :: BETA, pmswap, pmtraion, &
+                                                pmtrans, pmvolume, pressure, &
+                                                rcut, temp
+    REAL(dp), DIMENSION(:), POINTER :: avbmc_rmax, avbmc_rmin, pbias, &
+      pmavbmc_mol, pmrot_mol, pmswap_mol, pmtraion_mol, pmtrans_mol
+
 !***********************************************************************
 
       IF(ionode) THEN

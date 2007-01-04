@@ -171,8 +171,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_release(kpp1_env,error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_release', &
       routineP = moduleN//':'//routineN
@@ -262,8 +261,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_retain(kpp1_env,error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_retain', &
       routineP = moduleN//':'//routineN
@@ -313,8 +311,7 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN

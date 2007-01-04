@@ -558,11 +558,11 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label,
     CHARACTER(len=*), PARAMETER :: routineN = 'check_restraint', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: nlabel
     INTEGER                                  :: output_unit
     LOGICAL                                  :: explicit, failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restraint_section
-    CHARACTER(LEN=default_string_length)     :: nlabel
 
   failure      = .FALSE.
   is_restraint = .FALSE.

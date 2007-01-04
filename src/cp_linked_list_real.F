@@ -275,8 +275,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in), OPTIONAL      :: first_el
     TYPE(cp_sll_real_type), OPTIONAL, &
       POINTER                                :: rest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_create', &
       routineP = moduleN//':'//routineN
@@ -329,8 +328,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_real_dealloc(sll,error)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_dealloc', &
       routineP = moduleN//':'//routineN
@@ -366,8 +364,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_real_dealloc_node(sll,error)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_dealloc_node', &
       routineP = moduleN//':'//routineN
@@ -416,8 +413,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in), OPTIONAL      :: first_el
     TYPE(cp_sll_real_type), OPTIONAL, &
       POINTER                                :: rest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_set', &
       routineP = moduleN//':'//routineN
@@ -472,8 +468,7 @@ CONTAINS
       POINTER                                :: rest
     LOGICAL, INTENT(out), OPTIONAL           :: empty
     INTEGER, INTENT(out), OPTIONAL           :: length
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_get', &
       routineP = moduleN//':'//routineN
@@ -522,8 +517,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION cp_sll_real_get_first_el(sll,error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_get_first_el', &
@@ -570,8 +564,7 @@ CONTAINS
   FUNCTION cp_sll_real_get_rest(sll, iter, error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: sll
     INTEGER, OPTIONAL                        :: iter
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_sll_real_type), POINTER          :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_get_rest', &
@@ -639,8 +632,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_real_get_empty(sll,error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_get_empty', &
@@ -679,8 +671,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_real_get_length(sll,error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_get_length', &
@@ -731,8 +722,7 @@ CPSourceFileRef,&
   FUNCTION cp_sll_real_get_el_at(sll,index,error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_get_el_at', &
@@ -788,8 +778,7 @@ CPSourceFileRef,&
     TYPE(cp_sll_real_type), POINTER          :: sll
     INTEGER, INTENT(in)                      :: index
     REAL(kind=dp), INTENT(in)                :: value
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_set_el_at', &
       routineP = moduleN//':'//routineN
@@ -841,8 +830,7 @@ CPSourceFileRef,&
   FUNCTION cp_sll_real_next(iterator,el_att,error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: iterator
     REAL(kind=dp), INTENT(out), OPTIONAL     :: el_att
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_next', &
@@ -892,8 +880,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_sll_real_insert_el(sll,el,error)
     TYPE(cp_sll_real_type), POINTER          :: sll
     REAL(kind=dp), INTENT(in)                :: el
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_insert_el', &
       routineP = moduleN//':'//routineN
@@ -935,8 +922,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_real_rm_first_el(sll,error)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_rm_first_el', &
       routineP = moduleN//':'//routineN
@@ -989,8 +975,7 @@ CPSourceFileRef,&
     TYPE(cp_sll_real_type), POINTER          :: sll
     REAL(kind=dp), INTENT(in)                :: el
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_insert_el_at', &
       routineP = moduleN//':'//routineN
@@ -1044,8 +1029,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_sll_real_rm_el_at(sll,index,error)
     TYPE(cp_sll_real_type), POINTER          :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_rm_el_at', &
       routineP = moduleN//':'//routineN
@@ -1099,8 +1083,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_real_rm_all_el(sll,error)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_rm_all_el', &
       routineP = moduleN//':'//routineN
@@ -1147,8 +1130,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 FUNCTION cp_sll_real_to_array(sll,error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp), DIMENSION(:), POINTER     :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_to_array', &
@@ -1200,8 +1182,7 @@ END FUNCTION cp_sll_real_to_array
 !!*** **********************************************************************
 FUNCTION cp_sll_real_from_array(array,error) RESULT(res)
     REAL(kind=dp), DIMENSION(:), INTENT(in)  :: array
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_sll_real_type), POINTER          :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_from_array', &
@@ -1266,8 +1247,7 @@ SUBROUTINE cp_sll_real_insert_ordered(sll,el,insert_equals,&
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_real_type), OPTIONAL, &
       POINTER                                :: pos
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_insert_ordered', &
       routineP = moduleN//':'//routineN
@@ -1361,8 +1341,7 @@ SUBROUTINE cp_sll_real_insert_ordered2(sll,el,compare_function,&
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_real_type), OPTIONAL, &
       POINTER                                :: pos
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_insert_ordered2', &
       routineP = moduleN//':'//routineN
@@ -1446,8 +1425,7 @@ FUNCTION cp_sll_real_contains(sll,el,ordered,error) RESULT(res)
     TYPE(cp_sll_real_type), POINTER          :: sll
     REAL(kind=dp), INTENT(in)                :: el
     LOGICAL, INTENT(in), OPTIONAL            :: ordered
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_contains', &
@@ -1523,8 +1501,7 @@ FUNCTION cp_sll_real_contains2(sll,el,compare_function,ordered,error)&
      END FUNCTION compare_function
   END INTERFACE
     LOGICAL, INTENT(in), OPTIONAL            :: ordered
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_real_contains2', &

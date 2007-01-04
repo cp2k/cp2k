@@ -31,23 +31,22 @@ MODULE atoms_input
                                              get_cell,&
                                              scaled_to_real
   USE checkpoint_handler,              ONLY: Pwarning
-  USE cp_linked_list_val,              ONLY: cp_sll_val_type, cp_sll_val_next
-  USE input_val_types,                 ONLY: val_type, val_get
+  USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
+                                             cp_sll_val_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_list_get,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_list_get
+                                             section_vals_val_get
+  USE input_val_types,                 ONLY: val_get,&
+                                             val_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-  USE input_constants,                 ONLY: do_conn_off,&
-                                             do_conn_generate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -85,8 +84,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN), OPTIONAL            :: overwrite
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_atoms_input', &
       routineP = moduleN//':'//routineN
@@ -94,20 +92,19 @@ CONTAINS
 
     CHARACTER(len=2*default_string_length)   :: line_att
     CHARACTER(len=default_string_length)     :: my_default_index
-    INTEGER                                  :: atm_equal_mol, end_c, iatom, &
-                                                ILEN, j, natom, start_c, wrd,&
-                                                output_unit, handle
-    LOGICAL                                  :: explicit, failure, &
-                                                my_overwrite, &
-                                                scaled_coordinates, ionode, is_ok
+    INTEGER                                  :: end_c, handle, iatom, ILEN, &
+                                                j, natom, output_unit, &
+                                                start_c, wrd
+    LOGICAL                                  :: explicit, failure, ionode, &
+                                                is_ok, my_overwrite, &
+                                                scaled_coordinates
     REAL(KIND=dp)                            :: unit_of_length
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sll_val_type), POINTER           :: list 
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(val_type), POINTER                  :: val
-
 
     failure=.FALSE.
     my_overwrite = .FALSE.
@@ -125,7 +122,7 @@ CONTAINS
     CALL section_vals_get(coord_section, explicit=explicit, error=error)
     IF (.NOT.explicit) RETURN
 
-    call timeset(routineN,handle)
+    CALL timeset(routineN,handle)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. get cell and topolgoy%atom_info

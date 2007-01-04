@@ -80,8 +80,7 @@ SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_create', &
       routineP = moduleN//':'//routineN
@@ -127,8 +126,7 @@ END SUBROUTINE kg_rspw_create
 
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_rebuild', &
       routineP = moduleN//':'//routineN

@@ -74,8 +74,7 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process', &
       routineP = moduleN//':'//routineN

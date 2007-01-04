@@ -97,8 +97,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: maxchrg
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize', &
       routineP = moduleN//':'//routineN

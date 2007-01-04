@@ -158,8 +158,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_do_tp_scf', &
       routineP = moduleN//':'//routineN
@@ -598,8 +597,7 @@ CONTAINS
     TYPE(xas_control_type)                   :: xas_control
     INTEGER, INTENT(IN)                      :: estate, ispin
     LOGICAL, INTENT(IN)                      :: ionode
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: homo, imin, imo, lfomo, &
                                                 nelectron, nmo, nomo
@@ -712,8 +710,7 @@ CONTAINS
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
       routineP = moduleN//':'//routineN
@@ -975,8 +972,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xes_scf_once', &
       routineP = moduleN//':'//routineN

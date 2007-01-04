@@ -107,8 +107,7 @@ CONTAINS
 SUBROUTINE coeff_init(coeff, pw, error)
     TYPE(coeff_type), INTENT(inout)          :: coeff
     TYPE(pw_type), OPTIONAL, POINTER         :: pw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coeff_init', &
       routineP = moduleN//':'//routineN
@@ -186,8 +185,7 @@ SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data,error )
     TYPE(coeff_type), INTENT(OUT)            :: c_out
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(IN)                      :: use_data
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coeff_allocate_from_grid', &
       routineP = moduleN//':'//routineN

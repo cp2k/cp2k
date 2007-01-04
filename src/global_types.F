@@ -139,8 +139,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE globenv_create(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_create', &
       routineP = moduleN//':'//routineN
@@ -191,8 +190,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE globenv_retain(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_retain', &
       routineP = moduleN//':'//routineN
@@ -232,8 +230,7 @@ END SUBROUTINE globenv_retain
 SUBROUTINE globenv_release(globenv, para_env, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_release', &
       routineP = moduleN//':'//routineN

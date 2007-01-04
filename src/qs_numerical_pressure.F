@@ -54,8 +54,7 @@ MODULE qs_numerical_pressure
 
   SUBROUTINE qs_calc_numerical_pressure(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_numerical_pressure', &
       routineP = moduleN//':'//routineN

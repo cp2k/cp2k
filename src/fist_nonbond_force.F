@@ -91,12 +91,9 @@ CONTAINS
                                                 npairs
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: is_eam
-    REAL(KIND=dp)                            :: cell_v(3), energy, f_eam, &
-                                                fr(3), fscalar, &
-                                                rab(3), rab2, rab2_max
-    REAL(KIND=dp)                            :: ptens11, ptens12, ptens13, &
-                                                ptens21, ptens22, ptens23, &
-                                                ptens31, ptens32, ptens33
+    REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fscalar, ptens11, &
+      ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
+      rab(3), rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cvi
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair

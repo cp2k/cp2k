@@ -121,8 +121,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: invert
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing', &
       routineP = moduleN//':'//routineN
@@ -200,8 +199,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, homo, imo, lfomo, &
                                                 nao, nelectron, nmo
@@ -313,8 +311,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx, smear
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, homo, imo, istat, &
                                                 lfomo, nao, nelectron, nmo
@@ -418,8 +415,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: p_mix
     REAL(KIND=dp), INTENT(OUT)               :: delta
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
       routineP = moduleN//':'//routineN
@@ -498,8 +494,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: occa, occb
     REAL(KIND=dp), &
       DIMENSION(0:2, 0:2, 1:2), INTENT(IN)   :: roks_parameter
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_1', &
       routineP = moduleN//':'//routineN
@@ -574,8 +569,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: occa, occb
     REAL(KIND=dp), INTENT(IN)                :: f
     INTEGER, INTENT(IN)                      :: nalpha, nbeta
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_2', &
       routineP = moduleN//':'//routineN

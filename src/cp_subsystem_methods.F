@@ -37,10 +37,10 @@ MODULE cp_subsystem_methods
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_type
+  USE input_constants,                 ONLY: do_conn_off
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
-  USE input_constants,                 ONLY: do_conn_off
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
@@ -97,8 +97,7 @@ CONTAINS
   SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(section_vals_type), POINTER         :: colvar_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar', &
       routineP = moduleN//':'//routineN
@@ -162,8 +161,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsystem', &
       routineP = moduleN//':'//routineN

@@ -217,8 +217,7 @@ CONTAINS
 
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: vtriple
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_vtriple', &
       routineP = moduleN//':'//routineN
@@ -392,8 +391,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: reduced_3c_list
     LOGICAL                                  :: pippo
     REAL(dp), INTENT(IN)                     :: eps_rho
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
 
@@ -708,8 +706,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_list
     INTEGER, INTENT(IN)                      :: iatom, ikind, nkind
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'retrieve_sac_list', &
       routineP = moduleN//':'//routineN

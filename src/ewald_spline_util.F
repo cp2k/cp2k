@@ -98,8 +98,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: tag
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline', &
       routineP = moduleN//':'//routineN
@@ -178,8 +177,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_mm
     TYPE(section_vals_type), POINTER         :: param_section
     CHARACTER(LEN=*), INTENT(IN)             :: tag
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_pw_TabLR', &
       routineP = moduleN//':'//routineN
@@ -307,8 +305,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: TabLR
     TYPE(section_vals_type), POINTER         :: param_section
     CHARACTER(LEN=*), INTENT(IN)             :: tag
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_spline_interp_TabLR', &
       routineP = moduleN//':'//routineN

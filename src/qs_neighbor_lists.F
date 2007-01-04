@@ -142,8 +142,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, OPTIONAL                        :: molecular
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_qs_neighbor_lists'
 
@@ -2782,8 +2781,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
 
@@ -2917,8 +2915,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string

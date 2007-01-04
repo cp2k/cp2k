@@ -123,8 +123,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init'
 
@@ -256,8 +255,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init_subsys'
 

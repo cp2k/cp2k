@@ -104,8 +104,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
 

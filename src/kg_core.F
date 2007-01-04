@@ -77,8 +77,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_rspace'
 

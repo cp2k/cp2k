@@ -150,8 +150,7 @@ CONTAINS
   SUBROUTINE qs_loc_env_create(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_create', &
       routineP = moduleN//':'//routineN
@@ -189,8 +188,7 @@ CONTAINS
   SUBROUTINE qs_loc_env_destroy(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_destroy', &
       routineP = moduleN//':'//routineN
@@ -249,8 +247,7 @@ CONTAINS
   SUBROUTINE qs_loc_env_release(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_release', &
       routineP = moduleN//':'//routineN
@@ -271,8 +268,7 @@ CONTAINS
   SUBROUTINE qs_loc_env_retain(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_retain', &
       routineP = moduleN//':'//routineN
@@ -312,8 +308,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_loc_env', &
       routineP = moduleN//':'//routineN
@@ -362,8 +357,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(dp), DIMENSION(6), OPTIONAL         :: weights
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env', &
       routineP = moduleN//':'//routineN

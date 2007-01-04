@@ -111,8 +111,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xgga_info', &
       routineP = moduleN//':'//routineN
@@ -228,8 +227,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xgga_eval', &
       routineP = moduleN//':'//routineN
@@ -425,8 +423,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
 
@@ -453,8 +450,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, sx, sy
@@ -491,8 +487,7 @@ CONTAINS
       INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, a2, sx, sxx, sxy, sy
@@ -537,8 +532,7 @@ CONTAINS
                                                 e_rho_ndrho_ndrho, &
                                                 e_ndrho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: a0, a1, a2, a3, sx, sxx, &

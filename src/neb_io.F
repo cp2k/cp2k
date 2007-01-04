@@ -57,7 +57,7 @@ MODULE neb_io
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_IO' 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_io' 
 
 
   PUBLIC :: read_neb_section,&
@@ -168,7 +168,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: line, title
     INTEGER                                  :: crd, ener, frc, handle, i, &
-                                                irep, natom, stat, ttst, vel, ndig, ndigl
+                                                irep, natom, ndig, ndigl, &
+                                                stat, ttst, vel
     LOGICAL                                  :: explicit, failure, lval
     REAL(KIND=dp)                            :: f_ann
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ekin, temperatures

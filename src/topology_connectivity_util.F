@@ -92,8 +92,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack', &
       routineP = moduleN//':'//routineN
@@ -105,12 +104,13 @@ CONTAINS
       intra_ubs, inum, ionfo, ires, istart_mol, istart_typ, itorsion, ityp, &
       iub, iw, j, j1, j2, j3, j4, jind, last, min_index, natom, nbond, &
       nelectron, nhcopt, nimpr, nmol, nonfo, nsgf, nub, nval_tot1, nval_tot2, &
-      nvar1, nvar2, stat, output_unit
+      nvar1, nvar2, output_unit, stat
     INTEGER, DIMENSION(:), POINTER :: c_var_a, c_var_b, c_var_c, c_var_d, &
       c_var_type, first_list, last_list, map_atom_mol, map_atom_type, &
       map_cvar_mol, map_cvars, map_var_mol, map_vars, molecule_list
     INTEGER, DIMENSION(:, :), POINTER        :: bnd_ctype, bnd_type
-    LOGICAL                                  :: failure, found, found_last, ionode
+    LOGICAL                                  :: failure, found, found_last, &
+                                                ionode
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
@@ -1375,8 +1375,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: map_vars, map_var_mol
     INTEGER, DIMENSION(:, :), POINTER        :: bnd_type
     INTEGER, INTENT(IN)                      :: nvar1
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_bnd_typ', &
       routineP = moduleN//':'//routineN

@@ -60,16 +60,10 @@ MODULE mc_misc
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: get_mc_par,&
-                                             mc_averages_type,&
-                                             mc_moves_p_type,&
-                                             mc_moves_type,&
-                                             mc_simulation_parameters_type,&
-                                             mc_molecule_info_type,&
-                                             get_mc_molecule_info,&
-                                             accattempt,&
-                                             get_mc_input_file,&
-                                             mc_input_file_type
+  USE mc_types,                        ONLY: &
+       accattempt, get_mc_input_file, get_mc_molecule_info, get_mc_par, &
+       mc_averages_type, mc_input_file_type, mc_molecule_info_type, &
+       mc_moves_p_type, mc_moves_type, mc_simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: atom_type,&
                                              bend_type,&
@@ -227,24 +221,26 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(mc_moves_p_type), DIMENSION(:),POINTER     :: all_moves
+    TYPE(mc_moves_p_type), DIMENSION(:), &
+      POINTER                                :: all_moves
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: energy_check, initial_energy, &
                                                 final_energy
     TYPE(mc_averages_type), POINTER          :: averages
 
-    TYPE(mc_molecule_info_type), POINTER          :: mc_molecule_info
-
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'final_mc_write'
 
-    INTEGER                                  :: handle,nmol_types,itype
+    CHARACTER(LEN=5)                         :: molecule_string, tab_string
+    CHARACTER(LEN=default_string_length)     :: format_string, string1, &
+                                                string2, string3
+    INTEGER                                  :: handle, itype, nmol_types
     LOGICAL                                  :: lbias
+    REAL(dp), DIMENSION(:), POINTER          :: rmangle, rmbond, rmdihedral, &
+                                                rmrot, rmtrans
     REAL(KIND=dp)                            :: pmswap, rmvolume
-    REAL(dp),DIMENSION(:),POINTER            :: rmangle, rmbond,rmdihedral,&
-         rmrot,rmtrans
-    CHARACTER(LEN=5)     :: molecule_string,tab_string
-    CHARACTER(LEN=default_string_length)     :: format_string,string1,string2,string3
-    TYPE(mc_moves_type), POINTER     :: moves
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+    TYPE(mc_moves_type), POINTER             :: moves
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -466,12 +462,14 @@ END SUBROUTINE final_mc_write
 SUBROUTINE final_move_write(move_data,string1,string2,iw,string3,&
      format_string,lbias,displacement)
 
-  TYPE(accattempt),POINTER :: move_data
-  CHARACTER(default_string_length),INTENT(IN) :: string1,string2
-  INTEGER,INTENT(IN) :: iw
-  LOGICAL,INTENT(IN),OPTIONAL :: lbias
-  CHARACTER(default_string_length),INTENT(IN),OPTIONAL :: string3,format_string
-  REAL(dp),OPTIONAL :: displacement
+    TYPE(accattempt), POINTER                :: move_data
+    CHARACTER(default_string_length), &
+      INTENT(IN)                             :: string1, string2
+    INTEGER, INTENT(IN)                      :: iw
+    CHARACTER(default_string_length), &
+      INTENT(IN), OPTIONAL                   :: string3, format_string
+    LOGICAL, INTENT(IN), OPTIONAL            :: lbias
+    REAL(dp), OPTIONAL                       :: displacement
 
   IF(.NOT. PRESENT(format_string)) THEN
      IF (move_data%attempts .GT. 0) THEN
@@ -554,14 +552,13 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       ALLOCATABLE, DIMENSION(:)              :: atom_a_done, atom_b_done, &
                                                 atom_c_done, atom_d_done
     CHARACTER(LEN=2)                         :: element_symbol
-    CHARACTER(LEN=default_string_length)     :: c_val, name, name_a, name_b, &
-                                                name_c, name_d, unit_type,&
-                                                mol_name
-                                                
+    CHARACTER(LEN=default_string_length)     :: c_val, mol_name, name, &
+                                                name_a, name_b, name_c, &
+                                                name_d, unit_type
     INTEGER :: current_bend, current_bond, current_torsion, ewald_type, gmax, &
-      handle, i_val, iatom, ibend, ibond, ichain, ifunct, imul, itorsion, &
-      itype, jbend, jbond, jtorsion, jtype, natoms, nbend, nbond, nchains, &
-      ns_max, ntorsion, ntypes, o_spline, stat, unit,imolecule
+      handle, i_val, iatom, ibend, ibond, ichain, ifunct, imolecule, imul, &
+      itorsion, itype, jbend, jbond, jtorsion, jtype, natoms, nbend, nbond, &
+      nchains, ns_max, ntorsion, ntypes, o_spline, stat, unit
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
@@ -593,6 +590,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 !    TYPE(input_info_type), POINTER           :: inp_info
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
     STOP 'Need to rework this subroutine...mc_make_dat_file'
 ! deal with multiple molecules...perhaps by reading the whole input
 ! file into a character array and parsing to find where COORD and CELL are,
@@ -1151,30 +1149,32 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(IN)                             :: atom_names
     INTEGER, INTENT(IN)                      :: nunits_tot
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN)                             :: box_length
-    INTEGER, DIMENSION(:), &
-      INTENT(IN)                             :: nchains
     CHARACTER(LEN=*), INTENT(IN)             :: filename
-    CHARACTER(LEN=*), DIMENSION(:),INTENT(IN)             :: atom_names
-    TYPE(mc_input_file_type), POINTER            :: mc_input_file
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nchains
+    TYPE(mc_input_file_type), POINTER        :: mc_input_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file_new', &
       routineP = moduleN//':'//routineN
-    
-    CHARACTER(default_string_length),DIMENSION(:),POINTER :: text,atom_names_empty
-    CHARACTER(default_string_length):: line_text
-    CHARACTER(60) :: cell_string,mol_string
-    REAL(dp),DIMENSION(:,:),POINTER :: coordinates_empty
-    INTEGER :: unit,nmol_types,iline,cell_row,cell_column,&
-         iunit,coord_row_start,coord_row_end,start_line,itype,&
-         global_row_end,run_type_row,in_use,nunits_empty
-    INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
+
+    CHARACTER(60)                            :: cell_string, mol_string
+    CHARACTER(default_string_length)         :: line_text
+    CHARACTER(default_string_length), &
+      DIMENSION(:), POINTER                  :: atom_names_empty, text
+    INTEGER :: cell_column, cell_row, coord_row_end, coord_row_start, &
+      global_row_end, iline, in_use, itype, iunit, nmol_types, nunits_empty, &
+      run_type_row, start_line, unit
+    INTEGER, DIMENSION(:), POINTER           :: mol_set_nmol_column, &
+                                                mol_set_nmol_row
+    REAL(dp), DIMENSION(:, :), POINTER       :: coordinates_empty
+
 !*************************************************************************
-
-
 ! open the file
+
       CALL open_file(file_name=filename,unit_number=unit,&
          file_action='WRITE',file_status='REPLACE')
 

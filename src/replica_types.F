@@ -188,8 +188,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
     TYPE(section_vals_type), POINTER         :: input
     INTEGER                                  :: nrep, prep
     LOGICAL, INTENT(in), OPTIONAL            :: sync_v, keep_wf_history
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_create', &
       routineP = moduleN//':'//routineN
@@ -370,8 +369,7 @@ END SUBROUTINE rep_env_create
 !!*** **********************************************************************
 SUBROUTINE rep_env_release(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_release', &
       routineP = moduleN//':'//routineN
@@ -452,8 +450,7 @@ END SUBROUTINE rep_env_release
 !!*** **********************************************************************
 SUBROUTINE rep_env_retain(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_retain', &
       routineP = moduleN//':'//routineN
@@ -496,8 +493,7 @@ END SUBROUTINE rep_env_retain
 SUBROUTINE rep_env_write(rep_env, unit_nr, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_write', &
       routineP = moduleN//':'//routineN
@@ -574,8 +570,7 @@ SUBROUTINE rep_env_sync(rep_env,vals,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     REAL(kind=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: vals
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_sync', &
       routineP = moduleN//':'//routineN
@@ -626,8 +621,7 @@ END SUBROUTINE rep_env_sync
 SUBROUTINE rep_env_calc_e_f(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     LOGICAL, OPTIONAL                        :: calc_f
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f', &
       routineP = moduleN//':'//routineN
@@ -674,8 +668,7 @@ END SUBROUTINE rep_env_calc_e_f
 !!*** **********************************************************************
 FUNCTION rep_envs_get_rep_env(id_nr,error) RESULT(res)
     INTEGER, INTENT(in)                      :: id_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(replica_env_type), POINTER          :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_get_rep_env', &
@@ -719,8 +712,7 @@ END FUNCTION rep_envs_get_rep_env
 !!*** **********************************************************************
 SUBROUTINE rep_envs_add_rep_env(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_add_rep_env', &
       routineP = moduleN//':'//routineN
@@ -783,8 +775,7 @@ END SUBROUTINE rep_envs_add_rep_env
 !!*** **********************************************************************
 SUBROUTINE rep_envs_rm_rep_env(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_rm_rep_env', &
       routineP = moduleN//':'//routineN
@@ -843,8 +834,7 @@ END SUBROUTINE rep_envs_rm_rep_env
 FUNCTION rep_env_local_index(rep_env,global_index,error) RESULT(res)
     TYPE(replica_env_type), POINTER          :: rep_env
     INTEGER, INTENT(in)                      :: global_index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_local_index', &

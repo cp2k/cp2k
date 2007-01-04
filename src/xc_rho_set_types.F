@@ -162,8 +162,7 @@ CONTAINS
     INTEGER, DIMENSION(2, 3), INTENT(in)     :: local_bounds
     REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff, &
                                                 tau_cutoff
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_create', &
       routineP = moduleN//':'//routineN
@@ -221,8 +220,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_retain(rho_set, error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_retain', &
       routineP = moduleN//':'//routineN
@@ -256,8 +254,7 @@ CONTAINS
   SUBROUTINE xc_rho_set_release(rho_set, pw_pool, error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release', &
       routineP = moduleN//':'//routineN
@@ -413,8 +410,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: tau, tau_a, tau_b
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: local_bounds
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_get', &
       routineP = moduleN//':'//routineN
@@ -538,8 +534,7 @@ CONTAINS
   SUBROUTINE xc_rho_set_clean(rho_set,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_clean', &
       routineP = moduleN//':'//routineN
@@ -678,8 +673,7 @@ CONTAINS
                                                 xc_rho_smooth_id
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_update', &
       routineP = moduleN//':'//routineN

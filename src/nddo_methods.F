@@ -113,8 +113,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_nddo_fock_matrix', &
       routineP = moduleN//':'//routineN
@@ -224,8 +223,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_nddo_fock_matrix_coulomb', &
@@ -651,8 +649,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'build_nddo_fock_matrix_exchange', &
@@ -896,8 +893,7 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: gss, gsp, gpp, gp2, hsp
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmat
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmat
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock1', &
       routineP = moduleN//':'//routineN
@@ -950,8 +946,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmata
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmatb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmatb
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock1', &
       routineP = moduleN//':'//routineN
@@ -1032,8 +1027,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2c', &
       routineP = moduleN//':'//routineN
@@ -1086,8 +1080,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_a, fb_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_b, pb_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_b, fb_b
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2c', &
       routineP = moduleN//':'//routineN
@@ -1156,8 +1149,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2c', &
       routineP = moduleN//':'//routineN
@@ -1208,8 +1200,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pa_b, pb_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2c', &
       routineP = moduleN//':'//routineN
@@ -1267,8 +1258,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2e', &
       routineP = moduleN//':'//routineN
@@ -1320,8 +1310,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_b
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2e', &
       routineP = moduleN//':'//routineN
@@ -1393,8 +1382,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2e', &
       routineP = moduleN//':'//routineN
@@ -1447,8 +1435,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a, pab_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2e', &
       routineP = moduleN//':'//routineN

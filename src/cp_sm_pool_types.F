@@ -166,8 +166,7 @@ CONTAINS
   SUBROUTINE sm_pool_create(pool, matrix_struct, error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(cp_sm_struct_type), POINTER         :: matrix_struct
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create', &
       routineP = moduleN//':'//routineN
@@ -215,8 +214,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_pool_retain(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_retain', &
       routineP = moduleN//':'//routineN
@@ -259,8 +257,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_pool_flush_cache(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -310,8 +307,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE sm_pool_release(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_release', &
       routineP = moduleN//':'//routineN
@@ -376,8 +372,7 @@ CONTAINS
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create_matrix', &
       routineP = moduleN//':'//routineN
@@ -490,8 +485,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_create_matrix_vect', &
       routineP = moduleN//':'//routineN
@@ -556,8 +550,7 @@ CONTAINS
   SUBROUTINE sm_pool_give_back_matrix(pool, matrix, error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_give_back_matrix', &
       routineP = moduleN//':'//routineN
@@ -629,8 +622,7 @@ CONTAINS
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'sm_pool_give_back_matrix_vect', &
@@ -690,8 +682,7 @@ CONTAINS
 !!*** **********************************************************************
 FUNCTION sm_pool_get_mstruct(pool,error) RESULT(res)
     TYPE(cp_sm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_sm_struct_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_get_mstruct', &
@@ -747,8 +738,7 @@ END FUNCTION sm_pool_get_mstruct
 SUBROUTINE sm_pools_copy(source_pools, target_pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_copy', &
       routineP = moduleN//':'//routineN
@@ -804,8 +794,7 @@ END SUBROUTINE sm_pools_copy
 SUBROUTINE sm_pools_dealloc(pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_dealloc', &
       routineP = moduleN//':'//routineN
@@ -857,8 +846,7 @@ END SUBROUTINE sm_pools_dealloc
 SUBROUTINE sm_pools_flush_cache(pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -916,8 +904,7 @@ SUBROUTINE sm_pools_create_matrix_vect(pools,matrixes,name,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_pools_create_matrix_vect', &
       routineP = moduleN//':'//routineN
@@ -984,8 +971,7 @@ SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
       POINTER                                :: pools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'sm_pools_give_back_matrix_vect', &

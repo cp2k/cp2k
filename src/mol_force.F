@@ -172,8 +172,7 @@ SUBROUTINE force_torsions ( TYPE, is32, dist1, dist2, u1, u2, iw1, iw2, &
       INTENT(IN)                             :: TYPE
     REAL(KIND=dp), INTENT(IN)                :: is32, dist1, dist2
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: u1, u2
-    REAL(KIND=dp), INTENT(IN)                :: iw1, iw2
-    REAL(KIND=dp), INTENT(IN)                :: k, cosphi0
+    REAL(KIND=dp), INTENT(IN)                :: iw1, iw2, k, cosphi0
     INTEGER, INTENT(IN)                      :: m
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar

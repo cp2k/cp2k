@@ -177,8 +177,7 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: pool
     TYPE(pw_grid_type), POINTER              :: el_struct
     INTEGER, INTENT(IN)                      :: nsmax
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create', &
       routineP = moduleN//':'//routineN
@@ -227,8 +226,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE rs_pool_retain(pool,error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_retain', &
       routineP = moduleN//':'//routineN
@@ -271,8 +269,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE rs_pool_flush_cache(pool,error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -321,8 +318,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE rs_pool_release(pool,error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_release', &
       routineP = moduleN//':'//routineN
@@ -377,8 +373,7 @@ CONTAINS
         error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
     TYPE(realspace_grid_type), POINTER       :: element
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create_rs', &
       routineP = moduleN//':'//routineN
@@ -438,8 +433,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: n_elements
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create_rs_vect', &
       routineP = moduleN//':'//routineN
@@ -494,8 +488,7 @@ CONTAINS
   SUBROUTINE rs_pool_give_back_rs(pool, element, error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
     TYPE(realspace_grid_type), POINTER       :: element
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_give_back_rs', &
       routineP = moduleN//':'//routineN
@@ -560,8 +553,7 @@ CPSourceFileRef,&
     TYPE(cp_rs_pool_type), POINTER           :: pool
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_give_back_rs_vect', &
       routineP = moduleN//':'//routineN
@@ -614,8 +606,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 FUNCTION rs_pool_get_el_struct(pool,error) RESULT(res)
     TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(pw_grid_type), POINTER              :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_get_el_struct', &
@@ -664,8 +655,7 @@ END FUNCTION rs_pool_get_el_struct
 SUBROUTINE rs_pools_copy(source_pools, target_pools, error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_copy', &
       routineP = moduleN//':'//routineN
@@ -715,8 +705,7 @@ END SUBROUTINE rs_pools_copy
 SUBROUTINE rs_pools_dealloc(pools, error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_dealloc', &
       routineP = moduleN//':'//routineN
@@ -762,8 +751,7 @@ END SUBROUTINE rs_pools_dealloc
 SUBROUTINE rs_pools_flush_cache(pools, error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -812,8 +800,7 @@ SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
       POINTER                                :: pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_create_rs_vect', &
       routineP = moduleN//':'//routineN
@@ -873,8 +860,7 @@ SUBROUTINE rs_pools_give_back_rs_vect(pools,elements,error)
       POINTER                                :: pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_give_back_rs_vect', &
       routineP = moduleN//':'//routineN

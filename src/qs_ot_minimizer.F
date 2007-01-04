@@ -448,8 +448,7 @@ END SUBROUTINE do_line_search_none
 
 SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nspin
     REAL(KIND=dp)                            :: tmp
@@ -517,8 +516,7 @@ END SUBROUTINE ot_new_sd_direction
 !
 SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nspin
     REAL(KIND=dp)                            :: beta_pr, gnorm_cross, &
@@ -627,8 +625,7 @@ END SUBROUTINE ot_new_cg_direction
 
 SUBROUTINE ot_diis_step(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: diis_bound, diis_m, i, info, &
                                                 ispin, itmp, j, k, n, nspin

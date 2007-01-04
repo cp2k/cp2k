@@ -103,8 +103,7 @@ SUBROUTINE kg_energies ( kg_env, root_section, globenv, error )
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(dft_control_type), POINTER          :: dft_control
 
@@ -152,8 +151,7 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_only_energies (MODULE kg_energy)"
@@ -324,8 +322,7 @@ SUBROUTINE kg_std_energies ( kg_env, root_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_std_energies (MODULE kg_energy)"
@@ -472,8 +469,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "kg_qs_energies"
 
@@ -513,8 +509,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_energy_calculation (MODULE kg_energy)"
@@ -633,8 +628,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
     TYPE(coeff_type), POINTER                :: vxc_r
     REAL(KIND=dp), INTENT(inout)             :: maxgrad
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calc_c_gradients (MODULE kg_energy)"

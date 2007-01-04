@@ -84,8 +84,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fp_env_create(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_create', &
       routineP = moduleN//':'//routineN
@@ -111,8 +110,7 @@ CONTAINS
 
   SUBROUTINE fp_env_release(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_release', &
       routineP = moduleN//':'//routineN
@@ -140,8 +138,7 @@ CONTAINS
 
   SUBROUTINE fp_env_retain(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_retain', &
       routineP = moduleN//':'//routineN
@@ -174,8 +171,7 @@ CONTAINS
   SUBROUTINE fp_env_read(fp_env,fp_section,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(section_vals_type), POINTER         :: fp_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_read', &
       routineP = moduleN//':'//routineN
@@ -232,8 +228,7 @@ CONTAINS
   SUBROUTINE fp_env_write(fp_env,fp_section,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(section_vals_type), POINTER         :: fp_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_write', &
       routineP = moduleN//':'//routineN

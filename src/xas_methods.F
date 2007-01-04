@@ -181,8 +181,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(xas_control_type)                   :: xas_control
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
       routineP = moduleN//':'//routineN
@@ -614,8 +613,7 @@ CONTAINS
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_init', &
       routineP = moduleN//':'//routineN
@@ -1013,8 +1011,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xas_section
     INTEGER, INTENT(IN)                      :: iatom, iter
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
       routineP = moduleN//':'//routineN
@@ -1150,8 +1147,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
     INTEGER, INTENT(IN)                      :: estate, homo, iatom, iter
     LOGICAL, INTENT(IN)                      :: ionode, length
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', &
       routineP = moduleN//':'//routineN
@@ -1268,8 +1264,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: all_vectors
     INTEGER, INTENT(IN)                      :: iter, iatom
     LOGICAL, INTENT(IN)                      :: ionode
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_print_cubes', &
       routineP = moduleN//':'//routineN
@@ -1364,8 +1359,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
     INTEGER, INTENT(IN)                      :: estate
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_len', &
       routineP = moduleN//':'//routineN
@@ -1470,8 +1464,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fm_work
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
     INTEGER, INTENT(IN)                      :: estate
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
       routineP = moduleN//':'//routineN
@@ -1527,8 +1520,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: base_a, base_b
     REAL(dp), DIMENSION(:, :), POINTER       :: matrix
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap', &
       routineP = moduleN//':'//routineN
@@ -1649,8 +1641,7 @@ CONTAINS
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states', &
       routineP = moduleN//':'//routineN

@@ -314,7 +314,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)   :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_read', &
       routineP = moduleN//':'//routineN
@@ -396,8 +396,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_setup', &
       routineP = moduleN//':'//routineN
@@ -488,8 +487,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_global_section', &
       start_section_label = "GLOBAL"
@@ -657,8 +655,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_cp2k_section'&
                                                 , start_section_label = "CP2K"

@@ -129,8 +129,7 @@ CONTAINS
   SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
       routineP = moduleN//':'//routineN
@@ -167,8 +166,7 @@ CONTAINS
 
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'localized_wfn_control_release', &
@@ -200,8 +198,7 @@ CONTAINS
   SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain', &
       routineP = moduleN//':'//routineN
@@ -235,8 +232,7 @@ CONTAINS
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(section_vals_type), POINTER         :: loc_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
       routineP = moduleN//':'//routineN
@@ -481,8 +477,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_centers', &
       routineP = moduleN//':'//routineN
@@ -550,8 +545,7 @@ CONTAINS
     TYPE(localized_wfn_control_type)         :: localized_wfn_control
     INTEGER, DIMENSION(2), INTENT(IN)        :: nmoloc, nmo
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_wfn_lists', &
       routineP = moduleN//':'//routineN

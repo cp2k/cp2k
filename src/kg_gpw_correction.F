@@ -121,8 +121,7 @@ CONTAINS
       POINTER                                :: ks_global, p_global
     REAL(dp), INTENT(OUT)                    :: ekin_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_ekin_mol', &
       routineP = moduleN//':'//routineN

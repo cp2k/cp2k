@@ -28,7 +28,8 @@ MODULE topology_xyz
                                              parser_get_object,&
                                              parser_release
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp, default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
@@ -69,19 +70,18 @@ CONTAINS
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
+    CHARACTER(LEN=default_string_length)     :: my_default_index
     INTEGER                                  :: frame, handle, i, iw, j, natom
     LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length)     :: my_default_index
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)

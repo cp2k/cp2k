@@ -71,8 +71,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_link_Imomm_coord', &
       routineP = moduleN//':'//routineN
@@ -135,8 +134,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_link_Imomm_forces', &
       routineP = moduleN//':'//routineN
@@ -199,8 +197,7 @@ CONTAINS
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_added_chrg_coord', &
       routineP = moduleN//':'//routineN
@@ -248,8 +245,7 @@ CONTAINS
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_added_chrg_forces', &
       routineP = moduleN//':'//routineN

@@ -20,12 +20,14 @@
 MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: do_qmmm_gauss, do_par_atom
+  USE input_constants,                 ONLY: do_par_atom,&
+                                             do_qmmm_gauss
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type,&
-       PW_MODE_DISTRIBUTED, PW_MODE_LOCAL
+  USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
+                                             PW_MODE_LOCAL,&
+                                             pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create_copy_no_pbc,&
                                              pw_grid_release
   USE pw_pool_types,                   ONLY: pw_pool_create,&
@@ -74,20 +76,19 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: auxbas_grid, Ilevel, stat
+    INTEGER                                  :: auxbas_grid, Ilevel, pw_mode, &
+                                                stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: Maxdr, Mindr
     TYPE(pw_grid_type), POINTER              :: el_struct
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pool
-    INTEGER                                  :: pw_mode
 
     NULLIFY(el_struct)
     failure = .FALSE.

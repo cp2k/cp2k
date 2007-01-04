@@ -29,16 +29,9 @@ MODULE pint_methods
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
-  USE pint_types,                      ONLY: pint_calc_uf_h,&
-                                             pint_do_run,&
-                                             pint_env_create,&
-                                             pint_env_type,&
-                                             pint_f2uf,&
-                                             pint_release,&
-                                             pint_start,&
-                                             pint_u2x,&
-                                             pint_x2u
-  USE replica_methods,                 ONLY: rep_env_test
+  USE pint_types,                      ONLY: &
+       pint_calc_uf_h, pint_do_run, pint_env_create, pint_env_type, &
+       pint_f2uf, pint_release, pint_start, pint_u2x, pint_x2u
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -78,8 +71,7 @@ CONTAINS
 SUBROUTINE pint_env_test(para_env,input,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_env_test', &
       routineP = moduleN//':'//routineN
@@ -168,15 +160,13 @@ END SUBROUTINE pint_env_test
 SUBROUTINE do_pint_run(para_env,input,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
-
-    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_pint_run', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(pint_env_type), POINTER             :: pint_env
 
   failure=.FALSE.
   

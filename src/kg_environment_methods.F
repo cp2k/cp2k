@@ -50,8 +50,7 @@ MODULE kg_environment_methods
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_rebuild_s_sm_pools
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -74,8 +73,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_setup', &
       routineP = moduleN//':'//routineN
@@ -151,8 +149,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_qs_env_update', &
       routineP = moduleN//':'//routineN

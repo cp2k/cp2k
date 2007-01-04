@@ -1045,8 +1045,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: v_in, v_out
     INTEGER, INTENT(IN)                      :: ncol
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_fm_multiply', &
       routineP = moduleN//':'//routineN
@@ -1160,8 +1159,7 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
     INTEGER, INTENT(IN)                      :: ncol
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_plus_fm_fm_t', &
       routineP = moduleN//':'//routineN
@@ -1254,8 +1252,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                                                 do_diagonal_blocks, &
                                                 antisymmetric
     INTEGER, INTENT(in), OPTIONAL            :: ncol
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_fm_multiply_2d', &
       routineP = moduleN//':'//routineN
@@ -1567,8 +1564,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
     INTEGER, INTENT(IN), OPTIONAL            :: ncol
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_plus_fm_fm_t_2d', &
       routineP = moduleN//':'//routineN
@@ -1871,8 +1867,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION junk_of_fm_index(fm_index,fm_size,njunk,error) RESULT(res)
     INTEGER, INTENT(in)                      :: fm_index, fm_size, njunk
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'junk_of_fm_index', &

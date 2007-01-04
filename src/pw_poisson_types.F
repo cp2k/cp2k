@@ -212,8 +212,7 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: uf_grid
     TYPE(section_vals_type), POINTER         :: print_section
     LOGICAL, INTENT(in), OPTIONAL            :: symm_usage
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
       routineP = moduleN//':'//routineN
@@ -310,8 +309,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_grid_type), POINTER              :: mt_super_ref_pw_grid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
       routineP = moduleN//':'//routineN
@@ -639,8 +637,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE pw_green_retain(gftype,error)
     TYPE(greens_fn_type), POINTER            :: gftype
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_retain', &
       routineP = moduleN//':'//routineN
@@ -677,8 +674,7 @@ CONTAINS
   SUBROUTINE pw_green_release ( gftype, pw_pool, error )
     TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
       routineP = moduleN//':'//routineN
@@ -738,8 +734,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE influence_factor ( gftype, error )
     TYPE(greens_fn_type), POINTER            :: gftype
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'influence_factor', &
       routineP = moduleN//':'//routineN
@@ -858,8 +853,7 @@ END SUBROUTINE calc_p3m_charge
   SUBROUTINE pw_poisson_create ( poisson_env, error )
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
       routineP = moduleN//':'//routineN
@@ -913,8 +907,7 @@ END SUBROUTINE calc_p3m_charge
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_retain(poisson_env,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_retain', &
       routineP = moduleN//':'//routineN
@@ -949,8 +942,7 @@ END SUBROUTINE calc_p3m_charge
   SUBROUTINE pw_poisson_release ( poisson_env, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
       routineP = moduleN//':'//routineN

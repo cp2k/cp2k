@@ -76,8 +76,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
 

@@ -293,8 +293,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     LOGICAL                                  :: ionode
     INTEGER                                  :: iunit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, i, isos, j, k, n, &
                                                 natoms, scr, sweeps
@@ -422,8 +421,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     REAL(KIND=dp), INTENT(OUT)               :: center( :, : )
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(default_string_length)         :: iter
     COMPLEX(KIND=dp)                         :: almost_determinant, z

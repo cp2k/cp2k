@@ -195,8 +195,7 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
     INTEGER, OPTIONAL                        :: sparsity_id
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_create', &
       routineP = moduleN//':'//routineN
@@ -273,8 +272,7 @@ END SUBROUTINE sm_struct_create
 !!*** **********************************************************************
 SUBROUTINE sm_struct_retain(sm_struct,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_retain', &
       routineP = moduleN//':'//routineN
@@ -317,8 +315,7 @@ END SUBROUTINE sm_struct_retain
 !!*** **********************************************************************
 SUBROUTINE sm_nodes_dealloc(sm_nodes,error)
     TYPE(cp_sm_node_type), POINTER           :: sm_nodes
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_nodes_dealloc', &
       routineP = moduleN//':'//routineN
@@ -378,8 +375,7 @@ END SUBROUTINE sm_nodes_dealloc
 !!*** **********************************************************************
 SUBROUTINE sm_struct_release(sm_struct, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_release', &
       routineP = moduleN//':'//routineN
@@ -464,8 +460,7 @@ END SUBROUTINE sm_struct_release
 SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     INTEGER, INTENT(in)                      :: block_row, block_col
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_add_local_block', &
       routineP = moduleN//':'//routineN
@@ -598,8 +593,7 @@ END SUBROUTINE sm_struct_add_local_block
 SUBROUTINE sm_nodes_renumber(sm_nodes, nblocks, error)
     TYPE(cp_sm_node_type), POINTER           :: sm_nodes
     INTEGER, INTENT(out), OPTIONAL           :: nblocks
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_nodes_renumber', &
       routineP = moduleN//':'//routineN
@@ -664,8 +658,7 @@ END SUBROUTINE sm_nodes_renumber
 !!*** **********************************************************************
 SUBROUTINE sm_struct_clear_local_blocks(sm_struct, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_clear_local_blocks', &
       routineP = moduleN//':'//routineN
@@ -744,8 +737,7 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
                                                 n_rows, n_cols
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_get', &
       routineP = moduleN//':'//routineN
@@ -862,8 +854,7 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: local, short_description
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_write', &
       routineP = moduleN//':'//routineN

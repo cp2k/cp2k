@@ -35,11 +35,10 @@ MODULE cp_ddapc
                                              restraint_functional_potential
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE input_constants,                 ONLY: do_spin_density
-
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_integral_ab
@@ -87,7 +86,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy, energy_res
-    TYPE(coeff_type)                         :: v_hartree_gspace, v_spin_ddapc_rest_g
+    TYPE(coeff_type)                         :: v_hartree_gspace, &
+                                                v_spin_ddapc_rest_g
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -157,8 +157,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, stat
-    LOGICAL                                  :: apply_decpl, failure, &
-                                                need_f
+    LOGICAL                                  :: apply_decpl, failure, need_f
     REAL(KINd=dp)                            :: e_decpl, e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -302,15 +301,15 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
-    TYPE(coeff_type)                         :: v_hartree_gspace, v_spin_ddapc_rest_g
+    TYPE(coeff_type)                         :: v_hartree_gspace, &
+                                                v_spin_ddapc_rest_g
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER                                  :: my_id
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RS', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw, stat
+    INTEGER                                  :: handle, iw, my_id, stat
     LOGICAL                                  :: apply_restrain, failure, &
                                                 need_f
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii

@@ -95,8 +95,7 @@ SUBROUTINE fist_create_force_env ( force_env, root_section, para_env,globenv, qm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
       routineP = moduleN//':'//routineN

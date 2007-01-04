@@ -30,7 +30,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE graphcon
-    USE util, ONLY: sort
+  USE util,                            ONLY: sort
+
     IMPLICIT NONE
 
     PRIVATE
@@ -88,13 +89,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
     SUBROUTINE hash_molecule(reference,kind_ref,hash)
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: reference
-        INTEGER, DIMENSION(:),INTENT(OUT)      :: kind_ref
-        INTEGER, INTENT(OUT)                   :: hash
-        INTEGER            :: Ihash,N,I,old_class,Nclasses,Nclasses_old
-        INTEGER, DIMENSION(:), ALLOCATABLE :: kind_new, index
+    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: kind_ref
+    INTEGER, INTENT(OUT)                     :: hash
+
+    INTEGER                                  :: I, Ihash, N, Nclasses, &
+                                                Nclasses_old, old_class
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, kind_new
+
         N=SIZE(kind_ref)
-        ALLOCATE(kind_new(N),index(N))
+        ALLOCATE(kind_new(N),INDEX(N))
         kind_ref=reference%kind
         Nclasses_old=0
         DO Ihash=1,N
@@ -149,27 +153,29 @@ CONTAINS
 !!
 !!*** **********************************************************************
     SUBROUTINE reorder_graph(reference, unordered, order, matches)
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: reference
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: unordered
-        INTEGER, DIMENSION(:),INTENT(OUT)     :: order
-        LOGICAL, INTENT(OUT)                  :: matches
-        ! allows for worst case matching of two benzenes ... (6!)*(6!)/6=86400
-        ! with some margin for other molecules
-        ! molecules with no symmetry e.g. JAC need less than 500 tries
-        INTEGER, PARAMETER                     :: max_tries=1000000
-        LOGICAL :: try_it
-        INTEGER :: I,N,Nclasses,Iclass,Nele,Ihash,J,old_class,hash_re,hash_un,isuperclass,iele,itries
-        TYPE(class), DIMENSION(:), ALLOCATABLE :: classes
-        TYPE(superclass), DIMENSION(:), ALLOCATABLE :: superclasses
-        INTEGER, DIMENSION(:), ALLOCATABLE :: kind_ref,kind_un,index_ref,index_un, &
-                                              kind_ref_ordered,kind_un_ordered, &
-                                              class_of_atom, superclass_of_atom
-        REAL :: t2,t1
+    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: order
+    LOGICAL, INTENT(OUT)                     :: matches
 
-        ! catch the cases where the molecules are trivially different 
+    INTEGER, PARAMETER                       :: max_tries = 1000000
+
+    INTEGER                                  :: hash_re, hash_un, I, Iclass, &
+                                                iele, isuperclass, itries, J, &
+                                                N, Nclasses, Nele, old_class
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: class_of_atom, index_ref, index_un, &
+      kind_ref, kind_ref_ordered, kind_un, kind_un_ordered, superclass_of_atom
+    TYPE(class), ALLOCATABLE, DIMENSION(:)   :: classes
+    TYPE(superclass), ALLOCATABLE, &
+      DIMENSION(:)                           :: superclasses
+
+! allows for worst case matching of two benzenes ... (6!)*(6!)/6=86400
+! with some margin for other molecules
+! molecules with no symmetry e.g. JAC need less than 500 tries
+! catch the cases where the molecules are trivially different 
+
         IF (SIZE(reference).NE.SIZE(unordered)) THEN
            matches=.FALSE.
-           return
+           RETURN
         ENDIF
 
         ! catch the case where the molecules are already in the right order
@@ -177,7 +183,7 @@ CONTAINS
         order=(/(i,i=1,N)/)
         IF (matrix_equal(reference,unordered,order)) THEN
            matches=.TRUE.
-           return
+           RETURN
         ENDIF
 
         ! determine the kind of each atom, and the hash of the whole molecule
@@ -188,7 +194,7 @@ CONTAINS
         CALL hash_molecule(unordered,kind_un,hash_un)
         IF (hash_re .NE. hash_un) THEN
            matches=.FALSE.
-           return
+           RETURN
         ENDIF
 
         ! generate the classes of equivalent atoms, i.e. the groups of atoms of the same topological kind
@@ -198,7 +204,7 @@ CONTAINS
         CALL sort(kind_un_ordered,N,index_un)
         IF (ANY(kind_ref_ordered.NE.kind_un_ordered)) THEN
            matches=.FALSE.
-           return
+           RETURN
         ENDIF
 
         ! count different classes, assign their kinds, and the number of elements
@@ -299,8 +305,8 @@ CONTAINS
             ! check for matches within this superclass only, be happy if we have a match
             matches =  matrix_superclass_equal(reference,unordered,order,superclasses(I),classes)
             IF (itries>max_tries) THEN
-               write(6,*) "Could not find the 1-to-1 mapping to prove graph isomorphism"
-               write(6,*) "Reordering failed, assuming these molecules are different"
+               WRITE(6,*) "Could not find the 1-to-1 mapping to prove graph isomorphism"
+               WRITE(6,*) "Reordering failed, assuming these molecules are different"
                EXIT
             ENDIF
             IF (matches) EXIT
@@ -355,12 +361,14 @@ CONTAINS
 !!*** **********************************************************************
     RECURSIVE SUBROUTINE spread_superclass(I,isuperclass,superclass_of_atom,class_of_atom, &
                                              classes, reference)
-        INTEGER, INTENT(IN)  :: i,isuperclass
-        INTEGER, DIMENSION(:), INTENT(INOUT)   :: superclass_of_atom
-        INTEGER, DIMENSION(:), INTENT(IN)      :: class_of_atom
-        TYPE(class), DIMENSION(:), INTENT(IN)  :: classes
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: reference
-        INTEGER :: J
+    INTEGER, INTENT(IN)                      :: i, isuperclass
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: superclass_of_atom
+    INTEGER, DIMENSION(:), INTENT(IN)        :: class_of_atom
+    TYPE(class), DIMENSION(:), INTENT(IN)    :: classes
+    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference
+
+    INTEGER                                  :: J
+
         IF (superclass_of_atom(I).EQ.-1 .AND. classes(class_of_atom(I))%Nele>1) THEN
            superclass_of_atom(I)=isuperclass
            DO J=1, classes(class_of_atom(I))%Nele
@@ -390,14 +398,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
     FUNCTION matrix_superclass_equal(reference,unordered,order,super,classes) RESULT(res)
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: reference
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: unordered
-        TYPE(superclass), INTENT(IN)           :: super
-        TYPE(class), DIMENSION(:), INTENT(IN)  :: classes
-        INTEGER, DIMENSION(:), INTENT(IN) :: order
-        LOGICAL                  :: res
-        INTEGER :: I,iclass,iele,J
-        ! I is the atom in the unordered set
+    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
+    INTEGER, DIMENSION(:), INTENT(IN)        :: order
+    TYPE(superclass), INTENT(IN)             :: super
+    TYPE(class), DIMENSION(:), INTENT(IN)    :: classes
+    LOGICAL                                  :: res
+
+    INTEGER                                  :: I, iclass, iele, J
+
+! I is the atom in the unordered set
+
 loop:   DO iclass=1,super%Nele
          DO iele=1,classes(super%classes(iclass))%Nele
            I=classes(super%classes(iclass))%unordered(iele)
@@ -434,11 +444,12 @@ loop:   DO iclass=1,super%Nele
 !!
 !!*** **********************************************************************
     FUNCTION matrix_equal(reference,unordered,order) RESULT(res)
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: reference
-        TYPE(vertex), DIMENSION(:),INTENT(IN)  :: unordered
-        INTEGER, DIMENSION(:), INTENT(IN) :: order
-        LOGICAL                  :: res
-        INTEGER :: I,J
+    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
+    INTEGER, DIMENSION(:), INTENT(IN)        :: order
+    LOGICAL                                  :: res
+
+    INTEGER                                  :: I, J
+
 loop:   DO I=1,SIZE(reference)
            res=( reference(order(I))%kind == unordered(I)%kind .AND. &
                SIZE(reference(order(I))%bonds) == SIZE(unordered(I)%bonds) )
@@ -473,15 +484,16 @@ loop:   DO I=1,SIZE(reference)
 !!     09.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-    FUNCTION hash_kind(me,bonds) Result(res)
-       INTEGER, INTENT(IN) :: me
-       INTEGER, DIMENSION(:), INTENT(IN) :: bonds
-       INTEGER             :: res
-       CHARACTER(LEN=250) :: line
-       INTEGER :: N,I
-       INTEGER, DIMENSION(:), ALLOCATABLE :: ordered_bonds, index
+    FUNCTION hash_kind(me,bonds) RESULT(res)
+    INTEGER, INTENT(IN)                      :: me
+    INTEGER, DIMENSION(:), INTENT(IN)        :: bonds
+    INTEGER                                  :: res
+
+    INTEGER                                  :: I, N
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, ordered_bonds
+
        N=SIZE(bonds)
-       ALLOCATE(ordered_bonds(N+1),index(N))
+       ALLOCATE(ordered_bonds(N+1),INDEX(N))
        DO I=1,N
           ordered_bonds(I)=bonds(I)
        ENDDO
@@ -556,33 +568,35 @@ loop:   DO I=1,SIZE(reference)
 !   q = scratch
 !   first = .TRUE. if you're back at the original order
         SUBROUTINE all_permutations(x,n,q,first)
-        Integer n,k,m,t
-        Integer x(n),q(n)
-        Logical first
-        if (n==1) return
-        if (first) then
-          first=.false.
-          do m=1,n-1
+    INTEGER                                  :: n, x(n), q(n)
+    LOGICAL                                  :: first
+
+    INTEGER                                  :: k, m, t
+
+        IF (n==1) RETURN
+        IF (first) THEN
+          first=.FALSE.
+          DO m=1,n-1
             q(m)=n
-          end do
-        endif
-        if(q(n-1).eq.n) then
+          END DO
+        ENDIF
+        IF(q(n-1).eq.n) THEN
           q(n-1)=n-1
           t=x(n)
           x(n)=x(n-1)
           x(n-1)=t
-          return
-        endif
-        do k=n-1,1,-1
-          if(q(k).eq.k) then
+          RETURN
+        ENDIF
+        DO k=n-1,1,-1
+          IF(q(k).eq.k) THEN
             q(k)=n
-          else
+          ELSE
             go to 1
-          endif
-        end do
-        first=.true.
+          ENDIF
+        END DO
+        first=.TRUE.
         k=1
-        goto 2
+        GOTO 2
 1       m=q(k)
         t=x(m)
         x(m)=x(k)
@@ -595,7 +609,7 @@ loop:   DO I=1,SIZE(reference)
         x(k)=t
         m=m-1
         k=k+1
-        if(k.lt.m) goto 3
+        IF(k.lt.m) GOTO 3
         END SUBROUTINE
 END MODULE graphcon
 

@@ -77,8 +77,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: glob_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &
       routineP = moduleN//':'//routineN
@@ -146,8 +145,7 @@ CONTAINS
   SUBROUTINE orbital_eigenvalue_correction(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'orbital_eigenvalue_correction', &

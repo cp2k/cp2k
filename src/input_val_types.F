@@ -175,8 +175,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
       DIMENSION(:), OPTIONAL, POINTER        :: lc_vals_ptr
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create', &
       routineP = moduleN//':'//routineN
@@ -364,8 +363,7 @@ END SUBROUTINE val_create
 !!*** **********************************************************************
 SUBROUTINE val_release(val,error)
     TYPE(val_type), POINTER                  :: val
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_release', &
       routineP = moduleN//':'//routineN
@@ -427,8 +425,7 @@ END SUBROUTINE val_release
 !!*** **********************************************************************
 SUBROUTINE val_retain(val,error)
     TYPE(val_type), POINTER                  :: val
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_retain', &
       routineP = moduleN//':'//routineN
@@ -491,8 +488,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
     INTEGER, INTENT(out), OPTIONAL           :: len_c, type_of_var
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_get', &
       routineP = moduleN//':'//routineN
@@ -644,8 +640,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
     INTEGER, INTENT(in)                      :: unit_nr
     TYPE(cp_unit_type), OPTIONAL, POINTER    :: unit
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str, fmt
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_write', &
       routineP = moduleN//':'//routineN
@@ -792,8 +787,7 @@ END SUBROUTINE val_write
     TYPE(val_type), POINTER                  :: val
     CHARACTER(LEN=*), INTENT(OUT)            :: string
     TYPE(cp_unit_type), OPTIONAL, POINTER    :: unit
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_write_internal', &
       routineP = moduleN//':'//routineN
@@ -906,8 +900,7 @@ END SUBROUTINE val_write
 !!*** **********************************************************************
 SUBROUTINE val_duplicate(val_in,val_out,error)
     TYPE(val_type), POINTER                  :: val_in, val_out
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_duplicate', &
       routineP = moduleN//':'//routineN

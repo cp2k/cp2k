@@ -76,8 +76,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_eip_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_eip_section', &
       routineP = moduleN//':'//routineN
@@ -144,8 +143,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_eip_print_section(section, error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_eip_print_section', &
       routineP = moduleN//':'//routineN

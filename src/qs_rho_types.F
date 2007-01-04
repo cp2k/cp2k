@@ -138,8 +138,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_retain(rho_struct,error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_retain', &
       routineP = moduleN//':'//routineN
@@ -189,8 +188,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_release(rho_struct,error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_release', &
       routineP = moduleN//':'//routineN
@@ -295,8 +293,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho_struct
     LOGICAL, INTENT(in), OPTIONAL            :: rho_r_valid, rho_g_valid, &
                                                 tau_r_valid, tau_g_valid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_did_change', &
       routineP = moduleN//':'//routineN
@@ -367,8 +364,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: tot_rho_r
     LOGICAL, INTENT(out), OPTIONAL           :: soft_valid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_get', &
       routineP = moduleN//':'//routineN

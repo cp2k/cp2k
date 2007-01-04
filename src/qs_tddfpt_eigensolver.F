@@ -76,8 +76,7 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
       routineP = moduleN//':'//routineN
@@ -174,8 +173,7 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(kind=dp), DIMENSION(:), OPTIONAL    :: out_evals
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterative_solver', &

@@ -193,8 +193,7 @@ CONTAINS
 SUBROUTINE cp_subsys_create(subsys, para_env, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
       routineP = moduleN//':'//routineN
@@ -251,8 +250,7 @@ END SUBROUTINE cp_subsys_create
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_retain(subsys, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_retain', &
       routineP = moduleN//':'//routineN
@@ -300,8 +298,7 @@ END SUBROUTINE cp_subsys_retain
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_release(subsys, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_release', &
       routineP = moduleN//':'//routineN
@@ -402,8 +399,7 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
       POINTER                                :: para_env
     TYPE(colvar_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: colvar_p
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_set', &
       routineP = moduleN//':'//routineN
@@ -523,8 +519,7 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
       POINTER                                :: para_env
     TYPE(colvar_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: colvar_p
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_get', &
       routineP = moduleN//':'//routineN

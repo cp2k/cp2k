@@ -66,8 +66,7 @@ CONTAINS
 SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_create', &
       routineP = moduleN//':'//routineN

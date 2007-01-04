@@ -23,9 +23,10 @@
 
 MODULE machine_g95
 
-  USE kinds,                           ONLY: default_string_length, &
-                                             dp
   USE ISO_C_BINDING,                   ONLY: C_INT64_T
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+
   IMPLICIT NONE
 
   INTEGER(KIND=C_INT64_T), bind(C, name='_g95_total_alloc') :: total_memory
@@ -45,6 +46,7 @@ CONTAINS
 FUNCTION m_loc_r(a) RESULT(res)
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
+
     res=LOC(a)
 END FUNCTION m_loc_r
   
@@ -52,6 +54,7 @@ FUNCTION m_loc_c(a) RESULT(res)
     COMPLEX(KIND=dp), DIMENSION(*), &
       INTENT(in)                             :: a
     INTEGER                                  :: res
+
     res=LOC(a)
 END FUNCTION m_loc_c
 
@@ -63,6 +66,7 @@ END SUBROUTINE m_abort
 ! the number of arguments of the fortran program
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
+
     INTEGER                                  :: iargc
 
     ic = iargc()
@@ -72,6 +76,7 @@ END FUNCTION m_iargc
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
+
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 
@@ -103,7 +108,6 @@ END SUBROUTINE m_datum
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
 
-    CHARACTER(LEN=200)                       :: cmdstr
     CHARACTER(LEN=90)                        :: tmp
     INTEGER                                  :: pid
 
@@ -113,15 +117,16 @@ END SUBROUTINE m_datum
     tmp=TRIM(checkpoint)//">:"
     tmp=ADJUSTL(tmp)
 
-    write(6,'(A4,I8,A90,I8,A7)')  " PID",pid,tmp,(total_memory+1023)/1024," KBytes"
+    WRITE(6,'(A4,I8,A90,I8,A7)')  " PID",pid,tmp,(total_memory+1023)/1024," KBytes"
 
   END SUBROUTINE print_memory
 
 ! *****************************************************************************
 
-  SUBROUTINE m_mov(source,target)
+  SUBROUTINE m_mov(source,TARGET)
 
-    CHARACTER(LEN=*), INTENT(IN)             :: source, target
+    CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
+
     CHARACTER(LEN=2*default_string_length+4) :: cmd
 
 !   ---------------------------------------------------------------------------

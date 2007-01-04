@@ -35,8 +35,9 @@ MODULE message_passing
                                              sp
   USE machine,                         ONLY: m_abort,&
                                              m_walltime
-  USE timings,                         ONLY: timeset,timestop
   USE parallel_include
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 

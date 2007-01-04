@@ -109,7 +109,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(virial_type), POINTER               :: virial
-    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc,&
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
     LOGICAL, OPTIONAL                        :: pv_availability, pv_numer
 
@@ -165,8 +165,7 @@ CONTAINS
 
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, OPTIONAL                        :: virial_in_use, numer_virial
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create', &
       routineP = moduleN//':'//routineN
@@ -225,8 +224,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE virial_retain ( virial, error)
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_retain', &
       routineP = moduleN//':'//routineN
@@ -273,8 +271,7 @@ END SUBROUTINE virial_retain
 !!*** **********************************************************************
 SUBROUTINE virial_release(virial, error)
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', &
       routineP = moduleN//':'//routineN

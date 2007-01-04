@@ -59,8 +59,7 @@ CONTAINS
 
   SUBROUTINE qs_debug_energy_and_forces(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_debug_energy_and_forces', &
       routineP = moduleN//':'//routineN

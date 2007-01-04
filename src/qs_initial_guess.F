@@ -55,7 +55,6 @@ MODULE qs_initial_guess
                                              particle_type
   USE qs_collocate_density,            ONLY: collocate_atomic_charge_density
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_env_reorthogonalize_vectors,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -68,11 +67,8 @@ MODULE qs_initial_guess
                                              read_mo_set
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
-  USE qs_scf_types,                    ONLY: ot_method_nr,&
-                                             qs_scf_env_type
-  USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
-                                             wfi_update
-  USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: get_matrix_diagonal,&
                                              real_matrix_p_type,&
@@ -118,23 +114,21 @@ CONTAINS
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'calculate_first_density_matrix', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, filename
-    INTEGER :: atom_a, density_guess, group, handle, homo, iatom, id_nr, &
+    INTEGER :: atom_a, density_guess, group, handle, homo, i, iatom, id_nr, &
       ikind, iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll, nao, &
-      natom, ncount, nelectron, nmo, nset, nspin, qs_env_id, nvec, i, &
-      extrapolation_method_nr, not_read
+      natom, ncount, nelectron, nmo, not_read, nset, nspin, nvec, qs_env_id
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
-                                                ortho_basis, orthogonal_wf
+                                                ortho_basis
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 total_rho, trps1, trps2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag

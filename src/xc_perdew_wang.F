@@ -84,8 +84,7 @@ CONTAINS
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     REAL(kind=dp), INTENT(in)                :: scale
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_info', &
       routineP = moduleN//':'//routineN
@@ -252,8 +251,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
     REAL(kind=dp), INTENT(in)                :: scale
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -409,8 +407,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
     REAL(kind=dp), INTENT(in)                :: scale
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_lsd_eval', &
       routineP = moduleN//':'//routineN

@@ -102,8 +102,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: group, handle, i, ierr, &
                                                 ipart, j, jpart, n, &

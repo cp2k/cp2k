@@ -198,8 +198,7 @@ SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format, error)
     LOGICAL, DIMENSION(:), INTENT(in)        :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: defaultFormat = "(l1)", &
       routineN = 'cp_1d_logical_write', routineP = moduleN//':'//routineN
@@ -270,8 +269,7 @@ SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format, error)
     LOGICAL, DIMENSION(:, :), INTENT(in)     :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: defaultFormat = "(l1)", &
       routineN = 'cp_2d_logical_write', routineP = moduleN//':'//routineN
@@ -337,8 +335,7 @@ END SUBROUTINE cp_2d_logical_write
     LOGICAL, DIMENSION(:), POINTER           :: array
     INTEGER, INTENT(in)                      :: n
     LOGICAL, INTENT(in), OPTIONAL            :: init
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_logical_guarantee_size', &
       routineP = moduleN//':'//routineN
@@ -403,8 +400,7 @@ END SUBROUTINE cp_2d_logical_write
     LOGICAL, DIMENSION(:, :), POINTER        :: array
     INTEGER, INTENT(in)                      :: n_rows, n_cols
     LOGICAL, INTENT(in), OPTIONAL            :: init
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_logical_guarantee_size', &
       routineP = moduleN//':'//routineN
@@ -468,8 +464,7 @@ FUNCTION cp_1d_logical_bsearch(array, el, l_index, u_index, error)&
     LOGICAL, DIMENSION(:), INTENT(in)        :: array
     LOGICAL, INTENT(in)                      :: el
     INTEGER, INTENT(in), OPTIONAL            :: l_index, u_index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_logical_bsearch', &

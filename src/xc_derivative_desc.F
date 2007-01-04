@@ -80,8 +80,7 @@ CONTAINS
     CHARACTER&
       (LEN=MAX_DERIVATIVE_DESC_LENGTH), &
       INTENT(OUT)                            :: res
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'standardize_derivative_desc', &
       routineP = moduleN//':'//routineN
@@ -138,8 +137,7 @@ CONTAINS
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: res
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_split_derivative_desc', &
       routineP = moduleN//':'//routineN

@@ -102,8 +102,7 @@ CONTAINS
 
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), POINTER                  :: rho_mol_blocks
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_mol_blocks', &
       routineP = moduleN//':'//routineN
@@ -180,8 +179,7 @@ CONTAINS
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
     REAL(dp), INTENT(IN), OPTIONAL           :: r0_molecule(3)
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_mol
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF(PRESENT(r0_molecule)) rho_block%r0_molecule(1:3) = r0_molecule(1:3)
     IF (PRESENT(rho_mol)) THEN ! accepts also null pointers !
@@ -198,8 +196,7 @@ CONTAINS
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     INTEGER                                  :: nmolecule_kind
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_create', &
       routineP = moduleN//':'//routineN
@@ -237,8 +234,7 @@ CONTAINS
     TYPE(kg_molbox_env_type), DIMENSION(:), &
       POINTER                                :: molbox_env_set
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_destroy', &
       routineP = moduleN//':'//routineN
@@ -274,7 +270,7 @@ CONTAINS
            DEALLOCATE(molbox_env_set(ikind)%pw_env_mol%cube_info,stat=istat)
            CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         END IF
-        CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,.true.,error=error)
+        CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,.TRUE.,error=error)
       END IF
       IF(ASSOCIATED(molbox_env_set(ikind)%rho_mol_blocks)) THEN
         CALL deallocate_rho_mol_blocks(molbox_env_set(ikind)%rho_mol_blocks,error=error)
@@ -291,8 +287,7 @@ CONTAINS
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_release', &
       routineP = moduleN//':'//routineN
@@ -323,8 +318,7 @@ CONTAINS
   SUBROUTINE kg_sub_pw_env_retain(kg_sub_pw_env,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_retain', &
       routineP = moduleN//':'//routineN
@@ -350,8 +344,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmol, natom
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rho_mol_blocks_create', &
       routineP = moduleN//':'//routineN
@@ -394,8 +387,7 @@ CONTAINS
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_mol
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rho_mol_blocks
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_molbox_env', &
       routineP = moduleN//':'//routineN

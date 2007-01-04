@@ -32,8 +32,8 @@ MODULE pw_env_types
                                              destroy_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE kinds,                           ONLY: dp
   USE input_section_types,             ONLY: section_vals_release
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_release,&
                                              l_info_type
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
@@ -172,8 +172,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get', &
       routineP = moduleN//':'//routineN
@@ -235,8 +234,7 @@ END SUBROUTINE pw_env_get
 !!*** **********************************************************************
 SUBROUTINE pw_env_retain(pw_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_retain', &
       routineP = moduleN//':'//routineN
@@ -285,14 +283,13 @@ END SUBROUTINE pw_env_retain
 SUBROUTINE pw_env_release(pw_env, kg, error)
     TYPE(pw_env_type), POINTER               :: pw_env
     LOGICAL, OPTIONAL                        :: kg
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: igrid_level, stat
-    LOGICAL                                  :: failure,my_kg
+    LOGICAL                                  :: failure, my_kg
 
   failure=.FALSE.
   my_kg = .FALSE.
@@ -378,8 +375,7 @@ END SUBROUTINE pw_env_release
 !!*** **********************************************************************
 SUBROUTINE pw_env_flush_cache(pw_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_flush_cache', &
       routineP = moduleN//':'//routineN

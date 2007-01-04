@@ -126,8 +126,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: centers_only
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
@@ -237,8 +236,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi1, h1_psi0
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf', &
       routineP = moduleN//':'//routineN
@@ -527,8 +525,7 @@ CONTAINS
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
       routineP = moduleN//':'//routineN
@@ -607,8 +604,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: b, Ab
     INTEGER, INTENT(IN)                      :: nspins, iter
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
       routineP = moduleN//':'//routineN
@@ -793,8 +789,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(2)         :: PS_psi0
     TYPE(qs_p_env_type), POINTER             :: p_env
     INTEGER                                  :: nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_derivative', &
       routineP = moduleN//':'//routineN
@@ -827,8 +822,7 @@ CONTAINS
       POINTER                                :: vectors
     TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER                                  :: nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
     REAL(dp)                                 :: ds
@@ -861,8 +855,7 @@ CONTAINS
       POINTER                                :: vectors
     REAL(dp)                                 :: ds_min
     INTEGER                                  :: nspins
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: count, ispin
     REAL(dp)                                 :: a, b, c, ds, pos, val, x0, x1
@@ -921,8 +914,7 @@ CONTAINS
       POINTER                                :: vectors
     REAL(dp)                                 :: ds_min
     INTEGER                                  :: nspins
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: count, ispin
     REAL(dp)                                 :: den, ds, f1, f2, f3, nom, &

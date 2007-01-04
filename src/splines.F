@@ -112,8 +112,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_env_release(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_release', &
       routineP = moduleN//':'//routineN
@@ -166,8 +165,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_data_release (spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_release', &
       routineP = moduleN//':'//routineN
@@ -222,8 +220,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_data_retain(spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_retain', &
       routineP = moduleN//':'//routineN
@@ -260,8 +257,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_env_retain(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_retain', &
       routineP = moduleN//':'//routineN
@@ -300,8 +296,7 @@ CONTAINS
     TYPE(spline_environment_type), POINTER   :: spline_env
     INTEGER, INTENT(IN)                      :: ntype
     INTEGER, INTENT(IN), OPTIONAL            :: ntab_in
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
       routineP = moduleN//':'//routineN
@@ -357,8 +352,7 @@ CONTAINS
   SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
     TYPE(spline_data_type), POINTER          :: spline_data_source, &
                                                 spline_data_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_copy', &
       routineP = moduleN//':'//routineN
@@ -418,8 +412,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_data_create ( spline_data, error )
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_create', &
       routineP = moduleN//':'//routineN

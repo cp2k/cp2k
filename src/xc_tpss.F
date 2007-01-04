@@ -82,8 +82,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_info', &
       routineP = moduleN//':'//routineN
@@ -151,8 +150,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -221,8 +219,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: tpss_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -335,8 +332,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(section_vals_type), POINTER         :: tpss_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -469,8 +465,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
                                                 epsilon_norm_drho, epsilon_tau
     TYPE(section_vals_type), POINTER         :: tpss_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -1016,8 +1011,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
                                                 epsilon_norm_drho, epsilon_tau
     TYPE(section_vals_type), POINTER         :: tpss_params
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_calc', &
       routineP = moduleN//':'//routineN

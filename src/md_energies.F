@@ -118,8 +118,8 @@ CONTAINS
                                                 iskip, isubsys, iw, nat, str, &
                                                 vel
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: is_mixed, qmmm
-    LOGICAL                                  :: init, init_traj, init_vel, init_force
+    LOGICAL                                  :: init, init_force, init_traj, &
+                                                init_vel, is_mixed, qmmm
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, epot, &
@@ -141,7 +141,6 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
-
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -594,7 +593,7 @@ CONTAINS
                         virial%pv_total(3,1)/cell%deth*unit%bar, &
                         virial%pv_total(3,2)/cell%deth*unit%bar, &
                         virial%pv_total(3,3)/cell%deth*unit%bar
-          call m_flush(str)
+          CALL m_flush(str)
        END IF
        !------------------
        !------------------

@@ -116,8 +116,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create', &
       routineP = moduleN//':'//routineN
@@ -171,8 +170,7 @@ END SUBROUTINE pw_env_create
 SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild', &
       routineP = moduleN//':'//routineN

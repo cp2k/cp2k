@@ -201,8 +201,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi1, p_psi1
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
       routineP = moduleN//':'//routineN
@@ -717,8 +716,7 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho_rs, rho_gs
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
       routineP = moduleN//':'//routineN
@@ -1480,8 +1478,7 @@ CONTAINS
     TYPE(lgrid_type), OPTIONAL               :: lgrid
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
     LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'collocate_pgf_resp_curr_wrong', &
@@ -1822,8 +1819,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi1
     TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'test_func', &
       routineP = moduleN//':'//routineN

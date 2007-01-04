@@ -59,8 +59,7 @@ SUBROUTINE kg_rho_get(kg_rho, rho_r, rho_g, rhop_r, rhop_g, &
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(coeff_type), OPTIONAL, POINTER      :: rho_r, rho_g, rhop_r, rhop_g, &
                                                 rho_core
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_get', &
       routineP = moduleN//':'//routineN
@@ -83,8 +82,7 @@ END SUBROUTINE kg_rho_get
 !!**************************************************************************
 SUBROUTINE kg_rho_retain(kg_rho,error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_retain', &
       routineP = moduleN//':'//routineN
@@ -115,8 +113,7 @@ END SUBROUTINE kg_rho_retain
 
 
     TYPE(kg_rho_type), POINTER               :: kg_rho
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_release', &
       routineP = moduleN//':'//routineN

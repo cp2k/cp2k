@@ -16,30 +16,20 @@
 !!
 !******************************************************************************
 MODULE mc_coordinates
-  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_pp_type
+                                             cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
                                              force_env_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: mc_averages_type,&
-                                             mc_molecule_info_type,&
-                                             get_mc_molecule_info
+  USE mc_types,                        ONLY: get_mc_molecule_info,&
+                                             mc_molecule_info_type
   USE message_passing,                 ONLY: mp_bcast
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type,&
-                                             mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type
-  USE molecule_types_new,              ONLY: get_molecule,&
-                                             molecule_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -96,17 +86,19 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
                                  cell_length,molecule_number)
 
     TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, DIMENSION(:),INTENT(IN)         :: nchains,mol_type,nunits
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nchains, nunits
     LOGICAL, INTENT(OUT)                     :: loverlap
+    INTEGER, DIMENSION(:), INTENT(IN)        :: mol_type
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN), OPTIONAL                   :: cell_length
-    INTEGER,INTENT(IN),OPTIONAL              :: molecule_number
+    INTEGER, INTENT(IN), OPTIONAL            :: molecule_number
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'check_for_overlap'
 
     INTEGER                                  :: handle, imol, istat, iunit, &
-                                                jmol, jstart, junit, nunit,&
-                                                nunits_i,nunits_j,nstart,nend
+                                                jmol, jstart, junit, nend, &
+                                                nstart, nunit, nunits_i, &
+                                                nunits_j
     LOGICAL                                  :: lall
     REAL(KIND=dp)                            :: dist, rmin
     REAL(KIND=dp), ALLOCATABLE, &
@@ -120,6 +112,7 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(oldsys,particles)
@@ -301,19 +294,24 @@ SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_l
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
     INTEGER, INTENT(IN)                      :: nchains_tot
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)  :: mass
-    INTEGER, DIMENSION(:),INTENT(IN)               :: nunits,mol_type
+    INTEGER, DIMENSION(:), INTENT(IN)        :: mol_type
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: mass
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nunits
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN)                             :: box_length
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_coordinate_fold'
 
-    INTEGER                                  :: handle, iatom, jatom,&
-         natoms,start_atom,end_atom,imolecule,molecule_type
+    INTEGER                                  :: end_atom, handle, iatom, &
+                                                imolecule, jatom, &
+                                                molecule_type, natoms, &
+                                                start_atom
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! loop over all molecules
@@ -402,13 +400,16 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     REAL(KIND=dp), INTENT(IN)                :: BETA
     INTEGER, INTENT(IN)                      :: nswapmoves
     REAL(KIND=dp), INTENT(OUT)               :: rosenbluth_weight
-    INTEGER, INTENT(IN)                      :: start_atom,nunits_mol,natoms_tot
-    REAL(dp),DIMENSION(1:nunits_mol),INTENT(IN)  :: mass
+    INTEGER, INTENT(IN)                      :: start_atom, natoms_tot
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nunits
+    INTEGER, INTENT(IN)                      :: nunits_mol
+    REAL(dp), DIMENSION(1:nunits_mol), &
+      INTENT(IN)                             :: mass
     LOGICAL, INTENT(OUT)                     :: loverlap
-    INTEGER,DIMENSION(:),INTENT(IN)          :: nchains,mol_type,nunits
     REAL(KIND=dp), INTENT(OUT)               :: choosen_energy
     REAL(KIND=dp), INTENT(IN)                :: old_energy
-    LOGICAL, INTENT(IN)                      :: ionode,lremove
+    LOGICAL, INTENT(IN)                      :: ionode, lremove
+    INTEGER, DIMENSION(:), INTENT(IN)        :: mol_type, nchains
     INTEGER, INTENT(IN)                      :: source, group
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type)                      :: error
@@ -419,14 +420,15 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_cbmc_swap_config'
 
-    INTEGER :: choosen, end_atom, handle, i, iatom, imove, istat,&
-         molecule_number,atom_number,imolecule
+    INTEGER                                  :: atom_number, choosen, &
+                                                end_atom, handle, i, iatom, &
+                                                imolecule, imove, istat, &
+                                                molecule_number
     LOGICAL                                  :: all_overlaps
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: loverlap_array
     REAL(KIND=dp)                            :: bias_energy, exponent, rand, &
                                                 total_running_weight
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: boltz_weights,&
-                                                trial_energy
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: boltz_weights, trial_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
     REAL(KIND=dp), ALLOCATABLE, &
@@ -437,6 +439,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(particle_list_type), POINTER        :: particles
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -862,22 +865,24 @@ END SUBROUTINE rotate_molecule
 SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
      box_number,molecule_type,rng_stream,box,molecule_type_old,error)
 
-    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
-    INTEGER, INTENT(OUT)                     :: start_atom, box_number,molecule_type
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+    INTEGER, INTENT(OUT)                     :: start_atom, box_number, &
+                                                molecule_type
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    INTEGER, INTENT(IN), OPTIONAL            :: box,molecule_type_old
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: box, molecule_type_old
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'find_mc_test_molecule', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: start_mol,molecule_number,jbox,ibox,&
-         imolecule,handle,nchains_tot,imol_type
+    INTEGER                                  :: handle, ibox, imol_type, &
+                                                imolecule, jbox, &
+                                                molecule_number, nchains_tot, &
+                                                start_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rand
-    INTEGER,DIMENSION(:),POINTER             :: nunits,mol_type
-    INTEGER,DIMENSION(:,:),POINTER             :: nchains
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine

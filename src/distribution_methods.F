@@ -111,8 +111,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_1d'
 
@@ -475,8 +474,7 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_2d'
 

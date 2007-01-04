@@ -191,8 +191,7 @@ CONTAINS
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER, INTENT(IN)                      :: e, c
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'advance_rng_state', &
       routineP = moduleN//':'//routineN
@@ -448,8 +447,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN)                             :: seed
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: fmtstr = "(A,I1,A,ES23.14,A,ES23.14)", &
       routineN = 'check_seed', routineP = moduleN//':'//routineN
@@ -535,8 +533,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: seed
     LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -618,8 +615,7 @@ CONTAINS
     ! Delete a random number stream.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -649,8 +645,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=rng_record_length), &
       INTENT(OUT)                            :: rng_record
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -692,8 +687,7 @@ CONTAINS
     INTEGER, DIMENSION(3, 2), INTENT(OUT), &
       OPTIONAL                               :: bg, cg, ig
     LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -985,8 +979,7 @@ CONTAINS
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER, INTENT(IN)                      :: low, high
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER                                  :: u
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number', &
@@ -1018,8 +1011,7 @@ CONTAINS
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: variance
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp)                            :: u
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_real_random_number', &
@@ -1083,8 +1075,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: seed
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
     REAL(KIND=dp), DIMENSION(3, 2)           :: next_seed
 
 ! -------------------------------------------------------------------------
@@ -1107,8 +1098,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:)              :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_1', &
       routineP = moduleN//':'//routineN
@@ -1138,8 +1128,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:, :)           :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_2', &
       routineP = moduleN//':'//routineN
@@ -1171,8 +1160,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:, :, :)        :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_3', &
       routineP = moduleN//':'//routineN
@@ -1207,8 +1195,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=rng_record_length), &
       INTENT(IN)                             :: rng_record
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -1247,8 +1234,7 @@ CONTAINS
     ! Reset a random number stream to its initial state.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -1289,8 +1275,7 @@ CONTAINS
     ! Reset a random number stream to the beginning of its next substream.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_to_next_rng_substream', &
       routineP = moduleN//':'//routineN
@@ -1402,8 +1387,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: bg, cg, ig, seed
     LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_rng_stream', &
       routineP = moduleN//':'//routineN
@@ -1491,8 +1475,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN), OPTIONAL            :: write_all
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rng_stream', &
       routineP = moduleN//':'//routineN

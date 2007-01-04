@@ -118,8 +118,7 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
     INTEGER, INTENT(in)                      :: nspins
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: total_rho_core_rspace, &
                                                 total_rho_gspace
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_create', &
       routineP = moduleN//':'//routineN
@@ -184,8 +183,7 @@ END SUBROUTINE qs_charges_create
 !!*** **********************************************************************
 SUBROUTINE qs_charges_retain(qs_charges, error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_retain', &
       routineP = moduleN//':'//routineN
@@ -233,8 +231,7 @@ END SUBROUTINE qs_charges_retain
 !!*** **********************************************************************
 SUBROUTINE qs_charges_release(qs_charges, error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_release', &
       routineP = moduleN//':'//routineN

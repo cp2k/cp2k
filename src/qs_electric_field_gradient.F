@@ -91,8 +91,7 @@ CONTAINS
   SUBROUTINE qs_efg_calc(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efg_calc', &
       routineP = moduleN//':'//routineN
@@ -409,8 +408,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vlimit_atom', &
       routineP = moduleN//':'//routineN

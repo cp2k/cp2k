@@ -294,8 +294,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_matrix_distribution'
 

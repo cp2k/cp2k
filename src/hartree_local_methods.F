@@ -269,7 +269,7 @@ MODULE  hartree_local_methods
                             POINTER            :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER            :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    tYPE(cp_para_env_type), POINTER            :: para_env
+    TYPE(cp_para_env_type), POINTER            :: para_env
     TYPE(gto_basis_set_type), POINTER          :: orb_basis
     TYPE(grid_atom_type), POINTER              :: grid_atom
     TYPE(harmonics_atom_type), &

@@ -23,7 +23,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE block_p_types
-  USE kinds, ONLY: dp
+  USE kinds,                           ONLY: dp
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: block_p_type

@@ -127,8 +127,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_create', &
       routineP = moduleN//':'//routineN
@@ -184,8 +183,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE dg_rho0_retain ( dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_retain', &
       routineP = moduleN//':'//routineN
@@ -232,8 +230,7 @@ END SUBROUTINE dg_rho0_retain
 !!*** **********************************************************************
 SUBROUTINE dg_rho0_release(dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_release', &
       routineP = moduleN//':'//routineN

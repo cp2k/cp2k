@@ -81,8 +81,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_info', &
       routineP = moduleN//':'//routineN
@@ -134,8 +133,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -188,8 +186,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -342,8 +339,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -763,8 +759,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -970,8 +965,7 @@ CONTAINS
       e_ndrho_ndrho_ndrho_spin
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc', &
       routineP = moduleN//':'//routineN

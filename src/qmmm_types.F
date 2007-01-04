@@ -234,8 +234,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_create(qmmm_env, error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create', &
       routineP = moduleN//':'//routineN
@@ -287,8 +286,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_retain(qmmm_env,error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_retain', &
       routineP = moduleN//':'//routineN
@@ -326,8 +324,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_release(qmmm_env,error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release', &
       routineP = moduleN//':'//routineN
@@ -394,8 +391,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_create', &
       routineP = moduleN//':'//routineN
@@ -456,8 +452,7 @@ END SUBROUTINE qmmm_env_qm_create
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_retain', &
       routineP = moduleN//':'//routineN
@@ -498,8 +493,7 @@ END SUBROUTINE qmmm_env_qm_retain
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
       routineP = moduleN//':'//routineN
@@ -594,8 +588,7 @@ END SUBROUTINE qmmm_env_qm_release
 SUBROUTINE pgfs_release(pgfs, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release', &
       routineP = moduleN//':'//routineN
@@ -648,8 +641,7 @@ END SUBROUTINE pgfs_release
 !!*** **********************************************************************
 SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc', &
       routineP = moduleN//':'//routineN
@@ -701,8 +693,7 @@ END SUBROUTINE qmmm_links_dealloc
 SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc', &
       routineP = moduleN//':'//routineN
@@ -751,8 +742,7 @@ END SUBROUTINE qmmm_pot_type_dealloc
 SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: Per_Potentials
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc', &
       routineP = moduleN//':'//routineN
@@ -820,8 +810,7 @@ END SUBROUTINE qmmm_per_pot_type_dealloc
 !!*** **********************************************************************
 SUBROUTINE add_set_release(added_charges, error)
     TYPE(add_set_type), POINTER              :: added_charges
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_set_release', &
       routineP = moduleN//':'//routineN
@@ -895,8 +884,7 @@ END SUBROUTINE add_set_release
 SUBROUTINE create_add_set_type(added_charges, ndim, error)
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, INTENT(IN)                      :: ndim
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type', &
       routineP = moduleN//':'//routineN

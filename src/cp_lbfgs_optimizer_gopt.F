@@ -276,8 +276,7 @@ CONTAINS
     INTEGER, DIMENSION(SIZE(x0)), &
       INTENT(in), OPTIONAL                   :: kind_of_bound
     INTEGER, INTENT(in), OPTIONAL            :: master, max_f_per_iter
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_create', &
       routineP = moduleN//':'//routineN
@@ -384,8 +383,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cp_opt_gopt_retain(optimizer,error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain', &
       routineP = moduleN//':'//routineN
@@ -428,8 +426,7 @@ END SUBROUTINE cp_opt_gopt_retain
 !!*** **********************************************************************
 SUBROUTINE cp_opt_gopt_release(optimizer,error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_release', &
       routineP = moduleN//':'//routineN
@@ -541,8 +538,7 @@ END SUBROUTINE cp_opt_gopt_release
                                                 max_f_per_iter
     LOGICAL, INTENT(out), OPTIONAL           :: at_end, is_master
     REAL(kind=dp), INTENT(out), OPTIONAL     :: last_f, f
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_get', &
       routineP = moduleN//':'//routineN
@@ -637,8 +633,7 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: force_env_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_step', &
       routineP = moduleN//':'//routineN
@@ -913,8 +908,7 @@ CPSourceFileRef,&
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     INTEGER, INTENT(out), OPTIONAL           :: n_iter
     REAL(kind=dp), INTENT(inout), OPTIONAL   :: f, last_f, projected_gradient
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res', &
       routineP = moduleN//':'//routineN
@@ -979,8 +973,7 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: force_env_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_next', &
@@ -1033,8 +1026,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gopt_stop(optimizer, error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_stop', &
       routineP = moduleN//':'//routineN

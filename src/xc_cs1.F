@@ -97,8 +97,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lda_info', &
       routineP = moduleN//':'//routineN
@@ -145,8 +144,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -193,8 +191,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -294,8 +291,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -370,8 +366,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: c2p, c3p, c4p, cp, dpv, F1, &
@@ -417,8 +412,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: c2p, c3p, c4p, cp, dF1, dF3, &
@@ -470,8 +464,7 @@ CONTAINS
       INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: c2p, c3p, c4p, cp, d2F1, &
@@ -536,8 +529,7 @@ CONTAINS
                                                 e_rho_ndrho_ndrho, &
                                                 e_ndrho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp) :: c2p, c3p, c4p, cp, d2rgF2, d2rgF4, d3F1, d3F3, d3gF2, &
@@ -631,8 +623,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_ss_0', &
       routineP = moduleN//':'//routineN
@@ -696,8 +687,7 @@ CONTAINS
       INTENT(INOUT)                          :: e_rhoa, e_rhob, e_ndrhoa, &
                                                 e_ndrhob
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_ss_1', &
       routineP = moduleN//':'//routineN

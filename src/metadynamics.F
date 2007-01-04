@@ -92,8 +92,7 @@ CONTAINS
     REAL(dp), INTENT(in)                     :: dt
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: metadyn_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_create', &
       routineP = moduleN//':'//routineN
@@ -188,8 +187,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: metadyn_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_read', &
       routineP = moduleN//':'//routineN
@@ -303,8 +301,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: metavar_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
       routineP = moduleN//':'//routineN
@@ -367,8 +364,7 @@ CONTAINS
 !FM not safe with multiple non overlapping para_env for the subsys (sounds likely)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_add_forces', &
       routineP = moduleN//':'//routineN
@@ -572,8 +568,7 @@ CONTAINS
 !!*** **********************************************************************  
   SUBROUTINE hills(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
       routineP = moduleN//':'//routineN

@@ -168,8 +168,7 @@ SUBROUTINE atomic_kind_list_create(list, els_ptr, &
       OPTIONAL, POINTER                      :: els_ptr
     LOGICAL, INTENT(in), OPTIONAL            :: owns_els
     INTEGER, INTENT(in), OPTIONAL            :: n_els
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_create', &
       routineP = moduleN//':'//routineN
@@ -234,8 +233,7 @@ END SUBROUTINE atomic_kind_list_create
 !!*** **********************************************************************
 SUBROUTINE atomic_kind_list_retain(list, error)
     TYPE(atomic_kind_list_type), POINTER     :: list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_retain', &
       routineP = moduleN//':'//routineN
@@ -277,8 +275,7 @@ END SUBROUTINE atomic_kind_list_retain
 !!*** **********************************************************************
 SUBROUTINE atomic_kind_list_release(list, error)
     TYPE(atomic_kind_list_type), POINTER     :: list
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_release', &
       routineP = moduleN//':'//routineN

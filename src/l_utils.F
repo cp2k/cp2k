@@ -77,8 +77,7 @@ CONTAINS
     INTEGER                                  :: cmax
     INTEGER, DIMENSION(:, :, :, :, :, :), &
       OPTIONAL, POINTER                      :: ipzyx
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'return_l_info', &
       routineP = moduleN//':'//routineN
@@ -150,8 +149,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx
     INTEGER, DIMENSION(:, :, :, :, :, :), &
       OPTIONAL, POINTER                      :: ipzyx
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'finish_l_info', &
       routineP = moduleN//':'//routineN
@@ -200,8 +198,7 @@ CONTAINS
     INTEGER                                  :: lmax, cmax
     INTEGER, OPTIONAL                        :: nthread
     LOGICAL, INTENT(in), OPTIONAL            :: lrho0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, ithread, la, la_max, &
                                                 la_min, lb, lb_max, lb_min, &
@@ -284,8 +281,7 @@ CONTAINS
   SUBROUTINE destroy_l_info(l_info,error)
 
     TYPE(l_info_type)                        :: l_info
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_l_info', &
       routineP = moduleN//':'//routineN
@@ -319,8 +315,7 @@ CONTAINS
     INTEGER                                  :: la_min, la_max, lb_min, &
                                                 lb_max, cmax
     TYPE(l_set_info_type)                    :: l_set_info
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_l_set_info_type', &
       routineP = moduleN//':'//routineN
@@ -394,8 +389,7 @@ CONTAINS
    SUBROUTINE destroy_l_set_info_type(l_set_info,error)
 
     TYPE(l_set_info_type)                    :: l_set_info
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_l_set_info_type', &
       routineP = moduleN//':'//routineN
@@ -414,8 +408,7 @@ CONTAINS
   SUBROUTINE l_info_retain(l_info,error)
 
     TYPE(l_info_type), POINTER               :: l_info
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'l_info_retain', &
       routineP = moduleN//':'//routineN
@@ -437,8 +430,7 @@ CONTAINS
   SUBROUTINE l_info_release(l_info,error)
 
     TYPE(l_info_type), POINTER               :: l_info
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'l_info_release', &
       routineP = moduleN//':'//routineN

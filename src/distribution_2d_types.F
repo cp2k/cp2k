@@ -153,8 +153,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       OPTIONAL                               :: n_local_cols
     INTEGER, INTENT(in), OPTIONAL            :: n_row_distribution, &
                                                 n_col_distribution
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create', &
       routineP = moduleN//':'//routineN
@@ -302,8 +301,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
 !!*** *********************************************************************
 SUBROUTINE distribution_2d_retain(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_retain', &
       routineP = moduleN//':'//routineN
@@ -338,8 +336,7 @@ END SUBROUTINE distribution_2d_retain
 !!*** *********************************************************************
 SUBROUTINE distribution_2d_release(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_release', &
       routineP = moduleN//':'//routineN
@@ -425,8 +422,7 @@ END SUBROUTINE distribution_2d_release
 !!*** **********************************************************************
 SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_build_gdist', &
       routineP = moduleN//':'//routineN
@@ -621,8 +617,7 @@ END SUBROUTINE distribution_2d_build_gdist
 !!*** **********************************************************************
 SUBROUTINE distribution_2d_destroy_gdist(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'distribution_2d_destroy_gdist', &
@@ -682,8 +677,7 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: local, long_description
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_write', &
       routineP = moduleN//':'//routineN
@@ -900,8 +894,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_get', &
       routineP = moduleN//':'//routineN

@@ -88,8 +88,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho0_ppl', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -602,8 +601,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_drho_ppl', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"

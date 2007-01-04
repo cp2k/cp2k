@@ -70,8 +70,7 @@ MODULE kg_gpw_pw_env_methods
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_release,&
                                              l_info_type
-  USE message_passing,                 ONLY: MPI_COMM_SELF,&
-                                             mp_max
+  USE message_passing,                 ONLY: MPI_COMM_SELF
   USE particle_types,                  ONLY: particle_type
   USE pw_env_methods,                  ONLY: pw_env_create
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -156,16 +155,13 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_molbox_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iat, iatom, imol, &
-                                                jat, jatom, nat_mol, &
-                                                ngrid_level, nmol_local, &
-                                                mepos, num_pe, output_unit
+    INTEGER :: handle, i, iat, iatom, imol, jat, jatom, mepos, nat_mol, &
+      ngrid_level, nmol_local, num_pe, output_unit
     INTEGER, DIMENSION(:), POINTER           :: index_atom
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: length, Li, ra(3), rab, &
@@ -381,8 +377,7 @@ CONTAINS
     REAL(dp), INTENT(INOUT)                  :: side(3)
     INTEGER, INTENT(IN)                      :: num_pe, mepos
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild', &
       routineP = moduleN//':'//routineN
@@ -920,8 +915,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: nspins
     LOGICAL, INTENT(IN)                      :: use_tau
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rho_mol_blocks', &
       routineP = moduleN//':'//routineN
@@ -1167,8 +1161,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_update_rho_mol', &
       routineP = moduleN//':'//routineN

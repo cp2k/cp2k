@@ -60,9 +60,9 @@ MODULE force_env_types
                                              meta_env_retain,&
                                              meta_env_type
   USE mixed_energy_types,              ONLY: mixed_energy_type
-  USE mixed_environment_types,         ONLY: mixed_env_release,&
-                                             mixed_environment_type,&
-                                             get_mixed_env
+  USE mixed_environment_types,         ONLY: get_mixed_env,&
+                                             mixed_env_release,&
+                                             mixed_environment_type
   USE particle_list_types,             ONLY: particle_list_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_release,&
                                              qmmm_env_qm_type
@@ -90,7 +90,7 @@ MODULE force_env_types
                                 use_qmmm       = 505, &
                                 use_eip_force  = 506, &
                                 use_ep_force   = 507, &
-	                        use_mixed_force= 508
+                                use_mixed_force= 508
 
   CHARACTER(LEN=10), DIMENSION(501:508), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
@@ -236,8 +236,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE force_env_retain(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_retain', &
       routineP = moduleN//':'//routineN
@@ -279,8 +278,7 @@ END SUBROUTINE force_env_retain
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_release(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_release', &
       routineP = moduleN//':'//routineN
@@ -410,8 +408,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       OPTIONAL, POINTER                      :: sub_force_env
     TYPE(qmmm_env_qm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(mixed_environment_type), OPTIONAL, &
-      POINTER                                :: mixed_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
@@ -426,8 +422,9 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     INTEGER, INTENT(out), OPTIONAL           :: method_name_id
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: root_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(mixed_environment_type), OPTIONAL, &
+      POINTER                                :: mixed_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
@@ -438,8 +435,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
                                                 penergy_mm, penergy_qm
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fist_energy_type), POINTER          :: thermo
-    TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(kg_energy_type), POINTER            :: kg_energy
+    TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: my_qs_env
 
@@ -666,8 +663,7 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
     INTEGER, OPTIONAL                        :: method_name_id
     TYPE(extended_energy_type), OPTIONAL, &
       POINTER                                :: extended_energies
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
       routineP = moduleN//':'//routineN
@@ -747,8 +743,7 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), DIMENSION(*), INTENT(out) :: pos
     INTEGER, INTENT(in)                      :: n_el
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_pos_get', &
       routineP = moduleN//':'//routineN
@@ -828,8 +823,7 @@ END SUBROUTINE force_env_pos_get
 !!*** **********************************************************************
 FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: n_atom
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get_natom', &

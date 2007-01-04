@@ -63,8 +63,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(local_rho_type), OPTIONAL, POINTER  :: local_rho_set
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rho0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'prepare_gapw_den'
 

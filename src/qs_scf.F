@@ -93,10 +93,10 @@ MODULE qs_scf
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
        core_guess, densities_guess, general_roks, high_spin_roks, &
-       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run, &
-       restart_guess, history_guess
+       history_guess, ot_precond_full_all, ot_precond_full_kinetic, &
+       ot_precond_full_single, ot_precond_full_single_inverse, &
+       ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
+       ot_precond_sparse_firstorder, qs_debug_run, restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -182,7 +182,6 @@ MODULE qs_scf
                                              timestop
   USE virial_types,                    ONLY: virial_type
   USE xas_restart,                     ONLY: xas_initialize_rho
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -235,21 +234,20 @@ CONTAINS
   SUBROUTINE scf(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: max_scf_tmp
     LOGICAL                                  :: converged, failure, &
-                                                should_stop, outer_scf_loop
+                                                outer_scf_loop, should_stop
+    LOGICAL, SAVE                            :: first_step_flag = .TRUE.
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
-    LOGICAL, SAVE                            :: first_step_flag=.TRUE.
-    INTEGER                                  :: max_scf_tmp
 
     NULLIFY(scf_env)
     failure=.FALSE.
@@ -364,18 +362,19 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, ispin, &
-                                                iter_level, output_unit, &
-                                                total_steps, nvec, i
-    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
-               has_unit_metric, outer_loop_converged, use_jacobi, use_virial, &
-               harris_energy
+    CHARACTER(LEN=default_path_length)       :: file_name, filename1, &
+                                                filename2
+    INTEGER                                  :: handle, handle2, i, ispin, &
+                                                iter_level, nvec, &
+                                                output_unit, total_steps
+    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_energy, &
+      harris_flag, has_unit_metric, outer_loop_converged, use_jacobi, &
+      use_virial
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -394,11 +393,9 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, input, &
-                                                scf_section, harris_section
+    TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
+                                                input, scf_section
     TYPE(virial_type), POINTER               :: virial
-    CHARACTER(LEN=default_path_length)       :: file_name, filename1, &
-                                                filename2
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -769,8 +766,7 @@ SUBROUTINE qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_co
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step, use_jacobi
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: do_level_shift
@@ -862,8 +858,7 @@ SUBROUTINE qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: do_level_shift
@@ -928,8 +923,7 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,matrix_s,ene
       POINTER                                :: matrix_s
     LOGICAL, INTENT(OUT)                     :: energy_only
     LOGICAL, INTENT(IN)                      :: has_unit_metric
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
@@ -1093,8 +1087,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_print', &
       routineP = moduleN//':'//routineN
@@ -1212,8 +1205,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_loop', &
       routineP = moduleN//':'//routineN
@@ -1437,8 +1429,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
       routineP = moduleN//':'//routineN
@@ -1625,8 +1616,7 @@ END SUBROUTINE qs_scf_print_summary
   SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -1863,8 +1853,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_initial_rho_setup', &
       routineP = moduleN//':'//routineN
@@ -1968,8 +1957,7 @@ END SUBROUTINE qs_scf_print_summary
   SUBROUTINE scf_env_cleanup(scf_env,qs_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_cleanup', &
       routineP = moduleN//':'//routineN
@@ -2065,8 +2053,7 @@ END SUBROUTINE qs_scf_print_summary
 !!*** **********************************************************************
   SUBROUTINE cleanup_scf_loop(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_scf_loop', &
       routineP = moduleN//':'//routineN
@@ -2131,8 +2118,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
     LOGICAL, INTENT(IN)                      :: orthogonal_basis
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_roks_diag', &
       routineP = moduleN//':'//routineN

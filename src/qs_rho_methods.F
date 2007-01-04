@@ -112,8 +112,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids, &
                                                 gapw_xc
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
       routineP = moduleN//':'//routineN
@@ -311,8 +310,7 @@ END SUBROUTINE qs_rho_rebuild
 SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
       routineP = moduleN//':'//routineN
@@ -436,8 +434,7 @@ END SUBROUTINE qs_rho_update_rho
 
     TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_rho_type', &
       routineP = moduleN//':'//routineN
@@ -648,8 +645,7 @@ END SUBROUTINE qs_rho_update_rho
     REAL(KIND=dp), OPTIONAL                  :: beta
     TYPE(qs_rho_type), POINTER               :: rho_input2, rho_output
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diff_rho_type', &
       routineP = moduleN//':'//routineN
@@ -886,8 +882,7 @@ END SUBROUTINE qs_rho_update_rho
 
     TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_rho_type', &
       routineP = moduleN//':'//routineN

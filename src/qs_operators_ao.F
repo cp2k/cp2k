@@ -41,9 +41,9 @@ MODULE qs_operators_ao
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, &
-       get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
-       neighbor_list_type, neighbor_node_type, next
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              get_block_node,&
@@ -101,8 +101,7 @@ CONTAINS
       POINTER                                :: op_sm
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_xyz_ao', &
       routineP = moduleN//':'//routineN
@@ -483,8 +482,7 @@ CONTAINS
       POINTER                                :: op_sm
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rmc_x_p_xyz_ao', &
       routineP = moduleN//':'//routineN
@@ -825,8 +823,7 @@ CONTAINS
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image, soft
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_ao', &
       routineP = moduleN//':'//routineN
@@ -1206,8 +1203,7 @@ CONTAINS
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image, soft
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_der_ao', &
       routineP = moduleN//':'//routineN
@@ -1634,8 +1630,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(LEN=*)                         :: symmetry, name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_up_op_sm', &
       routineP = moduleN//':'//routineN

@@ -112,8 +112,7 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_density (MODULE kg_density)"
@@ -368,8 +367,7 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "calculate_epc_density (MODULE kg_density)"
@@ -477,8 +475,7 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_p_density (MODULE kg_density)"
@@ -709,8 +706,7 @@ CONTAINS
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
@@ -827,8 +823,7 @@ CONTAINS
     TYPE(coeff_type)                         :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_v_rspace_forces (MODULE kg_density)"
@@ -1102,8 +1097,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_vp_rspace_forces (MODULE kg_density)"

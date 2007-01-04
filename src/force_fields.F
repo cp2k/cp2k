@@ -104,8 +104,7 @@ CONTAINS
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
       routineP = moduleN//':'//routineN

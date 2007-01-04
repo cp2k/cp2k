@@ -109,8 +109,7 @@ MODULE qs_rho0_ggrid
       POINTER                                :: atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0
     REAL(dp), INTENT(OUT)                    :: tot_rs_int
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_s_on_grid', &
       routineP = moduleN//':'//routineN
@@ -319,8 +318,7 @@ MODULE qs_rho0_ggrid
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rho0_s_grid_create', &
       routineP = moduleN//':'//routineN
@@ -398,8 +396,7 @@ MODULE qs_rho0_ggrid
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
       routineP = moduleN//':'//routineN

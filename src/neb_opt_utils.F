@@ -75,12 +75,13 @@ CONTAINS
 !****************************************************************************
   FUNCTION accept_diis_step(apply_diis, n_diis,err,crr,set_err,sline,coords,&
        output_unit,check_diis,error) RESULT(accepted)
-    LOGICAL, INTENT(IN)                      :: apply_diis, check_diis
+    LOGICAL, INTENT(IN)                      :: apply_diis
     INTEGER, INTENT(IN)                      :: n_diis
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: err, crr
     INTEGER, DIMENSION(:), POINTER           :: set_err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sline, coords
     INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(IN)                      :: check_diis
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: accepted
 
@@ -289,8 +290,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nv, n_diis
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwrk, step, ref
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, INTENT(IN)                      :: check_diis
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: accepted
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_diis_solution', &
@@ -401,7 +402,8 @@ CONTAINS
 
     INTEGER                                  :: i, np, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, b, xa, xb, xc, ya, yb, max_stepsize
+    REAL(KIND=dp)                            :: a, b, max_stepsize, xa, xb, &
+                                                xc, ya, yb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Icoord
 
@@ -414,7 +416,7 @@ CONTAINS
        Icoord = coords
        xa = 0.0_dp
        ya = SUM(sline*forces)
-       xb = xa + min(SUM(sline*forces)*stepsize,max_stepsize)
+       xb = xa + MIN(SUM(sline*forces)*stepsize,max_stepsize)
        xc = xb
        i  = 1
        DO WHILE (i<=np-1)

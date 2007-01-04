@@ -24,7 +24,6 @@
 MODULE topology_constraint_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_counters,&
@@ -36,12 +35,13 @@ MODULE topology_constraint_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_constants,                 ONLY: do_constr_atomic,&
+                                             do_constr_molec
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_get,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE input_constants,                 ONLY: do_constr_none, do_constr_atomic, do_constr_molec
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -57,13 +57,14 @@ MODULE topology_constraint_util
                                              molecule_type,&
                                              set_molecule
   USE particle_types,                  ONLY: particle_type
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_types,                  ONLY: constraint_info_type,&
-                                             topology_parameters_type,&
-                                             constr_list_type
-  USE termination,                     ONLY: stop_program
+  USE topology_types,                  ONLY: constr_list_type,&
+                                             constraint_info_type,&
+                                             topology_parameters_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -114,8 +115,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
       routineP = moduleN//':'//routineN
@@ -123,16 +123,16 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: molname, name
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atom_typeh
-    INTEGER :: first, first_atom, handle, i, ii, iw, j, k, k1loc, k2loc, &
-      kdim, kk, last, last_atom, m, n_start_colv, natom, nbond, ncolv_mol, &
-      nfixd_restraint, nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, &
-      ng4x6_restraint, nhdist, nmolecule, nrep, offset, stat
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, fix_atom_mm, &
-                                                fix_atom_molname, &
-                                                fix_atom_qm, fix_atom_qmmm, &
-                                                fix_fixed_atom
+      DIMENSION(:), POINTER                  :: atom_typeh, cnds
+    INTEGER :: first, first_atom, gind, handle, i, ii, iw, j, k, k1loc, &
+      k2loc, kdim, kk, last, last_atom, m, n_start_colv, natom, nbond, &
+      ncolv_mol, nfixd_restraint, nfixed_atoms, ng3x3, ng3x3_restraint, &
+      ng4x6, ng4x6_restraint, nhdist, nmolecule, nrep, offset, output_unit, &
+      stat
+    INTEGER, DIMENSION(:), POINTER           :: inds, molecule_list
+    LOGICAL :: failure, fix_atom_mm, fix_atom_molname, fix_atom_qm, &
+      fix_atom_qmmm, fix_fixed_atom, ionode, ishbond, ldummy, &
+      restart_restraint_clv, restart_restraint_pos
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
@@ -142,6 +142,8 @@ CONTAINS
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
     TYPE(colvar_counters)                    :: ncolv
+    TYPE(constr_list_type), DIMENSION(:), &
+      POINTER                                :: constr_x_mol
     TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fixd_constraint_type), &
@@ -159,15 +161,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: lg4x6
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(section_vals_type), POINTER         :: hbonds_section,&
-                                                fixd_restr_rest,&
-                                                colvar_rest
-    TYPE(constr_list_type), POINTER, DIMENSION(:)  :: constr_x_mol
-    INTEGER :: output_unit, gind
-    LOGICAL :: ionode, ishbond, ldummy
-    INTEGER, POINTER, DIMENSION(:) :: inds
-    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: cnds
-    LOGICAL :: restart_restraint_pos, restart_restraint_clv
+    TYPE(section_vals_type), POINTER         :: colvar_rest, fixd_restr_rest, &
+                                                hbonds_section
 
     failure = .FALSE.
     NULLIFY(logger, constr_x_mol)
@@ -836,22 +831,22 @@ CONTAINS
   SUBROUTINE give_constraint_array(const_mol, const_molname,constr_x_mol,&
                                   molecule_kind_set, error)
     
+    INTEGER, DIMENSION(:), POINTER           :: const_mol
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: const_molname
+    TYPE(constr_list_type), DIMENSION(:), &
+      POINTER                                :: constr_x_mol
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
-    INTEGER, POINTER, DIMENSION(:)           :: const_mol
-    CHARACTER(LEN=default_string_length),&
-         POINTER, DIMENSION(:)               :: const_molname
-    TYPE(constr_list_type), POINTER, DIMENSION(:)  :: constr_x_mol
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'give_constraint_array', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, ldummy
-    INTEGER :: handle, i, k, isize, stat
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     CHARACTER(LEN=default_string_length)     :: myname, name
+    INTEGER                                  :: handle, i, isize, k, stat
+    LOGICAL                                  :: failure, ldummy
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)

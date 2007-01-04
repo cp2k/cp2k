@@ -26,6 +26,7 @@ MODULE topology_generate_util
                                              atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
+  USE cell_types,                      ONLY: pbc
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -43,12 +44,16 @@ MODULE topology_generate_util
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: matvec_3x3
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              deallocate_particle_set,&
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
   USE string_utilities,                ONLY: integer_to_string,&
                                              uppercase
   USE termination,                     ONLY: stop_program
@@ -60,14 +65,11 @@ MODULE topology_generate_util
   USE topology_util,                   ONLY: array1_list_type,&
                                              array2_list_type,&
                                              find_molecule,&
-                                             reorder_structure,&
                                              give_back_molecule,&
-                                             reorder_list_array
+                                             reorder_list_array,&
+                                             reorder_structure
   USE util,                            ONLY: find_boundary,&
                                              sort
-  USE cell_types,                      ONLY: pbc
-  USE mathlib,                         ONLY: matvec_3x3
-  USE string_table,                    ONLY: str2id, s2s, id2str
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -120,8 +122,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_in_kind, atom_in_mol, first, handle, handle2, i, iatm, &
-      iatom, ifirst, ilast, inum, iw, j, jump1, jump2, last, max_mol_num, &
-      mol_num, mol_res, mol_typ, myind, N, natom, ntype, stat, istart, iend, nlocl
+      iatom, iend, ifirst, ilast, inum, istart, iw, j, jump1, jump2, last, &
+      max_mol_num, mol_num, mol_res, mol_typ, myind, N, natom, nlocl, ntype, &
+      stat
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, wrk1, wrk2
     LOGICAL                                  :: do_again, failure, my_qmmm
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -452,18 +455,21 @@ CONTAINS
     CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
     INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, idim, &
-      ielem, ielem_found, iw, j, jatom, n_bonds, n_heavy_bonds, n_hydr_bonds, &
-      natom, nelem, npairs, output_unit, stat, k
+      ielem, ielem_found, iw, j, jatom, k, n_bonds, n_heavy_bonds, &
+      n_hydr_bonds, natom, nelem, npairs, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
-    LOGICAL                                  :: element_found, failure, ionode
+    LOGICAL                                  :: connectivity_ok, &
+                                                element_found, failure, &
+                                                ionode, print_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
-    REAL(KIND=dp)                            :: dr(3), r2, r2_min, ksign, &
-                                                rbond, rbond2, tmp, cell_v(3),&
-                                                bondparm_factor, my_maxrad
+    REAL(KIND=dp)                            :: bondparm_factor, cell_v(3), &
+                                                dr(3), ksign, my_maxrad, r2, &
+                                                r2_min, rbond, rbond2, tmp
     REAL(KIND=dp), DIMENSION(1, 1)           :: r_max, r_minsq
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
-    TYPE(array2_list_type), &
-      DIMENSION(:), POINTER                  :: bond_list
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbc_coord
+    TYPE(array2_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -474,8 +480,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: bond_section
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pbc_coord
-    LOGICAL                                  :: connectivity_ok, print_info
 
     failure = .FALSE.    
     NULLIFY(logger, particle_set, atomic_kind_set, nonbonded)
@@ -865,21 +869,23 @@ CONTAINS
        RESULT(conn_ok)
     INTEGER, DIMENSION(:), POINTER           :: bond_a, bond_b
     TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp), INTENT(INOUT)             :: bondparm_factor
-    INTEGER , INTENT(IN)                     :: output_unit
-    LOGICAL   :: conn_ok
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: conn_ok
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_generate_mol', &
       routineP = moduleN//':'//routineN
-    TYPE(array1_list_type), &
-         DIMENSION(:), POINTER               :: bond_list
-    INTEGER :: natom, i, j, stat, handle, itype, nsize, idim, mol_natom
-    INTEGER, DIMENSION(:,:), POINTER           :: mol_info
-    INTEGER, DIMENSION(:), POINTER             :: mol_map, mol_map_o, wrk
-    LOGICAL :: failure, found
-    LOGICAL, POINTER, DIMENSION(:)             :: icheck
-    CHARACTER(LEN=10) :: ctmp1, ctmp2, ctmp3
+
+    CHARACTER(LEN=10)                        :: ctmp1, ctmp2, ctmp3
+    INTEGER                                  :: handle, i, idim, itype, j, &
+                                                mol_natom, natom, nsize, stat
+    INTEGER, DIMENSION(:), POINTER           :: mol_map, mol_map_o, wrk
+    INTEGER, DIMENSION(:, :), POINTER        :: mol_info
+    LOGICAL                                  :: failure, found
+    LOGICAL, DIMENSION(:), POINTER           :: icheck
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list
 
     CALL timeset(routineN,'I','',handle)
     conn_ok = .TRUE.
@@ -1495,8 +1501,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend', &
       routineP = moduleN//':'//routineN
@@ -1505,8 +1510,8 @@ CONTAINS
                                                 natom, nbond, nsize, ntheta, &
                                                 output_unit, stat
     LOGICAL                                  :: failure, ionode
-    TYPE(array1_list_type), &
-      DIMENSION(:), POINTER                  :: bond_list
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: bend_section
@@ -1615,10 +1620,10 @@ CONTAINS
   RECURSIVE SUBROUTINE match_iterative_path(Iarray1, Iarray2, Iarray3,&
        max_levl, Oarray1, Oarray2, Oarray3, Oarray4, Ilist, it_levl, nvar,&
        error)
-    TYPE(array1_list_type), &
-      DIMENSION(:), POINTER                  :: Iarray1
-    TYPE(array1_list_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: Iarray2, Iarray3
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: Iarray1
+    TYPE(array1_list_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: Iarray2, Iarray3
     INTEGER, INTENT(IN)                      :: max_levl
     INTEGER, DIMENSION(:), POINTER           :: Oarray1, Oarray2
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Oarray3, Oarray4
@@ -1626,8 +1631,7 @@ CONTAINS
       OPTIONAL                               :: Ilist
     INTEGER, INTENT(IN), OPTIONAL            :: it_levl
     INTEGER, INTENT(INOUT)                   :: nvar
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'match_iterative_path', &
       routineP = moduleN//':'//routineN
@@ -1636,8 +1640,8 @@ CONTAINS
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_list
     LOGICAL                                  :: check, failure
-    TYPE(array1_list_type), &
-      DIMENSION(:), POINTER                  :: wrk
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: wrk
 
     failure = .FALSE.
     check   = max_levl>=2.AND.max_levl<=4
@@ -1783,8 +1787,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_ub', &
       routineP = moduleN//':'//routineN
@@ -1851,8 +1854,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
       routineP = moduleN//':'//routineN
@@ -1861,8 +1863,8 @@ CONTAINS
     INTEGER                                  :: handle, i, iw, natom, nbond, &
                                                 nphi, nsize, output_unit, stat
     LOGICAL                                  :: failure, ionode
-    TYPE(array1_list_type), &
-      DIMENSION(:), POINTER                  :: bond_list
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: torsion_section
@@ -1968,8 +1970,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
       routineP = moduleN//':'//routineN
@@ -1979,8 +1980,8 @@ CONTAINS
                                                 nbond, nimpr, nsize, &
                                                 output_unit, stat
     LOGICAL                                  :: accept_impr, failure, ionode
-    TYPE(array1_list_type), &
-      DIMENSION(:), POINTER                  :: bond_list
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2106,8 +2107,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout) &
- :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
       routineP = moduleN//':'//routineN

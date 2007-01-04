@@ -109,8 +109,7 @@ CONTAINS
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_operators', &
       routineP = moduleN//':'//routineN

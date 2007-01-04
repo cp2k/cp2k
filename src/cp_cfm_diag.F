@@ -45,8 +45,7 @@ CONTAINS
 
     TYPE(cp_cfm_type), POINTER               :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd', &
       routineP = moduleN//':'//routineN

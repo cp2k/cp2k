@@ -80,8 +80,7 @@ CONTAINS
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
 
@@ -128,8 +127,7 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
       routineP = moduleN//':'//routineN
@@ -212,8 +210,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho
     TYPE(coeff_type), INTENT(IN)             :: v_qmmm
     REAL(KIND=dp), INTENT(INOUT)             :: qmmm_energy
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
       routineP = moduleN//':'//routineN
@@ -270,8 +267,7 @@ CONTAINS
   SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm, error)
     TYPE(coeff_type), INTENT(INOUT)          :: v_hartree
     TYPE(coeff_type), INTENT(IN)             :: v_qmmm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
       routineP = moduleN//':'//routineN

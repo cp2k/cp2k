@@ -45,9 +45,9 @@ MODULE constraint
   USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
+                                             fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
-                                             fixd_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -95,8 +95,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
     INTEGER, INTENT(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_control', &
       routineP = moduleN//':'//routineN
@@ -171,8 +170,7 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
     INTEGER, INTENT(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_control', &
       routineP = moduleN//':'//routineN
@@ -250,8 +248,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: u
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_roll_control', &
       routineP = moduleN//':'//routineN
@@ -347,8 +344,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: u
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_roll_control', &
       routineP = moduleN//':'//routineN
@@ -432,8 +428,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'getold', &
       routineP = moduleN//':'//routineN
@@ -442,6 +437,8 @@ CONTAINS
                                                 imol, index, n3x3con, &
                                                 n4x6con, nkind, nmol_per_kind
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(local_colvar_constraint_type), &
@@ -452,9 +449,7 @@ CONTAINS
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    
+
     NULLIFY(fixd_list)
     nkind = SIZE ( molecule_kind_set )
     DO ikind = 1, nkind

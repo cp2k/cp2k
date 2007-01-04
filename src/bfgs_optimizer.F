@@ -87,8 +87,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'geoopt_bfgs'
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp

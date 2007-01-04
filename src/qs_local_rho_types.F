@@ -221,8 +221,7 @@ MODULE qs_local_rho_types
   SUBROUTINE local_rho_set_create(local_rho_set, error)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create'
 
@@ -248,8 +247,7 @@ MODULE qs_local_rho_types
   SUBROUTINE local_rho_set_release(local_rho_set,error)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release', &
       routineP = moduleN//':'//routineN

@@ -42,9 +42,9 @@ MODULE mc_ge_moves
                                              force_env_release
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_release
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size
   USE mc_control,                      ONLY: mc_create_force_env
   USE mc_coordinates,                  ONLY: check_for_overlap,&
                                              generate_cbmc_swap_config,&
@@ -52,15 +52,10 @@ MODULE mc_ge_moves
   USE mc_misc,                         ONLY: mc_make_dat_file_new
   USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
-  USE mc_types,                        ONLY: get_mc_par,&
-                                             mc_moves_p_type,&
-                                             mc_simulation_parameters_p_type,&
-                                             set_mc_par,&
-                                             mc_molecule_info_type,&
-                                             get_mc_molecule_info,&
-                                             mc_molecule_info_destroy,&
-                                             mc_determine_molecule_info,&
-                                             mc_input_file_type
+  USE mc_types,                        ONLY: &
+       get_mc_molecule_info, get_mc_par, mc_determine_molecule_info, &
+       mc_input_file_type, mc_molecule_info_destroy, mc_molecule_info_type, &
+       mc_moves_p_type, mc_simulation_parameters_p_type, set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
@@ -142,17 +137,19 @@ CONTAINS
       DIMENSION(:), POINTER                  :: mc_par
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env, bias_env
-    TYPE(mc_moves_p_type), DIMENSION(:,:), &
-      POINTER                                :: moves,move_updates
+    TYPE(mc_moves_p_type), DIMENSION(:, :), &
+      POINTER                                :: moves
     LOGICAL, INTENT(IN)                      :: lreject
+    TYPE(mc_moves_p_type), DIMENSION(:, :), &
+      POINTER                                :: move_updates
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: energy_check
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: r_old
     INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: old_energy, bias_energy_new,&
-      last_bias_energy
+      INTENT(INOUT)                          :: old_energy, bias_energy_new, &
+                                                last_bias_energy
     INTEGER, INTENT(IN)                      :: nboxes
     INTEGER, DIMENSION(:), INTENT(IN)        :: box_flag
     TYPE(cp_subsystem_pp_type), &
@@ -160,26 +157,24 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_Quickstep_move'
 
-    INTEGER                                  :: group, handle, ibox, &
-                                                iparticle, iprint, istat, &
-                                                source,nmol_types, itype,&
-                                                start_mol,end_mol,jbox
+    INTEGER :: end_mol, group, handle, ibox, iparticle, iprint, istat, itype, &
+      jbox, nmol_types, source, start_mol
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
     INTEGER, DIMENSION(1:nboxes)             :: diff
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, energies, rand, w
     REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy_old, new_energy
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: subsys_bias
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_bias
-    TYPE(mc_molecule_info_type),POINTER           :: mc_molecule_info
-    INTEGER,DIMENSION(:,:),POINTER :: nchains
-    INTEGER,DIMENSION(:),POINTER :: nunits_tot,nunits,mol_type
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -502,7 +497,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: mc_par
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env, bias_env
-    TYPE(mc_moves_p_type), DIMENSION(:,:), &
+    TYPE(mc_moves_p_type), DIMENSION(:, :), &
       POINTER                                :: moves
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: energy_check
@@ -512,28 +507,34 @@ CONTAINS
       INTENT(INOUT)                          :: old_energy
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(1:2), &
-      INTENT(INOUT)                          :: bias_energy_old,&
-      last_bias_energy
+      INTENT(INOUT)                          :: bias_energy_old, &
+                                                last_bias_energy
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_ge_swap_move'
 
+    CHARACTER(default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: atom_names_insert, &
+                                                atom_names_remove
+    CHARACTER(default_string_length), &
+      DIMENSION(:, :), POINTER               :: atom_names
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
-    INTEGER :: group, handle, iatom, ibox, iiatom, imolecule, ins_atoms, &
-      insert_box, ipart, istat, nswapmoves, print_level, rem_atoms, &
-      remove_box, source,molecule_type, nmol_types,itype,start_atom_rem,&
-      start_atom_ins,idim,start_mol,end_mol,jbox
-    INTEGER, DIMENSION(:),POINTER                  :: nunits_tot,nunits
-    INTEGER, DIMENSION(:,:),POINTER                  :: nchains,nchains_test
+    INTEGER :: end_mol, group, handle, iatom, ibox, idim, iiatom, imolecule, &
+      ins_atoms, insert_box, ipart, istat, itype, jbox, molecule_type, &
+      nmol_types, nswapmoves, print_level, rem_atoms, remove_box, source, &
+      start_atom_ins, start_atom_rem, start_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, mol_type_test, &
+                                                nunits, nunits_tot
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains, nchains_test
     LOGICAL                                  :: ionode, lbias, loverlap, &
                                                 loverlap_ins, loverlap_rem
+    REAL(dp), DIMENSION(:), POINTER          :: pmswap_mol
+    REAL(dp), DIMENSION(:, :), POINTER       :: insert_coords, remove_coords
     REAL(KIND=dp)                            :: BETA, del_quickstep_energy, &
                                                 prefactor, rand, rdum, w, &
                                                 weight_new, weight_old
-    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cbmc_energies, r_cbmc, &
                                                 r_insert_mol
@@ -541,25 +542,22 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1:3)            :: abc_insert, abc_remove, &
                                                 center_of_mass, &
                                                 displace_molecule, pos_insert
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mass
     TYPE(cell_type), POINTER                 :: cell_insert, cell_remove
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: insert_sys, remove_sys
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(force_env_p_type), DIMENSION(:), &
-         POINTER     :: test_env,test_env_bias
-
+      POINTER                                :: test_env, test_env_bias
+    TYPE(mc_input_file_type), POINTER        :: mc_bias_file, mc_input_file
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info, &
+                                                mc_molecule_info_test
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
     TYPE(particle_list_type), POINTER        :: particles_insert, &
                                                 particles_remove
-    TYPE(mc_molecule_info_type), POINTER :: mc_molecule_info,mc_molecule_info_test
-    REAL(dp),DIMENSION(:),POINTER :: pmswap_mol
-    REAL(dp),DIMENSION(:,:),POINTER :: insert_coords,remove_coords
-    CHARACTER(default_string_length),DIMENSION(:,:),POINTER :: atom_names
-    CHARACTER(default_string_length),DIMENSION(:),ALLOCATABLE :: atom_names_insert,atom_names_remove
-    INTEGER,DIMENSION(:),POINTER :: mol_type,mol_type_test
-    TYPE(mc_input_file_type),POINTER :: mc_input_file,mc_bias_file
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1339,29 +1337,29 @@ CONTAINS
       DIMENSION(:), POINTER                  :: mc_par
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env
-    TYPE(mc_moves_p_type), DIMENSION(:,:), &
+    TYPE(mc_moves_p_type), DIMENSION(:, :), &
       POINTER                                :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: old_energy
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: energy_check
+      INTENT(INOUT)                          :: old_energy, energy_check
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: r_old
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_ge_volume_move'
 
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
-    INTEGER :: max_atoms, cl, group, handle, iatom, ibox, iside, istat, j, &
-      jatom, print_level, source,start_atom,end_atom,&
-      molecule_index,jbox,imolecule,molecule_type,start_mol,end_mol
+    INTEGER :: cl, end_atom, end_mol, group, handle, iatom, ibox, imolecule, &
+      iside, istat, j, jatom, jbox, max_atoms, molecule_index, molecule_type, &
+      print_level, source, start_atom, start_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: loverlap
     LOGICAL, DIMENSION(1:2)                  :: lempty
+    REAL(dp), DIMENSION(:, :), POINTER       :: mass
     REAL(KIND=dp)                            :: BETA, prefactor, rand, &
                                                 rmvolume, vol_dis, w
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1376,12 +1374,10 @@ CONTAINS
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell, cell_old, cell_test
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
-    TYPE(mc_molecule_info_type),POINTER    :: mc_molecule_info
-    REAL(dp),DIMENSION(:,:),POINTER :: mass
-    INTEGER,DIMENSION(:),POINTER :: nunits_tot,nunits,mol_type
-    INTEGER,DIMENSION(:,:),POINTER :: nchains
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 

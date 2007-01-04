@@ -57,7 +57,7 @@ MODULE kg_gpw_collocate_den
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,& 
+  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              potential_pw2rs
   USE qs_modify_pab_block,             ONLY: FUNC_AB,&
                                              FUNC_DADB
@@ -138,18 +138,17 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom, kind
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ratom
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_mol', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: bcol, brow, curr_tasks, first_pgfb, first_setb, &
-      ga_gb_function, handle, i, iat, iatom, igrid_level, igridlevel, ikind, &
-      ikind_old, ipgf, iset, istat, itask, ithread, j, jat, jatom, jkind, &
-      jkind_old, jpgf, jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, &
-      nat_mol, nb1, nb2, ncoa, ncob, nseta, nsetb, nthread, num_tasks, &
-      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb
+      ga_gb_function, handle, i, iat, iatom, igrid_level, ikind, ikind_old, &
+      ipgf, iset, istat, itask, ithread, j, jat, jatom, jkind, jkind_old, &
+      jpgf, jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, nat_mol, nb1, &
+      nb2, ncoa, ncob, nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
+      omp_get_thread_num, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
@@ -655,18 +654,16 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_mol_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bcol, brow, curr_tasks, handle, i, iat, iatom, &
-      igrid_level, ijsets, ikind, ikind_old, ipgf, iset, istat, itask, &
-      ithread, jat, jatom, jkind, jkind_old, jpgf, jset, maxco, maxsgf, &
-      maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, npme, &
-      nset_pairs, nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
-      omp_get_thread_num, sgfa, sgfb
+    INTEGER :: bcol, brow, curr_tasks, handle, i, iat, iatom, igrid_level, &
+      ijsets, ikind, ikind_old, ipgf, iset, istat, itask, ithread, jat, &
+      jatom, jkind, jkind_old, jpgf, jset, maxco, maxsgf, maxsgf_set, n, na1, &
+      na2, nat_mol, nb1, nb2, ncoa, ncob, npme, nset_pairs, nseta, nsetb, &
+      nthread, num_tasks, omp_get_max_threads, omp_get_thread_num, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks
@@ -699,7 +696,6 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
-
 
 !   ---------------------------------------------------------------------------
 

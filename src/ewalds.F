@@ -368,8 +368,8 @@ FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq, error ) &
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     REAL(KIND=dp), INTENT(IN)                :: qi, qj, rcutsq
-    REAL(KIND=dp)                            :: e_cutoff_coul
     TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: e_cutoff_coul
 
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &

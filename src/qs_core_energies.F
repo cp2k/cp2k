@@ -184,8 +184,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: molecular
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
 

@@ -25,10 +25,10 @@
 MODULE input_cp2k_qmmm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_cp2k_mm,                   ONLY: create_Goodwin_section,&
+  USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
+                                             create_Goodwin_section,&
                                              create_LJ_section,&
                                              create_NONBONDED14_section,&
-                                             create_GENPOT_section,&
                                              create_Williams_section
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -83,8 +83,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_section', &
       routineP = moduleN//':'//routineN
@@ -296,8 +295,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_periodic_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_periodic_section', &
       routineP = moduleN//':'//routineN
@@ -378,8 +376,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_forcefield_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'create_qmmm_forcefield_section', &
@@ -431,8 +428,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_ff_nb_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_ff_nb_section', &
       routineP = moduleN//':'//routineN
@@ -490,8 +486,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_link_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_link_section', &
       routineP = moduleN//':'//routineN
@@ -718,8 +713,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_interp_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_interp_section', &
       routineP = moduleN//':'//routineN
@@ -845,8 +839,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_print_qmmm_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_qmmm_section', &
       routineP = moduleN//':'//routineN

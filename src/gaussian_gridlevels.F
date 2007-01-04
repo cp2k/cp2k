@@ -74,8 +74,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"

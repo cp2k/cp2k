@@ -135,8 +135,7 @@ MODULE ewald_environment_types
     INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_get', &
       routineP = moduleN//':'//routineN
@@ -184,8 +183,7 @@ MODULE ewald_environment_types
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_set', &
       routineP = moduleN//':'//routineN
@@ -248,8 +246,7 @@ MODULE ewald_environment_types
 SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_create', &
       routineP = moduleN//':'//routineN
@@ -315,8 +312,7 @@ END SUBROUTINE ewald_env_create
 !*** **********************************************************************
 SUBROUTINE ewald_env_retain(ewald_env,error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_retain', &
       routineP = moduleN//':'//routineN
@@ -364,8 +360,7 @@ END SUBROUTINE ewald_env_retain
 !*** **********************************************************************
 SUBROUTINE ewald_env_release(ewald_env,error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_release', &
       routineP = moduleN//':'//routineN
@@ -406,8 +401,7 @@ END SUBROUTINE ewald_env_release
 SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: ewald_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iw
     REAL(KIND=dp)                            :: dummy
@@ -467,8 +461,7 @@ END SUBROUTINE read_ewald_section
 SUBROUTINE read_ewald_section1(ewald_env, ewald_section, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: ewald_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section1', &
       routineP = moduleN//':'//routineN

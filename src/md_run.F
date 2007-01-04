@@ -41,8 +41,8 @@ MODULE md_run
                                              lnhc_init,&
                                              npt_dealloc
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             force_env_shake,&
-                                             force_env_rattle
+                                             force_env_rattle,&
+                                             force_env_shake
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
@@ -53,8 +53,8 @@ MODULE md_run
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
   USE input_constants,                 ONLY: langevin_ensemble
-  USE input_cp2k_restarts,             ONLY: write_restart,&
-                                             update_subsys
+  USE input_cp2k_restarts,             ONLY: update_subsys,&
+                                             write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -110,8 +110,7 @@ CONTAINS
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn1', &
       routineP = moduleN//':'//routineN
@@ -140,8 +139,7 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
       routineP = moduleN//':'//routineN
@@ -150,7 +148,8 @@ CONTAINS
                                                 istat, istep, isubsys, &
                                                 iter_level, nbeads
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, should_stop, apply_cns0
+    LOGICAL                                  :: apply_cns0, failure, &
+                                                should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: t, used_time
@@ -343,7 +342,7 @@ CONTAINS
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
                       t = t, used_time = used_time )
-    apply_cns0 = .false.
+    apply_cns0 = .FALSE.
     IF (simpar%constraint) &
     CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAIN_INIT",l_val=apply_cns0,error=error)
     DO ibead = 1, nbeads
@@ -478,8 +477,7 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 motion_section, root_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', &
       routineP = moduleN//':'//routineN
@@ -512,11 +510,10 @@ END SUBROUTINE md_output
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
                                                 isubsys, natom
@@ -533,7 +530,7 @@ END SUBROUTINE md_output
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

@@ -95,8 +95,7 @@ MODULE geo_opt
    SUBROUTINE qs_geo_opt(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
       routineP = moduleN//':'//routineN
@@ -173,8 +172,7 @@ MODULE geo_opt
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_do_opt', &
       routineP = moduleN//':'//routineN

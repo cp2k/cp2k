@@ -176,8 +176,7 @@ CONTAINS
         error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_fm_struct_type), POINTER         :: el_struct
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create', &
       routineP = moduleN//':'//routineN
@@ -226,8 +225,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_retain(pool,error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_retain', &
       routineP = moduleN//':'//routineN
@@ -270,8 +268,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_flush_cache(pool,error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -320,8 +317,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_release(pool,error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_release', &
       routineP = moduleN//':'//routineN
@@ -378,8 +374,7 @@ CONTAINS
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_fm_type), POINTER                :: element
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create_fm', &
       routineP = moduleN//':'//routineN
@@ -449,8 +444,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: elements
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create_fm_vect', &
       routineP = moduleN//':'//routineN
@@ -511,8 +505,7 @@ CONTAINS
   SUBROUTINE fm_pool_give_back_fm(pool, element, error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_fm_type), POINTER                :: element
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm', &
       routineP = moduleN//':'//routineN
@@ -577,8 +570,7 @@ CPSourceFileRef,&
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: elements
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm_vect', &
       routineP = moduleN//':'//routineN
@@ -631,8 +623,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
     TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_fm_struct_type), POINTER         :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_get_el_struct', &
@@ -681,8 +672,7 @@ END FUNCTION fm_pool_get_el_struct
 SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_copy', &
       routineP = moduleN//':'//routineN
@@ -732,8 +722,7 @@ END SUBROUTINE fm_pools_copy
 SUBROUTINE fm_pools_dealloc(pools, error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_dealloc', &
       routineP = moduleN//':'//routineN
@@ -779,8 +768,7 @@ END SUBROUTINE fm_pools_dealloc
 SUBROUTINE fm_pools_flush_cache(pools, error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_flush_cache', &
       routineP = moduleN//':'//routineN
@@ -831,8 +819,7 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: elements
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_create_fm_vect', &
       routineP = moduleN//':'//routineN
@@ -898,8 +885,7 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
       POINTER                                :: pools
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: elements
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_give_back_fm_vect', &
       routineP = moduleN//':'//routineN

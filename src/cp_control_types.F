@@ -276,8 +276,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_create', &
       routineP = moduleN//':'//routineN
@@ -301,8 +300,7 @@ END SUBROUTINE mulliken_control_create
 
 SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_release', &
       routineP = moduleN//':'//routineN
@@ -326,8 +324,7 @@ END SUBROUTINE mulliken_control_release
 
 SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_retain', &
       routineP = moduleN//':'//routineN
@@ -357,8 +354,7 @@ END SUBROUTINE mulliken_control_retain
 !!*** **********************************************************************
 SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_create', &
       routineP = moduleN//':'//routineN
@@ -384,8 +380,7 @@ END SUBROUTINE ddapc_control_create
 
 SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_release', &
       routineP = moduleN//':'//routineN
@@ -409,8 +404,7 @@ END SUBROUTINE ddapc_control_release
 
 SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_retain', &
       routineP = moduleN//':'//routineN
@@ -440,8 +434,7 @@ END SUBROUTINE ddapc_control_retain
 !!*** **********************************************************************
 SUBROUTINE s2_control_create(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_create', &
       routineP = moduleN//':'//routineN
@@ -465,8 +458,7 @@ END SUBROUTINE s2_control_create
 
 SUBROUTINE s2_control_release(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_release', &
       routineP = moduleN//':'//routineN
@@ -487,8 +479,7 @@ END SUBROUTINE s2_control_release
 
 SUBROUTINE s2_control_retain(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_retain', &
       routineP = moduleN//':'//routineN
@@ -526,8 +517,7 @@ END SUBROUTINE s2_control_retain
 !!*** **********************************************************************
 SUBROUTINE dft_control_create(dft_control, error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_create', &
       routineP = moduleN//':'//routineN
@@ -579,8 +569,7 @@ END SUBROUTINE dft_control_create
 !!*** **********************************************************************
 SUBROUTINE dft_control_retain(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_retain', &
       routineP = moduleN//':'//routineN
@@ -621,8 +610,7 @@ END SUBROUTINE dft_control_retain
 !!*** **********************************************************************
 SUBROUTINE dft_control_release(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_release', &
       routineP = moduleN//':'//routineN
@@ -648,8 +636,7 @@ END SUBROUTINE dft_control_release
 
 SUBROUTINE gapw_control_create(gapw_control, error)
     TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gapw_control_create', &
       routineP = moduleN//':'//routineN
@@ -669,8 +656,7 @@ END SUBROUTINE gapw_control_create
 
 SUBROUTINE qs_control_init(qs_control, error)
     TYPE(qs_control_type), INTENT(out)       :: qs_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
   NULLIFY(qs_control%e_cutoff)
   NULLIFY(qs_control%gapw_control)
@@ -689,8 +675,7 @@ END SUBROUTINE qs_control_init
 
 SUBROUTINE qs_control_dealloc_ref(qs_control, error)
     TYPE(qs_control_type), INTENT(inout)     :: qs_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_dealloc_ref', &
       routineP = moduleN//':'//routineN
@@ -715,16 +700,14 @@ END SUBROUTINE qs_control_dealloc_ref
 
 SUBROUTINE tddfpt_control_init(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(out)   :: tddfpt_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
 END SUBROUTINE tddfpt_control_init
 
 SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_dealloc_ref', &
       routineP = moduleN//':'//routineN

@@ -27,8 +27,8 @@ MODULE mc_ensembles
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_pp_type,&
-                                             cp_subsystem_p_type
+                                             cp_subsystem_p_type,&
+                                             cp_subsystem_pp_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
@@ -36,9 +36,9 @@ MODULE mc_ensembles
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_release
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE mc_control,                      ONLY: mc_create_bias_force_env,&
                                              write_mc_restart
@@ -59,19 +59,19 @@ MODULE mc_ensembles
                                              mc_move_update,&
                                              mc_moves_release,&
                                              write_move_stats
-  USE mc_moves,                        ONLY: mc_conformation_change,&
-                                             mc_avbmc_move,&
+  USE mc_moves,                        ONLY: mc_avbmc_move,&
+                                             mc_conformation_change,&
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
                                              mc_volume_move
-  USE mc_types,                        ONLY: get_mc_par,&
+  USE mc_types,                        ONLY: get_mc_molecule_info,&
+                                             get_mc_par,&
                                              mc_averages_p_type,&
+                                             mc_input_file_type,&
+                                             mc_molecule_info_type,&
                                              mc_moves_p_type,&
                                              mc_simulation_parameters_p_type,&
-                                             set_mc_par,&
-                                             mc_molecule_info_type,&
-                                             get_mc_molecule_info,&
-                                             mc_input_file_type
+                                             set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
@@ -133,71 +133,72 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nboxes
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_run_ensemble'
 
+    CHARACTER(default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: atom_names_box
+    CHARACTER(default_string_length), &
+      DIMENSION(:, :), POINTER               :: atom_names
     CHARACTER(LEN=20)                        :: ensemble
-    CHARACTER(LEN=40)                        :: cbox, fft_lib, move_type, &
-                                                move_type_avbmc,cstep
+    CHARACTER(LEN=40)                        :: cbox, cstep, fft_lib, &
+                                                move_type, move_type_avbmc
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
+    INTEGER, DIMENSION(:), POINTER           :: avbmc_atom, mol_type, &
+                                                nchains_box, nunits, &
+                                                nunits_tot
     INTEGER, DIMENSION(1:nboxes)             :: box_flag, cl, data_unit, &
-                                                diff, istep, move_unit, &
-                                                rm
+                                                diff, istep, move_unit, rm
     INTEGER, DIMENSION(1:3, 1:2)             :: discrete_array
-    INTEGER :: box_number, cell_unit, com_crd, com_ene, com_mol, group, &
-      handle, ibox, imove, iparticle, iprint, istat, iuptrans, iupvolume, iw, &
-      start_atom, start_atom_swap, start_atom_target, nmoves, nnstep, nstart,&
-      nstep, print_level, jbox,start_mol,end_mol,idum,imol_type,&
-      source, molecule_type,nmol_types,itype,nchain_total,&
-      molecule_type_swap,molecule_type_target,iunit,imolecule,&
-      atom_number
+    INTEGER :: atom_number, box_number, cell_unit, com_crd, com_ene, com_mol, &
+      end_mol, group, handle, ibox, idum, imol_type, imolecule, imove, &
+      iparticle, iprint, istat, itype, iunit, iuptrans, iupvolume, iw, jbox, &
+      molecule_type, molecule_type_swap, molecule_type_target, nchain_total, &
+      nmol_types, nmoves, nnstep, nstart, nstep, print_level, source, &
+      start_atom, start_atom_swap, start_atom_target, start_mol
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
     LOGICAL                                  :: ionode, lbias, ldiscrete, &
                                                 lnew_bias_env, loverlap, &
                                                 lreject, lstop, should_stop
-    REAL(dp), DIMENSION(:),POINTER            :: pmtraion_mol,pmavbmc_mol,&
-         pbias,pmrot_mol,pmtrans_mol,pmvol_box
-    REAL(dp), DIMENSION(:, :),POINTER            :: conf_prob, mass
-    INTEGER, DIMENSION(:, :),POINTER            :: nchains
-    INTEGER, DIMENSION(:),POINTER            :: mol_type,avbmc_atom,nunits,&
-         nunits_tot,nchains_box
-    REAL(KIND=dp)                            :: discrete_step, &
-                                                pmavbmc, pmswap, pmtraion, &
-                                                pmtrans, pmvolume, rand, &
-                                                test_energy
+    REAL(dp), DIMENSION(:), POINTER          :: pbias, pmavbmc_mol, &
+                                                pmrot_mol, pmtraion_mol, &
+                                                pmtrans_mol, pmvol_box
+    REAL(dp), DIMENSION(:, :), POINTER       :: conf_prob, mass
+    REAL(KIND=dp)                            :: discrete_step, pmavbmc, &
+                                                pmswap, pmtraion, pmtrans, &
+                                                pmvolume, rand, test_energy
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r_temp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r_old
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                     :: r_temp
     REAL(KIND=dp), DIMENSION(1:3, 1:nboxes)  :: abc
     REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy, energy_check, &
                                                 final_energy, initial_energy, &
-                                                old_energy, last_bias_energy
+                                                last_bias_energy, old_energy
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: biassys
+    TYPE(cp_subsystem_pp_type), &
+      DIMENSION(:), POINTER                  :: oldsys
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: bias_env, force_env
     TYPE(mc_averages_p_type), DIMENSION(:), &
       POINTER                                :: averages
-    TYPE(mc_moves_p_type), DIMENSION(:,:), &
-      POINTER                                :: move_updates, moves
+    TYPE(mc_input_file_type), POINTER        :: mc_bias_file
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mc_moves_p_type), DIMENSION(:), &
       POINTER                                :: test_moves
+    TYPE(mc_moves_p_type), DIMENSION(:, :), &
+      POINTER                                :: move_updates, moves
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
-    TYPE(particle_list_type),POINTER         :: particles_bias
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
-    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
-    CHARACTER(default_string_length),DIMENSION(:),ALLOCATABLE :: atom_names_box
-    CHARACTER(default_string_length),DIMENSION(:,:),POINTER:: atom_names
-    TYPE(mc_input_file_type),POINTER :: mc_bias_file
+    TYPE(particle_list_type), POINTER        :: particles_bias
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 

@@ -115,8 +115,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     CHARACTER(len=*), INTENT(in)             :: description
     LOGICAL, INTENT(in), OPTIONAL            :: allocate_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(xc_derivative_type), POINTER        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_get_derivative', &
@@ -188,8 +187,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
     INTEGER, DIMENSION(2, 3), OPTIONAL       :: local_bounds
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', &
       routineP = moduleN//':'//routineN
@@ -255,8 +253,7 @@ CONTAINS
   SUBROUTINE xc_dset_release(derivative_set, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
       routineP = moduleN//':'//routineN
@@ -323,8 +320,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE xc_dset_retain(deriv_set,error)
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain', &
       routineP = moduleN//':'//routineN
@@ -344,8 +340,7 @@ END SUBROUTINE xc_dset_retain
 SUBROUTINE xc_dset_zero_all(deriv_set, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
       routineP = moduleN//':'//routineN

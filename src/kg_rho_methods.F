@@ -57,8 +57,7 @@ CONTAINS
 SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_create', &
       routineP = moduleN//':'//routineN

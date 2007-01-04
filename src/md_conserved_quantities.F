@@ -50,8 +50,8 @@ MODULE md_conserved_quantities
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_program
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -109,8 +109,8 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(IN)                :: epot
     REAL(KIND=dp), INTENT(OUT)               :: cons
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cons_rel, ekin, ekin_qm, temp_part, &
-                                                temp_qm, temp_baro, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cons_rel, ekin, temp_part, &
+                                                ekin_qm, temp_qm, temp_baro, &
                                                 ekin_coefs, temp_coefs
     LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -119,14 +119,14 @@ CONTAINS
 
     INTEGER                                  :: int_grp, nfree_qm
     INTEGER, POINTER                         :: itimes
+    LOGICAL                                  :: myqmmm
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), POINTER          :: force_env_p(:)
     TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    LOGICAL  :: myqmmm
-    
+
     md_ener%epot        = 0.0_dp
     md_ener%temp_part   = 0.0_dp
     md_ener%temp_baro   = 0.0_dp
@@ -508,7 +508,7 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(OUT)               :: ekin, ekin_qm
     INTEGER, INTENT(OUT)                     :: nfree_qm
-    INTEGER, INTENT(IN)                      :: int_grp, nfree
+    INTEGER, INTENT(IN)                      :: nfree, int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, iparticle, iparticle_kind, &

@@ -71,8 +71,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, &
                                                 rlow_nb, emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_manybody_control', &
       routineP = moduleN//':'//routineN

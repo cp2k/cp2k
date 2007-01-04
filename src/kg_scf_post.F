@@ -98,8 +98,7 @@ CONTAINS
   SUBROUTINE scf_post_calculation(dft_section,kg_env,error)
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
@@ -137,7 +136,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: moments
-    TYPE(section_vals_type), POINTER         :: print_key, input
+    TYPE(section_vals_type), POINTER         :: input
 
 !------------------------------------------------------------------------------!
 

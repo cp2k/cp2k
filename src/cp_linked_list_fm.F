@@ -277,8 +277,7 @@ CONTAINS
     TYPE(cp_sll_fm_type), POINTER            :: sll
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: first_el
     TYPE(cp_sll_fm_type), OPTIONAL, POINTER  :: rest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_create', &
       routineP = moduleN//':'//routineN
@@ -331,8 +330,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_dealloc(sll,error)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_dealloc', &
       routineP = moduleN//':'//routineN
@@ -368,8 +366,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_dealloc_node(sll,error)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_dealloc_node', &
       routineP = moduleN//':'//routineN
@@ -417,8 +414,7 @@ CONTAINS
     TYPE(cp_sll_fm_type), POINTER            :: sll
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: first_el
     TYPE(cp_sll_fm_type), OPTIONAL, POINTER  :: rest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_set', &
       routineP = moduleN//':'//routineN
@@ -472,8 +468,7 @@ CONTAINS
     TYPE(cp_sll_fm_type), OPTIONAL, POINTER  :: rest
     LOGICAL, INTENT(out), OPTIONAL           :: empty
     INTEGER, INTENT(out), OPTIONAL           :: length
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get', &
       routineP = moduleN//':'//routineN
@@ -522,8 +517,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION cp_sll_fm_get_first_el(sll,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_fm_type), POINTER                :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_first_el', &
@@ -570,8 +564,7 @@ CONTAINS
   FUNCTION cp_sll_fm_get_rest(sll, iter, error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: sll
     INTEGER, OPTIONAL                        :: iter
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_sll_fm_type), POINTER            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_rest', &
@@ -639,8 +632,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_fm_get_empty(sll,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_empty', &
@@ -679,8 +671,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   FUNCTION cp_sll_fm_get_length(sll,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_length', &
@@ -731,8 +722,7 @@ CPSourceFileRef,&
   FUNCTION cp_sll_fm_get_el_at(sll,index,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_fm_type), POINTER                :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_el_at', &
@@ -788,8 +778,7 @@ CPSourceFileRef,&
     TYPE(cp_sll_fm_type), POINTER            :: sll
     INTEGER, INTENT(in)                      :: index
     TYPE(cp_fm_type), POINTER                :: value
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_set_el_at', &
       routineP = moduleN//':'//routineN
@@ -841,8 +830,7 @@ CPSourceFileRef,&
   FUNCTION cp_sll_fm_next(iterator,el_att,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: iterator
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: el_att
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_next', &
@@ -892,8 +880,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_sll_fm_insert_el(sll,el,error)
     TYPE(cp_sll_fm_type), POINTER            :: sll
     TYPE(cp_fm_type), POINTER                :: el
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_insert_el', &
       routineP = moduleN//':'//routineN
@@ -935,8 +922,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_rm_first_el(sll,error)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_rm_first_el', &
       routineP = moduleN//':'//routineN
@@ -989,8 +975,7 @@ CPSourceFileRef,&
     TYPE(cp_sll_fm_type), POINTER            :: sll
     TYPE(cp_fm_type), POINTER                :: el
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_insert_el_at', &
       routineP = moduleN//':'//routineN
@@ -1044,8 +1029,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_sll_fm_rm_el_at(sll,index,error)
     TYPE(cp_sll_fm_type), POINTER            :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_rm_el_at', &
       routineP = moduleN//':'//routineN
@@ -1099,8 +1083,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
   SUBROUTINE cp_sll_fm_rm_all_el(sll,error)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_rm_all_el', &
       routineP = moduleN//':'//routineN
@@ -1147,8 +1130,7 @@ CPSourceFileRef,&
 !!*** **********************************************************************
 FUNCTION cp_sll_fm_to_array(sll,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: res
 
@@ -1202,8 +1184,7 @@ END FUNCTION cp_sll_fm_to_array
 FUNCTION cp_sll_fm_from_array(array,error) RESULT(res)
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(in)                             :: array
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_sll_fm_type), POINTER            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_from_array', &
@@ -1267,8 +1248,7 @@ SUBROUTINE cp_sll_fm_insert_ordered(sll,el,insert_equals,&
     LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_fm_type), OPTIONAL, POINTER  :: pos
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_insert_ordered', &
       routineP = moduleN//':'//routineN
@@ -1362,8 +1342,7 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
     LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_fm_type), OPTIONAL, POINTER  :: pos
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_insert_ordered2', &
       routineP = moduleN//':'//routineN
@@ -1447,8 +1426,7 @@ FUNCTION cp_sll_fm_contains(sll,el,ordered,error) RESULT(res)
     TYPE(cp_sll_fm_type), POINTER            :: sll
     TYPE(cp_fm_type), POINTER                :: el
     LOGICAL, INTENT(in), OPTIONAL            :: ordered
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_contains', &
@@ -1525,8 +1503,7 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
      END FUNCTION compare_function
   END INTERFACE
     LOGICAL, INTENT(in), OPTIONAL            :: ordered
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_contains2', &

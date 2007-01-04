@@ -37,20 +37,19 @@ MODULE mc_moves
                                              force_env_type,&
                                              use_fist_force
   USE input_constants,                 ONLY: mc_hardcut
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: pi
   USE mc_coordinates,                  ONLY: check_for_overlap,&
                                              create_discrete_array,&
                                              generate_cbmc_swap_config,&
-                                             get_center_of_mass,&
-                                             mc_coordinate_fold
-  USE mc_types,                        ONLY: get_mc_par,&
-                                             mc_moves_type,&
-                                             mc_simulation_parameters_type,&
+                                             get_center_of_mass
+  USE mc_types,                        ONLY: get_mc_molecule_info,&
+                                             get_mc_par,&
                                              mc_molecule_info_type,&
-                                             get_mc_molecule_info
+                                             mc_moves_type,&
+                                             mc_simulation_parameters_type
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: bend_type,&
@@ -184,36 +183,38 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: start_atom,molecule_type,box_number
+    INTEGER, INTENT(IN)                      :: start_atom, molecule_type, &
+                                                box_number
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     CHARACTER(LEN=*), INTENT(IN)             :: move_type
     LOGICAL, INTENT(OUT)                     :: lreject
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_conformation_change'
 
-    INTEGER                                  :: group, handle, ipart, &
-         istat, nunits_mol, end_atom,imol_type,imolecule,atom_number,&
-         molecule_number,source,start_mol,jbox,end_mol
+    CHARACTER(default_string_length)         :: name
+    CHARACTER(default_string_length), &
+      DIMENSION(:), POINTER                  :: names
+    INTEGER :: atom_number, end_atom, end_mol, group, handle, imol_type, &
+      imolecule, ipart, istat, jbox, molecule_number, nunits_mol, source, &
+      start_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_length, &
                                                 rand, value, w
-    CHARACTER(default_string_length)         :: name
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new, r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind,&
-         molecule_kind_test
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind, &
+                                                molecule_kind_test
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
-    INTEGER,DIMENSION(:,:),POINTER           :: nchains
-    INTEGER,DIMENSION(:),POINTER           :: nunits,mol_type
-    CHARACTER(default_string_length),DIMENSION(:),POINTER :: names
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -515,20 +516,22 @@ END SUBROUTINE mc_conformation_change
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: start_atom,molecule_type,&
-         box_number
+    INTEGER, INTENT(IN)                      :: start_atom, box_number
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
+    INTEGER, INTENT(IN)                      :: molecule_type
     LOGICAL, INTENT(OUT)                     :: lreject
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_translation'
 
-    INTEGER                                  :: group, handle, &
-         imolecule, end_atom, ipart, iparticle, istat, source,move_direction,&
-         atom_number,nunits_mol,molecule_number,start_mol,end_mol,jbox
+    INTEGER :: atom_number, end_atom, end_mol, group, handle, imolecule, &
+      ipart, iparticle, istat, jbox, molecule_number, move_direction, &
+      nunits_mol, source, start_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode, lbias, loverlap
+    REAL(dp), DIMENSION(:), POINTER          :: rmtrans
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_mol, &
                                                 rand, value, w
@@ -536,11 +539,9 @@ END SUBROUTINE mc_conformation_change
       DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
-    REAL(dp),DIMENSION(:),POINTER :: rmtrans
-    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
-    INTEGER,DIMENSION(:),POINTER             :: nunits_tot,nunits,mol_type
-    INTEGER,DIMENSION(:,:),POINTER             :: nchains
+
 !   *** Local Counters ***
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -768,34 +769,34 @@ END SUBROUTINE mc_conformation_change
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: start_atom,&
-         molecule_type,box_number
+    INTEGER, INTENT(IN)                      :: box_number, start_atom, &
+                                                molecule_type
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
     LOGICAL, INTENT(OUT)                     :: lreject
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_rotation'
 
-    INTEGER                                  :: dir, group, handle, &
-         imolecule,end_atom,molecule_number,atom_number,nunits_mol,&
-         ii, ipart, istat, iunit, source,jbox,start_mol,end_mol
+    INTEGER :: atom_number, dir, end_atom, end_mol, group, handle, ii, &
+      imolecule, ipart, istat, iunit, jbox, molecule_number, nunits_mol, &
+      source, start_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode, lbias, loverlap, lx, &
                                                 ly
+    REAL(dp), DIMENSION(:), POINTER          :: rmrot
+    REAL(dp), DIMENSION(:, :), POINTER       :: mass
     REAL(KIND=dp) :: BETA, bias_energy_new, bias_energy_old, cosdg, dgamma, &
-      masstot, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, &
-      rznew, sindg, value, w
+      masstot, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, rznew, &
+      sindg, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles
-    REAL(dp),DIMENSION(:),POINTER :: rmrot
-    REAL(dp),DIMENSION(:,:),POINTER :: mass
-    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
-    INTEGER,DIMENSION(:),POINTER             :: nunits,nunits_tot,mol_type
-    INTEGER,DIMENSION(:,:),POINTER             :: nchains
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1100,30 +1101,34 @@ END SUBROUTINE mc_conformation_change
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep,box_number
-    REAL(KIND=dp), INTENT(INOUT)             :: old_energy, energy_check
+    INTEGER, INTENT(IN)                      :: nnstep
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
+    INTEGER, INTENT(IN)                      :: box_number
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
     INTEGER, INTENT(IN)                      :: iw
     INTEGER, DIMENSION(1:3, 1:2), &
       INTENT(INOUT)                          :: discrete_array
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_volume_move', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40)                        :: dat_file
-    INTEGER :: cl, group, handle, iatom, iside, iside_change, &
-      istat, iunit, output_unit, idim,nunits_mol,jbox,start_mol,end_mol,&
-      print_level, source,end_atom,start_atom,imolecule
+    INTEGER :: cl, end_atom, end_mol, group, handle, iatom, idim, imolecule, &
+      iside, iside_change, istat, iunit, jbox, nunits_mol, output_unit, &
+      print_level, source, start_atom, start_mol
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode, ldiscrete, lincrease, &
                                                 loverlap, ltoo_small
+    REAL(dp), DIMENSION(:, :), POINTER       :: mass
     REAL(KIND=dp) :: BETA, discrete_step, energy_term, new_energy, pressure, &
-      pressure_term, rand, rcut, rmvolume, value, vol_dis, volume_term, w,&
-      temp_var
+      pressure_term, rand, rcut, rmvolume, temp_var, value, vol_dis, &
+      volume_term, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass, &
@@ -1135,11 +1140,9 @@ END SUBROUTINE mc_conformation_change
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_type), POINTER        :: particles_old
-    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
-    INTEGER,DIMENSION(:),POINTER             :: nunits,nunits_tot,mol_type
-    INTEGER,DIMENSION(:,:),POINTER :: nchains
-    REAL(dp),DIMENSION(:,:),POINTER :: mass
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1511,19 +1514,19 @@ END SUBROUTINE mc_conformation_change
 
     INTEGER                                  :: bond_number, group, handle, &
                                                 i, iatom, ibond, ipart, &
-                                                istat, natom, nbond, &
-                                                source
+                                                istat, natom, nbond, source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_b, counter
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
+    INTEGER, DIMENSION(:), POINTER           :: nunits
     LOGICAL                                  :: ionode
+    REAL(dp), DIMENSION(:), POINTER          :: rmbond
     REAL(KIND=dp)                            :: atom_mass, mass_a, mass_b, &
                                                 new_length_a, new_length_b, &
                                                 old_length, rand
     REAL(KIND=dp), DIMENSION(1:3)            :: bond_a, bond_b
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
-    REAL(dp),DIMENSION(:),POINTER   :: rmbond
-    INTEGER,DIMENSION(:),POINTER   :: nunits
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1723,7 +1726,9 @@ END SUBROUTINE mc_conformation_change
                                                 source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_c, counter
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
+    INTEGER, DIMENSION(:), POINTER           :: nunits
     LOGICAL                                  :: ionode
+    REAL(dp), DIMENSION(:), POINTER          :: rmangle
     REAL(KIND=dp) :: atom_mass, bis_length, dis_angle, dis_angle_a, &
       dis_angle_c, mass_a, mass_c, new_angle_a, new_angle_c, old_angle, &
       old_length_a, old_length_c, rand, temp_length
@@ -1732,9 +1737,8 @@ END SUBROUTINE mc_conformation_change
                                                 temp
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
-    INTEGER,DIMENSION(:),POINTER   :: nunits
-    REAL(dp),DIMENSION(:),POINTER :: rmangle
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -2018,20 +2022,25 @@ END SUBROUTINE mc_conformation_change
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'change_dihedral'
 
-    INTEGER :: group, handle, i, iatom, ibond, ipart, istat, natom, nbond, &
-      ntorsion, source, torsion_number
+    INTEGER                                  :: group, handle, i, iatom, &
+                                                ibond, ipart, istat, natom, &
+                                                nbond, ntorsion, source, &
+                                                torsion_number
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_d, counter
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
+    INTEGER, DIMENSION(:), POINTER           :: nunits
     LOGICAL                                  :: ionode
-    REAL(KIND=dp) :: atom_mass, dis_angle, dis_angle_a, dis_angle_d, mass_a, &
-      mass_d, old_length_a, rand, u, v, w, x, y, z
+    REAL(dp), DIMENSION(:), POINTER          :: rmdihedral
+    REAL(KIND=dp)                            :: atom_mass, dis_angle, &
+                                                dis_angle_a, dis_angle_d, &
+                                                mass_a, mass_d, old_length_a, &
+                                                rand, u, v, w, x, y, z
     REAL(KIND=dp), DIMENSION(1:3)            :: bond_a, temp
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
-    REAL(dp),DIMENSION(:),POINTER :: rmdihedral
-    INTEGER,DIMENSION(:),POINTER   :: nunits
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -2268,38 +2277,40 @@ END SUBROUTINE mc_conformation_change
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy
-    INTEGER, INTENT(IN)                      :: start_atom_swap, target_atom,&
-         box_number,molecule_type
-    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy_old,&
-         last_bias_energy
+    INTEGER, INTENT(IN)                      :: start_atom_swap, target_atom, &
+                                                molecule_type, box_number
+    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy_old, &
+                                                last_bias_energy
     CHARACTER(LEN=*), INTENT(IN)             :: move_type
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_avbmc_move'
 
-    INTEGER :: group, handle, ipart, istat, natom, &
-      nswapmoves, source, start_mol,jbox,end_mol
+    INTEGER                                  :: end_mol, group, handle, &
+                                                ipart, istat, jbox, natom, &
+                                                nswapmoves, source, start_mol
+    INTEGER, DIMENSION(:), POINTER           :: avbmc_atom, mol_type, nunits, &
+                                                nunits_tot
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
     LOGICAL                                  :: ionode, lbias, ldum, lin, &
                                                 loverlap
-    REAL(KIND=dp) :: BETA, bias_energy_new, &
-      del_quickstep_energy, distance, new_energy, prefactor, rand, &
-      rdum, volume_in, volume_out, w, weight_new, weight_old
+    REAL(dp), DIMENSION(:), POINTER          :: avbmc_rmax, avbmc_rmin, pbias
+    REAL(dp), DIMENSION(:, :), POINTER       :: mass
+    REAL(KIND=dp) :: BETA, bias_energy_new, del_quickstep_energy, distance, &
+      new_energy, prefactor, rand, rdum, volume_in, volume_out, w, &
+      weight_new, weight_old
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, RIJ
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys, subsys_force
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles, particles_force
-    INTEGER,DIMENSION(:),POINTER             :: mol_type,nunits,nunits_tot,avbmc_atom
-    INTEGER,DIMENSION(:,:),POINTER           :: nchains
-    REAL(dp),DIMENSION(:,:),POINTER          :: mass
-    REAL(dp),DIMENSION(:),POINTER          :: avbmc_rmin,avbmc_rmax,pbias
-    TYPE(mc_molecule_info_type),POINTER      :: mc_molecule_info
+
 !   ---------------------------------------------------------------------------
 
       rdum=1.0_dp

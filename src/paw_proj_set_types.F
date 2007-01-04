@@ -279,8 +279,7 @@ CONTAINS
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     REAL(dp), INTENT(IN)                     :: max_rad_local_type
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine = " projectors "
 
@@ -317,8 +316,7 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: eps_fit, eps_iso, eps_svd, &
                                                 rc, eps_orb, max_rad_local
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "  build_projector"
 

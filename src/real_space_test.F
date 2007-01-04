@@ -72,8 +72,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_test', &
       routineP = moduleN//':'//routineN

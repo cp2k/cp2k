@@ -33,20 +33,19 @@ MODULE qmmm_electrostatic_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE input_constants,                 ONLY: do_qmmm_gauss,&
+  USE input_constants,                 ONLY: do_par_atom,&
+                                             do_qmmm_gauss,&
                                              do_qmmm_grid,&
                                              do_qmmm_none,&
                                              linear_interp,&
                                              spline3_nopbc_interp,&
-                                             spline3_pbc_interp,&
-                                             do_par_grid,&
-                                             do_par_atom
+                                             spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sync,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_sum,&
+                                             mp_sync
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -117,8 +116,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
       routineP = moduleN//':'//routineN
@@ -253,8 +251,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid', &
       routineP = moduleN//':'//routineN
@@ -331,8 +328,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'qmmm_electrostatic_on_grid_low', &
@@ -463,8 +459,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: auxbas_grid, coarser_grid
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
       routineP = moduleN//':'//routineN
@@ -585,7 +580,7 @@ CONTAINS
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms, par_scheme
+    INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -603,17 +598,16 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: periodic
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: per_potentials
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(IN)                      :: par_scheme
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER ::&
-         routineN = 'qmmm_elec_with_gaussian_low', &
-         routineNb= 'qmmm_elec_gaussian_low', &
-         routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
+      routineNb = 'qmmm_elec_gaussian_low', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, IGauss, ilevel, &
-                                                Imm, IndMM, IRadTyp, handle2,&
-                                                LIndMM, n_rep_real(3), stat, myind
+    INTEGER                                  :: handle, handle2, IGauss, &
+                                                ilevel, Imm, IndMM, IRadTyp, &
+                                                LIndMM, myind, n_rep_real(3), &
+                                                stat
     INTEGER, DIMENSION(2, 3)                 :: bo2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, height, W
@@ -762,21 +756,22 @@ CONTAINS
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: coarser_grid_level, par_scheme
+    INTEGER, INTENT(IN)                      :: coarser_grid_level
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: per_potentials
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(IN)                      :: par_scheme
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LG', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, ij3, ij4, ik1, ik2, &
       ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_j, my_k, &
-      npts(3), myind, stat
+      myind, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    LOGICAL                                  :: failure
     REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
       acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
       bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
@@ -792,7 +787,6 @@ CONTAINS
       POINTER                                :: grid, grid2
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
-    LOGICAL :: failure
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -1037,31 +1031,31 @@ CONTAINS
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(IN)                      :: coarser_grid_level, par_scheme
+    INTEGER, INTENT(IN)                      :: coarser_grid_level
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    INTEGER, INTENT(IN)                      :: par_scheme
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, Imm, IndMM, &
                                                 IRadTyp, ix, j, k, LIndMM, &
-                                                my_j, my_k, n1, n2, n3, myind, stat
+                                                my_j, my_k, myind, n1, n2, n3
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dr1, dr2, dr3, dx, qt, r, r2, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
                                                 rx, rx2, rx3, Term, xs1, xs2, &
                                                 xs3
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
-    TYPE(qmmm_pot_type), POINTER             :: pot
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid2
-    LOGICAL :: failure
+    TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.

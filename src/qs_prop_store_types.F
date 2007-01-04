@@ -96,8 +96,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_pstore_create(pstore,error)
     TYPE(qs_prop_store_type), POINTER        :: pstore
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_pstore_create', &
       routineP = moduleN//':'//routineN
@@ -151,8 +150,7 @@ END SUBROUTINE qs_pstore_create
 !!*** **********************************************************************
 SUBROUTINE qs_pstore_retain(pstore,error)
     TYPE(qs_prop_store_type), POINTER        :: pstore
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_pstore_retain', &
       routineP = moduleN//':'//routineN
@@ -191,8 +189,7 @@ END SUBROUTINE qs_pstore_retain
 !!*** **********************************************************************
 SUBROUTINE qs_pstore_release(pstore,error)
     TYPE(qs_prop_store_type), POINTER        :: pstore
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_pstore_release', &
       routineP = moduleN//':'//routineN

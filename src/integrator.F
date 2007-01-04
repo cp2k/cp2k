@@ -146,8 +146,7 @@ CONTAINS
   SUBROUTINE langevin(md_env,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'langevin'
 
@@ -186,7 +185,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY (cell)
     NULLIFY (dyn_coeff_set)
@@ -395,8 +394,7 @@ CONTAINS
   SUBROUTINE nve ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve'
 
@@ -658,8 +656,7 @@ CONTAINS
   SUBROUTINE isokin ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'isokin'
 
@@ -839,8 +836,7 @@ CONTAINS
   SUBROUTINE nvt ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nvt'
 
@@ -1106,8 +1102,7 @@ CONTAINS
  SUBROUTINE npt_i ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_i'
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
@@ -1400,8 +1395,7 @@ CONTAINS
 !!*** **********************************************************************
  SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'reftraj'
 
@@ -1501,8 +1495,7 @@ CONTAINS
  SUBROUTINE nph_uniaxial ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nph_uniaxial'
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
@@ -1793,8 +1786,7 @@ CONTAINS
  SUBROUTINE nph_uniaxial_damped ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nph_uniaxial_damped'
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
@@ -2348,11 +2340,9 @@ END SUBROUTINE deallocate_old
  SUBROUTINE npt_f ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_f'
-
     LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
                                                 e4 = e2/20.0_dp, &
@@ -2881,8 +2871,7 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
     LOGICAL, INTENT(INOUT)                   :: first
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u( : , : )
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp)                            :: kin
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
@@ -3212,8 +3201,7 @@ END SUBROUTINE update_veps
   SUBROUTINE nve_respa ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve_respa'
 

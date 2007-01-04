@@ -115,8 +115,7 @@ MODULE qs_linres_nmr_atom_current
       POINTER                                :: mat_jp, mat_jp_pii, &
                                                 mat_jp_piii
     INTEGER, INTENT(IN)                      :: iB, idir
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
       routineP = moduleN//':'//routineN
@@ -540,8 +539,7 @@ MODULE qs_linres_nmr_atom_current
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(IN)                      :: IB, idir
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
@@ -869,8 +867,7 @@ MODULE qs_linres_nmr_atom_current
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
     INTEGER, INTENT(IN)                      :: IB, idir
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
       routineP = moduleN//':'//routineN
@@ -1081,8 +1078,7 @@ MODULE qs_linres_nmr_atom_current
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     INTEGER, INTENT(IN)                      :: iB, idir, ispin
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
       routineP = moduleN//':'//routineN
@@ -1191,8 +1187,7 @@ MODULE qs_linres_nmr_atom_current
   SUBROUTINE list_3c_jrho_atom(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_3c_jrho_atom', &
       routineP = moduleN//':'//routineN

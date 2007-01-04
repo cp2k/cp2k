@@ -218,8 +218,7 @@ SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     TYPE(section_vals_type), POINTER         :: test_section

@@ -80,8 +80,7 @@ CONTAINS
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &

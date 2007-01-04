@@ -134,8 +134,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
       routineP = moduleN//':'//routineN
@@ -297,8 +296,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN)                      :: deriv_order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval', &
       routineP = moduleN//':'//routineN
@@ -482,8 +480,7 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: deriv_order
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_eval', &
       routineP = moduleN//':'//routineN
@@ -544,8 +541,7 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
     TYPE(section_vals_type), POINTER         :: functionals
     LOGICAL, INTENT(in)                      :: lsd
     LOGICAL, INTENT(in), OPTIONAL            :: add_basic_components
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(xc_rho_cflags_type)                 :: needs
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_get_needs', &

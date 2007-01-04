@@ -178,8 +178,7 @@ MODULE hartree_local_types
   SUBROUTINE hartree_local_create(hartree_local, error)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create'
 
@@ -203,8 +202,7 @@ MODULE hartree_local_types
   SUBROUTINE hartree_local_release(hartree_local, error)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release'
 

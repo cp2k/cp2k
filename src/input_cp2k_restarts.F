@@ -863,8 +863,8 @@ CONTAINS
   SUBROUTINE section_neb_coord_val_set(coord_section, coords, nsize, error)
 
     TYPE(section_vals_type), POINTER         :: coord_section
-    INTEGER, INTENT(IN)                      :: nsize
     REAL(KIND=dp), DIMENSION(*)              :: coords
+    INTEGER, INTENT(IN)                      :: nsize
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &

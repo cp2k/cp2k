@@ -22,11 +22,11 @@
 MODULE mc_move_control
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: get_mc_par,&
+  USE mc_types,                        ONLY: get_mc_molecule_info,&
+                                             get_mc_par,&
+                                             mc_molecule_info_type,&
                                              mc_moves_type,&
                                              mc_simulation_parameters_type,&
-                                             mc_molecule_info_type,&
-                                             get_mc_molecule_info,&
                                              set_mc_par
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
@@ -554,17 +554,19 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(mc_moves_type), POINTER       :: move_updates
+    TYPE(mc_moves_type), POINTER             :: move_updates
+    INTEGER, INTENT(IN)                      :: molecule_type
     CHARACTER(LEN=*), INTENT(IN)             :: flag
-    INTEGER, INTENT(IN)                      :: nnstep,molecule_type
+    INTEGER, INTENT(IN)                      :: nnstep
     LOGICAL, INTENT(IN)                      :: ionode
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_move_update'
 
-    INTEGER                                  :: handle, rm,nmol_types
-    REAL(KIND=dp)                            :: rmvolume,test_ratio
-    REAL(dp),DIMENSION(:),POINTER   :: rmangle,rmbond,rmdihedral,rmrot,rmtrans
-    TYPE(mc_molecule_info_type),POINTER :: mc_molecule_info
+    INTEGER                                  :: handle, nmol_types, rm
+    REAL(dp), DIMENSION(:), POINTER          :: rmangle, rmbond, rmdihedral, &
+                                                rmrot, rmtrans
+    REAL(KIND=dp)                            :: rmvolume, test_ratio
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine

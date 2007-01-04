@@ -27,11 +27,11 @@ MODULE cp_ddapc_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              read_cell
-  USE cp_output_handling,              ONLY: cp_printkey_is_on
   USE cp_ddapc_methods,                ONLY: ddapc_eval_AmI,&
                                              ddapc_eval_gfunc,&
                                              ewald_ddapc_pot,&
                                              solvation_ddapc_pot
+  USE cp_output_handling,              ONLY: cp_printkey_is_on
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE input_constants,                 ONLY: use_multipole
@@ -143,7 +143,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iw, iw2
-    REAL(KIND=dp), INTENT(IN)                :: Vol   
+    REAL(KIND=dp), INTENT(IN)                :: Vol
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -152,8 +152,8 @@ CONTAINS
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    TYPE(section_vals_type), POINTER         :: solvation_section
-    TYPE(section_vals_type), POINTER         :: param_section
+    TYPE(section_vals_type), POINTER         :: param_section, &
+                                                solvation_section
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -370,19 +370,15 @@ CONTAINS
     INTEGER                                  :: my_val, npts(3), output_unit, &
                                                 stat
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL                                  :: analyt, decoupling, explicit, &
-                                                failure, ionode, &
-                                                do_qmmm_periodic, &
-                                                do_solvation,&
-                                                do_charge,&
-                                                do_restraint
+    LOGICAL :: analyt, decoupling, do_qmmm_periodic, do_restraint, &
+      do_solvation, explicit, failure, ionode
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: cell_section, grid_print_section, &
-      multipole_section, poisson_section, qmmm_per_section, &
-      solvation_section, printC_section, restraint_section
+      multipole_section, poisson_section, printC_section, qmmm_per_section, &
+      restraint_section, solvation_section
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)

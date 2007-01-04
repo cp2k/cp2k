@@ -135,8 +135,7 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
@@ -521,8 +520,7 @@ CONTAINS
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', &
       routineP = moduleN//':'//routineN
@@ -1055,8 +1053,7 @@ CONTAINS
   SUBROUTINE nmr_env_cleanup(nmr_env,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
       routineP = moduleN//':'//routineN

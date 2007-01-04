@@ -125,8 +125,7 @@ CONTAINS
       POINTER                                :: ks_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: oe_corr
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_saop_pot', &
       routineP = moduleN//':'//routineN
@@ -518,8 +517,7 @@ CONTAINS
       POINTER                                :: ks_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: oe_corr
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gapw_add_atomic_saop_pot', &
       routineP = moduleN//':'//routineN
@@ -1094,8 +1092,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
     INTEGER, INTENT(IN)                      :: spin
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     REAL(KIND=dp), PARAMETER                 :: ob3 = 1.0_dp/3.0_dp
 

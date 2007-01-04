@@ -116,8 +116,7 @@ CONTAINS
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN), OPTIONAL            :: EII_necessary, fast
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
@@ -300,8 +299,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_summation', &
       routineP = moduleN//':'//routineN
@@ -391,8 +389,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'harris_eigenvalue_calculation', &
@@ -476,8 +473,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'harris_eigenvalue_trace_KS_Pmix', &
@@ -554,8 +550,7 @@ CONTAINS
   SUBROUTINE harris_postprocessing(harris_env, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_postprocessing', &
       routineP = moduleN//':'//routineN

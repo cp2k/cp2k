@@ -96,8 +96,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE meta_env_retain(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_retain', &
       routineP = moduleN//':'//routineN
@@ -133,8 +132,7 @@ END SUBROUTINE meta_env_retain
 !!*** **********************************************************************
 SUBROUTINE meta_env_release(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_release', &
       routineP = moduleN//':'//routineN

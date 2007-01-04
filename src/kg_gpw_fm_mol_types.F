@@ -255,8 +255,7 @@ CONTAINS
 
     TYPE(kg_fm_mol_set_type)                 :: kg_fm_mol_set
     INTEGER                                  :: nmol
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fm_mol_blocks', &
       routineP = moduleN//':'//routineN
@@ -295,8 +294,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n_ao, nmo
     REAL(dp), INTENT(IN)                     :: maxocc
     INTEGER, INTENT(IN)                      :: nelectron
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mol_mo_set', &
       routineP = moduleN//':'//routineN
@@ -399,8 +397,7 @@ CONTAINS
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
     INTEGER                                  :: n_ao, nmo
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_mo_set', &
       routineP = moduleN//':'//routineN
@@ -470,8 +467,7 @@ CONTAINS
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: fm_mol_set_a, fm_mol_set_b
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_to_fm_mol', &
       routineP = moduleN//':'//routineN
@@ -587,8 +583,7 @@ CONTAINS
 
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     INTEGER                                  :: nmolecule_kind
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_create', &
       routineP = moduleN//':'//routineN
@@ -634,8 +629,7 @@ CONTAINS
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_distroy', &
       routineP = moduleN//':'//routineN
@@ -710,8 +704,7 @@ CONTAINS
   SUBROUTINE kg_fm_mol_set_release(kg_fm,error)
 
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_release', &
       routineP = moduleN//':'//routineN
@@ -749,8 +742,7 @@ CONTAINS
   SUBROUTINE kg_fm_mol_set_retain(kg_fm,error)
 
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_retain', &
       routineP = moduleN//':'//routineN
@@ -779,8 +771,7 @@ CONTAINS
                                                 nmolecule_local, natom, n_ao, &
                                                 n_mo(2), nelectron_spin(2)
     REAL(dp), INTENT(OUT), OPTIONAL          :: maxocc
-    INTEGER, INTENT(OUT), OPTIONAL           :: charge
-    INTEGER, INTENT(OUT), OPTIONAL           :: multiplicity
+    INTEGER, INTENT(OUT), OPTIONAL           :: charge, multiplicity
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: fm_mol_blocks
 
@@ -834,8 +825,7 @@ CONTAINS
                                                 nmolecule_local, natom, n_ao, &
                                                 n_mo(2), nelectron_spin(2)
     REAL(dp), INTENT(IN), OPTIONAL           :: maxocc
-    INTEGER, INTENT(IN), OPTIONAL            :: charge
-    INTEGER, INTENT(IN), OPTIONAL            :: multiplicity
+    INTEGER, INTENT(IN), OPTIONAL            :: charge, multiplicity
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: fm_mol_blocks
 
@@ -886,8 +876,7 @@ CONTAINS
                                     error)
     TYPE(kg_fm_p_type), POINTER              :: input_kg_fm_p_type, &
                                                 output_kg_fm_p_type
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_kg_fm_p_type', &
       routineP = moduleN//':'//routineN

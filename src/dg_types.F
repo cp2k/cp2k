@@ -79,8 +79,7 @@ MODULE dg_types
 !   ***************************************************************************
 
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_create', &
       routineP = moduleN//':'//routineN
@@ -132,8 +131,7 @@ MODULE dg_types
 !!*** **********************************************************************
 SUBROUTINE dg_retain ( dg, error)
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_retain', &
       routineP = moduleN//':'//routineN
@@ -180,8 +178,7 @@ END SUBROUTINE dg_retain
 !!*** **********************************************************************
 SUBROUTINE dg_release(dg, error)
     TYPE(dg_type), POINTER                   :: dg
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_release', &
       routineP = moduleN//':'//routineN

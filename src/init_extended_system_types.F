@@ -93,8 +93,7 @@ CONTAINS
       POINTER                                :: npt_info
     TYPE(cell_type), INTENT(inout)           :: box
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt', &
       routineP = moduleN//':'//routineN
@@ -207,8 +206,7 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
       routineP = moduleN//':'//routineN
@@ -341,8 +339,7 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: print_section, nose_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
       routineP = moduleN//':'//routineN
@@ -501,8 +498,7 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
       routineP = moduleN//':'//routineN

@@ -180,8 +180,7 @@ CONTAINS
       POINTER                                :: qs_loc_env
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: stogto_overlap
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_xas_env', &
       routineP = moduleN//':'//routineN
@@ -234,8 +233,7 @@ CONTAINS
                                                 nvirtual1, nvirtual2
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
       routineP = moduleN//':'//routineN
@@ -283,8 +281,7 @@ CONTAINS
   SUBROUTINE xas_env_create(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_create', &
       routineP = moduleN//':'//routineN
@@ -324,8 +321,7 @@ CONTAINS
   SUBROUTINE xas_env_release(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_release', &
       routineP = moduleN//':'//routineN
@@ -429,8 +425,7 @@ CONTAINS
   SUBROUTINE xas_env_retain(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_retain', &
       routineP = moduleN//':'//routineN

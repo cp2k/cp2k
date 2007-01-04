@@ -72,8 +72,7 @@ CONTAINS
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology_gromos', &
       routineP = moduleN//':'//routineN
@@ -147,30 +146,28 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_gromos', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: ctemp
     CHARACTER(LEN=default_string_length)     :: label, string
     CHARACTER(LEN=default_string_length), &
       DIMENSION(21)                          :: avail_section
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: namearray1(:), namearray2(:)
-    INTEGER :: handle, i, iatom, ibond, icon, iresid, isolvent, itemp, itype, &
-      iw, jatom, natom, natom_prev, nbond, nbond_prev, ncon, nsolute, &
-      nsolvent, ntype, offset, offset2, stat,tmp,ii(50),begin
+    INTEGER :: begin, handle, i, iatom, ibond, icon, ii(50), iresid, &
+      isolvent, itemp, itype, iw, jatom, natom, natom_prev, nbond, &
+      nbond_prev, ncon, nsolute, nsolvent, ntype, offset, offset2, stat
     INTEGER, POINTER                         :: ba(:), bb(:), na(:)
     LOGICAL                                  :: do_onfo, failure, found
+    REAL                                     :: ftemp
     REAL(KIND=dp), POINTER                   :: ac(:), am(:)
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
-
-    CHARACTER :: ctemp
-    REAL      :: ftemp
 
     NULLIFY(parser, logger)
     NULLIFY(namearray1,namearray2)
@@ -773,8 +770,7 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_gromos', &
       routineP = moduleN//':'//routineN
@@ -933,8 +929,7 @@ CONTAINS
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_g96', &
       routineP = moduleN//':'//routineN

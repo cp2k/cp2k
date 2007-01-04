@@ -35,15 +35,16 @@ MODULE cp_ddapc_util
                                              build_der_A_matrix,&
                                              build_der_b_vector
   USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
-                                             cp_ddapc_release,&
                                              cp_ddapc_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals
-  USE input_constants,                 ONLY: do_full_density, do_spin_density
-  USE kinds,                           ONLY: dp, default_string_length
+  USE input_constants,                 ONLY: do_full_density,&
+                                             do_spin_density
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -54,8 +55,8 @@ MODULE cp_ddapc_util
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_sumup,&
                                              pw_subtract,&
+                                             pw_sumup,&
                                              pw_transfer,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
@@ -104,12 +105,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_init', &
       routineP = moduleN//':'//routineN
-    TYPE(section_vals_type), POINTER         :: density_fit_section
-    INTEGER                                  :: handle, i, ispin, iw, iw2, &
+
+    INTEGER                                  :: handle, i, iw, iw2, &
                                                 n_rep_val, num_gauss, stat
-    LOGICAL                                  :: failure, need_f
-    REAL(KIND=dp)                            :: ch_dens, gcut, pfact, rcmin, &
-                                                Vol
+    LOGICAL                                  :: allocate_ddapc_env, failure
+    REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
@@ -123,7 +123,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_rho_type), POINTER               :: rho
-    LOGICAL :: allocate_ddapc_env
+    TYPE(section_vals_type), POINTER         :: density_fit_section
 
     CALL timeset(routineN,"I","",handle)
     failure         = .FALSE.
@@ -237,8 +237,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: dq_out
     TYPE(pw_type), OPTIONAL, POINTER         :: ext_rho_tot_g
-    CHARACTER(LEN=*),&
-         OPTIONAL                            :: Itype_of_density
+    CHARACTER(LEN=*), OPTIONAL               :: Itype_of_density
     INTEGER, INTENT(IN), OPTIONAL            :: iwc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -247,9 +246,9 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: type_of_density
     INTEGER                                  :: handle, handle2, handle3, i, &
-                                                ii, iparticle, ispin, iw, &
-                                                iw2, j, n_rep_val, ndim, &
-                                                num_gauss, stat, myid
+                                                ii, iparticle, ispin, iw, j, &
+                                                myid, n_rep_val, ndim, &
+                                                num_gauss, stat
     LOGICAL                                  :: failure, need_f
     REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, gcut, &
                                                 pfact, rcmin, Vol

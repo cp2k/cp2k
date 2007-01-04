@@ -185,8 +185,7 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
     REAL(KIND=dp), INTENT(IN)                :: maxocc
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE allocate_mo_set (MODULE qs_mo_types)"
@@ -257,8 +256,7 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
     CHARACTER(len=*), INTENT(in)             :: name
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_mo_set', &
       routineP = moduleN//':'//routineN
@@ -314,8 +312,7 @@ CONTAINS
   SUBROUTINE mo_set_restrict(mo_array,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mo_set_restrict'
 
@@ -604,8 +601,7 @@ CONTAINS
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: dft_section
     INTEGER, INTENT(in), OPTIONAL            :: rst_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -779,8 +775,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -1074,8 +1069,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: spin
     LOGICAL, INTENT(IN), OPTIONAL            :: last
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit'
 

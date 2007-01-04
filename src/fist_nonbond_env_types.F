@@ -111,8 +111,7 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
   IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env % potparm
   IF ( PRESENT ( rlist_cutsq ) ) rlist_cutsq => fist_nonbond_env % rlist_cutsq
@@ -184,8 +183,7 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
   IF ( PRESENT ( potparm ) ) THEN
     fist_nonbond_env % potparm => potparm
@@ -240,8 +238,7 @@ END SUBROUTINE fist_nonbond_env_set
 SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
       routineP = moduleN//':'//routineN
@@ -267,8 +264,7 @@ END SUBROUTINE fist_nonbond_env_create
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
       routineP = moduleN//':'//routineN
@@ -349,8 +345,7 @@ END SUBROUTINE fist_nonbond_env_create
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_retain(fist_nonbond_env,error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_retain', &
       routineP = moduleN//':'//routineN
@@ -398,8 +393,7 @@ END SUBROUTINE fist_nonbond_env_retain
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_release', &
       routineP = moduleN//':'//routineN

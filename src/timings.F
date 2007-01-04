@@ -22,12 +22,12 @@
 !******************************************************************************
 
 MODULE timings
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
                                              m_walltime,&
                                              print_memory
   USE mathconstants,                   ONLY: zero
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
 
@@ -636,7 +636,6 @@ SUBROUTINE trace_debug ( set, para_env )
     TYPE(cp_para_env_type)                   :: para_env
 
     CHARACTER(len=5)                         :: set2
-    INTEGER                                  :: numtask, taskid
     TYPE(timer_env_type), POINTER            :: timer_env
 
 ! this is needed on SUN if the trace_debug("start") is used in the call (i.e. explicit string)

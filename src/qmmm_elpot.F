@@ -93,8 +93,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_potential_init', &
       routineP = moduleN//':'//routineN
@@ -371,8 +370,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm, particles_mm
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp)                            :: Rmax
 

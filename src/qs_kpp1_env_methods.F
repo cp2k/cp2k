@@ -149,8 +149,7 @@ CONTAINS
   SUBROUTINE kpp1_create(kpp1_env,qs_env, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', &
       routineP = moduleN//':'//routineN
@@ -209,8 +208,7 @@ CONTAINS
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho1_xc
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1', &
       routineP = moduleN//':'//routineN
@@ -621,8 +619,7 @@ CONTAINS
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: diff
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1_fdiff', &
       routineP = moduleN//':'//routineN
@@ -734,8 +731,7 @@ CONTAINS
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
       routineP = moduleN//':'//routineN
@@ -892,8 +888,7 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_struct_changed, &
                                                 grid_changed, psi0_changed
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_did_change', &
       routineP = moduleN//':'//routineN
@@ -960,8 +955,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho1
     TYPE(coeff_type), INTENT(IN)             :: rho1_tot_gspace
     INTEGER                                  :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_densities', &
       routineP = moduleN//':'//routineN

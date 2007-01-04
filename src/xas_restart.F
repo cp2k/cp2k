@@ -111,8 +111,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: rst_unit
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_restart_xas', &
       routineP = moduleN//':'//routineN
@@ -370,8 +369,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
     INTEGER, INTENT(INOUT)                   :: estate
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_read_restart', &
       routineP = moduleN//':'//routineN
@@ -490,8 +488,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: xas_section
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_write_restart', &
       routineP = moduleN//':'//routineN
@@ -583,8 +580,7 @@ CONTAINS
   SUBROUTINE xas_initialize_rho(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_initialize_rho', &
       routineP = moduleN//':'//routineN
