@@ -650,6 +650,7 @@ CONTAINS
        ALLOCATE(missed_molname(SIZE(cons_info%fixed_molnames,1)),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        missed_molname=.TRUE.
+       nfixd_restraint = 0
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -691,7 +692,6 @@ CONTAINS
           ALLOCATE(fixd_list(nfixed_atoms),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           kk = 0
-          nfixd_restraint = 0
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
