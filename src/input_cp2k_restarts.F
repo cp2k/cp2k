@@ -26,7 +26,8 @@ MODULE input_cp2k_restarts
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             real_to_scaled
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_get_length,&
                                              cp_sll_val_type
@@ -1196,7 +1197,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isubsys, my_unit, stat
-    LOGICAL                                  :: failure, use_ref_cell
+    LOGICAL                                  :: failure, use_ref_cell, scale
     REAL(KIND=dp)                            :: conv_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -1224,17 +1225,21 @@ CONTAINS
             particles=particles, molecules_new=molecules, error=error)       
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
+       scale = .FALSE.
        SELECT CASE(my_unit)
        CASE (use_unit_angstrom,use_unit_scaled_angstrom)
           conv_factor = bohr
+          IF (my_unit==use_unit_scaled_angstrom) scale = .TRUE.
        CASE (use_unit_bohr,use_unit_scaled_bohr)
           conv_factor = 1.0_dp
+          IF (my_unit==use_unit_scaled_bohr) scale = .TRUE.
        CASE DEFAULT
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        !    Coordinates and Velocities
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-       CALL section_coord_val_set(work_section, particles, molecules, conv_factor, error)
+       CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
+            cell, error)
        work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
        IF (.NOT.skip_vel_section) THEN
           CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
@@ -1309,12 +1314,14 @@ CONTAINS
 !!     02.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor, error)
-
+  SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor,&
+       scale, cell, error)
+    LOGICAL, INTENT(IN)                      :: scale
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_new_list_type), POINTER         :: molecules
     REAL(KIND=dp)                            :: conv_factor
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
@@ -1330,6 +1337,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_now
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
+    REAL(KIND=dp), DIMENSION(3)              :: r, s
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
@@ -1364,8 +1372,15 @@ CONTAINS
        ldum = qmmm_ff_precond_only_qm(my_tag)
        ldum = qmmm_ff_precond_only_qm(name)
        line = TRIM(name)
+       s = particles%els(irk)%r
+       IF (scale) THEN
+          r = s   
+          CALL real_to_scaled(s,r,cell)
+       ELSE
+          s = s/conv_factor
+       END IF
        DO k = 1, 3
-          WRITE(rcval,"(ES25.16)") particles%els(irk)%r(k)/conv_factor
+          WRITE(rcval,"(ES25.16)") s(k)
           line = TRIM(line)//" "//TRIM(rcval)
        END DO
        line = TRIM(line)//" "//TRIM(my_tag)
