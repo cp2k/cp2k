@@ -86,7 +86,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy_3x3, energy_4x6, &
                                                 energy_colv, energy_fixd, &
-                                                rab(3), rab2, targ(3)
+                                                rab(3), rab2, targ(3), k0
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force
     TYPE(cell_type), POINTER                 :: cell
@@ -146,14 +146,14 @@ CONTAINS
                       DO ii = 1, SIZE(fixd_list)
                          IF (fixd_list(ii)%fixd == iparticle) THEN
                             IF (fixd_list(ii)%restraint%active) THEN
-                               k    = fixd_list(ii)%restraint%k0
+                               k0   = fixd_list(ii)%restraint%k0
                                targ = fixd_list(ii)%coord
                                rab  = particle_set(iparticle)%r-targ
                                rab2 = DOT_PRODUCT(rab,rab)
                                ! Energy
-                               energy_fixd = energy_fixd + k * rab2
+                               energy_fixd = energy_fixd + k0 * rab2
                                ! Forces
-                               force(:,iparticle) = force(:,iparticle) - 2.0_dp * k* rab
+                               force(:,iparticle) = force(:,iparticle) - 2.0_dp * k0 * rab
                             END IF
                             EXIT
                          END IF

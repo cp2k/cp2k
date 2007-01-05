@@ -235,3 +235,5 @@ silicon_cluster_5.inp
 silicon_cluster_6.inp
 #bug fix in restraint for fixed atoms
 nh3-restraint-fixd.inp
+#bug fix in restraint for fixed atoms 2
+nh3-restraint-fixd.inp
