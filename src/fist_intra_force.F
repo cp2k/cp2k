@@ -335,6 +335,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         u2 = t43 - dist2*t32*is32**2
         w1 = SQRT(DOT_PRODUCT(u1,u1))
         w2 = SQRT(DOT_PRODUCT(u2,u2))
+        IF ((ABS(w1)<EPSILON(0.0_dp)).OR.(ABS(w2)<EPSILON(0.0_dp))) CYCLE
         iw1 = 1.0_dp/w1
         iw2 = 1.0_dp/w2
         DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
