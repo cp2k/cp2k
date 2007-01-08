@@ -44,7 +44,7 @@ SUBROUTINE fftmkl_get_lengths ( data, max_length )
   maxn_sevens = 1
   maxn_elevens = 1
   maxn_thirteens = 0
-  maxn = MIN ( max_length, 37748736 )
+  maxn = 37748736
 
   ndata = 0
   DO h = 0, maxn_twos

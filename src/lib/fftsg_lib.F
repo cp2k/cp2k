@@ -37,14 +37,8 @@ SUBROUTINE fftsg_get_lengths ( data, max_length )
 
 !------------------------------------------------------------------------------
 
-  ndata = 0
-  DO i = 1, rlen
-    IF ( radix ( i ) >= max_length ) EXIT
-    ndata = ndata + 1
-  END DO
-
+  ndata = MIN ( max_length, rlen )
   data ( 1:ndata ) = radix ( 1:ndata )
-
   max_length = ndata
 
 END SUBROUTINE fftsg_get_lengths
