@@ -379,7 +379,7 @@ MODULE four_center_integrals
       END DO
     END DO
 
-
+    memory_usage = 0.0_dp
     
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
 
