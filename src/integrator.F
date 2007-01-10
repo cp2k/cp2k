@@ -36,7 +36,7 @@ MODULE integrator
                                              rattle_roll_control,&
                                              shake_control,&
                                              shake_roll_control
-  USE constraint_clv,                  ONLY: fix_atom_control
+  USE constraint_fxd,                  ONLY: fix_atom_control
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_para_types,                   ONLY: cp_para_env_type

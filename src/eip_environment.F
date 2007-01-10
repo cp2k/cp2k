@@ -177,10 +177,9 @@ CONTAINS
       CALL cp_subsys_read_colvar(subsys=subsystem, colvar_section=colvar_section, &
                                  error=error)
 
-      CALL topology_control(atomic_kind_set, particle_set, &
-                            molecule_kind_set, molecule_set, &
-                            subsystem%colvar_p, root_section, para_env, globenv, &
-                            force_env_section=force_env_section,error=error)
+      CALL topology_control(atomic_kind_set, particle_set,molecule_kind_set,&
+           molecule_set, subsystem%colvar_p, subsystem%gci, root_section, &
+           para_env, globenv, force_env_section=force_env_section,error=error)
 
       CALL particle_list_create(particles, els_ptr=particle_set, error=error)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set, error=error)

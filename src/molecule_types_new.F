@@ -22,10 +22,14 @@
 MODULE molecule_types_new
 
   USE colvar_types,                    ONLY: colvar_release,&
-                                             colvar_type
+                                             colvar_type,&
+                                             colvar_counters
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type,&
+                                             colvar_constraint_type,&
+                                             g3x3_constraint_type,&
+                                             g4x6_constraint_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 #include "cp_common_uses.h"
@@ -46,18 +50,23 @@ MODULE molecule_types_new
   END TYPE local_colvar_constraint_type
 
   TYPE local_g3x3_constraint_type
-    REAL(KIND = dp)               :: scale,scale_old
-    REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,&
+    REAL(KIND = dp)               :: scale,scale_old, imass1, imass2, imass3
+    REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,f_roll1,f_roll2,f_roll3,&
                                      ra_old,rb_old,rc_old,&
-                                     va,vb,vc,lambda
+                                     va,vb,vc,lambda, del_lambda, lambda_old,&
+                                     r0_12, r0_13, r0_23
+    REAL(KIND = dp), DIMENSION(3,3) :: amat
   END TYPE local_g3x3_constraint_type
 
   TYPE local_g4x6_constraint_type
-    REAL(KIND = dp)               :: scale,scale_old
+    REAL(KIND = dp)               :: scale,scale_old, imass1, imass2, imass3, imass4
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,fd,fe,ff,&
+                                     f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, f_roll6,&
                                      ra_old,rb_old,rc_old,rd_old,re_old,rf_old,&
-                                     va,vb,vc,vd,ve,vf
-    REAL(KIND = dp), DIMENSION(6) :: lambda
+                                     va,vb,vc,vd,ve,vf,&
+                                     r0_12, r0_13, r0_14, r0_23, r0_24, r0_34
+    REAL(KIND = dp), DIMENSION(6)   :: lambda, del_lambda, lambda_old
+    REAL(KIND = dp), DIMENSION(6,6) :: amat
   END TYPE local_g4x6_constraint_type
 
   TYPE local_molecule_type
@@ -66,10 +75,23 @@ MODULE molecule_types_new
   END TYPE local_molecule_type
 
   TYPE local_constraint_type
-    TYPE ( local_colvar_constraint_type ), DIMENSION ( : ) , POINTER :: lcolv
-    TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
-    TYPE ( local_g4x6_constraint_type ), DIMENSION ( : ) , POINTER :: lg4x6
+     TYPE(local_colvar_constraint_type), DIMENSION ( : ) , POINTER :: lcolv
+     TYPE(local_g3x3_constraint_type), DIMENSION ( : ) ,   POINTER :: lg3x3
+     TYPE(local_g4x6_constraint_type), DIMENSION ( : ) ,   POINTER :: lg4x6
   END TYPE local_constraint_type
+
+  TYPE global_constraint_type
+     TYPE(colvar_counters)                    :: ncolv
+     INTEGER                                  :: ntot
+     INTEGER                                  :: ng3x3, ng3x3_restraint
+     INTEGER                                  :: ng4x6, ng4x6_restraint
+     TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list
+     TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list
+     TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list     
+     TYPE(local_colvar_constraint_type), DIMENSION ( : ) , POINTER :: lcolv
+     TYPE(local_g3x3_constraint_type),   DIMENSION ( : ) , POINTER :: lg3x3
+     TYPE(local_g4x6_constraint_type),   DIMENSION ( : ) , POINTER :: lg4x6
+  END TYPE global_constraint_type
 
   TYPE molecule_type
     TYPE(molecule_kind_type), POINTER  :: molecule_kind ! pointer to molecule kind information
@@ -86,6 +108,7 @@ MODULE molecule_types_new
             local_g4x6_constraint_type,&
             local_constraint_type,&
             local_molecule_type,&
+            global_constraint_type,&
             molecule_type
 
 ! *** Public subroutines ***

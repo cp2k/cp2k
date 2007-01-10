@@ -91,6 +91,7 @@ MODULE topology_types
      CHARACTER(LEN=default_string_length), POINTER :: const_colv_molname(:)
      REAL(KIND=dp), POINTER                        :: const_colv_target(:)
      TYPE(colvar_p_type), POINTER, DIMENSION(:)    :: colvar_set
+     LOGICAL, POINTER                              :: colv_intermolecular(:)
      LOGICAL, POINTER                              :: colv_restraint(:)                       ! Restraints control
      REAL(KIND=dp), POINTER                        :: colv_k0(:)                              ! Restraints control
      ! G3x3
@@ -103,6 +104,7 @@ MODULE topology_types
      REAL(KIND=dp), POINTER                        :: const_g33_dab(:)
      REAL(KIND=dp), POINTER                        :: const_g33_dac(:)
      REAL(KIND=dp), POINTER                        :: const_g33_dbc(:)
+     LOGICAL, POINTER                              :: g33_intermolecular(:)
      LOGICAL, POINTER                              :: g33_restraint(:)                        ! Restraints control
      REAL(KIND=dp), POINTER                        :: g33_k0(:)                               ! Restraints control
      ! G4x6
@@ -119,6 +121,7 @@ MODULE topology_types
      REAL(KIND=dp), POINTER                        :: const_g46_dad(:)
      REAL(KIND=dp), POINTER                        :: const_g46_dbd(:)
      REAL(KIND=dp), POINTER                        :: const_g46_dcd(:)
+     LOGICAL, POINTER                              :: g46_intermolecular(:)
      LOGICAL, POINTER                              :: g46_restraint(:)                        ! Restraints control
      REAL(KIND=dp), POINTER                        :: g46_k0(:)                               ! Restraints control
   END TYPE constraint_info_type
@@ -296,8 +299,7 @@ CONTAINS
   SUBROUTINE init_constraint(constraint_info)
     TYPE(constraint_info_type), POINTER      :: constraint_info
 
-! Bonds involving Hydrogens
-
+    ! Bonds involving Hydrogens
     constraint_info%hbonds_restraint = .FALSE.
     ! Fixed Atoms
     constraint_info%nfixed_atoms = 0
@@ -315,6 +317,7 @@ CONTAINS
     NULLIFY(constraint_info%const_colv_mol)
     NULLIFY(constraint_info%const_colv_molname)
     NULLIFY(constraint_info%const_colv_target)
+    NULLIFY(constraint_info%colv_intermolecular)
     NULLIFY(constraint_info%colv_restraint)
     NULLIFY(constraint_info%colv_k0)
     ! G3x3
@@ -327,6 +330,7 @@ CONTAINS
     NULLIFY(constraint_info%const_g33_dab)
     NULLIFY(constraint_info%const_g33_dac)
     NULLIFY(constraint_info%const_g33_dbc)
+    NULLIFY(constraint_info%g33_intermolecular)
     NULLIFY(constraint_info%g33_restraint)
     NULLIFY(constraint_info%g33_k0)
     ! G4x6
@@ -343,6 +347,7 @@ CONTAINS
     NULLIFY(constraint_info%const_g46_dad)
     NULLIFY(constraint_info%const_g46_dbd)
     NULLIFY(constraint_info%const_g46_dcd)
+    NULLIFY(constraint_info%g46_intermolecular)
     NULLIFY(constraint_info%g46_restraint)
     NULLIFY(constraint_info%g46_k0)
 
@@ -625,6 +630,10 @@ CONTAINS
           DEALLOCATE(constraint_info%const_colv_target,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+       IF(ASSOCIATED(constraint_info%colv_intermolecular)) THEN
+          DEALLOCATE(constraint_info%colv_intermolecular,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        IF(ASSOCIATED(constraint_info%colv_restraint)) THEN
           DEALLOCATE(constraint_info%colv_restraint,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -664,6 +673,10 @@ CONTAINS
        END IF
        IF(ASSOCIATED(constraint_info%const_g33_dbc)) THEN
           DEALLOCATE(constraint_info%const_g33_dbc,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%g33_intermolecular)) THEN
+          DEALLOCATE(constraint_info%g33_intermolecular,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF(ASSOCIATED(constraint_info%g33_restraint)) THEN
@@ -721,6 +734,10 @@ CONTAINS
        END IF
        IF(ASSOCIATED(constraint_info%const_g46_dcd)) THEN
           DEALLOCATE(constraint_info%const_g46_dcd,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%g46_intermolecular)) THEN
+          DEALLOCATE(constraint_info%g46_intermolecular,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF(ASSOCIATED(constraint_info%g46_restraint)) THEN

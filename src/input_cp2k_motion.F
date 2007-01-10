@@ -306,16 +306,16 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_clv_rest_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_fixed_atom_section(subsection, error=error)
        CALL restraint_info_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
        CALL create_f_a_rest_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_clv_rest_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -557,8 +557,16 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="INTERMOLECULAR",&
+            description="Specify if the constraint/restraint is intermolecular.",&
+            usage="INTERMOLECULAR <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
        CALL keyword_create(keyword, name="TARGET",&
-            description="Specifies the target value of the constrained collective variable (units depend on the colvar).",&
+            description="Specifies the target value of the constrained collective"//&
+            " variable (units depend on the colvar).",&
             usage="TARGET {real}",&
             type_of_var=real_t, unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -718,6 +726,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="INTERMOLECULAR",&
+            description="Specify if the constraint/restraint is intermolecular.",&
+            usage="INTERMOLECULAR <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="ATOMS",&
             description="Atoms' index on which apply the constraint", usage="ATOMS 1 3 6",&
             n_var=-1,type_of_var=integer_t,error=error)
@@ -867,6 +882,13 @@ CONTAINS
        CALL keyword_create(keyword, name="MOLNAME",&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
             usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INTERMOLECULAR",&
+            description="Specify if the constraint/restraint is intermolecular.",&
+            usage="INTERMOLECULAR <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -1,0 +1,162 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+!!****** cp2k/constraint_fxd [1.0] *
+!!
+!!   NAME
+!!     constraint_fxd
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+MODULE constraint_fxd
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+  USE kinds,                           ONLY: dp
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
+  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             update_particle_set
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  PRIVATE
+  PUBLIC :: fix_atom_control
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_fxd'
+
+CONTAINS
+
+!!****** constraint_fxd/fix_atom_control [1.0] *
+!!
+!!   NAME
+!!     fix_atom_control
+!!
+!!   FUNCTION
+!!     allows for fix atom constraints
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     - optionally apply fix atom constraint to random forces (Langevin)
+!!       (04.10.206,MK)
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE fix_atom_control( force_env, error, w)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: w
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fix_atom_control', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, ii, ikind, iparticle, iparticle_local, isubsys, &
+      my_atm_fixed, nfixed_atoms, nkind, nparticle_local, stat
+    LOGICAL                                  :: failure, zero_force
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: force
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    failure = .FALSE.
+    CALL timeset(routineN,'I','',handle)
+    IF (.NOT. failure) THEN
+       CALL force_env_get(force_env=force_env, subsys=subsys,error=error)
+       DO isubsys = 1, SIZE(subsys)
+          CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+               particles=particles, &
+               local_particles=local_particles,&
+               molecule_kinds_new=molecule_kinds ,error=error)
+
+          nkind             =  molecule_kinds % n_els
+          molecule_kind_set => molecule_kinds % els
+          particle_set      => particles%els
+          my_atm_fixed      =  0
+          DO ikind = 1, nkind
+             molecule_kind => molecule_kind_set(ikind)
+             CALL get_molecule_kind ( molecule_kind, nfixd=nfixed_atoms )
+             my_atm_fixed = my_atm_fixed + nfixed_atoms
+          END DO
+          IF (my_atm_fixed /=0) THEN
+             IF (.NOT.PRESENT(w)) THEN
+                ! Allocate scratch array
+                ALLOCATE(force(3,SIZE(particles%els)),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                force = 0.0_dp
+                DO i = 1, SIZE(local_particles%n_el)
+                   nparticle_local   = local_particles%n_el(i)
+                   DO iparticle_local=1,nparticle_local
+                      iparticle = local_particles%list(i)%array(iparticle_local)
+                      force(:,iparticle)  = particle_set(iparticle)%f(:)
+                   END DO
+                END DO
+             END IF
+
+             Mol_kind:  DO ikind = 1, nkind
+                molecule_kind => molecule_kind_set(ikind)
+                CALL get_molecule_kind ( molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list )
+
+                IF (nfixed_atoms ==0) CYCLE Mol_Kind
+                DO i = 1, SIZE(local_particles%n_el)
+                   nparticle_local   = local_particles%n_el(i)
+                   DO iparticle_local=1,nparticle_local
+                      iparticle = local_particles%list(i)%array(iparticle_local)
+                      DO ii = 1, SIZE(fixd_list)
+                         IF (fixd_list(ii)%fixd == iparticle) THEN
+                            zero_force = ((fixd_list(ii)%fixd == iparticle).AND.&
+                                 (.NOT.fixd_list(ii)%restraint%active))
+                            IF (zero_force) THEN
+                               ! Constraint
+                               IF (PRESENT(w)) THEN
+                                  w(:,iparticle) = 0.0_dp
+                               ELSE
+                                  force(:,iparticle) = 0.0_dp
+                               END IF
+                               EXIT
+                            END IF
+                         END IF
+                      END DO
+                   END DO
+                END DO
+             END DO Mol_kind
+             IF (.NOT.PRESENT(w)) THEN
+                CALL update_particle_set(particle_set,force_env%para_env%group,for=force)
+                DEALLOCATE(force,stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+          END IF
+       END DO
+    END IF
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE fix_atom_control
+
+END MODULE constraint_fxd

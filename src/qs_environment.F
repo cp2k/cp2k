@@ -276,10 +276,9 @@ CONTAINS
 
        !   *** Read the particle coordinates and allocate the atomic kind, ***
        !   *** the molecule kind, and the molecule data structures         ***
-       CALL topology_control (atomic_kind_set,particle_set,&
-                              molecule_kind_set,molecule_set,&
-                              my_subsystem%colvar_p,root_section,para_env,globenv,&
-                              force_env_section=force_env_section,error=error)
+       CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set, molecule_set,&
+            my_subsystem%colvar_p,my_subsystem%gci, root_section, para_env, globenv,&
+            force_env_section=force_env_section,error=error)
 
        CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
             force_env_section,error)

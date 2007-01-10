@@ -257,10 +257,9 @@ CONTAINS
     CALL write_cell ( cell, force_env_section, error=error)
 
     ! topology
-    CALL topology_control (atomic_kind_set,particle_set,&
-                           molecule_kind_set,molecule_set,&
-                           kg_env%subsys%colvar_p,root_section,para_env,globenv, &
-                           force_env_section=force_env_section,error=error)
+    CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set,molecule_set,&
+         kg_env%subsys%colvar_p, kg_env%subsys%gci, root_section,para_env,globenv, &
+         force_env_section=force_env_section,error=error)
 
     ! Read/write the atomic kind set
     kind_section => section_vals_get_subs_vals(force_env_section,&

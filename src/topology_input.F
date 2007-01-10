@@ -31,7 +31,8 @@ MODULE topology_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_unset
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -223,6 +224,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_g33_dbc(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g33_intermolecular(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%g33_restraint(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%g33_k0(ncons),stat=stat)
@@ -236,6 +239,15 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 error=error)
            cons_info%const_g33_mol(ig)     = 0
            cons_info%const_g33_molname(ig) = "UNDEF"
+           ! Intramolecular restraint 
+           CALL section_vals_val_get(g3x3_section,"INTERMOLECULAR",i_rep_section=ig,&
+                l_val=cons_info%g33_intermolecular(ig),error=error)
+           ! If it is intramolecular let's unset (in case user did it) 
+           ! the molecule and molname field
+           IF (cons_info%g33_intermolecular(ig)) THEN
+              CALL section_vals_val_unset(g3x3_section,"MOLECULE",i_rep_section=ig,error=error)
+              CALL section_vals_val_unset(g3x3_section,"MOLNAME",i_rep_section=ig,error=error)
+           END IF
            ! Let's tag to which molecule we want to apply constraints
            CALL section_vals_val_get(g3x3_section,"MOLECULE",i_rep_section=ig,&
                 n_rep_val=nrep,error=error)
@@ -296,6 +308,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_g46_dcd(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g46_intermolecular(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%g46_restraint(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%g46_k0(ncons),stat=stat)
@@ -309,6 +323,15 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 error=error)
            cons_info%const_g46_mol(ig)     = 0
            cons_info%const_g46_molname(ig) = "UNDEF"
+           ! Intramolecular restraint 
+           CALL section_vals_val_get(g4x6_section,"INTERMOLECULAR",i_rep_section=ig,&
+                l_val=cons_info%g46_intermolecular(ig),error=error)
+           ! If it is intramolecular let's unset (in case user did it) 
+           ! the molecule and molname field
+           IF (cons_info%g46_intermolecular(ig)) THEN
+              CALL section_vals_val_unset(g4x6_section,"MOLECULE",i_rep_section=ig,error=error)
+              CALL section_vals_val_unset(g4x6_section,"MOLNAME",i_rep_section=ig,error=error)
+           END IF
            ! Let's tag to which molecule we want to apply constraints
            CALL section_vals_val_get(g4x6_section,"MOLECULE",i_rep_section=ig,&
                 n_rep_val=nrep,error=error)
@@ -478,6 +501,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%colvar_set(ncons), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%colv_intermolecular(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%colv_restraint(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%colv_k0(ncons),stat=stat)
@@ -491,6 +516,15 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                                 error=error)
            cons_info%const_colv_mol(ig)     = 0
            cons_info%const_colv_molname(ig) = "UNDEF"
+           ! Intramolecular restraint 
+           CALL section_vals_val_get(collective_section,"INTERMOLECULAR",i_rep_section=ig,&
+                l_val=cons_info%colv_intermolecular(ig),error=error)
+           ! If it is intramolecular let's unset (in case user did it) 
+           ! the molecule and molname field
+           IF (cons_info%colv_intermolecular(ig)) THEN
+              CALL section_vals_val_unset(collective_section,"MOLECULE",i_rep_section=ig,error=error)
+              CALL section_vals_val_unset(collective_section,"MOLNAME",i_rep_section=ig,error=error)
+           END IF
            ! Let's tag to which molecule we want to apply constraints
            CALL section_vals_val_get(collective_section,"MOLECULE",i_rep_section=ig,&
                 n_rep_val=nrep,error=error)
@@ -504,8 +538,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               CALL section_vals_val_get(collective_section,"MOLNAME",i_rep_section=ig,&
                    c_val=cons_info%const_colv_molname(ig),error=error)
            END IF
-           IF  (((cons_info%const_colv_mol(ig)==0).AND.(cons_info%const_colv_molname(ig)=="UNDEF")).OR.&
-                ((cons_info%const_colv_mol(ig)/=0).AND.(cons_info%const_colv_molname(ig)/="UNDEF"))) THEN
+           IF  (((cons_info%const_colv_mol(ig)/=0).AND.(cons_info%const_colv_molname(ig)/="UNDEF"))) THEN
               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
            END IF
            NULLIFY(cons_info%colvar_set(ig)%colvar)

@@ -40,7 +40,9 @@ MODULE topology
   USE mm_mapping_library,              ONLY: create_ff_map,&
                                              destroy_ff_map
   USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type
+  USE molecule_types_new,              ONLY: molecule_type,&
+                                             local_constraint_type,&
+                                             global_constraint_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_topology_util,              ONLY: qmmm_connectivity_control,&
                                              qmmm_coordinate_control
@@ -111,9 +113,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_control (atomic_kind_set,particle_set,&
-       molecule_kind_set,molecule_set,colvar_p,root_section,para_env,globenv, qmmm, qmmm_env,&
-       force_env_section,error)
+  SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set,&
+       molecule_set, colvar_p, gci, root_section, para_env, globenv, qmmm, qmmm_env,&
+       force_env_section, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -125,6 +127,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -246,11 +249,12 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,qmmm_env,particle_set,root_section,para_env,subsys_section,error)
+            topology,qmmm_env,particle_set,root_section,para_env,subsys_section,&
+            gci,error)
     ELSE
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
             topology,particle_set=particle_set,input_file=root_section, para_env=para_env,&
-            subsys_section=subsys_section,error=error)
+            subsys_section=subsys_section,gci=gci,error=error)
     END IF
 
     !-----------------------------------------------------------------------------

@@ -28,7 +28,7 @@ MODULE force_env_methods
   USE constraint,                      ONLY: getold,&
                                              rattle_control,&
                                              shake_control
-  USE constraint_clv,                  ONLY: fix_atom_control
+  USE constraint_fxd,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
@@ -1329,7 +1329,7 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
         CALL rattle_control( local_molecules=local_molecules,&
              molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
              particle_set=particles%els, vel=my_vel, dt=mydt,&
-             shake_tol=shake_tol, log_unit=my_log_unit, cell=cell, error=error )
+             rattle_tol=shake_tol, log_unit=my_log_unit, cell=cell, error=error )
 
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN

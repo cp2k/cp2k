@@ -237,3 +237,5 @@ silicon_cluster_6.inp
 nh3-restraint-fixd.inp
 #bug fix in restraint for fixed atoms 2
 nh3-restraint-fixd.inp
+# numerical error.. getting ready for intermolecular constraints
+water_3_g3x3.inp

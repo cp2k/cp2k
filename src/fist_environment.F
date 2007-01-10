@@ -201,10 +201,9 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 ! topology
   CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
 
-  CALL topology_control ( atomic_kind_set, particle_set,&
-                          molecule_kind_set, molecule_set, subsystem%colvar_p,&
-                          root_section,para_env,globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
-                          force_env_section=force_env_section,error=error)
+  CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
+       subsystem%colvar_p, subsystem%gci, root_section, para_env, globenv,qmmm=qmmm,&
+       qmmm_env=qmmm_env, force_env_section=force_env_section,error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&

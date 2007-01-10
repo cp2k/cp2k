@@ -32,6 +32,7 @@ OBJECTS_GENERIC =\
  constraint_3x3.o\
  constraint_4x6.o\
  constraint_clv.o\
+ constraint_fxd.o\
  convert_units.o\
  cp2k_runs.o\
  cp2k_units.o\

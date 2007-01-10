@@ -141,12 +141,6 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
 
   CALL set_mixed_env(mixed_env,input=force_env_section,error=error)
 
-!!FS  iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
-!!FS       extension=".mmLog",error=error)
-!!FS  CALL fist_header(iw, iw>0)
-!!FS  CALL cp_print_key_finished_output(iw,logger,mm_section,&
-!!FS       "PRINT%PROGRAM_BANNER",error=error)
-
   CALL cp_subsys_create ( subsystem, para_env = para_env, error = error )
 
   ! read colvars and add to subsystem
@@ -164,10 +158,9 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
 ! topology
   CALL get_mixed_env (mixed_env, error=error)
 
-  CALL topology_control ( atomic_kind_set, particle_set,&
-                          molecule_kind_set, molecule_set,subsystem%colvar_p,&
-                          root_section,para_env,globenv,&
-                          force_env_section=force_env_section,error=error)
+  CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
+       subsystem%colvar_p,subsystem%gci,root_section,para_env,globenv,&
+       force_env_section=force_env_section,error=error)
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
@@ -238,10 +231,6 @@ END SUBROUTINE mixed_init
 
 ! Print the molecule kind set
   CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
-
-!! Print the atomic coordinates
-!!FS  CALL write_fist_particle_coordinates(particle_set,cell,force_env_section,error)
-!!FS  CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
 ! Distribute molecules and atoms using the new data structures ***
 
