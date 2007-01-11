@@ -528,7 +528,9 @@ CONTAINS
        DEALLOCATE(xicom, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    WRITE(6,*) "minimum position LinMin",xmin
+    IF (ionode) THEN
+      WRITE(UNIT=output_unit,*) "minimum position LinMin",xmin
+    END IF
     CALL timestop(handle)
   END SUBROUTINE LinMin
 
