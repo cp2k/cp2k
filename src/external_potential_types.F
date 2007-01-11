@@ -1323,8 +1323,16 @@ CONTAINS
 
             DO l=0,lppnl
               CALL parser_get_object(parser,r,newline=.TRUE.,error=error)
-              potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
               CALL parser_get_object(parser,nprj_ppnl,error=error)
+              IF (r==0.0_dp.AND.nprj_ppnl/=0) THEN 
+                  CALL stop_program(routineN,moduleN,__LINE__,&
+                                    "An error was detected in the atomic potential <"//&
+                                    TRIM(potential_name)//&
+                                    "> potential file <"//&
+                                    TRIM(potential_file_name)//">",para_env)
+              END IF
+              potential%alpha_ppnl(l) = 0.0_dp
+              IF (r/=0.0_dp.AND.n/=0)  potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
               potential%nprj_ppnl(l) = nprj_ppnl
               nppnl = nppnl + nprj_ppnl*nco(l)
               IF (nprj_ppnl > nprj_ppnl_max) THEN
