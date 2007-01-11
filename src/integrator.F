@@ -30,9 +30,9 @@ MODULE integrator
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_hinv
-  USE constraint,                      ONLY: getold,&
-                                             pv_constraint,&
-                                             rattle_control,&
+  USE constraint_util,                 ONLY: getold,&
+                                             pv_constraint
+  USE constraint,                      ONLY: rattle_control,&
                                              rattle_roll_control,&
                                              shake_control,&
                                              shake_roll_control
@@ -56,10 +56,15 @@ MODULE integrator
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
-  USE input_constants,                 ONLY: &
-       dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
-       dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
+  USE input_constants,                 ONLY: dyn_coeff_mass_atom,&
+                                             dyn_coeff_mass_coeff,&
+                                             dyn_coeff_mass_global,&
+                                             dyn_coeff_mass_kind,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathlib,                         ONLY: matmul_3x3,&

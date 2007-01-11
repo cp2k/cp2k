@@ -25,8 +25,8 @@
 MODULE force_env_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cell_types,                      ONLY: cell_type
-  USE constraint,                      ONLY: getold,&
-                                             rattle_control,&
+  USE constraint_util,                 ONLY: getold
+  USE constraint,                      ONLY: rattle_control,&
                                              shake_control
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
