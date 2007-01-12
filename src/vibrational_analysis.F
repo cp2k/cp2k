@@ -199,8 +199,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ELSE
              CALL rot_ana(particles,RotTrM,nRotTrM,output_unit,&
-                  para_env%mepos==para_env%source,keep_rotations,natoms,&
-                  error)
+                  keep_rotations,natoms,error)
           END IF
           ! Generate the suitable rototranslating basis set
           CALL build_D_matrix(particles,RotTrM,nRotTrM,D,full=.FALSE.,&
@@ -588,14 +587,14 @@ CONTAINS
 !!
 !!   SOURCE
 !****************************************************************************
-  SUBROUTINE rot_ana(particles, mat, dof, iw, ionode, keep_rotations, natoms,&
+  SUBROUTINE rot_ana(particles, mat, dof, iw, keep_rotations, natoms,&
        error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
     INTEGER, INTENT(OUT)                     :: dof
     INTEGER, INTENT(IN)                      :: iw
-    LOGICAL, INTENT(IN)                      :: ionode, keep_rotations
+    LOGICAL, INTENT(IN)                      :: keep_rotations
     INTEGER, INTENT(IN)                      :: natoms
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -651,7 +650,7 @@ CONTAINS
           WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Y",Ip(2,1),Ip(2,2),Ip(2,3)
           WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Z",Ip(3,1),Ip(3,2),Ip(3,3)
        END IF
-       IF (ionode) THEN
+       IF (iw>0) THEN
           WRITE(iw,'(/,T2,A)')"ROT| Standard Molecule Orientation - ANGSTROM "
           DO iparticle = 1, natoms
              WRITE(iw,'(T2,"ROT|",T20,A,T30,3(3X,F12.6))')&
