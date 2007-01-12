@@ -196,7 +196,9 @@ CONTAINS
           IF (n_restraint>0) THEN
               CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
           ENDIF
-
+          !TL
+          !TL add here the part for intermolecular restraints
+          !TL
           DEALLOCATE(force,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
@@ -204,6 +206,9 @@ CONTAINS
        NULLIFY(extended_energies)
        ALLOCATE(extended_energies,stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       !TL
+       !TL Bug in parallel.. sum-up energies otherwise you get the wrong number...
+       !TL
        extended_energies%energy_g3x3_restraint=energy_3x3
        extended_energies%energy_fixd_restraint=energy_fixd
        extended_energies%energy_g4x6_restraint=energy_4x6

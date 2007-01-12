@@ -167,3 +167,7 @@ test_pair.inp            11
 test_ub1.inp             11
 test_ub2.inp             11
 mfi.inp                   2
+# Intermolecular constraints
+water_3_dist_inter.inp    2
+water_3_dist_inter2.inp   2
+water_3_dist_mix.inp      2

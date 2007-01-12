@@ -371,6 +371,10 @@ SUBROUTINE cp_subsys_release(subsys, error)
               DEALLOCATE (subsys%gci%lg4x6,STAT=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            ENDIF
+           IF (ASSOCIATED(subsys%gci%fixd_list)) THEN
+              DEALLOCATE (subsys%gci%fixd_list,STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ENDIF
            DEALLOCATE (subsys%gci,STAT=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ENDIF

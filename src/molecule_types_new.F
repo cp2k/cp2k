@@ -29,7 +29,8 @@ MODULE molecule_types_new
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              colvar_constraint_type,&
                                              g3x3_constraint_type,&
-                                             g4x6_constraint_type
+                                             g4x6_constraint_type,&
+                                             fixd_constraint_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 #include "cp_common_uses.h"
@@ -44,12 +45,14 @@ MODULE molecule_types_new
 
 ! *** Data types ***
   TYPE local_colvar_constraint_type
+     LOGICAL                       :: init
      TYPE(colvar_type),POINTER     :: colvar
      TYPE(colvar_type),POINTER     :: colvar_old
      REAL(KIND = dp)               :: lambda, sigma
   END TYPE local_colvar_constraint_type
 
   TYPE local_g3x3_constraint_type
+    LOGICAL                       :: init
     REAL(KIND = dp)               :: scale,scale_old, imass1, imass2, imass3
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,f_roll1,f_roll2,f_roll3,&
                                      ra_old,rb_old,rc_old,&
@@ -59,6 +62,7 @@ MODULE molecule_types_new
   END TYPE local_g3x3_constraint_type
 
   TYPE local_g4x6_constraint_type
+    LOGICAL                       :: init
     REAL(KIND = dp)               :: scale,scale_old, imass1, imass2, imass3, imass4
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,fd,fe,ff,&
                                      f_roll1, f_roll2, f_roll3, f_roll4, f_roll5, f_roll6,&
@@ -85,6 +89,7 @@ MODULE molecule_types_new
      INTEGER                                  :: ntot
      INTEGER                                  :: ng3x3, ng3x3_restraint
      INTEGER                                  :: ng4x6, ng4x6_restraint
+     TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list
      TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list
      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list
      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list     

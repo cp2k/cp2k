@@ -32,6 +32,7 @@ MODULE constraint_util
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
                                              local_colvar_constraint_type,&
                                              local_g3x3_constraint_type,&
                                              local_g4x6_constraint_type,&
@@ -49,7 +50,9 @@ MODULE constraint_util
   PUBLIC :: getold,&
             pv_constraint,&
             check_tol,&
-            get_roll_matrix
+            get_roll_matrix,&
+            restore_temporary_set,&
+            update_temporary_set
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_util'
 
@@ -70,9 +73,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE getold( local_molecules, molecule_set, molecule_kind_set, particle_set ,&
-       cell, error)
+  SUBROUTINE getold( gci, local_molecules, molecule_set, molecule_kind_set,&
+       particle_set , cell, error)
 
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -102,7 +106,8 @@ CONTAINS
 
     NULLIFY(fixd_list)
     nkind = SIZE ( molecule_kind_set )
-    DO ikind = 1, nkind
+    ! Intramolecular constraints
+    MOL: DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
        DO imol = 1, nmol_per_kind
           i = local_molecules % list ( ikind ) % array ( imol )
@@ -113,12 +118,24 @@ CONTAINS
                fixd_list=fixd_list )
           CALL get_molecule ( molecule, first_atom=first_atom, &
                lcolv=lcolv, lg3x3=lg3x3, lg4x6=lg4x6 )
-          ! Intramolecular constraints
           CALL getold_low(n3x3con, n4x6con, colv_list, g3x3_list, g4x6_list, fixd_list,&
                lcolv, lg3x3, lg4x6, first_atom, particle_set, cell, error)
        END DO
-    END DO
-
+    END DO MOL
+    ! Intermolecular constraints
+    IF (gci%ntot>0) THEN
+       n3x3con= gci%ng3x3 
+       n4x6con= gci%ng4x6
+       colv_list=> gci%colv_list
+       g3x3_list=> gci%g3x3_list
+       g4x6_list=> gci%g4x6_list
+       fixd_list=> gci%fixd_list
+       lcolv=> gci%lcolv
+       lg3x3=> gci%lg3x3
+       lg4x6=> gci%lg4x6
+       CALL getold_low(n3x3con, n4x6con, colv_list, g3x3_list, g4x6_list, fixd_list,&
+            lcolv, lg3x3, lg4x6, 1, particle_set, cell, error)
+    END IF
   END SUBROUTINE getold
 
 !!****** constraint_util/getold_low [1.0] *
@@ -161,7 +178,8 @@ CONTAINS
 
     INTEGER                                  :: iconst, index
 
-    ! Collective constraints
+! Collective constraints
+
     IF (ASSOCIATED(colv_list)) THEN
        DO iconst = 1, SIZE(colv_list)
           CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
@@ -205,9 +223,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE pv_constraint ( local_molecules, molecule_set, molecule_kind_set, &
+  SUBROUTINE pv_constraint ( gci, local_molecules, molecule_set, molecule_kind_set, &
        particle_set, virial, group )
-
+    
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -236,6 +255,7 @@ CONTAINS
 
     pv = 0.0_dp
     nkind = SIZE ( molecule_kind_set )
+    ! Intramolecular Constraints
     MOL: DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
        DO imol = 1, nmol_per_kind
@@ -247,11 +267,23 @@ CONTAINS
                colv_list = colv_list )
           CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3, &
                lg4x6 = lg4x6, lcolv = lcolv )
-          ! Intramolecular Constraints
           CALL pv_constraint_low ( ng3x3, ng4x6, g3x3_list, g4x6_list, colv_list,&
                first_atom, lg3x3, lg4x6, lcolv, particle_set, pv )
        END DO
     END DO MOL
+    ! Intermolecular constraints
+    IF (gci%ntot>0) THEN
+       ng3x3= gci%ng3x3 
+       ng4x6= gci%ng4x6
+       colv_list=> gci%colv_list
+       g3x3_list=> gci%g3x3_list
+       g4x6_list=> gci%g4x6_list
+       lcolv=> gci%lcolv
+       lg3x3=> gci%lg3x3
+       lg4x6=> gci%lg4x6
+       CALL pv_constraint_low ( ng3x3, ng4x6, g3x3_list, g4x6_list, colv_list,&
+            1, lg3x3, lg4x6, lcolv, particle_set, pv )
+    END IF
     CALL mp_sum ( pv, group )
     virial % pv_constraint = pv
 
@@ -299,7 +331,8 @@ CONTAINS
                                                 lambda_3x3( 3 ), &
                                                 lambda_4x6( 6 )
 
-    ! Colvar Constraints
+! Colvar Constraints
+
     IF (ASSOCIATED(colv_list)) THEN
        DO iconst = 1, SIZE(colv_list)
           CALL pv_colv_eval(pv, lcolv ( iconst ), particle_set)
@@ -603,5 +636,88 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE get_roll_matrix
+
+!!****** constraint_util/restore_temporary_set [1.0] *
+!!
+!!   NAME
+!!     restore_temporary_set
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     Teodoro Laino [tlaino] 2007
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restore_temporary_set(particle_set, local_particles, pos, vel)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: pos, vel
+
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local, stat
+    LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: wrk
+
+    failure = .FALSE.
+    ALLOCATE(wrk(SIZE(particle_set)),stat=stat)
+    IF (stat/=0) CALL stop_program ( "restore_temporary_set", "Error in allocation" )
+    wrk = .TRUE.
+    DO iparticle_kind=1,SIZE(local_particles%n_el)
+       nparticle_local = local_particles%n_el(iparticle_kind)
+       DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          wrk(iparticle) = .FALSE.
+       END DO
+    END DO
+    IF (PRESENT(vel)) THEN    
+       DO iparticle=1,SIZE(particle_set)
+          IF (wrk(iparticle)) THEN
+             vel (:,iparticle) =  0.0_dp
+          END IF
+       END DO
+    END IF
+    IF (PRESENT(pos)) THEN    
+       DO iparticle=1,SIZE(particle_set)
+          IF (wrk(iparticle)) THEN
+             pos (:,iparticle) =  0.0_dp
+          END IF
+       END DO
+    END IF
+    DEALLOCATE(wrk,stat=stat)
+    IF (stat/=0) CALL stop_program ( "restore_temporary_set", "Error in deallocation" )
+  END SUBROUTINE restore_temporary_set
+
+!!****** constraint_util/update_temporary_set [1.0] *
+!!
+!!   NAME
+!!     update_temporary_set
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     Teodoro Laino [tlaino] 2007
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE update_temporary_set(group, pos, vel)
+    INTEGER, INTENT(IN)                      :: group
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: pos, vel
+
+    IF (PRESENT(pos)) THEN
+       CALL mp_sum(pos, group)
+    END IF
+    IF (PRESENT(vel)) THEN
+       CALL mp_sum(vel, group)
+    END IF
+  END SUBROUTINE update_temporary_set
 
 END MODULE constraint_util

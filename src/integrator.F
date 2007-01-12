@@ -30,13 +30,13 @@ MODULE integrator
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_hinv
-  USE constraint_util,                 ONLY: getold,&
-                                             pv_constraint
   USE constraint,                      ONLY: rattle_control,&
                                              rattle_roll_control,&
                                              shake_control,&
                                              shake_roll_control
   USE constraint_fxd,                  ONLY: fix_atom_control
+  USE constraint_util,                 ONLY: getold,&
+                                             pv_constraint
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -56,15 +56,10 @@ MODULE integrator
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
-  USE input_constants,                 ONLY: dyn_coeff_mass_atom,&
-                                             dyn_coeff_mass_coeff,&
-                                             dyn_coeff_mass_global,&
-                                             dyn_coeff_mass_kind,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             npt_f_ensemble,&
-                                             npt_i_ensemble
+  USE input_constants,                 ONLY: &
+       dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
+       dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathlib,                         ONLY: matmul_3x3,&
@@ -79,6 +74,7 @@ MODULE integrator
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
                                              molecule_type
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
@@ -176,6 +172,7 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -190,11 +187,9 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-! -------------------------------------------------------------------------
-
     NULLIFY (cell)
     NULLIFY (dyn_coeff_set)
-    NULLIFY (para_env)
+    NULLIFY (para_env, gci)
 
     CALL get_md_env(md_env=md_env,&
                     simpar=simpar,&
@@ -228,6 +223,7 @@ CONTAINS
                          local_molecules_new=local_molecules,&
                          molecules_new=molecules, &
                          molecule_kinds_new=molecule_kinds,&
+                         gci=gci,&
                          error=error)
 
       nparticle_kind = atomic_kinds%n_els
@@ -241,7 +237,6 @@ CONTAINS
       molecule_set => molecules%els
 
       ! Allocate work storage
-
       ALLOCATE (pos(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
@@ -258,12 +253,11 @@ CONTAINS
       w(:,:) = 0.0_dp
 
       IF (simpar%constraint) THEN
-        CALL getold(local_molecules,molecule_set,molecule_kind_set,&
+        CALL getold(gci,local_molecules,molecule_set,molecule_kind_set,&
                     particle_set,cell,error)
       END IF
 
       ! Generate random variables
-
       DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -280,11 +274,9 @@ CONTAINS
       END DO
 
       ! Apply fix atom constraint
-
       CALL fix_atom_control(force_env,error,w)
 
       ! Velocity Verlet (first part)
-
       c = EXP(-0.25_dp*dt*gam)
       c2 = c*c
       c4 = c2*c2
@@ -308,13 +300,13 @@ CONTAINS
       END DO
 
       IF (simpar%constraint) THEN
-        CALL shake_control(local_molecules,molecule_set,molecule_kind_set,&
+        CALL shake_control(gci,local_molecules,molecule_set,molecule_kind_set,&
                            particle_set,pos,vel,simpar%dt,simpar%shake_tol,&
-                           simpar%info_constraint,cell,error)
+                           simpar%info_constraint,cell,para_env%group,&
+                           local_particles, error)
       END IF
 
       ! Broadcast the new particle positions
-
       CALL update_particle_set(particle_set,para_env%group,pos=pos)
 
       DEALLOCATE (pos,STAT=istat)
@@ -326,11 +318,9 @@ CONTAINS
       END IF
 
       ! Update forces
-
       CALL force_env_calc_energy_force(force_env,error=error)
 
       ! Update Verlet (second part)
-
       DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -349,13 +339,13 @@ CONTAINS
       END DO
 
       IF (simpar%constraint) THEN
-        CALL rattle_control(local_molecules,molecule_set,molecule_kind_set,&
+        CALL rattle_control(gci,local_molecules,molecule_set,molecule_kind_set,&
                             particle_set,vel,simpar%dt,simpar%shake_tol,&
-                            simpar%info_constraint,cell,error)
+                            simpar%info_constraint,cell,para_env%group,&
+                            local_particles, error)
       END IF
 
       ! Broadcast the new particle velocities
-
       CALL update_particle_set(particle_set,para_env%group,vel=vel)
 
       DEALLOCATE (vel,STAT=istat)
@@ -365,9 +355,8 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"w")
 
       ! Update virial
-
       IF (simpar%constraint) THEN
-        CALL pv_constraint(local_molecules,molecule_set,molecule_kind_set,&
+        CALL pv_constraint(gci,local_molecules,molecule_set,molecule_kind_set,&
                            particle_set,virial,para_env%group)
         CALL virial_evaluate(atomic_kind_set,particle_set,local_particles,&
                              virial,para_env%group)
@@ -427,6 +416,7 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -442,9 +432,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-!   ---------------------------------------------------------------------------
-
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
@@ -464,7 +452,9 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds ,error=error)
+                        molecule_kinds_new=molecule_kinds ,&
+                        gci=gci,&
+                        error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -477,7 +467,6 @@ CONTAINS
       molecule_set => molecules % els
 
 !     *** Allocate work storage for positions and velocities ***
-
       ALLOCATE (pos(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
@@ -487,11 +476,10 @@ CONTAINS
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
 
-      IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
+      IF (simpar%constraint) CALL getold(gci,local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set, cell, error)
 
 !     *** Velocity Verlet (first part) ***
-
       DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -507,12 +495,13 @@ CONTAINS
       END DO
 
 
-      IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
+      IF (simpar%constraint) CALL shake_control(gci,local_molecules, molecule_set,   &
                                                 molecule_kind_set, particle_set, &
                                                 pos, vel, simpar%dt,&
                                                 simpar%shake_tol, &
                                                 simpar%info_constraint,&
-                                                cell, error )
+                                                cell,para_env%group,&
+                                                local_particles, error )
 
 !     *** Broadcast the new particle positions ***
 
@@ -573,10 +562,11 @@ CONTAINS
         END DO
       END DO
 
-      IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
+      IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, &
                                                  vel, simpar%dt,simpar%shake_tol,&
-                                                 simpar%info_constraint, cell, error )
+                                                 simpar%info_constraint, cell,para_env%group,&
+                                                 local_particles, error )
 
       IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
@@ -620,7 +610,8 @@ CONTAINS
 
 !     *** Update virial ***
 
-      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+      IF ( simpar % constraint ) CALL pv_constraint ( gci,&
+                                                      local_molecules, &
                                                       molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
@@ -686,8 +677,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-
-!   ---------------------------------------------------------------------------
 
     CALL get_md_env(md_env=md_env,simpar=simpar, &
                     force_env_p=force_env_p,para_env=para_env)
@@ -869,6 +858,7 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
@@ -885,8 +875,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-!   ---------------------------------------------------------------------------
-
+    NULLIFY(gci)
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,cell)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc,nhc_coef=nhc_coef,para_env=para_env)
@@ -907,7 +896,8 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
-                        molecule_kinds_new=molecule_kinds ,error=error)
+                        molecule_kinds_new=molecule_kinds,&
+                        gci=gci,error=error)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -935,7 +925,7 @@ CONTAINS
       CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                   atomic_kind_set, particle_set, local_molecules, para_env % group )
 
-      IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
+      IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set, cell, error)
 
 !     *** Velocity Verlet (first part) ***
@@ -953,10 +943,11 @@ CONTAINS
       END DO
 
 
-      IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
+      IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
                                                  molecule_kind_set, particle_set, &
                                                  pos, vel, simpar%dt,simpar%shake_tol,&
-                                                 simpar%info_constraint, cell, error )
+                                                 simpar%info_constraint, cell, para_env%group,&
+                                                 local_particles,error )
 
 !     *** Broadcast the new particle positions ***
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -1016,10 +1007,11 @@ CONTAINS
         END DO
       END DO
 
-      IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
+      IF (simpar%constraint) CALL rattle_control( gci, local_molecules, molecule_set, &
                                                   molecule_kind_set, particle_set, &
                                                   vel, simpar%dt,simpar%shake_tol,&
-                                                  simpar%info_constraint,cell, error )
+                                                  simpar%info_constraint,cell,para_env%group,&
+                                                  local_particles, error )
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
@@ -1031,7 +1023,8 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
-      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+      IF ( simpar % constraint ) CALL pv_constraint ( gci,&
+                                                      local_molecules, &
                                                       molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
@@ -1143,6 +1136,7 @@ CONTAINS
                                                 local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -1158,6 +1152,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
+    NULLIFY(gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
                     itimes = itimes, para_env=para_env )
@@ -1180,6 +1175,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
+                        gci=gci,&
                         molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
@@ -1228,7 +1224,7 @@ CONTAINS
       IF (simpar%constraint) THEN
         iroll = 1
         CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
-        CALL getold ( local_molecules, molecule_set,  &
+        CALL getold ( gci, local_molecules, molecule_set,  &
                       molecule_kind_set, particle_set, cell, error)
       ENDIF
 
@@ -1239,7 +1235,7 @@ CONTAINS
              CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
           END IF
 
-          CALL update_pv ( simpar, atomic_kind_set, particle_set, &
+          CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -1277,11 +1273,12 @@ CONTAINS
         vector_r ( : ) = scale_r * poly_r
         vector_v ( : ) = scale_v * poly_v
 
-        IF ( simpar % constraint ) CALL shake_roll_control( local_molecules, &
+        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        para_env % group, cell=cell, error=error )
+                                        para_env % group, cell=cell, &
+                                        local_particles=local_particles, error=error )
   END DO SR
 
 
@@ -1332,7 +1329,7 @@ CONTAINS
 
       RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
          roll_tol = 0.0_dp
-         IF ( simpar % constraint ) CALL rattle_roll_setup ( atomic_kind_set, &
+         IF ( simpar % constraint ) CALL rattle_roll_setup ( gci, atomic_kind_set, &
                                       particle_set, local_particles, &
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
@@ -1340,7 +1337,7 @@ CONTAINS
                                       roll_tol, iroll, infree, first, para_env,&
                                       error=error)
 
-          CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
+          CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -1360,7 +1357,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
-      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+      IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
                                                       molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
@@ -1534,6 +1531,7 @@ CONTAINS
                                                 local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -1548,6 +1546,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
+    NULLIFY(gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     npt = npt, para_env=para_env)
     dt = simpar%dt
@@ -1569,6 +1568,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
+                        gci=gci,&
                         molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
@@ -1606,7 +1606,7 @@ CONTAINS
       IF (simpar%constraint) THEN
         iroll = 1
         CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
-        CALL getold ( local_molecules, molecule_set,  &
+        CALL getold ( gci, local_molecules, molecule_set,  &
                       molecule_kind_set, particle_set, cell, error)
       ENDIF
 
@@ -1616,7 +1616,7 @@ CONTAINS
           IF (simpar%constraint) THEN
              CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
           END IF
-          CALL update_pv ( simpar, atomic_kind_set, particle_set, &
+          CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -1666,11 +1666,12 @@ CONTAINS
         vector_r ( 1 ) = scale_r * poly_r
         vector_v ( 1 ) = scale_vx* poly_vx
 
-        IF ( simpar % constraint ) CALL shake_roll_control( local_molecules, &
+        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        para_env % group, cell=cell, error=error )
+                                        para_env % group, cell=cell, &
+                                        local_particles=local_particles, error=error )
   END DO SR
 
 ! Update h_mat
@@ -1719,7 +1720,7 @@ CONTAINS
 
       RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
          roll_tol = 0._dp
-         IF ( simpar % constraint ) CALL rattle_roll_setup ( atomic_kind_set, &
+         IF ( simpar % constraint ) CALL rattle_roll_setup ( gci, atomic_kind_set, &
                                       particle_set, local_particles, &
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
@@ -1727,7 +1728,7 @@ CONTAINS
                                       roll_tol, iroll, infree, first, para_env,&
                                       error=error )
 
-          CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
+          CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -1741,7 +1742,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
-      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+      IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
                                                       molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
@@ -1823,6 +1824,7 @@ CONTAINS
                                                 local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -1837,6 +1839,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
+    NULLIFY(gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     npt = npt, para_env=para_env)
     dt = simpar%dt
@@ -1859,6 +1862,7 @@ CONTAINS
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
+                        gci=gci,&
                         molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
@@ -1903,7 +1907,7 @@ CONTAINS
       IF (simpar%constraint) THEN
         iroll = 1
         CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
-        CALL getold ( local_molecules, molecule_set,  &
+        CALL getold ( gci, local_molecules, molecule_set,  &
                       molecule_kind_set, particle_set, cell, error)
       ENDIF
 
@@ -1916,7 +1920,7 @@ CONTAINS
           IF (simpar%constraint) THEN
              CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
           END IF
-          CALL update_pv ( simpar, atomic_kind_set, particle_set, &
+          CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -1969,11 +1973,12 @@ CONTAINS
         vector_r ( 1 ) = scale_r * poly_r
         vector_v ( 1 ) = scale_vx * poly_vx
 
-        IF ( simpar % constraint ) CALL shake_roll_control( local_molecules, &
+        IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        para_env % group, cell=cell, error=error )
+                                        para_env % group, cell=cell,&
+                                        local_particles=local_particles, error=error )
   END DO SR
 
 ! Update h_mat
@@ -2024,7 +2029,7 @@ CONTAINS
 
       RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
          roll_tol = 0._dp
-         IF ( simpar % constraint ) CALL rattle_roll_setup ( atomic_kind_set, &
+         IF ( simpar % constraint ) CALL rattle_roll_setup ( gci, atomic_kind_set, &
                                       particle_set, local_particles, &
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
@@ -2034,7 +2039,7 @@ CONTAINS
 ! perform damping on the barostat momentum
           CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
-          CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
+          CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -2056,7 +2061,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
-      IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+      IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
                                                       molecule_set,    &
                                                       molecule_kind_set, &
                                                       particle_set, virial, &
@@ -2092,7 +2097,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE set_particle_set ( atomic_kind_set, particle_set, local_particles, cell , npt, char )
+  SUBROUTINE set_particle_set ( atomic_kind_set, particle_set, local_particles, cell , npt, char )
 
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -2109,41 +2114,39 @@ SUBROUTINE set_particle_set ( atomic_kind_set, particle_set, local_particles, ce
                                                 nparticle_kind, &
                                                 nparticle_local
 
-!------------------------------------------------------------------------------
-
-  nparticle_kind = SIZE ( atomic_kind_set )
-  SELECT CASE (char)
-  CASE ( 'F') ! forward assigning the old
-     DO iparticle_kind = 1, nparticle_kind
-       nparticle_local = local_particles%n_el ( iparticle_kind )
-       DO iparticle_local = 1, nparticle_local
-         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-           DO idim = 1, 3
-              old % v ( iparticle, idim ) =  particle_set ( iparticle ) % v ( idim )
-              old % r ( iparticle, idim ) =  particle_set ( iparticle ) % r ( idim )
-           END DO
+    nparticle_kind = SIZE ( atomic_kind_set )
+    SELECT CASE (char)
+    CASE ( 'F') ! forward assigning the old
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                old % v ( iparticle, idim ) =  particle_set ( iparticle ) % v ( idim )
+                old % r ( iparticle, idim ) =  particle_set ( iparticle ) % r ( idim )
+             END DO
+          END DO
        END DO
-     END DO
-     old % eps ( :, : ) = npt ( :, : ) % eps
-     old % veps ( :, : ) = npt ( :, : ) % v
-     old % h ( :, : ) = cell%hmat ( :, : )
-  CASE ( 'B') ! back assigning the original variables
-     DO iparticle_kind = 1, nparticle_kind
-       nparticle_local = local_particles%n_el ( iparticle_kind )
-       DO iparticle_local = 1, nparticle_local
-         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-           DO idim = 1, 3
-              particle_set ( iparticle ) % v ( idim ) = old % v ( iparticle, idim )
-              particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
-           END DO
+       old % eps ( :, : ) = npt ( :, : ) % eps
+       old % veps ( :, : ) = npt ( :, : ) % v
+       old % h ( :, : ) = cell%hmat ( :, : )
+    CASE ( 'B') ! back assigning the original variables
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                particle_set ( iparticle ) % v ( idim ) = old % v ( iparticle, idim )
+                particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
+             END DO
+          END DO
        END DO
-     END DO
-     npt ( :, : ) % eps = old % eps ( :, : )
-     npt ( :, : ) % v = old % veps ( :, : )
-     cell % hmat ( :, : )=old % h ( :, : )
-  END SELECT
+       npt ( :, : ) % eps = old % eps ( :, : )
+       npt ( :, : ) % v = old % veps ( :, : )
+       cell % hmat ( :, : )=old % h ( :, : )
+    END SELECT
 
-END SUBROUTINE set_particle_set
+  END SUBROUTINE set_particle_set
 !!*****
 !******************************************************************************
 !!****** integrator/set [1.0] *
@@ -2162,7 +2165,7 @@ END SUBROUTINE set_particle_set
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE set_vel ( atomic_kind_set, particle_set, vel, local_particles, cell , npt, char )
+  SUBROUTINE set_vel ( atomic_kind_set, particle_set, vel, local_particles, cell , npt, char )
 
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -2180,41 +2183,39 @@ SUBROUTINE set_vel ( atomic_kind_set, particle_set, vel, local_particles, cell ,
                                                 nparticle_kind, &
                                                 nparticle_local
 
-!------------------------------------------------------------------------------
-
-  nparticle_kind = SIZE ( atomic_kind_set )
-  SELECT CASE (char)
-  CASE ( 'F') ! forward assigning the old
-     DO iparticle_kind = 1, nparticle_kind
-       nparticle_local = local_particles%n_el ( iparticle_kind )
-       DO iparticle_local = 1, nparticle_local
-         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-           DO idim = 1, 3
-              old % v ( iparticle, idim ) =  vel ( idim, iparticle )
-              old % r ( iparticle, idim ) =  particle_set ( iparticle ) % r ( idim )
-           END DO
+    nparticle_kind = SIZE ( atomic_kind_set )
+    SELECT CASE (char)
+    CASE ( 'F') ! forward assigning the old
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                old % v ( iparticle, idim ) =  vel ( idim, iparticle )
+                old % r ( iparticle, idim ) =  particle_set ( iparticle ) % r ( idim )
+             END DO
+          END DO
        END DO
-     END DO
-     old % eps ( :, : ) = npt ( :, : ) % eps
-     old % veps ( :, : ) = npt ( :, : ) % v
-     old % h ( :, : ) = cell%hmat ( :, : )
-  CASE ( 'B') ! back assigning the original variables
-     DO iparticle_kind = 1, nparticle_kind
-       nparticle_local = local_particles%n_el ( iparticle_kind )
-       DO iparticle_local = 1, nparticle_local
-         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-           DO idim = 1, 3
-              vel ( idim, iparticle ) = old % v ( iparticle, idim )
-              particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
-           END DO
+       old % eps ( :, : ) = npt ( :, : ) % eps
+       old % veps ( :, : ) = npt ( :, : ) % v
+       old % h ( :, : ) = cell%hmat ( :, : )
+    CASE ( 'B') ! back assigning the original variables
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                vel ( idim, iparticle ) = old % v ( iparticle, idim )
+                particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
+             END DO
+          END DO
        END DO
-     END DO
-     npt ( :, : ) % eps = old % eps ( :, : )
-     npt ( :, : ) % v = old % veps ( :, : )
-     cell % hmat ( :, : )=old % h ( :, : )
-  END SELECT
+       npt ( :, : ) % eps = old % eps ( :, : )
+       npt ( :, : ) % v = old % veps ( :, : )
+       cell % hmat ( :, : )=old % h ( :, : )
+    END SELECT
 
-END SUBROUTINE set_vel
+  END SUBROUTINE set_vel
 !!*****
 !******************************************************************************
 !!****** integrator/allocate_old [1.0] *
@@ -2233,7 +2234,7 @@ END SUBROUTINE set_vel
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE allocate_old ( particle_set, npt )
+  SUBROUTINE allocate_old ( particle_set, npt )
 
 
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -2241,36 +2242,34 @@ SUBROUTINE allocate_old ( particle_set, npt )
 
     INTEGER                                  :: idim, isos, jdim, natoms
 
-!------------------------------------------------------------------------------
+    natoms = SIZE ( particle_set)
+    idim = SIZE ( npt, 1)
+    jdim = SIZE ( npt, 2)
 
-  natoms = SIZE ( particle_set)
-  idim = SIZE ( npt, 1)
-  jdim = SIZE ( npt, 2)
-
-  isos = 0
-  IF ( .NOT. ASSOCIATED ( old % v ) ) &
-    ALLOCATE ( old % v ( natoms, 3 ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%v', 0 )
-  old % v = 0.0_dp
-  IF ( .NOT. ASSOCIATED ( old % r ) ) &
-    ALLOCATE ( old % r ( natoms, 3 ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%r', 0 )
-  old % r = 0.0_dp
-  IF ( .NOT. ASSOCIATED ( old % eps ) )  &
-    ALLOCATE ( old % eps ( idim, jdim ),STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%eps', 0 )
-  old % eps = 0.0_dp
-  IF ( .NOT. ASSOCIATED ( old % veps ) ) &
-    ALLOCATE ( old % veps ( idim, jdim ),STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%veps', 0 )
-  old % veps = 0.0_dp
-  IF ( .NOT. ASSOCIATED ( old % h ) ) &
-    ALLOCATE ( old%h(3, 3),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
-  old % h = 0.0_dp
+    isos = 0
+    IF ( .NOT. ASSOCIATED ( old % v ) ) &
+         ALLOCATE ( old % v ( natoms, 3 ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%v', 0 )
+    old % v = 0.0_dp
+    IF ( .NOT. ASSOCIATED ( old % r ) ) &
+         ALLOCATE ( old % r ( natoms, 3 ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%r', 0 )
+    old % r = 0.0_dp
+    IF ( .NOT. ASSOCIATED ( old % eps ) )  &
+         ALLOCATE ( old % eps ( idim, jdim ),STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%eps', 0 )
+    old % eps = 0.0_dp
+    IF ( .NOT. ASSOCIATED ( old % veps ) ) &
+         ALLOCATE ( old % veps ( idim, jdim ),STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%veps', 0 )
+    old % veps = 0.0_dp
+    IF ( .NOT. ASSOCIATED ( old % h ) ) &
+         ALLOCATE ( old%h(3, 3),STAT=isos)
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
+    old % h = 0.0_dp
 
 
-END SUBROUTINE allocate_old
+  END SUBROUTINE allocate_old
 
 !!*****
 !******************************************************************************
@@ -2290,32 +2289,30 @@ END SUBROUTINE allocate_old
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE deallocate_old
+  SUBROUTINE deallocate_old
 
 
 
     INTEGER                                  :: isos
 
-!------------------------------------------------------------------------------
+    isos = 0
+    DEALLOCATE ( old % v, STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%v', 0 )
+    DEALLOCATE ( old % r, STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%r', 0 )
+    DEALLOCATE ( old % eps, STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%eps', 0 )
+    DEALLOCATE ( old % veps, STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%veps', 0 )
+    DEALLOCATE ( old % h, STAT=isos)
+    IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
+    NULLIFY ( old % v )
+    NULLIFY ( old % r )
+    NULLIFY ( old % eps )
+    NULLIFY ( old % veps )
+    NULLIFY ( old % h )
 
-  isos = 0
-  DEALLOCATE ( old % v, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%v', 0 )
-  DEALLOCATE ( old % r, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%r', 0 )
-  DEALLOCATE ( old % eps, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%eps', 0 )
-  DEALLOCATE ( old % veps, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%veps', 0 )
-  DEALLOCATE ( old % h, STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
-  NULLIFY ( old % v )
-  NULLIFY ( old % r )
-  NULLIFY ( old % eps )
-  NULLIFY ( old % veps )
-  NULLIFY ( old % h )
-
-END SUBROUTINE deallocate_old
+  END SUBROUTINE deallocate_old
 
 !!*****
 !******************************************************************************
@@ -2382,6 +2379,7 @@ END SUBROUTINE deallocate_old
                                                 local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -2397,6 +2395,7 @@ END SUBROUTINE deallocate_old
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
+    NULLIFY(gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
                     itimes = itimes, para_env=para_env )
@@ -2419,6 +2418,7 @@ END SUBROUTINE deallocate_old
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
+                        gci=gci,&
                         molecule_kinds_new=molecule_kinds ,error=error)
 
       nparticle_kind = atomic_kinds%n_els
@@ -2464,7 +2464,7 @@ END SUBROUTINE deallocate_old
         iroll = 1
         CALL set ( atomic_kind_set, particle_set,  &
                    local_particles, cell, npt, 'F' )
-        CALL getold ( local_molecules, molecule_set,  &
+        CALL getold ( gci, local_molecules, molecule_set,  &
                       molecule_kind_set, particle_set, cell, error)
       ENDIF
 
@@ -2473,7 +2473,7 @@ END SUBROUTINE deallocate_old
           IF (simpar%constraint) THEN
              CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
           END IF
-          CALL update_pv ( simpar, atomic_kind_set, particle_set, &
+          CALL update_pv ( gci, simpar, atomic_kind_set, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -2529,12 +2529,12 @@ END SUBROUTINE deallocate_old
           END DO
 
           roll_tol = 0.0_dp
-          IF ( simpar % constraint ) CALL shake_roll_control( local_molecules, &
+          IF ( simpar % constraint ) CALL shake_roll_control( gci, local_molecules, &
                                           molecule_set, molecule_kind_set, &
                                           particle_set, pos, vel, simpar,  &
                                           roll_tol, iroll, scale_r*poly_r, &
                                           scale_v*poly_v, para_env % group, u, cell,&
-                                          error=error )
+                                          local_particles=local_particles, error=error )
   END DO SR
 
 ! Update h_mat
@@ -2587,7 +2587,7 @@ END SUBROUTINE deallocate_old
        END IF
      RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
         roll_tol = 0.0_dp
-        IF ( simpar % constraint ) CALL rattle_roll_setup ( atomic_kind_set, &
+        IF ( simpar % constraint ) CALL rattle_roll_setup ( gci, atomic_kind_set, &
                                      particle_set, local_particles, &
                                      molecule_kind_set, molecule_set,  &
                                      local_molecules, vel, &
@@ -2595,7 +2595,7 @@ END SUBROUTINE deallocate_old
                                      roll_tol, iroll, infree, first, para_env, u,&
                                      error=error)
 
-        CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
+        CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
                            local_particles, kin, pv_kin, virial, para_env % group )
         CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -2615,7 +2615,7 @@ END SUBROUTINE deallocate_old
      CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
 !     *** Update constraint virial ***
-     IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+     IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
                                                      molecule_set,    &
                                                      molecule_kind_set, &
                                                      particle_set, virial, &
@@ -2850,12 +2850,13 @@ END SUBROUTINE damp_veps
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
+SUBROUTINE rattle_roll_setup ( gci, atomic_kind_set, particle_set, local_particles, &
                                molecule_kind_set, molecule_set, local_molecules, &
                                vel, cell, npt, simpar, virial, vector_v,  &
                                roll_tol, iroll, infree, first, para_env, u, error )
 
 
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -2882,11 +2883,10 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
     TYPE(npt_info_type), DIMENSION(3, 3)     :: npt_loc
 
-!------------------------------------------------------------------------------
 ! update veps using multiplier obtained from SHAKE
 
   IF ( first ) THEN
-      CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
+      CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
                        local_molecules, molecule_set, molecule_kind_set, &
                        local_particles, kin, pv_kin, virial, para_env % group )
       CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
@@ -2894,7 +2894,7 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
   ENDIF
   first = .FALSE.
 
-! assigning local variable
+  ! assigning local variable
   SELECT CASE ( simpar % ensemble )
   CASE ( npt_i_ensemble )
     npt_loc ( :, : ) % v = 0.0_dp
@@ -2909,13 +2909,12 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
     npt_loc = npt
   END SELECT
 
-! resetting
-
+  ! resetting
    CALL set ( atomic_kind_set, particle_set, vel, local_particles, cell , npt, 'B' )
-   CALL rattle_roll_control( local_molecules, molecule_set, molecule_kind_set, &
+   CALL rattle_roll_control( gci, local_molecules, molecule_set, molecule_kind_set, &
                              particle_set, vel, simpar, virial, vector_v,   &
                              npt_loc % v, npt_loc %  mass, roll_tol, iroll,    &
-                             para_env, u, cell, error=error )
+                             para_env, u, cell, local_particles, error=error )
 
 
 END SUBROUTINE rattle_roll_setup
@@ -2939,9 +2938,10 @@ END SUBROUTINE rattle_roll_setup
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE update_pv_particle_set ( simpar, atomic_kind_set, particle_set,  &
+SUBROUTINE update_pv_particle_set ( gci, simpar, atomic_kind_set, particle_set,  &
                                    local_molecules, molecule_set, molecule_kind_set, &
                                    local_particles, kin, pv_kin, virial, int_group )
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -2988,14 +2988,8 @@ SUBROUTINE update_pv_particle_set ( simpar, atomic_kind_set, particle_set,  &
   CALL mp_sum( pv_kin, int_group )
   CALL mp_sum( kin, int_group )
 
-!  kin = 0.0_dp
-!  DO ii = 1, 3
-!     kin = kin +  pv_kin ( ii, ii )
-!  END DO
-
-
 ! updating the constraint virial
-  IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+  IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
                                                   molecule_set,    &
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
@@ -3023,9 +3017,10 @@ END SUBROUTINE update_pv_particle_set
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE update_pv_velocity ( simpar, atomic_kind_set, vel, particle_set,  &
+SUBROUTINE update_pv_velocity ( gci, simpar, atomic_kind_set, vel, particle_set,  &
                                 local_molecules, molecule_set, molecule_kind_set, &
                                 local_particles, kin, pv_kin, virial, int_group )
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -3071,14 +3066,8 @@ SUBROUTINE update_pv_velocity ( simpar, atomic_kind_set, vel, particle_set,  &
   CALL mp_sum( pv_kin, int_group )
   CALL mp_sum( kin, int_group )
 
-! kin = 0.0_dp
-!  DO ii = 1, 3
-!     kin = kin +  pv_kin ( ii, ii )
-!  END DO
-
-
 ! updating the constraint virial
-  IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+  IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
                                                   molecule_set,    &
                                                   molecule_kind_set, &
                                                   particle_set, virial, &
@@ -3234,6 +3223,7 @@ END SUBROUTINE update_veps
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -3250,10 +3240,8 @@ END SUBROUTINE update_veps
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
-!   ---------------------------------------------------------------------------
-
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,subsys_respa)
-    NULLIFY (particles_respa, particle_set_respa)
+    NULLIFY (particles_respa, particle_set_respa,gci)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
          nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
@@ -3279,6 +3267,7 @@ END SUBROUTINE update_veps
                         particles=particles, &
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
+                        gci=gci,&
                         molecule_kinds_new=molecule_kinds ,error=error)
 
        CALL cp_subsys_get (subsys=subsys_respa(isubsys)%subsys, particles=particles_respa,error=error)
@@ -3305,7 +3294,7 @@ END SUBROUTINE update_veps
            "vel",3*nparticle*dp_size)
       vel(:,:) = 0.0_dp
 
-      IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
+      IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set,  &
            molecule_kind_set, particle_set, cell, error)
       !     *** Multiple time step (first part)
         DO iparticle_kind=1,nparticle_kind
@@ -3340,10 +3329,10 @@ END SUBROUTINE update_veps
              END DO
 
           END DO
-          IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
+          IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
                molecule_kind_set, particle_set, &
                pos, vel, simpar%dt, simpar%shake_tol, simpar%info_constraint,&
-               cell, error )
+               cell, para_env%group, local_particles, error )
 
 !     *** Broadcast the new particle positions ***
           CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -3405,9 +3394,9 @@ END SUBROUTINE update_veps
              END DO
           END DO
 
-          IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
-               molecule_kind_set, particle_set, &
-               vel, simpar%dt,simpar%shake_tol,simpar%info_constraint, cell, error )
+          IF (simpar%constraint) CALL rattle_control( gci,local_molecules, molecule_set, &
+               molecule_kind_set, particle_set, vel, simpar%dt,simpar%shake_tol,&
+               simpar%info_constraint, cell, para_env%group,local_particles, error )
 
           IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
@@ -3445,7 +3434,7 @@ END SUBROUTINE update_veps
 
 !     *** Update virial ***
 
-          IF ( simpar % constraint ) CALL pv_constraint ( local_molecules, &
+          IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
                molecule_set,    &
                molecule_kind_set, &
                particle_set, virial, &

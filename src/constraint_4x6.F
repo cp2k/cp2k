@@ -21,6 +21,7 @@ MODULE constraint_4x6
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE constraint_fxd,                  ONLY: check_fixed_atom_cns_g4x6
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
   USE mathlib,                         ONLY: dotprod_3d,&
@@ -30,6 +31,7 @@ MODULE constraint_4x6
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
                                              local_g4x6_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -43,7 +45,11 @@ MODULE constraint_4x6
   PUBLIC :: shake_4x6_int,&
             rattle_4x6_int,&
             shake_roll_4x6_int,&
-            rattle_roll_4x6_int
+            rattle_roll_4x6_int,&
+            shake_4x6_ext,&
+            rattle_4x6_ext,&
+            shake_roll_4x6_ext,&
+            rattle_roll_4x6_ext
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_4x6'
 
@@ -226,6 +232,183 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_4x6_int
 
+!!****** constraint_4x6/shake_4x6_ext [1.0] *
+!!
+!!   NAME
+!!     shake_4x6_ext
+!!
+!!   FUNCTION
+!!     Intramolecular shake_4x6
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE shake_4x6_ext( gci, particle_set, pos, vel, dt, ishake, log_unit,&
+    max_sigma, error)
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom, ng4x6
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
+    TYPE(local_g4x6_constraint_type), &
+      POINTER                                :: lg4x6( : )
+
+    first_atom = 1
+    ng4x6 = gci%ng4x6
+    fixd_list => gci%fixd_list
+    g4x6_list => gci%g4x6_list
+    lg4x6     => gci%lg4x6
+    ! Real Shake
+    CALL shake_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+       particle_set, pos, vel, dt, ishake, log_unit, max_sigma, error)
+
+  END SUBROUTINE shake_4x6_ext
+
+!!****** constraint_4x6/shake_roll_4x6_ext [1.0] *
+!!
+!!   NAME
+!!     shake_roll_4x6_ext
+!!
+!!   FUNCTION
+!!     Intramolecular shake_4x6_roll
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE shake_roll_4x6_ext( gci, particle_set, pos, vel, r_shake,  &
+       v_shake, dt, ishake, log_unit, max_sigma, error)
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r_shake, v_shake
+    REAL(kind=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom, ng4x6
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
+    TYPE(local_g4x6_constraint_type), &
+      POINTER                                :: lg4x6( : )
+
+    first_atom = 1
+    ng4x6 = gci%ng4x6
+    fixd_list => gci%fixd_list
+    g4x6_list => gci%g4x6_list
+    lg4x6     => gci%lg4x6
+    ! Real Shake
+    CALL shake_roll_4x6_low(fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, max_sigma,&
+       error)
+
+  END SUBROUTINE shake_roll_4x6_ext
+
+!!****** constraint_4x6/rattle_4x6_ext [1.0] *
+!!
+!!   NAME
+!!     rattle_4x6_ext
+!!
+!!   FUNCTION
+!!     Intramolecular rattle_4x6
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE rattle_4x6_ext( gci, particle_set, vel, dt, error)
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom, ng4x6
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
+    TYPE(local_g4x6_constraint_type), &
+      POINTER                                :: lg4x6( : )
+
+    first_atom = 1
+    ng4x6 = gci%ng4x6
+    fixd_list => gci%fixd_list
+    g4x6_list => gci%g4x6_list
+    lg4x6     => gci%lg4x6
+    ! Real Rattle
+    CALL rattle_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+       particle_set, vel, dt, error)
+
+  END SUBROUTINE rattle_4x6_ext
+
+!!****** constraint_4x6/rattle_roll_4x6_ext [1.0] *
+!!
+!!   NAME
+!!     rattle_roll_4x6_ext
+!!
+!!   FUNCTION
+!!     Intramolecular rattle_4x6_roll
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE rattle_roll_4x6_ext( gci, particle_set, vel, r_rattle, dt, veps, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r_rattle
+    REAL(kind=dp), INTENT(in)                :: dt
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: veps
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom, ng4x6
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
+    TYPE(local_g4x6_constraint_type), &
+      POINTER                                :: lg4x6( : )
+
+    first_atom = 1
+    ng4x6 = gci%ng4x6
+    fixd_list => gci%fixd_list
+    g4x6_list => gci%g4x6_list
+    lg4x6     => gci%lg4x6
+    ! Real Rattle
+    CALL rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
+       particle_set, vel, r_rattle, dt, veps, error )
+
+  END SUBROUTINE rattle_roll_4x6_ext
+
 !!****** constraint_4x6/shake_4x6_low [1.0] *
 !!
 !!   NAME
@@ -303,15 +486,9 @@ CONTAINS
                lg4x6 ( iconst ) % rd_old )
           lg4x6 ( iconst ) % ff = -2.0_dp*( lg4x6 ( iconst ) % rc_old - &
                lg4x6 ( iconst ) % rd_old )
-          ! Possibly zero the g4x6 gradients
-          IF (ASSOCIATED(fixd_list)) THEN
-             IF (SIZE(fixd_list)>0) THEN
-                IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
-                IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
-                IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
-                IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp
-             END IF
-          END IF
+          ! Check for fixed atom constraints
+          CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4,&
+               index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
           ! construct matrix
           amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,lg4x6 ( iconst ) % fa )
           amat(1,2)=imass1*DOTPROD_3D(r0_12, lg4x6 ( iconst) % fb )
@@ -578,15 +755,9 @@ CONTAINS
                lg4x6 ( iconst ) % rd_old )
           lg4x6 ( iconst ) % ff = -2.0_dp*( lg4x6 ( iconst ) % rc_old - &
                lg4x6 ( iconst ) % rd_old )
-          ! Possibly zero the g4x6 gradients
-          IF (ASSOCIATED(fixd_list)) THEN
-             IF (SIZE(fixd_list)>0) THEN
-                IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp  
-                IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp  
-                IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp 
-                IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp 
-             END IF
-          END IF
+          ! Check for fixed atom constraints
+          CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4,&
+               index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
           ! rotate fconst:
           CALL matvec_3x3 (f_roll1, r_shake, lg4x6 ( iconst ) % fa )
           CALL matvec_3x3 (f_roll2, r_shake, lg4x6 ( iconst ) % fb )
@@ -880,16 +1051,9 @@ CONTAINS
        lg4x6 ( iconst ) % fd = -2.0_dp* r23
        lg4x6 ( iconst ) % fe = -2.0_dp* r24
        lg4x6 ( iconst ) % ff = -2.0_dp* r34
-       ! Possibly zero the g4x6 gradients
-       IF (ASSOCIATED(fixd_list)) THEN
-          IF (SIZE(fixd_list)>0) THEN
-             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
-             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
-             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
-             IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp
-          END IF
-       END IF
-       !
+       ! Check for fixed atom constraints
+       CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4,&
+            index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,lg4x6 ( iconst ) % fa )
        amat(1,2)=imass1*DOTPROD_3D(r12, lg4x6 ( iconst) % fb )
@@ -1048,15 +1212,9 @@ CONTAINS
        lg4x6 ( iconst ) % fd = -2.0_dp* r23
        lg4x6 ( iconst ) % fe = -2.0_dp* r24
        lg4x6 ( iconst ) % ff = -2.0_dp* r34
-       ! Possibly zero the g4x6 gradients
-       IF (ASSOCIATED(fixd_list)) THEN
-          IF (SIZE(fixd_list)>0) THEN
-             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
-             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
-             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
-             IF (ANY(fixd_list(:)%fixd==index_d)) imass4 = 0.0_dp
-          END IF
-       END IF
+       ! Check for fixed atom constraints
+       CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4,&
+            index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
        ! roll the fc
        CALL MATVEC_3x3 (f_roll1, r_rattle, lg4x6 ( iconst ) % fa )
        CALL MATVEC_3x3 (f_roll2, r_rattle, lg4x6 ( iconst ) % fb )

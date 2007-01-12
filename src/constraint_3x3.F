@@ -21,6 +21,7 @@ MODULE constraint_3x3
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE constraint_fxd,                  ONLY: check_fixed_atom_cns_g3x3
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
   USE mathlib,                         ONLY: dotprod_3d,&
@@ -30,6 +31,7 @@ MODULE constraint_3x3
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
                                              local_g3x3_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -43,7 +45,11 @@ MODULE constraint_3x3
   PUBLIC :: shake_3x3_int,&
             rattle_3x3_int,&
             shake_roll_3x3_int,&
-            rattle_roll_3x3_int
+            rattle_roll_3x3_int,&
+            shake_3x3_ext,&
+            rattle_3x3_ext,&
+            shake_roll_3x3_ext,&
+            rattle_roll_3x3_ext
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_3x3'
 
@@ -121,7 +127,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, ng3x3
-    REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -130,9 +135,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(fixd_list)
-    dtsqby2 = dt*dt*.5_dp
-    idtsq = 1.0_dp/dt/dt
-    dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
          g3x3_list = g3x3_list, fixd_list=fixd_list )
@@ -171,7 +173,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: first_atom, ng3x3
-    REAL(KIND=dp)                            :: dtby2, idt
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -180,8 +181,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(fixd_list)
-    idt = 1.0_dp/dt
-    dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
          g3x3_list = g3x3_list, fixd_list=fixd_list )
@@ -215,7 +214,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: first_atom, ng3x3
-    REAL(KIND=dp)                            :: dtby2, idt
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
@@ -224,8 +222,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(fixd_list)
-    idt = 1.0_dp/dt
-    dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3,&
          g3x3_list = g3x3_list, fixd_list=fixd_list )
@@ -235,6 +231,179 @@ CONTAINS
        particle_set, vel, dt, error)
 
   END SUBROUTINE rattle_3x3_int
+
+!!****** constraint_3x3/shake_3x3_ext [1.0] *
+!!
+!!   NAME
+!!     shake_3x3_ext
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+  !******************************************************************************
+  SUBROUTINE shake_3x3_ext( gci, particle_set, pos, vel, dt, ishake, log_unit,&
+       max_sigma, error)
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom, ng3x3
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
+    TYPE(local_g3x3_constraint_type), &
+      POINTER                                :: lg3x3( : )
+
+    first_atom = 1
+    ng3x3 = gci%ng3x3
+    g3x3_list => gci%g3x3_list
+    fixd_list => gci%fixd_list
+    lg3x3     => gci%lg3x3
+    ! Real Shake
+    CALL shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+       particle_set, pos, vel, dt, ishake, log_unit, max_sigma, error)
+
+  END SUBROUTINE shake_3x3_ext
+
+!!****** constraint_3x3/shake_roll_3x3_ext [1.0] *
+!!
+!!   NAME
+!!     shake_roll_3x3_ext
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE shake_roll_3x3_ext(gci, particle_set, pos, vel, r_shake,  &
+       v_shake, dt, ishake, log_unit, max_sigma, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r_shake, v_shake
+    REAL(kind=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom, ng3x3
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
+    TYPE(local_g3x3_constraint_type), &
+      POINTER                                :: lg3x3( : )
+
+    first_atom = 1
+    ng3x3 = gci%ng3x3
+    g3x3_list => gci%g3x3_list
+    fixd_list => gci%fixd_list
+    lg3x3     => gci%lg3x3
+    ! Real Shake
+    CALL shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, max_sigma,&
+       error )
+
+  END SUBROUTINE shake_roll_3x3_ext
+
+!!****** constraint_3x3/rattle_roll_3x3_ext [1.0] *
+!!
+!!   NAME
+!!     rattle_roll_3x3_ext
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE rattle_roll_3x3_ext( gci, particle_set, vel, r_rattle, dt, veps, error)
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r_rattle
+    REAL(kind=dp), INTENT(in)                :: dt
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: veps
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom, ng3x3
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
+    TYPE(local_g3x3_constraint_type), &
+      POINTER                                :: lg3x3( : )
+
+    first_atom = 1
+    ng3x3 = gci%ng3x3
+    g3x3_list => gci%g3x3_list
+    fixd_list => gci%fixd_list
+    lg3x3     => gci%lg3x3
+    ! Real Rattle
+    CALL rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+       particle_set, vel, r_rattle, dt, veps, error)
+
+  END SUBROUTINE rattle_roll_3x3_ext
+
+!!****** constraint_3x3/rattle_3x3_ext [1.0] *
+!!
+!!   NAME
+!!     rattle_3x3_ext
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE rattle_3x3_ext( gci, particle_set, vel, dt, error)
+    
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: first_atom, ng3x3
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
+    TYPE(local_g3x3_constraint_type), &
+      POINTER                                :: lg3x3( : )
+
+    first_atom = 1
+    ng3x3 = gci%ng3x3
+    g3x3_list => gci%g3x3_list
+    fixd_list => gci%fixd_list
+    lg3x3     => gci%lg3x3
+    ! Real Rattle
+    CALL rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
+       particle_set, vel, dt, error)
+
+  END SUBROUTINE rattle_3x3_ext
 
 !!****** constraint_3x3/shake_3x3_low [1.0] *
 !!
@@ -302,14 +471,9 @@ CONTAINS
                lg3x3 ( iconst ) % rc_old )
           lg3x3 ( iconst ) % fc = -2.0_dp*( lg3x3 ( iconst ) % rb_old - &
                lg3x3 ( iconst ) % rc_old )
-          ! Possibly zero the g3x3 gradients
-          IF (ASSOCIATED(fixd_list)) THEN
-             IF (SIZE(fixd_list)>0) THEN
-                IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
-                IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
-                IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp 
-             END IF
-          END IF
+          ! Check for fixed atom constraints
+          CALL check_fixed_atom_cns_g3x3(imass1, imass2, imass3,&
+               index_a, index_b, index_c, fixd_list, lg3x3(iconst))
           ! construct matrix
           amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,lg3x3 ( iconst ) % fa )
           amat(1,2)=imass1*DOTPROD_3D(r0_12, lg3x3 ( iconst) % fb )
@@ -325,9 +489,6 @@ CONTAINS
           lg3x3 ( iconst ) % r0_13  = r0_13
           lg3x3 ( iconst ) % r0_23  = r0_23
           lg3x3 ( iconst ) % amat   = amat
-          lg3x3 ( iconst ) % imass1 = imass1
-          lg3x3 ( iconst ) % imass2 = imass2
-          lg3x3 ( iconst ) % imass3 = imass3
           lg3x3 ( iconst ) % lambda_old = 0.0_dp
           lg3x3 ( iconst ) % del_lambda = 0.0_dp
        ELSE
@@ -473,14 +634,9 @@ CONTAINS
                lg3x3 ( iconst ) % rc_old )
           lg3x3 ( iconst ) % fc = -2.0_dp*( lg3x3 ( iconst ) % rb_old - &
                lg3x3 ( iconst ) % rc_old )
-          ! Possibly zero the g3x3 gradients
-          IF (ASSOCIATED(fixd_list)) THEN
-             IF (SIZE(fixd_list)>0) THEN
-                IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp 
-                IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp 
-                IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp 
-             END IF
-          END IF
+          ! Check for fixed atom constraints
+          CALL check_fixed_atom_cns_g3x3(imass1, imass2, imass3,&
+               index_a, index_b, index_c, fixd_list, lg3x3(iconst))
           ! rotate fconst:
           CALL matvec_3x3 (f_roll1, r_shake, lg3x3 ( iconst ) % fa )
           CALL matvec_3x3 (f_roll2, r_shake, lg3x3 ( iconst ) % fb )
@@ -503,9 +659,6 @@ CONTAINS
           lg3x3 ( iconst ) % f_roll2 = f_roll2
           lg3x3 ( iconst ) % f_roll3 = f_roll3
           lg3x3 ( iconst ) % amat   = amat
-          lg3x3 ( iconst ) % imass1 = imass1
-          lg3x3 ( iconst ) % imass2 = imass2
-          lg3x3 ( iconst ) % imass3 = imass3
           lg3x3 ( iconst ) % lambda_old = 0.0_dp
           lg3x3 ( iconst ) % del_lambda = 0.0_dp
        ELSE
@@ -661,14 +814,9 @@ CONTAINS
        lg3x3 ( iconst ) % fa = -2.0_dp* r12
        lg3x3 ( iconst ) % fb = -2.0_dp* r13
        lg3x3 ( iconst ) % fc = -2.0_dp* r23
-       ! Possibly zero the g3x3 gradients
-       IF (ASSOCIATED(fixd_list)) THEN
-          IF (SIZE(fixd_list)>0) THEN
-             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp
-             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp
-             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
-          END IF
-       END IF
+       ! Check for fixed atom constraints
+       CALL check_fixed_atom_cns_g3x3(imass1, imass2, imass3,&
+            index_a, index_b, index_c, fixd_list, lg3x3(iconst))
        ! roll the fc
        CALL MATVEC_3x3 (f_roll1, r_rattle, lg3x3 ( iconst ) % fa )
        CALL MATVEC_3x3 (f_roll2, r_rattle, lg3x3 ( iconst ) % fb )
@@ -774,14 +922,9 @@ CONTAINS
        lg3x3 ( iconst ) % fa = -2.0_dp* r12
        lg3x3 ( iconst ) % fb = -2.0_dp* r13
        lg3x3 ( iconst ) % fc = -2.0_dp* r23
-       ! Possibly zero the g3x3 gradients
-       IF (ASSOCIATED(fixd_list)) THEN
-          IF (SIZE(fixd_list)>0) THEN
-             IF (ANY(fixd_list(:)%fixd==index_a)) imass1 = 0.0_dp
-             IF (ANY(fixd_list(:)%fixd==index_b)) imass2 = 0.0_dp
-             IF (ANY(fixd_list(:)%fixd==index_c)) imass3 = 0.0_dp
-          END IF
-       END IF
+       ! Check for fixed atom constraints
+       CALL check_fixed_atom_cns_g3x3(imass1, imass2, imass3,&
+            index_a, index_b, index_c, fixd_list, lg3x3(iconst))
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12,lg3x3 ( iconst ) % fa )
        amat(1,2)=imass1*DOTPROD_3D(r12,lg3x3 ( iconst ) % fb )

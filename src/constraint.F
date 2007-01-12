@@ -13,7 +13,7 @@
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 !!
 !!   SOURCE
 !******************************************************************************
@@ -22,20 +22,34 @@ MODULE constraint
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: colvar_counters
-  USE constraint_3x3,                  ONLY: rattle_3x3_int,&
+  USE constraint_3x3,                  ONLY: rattle_3x3_ext,&
+                                             rattle_3x3_int,&
+                                             rattle_roll_3x3_ext,&
                                              rattle_roll_3x3_int,&
+                                             shake_3x3_ext,&
                                              shake_3x3_int,&
+                                             shake_roll_3x3_ext,&
                                              shake_roll_3x3_int
-  USE constraint_4x6,                  ONLY: rattle_4x6_int,&
+  USE constraint_4x6,                  ONLY: rattle_4x6_ext,&
+                                             rattle_4x6_int,&
+                                             rattle_roll_4x6_ext,&
                                              rattle_roll_4x6_int,&
+                                             shake_4x6_ext,&
                                              shake_4x6_int,&
+                                             shake_roll_4x6_ext,&
                                              shake_roll_4x6_int
-  USE constraint_clv,                  ONLY: rattle_colv_int,&
+  USE constraint_clv,                  ONLY: rattle_colv_ext,&
+                                             rattle_colv_int,&
+                                             rattle_roll_colv_ext,&
                                              rattle_roll_colv_int,&
+                                             shake_colv_ext,&
                                              shake_colv_int,&
+                                             shake_roll_colv_ext,&
                                              shake_roll_colv_int
   USE constraint_util,                 ONLY: check_tol,&
-                                             get_roll_matrix
+                                             get_roll_matrix,&
+                                             restore_temporary_set,&
+                                             update_temporary_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: npt_f_ensemble,&
@@ -44,7 +58,8 @@ MODULE constraint
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type
+  USE molecule_types_new,              ONLY: global_constraint_type,&
+                                             molecule_type
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -62,6 +77,7 @@ MODULE constraint
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint'
 
 CONTAINS
+
 !!****** constraint/shake_control [1.0] *
 !!
 !!   NAME
@@ -72,13 +88,16 @@ CONTAINS
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE shake_control( local_molecules, molecule_set, molecule_kind_set, &
-       particle_set, pos, vel, dt, shake_tol, log_unit, cell, error )
+  SUBROUTINE shake_control( gci, local_molecules, molecule_set, molecule_kind_set, &
+       particle_set, pos, vel, dt, shake_tol, log_unit, cell, group, local_particles,&
+       error )
 
+    
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -87,20 +106,24 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
     INTEGER, INTENT(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(in)                      :: group
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
-                                                ishake, k, n3x3con, n4x6con, &
-                                                nkind, nmol_per_kind
-    REAL(KIND=dp)                            :: mass, max_sigma
+                                                ishake_ext, ishake_int, k, &
+                                                n3x3con, n4x6con, nkind, &
+                                                nmol_per_kind
+    REAL(KIND=dp)                            :: mass, max_sigma, int_max_sigma
     REAL(KIND=dp), DIMENSION(SIZE(pos, 2))   :: imass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    LOGICAL :: do_ext_constraint
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
@@ -109,34 +132,60 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
        imass(k) = 1.0_dp/mass
     END DO
-    MOL:  DO ikind = 1, nkind
-       nmol_per_kind = local_molecules % n_el ( ikind )
-       DO imol = 1, nmol_per_kind
-          i = local_molecules % list ( ikind ) % array ( imol )
-          molecule => molecule_set ( i ) 
-          molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
-               ng3x3 = n3x3con, ng4x6=n4x6con )
-          ishake = 0
-          max_sigma = -1.0E+10_dp
-          Shake_Intra_Loop: DO WHILE (ABS(max_sigma)>=shake_tol)
-             max_sigma = 0.0_dp
-             ishake  = ishake + 1
-             ! 3x3
-             IF ( n3x3con /= 0 ) &
-                  CALL shake_3x3_int( molecule, particle_set, pos, vel, dt, ishake,&
-                  log_unit, max_sigma, error)
-             ! 4x6
-             IF ( n4x6con /= 0 ) &
-                  CALL shake_4x6_int( molecule, particle_set, pos, vel, dt, ishake,&
-                  log_unit, max_sigma, error)
-             ! Collective Variables
-             IF ( ncolv%ntot /= 0 ) &
-                  CALL shake_colv_int(molecule, particle_set, pos, vel, dt, ishake,&
-                  log_unit, cell, imass, max_sigma, error )
-          END DO Shake_Intra_Loop
-       END DO
-    END DO MOL
+    do_ext_constraint = (gci%ntot/=0)
+    ishake_ext = 0
+    max_sigma  = -1.0E+10_dp
+    Shake_Inter_Loop: DO WHILE (ABS(max_sigma)>=shake_tol)
+       max_sigma = 0.0_dp
+       ishake_ext  = ishake_ext + 1
+       ! Intramolecular Constraints
+       MOL:  DO ikind = 1, nkind
+          nmol_per_kind = local_molecules % n_el ( ikind )
+          DO imol = 1, nmol_per_kind
+             i = local_molecules % list ( ikind ) % array ( imol )
+             molecule => molecule_set ( i ) 
+             molecule_kind => molecule % molecule_kind
+             CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
+                  ng3x3 = n3x3con, ng4x6=n4x6con )
+             ishake_int = 0
+             int_max_sigma  = -1.0E+10_dp
+             Shake_Intra_Loop: DO WHILE (ABS(int_max_sigma)>=shake_tol)
+                int_max_sigma   = 0.0_dp
+                ishake_int  = ishake_int + 1
+                ! 3x3
+                IF ( n3x3con /= 0 ) &
+                     CALL shake_3x3_int( molecule, particle_set, pos, vel, dt, ishake_int,&
+                     log_unit, int_max_sigma, error)
+                ! 4x6
+                IF ( n4x6con /= 0 ) &
+                     CALL shake_4x6_int( molecule, particle_set, pos, vel, dt, ishake_int,&
+                     log_unit, int_max_sigma, error)
+                ! Collective Variables
+                IF ( ncolv%ntot /= 0 ) &
+                     CALL shake_colv_int(molecule, particle_set, pos, vel, dt, ishake_int,&
+                     log_unit, cell, imass, int_max_sigma, error )
+             END DO Shake_Intra_Loop
+             max_sigma = MAX(max_sigma, int_max_sigma)
+          END DO
+       END DO MOL
+       ! Intermolecular constraints
+       IF (do_ext_constraint) THEN
+          CALL update_temporary_set ( group, pos = pos, vel = vel )
+          ! 3x3
+          IF ( gci%ng3x3 /= 0 ) &
+               CALL shake_3x3_ext( gci, particle_set, pos, vel, dt, ishake_ext,&
+               log_unit, max_sigma, error)
+          ! 4x6
+          IF ( gci%ng4x6 /= 0 ) &
+               CALL shake_4x6_ext( gci, particle_set, pos, vel, dt, ishake_ext,&
+               log_unit, max_sigma, error)
+          ! Collective Variables
+          IF ( gci%ncolv%ntot /= 0 ) &
+               CALL shake_colv_ext(gci, particle_set, pos, vel, dt, ishake_ext,&
+               log_unit, cell, imass, max_sigma, error )
+          CALL restore_temporary_set( particle_set, local_particles, pos=pos, vel=vel )
+       END IF
+    END DO Shake_Inter_Loop
     CALL timestop ( 0.0_dp, handle )
   END SUBROUTINE shake_control
 
@@ -150,13 +199,15 @@ CONTAINS
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE rattle_control( local_molecules, molecule_set, molecule_kind_set,  &
-       particle_set, vel, dt, rattle_tol, log_unit, cell, error )
+  SUBROUTINE rattle_control( gci, local_molecules, molecule_set, molecule_kind_set,  &
+       particle_set, vel, dt, rattle_tol, log_unit, cell, group, local_particles, &
+       error )
 
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -165,20 +216,24 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: dt, rattle_tol
     INTEGER, INTENT(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(in)                      :: group
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
-                                                irattle, k, n3x3con, n4x6con, &
-                                                nkind, nmol_per_kind
-    REAL(KIND=dp)                            :: mass, max_sigma
+                                                irattle_ext, irattle_int, k, &
+                                                n3x3con, n4x6con, nkind, &
+                                                nmol_per_kind
+    REAL(KIND=dp)                            :: mass, max_sigma, int_max_sigma
     REAL(KIND=dp), DIMENSION(SIZE(vel, 2))   :: imass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    LOGICAL :: do_ext_constraint
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
@@ -187,32 +242,56 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
        imass(k) = 1.0_dp/mass
     END DO
-    MOL: DO ikind = 1, nkind
-       nmol_per_kind = local_molecules % n_el ( ikind )
-       DO imol = 1, nmol_per_kind
-          i = local_molecules % list ( ikind ) % array ( imol )
-          molecule => molecule_set ( i ) 
-          molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv, ng3x3 = n3x3con,&
-               ng4x6 = n4x6con )
-          irattle   = 0
-          max_sigma = -1.0E+10_dp
-          Rattle_Intra_Loop: DO WHILE ( ABS ( max_sigma ) >=  rattle_tol )
-             max_sigma = 0.0_dp
-             irattle = irattle + 1         
-             ! 3x3
-             IF ( n3x3con /= 0 ) &
-                  CALL rattle_3x3_int( molecule, particle_set, vel, dt, error)
-             ! 4x6
-             IF ( n4x6con /= 0 ) &
-                  CALL rattle_4x6_int( molecule, particle_set, vel, dt, error)
-             ! Collective Variables
-             IF ( ncolv%ntot /= 0 ) &
-                  CALL rattle_colv_int( molecule, particle_set, vel, dt, irattle, log_unit,&
-                  cell, imass, max_sigma, error )
-          END DO Rattle_Intra_Loop
-       END DO
-    END DO MOL
+    do_ext_constraint = (gci%ntot/=0)
+    irattle_ext = 0
+    max_sigma  = -1.0E+10_dp
+    Rattle_Inter_Loop: DO WHILE (ABS(max_sigma)>=rattle_tol)
+       max_sigma = 0.0_dp
+       irattle_ext  = irattle_ext + 1
+       ! Intramolecular Constraints
+       MOL: DO ikind = 1, nkind
+          nmol_per_kind = local_molecules % n_el ( ikind )
+          DO imol = 1, nmol_per_kind
+             i = local_molecules % list ( ikind ) % array ( imol )
+             molecule => molecule_set ( i ) 
+             molecule_kind => molecule % molecule_kind
+             CALL get_molecule_kind ( molecule_kind, ncolv = ncolv, ng3x3 = n3x3con,&
+                  ng4x6 = n4x6con )
+             irattle_int   = 0
+             int_max_sigma = -1.0E+10_dp
+             Rattle_Intra_Loop: DO WHILE ( ABS ( int_max_sigma ) >=  rattle_tol )
+                int_max_sigma = 0.0_dp
+                irattle_int = irattle_int + 1 
+                ! 3x3
+                IF ( n3x3con /= 0 ) &
+                     CALL rattle_3x3_int( molecule, particle_set, vel, dt, error)
+                ! 4x6
+                IF ( n4x6con /= 0 ) &
+                     CALL rattle_4x6_int( molecule, particle_set, vel, dt, error)
+                ! Collective Variables
+                IF ( ncolv%ntot /= 0 ) &
+                     CALL rattle_colv_int( molecule, particle_set, vel, dt, &
+                     irattle_int, log_unit, cell, imass, int_max_sigma, error )
+             END DO Rattle_Intra_Loop
+             max_sigma = MAX(max_sigma, int_max_sigma)
+          END DO
+       END DO MOL
+       ! Intermolecular Constraints
+       IF (do_ext_constraint) THEN
+          CALL update_temporary_set ( group, vel = vel )
+          ! 3x3
+          IF ( gci%ng3x3 /= 0 ) &
+               CALL rattle_3x3_ext( gci, particle_set, vel, dt, error)
+          ! 4x6
+          IF ( gci%ng4x6 /= 0 ) &
+               CALL rattle_4x6_ext( gci, particle_set, vel, dt, error)
+          ! Collective Variables
+          IF ( gci%ncolv%ntot /= 0 ) &
+               CALL rattle_colv_ext( gci, particle_set, vel, dt, &
+               irattle_ext, log_unit, cell, imass, max_sigma, error )  
+          CALL restore_temporary_set ( particle_set, local_particles, vel = vel )
+       END IF
+    END DO Rattle_Inter_Loop
     CALL timestop ( 0.0_dp, handle )
 
   END SUBROUTINE rattle_control
@@ -227,14 +306,15 @@ CONTAINS
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE shake_roll_control( local_molecules, molecule_set, molecule_kind_set, &
-       particle_set, pos, vel, simpar, roll_tol, iroll,  &
-       vector_r, vector_v, group, u, cell, error )
+  SUBROUTINE shake_roll_control( gci, local_molecules, molecule_set,&
+       molecule_kind_set, particle_set, pos, vel, simpar, roll_tol, iroll,&
+       vector_r, vector_v, group, u, cell, local_particles, error )
 
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -249,22 +329,24 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: u
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_roll_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                ishake, k, log_unit, n3x3con, &
-                                                n4x6con, nkind, nmol_per_kind
-    REAL(KIND=dp)                            :: dt, mass, max_sigma, shake_tol
+    INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, log_unit, &
+      n3x3con, n4x6con, nkind, nmol_per_kind
+    REAL(KIND=dp)                            :: dt, mass, max_sigma, shake_tol,&
+         int_max_sigma
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
     REAL(KIND=dp), DIMENSION(SIZE(pos, 2))   :: imass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
+    LOGICAL :: do_ext_constraint
+    
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
     shake_tol = simpar%shake_tol
@@ -281,34 +363,60 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
        imass(k) = 1.0_dp/mass
     END DO
-    MOL:  DO ikind = 1, nkind
-       nmol_per_kind = local_molecules % n_el ( ikind )
-       DO imol = 1, nmol_per_kind
-          i = local_molecules % list ( ikind ) % array ( imol )
-          molecule => molecule_set ( i ) 
-          molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
-               ng3x3 = n3x3con, ng4x6=n4x6con )
-          ishake = 0
-          max_sigma = -1.0E+10_dp
-          Shake_Roll_Intra_Loop: DO WHILE (ABS(max_sigma)>=shake_tol)
-             max_sigma = 0.0_dp
-             ishake  = ishake + 1
-             ! 3x3
-             IF ( n3x3con /= 0 ) &
-                  CALL shake_roll_3x3_int( molecule, particle_set, pos, vel, r_shake,&
-                  v_shake, dt, ishake, log_unit, max_sigma, error)
-             ! 4x6
-             IF ( n4x6con /= 0 ) &
-                  CALL shake_roll_4x6_int( molecule, particle_set, pos, vel, r_shake,&
-                  v_shake, dt, ishake, log_unit, max_sigma, error)
-             ! Collective Variables
-             IF ( ncolv%ntot /= 0 ) &
-                  CALL shake_roll_colv_int( molecule, particle_set, pos, vel, r_shake,&
-                  v_shake, dt, ishake, log_unit, cell, imass, max_sigma, error )
-          END DO Shake_Roll_Intra_Loop
-       END DO
-    END DO MOL
+    do_ext_constraint = (gci%ntot/=0)
+    ishake_ext = 0
+    max_sigma  = -1.0E+10_dp
+    Shake_Inter_Loop: DO WHILE (ABS(max_sigma)>=shake_tol)
+       max_sigma = 0.0_dp
+       ishake_ext  = ishake_ext + 1
+       ! Intramolecular Constraints
+       MOL:  DO ikind = 1, nkind
+          nmol_per_kind = local_molecules % n_el ( ikind )
+          DO imol = 1, nmol_per_kind
+             i = local_molecules % list ( ikind ) % array ( imol )
+             molecule => molecule_set ( i ) 
+             molecule_kind => molecule % molecule_kind
+             CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
+                  ng3x3 = n3x3con, ng4x6=n4x6con )
+             ishake_int = 0
+             int_max_sigma = -1.0E+10_dp
+             Shake_Roll_Intra_Loop: DO WHILE (ABS(int_max_sigma)>=shake_tol)
+                int_max_sigma = 0.0_dp
+                ishake_int  = ishake_int + 1
+                ! 3x3
+                IF ( n3x3con /= 0 ) &
+                     CALL shake_roll_3x3_int( molecule, particle_set, pos, vel, r_shake,&
+                     v_shake, dt, ishake_int, log_unit, int_max_sigma, error)
+                ! 4x6
+                IF ( n4x6con /= 0 ) &
+                     CALL shake_roll_4x6_int( molecule, particle_set, pos, vel, r_shake,&
+                     v_shake, dt, ishake_int, log_unit, int_max_sigma, error)
+                ! Collective Variables
+                IF ( ncolv%ntot /= 0 ) &
+                     CALL shake_roll_colv_int( molecule, particle_set, pos, vel, r_shake,&
+                     v_shake, dt, ishake_int, log_unit, cell, imass, int_max_sigma, error )
+             END DO Shake_Roll_Intra_Loop
+             max_sigma = MAX(max_sigma, int_max_sigma)
+          END DO
+       END DO MOL
+       ! Intermolecular constraints
+       IF (do_ext_constraint) THEN
+          CALL update_temporary_set ( group, pos = pos, vel = vel )
+          ! 3x3
+          IF ( gci%ng3x3 /= 0 ) &
+               CALL shake_roll_3x3_ext( gci, particle_set, pos, vel, r_shake,&
+               v_shake, dt, ishake_ext, log_unit, max_sigma, error)
+          ! 4x6
+          IF ( gci%ng4x6 /= 0 ) &
+               CALL shake_roll_4x6_ext( gci, particle_set, pos, vel, r_shake,&
+               v_shake, dt, ishake_ext, log_unit, max_sigma, error)
+          ! Collective Variables
+          IF ( gci%ncolv%ntot /= 0 ) &
+               CALL shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake,&
+               v_shake, dt, ishake_ext, log_unit, cell, imass, max_sigma, error )
+          CALL restore_temporary_set ( particle_set, local_particles, pos = pos, vel = vel )
+       END IF
+    END DO Shake_Inter_Loop
     CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
     CALL timestop ( 0.0_dp, handle )
 
@@ -324,14 +432,15 @@ CONTAINS
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE rattle_roll_control( local_molecules, molecule_set, molecule_kind_set, &
-       particle_set, vel, simpar, virial, vector,   &
-       veps, mass, roll_tol, iroll, para_env, u, cell, error )
+  SUBROUTINE rattle_roll_control( gci, local_molecules, molecule_set, &
+       molecule_kind_set, particle_set, vel, simpar, virial, vector,&
+       veps, mass, roll_tol, iroll, para_env, u, cell, local_particles, error )
 
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -351,23 +460,23 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: u
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_roll_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                irattle, k, log_unit, &
-                                                n3x3con, n4x6con, nkind, &
-                                                nmol_per_kind
+    INTEGER :: handle, i, ikind, imol, irattle_ext, irattle_int, k, log_unit, &
+      n3x3con, n4x6con, nkind, nmol_per_kind
     REAL(KIND=dp)                            :: amass, dt, max_sigma, &
-                                                rattle_tol
+                                                rattle_tol, int_max_sigma
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
     REAL(KIND=dp), DIMENSION(SIZE(vel, 2))   :: imass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    LOGICAL :: do_ext_constraint
 
     CALL timeset ( routineN, 'I', ' ', handle )
     ! initialize locals
@@ -386,34 +495,60 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=amass)
        imass(k) = 1.0_dp/amass
     END DO
-    MOL: DO ikind = 1, nkind
-       nmol_per_kind = local_molecules % n_el ( ikind )
-       DO imol = 1, nmol_per_kind
-          i = local_molecules % list ( ikind ) % array ( imol )
-          molecule => molecule_set ( i ) 
-          molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
-               ng3x3 = n3x3con, ng4x6 = n4x6con )
-          max_sigma = -1.0E+10_dp
-          irattle = 0
-          Rattle_Roll_Intramolecular: DO WHILE (ABS(max_sigma)>=rattle_tol)
-             max_sigma = 0.0_dp
-             irattle = irattle + 1
-             ! 3x3
-             IF ( n3x3con /= 0 ) &
-                  CALL rattle_roll_3x3_int( molecule, particle_set, vel, r_rattle, dt,&
-                  veps, error )
-             ! 4x6
-             IF ( n4x6con /= 0 ) &
-                  CALL rattle_roll_4x6_int( molecule, particle_set, vel, r_rattle, dt,&
-                  veps, error )
-             ! Collective Variables
-             IF ( ncolv%ntot /= 0 ) &
-                  CALL rattle_roll_colv_int( molecule, particle_set, vel, r_rattle, dt,&
-                  irattle, log_unit, veps, cell, imass, max_sigma, error  )
-          END DO Rattle_Roll_Intramolecular
-       END DO
-    END DO MOL
+    do_ext_constraint = (gci%ntot/=0)
+    irattle_ext = 0
+    max_sigma  = -1.0E+10_dp
+    Rattle_Inter_Loop: DO WHILE (ABS(max_sigma)>=rattle_tol)
+       max_sigma = 0.0_dp
+       irattle_ext  = irattle_ext + 1
+       ! Intramolecular Constraints
+       MOL: DO ikind = 1, nkind
+          nmol_per_kind = local_molecules % n_el ( ikind )
+          DO imol = 1, nmol_per_kind
+             i = local_molecules % list ( ikind ) % array ( imol )
+             molecule => molecule_set ( i ) 
+             molecule_kind => molecule % molecule_kind
+             CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
+                  ng3x3 = n3x3con, ng4x6 = n4x6con )
+             int_max_sigma = -1.0E+10_dp
+             irattle_int = 0
+             Rattle_Roll_Intramolecular: DO WHILE (ABS(int_max_sigma)>=rattle_tol)
+                int_max_sigma = 0.0_dp
+                irattle_int = irattle_int + 1
+                ! 3x3
+                IF ( n3x3con /= 0 ) &
+                     CALL rattle_roll_3x3_int( molecule, particle_set, vel, r_rattle, dt,&
+                     veps, error )
+                ! 4x6
+                IF ( n4x6con /= 0 ) &
+                     CALL rattle_roll_4x6_int( molecule, particle_set, vel, r_rattle, dt,&
+                     veps, error )
+                ! Collective Variables
+                IF ( ncolv%ntot /= 0 ) &
+                     CALL rattle_roll_colv_int( molecule, particle_set, vel, r_rattle, dt,&
+                     irattle_int, log_unit, veps, cell, imass, int_max_sigma, error  )
+             END DO Rattle_Roll_Intramolecular
+             max_sigma = MAX(max_sigma, int_max_sigma)
+          END DO
+       END DO MOL
+       ! Intermolecular Constraints
+       IF (do_ext_constraint) THEN
+          CALL update_temporary_set ( para_env%group, vel = vel )
+          ! 3x3
+          IF ( gci%ng3x3 /= 0 )&
+               CALL rattle_roll_3x3_ext( gci, particle_set, vel, r_rattle, dt,&
+               veps, error ) 
+          ! 4x6
+          IF ( gci%ng4x6 /= 0 ) &
+               CALL rattle_roll_4x6_ext( gci, particle_set, vel, r_rattle, dt,&
+               veps, error )
+          ! Collective Variables
+          IF ( gci%ncolv%ntot /= 0 ) &
+               CALL rattle_roll_colv_ext( gci, particle_set, vel, r_rattle, dt,&
+               irattle_ext, log_unit, veps, cell, imass, max_sigma, error  )     
+          CALL restore_temporary_set ( particle_set, local_particles, vel = vel )
+       END IF
+    END DO Rattle_Inter_Loop
     CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
     CALL timestop ( 0.0_dp, handle )
   END SUBROUTINE rattle_roll_control

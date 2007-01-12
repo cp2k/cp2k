@@ -29,6 +29,7 @@ MODULE constraint_clv
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
                                              local_colvar_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -42,7 +43,11 @@ MODULE constraint_clv
   PUBLIC :: shake_roll_colv_int,&
             rattle_roll_colv_int,&
             shake_colv_int,&
-            rattle_colv_int
+            rattle_colv_int,&
+            shake_roll_colv_ext,&
+            rattle_roll_colv_ext,&
+            shake_colv_ext,&
+            rattle_colv_ext 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_clv'
 
@@ -255,6 +260,207 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_colv_int
 
+!!****** constraint_clv/shake_colv_ext [1.0] *
+!!
+!!   NAME
+!!     shake_colv_ext
+!!
+!!   FUNCTION
+!!     Intermolecular subroutine
+!!     shake_colv algorithm for collective variables constraints
+!!     updates the multiplier one molecule type at a time
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE shake_colv_ext( gci, particle_set, pos, vel, dt, ishake,&
+       log_unit, cell,  imass, max_sigma, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:)              :: imass
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_ext', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
+
+    first_atom = 1
+    colv_list => gci%colv_list
+    fixd_list => gci%fixd_list
+    lcolv => gci%lcolv
+    ! Real Shake
+    CALL shake_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+       particle_set, pos, vel, dt, ishake, log_unit, cell,  imass, max_sigma,&
+       error )
+
+  END SUBROUTINE shake_colv_ext
+
+!!****** constraint_clv/rattle_colv_ext [1.0] *
+!!
+!!   NAME
+!!     rattle_colv_ext
+!!
+!!   FUNCTION
+!!     Intermolecular subroutine
+!!     rattle algorithm for collective variables constraints
+!!     updates the multiplier one molecule type at a time
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE rattle_colv_ext( gci, particle_set, vel, dt, irattle,&
+       log_unit, cell, imass, max_sigma, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(IN)                      :: irattle, log_unit
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:)              :: imass
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
+
+    first_atom = 1
+    colv_list => gci%colv_list
+    fixd_list => gci%fixd_list
+    lcolv => gci%lcolv
+    ! Real Rattle
+    CALL rattle_colv_low ( fixd_list, colv_list, lcolv, first_atom, &
+       particle_set, vel, dt, irattle, log_unit, cell, imass, max_sigma, error )
+
+  END SUBROUTINE rattle_colv_ext
+
+!!****** constraint_clv/shake_roll_colv_ext [1.0] *
+!!
+!!   NAME
+!!     shake_roll_colv_ext
+!!
+!!   FUNCTION
+!!     Intermolecular subroutine
+!!     shake algorithm (box allowed to change) for collective variables constraints
+!!     updates the multiplier one molecule type at a time
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake, v_shake, &
+       dt, ishake, log_unit, cell, imass, max_sigma, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r_shake, v_shake
+    REAL(kind=dp), INTENT(in)                :: dt
+    INTEGER, INTENT(in)                      :: ishake, log_unit
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:)              :: imass
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
+
+    first_atom = 1
+    colv_list => gci%colv_list
+    fixd_list => gci%fixd_list
+    lcolv => gci%lcolv
+    ! Real Shake
+    CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, cell,&
+       imass, max_sigma, error )
+
+  END SUBROUTINE shake_roll_colv_ext
+
+!!****** constraint_clv/rattle_roll_colv_ext [1.0] *
+!!
+!!   NAME
+!!     rattle_roll_colv_ext
+!!
+!!   FUNCTION
+!!     Intermolecular subroutine
+!!     rattle algorithm (box allowed to change) for collective variables constraints
+!!     updates the multiplier one molecule type at a time
+!!
+!!   AUTHOR
+!!     Teodoro Laino [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE rattle_roll_colv_ext ( gci, particle_set, vel, r_rattle,  &
+       dt, irattle, log_unit, veps,  cell, imass, max_sigma, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : ), dt
+    INTEGER, INTENT(in)                      :: irattle, log_unit
+    REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:)              :: imass
+    REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: first_atom
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
+
+    first_atom = 1
+    colv_list => gci%colv_list
+    fixd_list => gci%fixd_list
+    lcolv => gci%lcolv
+    ! Real Rattle
+    CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, first_atom, &
+       particle_set, vel, r_rattle, dt, irattle, log_unit, veps,  cell,&
+       imass, max_sigma, error )
+
+  END SUBROUTINE rattle_roll_colv_ext
+
 !!****** constraint_clv/shake_colv_low [1.0] *
 !!
 !!   NAME
@@ -307,11 +513,11 @@ CONTAINS
           IF (colv_list(iconst)%restraint%active) CYCLE
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
-               particles=particle_set, lambda=lcolv(iconst)%lambda,&
+               lambda=lcolv(iconst)%lambda,&
                imass=imass, error=error)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=lcolv(iconst)%lambda,&
+               lambda=lcolv(iconst)%lambda,&
                imass=imass, error=error)
        END DO
     ELSE
@@ -323,17 +529,17 @@ CONTAINS
           lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
                colv_list ( iconst ) % expected_value
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
-               lcolv ( iconst ) % colvar_old, particle_set, imass=imass, error=error)
+               lcolv ( iconst ) % colvar_old, imass=imass, error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
           
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
-               particles=particle_set, lambda=del_lam,&
+               lambda=del_lam,&
                imass=imass, error=error)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=del_lam,&
+               lambda=del_lam,&
                imass=imass, error=error)
        END DO
     END IF
@@ -397,7 +603,7 @@ CONTAINS
                particles=particle_set, fixd_list=fixd_list, error=error)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=lcolv(iconst)%lambda,&
+               lambda=lcolv(iconst)%lambda,&
                imass=imass,error=error)
        END DO
     ELSE
@@ -405,13 +611,13 @@ CONTAINS
           IF (colv_list(iconst)%restraint%active) CYCLE
           lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,error=error)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
-               lcolv ( iconst ) % colvar_old, particle_set,imass=imass,error=error)
+               lcolv ( iconst ) % colvar_old, imass=imass,error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
           
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=del_lam,&
+               lambda=del_lam,&
                imass=imass,error=error)
        END DO
     END IF
@@ -475,11 +681,11 @@ CONTAINS
           IF (colv_list(iconst)%restraint%active) CYCLE
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
-               particles=particle_set, lambda=lcolv(iconst)%lambda,&
+               lambda=lcolv(iconst)%lambda,&
                roll=.TRUE.,rmat=r_shake,imass=imass,error=error)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=lcolv(iconst)%lambda,&
+               lambda=lcolv(iconst)%lambda,&
                roll=.TRUE.,rmat=v_shake,imass=imass,error=error)
        END DO
     ELSE
@@ -491,18 +697,18 @@ CONTAINS
           lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
                colv_list ( iconst ) % expected_value
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
-               lcolv ( iconst ) % colvar_old, particle_set, roll=.TRUE., rmat=r_shake,&
+               lcolv ( iconst ) % colvar_old, roll=.TRUE., rmat=r_shake,&
                imass=imass, error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
           
           ! Update positions
           CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
-               particles=particle_set, lambda=del_lam,&
+               lambda=del_lam,&
                roll=.TRUE., rmat=r_shake, imass=imass,error=error)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=del_lam,&
+               lambda=del_lam,&
                roll=.TRUE., rmat=v_shake, imass=imass,error=error)
        END DO
     END IF
@@ -547,10 +753,11 @@ CONTAINS
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
+    INTEGER, INTENT(in)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : ), dt
-    INTEGER, INTENT(in)                      :: irattle, log_unit, first_atom
+    INTEGER, INTENT(in)                      :: irattle, log_unit
     REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -569,7 +776,7 @@ CONTAINS
                particles=particle_set, fixd_list=fixd_list, error=error)
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=lcolv(iconst)%lambda,&
+               lambda=lcolv(iconst)%lambda,&
                imass=imass,error=error)
        END DO
     ELSE
@@ -579,13 +786,13 @@ CONTAINS
                roll=.TRUE., veps=veps, rmat=r_rattle, particles=particle_set,&
                error=error)
           fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
-               lcolv ( iconst ) % colvar_old, particle_set,roll=.TRUE.,&
+               lcolv ( iconst ) % colvar_old, roll=.TRUE.,&
                rmat=r_rattle,imass=imass, error=error)
           del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
           lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
           ! Update velocities
           CALL update_con_colv(vel, dtby2, lcolv(iconst), &
-               particles=particle_set, lambda=del_lam,&
+               lambda=del_lam,&
                roll=.TRUE.,rmat=r_rattle,imass=imass,error=error)
        END DO
     END IF
@@ -616,14 +823,12 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE  update_con_colv(wrk, fac, lcolv, particles, lambda, roll, rmat, imass,&
+  SUBROUTINE  update_con_colv(wrk, fac, lcolv, lambda, roll, rmat, imass,&
        error)
     REAL(KIND=dp), INTENT(INOUT)             :: wrk( :, : )
     REAL(KIND=dp), INTENT(IN)                :: fac
     TYPE(local_colvar_constraint_type), &
       INTENT(IN)                             :: lcolv
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles
     REAL(KIND=dp), INTENT(IN)                :: lambda
     LOGICAL, INTENT(in), OPTIONAL            :: roll
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -677,11 +882,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  FUNCTION eval_Jac_colvar(colvar, colvar_old, particles, roll, rmat, imass,&
+  FUNCTION eval_Jac_colvar(colvar, colvar_old, roll, rmat, imass,&
        error) RESULT(res)
     TYPE(colvar_type), POINTER               :: colvar, colvar_old
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles
     LOGICAL, INTENT(IN), OPTIONAL            :: roll
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: rmat

@@ -18,6 +18,7 @@
 !!   SOURCE
 !******************************************************************************
 MODULE constraint_fxd
+  USE colvar_types,                    ONLY: colvar_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -28,6 +29,8 @@ MODULE constraint_fxd
   USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
+  USE molecule_types_new,              ONLY: local_g3x3_constraint_type,&
+                                             local_g4x6_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set
@@ -38,7 +41,10 @@ MODULE constraint_fxd
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: fix_atom_control
+  PUBLIC :: fix_atom_control,&
+            check_fixed_atom_cns_g3x3,&
+            check_fixed_atom_cns_g4x6,&
+            check_fixed_atom_cns_colv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_fxd'
 
@@ -158,5 +164,170 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE fix_atom_control
+
+!!****** constraint_fxd/check_fixed_atom_cns_g3x3 [1.0] *
+!!
+!!   NAME
+!!     check_fixed_atom_cns_g3x3
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE check_fixed_atom_cns_g3x3(imass1, imass2, imass3,&
+       index_a, index_b, index_c, fixd_list, lg3x3)
+    REAL(KIND=dp), INTENT(INOUT)             :: imass1, imass2, imass3
+    INTEGER, INTENT(IN)                      :: index_a, index_b, index_c
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_g3x3_constraint_type)         :: lg3x3
+
+    INTEGER                                  :: i
+
+    IF (lg3x3%init) THEN
+       imass1 = lg3x3%imass1
+       imass2 = lg3x3%imass2
+       imass3 = lg3x3%imass3
+    ELSE
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             DO i = 1, SIZE(fixd_list)
+                IF (fixd_list(i)%fixd==index_a) THEN
+                   IF (.NOT.fixd_list(i)%restraint%active) imass1 = 0.0_dp
+                   EXIT
+                END IF
+             END DO
+             DO i = 1, SIZE(fixd_list)
+                IF (fixd_list(i)%fixd==index_b) THEN
+                   IF (.NOT.fixd_list(i)%restraint%active) imass2 = 0.0_dp
+                   EXIT
+                END IF
+             END DO
+             DO i = 1, SIZE(fixd_list)
+                IF (fixd_list(i)%fixd==index_c) THEN
+                   IF (.NOT.fixd_list(i)%restraint%active) imass3 = 0.0_dp
+                   EXIT
+                END IF
+             END DO
+          END IF
+       END IF
+       lg3x3 % imass1 = imass1
+       lg3x3 % imass2 = imass2
+       lg3x3 % imass3 = imass3
+       lg3x3 % init = .TRUE.
+    END IF
+  END SUBROUTINE check_fixed_atom_cns_g3x3
+
+!!****** constraint_fxd/check_fixed_atom_cns_g4x6 [1.0] *
+!!
+!!   NAME
+!!     check_fixed_atom_cns_g4x6
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4,&
+       index_a, index_b, index_c, index_d, fixd_list, lg4x6)
+    REAL(KIND=dp), INTENT(INOUT)             :: imass1, imass2, imass3, imass4
+    INTEGER, INTENT(IN)                      :: index_a, index_b, index_c, &
+                                                index_d
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_g4x6_constraint_type)         :: lg4x6
+
+    INTEGER                                  :: i
+
+    IF (lg4x6%init) THEN
+       imass1 = lg4x6%imass1
+       imass2 = lg4x6%imass2
+       imass3 = lg4x6%imass3
+       imass4 = lg4x6%imass4
+    ELSE
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             DO i = 1, SIZE(fixd_list)
+                IF (fixd_list(i)%fixd==index_a) THEN
+                   IF (.NOT.fixd_list(i)%restraint%active) imass1 = 0.0_dp
+                   EXIT
+                END IF
+             END DO
+             DO i = 1, SIZE(fixd_list)
+                IF (fixd_list(i)%fixd==index_b) THEN
+                   IF (.NOT.fixd_list(i)%restraint%active) imass2 = 0.0_dp
+                   EXIT
+                END IF
+             END DO
+             DO i = 1, SIZE(fixd_list)
+                IF (fixd_list(i)%fixd==index_c) THEN
+                   IF (.NOT.fixd_list(i)%restraint%active) imass3 = 0.0_dp
+                   EXIT
+                END IF
+             END DO
+             DO i = 1, SIZE(fixd_list)
+                IF (fixd_list(i)%fixd==index_d) THEN
+                   IF (.NOT.fixd_list(i)%restraint%active) imass4 = 0.0_dp
+                   EXIT
+                END IF
+             END DO
+          END IF
+       END IF
+       lg4x6 % imass1 = imass1
+       lg4x6 % imass2 = imass2
+       lg4x6 % imass3 = imass3
+       lg4x6 % imass4 = imass4
+       lg4x6 % init = .TRUE.
+    END IF
+  END SUBROUTINE check_fixed_atom_cns_g4x6
+
+!!****** constraint_fxd/check_fixed_atom_cns_colv [1.0] *
+!!
+!!   NAME
+!!     check_fixed_atom_cns_colv
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE check_fixed_atom_cns_colv(fixd_list, colvar)
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(colvar_type), POINTER               :: colvar
+
+    INTEGER                                  :: i, j, k
+
+    IF (ASSOCIATED(fixd_list)) THEN
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             DO i = 1, SIZE(colvar%i_atom)
+                j = colvar%i_atom(i)
+                DO k = 1, SIZE(fixd_list)
+                   IF (fixd_list(k)%fixd==j) THEN
+                      IF (.NOT.fixd_list(k)%restraint%active)&
+                           colvar%dsdr(:,i) = 0.0_dp
+                      EXIT
+                   END IF
+                END DO
+             END DO
+          END IF
+       END IF
+    END IF
+
+  END SUBROUTINE check_fixed_atom_cns_colv
 
 END MODULE constraint_fxd

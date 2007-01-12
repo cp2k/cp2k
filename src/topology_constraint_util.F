@@ -131,7 +131,7 @@ CONTAINS
       k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, ncolv_glob, &
       ncolv_mol, nfixd_restraint, nfixed_atoms, ng3x3, ng3x3_restraint, &
       ng4x6, ng4x6_restraint, nhdist, nmolecule, nrep, offset, output_unit, &
-      stat
+      stat, nfixd_list_gci
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
     LOGICAL :: failure, fix_atom_mm, fix_atom_molname, fix_atom_qm, &
@@ -151,7 +151,7 @@ CONTAINS
     TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
+      DIMENSION(:), POINTER                  :: fixd_list, fixd_list_gci
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: g3x3_list
     TYPE(g4x6_constraint_type), &
@@ -209,10 +209,14 @@ CONTAINS
     NULLIFY(gci%lcolv,&
             gci%lg3x3,&
             gci%lg4x6,&
+            gci%fixd_list,&
             gci%colv_list,&
             gci%g3x3_list,&
             gci%g4x6_list)
-    gci%ntot  = 0
+    gci%ntot   = 0
+    gci%ng3x3  = 0
+    gci%ng4x6  = 0
+    CALL setup_colvar_counters(gci%colv_list,gci%ncolv)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Add more stuff to COLVAR constraint if constraint hydrogen is on
@@ -568,6 +572,9 @@ CONTAINS
     ! 6. Set the group fixed_atom constraint fixd_list
     !-----------------------------------------------------------------------------
     IF(topology%const_atom) THEN
+       ALLOCATE(fixd_list_gci(SIZE(particle_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       nfixd_list_gci = 0
        ALLOCATE(missed_molname(SIZE(cons_info%fixed_molnames,1)),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        missed_molname=.TRUE.
@@ -717,12 +724,25 @@ CONTAINS
                 END IF
              END DO
           END DO
-          IF (iw>0) WRITE(iw,*)"FIXD_LIST ::",fixd_list
+          IF (iw>0) THEN 
+             WRITE(iw,*)"FIXED ATOMIC CONSTRAINT INFORMATION::",fixd_list(:)%fixd
+          END IF
           CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, nfixd_restraint=nfixd_restraint,&
                fixd_list=fixd_list)
+          fixd_list_gci(nfixd_list_gci+1:nfixd_list_gci+nfixed_atoms) = fixd_list
+          nfixd_list_gci = nfixd_list_gci + nfixed_atoms
        END DO
        CPPostcondition(COUNT(missed_molname)==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(missed_molname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Intermolecular constraints
+       IF (gci%ntot /=0) THEN
+          ALLOCATE(fixd_list(nfixd_list_gci),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          fixd_list(1:nfixd_list_gci)=fixd_list_gci(1:nfixd_list_gci)
+          gci%fixd_list=>fixd_list
+       END IF
+       DEALLOCATE(fixd_list_gci,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -968,6 +988,7 @@ END SUBROUTINE setup_g4x6_list
     DO kk=1,SIZE(ilist)
        k = ilist(kk)
        ncolv_mol = ncolv_mol + 1
+       lcolv(ncolv_mol)%init      = .FALSE.
        lcolv(ncolv_mol)%lambda    = 0.0_dp
        lcolv(ncolv_mol)%sigma     = 0.0_dp
        ! Set Up colvar variable
@@ -1030,6 +1051,7 @@ END SUBROUTINE setup_g4x6_list
     failure = .FALSE.  
     DO kk = 1, SIZE(ilist)
        k = ilist(kk)
+       lg3x3(k)%init      = .FALSE.
        lg3x3(k)%scale     = 0.0_dp
        lg3x3(k)%scale_old = 0.0_dp
        lg3x3(k)%fa        = 0.0_dp
@@ -1099,6 +1121,7 @@ SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, ilist, first_atom, last_atom, error)
   failure = .FALSE.  
   DO kk = 1, SIZE(ilist)
      k = ilist(kk)
+     lg4x6(k)%init      = .FALSE.
      lg4x6(k)%scale     = 0.0_dp
      lg4x6(k)%scale_old = 0.0_dp
      lg4x6(k)%fa        = 0.0_dp

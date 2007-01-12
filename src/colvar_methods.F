@@ -47,6 +47,8 @@ MODULE colvar_methods
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -310,17 +312,8 @@ CONTAINS
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-       ! Possibly zero the COLVAR gradients
-       IF (PRESENT(fixd_list)) THEN
-          IF (ASSOCIATED(fixd_list)) THEN
-             IF (SIZE(fixd_list)>0) THEN
-                DO i = 1, SIZE(colvar%i_atom)
-                   j = colvar%i_atom(i)
-                   IF (ANY(fixd_list(:)%fixd==j)) colvar%dsdr(:,i) = 0.0_dp
-                END DO
-             END IF
-          END IF
-       END IF
+       ! Check for fixed atom constraints
+       IF (PRESENT(fixd_list)) CALL check_fixed_atom_cns_colv(fixd_list, colvar)
     END IF
 
   END SUBROUTINE colvar_eval_mol_f
@@ -384,6 +377,8 @@ CONTAINS
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+       ! Check for fixed atom constraints
+       CALL check_fixed_atom_cns_colv(subsys(isubsys)%subsys%gci%fixd_list,colvar)
     END IF
   END SUBROUTINE colvar_eval_glob_f
   !***************************************************************************

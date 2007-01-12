@@ -91,6 +91,7 @@ MODULE force_env_methods
   USE mixed_environment_types,         ONLY: get_mixed_env,&
                                              mixed_env_retain,&
                                              mixed_environment_type
+  USE molecule_types_new,              ONLY: global_constraint_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -1136,6 +1137,7 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(global_constraint_type), POINTER    :: gci
 
   failure=.FALSE.
 
@@ -1146,7 +1148,7 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
      my_log_unit=-1
      IF (PRESENT(log_unit)) my_log_unit=log_unit
      NULLIFY(subsys,cell,molecules,molecule_kinds,local_molecules,particles,&
-          my_pos,my_vel)
+          my_pos,my_vel,gci)
      IF (PRESENT(pos)) my_pos => pos
      IF (PRESENT(vel)) my_vel => vel
      mydt = 0.1_dp
@@ -1160,11 +1162,12 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
              molecules_new=molecules,&
              molecule_kinds_new=molecule_kinds,&
              particles=particles,&
+             gci=gci,&
              error=error)
         nparticle_kind = atomic_kinds%n_els
         IF (PRESENT(compold)) THEN
            IF (compold) THEN
-              CALL getold( local_molecules, molecules%els, molecule_kinds%els,&
+              CALL getold( gci, local_molecules, molecules%els, molecule_kinds%els,&
                    particles%els, cell, error)
            END IF
         END IF
@@ -1197,10 +1200,12 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
            END DO
         END IF
 
-        CALL shake_control( local_molecules=local_molecules,&
+        CALL shake_control( gci=gci, local_molecules=local_molecules,&
              molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
              particle_set=particles%els, pos=my_pos, vel=my_vel, dt=mydt,&
-             shake_tol=shake_tol, log_unit=my_log_unit, cell=cell, error=error )
+             shake_tol=shake_tol, log_unit=my_log_unit, cell=cell,&
+             group=force_env%para_env%group, local_particles=local_particles, &
+             error=error )
 
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN
@@ -1286,6 +1291,7 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(global_constraint_type), POINTER    :: gci
 
   failure=.FALSE.
 
@@ -1309,6 +1315,7 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
              molecules_new=molecules,&
              molecule_kinds_new=molecule_kinds,&
              particles=particles,&
+             gci=gci,&
              error=error)
         nparticle_kind = atomic_kinds%n_els
         has_vel=.FALSE.
@@ -1326,10 +1333,12 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
            END DO
         END IF
         
-        CALL rattle_control( local_molecules=local_molecules,&
+        CALL rattle_control( gci=gci, local_molecules=local_molecules,&
              molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
              particle_set=particles%els, vel=my_vel, dt=mydt,&
-             rattle_tol=shake_tol, log_unit=my_log_unit, cell=cell, error=error )
+             rattle_tol=shake_tol, log_unit=my_log_unit, cell=cell,&
+             group=force_env%para_env%group, local_particles=local_particles, &
+             error=error )
 
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN

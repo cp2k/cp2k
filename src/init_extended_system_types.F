@@ -44,7 +44,8 @@ MODULE init_extended_system_types
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: get_molecule_kind_set,&
                                              molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type
+  USE molecule_types_new,              ONLY: molecule_type,&
+                                             global_constraint_type
   USE nhc_mapping,                     ONLY: nhc_to_barostat_mapping,&
                                              nhc_to_coef_mapping,&
                                              nhc_to_particle_mapping
@@ -325,9 +326,10 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
-       molecule_kind_set, para_env, globenv, nhc, print_section, nose_section, error)
+       molecule_kind_set, para_env, globenv, nhc, print_section, nose_section,&
+       gci, error)
 
-
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -345,7 +347,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, isos, iw, j, natom, &
-                                                nconstraint, nfree
+                                                nconstraint_int, nfree,&
+                                                nconstraint_ext
     LOGICAL                                  :: explicit, restart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -446,9 +449,9 @@ CONTAINS
 
     ! compute the total number of degrees of freedom for temperature
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
-         natom=natom, nconstraint=nconstraint)
-
-    nfree = 3*natom - nconstraint - simpar%nfree
+         natom=natom, nconstraint=nconstraint_int)
+    nconstraint_ext = gci%ntot
+    nfree = 3*natom - nconstraint_int - nconstraint_ext - simpar%nfree
 
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
@@ -456,7 +459,10 @@ CONTAINS
     IF ( iw > 0 ) THEN
        WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
        WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom
-       WRITE ( iw, '( T48, A, T71, I10 )' ) ' Number of constraints:', nconstraint
+       WRITE ( iw, '( T33, A, T71, I10 )' ) &
+            ' Number of Intramolecular constraints:', nconstraint_int
+       WRITE ( iw, '( T33, A, T71, I10 )' ) &
+            ' Number of Intermolecular constraints:', nconstraint_ext
        WRITE ( iw, '( T34, A, T71, I10 )' ) &
             ' Invariants(translation + rotations):', simpar % nfree
        WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree

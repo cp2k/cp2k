@@ -71,6 +71,7 @@ MODULE md_run
                                              set_md_env
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE molecule_types_new,              ONLY: global_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: kelvin
   USE termination,                     ONLY: external_control,&
@@ -173,8 +174,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-
-!   ---------------------------------------------------------------------------
+    TYPE(global_constraint_type), POINTER    :: gci
 
     CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -182,7 +182,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
-              simpar,itimes,used_time,subsys,motion_section )
+              simpar,itimes,used_time,subsys,motion_section,gci )
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
          work_section, print_section, atomic_kinds, local_particles, t)
     logger => cp_error_get_logger(error)
@@ -238,6 +238,7 @@ CONTAINS
               atomic_kinds=atomic_kinds,&
               local_particles=local_particles,&
               molecules_new=molecules_new,&
+              gci=gci,&
               particles=particles,&
               error=error)
           !
@@ -249,7 +250,8 @@ CONTAINS
           CALL initialize_nhc_part(cell,simpar,local_molecules, &
                                    molecules_new%els, molecule_kinds_new%els,&
                                    para_env, globenv, extended_type%nhc_part(ibead), &
-                                   print_section=print_section,nose_section=work_section,error=error)
+                                   print_section=print_section,nose_section=work_section,&
+                                   gci=gci,error=error)
           !
           ! Possibly restart barostat
           !
