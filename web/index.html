@@ -25,7 +25,7 @@ H O M E&nbsp;&nbsp;&nbsp; P A G E&nbsp;</font></b></center>
 <td> <center> <A HREF="download.html">Download</A> </center> </td>
 <td> <center> <A HREF="quickstep.html">Quickstep</A> </center> </td>
 <td> <center> <A HREF="regtest.html">Regtests</A> </center> </td>
-<td> <center> <A HREF="input/index.html">Input</A> </center> </td>
+<td> <center> <A HREF="input/index.html">Input manual</A> </center> </td>
 </table></center>
 
 <H2><CENTER>Welcome!</CENTER></H2>
