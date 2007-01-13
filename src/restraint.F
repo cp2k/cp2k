@@ -193,6 +193,10 @@ CONTAINS
              END DO
           END DO MOL
           CALL mp_sum(n_restraint,force_env%para_env%group)
+          CALL mp_sum(energy_fixd,force_env%para_env%group)
+          CALL mp_sum(energy_3x3,force_env%para_env%group)
+          CALL mp_sum(energy_4x6,force_env%para_env%group)
+          CALL mp_sum(energy_colv,force_env%para_env%group)
           IF (n_restraint>0) THEN
               CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
           ENDIF
@@ -206,9 +210,6 @@ CONTAINS
        NULLIFY(extended_energies)
        ALLOCATE(extended_energies,stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       !TL
-       !TL Bug in parallel.. sum-up energies otherwise you get the wrong number...
-       !TL
        extended_energies%energy_g3x3_restraint=energy_3x3
        extended_energies%energy_fixd_restraint=energy_fixd
        extended_energies%energy_g4x6_restraint=energy_4x6
