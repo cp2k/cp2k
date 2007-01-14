@@ -450,7 +450,7 @@ CONTAINS
     ! compute the total number of degrees of freedom for temperature
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          natom=natom, nconstraint=nconstraint_int)
-    nconstraint_ext = gci%ntot
+    nconstraint_ext = gci%ntot - gci%nrestraint
     nfree = 3*natom - nconstraint_int - nconstraint_ext - simpar%nfree
 
     logger => cp_error_get_logger(error)
@@ -467,6 +467,11 @@ CONTAINS
             ' Invariants(translation + rotations):', simpar % nfree
        WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree
        WRITE ( iw, '()' )
+       WRITE ( iw, '( /, A )' ) ' Restraints Information'
+       WRITE ( iw, '( T33, A, T71, I10 )' ) &
+            '  Number of Intramolecular restraints:', nconstraint_int
+       WRITE ( iw, '( T33, A, T71, I10 )' ) &
+            '  Number of Intermolecular restraints:', gci%nrestraint
     END IF
 
     CALL cp_print_key_finished_output(iw,logger,print_section,&

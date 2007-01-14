@@ -86,7 +86,7 @@ MODULE molecule_types_new
 
   TYPE global_constraint_type
      TYPE(colvar_counters)                    :: ncolv
-     INTEGER                                  :: ntot
+     INTEGER                                  :: ntot,  nrestraint
      INTEGER                                  :: ng3x3, ng3x3_restraint
      INTEGER                                  :: ng4x6, ng4x6_restraint
      TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list

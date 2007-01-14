@@ -216,7 +216,12 @@ CONTAINS
     gci%ntot   = 0
     gci%ng3x3  = 0
     gci%ng4x6  = 0
+    gci%ng3x3_restraint  = 0
+    gci%ng4x6_restraint  = 0
     CALL setup_colvar_counters(gci%colv_list,gci%ncolv)
+    gci%nrestraint = gci%ng3x3_restraint +&
+                     gci%ng4x6_restraint +&
+                     gci%ncolv%nrestraint
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Add more stuff to COLVAR constraint if constraint hydrogen is on
@@ -562,11 +567,9 @@ CONTAINS
           gci%ntot = gci%ng4x6 + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
-          DEALLOCATE(constr_x_glob,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Set the group fixed_atom constraint fixd_list
@@ -745,6 +748,10 @@ CONTAINS
        DEALLOCATE(fixd_list_gci,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    ! Final setup of the number of possible restraints
+    gci%nrestraint = gci%ng3x3_restraint +&
+                     gci%ng4x6_restraint +&
+                     gci%ncolv%nrestraint
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(0.0_dp,handle)

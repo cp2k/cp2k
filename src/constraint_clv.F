@@ -87,7 +87,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_int', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first_atom
     LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
@@ -100,9 +99,9 @@ CONTAINS
     failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list=colv_list, fixd_list=fixd_list )
-    CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
+    CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Shake
-    CALL shake_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+    CALL shake_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, dt, ishake, log_unit, cell,  imass, max_sigma,&
        error )
 
@@ -139,7 +138,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -150,9 +148,9 @@ CONTAINS
     NULLIFY(fixd_list)
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
-    CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
+    CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Rattle
-    CALL rattle_colv_low ( fixd_list, colv_list, lcolv, first_atom, &
+    CALL rattle_colv_low ( fixd_list, colv_list, lcolv, &
        particle_set, vel, dt, irattle, log_unit, cell, imass, max_sigma, error )
 
   END SUBROUTINE rattle_colv_int
@@ -190,7 +188,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -201,9 +198,9 @@ CONTAINS
     NULLIFY(fixd_list)
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
-    CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
+    CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Shake
-    CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+    CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, cell,&
        imass, max_sigma, error )
 
@@ -241,7 +238,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -252,9 +248,9 @@ CONTAINS
     NULLIFY(fixd_list)
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
-    CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
+    CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Rattle
-    CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, first_atom, &
+    CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
        particle_set, vel, r_rattle, dt, irattle, log_unit, veps,  cell,&
        imass, max_sigma, error )
 
@@ -294,19 +290,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_ext', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first_atom
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
 
-    first_atom = 1
     colv_list => gci%colv_list
     fixd_list => gci%fixd_list
     lcolv => gci%lcolv
     ! Real Shake
-    CALL shake_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+    CALL shake_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, dt, ishake, log_unit, cell,  imass, max_sigma,&
        error )
 
@@ -343,19 +337,17 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
 
-    first_atom = 1
     colv_list => gci%colv_list
     fixd_list => gci%fixd_list
     lcolv => gci%lcolv
     ! Real Rattle
-    CALL rattle_colv_low ( fixd_list, colv_list, lcolv, first_atom, &
+    CALL rattle_colv_low ( fixd_list, colv_list, lcolv, &
        particle_set, vel, dt, irattle, log_unit, cell, imass, max_sigma, error )
 
   END SUBROUTINE rattle_colv_ext
@@ -393,19 +385,17 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
 
-    first_atom = 1
     colv_list => gci%colv_list
     fixd_list => gci%fixd_list
     lcolv => gci%lcolv
     ! Real Shake
-    CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+    CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, cell,&
        imass, max_sigma, error )
 
@@ -443,19 +433,17 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: first_atom
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
 
-    first_atom = 1
     colv_list => gci%colv_list
     fixd_list => gci%fixd_list
     lcolv => gci%lcolv
     ! Real Rattle
-    CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, first_atom, &
+    CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
        particle_set, vel, r_rattle, dt, irattle, log_unit, veps,  cell,&
        imass, max_sigma, error )
 
@@ -479,7 +467,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE shake_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+  SUBROUTINE shake_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, dt, ishake, log_unit, cell,  imass, max_sigma,&
        error )
     TYPE(fixd_constraint_type), &
@@ -487,7 +475,6 @@ CONTAINS
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
-    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
@@ -573,7 +560,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE rattle_colv_low ( fixd_list, colv_list, lcolv, first_atom, &
+  SUBROUTINE rattle_colv_low ( fixd_list, colv_list, lcolv, &
        particle_set, vel, dt, irattle, log_unit, cell, imass, max_sigma, error )
 
     TYPE(fixd_constraint_type), &
@@ -581,7 +568,6 @@ CONTAINS
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
-    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
@@ -649,7 +635,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE shake_roll_colv_low( fixd_list, colv_list, lcolv, first_atom, &
+  SUBROUTINE shake_roll_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, cell,&
        imass, max_sigma, error )
 
@@ -658,7 +644,6 @@ CONTAINS
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
-    INTEGER, INTENT(in)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -744,7 +729,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE rattle_roll_colv_low (fixd_list, colv_list, lcolv, first_atom, &
+  SUBROUTINE rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
        particle_set, vel, r_rattle, dt, irattle, log_unit, veps,  cell,&
        imass, max_sigma, error )
 
@@ -753,7 +738,6 @@ CONTAINS
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
-    INTEGER, INTENT(in)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : ), dt

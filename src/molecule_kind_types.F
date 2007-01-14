@@ -505,7 +505,7 @@ CONTAINS
                                nimpr,nonfo,nconstraint,nfixd,&
                                ncolv,ng3x3,ng4x6,&
                                nfixd_restraint, ng3x3_restraint, ng4x6_restraint,&
-                               nmolecule,nsgf,ntorsion,&
+                               nrestraints,nmolecule,nsgf,ntorsion,&
                                molecule_list,nelectron,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                impr_kind_set,onfo_kind_set,torsion_kind_set,&
@@ -550,7 +550,7 @@ CONTAINS
     TYPE(colvar_counters), INTENT(out), &
       OPTIONAL                               :: ncolv
     INTEGER, INTENT(OUT), OPTIONAL :: ng3x3, ng4x6, nfixd_restraint, &
-      ng3x3_restraint, ng4x6_restraint, nmolecule, nsgf, ntorsion
+      ng3x3_restraint, ng4x6_restraint, nmolecule, nsgf, ntorsion, nrestraints
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -612,6 +612,9 @@ CONTAINS
       IF (PRESENT(ng3x3_restraint)) ng3x3_restraint= molecule_kind%ng3x3_restraint
       IF (PRESENT(ng4x6_restraint)) ng4x6_restraint= molecule_kind%ng4x6_restraint
       IF (PRESENT(nfixd_restraint)) nfixd_restraint= molecule_kind%nfixd_restraint
+      IF (PRESENT(nrestraints)) nrestraints = molecule_kind%ncolv%nrestraint +&
+                                              molecule_kind%ng3x3_restraint +&
+                                              molecule_kind%ng4x6_restraint
       IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
       IF (PRESENT(ntorsion)) ntorsion= molecule_kind%ntorsion
       IF (PRESENT(nsgf)) nsgf = molecule_kind%nsgf
@@ -631,7 +634,7 @@ CONTAINS
 
   SUBROUTINE get_molecule_kind_set(molecule_kind_set,maxatom,natom,&
                                    nbond,nbend,nub,ntorsion,nimpr,nonfo,&
-                                   nconstraint,nmolecule)
+                                   nconstraint,nmolecule,nrestraints)
 
 !   Purpose: Get informations about a molecule kind set.
 
@@ -643,12 +646,12 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nbond, nbend, &
                                                 nub, ntorsion, nimpr, nonfo, &
-                                                nconstraint, nmolecule
+                                                nconstraint, nmolecule, nrestraints
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_molecule_kind_set'
 
     INTEGER :: ibend, ibond, iimpr, imolecule_kind, ionfo, itorsion, iub, na, &
-      nc, nfixd, nfixd_restraint, nm, nmolecule_kind
+      nc, nfixd, nfixd_restraint, nm, nmolecule_kind, nrestraints_tot
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
@@ -684,6 +687,7 @@ CONTAINS
                                nconstraint=nc,&
                                nfixd=nfixd,&
                                nfixd_restraint=nfixd_restraint,&
+                               nrestraints=nrestraints_tot,&
                                nmolecule=nm)
 
         IF (PRESENT(maxatom)) maxatom = MAX(maxatom,na)
@@ -696,6 +700,7 @@ CONTAINS
         IF (PRESENT(nonfo)) nonfo = nonfo + ionfo*nm
         IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + 3*(nfixd-nfixd_restraint)
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
+        IF (PRESENT(nrestraints)) nrestraints = nrestraints_tot + nfixd_restraint
 
       END DO
 

@@ -39,6 +39,7 @@ MODULE restraint
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
                                              local_colvar_constraint_type,&
                                              molecule_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -81,12 +82,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ii, ikind, imol, iparticle, iparticle_local, &
-      isubsys, k, n3x3con_restraint, n4x6con_restraint, n_restraint, &
+      isubsys, n3x3con_restraint, n4x6con_restraint, n_restraint, &
       nfixd_restraint, nkind, nmol_per_kind, nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy_3x3, energy_4x6, &
-                                                energy_colv, energy_fixd, &
-                                                rab(3), rab2, targ(3), k0
+                                                energy_colv, energy_fixd, k0, &
+                                                rab(3), rab2, targ(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force
     TYPE(cell_type), POINTER                 :: cell
@@ -98,6 +99,7 @@ CONTAINS
     TYPE(extended_energy_type), POINTER      :: extended_energies
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, &
@@ -107,6 +109,9 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
 
     failure = .FALSE.
+    NULLIFY(cell, subsys, local_molecules, local_particles, extended_energies,&
+            fixd_list, molecule_kinds, molecules, molecule_kind, molecule_kind_set,&
+            molecule, molecule_set, particles, particle_set, gci)
     CALL timeset ( routineN, 'I', ' ', handle )
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
@@ -121,12 +126,14 @@ CONTAINS
                molecules_new=molecules, &
                local_particles=local_particles,&
                local_molecules_new=local_molecules,&
+               gci=gci,&
                molecule_kinds_new=molecule_kinds ,error=error)
 
           nkind             =  molecule_kinds % n_els
           particle_set      => particles%els
           molecule_set      => molecules % els
           molecule_kind_set => molecule_kinds % els
+          ! Intramolecular Restraints
           ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
           CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
           force = 0.0_dp
@@ -171,38 +178,59 @@ CONTAINS
                 CALL get_molecule_kind ( molecule_kind,&
                                          ncolv = ncolv,  &
                                          ng3x3_restraint = n3x3con_restraint,&
-                                         ng4x6_restraint=n4x6con_restraint )
-
+                                         ng4x6_restraint = n4x6con_restraint )
                 ! 3x3
                 IF ( n3x3con_restraint /= 0 ) THEN
                       n_restraint=n_restraint+n3x3con_restraint
-                      CALL restraint_3x3( molecule, particle_set, energy_3x3, force, error )
+                      CALL restraint_3x3_int( molecule, particle_set, energy_3x3, force, error )
                 ENDIF
-
                 ! 4x6
                 IF ( n4x6con_restraint /= 0 ) THEN
                      n_restraint=n_restraint+n4x6con_restraint
-                     CALL restraint_4x6( molecule, particle_set, energy_4x6, force, error )
+                     CALL restraint_4x6_int( molecule, particle_set, energy_4x6, force, error )
                 ENDIF
-
                 ! collective variables
                 IF ( ncolv%nrestraint /= 0 ) THEN
                      n_restraint=n_restraint+ncolv%nrestraint
-                     CALL restraint_colv( molecule, particle_set, cell, energy_colv, force, error )
+                     CALL restraint_colv_int( molecule, particle_set, cell, energy_colv, force,&
+                          error )
                 ENDIF
              END DO
           END DO MOL
           CALL mp_sum(n_restraint,force_env%para_env%group)
-          CALL mp_sum(energy_fixd,force_env%para_env%group)
-          CALL mp_sum(energy_3x3,force_env%para_env%group)
-          CALL mp_sum(energy_4x6,force_env%para_env%group)
-          CALL mp_sum(energy_colv,force_env%para_env%group)
           IF (n_restraint>0) THEN
-              CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
+             CALL mp_sum(energy_fixd,force_env%para_env%group)
+             CALL mp_sum(energy_3x3,force_env%para_env%group)
+             CALL mp_sum(energy_4x6,force_env%para_env%group)
+             CALL mp_sum(energy_colv,force_env%para_env%group)
+             CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
+             force = 0.0_dp
+             n_restraint = 0
           ENDIF
-          !TL
-          !TL add here the part for intermolecular restraints
-          !TL
+          ! Intermolecular Restraints
+          IF (ASSOCIATED(gci)) THEN
+             IF (gci%nrestraint>0) THEN
+                ! 3x3
+                IF ( gci%ng3x3_restraint /= 0 ) THEN
+                   n_restraint=n_restraint+gci%ng3x3_restraint
+                   CALL restraint_3x3_ext( gci, particle_set, energy_3x3, force, error )
+                ENDIF
+                ! 4x6
+                IF ( gci%ng4x6_restraint /= 0 ) THEN
+                   n_restraint=n_restraint+gci%ng4x6_restraint
+                   CALL restraint_4x6_ext( gci, particle_set, energy_4x6, force, error )
+                ENDIF
+                ! collective variables
+                IF ( gci%ncolv%nrestraint /= 0 ) THEN
+                   n_restraint=n_restraint+gci%ncolv%nrestraint
+                   CALL restraint_colv_ext( gci, particle_set, cell, energy_colv, force,&
+                        error )
+                ENDIF
+                DO iparticle = 1, SIZE(particle_set)
+                   particle_set(iparticle)%f = particle_set(iparticle)%f + force(:,iparticle)
+                END DO
+             END IF
+          END IF
           DEALLOCATE(force,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
@@ -220,13 +248,13 @@ CONTAINS
 
   END SUBROUTINE restraint_control
 
-!!****** restraint/restraint_3x3 [1.0] *
+!!****** restraint/restraint_3x3_int [1.0] *
 !!
 !!   NAME
-!!     restraint_3x3
+!!     restraint_3x3_int
 !!
 !!   FUNCTION
-!!     Computes restraints 3x3
+!!     Computes restraints 3x3 - Intramolecular
 !!
 !!   AUTHOR
 !!     Teodoro Laino 08.2006 [tlaino]
@@ -236,7 +264,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE restraint_3x3( molecule, particle_set, energy, force, error )
+  SUBROUTINE restraint_3x3_int( molecule, particle_set, energy, force, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -245,20 +273,281 @@ CONTAINS
       INTENT(INOUT)                          :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_3x3', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_3x3_int', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b, index_c, ng3x3
-    REAL(KIND=dp)                            :: k, rab, rac, rbc, tab, tac, &
-                                                tbc
-    REAL(KIND=dp), DIMENSION(3)              :: r0_12, r0_13, r0_23
+    INTEGER                                  :: first_atom, ng3x3
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list )
+    CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, g3x3_list = g3x3_list,&
+         fixd_list = fixd_list)
     CALL get_molecule ( molecule, first_atom = first_atom )
+    CALL restraint_3x3_low( ng3x3, g3x3_list, fixd_list, first_atom, particle_set,&
+         energy, force, error )
+
+  END SUBROUTINE restraint_3x3_int
+
+!!****** restraint/restraint_4x6_int [1.0] *
+!!
+!!   NAME
+!!     restraint_4x6_int
+!!
+!!   FUNCTION
+!!     Computes restraints 4x6 - Intramolecular
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006 [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restraint_4x6_int( molecule, particle_set, energy, force, error )
+
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_4x6_int', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, ng4x6
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    molecule_kind => molecule % molecule_kind
+    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list,&
+         fixd_list=fixd_list )
+    CALL get_molecule ( molecule, first_atom = first_atom )
+    CALL restraint_4x6_low( ng4x6, g4x6_list, fixd_list, first_atom, particle_set,&
+         energy, force, error )
+
+  END SUBROUTINE restraint_4x6_int
+
+!!****** restraint/restraint_colv_int [1.0] *
+!!
+!!   NAME
+!!     restraint_colv_int
+!!
+!!   FUNCTION
+!!     Computes restraints colv - Intramolecular
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006 [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restraint_colv_int( molecule, particle_set, cell, energy, force, error )
+
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv_int', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    NULLIFY(fixd_list)    
+
+    failure = .FALSE.
+    molecule_kind => molecule % molecule_kind
+    CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
+    CALL get_molecule ( molecule, lcolv=lcolv )
+    CALL restraint_colv_low( colv_list, fixd_list, lcolv, particle_set,&
+         cell, energy, force, error )
+
+  END SUBROUTINE restraint_colv_int
+
+!!****** restraint/restraint_3x3_ext [1.0] *
+!!
+!!   NAME
+!!     restraint_3x3_ext
+!!
+!!   FUNCTION
+!!     Computes restraints 3x3 - Intermolecular
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006 [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restraint_3x3_ext( gci, particle_set, energy, force, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_3x3_ext', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, ng3x3
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
+
+    first_atom = 1
+    ng3x3     =  gci%ng3x3
+    g3x3_list => gci%g3x3_list
+    fixd_list => gci%fixd_list
+    CALL restraint_3x3_low( ng3x3, g3x3_list, fixd_list, first_atom, particle_set,&
+         energy, force, error )
+
+  END SUBROUTINE restraint_3x3_ext
+
+!!****** restraint/restraint_4x6_ext [1.0] *
+!!
+!!   NAME
+!!     restraint_4x6_ext
+!!
+!!   FUNCTION
+!!     Computes restraints 4x6 - Intermolecular
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006 [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restraint_4x6_ext( gci, particle_set, energy, force, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_4x6_ext', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, ng4x6
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
+
+    first_atom = 1
+    ng4x6     =  gci%ng4x6
+    g4x6_list => gci%g4x6_list
+    fixd_list => gci%fixd_list
+    CALL restraint_4x6_low( ng4x6, g4x6_list, fixd_list, first_atom, particle_set,&
+         energy, force, error )
+
+  END SUBROUTINE restraint_4x6_ext
+
+!!****** restraint/restraint_colv_ext [1.0] *
+!!
+!!   NAME
+!!     restraint_colv_ext
+!!
+!!   FUNCTION
+!!     Computes restraints colv - Intermolecular
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006 [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restraint_colv_ext( gci, particle_set, cell, energy, force, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv_ext', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
+
+    colv_list => gci%colv_list
+    fixd_list => gci%fixd_list
+    lcolv => gci%lcolv
+    CALL restraint_colv_low( colv_list, fixd_list, lcolv, particle_set,&
+         cell, energy, force, error )
+
+  END SUBROUTINE restraint_colv_ext
+
+!!****** restraint/restraint_3x3_low [1.0] *
+!!
+!!   NAME
+!!     restraint_3x3_low
+!!
+!!   FUNCTION
+!!     Computes restraints 3x3 - Real 3x3 restraints
+!!
+!!   AUTHOR
+!!     Teodoro Laino 08.2006 [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE restraint_3x3_low( ng3x3, g3x3_list, fixd_list, first_atom,&
+       particle_set, energy, force, error )
+
+    INTEGER                                  :: ng3x3
+    TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    INTEGER, INTENT(IN)                      :: first_atom
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_3x3_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iconst, index_a, index_b, &
+                                                index_c
+    REAL(KIND=dp)                            :: k, rab, rac, rbc, tab, tac, &
+                                                tbc
+    REAL(KIND=dp), DIMENSION(3)              :: r0_12, r0_13, r0_23
+
     DO iconst = 1, ng3x3
        IF (.NOT.g3x3_list(iconst)%restraint%active) CYCLE
        index_a = g3x3_list ( iconst ) % a + first_atom -1
@@ -281,17 +570,25 @@ CONTAINS
        force(:,index_a) = force(:,index_a) - 2.0_dp*k*( r0_12/rab*tab+r0_13/rac*tac)
        force(:,index_b) = force(:,index_b) - 2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc)
        force(:,index_c) = force(:,index_c) - 2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc)
+       ! Fixed atoms
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) force(:,index_a) = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_b)) force(:,index_b) = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_c)) force(:,index_c) = 0.0_dp
+          END IF
+       END IF
     END DO
 
-  END SUBROUTINE restraint_3x3
+  END SUBROUTINE restraint_3x3_low
 
-!!****** restraint/restraint_4x6 [1.0] *
+!!****** restraint/restraint_4x6_low [1.0] *
 !!
 !!   NAME
-!!     restraint_4x6
+!!     restraint_4x6_low
 !!
 !!   FUNCTION
-!!     Computes restraints 4x6
+!!     Computes restraints 4x6 - Real 4x6 restraints
 !!
 !!   AUTHOR
 !!     Teodoro Laino 08.2006 [tlaino]
@@ -301,32 +598,31 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE restraint_4x6( molecule, particle_set, energy, force, error )
+  SUBROUTINE restraint_4x6_low( ng4x6, g4x6_list, fixd_list, first_atom,&
+       particle_set, energy, force, error )
 
-    TYPE(molecule_type), POINTER             :: molecule
+    INTEGER                                  :: ng4x6
+    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_4x6', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_4x6_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b, index_c, index_d, &
-                                                ng4x6
+    INTEGER                                  :: iconst, index_a, index_b, &
+                                                index_c, index_d
     REAL(KIND=dp)                            :: k, rab, rac, rad, rbc, rbd, &
                                                 rcd, tab, tac, tad, tbc, tbd, &
                                                 tcd
     REAL(KIND=dp), DIMENSION(3)              :: r0_12, r0_13, r0_14, r0_23, &
                                                 r0_24, r0_34
-    TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
-    CALL get_molecule ( molecule, first_atom = first_atom )
     DO iconst = 1, ng4x6
        IF (.NOT.g4x6_list(iconst)%restraint%active) CYCLE
        index_a = g4x6_list ( iconst ) % a + first_atom -1
@@ -362,17 +658,26 @@ CONTAINS
        force(:,index_b) = force(:,index_b)-2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc+r0_24/rbd*tbd)
        force(:,index_c) = force(:,index_c)-2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc+r0_34/rcd*tcd)
        force(:,index_d) = force(:,index_d)-2.0_dp*k*(-r0_14/rad*tad-r0_24/rbd*tbd-r0_34/rcd*tcd)
+       ! Fixed atoms
+       IF (ASSOCIATED(fixd_list)) THEN
+          IF (SIZE(fixd_list)>0) THEN
+             IF (ANY(fixd_list(:)%fixd==index_a)) force(:,index_a) = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_b)) force(:,index_b) = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_c)) force(:,index_c) = 0.0_dp
+             IF (ANY(fixd_list(:)%fixd==index_d)) force(:,index_d) = 0.0_dp
+          END IF
+       END IF
     END DO
 
-  END SUBROUTINE restraint_4x6
+  END SUBROUTINE restraint_4x6_low
 
-!!****** restraint/restraint_colv [1.0] *
+!!****** restraint/restraint_colv_low [1.0] *
 !!
 !!   NAME
-!!     restraint_colv
+!!     restraint_colv_low
 !!
 !!   FUNCTION
-!!     Computes restraints colv
+!!     Computes restraints colv - Real COLVAR restraints
 !!
 !!   AUTHOR
 !!     Teodoro Laino 08.2006 [tlaino]
@@ -382,9 +687,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE restraint_colv( molecule, particle_set, cell, energy, force, error )
+  SUBROUTINE restraint_colv_low( colv_list, fixd_list, lcolv, &
+       particle_set, cell, energy, force, error )
 
-    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: energy
@@ -392,25 +702,16 @@ CONTAINS
       INTENT(INOUT)                          :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first_atom, iatm, iconst, ind
+    INTEGER                                  :: iatm, iconst, ind
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: k, tab, targ
-    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    TYPE(local_colvar_constraint_type), &
-      POINTER                                :: lcolv( : )
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(fixd_list)    
 
     failure = .FALSE.
-    molecule_kind => molecule % molecule_kind
-    CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
-    CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
     DO iconst = 1, SIZE(colv_list)
        IF (.NOT.colv_list(iconst)%restraint%active) CYCLE
        ! Update colvar
@@ -429,6 +730,6 @@ CONTAINS
        END DO
     END DO
 
-  END SUBROUTINE restraint_colv
+  END SUBROUTINE restraint_colv_low
 
 END MODULE restraint
