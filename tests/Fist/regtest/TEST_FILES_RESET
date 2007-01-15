@@ -239,3 +239,5 @@ nh3-restraint-fixd.inp
 nh3-restraint-fixd.inp
 # numerical error.. getting ready for intermolecular constraints
 water_3_g3x3.inp
+# resetting due to cvs problem with the server (created a wrong reference)
+H2O-restraint_1_ext.inp

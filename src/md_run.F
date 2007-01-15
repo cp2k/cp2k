@@ -283,8 +283,8 @@ CONTAINS
        !
        NULLIFY(work_section)
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
-       CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
-
+       CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,&
+            cell,work_section=work_section,error=error)
        CALL virial_set ( virial,pv_availability=simpar%pv_availability,&
                          pv_numer=simpar%pv_numerical)
        !
@@ -429,7 +429,7 @@ CONTAINS
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
       DO ibead=1,nbeads
-        CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
+        CALL temperature_control(simpar,force_env_p(ibead)%force_env,logger,error)
       END DO
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
@@ -491,8 +491,8 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,error)
 
     CALL md_energy ( md_env, error ) ! also writes trajectories
 
-    CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
-                 error=error)
+    CALL write_restart(md_env=md_env,root_section=root_section,&
+         force_env_section=force_env_section,error=error)
 
     CALL timestop(handle)
 
@@ -500,7 +500,7 @@ END SUBROUTINE md_output
 
 ! *****************************************************************************
 
-  SUBROUTINE temperature_control(simpar,force_env,error)
+  SUBROUTINE temperature_control(simpar,force_env,logger, error)
 
     ! Perform all temperature manipulations during a QS MD run.
 
@@ -518,7 +518,7 @@ END SUBROUTINE md_output
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
-                                                isubsys, natom
+                                                isubsys, natom, iw
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e_kinetic, mass, scale, &
@@ -538,15 +538,15 @@ END SUBROUTINE md_output
 
     NULLIFY(atomic_kind,atomic_kinds,particles,atom_list,subsys,para_env)
 
-    logger => cp_error_get_logger(error)
-
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 
     IF (simpar%temp_tol > 0.0_dp) THEN
 
       CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
-
+      iw = cp_print_key_unit_nr(logger,force_env%root_section,&
+           "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+           extension=".mdLog",error=error)
       DO isubsys=1,SIZE(subsys)
 
         CALL cp_subsys_get(subsys(isubsys)%subsys,&
@@ -584,9 +584,8 @@ END SUBROUTINE md_output
 
       temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
 
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-        WRITE (UNIT=cp_logger_get_default_unit_nr(logger),&
-               FMT="(/,T2,A,(T58,A3,F20.10))")&
+      IF (iw>0) THEN
+        WRITE (UNIT=iw,FMT="(/,T2,A,(T58,A3,F20.10))")&
           "Centre of mass motion (COM):","x =",vcom(1)/total_mass,&
                                          "y =",vcom(2)/total_mass,&
                                          "z =",vcom(3)/total_mass
@@ -620,15 +619,15 @@ END SUBROUTINE md_output
 
         END DO
 
-        IF (logger%para_env%mepos == logger%para_env%source) THEN
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),&
-                 FMT="(/,T2,A,F10.2,A,F10.2,A)")&
+        IF (iw>0) THEN
+          WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
             "Temperature scaled to requested temperature:",&
             temperature*kelvin," K  ->",simpar%temp_ext*kelvin," K"
         END IF
 
       END IF
-
+      CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
+           "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)
