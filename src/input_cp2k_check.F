@@ -38,8 +38,9 @@ MODULE input_cp2k_check
   USE input_section_types,             ONLY: &
        section_release, section_type, section_vals_create, section_vals_get, &
        section_vals_get_subs_vals, section_vals_get_subs_vals3, &
-       section_vals_release, section_vals_set_subs_vals, section_vals_type, &
-       section_vals_val_get, section_vals_val_set
+       section_vals_release, section_vals_remove_values, &
+       section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
+       section_vals_val_set, section_vals_val_unset
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -53,7 +54,7 @@ MODULE input_cp2k_check
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_check'
 
-  PUBLIC :: check_cp2k_input, xc_functionals_expand
+  PUBLIC :: check_cp2k_input, xc_functionals_expand, remove_restart_info
 
 !!***
 !****************************************************************************
@@ -541,6 +542,151 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
   END IF
     CALL timestop(handle)
 END SUBROUTINE handle_ext_restart
+!***************************************************************************
+
+!!****f* input_cp2k_check/remove_restart_info *
+!!
+!!   NAME
+!!     remove_restart_info
+!!
+!!   FUNCTION
+!!     Removes section used to restart a calculation from an
+!!     input file in memory
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_file: the input file to initialize
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+SUBROUTINE remove_restart_info(input_file,error)
+    TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'remove_restart_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iforce_eval, &
+                                                nforce_eval1
+    LOGICAL                                  :: explicit1, failure
+    TYPE(section_vals_type), POINTER         :: section1, section_to_delete, &
+                                                sections1, work_section
+
+  CALL timeset(routineN,handle)
+
+  failure=.FALSE. 
+  NULLIFY(work_section)
+  IF (.NOT. failure) THEN
+     section_to_delete => section_vals_get_subs_vals(input_file,"EXT_RESTART",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     sections1  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
+     CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
+
+     DO iforce_eval = 1, nforce_eval1
+        section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
+             i_rep_section=iforce_eval,error=error)
+        section_to_delete => section_vals_get_subs_vals(section1,"COORD",error=error)
+        CALL section_vals_remove_values(section_to_delete,error)
+        section_to_delete => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
+        CALL section_vals_remove_values(section_to_delete,error)
+     END DO
+     work_section => section_vals_get_subs_vals(input_file,"MOTION%MD",error=error)
+     CALL section_vals_get(work_section,explicit=explicit1,error=error)
+     IF (explicit1) THEN
+        CALL section_vals_val_unset(input_file,"MOTION%MD%STEP_START_VAL",error=error)
+        CALL section_vals_val_unset(input_file,"MOTION%MD%TIME_START_VAL",error=error)
+     END IF
+     work_section => section_vals_get_subs_vals(input_file,"MOTION%METADYN",error=error)
+     CALL section_vals_get(work_section,explicit=explicit1,error=error)
+     IF (explicit1) THEN
+        CALL section_vals_val_unset(input_file,"MOTION%METADYN%STEP_START_VAL",error=error)
+        CALL section_vals_val_unset(input_file,"MOTION%METADYN%NHILLS_START_VAL",error=error)
+     END IF
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%NEB%REPLICA",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%NEB%REPLICA",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%BAROSTAT%MASS",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%BAROSTAT%VELOCITY",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%BAROSTAT%NOSE%COORD",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%BAROSTAT%NOSE%VELOCITY",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%BAROSTAT%NOSE%MASS",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%BAROSTAT%NOSE%FORCE",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%COORD",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%VELOCITY",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%NOSE%COORD",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%NOSE%VELOCITY",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%NOSE%MASS",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%KG_COEFF%NOSE%FORCE",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%NOSE%COORD",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%NOSE%VELOCITY",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%NOSE%MASS",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%MD%NOSE%FORCE",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     ! Constrained/Restrained section not reset.. to be done externally..
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%METADYN%SPAWNED_HILLS_POS",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%METADYN%SPAWNED_HILLS_AMPL",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%METADYN%EXT_LAGRANGE_SS0",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+     section_to_delete => section_vals_get_subs_vals(input_file,&
+          "MOTION%METADYN%EXT_LAGRANGE_VVP",error=error)
+     CALL section_vals_remove_values(section_to_delete,error)
+  END IF
+  CALL timestop(handle)
+END SUBROUTINE remove_restart_info
 !***************************************************************************
 
 END MODULE input_cp2k_check

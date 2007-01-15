@@ -38,27 +38,33 @@ MODULE neb_utils
                                              parser_get_next_line,&
                                              parser_get_object,&
                                              parser_release
+  USE f77_interface,                   ONLY: f_env_add_defaults,&
+                                             f_env_rm_defaults,&
+                                             f_env_type
+  USE force_env_types,                 ONLY: force_env_get
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_b_neb,&
                                              do_ci_neb,&
                                              do_eb,&
                                              do_it_neb
+  USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
   USE mathlib,                         ONLY: matvec_3x3
+  USE md_run,                          ONLY: qs_mol_dyn
   USE neb_IO,                          ONLY: dump_replica_coordinates
   USE neb_md_utils,                    ONLY: neb_initialize_velocity
   USE neb_types,                       ONLY: neb_type
   USE particle_types,                  ONLY: particle_type
-  USE replica_types,                   ONLY: rep_env_calc_e_f,&
-                                             replica_env_type
+  USE replica_types,                   ONLY: replica_env_type,&
+                                             rep_env_calc_e_f
   USE rmsd,                            ONLY: rmsd3
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -340,13 +346,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
-    INTEGER                                  :: handle, i, icoor, il, irep, &
-                                                ireplica, j, n_rep, &
+    INTEGER                                  :: handle, i, irep, j, n_rep, &
                                                 n_rep_neb, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, sd, tmp, tmp2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tangent, tmp_a, tmp_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Xtmp
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -366,6 +369,8 @@ CONTAINS
              END IF
           END DO
           CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
+          ! Free Energy case.. Work in progress - teo 01.2007
+          ! CALL perform_replica_md(rep_env, coords, irep, n_rep_neb, error)
           DO j = 0, n_rep-1
              IF (irep+j <= n_rep_neb) THEN
                 forces(:,irep+j) = rep_env%f(1:rep_env%ndim,j+1)
@@ -394,43 +399,6 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! Then modify image forces accordingly to the scheme chosen for the
           ! calculation.
-          IF (debug_this_module) THEN
-             neb_env%spring_energy = 0.0_dp
-             forces = 0.0_dp
-             DO i = 2, SIZE(coords,2)
-                CALL get_tangent(neb_env,coords,i,tangent,energies,output_unit,error)
-                CALL get_neb_force(neb_env,tangent,coords,i,forces,iw=output_unit,error=error)
-             END DO
-             WRITE(*,'(3F15.9)')forces
-             ALLOCATE(xtmp(SIZE(forces,1),SIZE(forces,2)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             dx = 0.0001_dp
-             DO ireplica = 1, SIZE(coords,2)
-                DO icoor = 1, SIZE(coords,1)
-                   tmp   = coords(icoor,ireplica)
-                   tmp2  = 0.0_dp
-                   DO il = 0,1
-                      coords(icoor,ireplica) = tmp + (-1)**il *dx
-                      sd = 0.0_dp
-                      DO i = 2, SIZE(coords,2)
-                         sd = sd + DOT_PRODUCT(coords(:,i)-coords(:,i-1),coords(:,i)-coords(:,i-1))
-                      END DO
-                      neb_env%avg_distance  = SQRT(sd/REAL(SIZE(coords,2)-1,KIND=dp))
-                      neb_env%spring_energy = 0.0_dp
-                      xtmp = 0.0_dp
-                      DO i = 2, SIZE(coords,2)
-                         CALL get_tangent(neb_env,coords,i,tangent,energies,output_unit,error)
-                         CALL get_neb_force(neb_env,tangent,coords,i,xtmp,iw=output_unit,error=error)
-                      END DO
-                      tmp2 = tmp2 + (-1)**il * neb_env%spring_energy
-                   END DO
-                   coords(icoor,ireplica) = tmp
-                   WRITE(*,'(2I6,3F15.9)')icoor,ireplica,forces(icoor,ireplica),-tmp2/(2.0_dp*dx),&
-                        forces(icoor,ireplica)+tmp2/(2.0_dp*dx)
-                END DO
-             END DO
-             CALL stop_program(TRIM(routineP),"DEBUG RUN - Normal CP2K stop!")
-          END IF
           neb_env%spring_energy = 0.0_dp
           IF (neb_env%optimize_end_points) THEN
              ALLOCATE(tmp_a(SIZE(forces,1)),stat=stat)
@@ -462,6 +430,72 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE neb_calc_energy_forces
+
+!!****f* neb_utils/perform_replica_md [1.0] *
+!!
+!!   NAME
+!!     perform_replica_md
+!!
+!!   FUNCTION
+!!     Driver to perform an MD run on each single replica to 
+!!     compute specifically Free Energies in a NEB scheme
+!!
+!!   NOTES
+!!
+!!
+!!   AUTHOR
+!!     Teodoro Laino  01.2007
+!!
+!!   MODIFICATION HISTORY
+!!             
+!!
+!!   SOURCE
+!****************************************************************************
+  SUBROUTINE perform_replica_md(rep_env, coords, irep, n_rep_neb, error)
+    TYPE(replica_env_type), POINTER          :: rep_env
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
+    INTEGER, INTENT(IN)                      :: irep, n_rep_neb
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_md', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, handle2, i, ierr, j
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
+
+    CALL timeset(routineN,"I","",handle)
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+            new_error=new_error, failure=failure, handle=handle2)
+       logger => cp_error_get_logger(new_error)
+       CALL force_env_get(f_env%force_env,globenv=globenv,&
+            root_section=root_section,error=new_error)
+       j=rep_env%local_rep_indices(1)-1
+       ! Syncronize position on the replica procs
+       CALL cp_set_pos(rep_env%f_env_id,rep_env%r(:,j+1),&
+            3*rep_env%nat,ierr)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       !
+       IF (irep+j <= n_rep_neb) THEN
+          logger%iter_info%iteration(2)=irep+j
+          CALL remove_restart_info(root_section,error=new_error)
+          CALL section_vals_val_set(root_section,"MOTION%MD%STEPS",i_val=(irep+j)*1,&
+               error=new_error)
+          CALL qs_mol_dyn(f_env%force_env,globenv=globenv,error=new_error)
+       END IF
+       CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       ! Copy Back Free Energies forces
+       ! Work in progress - teo 01.2007
+    END IF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE perform_replica_md
 
 !!****f* neb_utils/get_tangent [1.0] *
 !!

@@ -155,6 +155,7 @@ CONTAINS
        IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
+       CPPostcondition(SIZE(rep_env%local_rep_indices)==1,cp_failure_level,routineP,error,failure)
        IF (debug_this_module) THEN
           CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                error=error)

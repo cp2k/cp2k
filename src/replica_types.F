@@ -102,7 +102,7 @@ MODULE replica_types
   !!     - para_env_inter_rep: parallel environment between processors
   !!       on the same row of cart
   !!     - col_rank: mapping column -> rank in para_env_inter_rep
-  !!     - local_rep_indices: indices of the local replicas
+  !!     - local_rep_indices: indices of the local replicas, starting at 1
   !!     - wf_history: wavefunction history for the owned replicas
   !!     - keep_wf_history: if the wavefunction history for the owned replicas
   !!       should be kept
