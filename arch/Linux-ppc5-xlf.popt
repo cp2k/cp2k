@@ -8,9 +8,42 @@ DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL\
            -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5
+FCFLAGS2 = -O0 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5
 LDFLAGS  = $(FCFLAGS) -L/apps/lapack-3/64/lib -L/apps/scalapack/64/lib
 
 LIBS     = -lscalapack /apps/scalapack/64/lib/blacsF77init_MPI-ppc64-0.a /apps/scalapack/64/lib/blacs_MPI-ppc64-0.a\
            -llapack_ppc64 -lessl /opt/ibmcmp/xlmass/4.3/lib64/libmass_64.a
 
 OBJECTS_ARCHITECTURE = machine_aix.o
+
+### To speed up compilation time ###
+pint_types.o: pint_types.f90
+	$(FC) -c $(FCFLAGS2) $<
+md_run.o: md_run.f90
+	$(FC) -c $(FCFLAGS2) $<
+kg_energy.o: kg_energy.f90
+	$(FC) -c $(FCFLAGS2) $<
+integrator.o: integrator.f90
+	$(FC) -c $(FCFLAGS2) $<
+geo_opt.o: geo_opt.f90
+	$(FC) -c $(FCFLAGS2) $<
+qmmm_init.o: qmmm_init.f90
+	$(FC) -c $(FCFLAGS2) $<
+cp2k_runs.o: cp2k_runs.f90
+	$(FC) -c $(FCFLAGS2) $<
+mc_ensembles.o: mc_ensembles.f90
+	$(FC) -c $(FCFLAGS2) $<
+ep_methods.o: ep_methods.f90
+	$(FC) -c $(FCFLAGS2) $<
+mc_ge_moves.o: mc_ge_moves.f90
+	$(FC) -c $(FCFLAGS2) $<
+force_env_methods.o: force_env_methods.f90
+	$(FC) -c $(FCFLAGS2) $<
+cp_lbfgs_optimizer_gopt.o: cp_lbfgs_optimizer_gopt.f90
+	$(FC) -c $(FCFLAGS2) $<
+mc_types.o: mc_types.f90
+	$(FC) -c $(FCFLAGS2) $<
+f77_interface.o: f77_interface.f90
+	$(FC) -c $(FCFLAGS2) $<
+mc_moves.o: mc_moves.f90
+	$(FC) -c $(FCFLAGS2) $<
