@@ -402,8 +402,9 @@ CONTAINS
 
     INTEGER                                  :: i, np, stat
     LOGICAL                                  :: failure
+    ! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3 
     REAL(KIND=dp)                            :: a, b, max_stepsize, xa, xb, &
-                                                xc, ya, yb
+                                                xc_cray, ya, yb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Icoord
 
@@ -417,7 +418,7 @@ CONTAINS
        xa = 0.0_dp
        ya = SUM(sline*forces)
        xb = xa + MIN(SUM(sline*forces)*stepsize,max_stepsize)
-       xc = xb
+       xc_cray = xb
        i  = 1
        DO WHILE (i<=np-1)
           i = i + 1
@@ -430,16 +431,16 @@ CONTAINS
           yb = SUM(sline*forces)
           a  = (ya-yb)/(2.0_dp*(xa-xb))
           b  = ya - 2.0_dp*a*xa
-          xc = -b/(2.0_dp*a)
-          IF (xc>max_stepsize) THEN
+          xc_cray = -b/(2.0_dp*a)
+          IF (xc_cray>max_stepsize) THEN
              IF (output_unit>0) WRITE(output_unit,'(T2,2(A,F6.3),A)')&
-                  "LS| Predicted stepsize (",xc,") greater than allowed stepsize (",&
+                  "LS| Predicted stepsize (",xc_cray,") greater than allowed stepsize (",&
                   max_stepsize,").  Reset!"
-             xc = max_stepsize
+             xc_cray = max_stepsize
              EXIT
           END IF
           ! No Extrapolation .. only interpolation
-          IF ((xc<=MIN(xa,xb) .OR. xc>=MAX(xa,xb)).AND.(ABS(xa-xb)>1.0E-5_dp)) THEN
+          IF ((xc_cray<=MIN(xa,xb) .OR. xc_cray>=MAX(xa,xb)).AND.(ABS(xa-xb)>1.0E-5_dp)) THEN
              IF (output_unit>0) WRITE(output_unit,'(T2,2(A,I5),A)')&
                   "LS| Increasing the number of point from ",np," to ",np+1,"."
              np = np + 1
@@ -449,9 +450,9 @@ CONTAINS
              ya = yb
              xa = xb
           END IF
-          xb = xc
+          xb = xc_cray
        END DO
-       stepsize = xc
+       stepsize = xc_cray
        coords = Icoord
        DEALLOCATE(Icoord,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
