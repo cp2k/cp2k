@@ -1,0 +1,66 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      CUTOFF 250
+      REL_CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 2
+      SCF_GUESS ATOMIC
+    &END SCF
+#These are the coefficients used for BHandHLyp    
+    &XC
+      &XC_FUNCTIONAL
+       &LYP
+         SCALE_C 1.0
+       &END LYP
+       &BECKE88
+         SCALE_X 0.5
+       &END BECKE88
+      &END XC_FUNCTIONAL
+      &HF
+       EPS_SCHWARZ 1.0E-16 
+       MAX_MEMORY  100 
+       FRACTION 0.5
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+            ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+#  TRACE
+  FFTLIB FFTSG
+  PROJECT gapw_all_pade
+  PRINT_LEVEL MEDIUM 
+&END GLOBAL

@@ -64,3 +64,6 @@ CO_xastpxfh.inp
 CO_xastpval.inp
 # improved full all
 He2-all-md.inp
+# numerics in xc
+CO_xastpxhh.inp
+CO_xastpval.inp

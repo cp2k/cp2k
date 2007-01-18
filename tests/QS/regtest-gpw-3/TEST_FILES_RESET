@@ -76,3 +76,6 @@ H2O-bloechl-Spl.inp
 H2O-solv.inp
 He2H-bloechl-md.inp
 dynamics.inp
+# numerics by reording in xc functionals
+dynamics.inp
+
