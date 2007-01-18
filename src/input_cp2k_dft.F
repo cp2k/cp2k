@@ -1946,6 +1946,12 @@ CONTAINS
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -1956,6 +1962,11 @@ CONTAINS
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_c",&
+            description="scales the correlation part of the functional",&
+            default_r_val=1._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -2000,6 +2011,11 @@ CONTAINS
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -2074,6 +2090,11 @@ CONTAINS
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_c",&
+            description="scales the correlation part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -2125,6 +2146,11 @@ CONTAINS
             default_i_val=pz_orig,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_c",&
+            description="scales the correlation part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -2161,6 +2187,11 @@ CONTAINS
             lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_c",&
+            description="scales the correlation part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -2177,6 +2208,11 @@ CONTAINS
             description="Value of the xa parameter (this does not change the exponent, "//&
             "just the mixing)",&
             usage="XA 0.7", default_r_val=2._dp/3._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -2646,6 +2682,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
 
@@ -2656,7 +2693,7 @@ CONTAINS
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword, print_key)
 
        CALL keyword_create(keyword, name="FRACTION",&
             description="The fraction of Hartree-Fock to add to the total energy. "//&
@@ -2677,7 +2714,13 @@ CONTAINS
             usage="MAX_MEMORY 512", default_i_val=512,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
+ 
+       CALL cp_print_key_section_create(print_key,"HF_INFO",&
+            description="Controls the printing basic info about hf method", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
     END IF
   END SUBROUTINE create_hf_section
 !***************************************************************************

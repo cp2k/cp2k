@@ -321,15 +321,15 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      SELECT CASE(functional%section%name)
      CASE("BECKE88")
         IF (lsd) THEN
-           CALL xb88_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL xb88_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
-           CALL xb88_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL xb88_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         END IF
      CASE("LYP")
         IF (lsd) THEN
-           CALL lyp_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL lyp_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
-           CALL lyp_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL lyp_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         END IF
      CASE("PADE")
         CALL pade(density_cut)
@@ -345,9 +345,9 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL hcth_lda_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
      CASE("OPTX")
         IF (lsd) THEN
-           CALL optx_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL optx_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
-           CALL optx_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL optx_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ENDIF
      CASE("CS1")
         IF (lsd) THEN
@@ -369,7 +369,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         END IF
      CASE("P86C")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL p86_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        CALL p86_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
      CASE("PW92")
         CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
              error=error)
@@ -386,9 +386,9 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
              error=error)
         IF (lsd) THEN
-           CALL pz_lsd_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lsd_eval(i_param,rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
-           CALL pz_lda_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lda_eval(i_param,rho_set,deriv_set,deriv_order,functional,error=error)
         END IF
      CASE("TFW")
         IF (lsd) THEN
@@ -404,16 +404,16 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         END IF        
      CASE("VWN")
         CPPrecondition(.NOT.lsd,cp_failure_level,routineP,error,failure)
-        CALL vwn_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        CALL vwn_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
      CASE("XALPHA")
         CALL section_vals_val_get(functional,"XA",r_val=r_param,&
              error=error)
         IF (lsd) THEN
            CALL xalpha_lsd_eval(rho_set,deriv_set,deriv_order,&
-                xa_parameter=r_param,error=error)
+                xa_parameter=r_param,xa_params=functional,error=error)
         ELSE
            CALL xalpha_lda_eval(rho_set,deriv_set,deriv_order,&
-                xa_parameter=r_param,error=error)
+                xa_parameter=r_param,xa_params=functional,error=error)
         END IF
      CASE("TPSS")
         IF (lsd) THEN

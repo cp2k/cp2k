@@ -24,6 +24,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_lyp
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
@@ -198,6 +200,7 @@ END SUBROUTINE lyp_lsd_info
 !!     - grad_deriv: degree of the derivative that should be evalated,
 !!       if positive all the derivatives up to the given degree are evaluated,
 !!       if negative only the given degree is calculated
+!!     - lyp_params: input parameters (scaling)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -206,12 +209,14 @@ END SUBROUTINE lyp_lsd_info
 !!
 !!   MODIFICATION HISTORY
 !!     11.2003 created [fawzi]
+!!     01.2007 added scaling [Manuel Guidon]
 !!
 !!*** **********************************************************************
-SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
+SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
+    TYPE(section_vals_type), POINTER         :: lyp_params
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lda_eval', &
@@ -220,7 +225,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho, sc
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, &
       e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
@@ -230,6 +235,8 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
 
   failure=.FALSE.
   NULLIFY(bo)
+
+  CALL section_vals_val_get(lyp_params,"scale_c",r_val=sc,error=error)
 
   CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -311,7 +318,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
           e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
           e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
           grad_deriv=grad_deriv,&
-          npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
+          npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,sc=sc,&
           error=error)
 
      IF (cp_debug) THEN
@@ -351,6 +358,7 @@ END SUBROUTINE lyp_lda_eval
 !!     - grad_deriv: degree of the derivative that should be evalated,
 !!       if positive all the derivatives up to the given degree are evaluated,
 !!       if negative only the given degree is calculated
+!!     - sc: scaling-parameter for correlation
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -359,19 +367,20 @@ END SUBROUTINE lyp_lda_eval
 !!
 !!   MODIFICATION HISTORY
 !!     11.2003 created [fawzi]
+!!     01.2007 added scaling [Manuel Guidon]
 !!
 !!*** **********************************************************************
 SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,error)
+     grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,sc,error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: e_ndrho_ndrho_rho, &
       e_ndrho_rho_rho, e_rho_rho_rho, e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, &
       e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho, sc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lda_calc', &
@@ -415,10 +424,9 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
            t39 = t38 ** 2
            t40 = 0.1e1_dp / t39
            t41 = t37 * t40
-
+           
            e_0(ii) = e_0(ii)&
-                + t4 * t41 / 0.72e2_dp
-
+                + ( t4 * t41 / 0.72e2_dp ) * sc
            t44 = 0.1e1_dp / t1 / t5
            t45 = a * t44
            t48 = my_rho_1_3 * t5
@@ -451,9 +459,9 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
            t106 = t37 * t105
 
            e_rho(ii) = e_rho(ii) &
-                -0.5e1_dp / 0.216e3_dp * t45 * t41 + t4 * t99 / 0.72e2_dp&
-                & - t103 * t106 / 0.108e3_dp
-
+                 - ( 0.5e1_dp / 0.216e3_dp * t45 * t41 - t4 * t99 / 0.72e2_dp&
+                & + t103 * t106 / 0.108e3_dp) * sc
+            
            t112 = my_rho_1_3 * my_ndrho
            t123 = 0.6e1_dp * t14 * t1 * my_ndrho + 0.20e2_dp * t14 * t112 &
                 &* d + 0.14e2_dp * t14 * t112 * c + 0.14e2_dp * t14 *&
@@ -461,7 +469,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
            t124 = t123 * t40
 
            e_ndrho(ii) = e_ndrho(ii)&
-                +t4 * t124 / 0.72e2_dp
+                + ( t4 * t124 / 0.72e2_dp ) * sc 
         END IF
      END DO
   CASE default
@@ -493,7 +501,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
 
            IF (grad_deriv>=0) THEN
               e_0(ii) = e_0(ii)&
-                   + t4 * t41 / 0.72e2_dp
+                   + ( t4 * t41 / 0.72e2_dp ) * sc
            END IF
 
            t44 = 0.1e1_dp / t1 / t5
@@ -534,10 +542,10 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
 
            IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
               e_rho(ii) = e_rho(ii) &
-                   -0.5e1_dp / 0.216e3_dp * t45 * t41 + t4 * t99 / 0.72e2_dp&
-                   & - t103 * t106 / 0.108e3_dp
+                   - ( 0.5e1_dp / 0.216e3_dp * t45 * t41 - t4 * t99 / 0.72e2_dp&
+                   & + t103 * t106 / 0.108e3_dp ) * sc
               e_ndrho(ii) = e_ndrho(ii)&
-                   +t4 * t124 / 0.72e2_dp
+                   + ( t4 * t124 / 0.72e2_dp ) * sc
            END IF
 
            t127 = 0.1e1_dp / t1 / t6
@@ -585,15 +593,15 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
 
            IF (grad_deriv>=2 .OR.grad_deriv==-2) THEN
               e_rho_rho(ii) = e_rho_rho(ii)&
-                   +0.5e1_dp / 0.81e2_dp * t128 * t41 - 0.5e1_dp / 0.108e3_dp&
+                   + ( 0.5e1_dp / 0.81e2_dp * t128 * t41 - 0.5e1_dp / 0.108e3_dp&
                    & * t45 * t99 + t134 * t106 / 0.27e2_dp + t4 * t193 /&
                    & 0.72e2_dp - t103 * t196 / 0.54e2_dp + t200 * t203 /&
-                   & 0.108e3_dp
+                   & 0.108e3_dp ) * sc
               e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                   -0.5e1_dp / 0.216e3_dp * t45 * t124 + t4 * t228 /&
-                   & 0.72e2_dp - t103 * t231 / 0.108e3_dp
+                   - ( 0.5e1_dp / 0.216e3_dp * t45 * t124 - t4 * t228 /&
+                   & 0.72e2_dp + t103 * t231 / 0.108e3_dp ) * sc
               e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                   +t4 * t246 / 0.72e2_dp
+                   + ( t4 * t246 / 0.72e2_dp ) * sc
            END IF
 
            t248 = t5 ** 2
@@ -618,15 +626,15 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
 
            IF (grad_deriv>=3 .OR. grad_deriv==-3) THEN
               e_rho_rho_rho(ii) = e_rho_rho_rho(ii)&
-                   -0.55e2_dp / 0.243e3_dp * a / t1 / t248 * t41 + 0.5e1_dp &
-                   &/ 0.27e2_dp * t128 * t99 - 0.40e2_dp / 0.243e3_dp * a /&
-                   & my_rho_1_3 / t248 * t106 - 0.5e1_dp / 0.72e2_dp * t45 *&
-                   & t193 + t134 * t196 / 0.9e1_dp - 0.7e1_dp / 0.108e3_dp *&
-                   & a * t265 * t203 + t4 * t332 * t40 / 0.72e2_dp - t103 *&
-                   & t192 * t105 / 0.36e2_dp + t200 * t98 * t202 / 0.36e2_dp &
-                   &- t128 * t37 / t201 / t38 / 0.81e2_dp
+                   - ( 0.55e2_dp / 0.243e3_dp * a / t1 / t248 * t41 - 0.5e1_dp &
+                   &/ 0.27e2_dp * t128 * t99 + 0.40e2_dp / 0.243e3_dp * a /&
+                   & my_rho_1_3 / t248 * t106 + 0.5e1_dp / 0.72e2_dp * t45 *&
+                   & t193 - t134 * t196 / 0.9e1_dp + 0.7e1_dp / 0.108e3_dp *&
+                   & a * t265 * t203 - t4 * t332 * t40 / 0.72e2_dp + t103 *&
+                   & t192 * t105 / 0.36e2_dp - t200 * t98 * t202 / 0.36e2_dp &
+                   &+ t128 * t37 / t201 / t38 / 0.81e2_dp ) * sc
               e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
-                   +0.5e1_dp / 0.81e2_dp * t128 * t124 - 0.5e1_dp /&
+                   + ( 0.5e1_dp / 0.81e2_dp * t128 * t124 - 0.5e1_dp /&
                    & 0.108e3_dp * t45 * t228 + t134 * t231 / 0.27e2_dp + t4 *&
                    & (-0.28e2_dp / 0.9e1_dp * t52 * t161 * my_ndrho -&
                    & 0.22e2_dp / 0.9e1_dp * t88 * t166 * my_ndrho - 0.4e1_dp &
@@ -635,14 +643,14 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
                    & 0.9e1_dp * t14 * t3 * my_ndrho * d + 0.14e2_dp /&
                    & 0.9e1_dp * t184 * t185 * my_ndrho + 0.14e2_dp / 0.9e1_dp&
                    & * t189 * t215) * t40 / 0.72e2_dp - t103 * t227 * t105 /&
-                   & 0.54e2_dp + t200 * t123 * t202 / 0.108e3_dp
+                   & 0.54e2_dp + t200 * t123 * t202 / 0.108e3_dp ) * sc
               e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
-                   -0.5e1_dp / 0.216e3_dp * t45 * t246 + t4 * (0.20e2_dp /&
+                   - ( 0.5e1_dp / 0.216e3_dp * t45 * t246 - t4 * (0.20e2_dp /&
                    & 0.3e1_dp * t52 * t70 + 0.4e1_dp * t14 * t11 + 0.20e2_dp &
                    &/ 0.3e1_dp * t52 * t89 * d + 0.20e2_dp / 0.3e1_dp * t14 *&
                    & t69 * d + 0.14e2_dp / 0.3e1_dp * t88 * t89 + 0.14e2_dp /&
-                   & 0.3e1_dp * t88 * t94 * t13 * d) * t40 / 0.72e2_dp - t103&
-                   & * t245 * t105 / 0.108e3_dp
+                   & 0.3e1_dp * t88 * t94 * t13 * d) * t40 / 0.72e2_dp + t103&
+                   & * t245 * t105 / 0.108e3_dp ) * sc
            END IF
         END IF
 
@@ -848,7 +856,7 @@ END SUBROUTINE lyp_lda_calc
 !!     -
 !!
 !!   ARGUMENTS
-!!     - 
+!!     - lyp_params: input parameter (scaling) 
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -857,12 +865,14 @@ END SUBROUTINE lyp_lda_calc
 !!
 !!   MODIFICATION HISTORY
 !!     11.2003 created [fawzi]
+!!     01.2007 added scaling [Manuel Guidon]
 !!
 !!*** **********************************************************************
-SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
+SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
+    TYPE(section_vals_type), POINTER         :: lyp_params 
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lsd_eval', &
@@ -871,7 +881,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sc
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
       e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, &
       e_ndra_rb, e_ndrb, e_ndrb_ndrb, e_ndrb_ra, e_ndrb_rb, e_ra, e_ra_ra, &
@@ -881,6 +891,8 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
     CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(deriv, bo)
+
+  CALL section_vals_val_get(lyp_params,"scale_c",r_val=sc,error=error)
 
   CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -989,7 +1001,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
           e_ra_rb=e_ra_rb, e_rb_rb=e_rb_rb, e_ndr_ra=e_ndr_ra,&
           e_ndr_rb=e_ndr_rb,&
           grad_deriv=grad_deriv, npoints=npoints, &
-          epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,error=error)
+          epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,sc=sc,error=error)
 
      IF (cp_debug) THEN
         DEALLOCATE(dummy,stat=stat)
@@ -1020,6 +1032,7 @@ END SUBROUTINE lyp_lsd_eval
 !!     - e_0: adds to it the local value of the functional
 !!     - e_*_spin: derivative of the functional wrt. to the variables
 !!       named where the * is. Everything wrt. to the spin of the arguments.
+!!     - sc: scaling parameter for correlation
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1034,15 +1047,16 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      e_0, e_ra, e_rb, e_ndra_ra, e_ndra_rb, e_ndrb_ra, e_ndrb_rb, e_ndr_ndr,&
      e_ndra_ndra, e_ndrb_ndrb, e_ndr,&
      e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ndr_ra, e_ndr_rb,&
-     grad_deriv,npoints,epsilon_rho,epsilon_drho,error)
+     grad_deriv,npoints,epsilon_rho,epsilon_drho,sc,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drho, &
                                                 norm_drhoa, norm_drhob
     REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_ra, e_rb, e_ndra_ra, &
       e_ndra_rb, e_ndrb_ra, e_ndrb_rb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb, &
       e_ndr, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ndr_ra, e_ndr_rb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho,sc
     TYPE(cp_error_type), INTENT(inout)       :: error
+
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lsd_calc', &
       routineP = moduleN//':'//routineN
@@ -1130,7 +1144,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=0 .AND. my_rho>epsilon_rho) THEN
         e_0(ii) = e_0(ii)&
-             -0.4e1_dp * t6 * t7 * t8 - t15 * t21 * t66
+             - ( 0.4e1_dp * t6 * t7 * t8 + t15 * t21 * t66 ) * sc
      END IF
      !--------
 
@@ -1177,8 +1191,8 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
         e_ra(ii)=e_ra(ii)&
-             -0.4e1_dp * t6 * t52 - t15 * t21 * t82 - t94 + t98 -&
-             & t107 - t112 + t118 - t155
+             - ( 0.4e1_dp * t6 * t52 + t15 * t21 * t82 + t94 - t98 +&
+             & t107 + t112 - t118 + t155 )
      END IF
 
      t159 = t31 * my_rhob
@@ -1187,8 +1201,8 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
         e_rb(ii)=e_rb(ii)&
-             -0.4e1_dp * t6 * t50 - t15 * t21 * t168 - t94 + t98 -&
-             & t107 - t112 + t118 - t155
+             - ( 0.4e1_dp * t6 * t50 + t15 * t21 * t168 + t94 - t98 +&
+             & t107 + t112 - t118 + t155 ) * sc
      END IF
 
      t171 = t39 * my_ndrho
@@ -1196,7 +1210,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
         e_ndr(ii)=e_ndr(ii)&
-             -t15 * t21 * t176
+             - ( t15 * t21 * t176 ) * sc
      END IF
 
      t181 = t49 * my_rhoa
@@ -1206,7 +1220,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
         e_ndra(ii) = e_ndra(ii)&
-             -t15 * t21 * t189
+             - ( t15 * t21 * t189 ) * sc
      END IF
 
      t194 = t49 * my_rhob
@@ -1216,7 +1230,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
         e_ndrb(ii) = e_ndrb(ii)&
-             -t15 * t21 * t202
+             - ( t15 * t21 * t202 ) * sc
      END IF
      !-------
 
@@ -1266,13 +1280,13 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_ra_ra(ii) = e_ra_ra(ii)&
-             +t210 - t214 - t222 - t228 + t232 - t236 - t243 - t249 +&
+             + ( t210 - t214 - t222 - t228 + t232 - t236 - t243 - t249 +&
              & t252 + 0.8e1_dp * t253 - 0.8e1_dp / 0.3e1_dp * t255 -&
              & t304 + t310 - t316 - t319 - 0.2e1_dp / 0.3e1_dp * t322 -&
              & 0.2e1_dp / 0.3e1_dp * t326 + 0.22e2_dp / 0.3e1_dp * t329&
              & - 0.2e1_dp * t341 - t15 * t21 * (0.2e1_dp * my_rhob *&
              & t78 + 0.320e3_dp / 0.9e1_dp * t72 * my_rhob * t24 -&
-             & 0.2e1_dp * t46)
+             & 0.2e1_dp * t46) ) * sc
      END IF
 
      t354 = t99 * t103 * t5 * t168
@@ -1285,13 +1299,13 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_rb_rb(ii)=e_rb_rb(ii)&
-             +t210 - t214 - t222 - t228 + t232 - t236 - t243 - t249 +&
+             + ( t210 - t214 - t222 - t228 + t232 - t236 - t243 - t249 +&
              & t252 - t304 + t310 - t316 - t319 + 0.8e1_dp * t356 -&
              & 0.8e1_dp / 0.3e1_dp * t360 + 0.22e2_dp / 0.3e1_dp *&
              & t363 - 0.2e1_dp * t373 - 0.2e1_dp / 0.3e1_dp * t354 -&
              & 0.2e1_dp / 0.3e1_dp * t376 - t15 * t21 * (0.2e1_dp *&
              & my_rhoa * t164 + 0.320e3_dp / 0.9e1_dp * my_rhoa *&
-             & t159 * t24 - 0.2e1_dp * t45)
+             & t159 * t24 - 0.2e1_dp * t45) ) * sc
      END IF
 
      t381 = -t354 / 0.3e1_dp + 0.4e1_dp * t356 - 0.4e1_dp / 0.3e1_dp&
@@ -1306,7 +1320,7 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_ra_rb(ii)=e_ra_rb(ii)&
-             +t381 + t391
+             + ( t381 + t391 ) * sc
      END IF
 
      t408 = t12 * t14 * t5
@@ -1318,11 +1332,11 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_ndr_ra(ii) = e_ndr_ra(ii)&
-             -0.2e1_dp * t408 * t313 * t171 - t415 - t419 + t422 -&
-             & t430
+             - ( 0.2e1_dp * t408 * t313 * t171 + t415 + t419 - t422 +&
+             & t430 ) * sc
         e_ndr_rb(ii) = e_ndr_rb(ii)&
-             -0.2e1_dp * t408 * t20 * my_rhoa * t171 - t415 - t419 +&
-             & t422 - t430
+             - ( 0.2e1_dp * t408 * t20 * my_rhoa * t171 + t415 + t419 -&
+             & t422 + t430 ) * sc
      END IF
 
      t445 = t99 * t103 * t5 * t189 / 0.3e1_dp
@@ -1335,11 +1349,11 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_ndra_ra(ii)=e_ndra_ra(ii)&
-             -t15 * t21 * (my_rhob * t185 - 0.2e1_dp / 0.9e1_dp * t7&
-             & * t75 * my_ndrhoa) - t445 - t449 + t452 - t467
+             - ( t15 * t21 * (my_rhob * t185 - 0.2e1_dp / 0.9e1_dp * t7&
+             & * t75 * my_ndrhoa) + t445 + t449 - t452 + t467 ) * sc
         e_ndra_rb(ii)=e_ndra_rb(ii)&
-             -t15 * t21 * (my_rhoa * t185 - 0.4e1_dp * my_rhob *&
-             & my_ndrhoa) - t445 - t449 + t452 - t467
+             - ( t15 * t21 * (my_rhoa * t185 - 0.4e1_dp * my_rhob *&
+             & my_ndrhoa) + t445 + t449 - t452 + t467 ) * sc
      END IF
 
      t483 = t99 * t103 * t5 * t202 / 0.3e1_dp
@@ -1352,18 +1366,18 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_ndrb_ra(ii) =e_ndrb_ra(ii)&
-             -t15 * t21 * (my_rhob * t198 - 0.4e1_dp * my_rhoa *&
-             & my_ndrhob) - t483 - t487 + t490 - t505
+             - ( t15 * t21 * (my_rhob * t198 - 0.4e1_dp * my_rhoa *&
+             & my_ndrhob) + t483 + t487 - t490 + t505 ) * sc
         e_ndrb_ra(ii)=e_ndrb_ra(ii)&
-             -t15 * t21 * (my_rhoa * t198 - 0.2e1_dp / 0.9e1_dp * t7&
-             & * t75 * my_ndrhob) - t483 - t487 + t490 - t505
+             - ( t15 * t21 * (my_rhoa * t198 - 0.2e1_dp / 0.9e1_dp * t7&
+             & * t75 * my_ndrhob) + t483 + t487 - t490 + t505 ) * sc
      END IF
 
      t515 = 0.4e1_dp / 0.3e1_dp * t16
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_ndr_ndr(ii) = e_ndr_ndr(ii)&
-             -t15 * t21 * (0.2e1_dp * t7 * t39 - t515)
+             - ( t15 * t21 * (0.2e1_dp * t7 * t39 - t515) ) * sc
      END IF
 
      t519 = t13 / 0.9e1_dp
@@ -1371,15 +1385,15 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         e_ndra_ndra(ii) = e_ndra_ndra(ii)&
-             -t15 * t21 * (t7 * (-0.5e1_dp + t519 + t520 - 0.2e1_dp &
-             &/ 0.9e1_dp * t181 * t8) + t515 - 0.2e1_dp * t29)
+             - ( t15 * t21 * (t7 * (-0.5e1_dp + t519 + t520 - 0.2e1_dp &
+             &/ 0.9e1_dp * t181 * t8) + t515 - 0.2e1_dp * t29) ) * sc
 
         e_ndrb_ndrb(ii) = e_ndrb_ndrb(ii)&
-             -t15 * t21 * (t7 * (-0.5e1_dp + t519 + t520 - 0.2e1_dp &
-             &/ 0.9e1_dp * t194 * t8) + t515 - 0.2e1_dp * t25)
+             - ( t15 * t21 * (t7 * (-0.5e1_dp + t519 + t520 - 0.2e1_dp &
+             &/ 0.9e1_dp * t194 * t8) + t515 - 0.2e1_dp * t25) ) * sc
      END IF
   END IF
-  END DO
+ END DO
 
 END SUBROUTINE lyp_lsd_calc
 !***************************************************************************

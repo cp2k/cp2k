@@ -20,12 +20,15 @@
 !!   MODIFICATION HISTORY
 !!     JGH (26.02.2003) : OpenMP enabled
 !!     fawzi (04.2004)  : adapted to the new xc interface
+!!     MG (01.2007)     : added scaling
 !!
 !!*** *************************************************************************
 
 MODULE xc_xalpha
 ! *****************************************************************************
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -141,12 +144,13 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_eval(rho_set,deriv_set,order,xa_parameter,error)
+  SUBROUTINE xalpha_lda_eval(rho_set,deriv_set,order,xa_params,xa_parameter,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
+    TYPE(section_vals_type), POINTER         :: xa_params
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: xa_parameter
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -154,7 +158,7 @@ ELSE
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp)                            :: epsilon_rho, sx
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, r13, rho
@@ -163,6 +167,8 @@ ELSE
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(bo)
+    
+    CALL section_vals_val_get(xa_params,"scale_x",r_val=sx,error=error)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -180,28 +186,29 @@ ELSE
                allocate_deriv=.TRUE., error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
           
-          CALL xalpha_lda_0 ( npoints, rho, r13, e_0 )
+          CALL xalpha_lda_0 ( npoints, rho, r13, e_0, sx )
+          
        END IF
        IF ( order>=1.OR.order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
 
-          CALL xalpha_lda_1 ( npoints, rho, r13, e_rho )
+          CALL xalpha_lda_1 ( npoints, rho, r13, e_rho, sx )
        END IF
        IF ( order>=2.OR.order==-2 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
 
-          CALL xalpha_lda_2 ( npoints, rho, r13, e_rho_rho )
+          CALL xalpha_lda_2 ( npoints, rho, r13, e_rho_rho, sx )
        END IF
        IF ( order>=3.OR.order==-3 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
 
-          CALL xalpha_lda_3 ( npoints, rho, r13, e_rho_rho_rho )
+          CALL xalpha_lda_3 ( npoints, rho, r13, e_rho_rho_rho, sx )
        END IF
        IF ( order>3.OR.order<-3) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -215,12 +222,13 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_eval (rho_set,deriv_set,order,xa_parameter,error)
+  SUBROUTINE xalpha_lsd_eval (rho_set,deriv_set,order,xa_params,xa_parameter,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
+    TYPE(section_vals_type), POINTER         :: xa_params
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: xa_parameter
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xalpha_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -229,7 +237,7 @@ ELSE
     INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp)                            :: epsilon_rho, sx
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
@@ -242,6 +250,8 @@ ELSE
     DO i=1,2
        NULLIFY(rho(i)%array, rho_1_3(i)%array)
     END DO
+
+    CALL section_vals_val_get(xa_params,"scale_x",r_val=sx,error=error)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -262,7 +272,7 @@ ELSE
              CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
 
              CALL xalpha_lsd_0 ( npoints,rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_0 )
+                  e_0, sx )
           END IF
           IF ( order>=1.OR.order==-1 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin),&
@@ -270,7 +280,7 @@ ELSE
              CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
 
              CALL xalpha_lsd_1( npoints, rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_rho )
+                  e_rho, sx )
           END IF
           IF ( order>=2.OR.order==-2 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
@@ -278,7 +288,7 @@ ELSE
              CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
              
              CALL xalpha_lsd_2( npoints, rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_rho_rho )
+                  e_rho_rho, sx )
           END IF
           IF ( order>=3 .OR. order==-3 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
@@ -287,7 +297,7 @@ ELSE
              CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
 
              CALL xalpha_lsd_3( npoints, rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_rho_rho_rho )
+                  e_rho_rho_rho, sx )
           END IF
           IF ( order>3.OR.order<-3) THEN
              CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -301,22 +311,25 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_0(n, rho, r13, pot)
+  SUBROUTINE xalpha_lda_0(n, rho, r13, pot, sx)
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: pot
+    REAL(KIND=dp), INTENT(IN)                :: sx
 
+    REAL(KIND=dp)                            :: f
     INTEGER                                  :: ip
 
 !   ---------------------------------------------------------------------------
 
+    f = sx * flda
 !$omp parallel do private(ip)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
-         pot(ip) = pot(ip) + flda*r13(ip)*rho(ip)
+         pot(ip) = pot(ip) + f * r13(ip) * rho(ip)
       END IF
     END DO
 
@@ -324,20 +337,20 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_1(n, rho, r13, pot)
+  SUBROUTINE xalpha_lda_1(n, rho, r13, pot, sx)
     
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: pot
+    REAL(KIND=dp)                            :: sx
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
-    f = f43 * flda
-
+    f = f43 * flda * sx
 !$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -349,20 +362,20 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_2(n, rho, r13, pot)
+  SUBROUTINE xalpha_lda_2(n, rho, r13, pot, sx)
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: pot
+    REAL(KIND=dp)                            :: sx
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
-    f = f13 * f43 * flda
-
+    f = f13 * f43 * flda * sx
 !$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -374,20 +387,20 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_3(n, rho, r13, pot)
+  SUBROUTINE xalpha_lda_3(n, rho, r13, pot, sx)
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: pot
+    REAL(KIND=dp)                            :: sx
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
-    f = -f23 * f13 * f43 * flda
-
+    f = -f23 * f13 * f43 * flda * sx
 !$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -399,23 +412,27 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_0 ( n, rhoa, r13a, pot )
+  SUBROUTINE xalpha_lsd_0 ( n, rhoa, r13a, pot, sx )
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: pot
-
+    REAL(KIND=dp)                            :: sx
+   
+    REAL(KIND=dp)                            :: f
     INTEGER                                  :: ip
 
 ! number of points in array 
 !   ---------------------------------------------------------------------------
 
+    f = sx * flsd
+    
 !$omp parallel do private(ip)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         pot(ip) = pot(ip) + flsd * r13a(ip) * rhoa(ip)
+         pot(ip) = pot(ip) + f * r13a(ip) * rhoa(ip)
       END IF
 
     END DO
@@ -424,12 +441,13 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_1 ( n, rhoa, r13a, pota )
+  SUBROUTINE xalpha_lsd_1 ( n, rhoa, r13a, pota, sx )
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: pota
+    REAL(KIND=dp)                            :: sx
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -437,7 +455,7 @@ ELSE
 ! number of points in array 
 !   ---------------------------------------------------------------------------
 
-    f = f43 * flsd
+    f = f43 * flsd * sx
 
 !$omp parallel do private(ip)
     DO ip = 1, n
@@ -452,12 +470,13 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_2 ( n, rhoa, r13a, potaa )
+  SUBROUTINE xalpha_lsd_2 ( n, rhoa, r13a, potaa, sx )
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: potaa
+    REAL(KIND=dp)                            :: sx
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -465,7 +484,7 @@ ELSE
 ! number of points in array 
 !   ---------------------------------------------------------------------------
 
-    f = f13 * f43 * flsd
+    f = f13 * f43 * flsd * sx
 
 !$omp parallel do private(ip)
     DO ip = 1, n
@@ -480,12 +499,13 @@ ELSE
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_3 ( n, rhoa, r13a, potaaa )
+  SUBROUTINE xalpha_lsd_3 ( n, rhoa, r13a, potaaa, sx )
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: potaaa
+    REAL(KIND=dp)                            :: sx
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: f
@@ -493,7 +513,7 @@ ELSE
 ! number of points in array 
 !   ---------------------------------------------------------------------------
 
-    f = -f23 * f13 * f43 * flsd
+    f = -f23 * f13 * f43 * flsd * sx
 
 !$omp parallel do private(ip)
     DO ip = 1, n

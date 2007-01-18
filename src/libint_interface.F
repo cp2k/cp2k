@@ -246,7 +246,7 @@ MODULE libint_interface
      prim=build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max)
    END IF
 
-   lib%PrimQuartet=C_LOC(prim%F(1))
+   lib%PrimQuartet=C_LOC(prim)
 
    lib%AB=A1-B1
    lib%CD=C1-D1

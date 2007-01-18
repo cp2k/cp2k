@@ -27,6 +27,8 @@ MODULE four_center_integrals
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -226,7 +228,7 @@ MODULE four_center_integrals
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: current_counter, handle, iatom, integral_counter, iset, jatom, &
+    INTEGER :: current_counter, handle, iatom, integral_counter, iset, iw, jatom, &
       jset, katom, kset, latom, lset, ma, max_am, max_set, maxsgf, mb, mc, &
       md, natom, ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, &
       nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, &
@@ -259,6 +261,7 @@ MODULE four_center_integrals
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -267,6 +270,10 @@ MODULE four_center_integrals
    
     number_of_precalc_integrals = qs_env%x_data%number_of_elements
     integral_counter = 1
+    memory_usage = 0.0_dp
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
@@ -316,9 +323,9 @@ MODULE four_center_integrals
     END IF
     
     IF(nspins == 1) THEN
-      fac = 0.5_dp  
+      fac = 0.5_dp * hf_fraction
     ELSE
-      fac = 1.0_dp
+      fac = 1.0_dp * hf_fraction
     END IF
 
     ALLOCATE(schwarz_screening(natom,natom,max_set,max_set),STAT=stat)
@@ -681,11 +688,20 @@ MODULE four_center_integrals
     CALL mp_sum(ene_x_aa,para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
     energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
-    IF(memory_usage < integral_counter * dp_size /1024_dp/1024_dp) THEN
-      memory_usage = integral_counter * dp_size /1024_dp/1024_dp
+
+    iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
+             extension=".scfLog",error=error)
+    IF (iw>0) then
+      IF(memory_usage < integral_counter * dp_size /1024_dp/1024_dp) THEN
+        memory_usage = integral_counter * dp_size /1024_dp/1024_dp
+      END IF
+      WRITE (UNIT=iw,FMT="(/,(T3,A,T60,F20.10))")&
+               "Memory used for x_buffer [MB]:                 ",memory_usage
+      WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
+               "Number of integrals stored in buffer:          ",integral_counter-1
     END IF
-    WRITE(6,*) " Memory used for x_buffer:             " , memory_usage , " MB's"
-    WRITE(*,*) " Number of integrals stored in buffer: ", integral_counter-1
+    CALL cp_print_key_finished_output(iw,logger,hf_section,&
+                                      "HF_INFO", error=error)
 
     DEALLOCATE(last_sgf_global,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

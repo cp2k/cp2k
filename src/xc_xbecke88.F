@@ -25,6 +25,8 @@
 !****************************************************************************
 MODULE xc_xbecke88
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
@@ -76,12 +78,14 @@ CONTAINS
   !!     11.2003 created [fawzi]
   !!
   !!*** **********************************************************************
-  SUBROUTINE xb88_lda_info(reference,shortform, needs, max_deriv, error)
+  SUBROUTINE xb88_lda_info(reference,shortform, needs, max_deriv,error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+    REAL(KIND=dp)                            :: sx
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_info', &
       routineP = moduleN//':'//routineN
@@ -133,7 +137,8 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_info', &
       routineP = moduleN//':'//routineN
@@ -172,6 +177,7 @@ CONTAINS
   !!     - grad_deriv: degree of the derivative that should be evalated,
   !!       if positive all the derivatives up to the given degree are evaluated,
   !!       if negative only the given degree is calculated
+  !!     - xb88_params: input parameters (scaling)
   !!     - error: variable to control error logging, stopping,... 
   !!       see module cp_error_handling 
   !!
@@ -180,13 +186,16 @@ CONTAINS
   !!
   !!   MODIFICATION HISTORY
   !!     11.2003 created [fawzi]
+  !!     01.2007 added scaling [Manuel Guidon]
   !!
   !!*** **********************************************************************
-  SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
+  SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,xb88_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(section_vals_type), POINTER         :: xb88_params 
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -194,7 +203,7 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho,sx
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
       e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
@@ -204,6 +213,8 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(bo)
+
+    CALL section_vals_val_get(xb88_params,"scale_x",r_val=sx,error=error)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -287,7 +298,7 @@ CONTAINS
             e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
             e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,grad_deriv=grad_deriv,&
             npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
-            error=error)
+            sx=sx,error=error)
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -318,6 +329,7 @@ CONTAINS
   !!     - grad_deriv: degree of the derivative that should be evalated,
   !!       if positive all the derivatives up to the given degree are evaluated,
   !!       if negative only the given degree is calculated
+  !!     - sx: scaling-parameter for exchange
   !!     - error: variable to control error logging, stopping,... 
   !!       see module cp_error_handling 
   !!
@@ -326,20 +338,22 @@ CONTAINS
   !!
   !!   MODIFICATION HISTORY
   !!     11.2003 created [fawzi]
+  !!     01.2007 added scaling [Manuel Guidon]
   !!
   !!*** **********************************************************************
   SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
        e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,error)
+       e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,sx,error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: &
       e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho_rho, e_rho_rho_rho, &
       e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho, sx
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_calc', &
       routineP = moduleN//':'//routineN
@@ -387,7 +401,7 @@ CONTAINS
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
 
-             e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+             e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
           END IF
        END DO
     CASE (1)
@@ -415,7 +429,7 @@ CONTAINS
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
 
-             e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+             e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
 
              t23 = t2 * my_rho_1_3
              t29 = 0.1e1_dp / t11
@@ -429,10 +443,10 @@ CONTAINS
 
 
              e_rho(ii) = e_rho(ii)&
-                  -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-                  t23 * t21
+                  - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
+                  t23 * t21 ) * sx
              e_ndrho(ii) = e_ndrho(ii)&
-                  +t2 * t43 / 0.2e1_dp
+                  + ( t2 * t43 / 0.2e1_dp ) * sx
           END IF
 
        END DO
@@ -473,10 +487,10 @@ CONTAINS
 
 
              e_rho(ii) = e_rho(ii)&
-                  -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-                  t23 * t21
+                  - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
+                  t23 * t21 ) * sx
              e_ndrho(ii) = e_ndrho(ii)&
-                  +t2 * t43 / 0.2e1_dp
+                  + ( t2 * t43 / 0.2e1_dp ) * sx
           END IF
        END DO
     CASE (2)
@@ -505,7 +519,7 @@ CONTAINS
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
 
-             e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+             e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
 
              t23 = t2 * my_rho_1_3
              t29 = 0.1e1_dp / t11
@@ -518,10 +532,10 @@ CONTAINS
              t44 = t43 * x
 
              e_rho(ii) = e_rho(ii)&
-                  -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-                  t23 * t21
+                  - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
+                  t23 * t21 ) * sx
              e_ndrho(ii) = e_ndrho(ii)&
-                  +t2 * t43 / 0.2e1_dp
+                  + ( t2 * t43 / 0.2e1_dp ) * sx
 
              t49 = my_rho_1_3 ** 2
              t51 = t2 / t49
@@ -544,12 +558,12 @@ CONTAINS
              t104 = 0.1e1_dp / t3
 
              e_rho_rho(ii) = e_rho_rho(ii)&
-                  +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+                  + ( 0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21 ) * sx
              e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                  -0.2e1_dp / 0.3e1_dp * t99 * t100
+                  - ( 0.2e1_dp / 0.3e1_dp * t99 * t100 ) * sx
              e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                  +t2 * t90 * t104 / 0.2e1_dp
+                  + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
           END IF
        END DO
     CASE (-2)
@@ -609,12 +623,12 @@ CONTAINS
              t104 = 0.1e1_dp / t3
 
              e_rho_rho(ii) = e_rho_rho(ii)&
-                  +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+                  + ( 0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21 ) * sx
              e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                  -0.2e1_dp / 0.3e1_dp * t99 * t100
+                  - ( 0.2e1_dp / 0.3e1_dp * t99 * t100 ) * sx
              e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                  +t2 * t90 * t104 / 0.2e1_dp
+                  + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
           END IF
        END DO
     CASE default
@@ -645,7 +659,7 @@ CONTAINS
              t21 = -c - t5 * t6 * t18
 
              IF (grad_deriv>=0) THEN
-                e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+                e_0(ii) = e_0(ii) + ( t2 * t3 * t21 / 0.2e1_dp ) * sx
              END IF
 
              t23 = t2 * my_rho_1_3
@@ -661,10 +675,10 @@ CONTAINS
 
              IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
                 e_rho(ii) = e_rho(ii)&
-                     -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-                     t23 * t21
+                     - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
+                     t23 * t21 ) * sx
                 e_ndrho(ii) = e_ndrho(ii)&
-                     +t2 * t43 / 0.2e1_dp
+                     + ( t2 * t43 / 0.2e1_dp ) * sx
              END IF
 
              t49 = my_rho_1_3 ** 2
@@ -690,12 +704,12 @@ CONTAINS
 
              IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
                 e_rho_rho(ii) = e_rho_rho(ii)&
-                     +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-                     t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+                     + ( 0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+                     t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21 ) * sx
                 e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                     -0.2e1_dp / 0.3e1_dp * t99 * t100
+                     - ( 0.2e1_dp / 0.3e1_dp * t99 * t100 ) * sx
                 e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                     +t2 * t90 * t104 / 0.2e1_dp
+                     + ( t2 * t90 * t104 / 0.2e1_dp ) * sx
              END IF
 
              t126 = t10 ** 2
@@ -714,16 +728,16 @@ CONTAINS
 
              IF (grad_deriv==-3.or.grad_deriv>=3) THEN
                 e_rho_rho_rho(ii) = e_rho_rho_rho(ii) &
-                     -0.4e1_dp / 0.3e1_dp * t170 * x * t98 - 0.16e2_dp / 0.27e2_dp &
-                     * t176 * t91 + 0.4e1_dp / 0.27e2_dp * t176 * t44 - &
-                     0.4e1_dp / 0.27e2_dp * t176 * t21
+                     - ( 0.4e1_dp / 0.3e1_dp * t170 * x * t98 + 0.16e2_dp / 0.27e2_dp &
+                     * t176 * t91 - 0.4e1_dp / 0.27e2_dp * t176 * t44 + &
+                     0.4e1_dp / 0.27e2_dp * t176 * t21 ) * sx
                 e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
-                     +t170 * t104
+                     + ( t170 * t104 ) * sx
                 e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
-                     +(-0.2e1_dp / 0.3e1_dp * t99 * t164 * x - &
-                     0.2e1_dp / 0.3e1_dp * t99 * t90) * t104
+                     + ( (-0.2e1_dp / 0.3e1_dp * t99 * t164 * x - &
+                     0.2e1_dp / 0.3e1_dp * t99 * t90) * t104 ) * sx
                 e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii)&
-                     +t2 * t164 / t49 / t189 / 0.2e1_dp
+                     + ( t2 * t164 / t49 / t189 / 0.2e1_dp ) * sx
              END IF
           END IF
        END DO
@@ -744,7 +758,7 @@ CONTAINS
   !!     -
   !!
   !!   ARGUMENTS
-  !!     - 
+  !!     - sx: scaling-parameter for exchange
   !!     - error: variable to control error logging, stopping,... 
   !!       see module cp_error_handling 
   !!
@@ -753,13 +767,16 @@ CONTAINS
   !!
   !!   MODIFICATION HISTORY
   !!     11.2003 created [fawzi]
+  !!     01.2007 added scaling [Manuel Guidon]
   !!
   !!*** **********************************************************************
-  SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
+  SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,xb88_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(section_vals_type), POINTER         :: xb88_params
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -768,7 +785,7 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0
     TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, &
@@ -782,7 +799,8 @@ CONTAINS
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
     END DO
-
+    
+    CALL section_vals_val_get(xb88_params,"scale_x",r_val=sx,error=error)
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
@@ -908,6 +926,7 @@ CONTAINS
                e_ndrho_ndrho_ndrho_spin=e_ndrho_ndrho_ndrho(ispin)%array,&
                grad_deriv=grad_deriv, npoints=npoints,&
                epsilon_rho=epsilon_rho, epsilon_drho=epsilon_drho,&
+               sx=sx,&
                error=error)
        END DO
 
@@ -941,6 +960,7 @@ CONTAINS
   !!     - e_0: adds to it the local value of the functional
   !!     - e_*_spin: derivative of the functional wrt. to the variables
   !!       named where the * is. Everything wrt. to the spin of the arguments.
+  !!     - sx: scaling-parameter for exchange
   !!     - error: variable to control error logging, stopping,... 
   !!       see module cp_error_handling 
   !!
@@ -949,13 +969,14 @@ CONTAINS
   !!
   !!   MODIFICATION HISTORY
   !!     01.2004 created [fawzi]
+  !!     01.2007 added scaling [Manuel Guidon]
   !!
   !!*** **********************************************************************
   SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
        e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
        e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
        e_ndrho_ndrho_rho_spin,&
-       e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, epsilon_drho,&
+       e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, epsilon_drho,sx,&
        error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_spin, rho_1_3_spin, &
                                                 norm_drho_spin
@@ -964,8 +985,9 @@ CONTAINS
       e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
       e_ndrho_ndrho_ndrho_spin
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, sx
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc', &
       routineP = moduleN//':'//routineN
@@ -1011,7 +1033,7 @@ CONTAINS
                 t14 = -c - t3 * t12
 
                 e_0(ii) = e_0(ii)&
-                     +t1 * t14
+                     + ( t1 * t14 ) * sx
              END IF
           END DO
        CASE (1)
@@ -1041,7 +1063,7 @@ CONTAINS
                 t14 = -c - t3 * t12
 
                 e_0(ii) = e_0(ii)&
-                     +t1 * t14
+                     + ( t1 * t14 ) * sx
 
                 t17 = t11 ** 2
                 t18 = 0.1e1_dp / t17
@@ -1053,10 +1075,10 @@ CONTAINS
                 t30 = -0.2e1_dp * t4 * t12 + t3 * t28
 
                 e_rho_spin(ii) = e_rho_spin(ii)&
-                     -0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x + &
-                     0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14
+                     - ( 0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x - &
+                     0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14 ) * sx
                 e_ndrho_spin(ii) = e_ndrho_spin(ii)&
-                     +t30
+                     + ( t30 ) * sx
              END IF
           END DO
        CASE default
@@ -1089,7 +1111,7 @@ CONTAINS
 
                 IF (grad_deriv>=0) THEN
                    e_0(ii) = e_0(ii)&
-                        +t1 * t14
+                        + ( t1 * t14 ) * sx
                 END IF
 
                 t17 = t11 ** 2
@@ -1103,10 +1125,10 @@ CONTAINS
 
                 IF (grad_deriv==-1.or.grad_deriv>=1) THEN
                    e_rho_spin(ii) = e_rho_spin(ii)&
-                        -0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x + &
-                        0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14
+                        - ( 0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x - &
+                        0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14 ) * sx
                    e_ndrho_spin(ii) = e_ndrho_spin(ii)&
-                        +t30
+                        + ( t30 ) * sx
                 END IF
 
                 t35 = rho_1_3_spin(ii) ** 2
@@ -1129,12 +1151,12 @@ CONTAINS
 
                 IF (grad_deriv==-2.or.grad_deriv>=2) THEN
                    e_rho_rho_spin(ii) = e_rho_rho_spin(ii)&
-                        +0.16e2_dp / 0.9e1_dp * t67 * t2 - 0.4e1_dp / 0.9e1_dp &
-                        * t36 * t30 * x + 0.4e1_dp / 0.9e1_dp * t36 * t14
+                        + ( 0.16e2_dp / 0.9e1_dp * t67 * t2 - 0.4e1_dp / 0.9e1_dp &
+                        * t36 * t30 * x + 0.4e1_dp / 0.9e1_dp * t36 * t14 ) * sx
                    e_ndrho_rho_spin(ii) = e_ndrho_rho_spin(ii)&
-                        -0.4e1_dp / 0.3e1_dp * t76 * x
+                        - ( 0.4e1_dp / 0.3e1_dp * t76 * x ) * sx
                    e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii)+&
-                        t66 * t79
+                        ( t66 * t79 ) * sx
                 END IF
 
                 t87 = t17 ** 2
@@ -1152,16 +1174,16 @@ CONTAINS
 
                 IF (grad_deriv==-3.or.grad_deriv>=3) THEN
                    e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii)&
-                        -0.4e1_dp / 0.3e1_dp * t133 * x * t75 - 0.32e2_dp / 0.27e2_dp &
-                        * t138 * t66 * t2 + 0.8e1_dp / 0.27e2_dp * t138 * t30 * &
-                        x - 0.8e1_dp / 0.27e2_dp * t138 * t14
+                        - ( 0.4e1_dp / 0.3e1_dp * t133 * x * t75 + 0.32e2_dp / 0.27e2_dp &
+                        * t138 * t66 * t2 - 0.8e1_dp / 0.27e2_dp * t138 * t30 * &
+                        x + 0.8e1_dp / 0.27e2_dp * t138 * t14 ) * sx
                    e_ndrho_rho_rho_spin(ii) = e_ndrho_rho_rho_spin(ii)&
-                        +t133 * t79
+                        + ( t133 * t79 ) * sx
                    e_ndrho_ndrho_rho_spin(ii) = e_ndrho_ndrho_rho_spin(ii)&
-                        +(-0.4e1_dp / 0.3e1_dp * t75 * t127 * x - &
-                        0.4e1_dp / 0.3e1_dp * t76) * t79
+                        + ( (-0.4e1_dp / 0.3e1_dp * t75 * t127 * x - &
+                        0.4e1_dp / 0.3e1_dp * t76) * t79 ) * sx
                    e_ndrho_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_ndrho_spin(ii)&
-                        + t127 / t35 / t151
+                        + ( t127 / t35 / t151 ) * sx
                 END IF
              END IF
           END DO

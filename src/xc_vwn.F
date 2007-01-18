@@ -21,11 +21,14 @@
 !!   MODIFICATION HISTORY
 !!     JGH (26.02.2003) : OpenMP enabled
 !!     fawzi (04.2004)  : adapted to the new xc interface
+!!     MG 01.2007       : added scaling
 !!
 !!*** *************************************************************************
 
 MODULE xc_vwn
 ! *****************************************************************************
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -101,11 +104,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE vwn_lda_eval(rho_set,deriv_set,order,error)
+  SUBROUTINE vwn_lda_eval(rho_set,deriv_set,order,vwn_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(section_vals_type), POINTER         :: vwn_params 
     INTEGER, INTENT(in)                      :: order
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vwn_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -113,7 +117,7 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp)                            :: epsilon_rho, sc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_rho, e_rho_rho, &
@@ -123,6 +127,9 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(bo)
+
+    CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc,error=error)
+
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -147,33 +154,33 @@ CONTAINS
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
 
-          CALL vwn_lda_01 ( rho, x, e_0,e_rho,npoints,error )
+          CALL vwn_lda_01 ( rho, x, e_0,e_rho,npoints, sc, error )
        ELSEIF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
           
-          CALL vwn_lda_0 ( rho, x, e_0,npoints,error )
+          CALL vwn_lda_0 ( rho, x, e_0, npoints, sc, error )
        ELSEIF ( order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
 
-          CALL vwn_lda_1 ( rho, x, e_rho, npoints, error )
+          CALL vwn_lda_1 ( rho, x, e_rho, npoints, sc, error )
        END IF
        IF ( order>=2.OR.order==-2 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
 
-          CALL vwn_lda_2 ( rho, x, e_rho_rho, npoints, error )
+          CALL vwn_lda_2 ( rho, x, e_rho_rho, npoints, sc, error )
        END IF
        IF ( order>=3.OR.order==-3 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
 
-          CALL vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints,&
+          CALL vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, sc,&
                error)
        END IF
        IF ( order>3.OR.order<-3) THEN
@@ -191,13 +198,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE vwn_lda_0 ( rho, x, e_0, npoints, error )
+  SUBROUTINE vwn_lda_0 ( rho, x, e_0, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: sc
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: at, dpx, ln1, ln2, px, q, xb
@@ -216,7 +224,7 @@ CONTAINS
          at = 2.0_dp/q*ATAN(q/dpx)
          ln1 = LOG(x(ip)*x(ip)/px)
          ln2 = LOG((x(ip)-x0)**2/px)
-         e_0(ip) = e_0(ip) + a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) ) * rho(ip)
+         e_0(ip) = e_0(ip) + a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) ) * rho(ip) * sc
       END IF
 
     END DO
@@ -225,13 +233,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE vwn_lda_1 ( rho, x, e_rho, npoints, error )
+  SUBROUTINE vwn_lda_1 ( rho, x, e_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: sc
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
@@ -258,7 +267,7 @@ CONTAINS
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
                b*x0/px* ( dln2 + xb * dat ) )
-         e_rho(ip) = e_rho(ip) + ex - x(ip)*dex/6.0_dp
+         e_rho(ip) = e_rho(ip) +( ex - x(ip)*dex/6.0_dp ) * sc
       END IF
 
     END DO
@@ -267,13 +276,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE vwn_lda_01 ( rho, x, e_0, e_rho, npoints, error )
+  SUBROUTINE vwn_lda_01 ( rho, x, e_0, e_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0, e_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: sc
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
@@ -300,8 +310,8 @@ CONTAINS
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
                b*x0/px* ( dln2 + xb * dat ) )
-         e_0(ip) = e_0(ip) + ex * rho(ip)
-         e_rho(ip) = e_rho(ip) + ex - x(ip)*dex/6.0_dp
+         e_0(ip) = e_0(ip) + ex * rho(ip) * sc
+         e_rho(ip) = e_rho(ip) + ( ex - x(ip)*dex/6.0_dp) * sc
       END IF
 
     END DO
@@ -311,13 +321,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE vwn_lda_2 ( rho, x, e_rho_rho, npoints, error )
+  SUBROUTINE vwn_lda_2 ( rho, x, e_rho_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: sc
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: at, d2at, d2ex, d2fp, d2ln1, &
@@ -355,7 +366,7 @@ CONTAINS
          d2ex= a * ( d2ln1 + b*d2at + d2fp * ( ln2 + xb * at ) + &
                2.0_dp*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
          e_rho_rho(ip) = e_rho_rho(ip)&
-              + x(ip)/(36.0_dp*rho(ip))*(x(ip)*d2ex-5.0_dp*dex)
+              + ( x(ip)/(36.0_dp*rho(ip))*(x(ip)*d2ex-5.0_dp*dex) ) * sc
       END IF
 
     END DO
@@ -364,13 +375,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, error )
+  SUBROUTINE vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: sc
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
     REAL(KIND=dp) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2fp, d2ln1, &
@@ -422,8 +434,8 @@ CONTAINS
                3.0_dp*d2fp * ( dln2 + xb * dat ) + 3.0_dp*dfp * ( d2ln2 + xb * d2at ) + &
                fp * ( d3ln2 + xb * d3at ) )
          e_rho_rho_rho(ip) = e_rho_rho_rho(ip)&
-              - 7.0_dp*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d2ex-5.0_dp*dex) - &
-              x(ip)*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d3ex-4.0_dp*d2ex)
+              - ( 7.0_dp*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d2ex-5.0_dp*dex) + &
+              x(ip)*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d3ex-4.0_dp*d2ex) ) * sc
       END IF
 
     END DO

@@ -22,6 +22,8 @@
 !****************************************************************************
 MODULE xc_optx
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -72,7 +74,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_info', &
       routineP = moduleN//':'//routineN
@@ -155,18 +157,23 @@ CONTAINS
   !!     - grad_deriv: degree of the derivative that should be evalated,
   !!       if positive all the derivatives up to the given degree are evaluated,
   !!       if negative only the given degree is calculated
+  !!     - optx_params: input parameter (scaling)
   !!     - error: variable to control error logging, stopping,... 
   !!       see module cp_error_handling 
   !!
   !!   AUTHOR
   !!     Joost 
   !!
+  !!   MODIFICATION HISTORY
+  !!     01.2007 added scaling [Manuel Guidon]
+  !!
   !!*** **********************************************************************
-  SUBROUTINE optx_lda_eval(rho_set,deriv_set,grad_deriv,error)
+  SUBROUTINE optx_lda_eval(rho_set,deriv_set,grad_deriv,optx_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(section_vals_type), POINTER         :: optx_params 
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_eval', &
       routineP = moduleN//':'//routineN
@@ -174,7 +181,7 @@ CONTAINS
     INTEGER                                  :: npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ndrho, e_rho, &
                                                 norm_drho, rho
@@ -182,7 +189,9 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(bo,e_0, e_ndrho, e_rho, norm_drho, rho)
-
+ 
+    CALL section_vals_val_get(optx_params,"scale_x",r_val=sx,error=error)
+ 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
@@ -211,7 +220,7 @@ CONTAINS
        CALL optx_lda_calc(rho=rho, norm_drho=norm_drho,&
                e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
                npoints=npoints,epsilon_rho=epsilon_rho,&
-               epsilon_drho=epsilon_drho, error=error)
+               epsilon_drho=epsilon_drho,sx=sx,error=error)
     END IF
   END SUBROUTINE optx_lda_eval
   !***************************************************************************
@@ -233,18 +242,23 @@ CONTAINS
   !!     - grad_deriv: degree of the derivative that should be evalated,
   !!       if positive all the derivatives up to the given degree are evaluated,
   !!       if negative only the given degree is calculated
+  !!     - optx_params: input parameter (scaling)
   !!     - error: variable to control error logging, stopping,...
   !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Joost
   !!
+  !!   MODIFICATION HISTORY
+  !!     01.2007 added scaling [Manuel Guidon]
+  !!
   !!*** **********************************************************************
-  SUBROUTINE optx_lsd_eval(rho_set,deriv_set,grad_deriv,error)
+  SUBROUTINE optx_lsd_eval(rho_set,deriv_set,grad_deriv,optx_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(section_vals_type), POINTER         :: optx_params
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_eval', &
       routineP = moduleN//':'//routineN
@@ -252,7 +266,7 @@ CONTAINS
     INTEGER                                  :: ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: e_ndrho, e_rho, ndrho, rho
@@ -266,6 +280,8 @@ CONTAINS
        NULLIFY(rho(ispin)%array)
        NULLIFY(ndrho(ispin)%array)
     ENDDO
+
+    CALL section_vals_val_get(optx_params,"scale_x",r_val=sx,error=error)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -304,7 +320,7 @@ CONTAINS
           CALL optx_lsd_calc(rho=rho(ispin)%array, norm_drho=ndrho(ispin)%array,&
                       e_0=e_0,e_rho=e_rho(ispin)%array,e_ndrho=e_ndrho(ispin)%array,&
                       npoints=npoints,epsilon_rho=epsilon_rho,&
-                      epsilon_drho=epsilon_drho, error=error)
+                      epsilon_drho=epsilon_drho,sx=sx,error=error)
        ENDDO
     END IF
   END SUBROUTINE optx_lsd_eval
@@ -326,6 +342,7 @@ CONTAINS
   !!     - e_rho: the derivative of the functional wrt. rho
   !!     - e_ndrho: the derivative of the functional wrt. norm_drho
   !!     - epsilon_rho: the cutoff on rho
+  !!     - sx: scaling-parameter for exchange
   !!     - error: variable to control error logging, stopping,... 
   !!       see module cp_error_handling 
   !!
@@ -333,15 +350,17 @@ CONTAINS
   !!     Joost VandeVondele
   !!
   !!   MODIFICATION HISTORY
+  !!     01.2007 added scaling [Manuel Guidon]
   !!
   !!*** *********************************************************************
   SUBROUTINE optx_lda_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
-       epsilon_rho,epsilon_drho,npoints,error)
+       epsilon_rho,epsilon_drho,npoints,sx,error)
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     INTEGER, INTENT(in)                      :: npoints
+    REAL(KIND=dp), INTENT(IN)                :: sx
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
@@ -362,11 +381,11 @@ CONTAINS
           denom   = 1.0_dp / (1.0_dp + gamxsxs )
           ex      = rho43*(a1cx+a2*(gamxsxs*denom)**2)
           ! 2.0 for both spins
-          e_0(ii)    = e_0(ii)     - 2.0_dp * ex
+          e_0(ii)    = e_0(ii)     - ( 2.0_dp * ex ) * sx
           tmp = rho43 * 2.0_dp * a2 * gamxsxs * denom**2 * ( 1.0_dp - gamxsxs * denom) 
           ! derive e_0 wrt to rho (full) and ndrho (also full)
-          e_rho(ii)  = e_rho(ii)   - ( o43 * ex + tmp * gamxsxs * (-2.0_dp * o43 ) ) / myrho
-          e_ndrho(ii)= e_ndrho(ii) - ( tmp * gam * 2.0_dp * myndrho / rho43**2 )
+          e_rho(ii)  = e_rho(ii)   - ( ( o43 * ex + tmp * gamxsxs * (-2.0_dp * o43 ) ) / myrho ) * sx
+          e_ndrho(ii)= e_ndrho(ii) - ( ( tmp * gam * 2.0_dp * myndrho / rho43**2 ) ) * sx
        END IF
     END DO
 
@@ -390,6 +409,7 @@ CONTAINS
   !!     - e_rho: the derivative of the functional wrt. rho
   !!     - e_ndrho: the derivative of the functional wrt. norm_drho
   !!     - epsilon_rho: the cutoff on rho
+  !!     - sx: scaling parameter for exchange
   !!     - error: variable to control error logging, stopping,...
   !!       see module cp_error_handling
   !!
@@ -397,16 +417,18 @@ CONTAINS
   !!     Joost VandeVondele
   !!
   !!   MODIFICATION HISTORY
+  !!     01.2007 added scaling [Manuel Guidon]
   !!
   !!*** *********************************************************************
   SUBROUTINE optx_lsd_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
-       epsilon_rho,epsilon_drho,npoints,error)
+       epsilon_rho,epsilon_drho,npoints,sx,error)
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), INTENT(IN)                :: sx
+    TYPE(cp_error_type), INTENT(inout)       :: error 
 
     REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
       a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp 
@@ -426,11 +448,11 @@ CONTAINS
           denom   = 1.0_dp / (1.0_dp + gamxsxs )
           ex      = rho43*(a1cx+a2*(gamxsxs*denom)**2)
           ! for a single spin
-          e_0(ii)    = e_0(ii)     - ex
+          e_0(ii)    = e_0(ii)     - ex * sx
           tmp = rho43 * 2.0_dp * a2 * gamxsxs * denom**2 * ( 1.0_dp - gamxsxs * denom)
           ! derive e_0 wrt to rho and ndrho 
-          e_rho(ii)  = e_rho(ii)   - ( o43 * ex + tmp * gamxsxs * (-2.0_dp * o43 ) ) / myrho
-          e_ndrho(ii)= e_ndrho(ii) - ( tmp * gam * 2.0_dp * myndrho / rho43**2 )
+          e_rho(ii)  = e_rho(ii)   - ( ( o43 * ex + tmp * gamxsxs * (-2.0_dp * o43 ) ) / myrho ) * sx
+          e_ndrho(ii)= e_ndrho(ii) - ( ( tmp * gam * 2.0_dp * myndrho / rho43**2 ) ) * sx
        END IF
     END DO
 
