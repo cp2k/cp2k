@@ -119,6 +119,7 @@ END SUBROUTINE m_datum
 
     CHARACTER(LEN=200)                       :: cmdstr
     INTEGER                                  :: pid
+    INTEGER :: istat,system,ierrno
 
 !Backslash character
 !   ---------------------------------------------------------------------------
@@ -132,7 +133,11 @@ END SUBROUTINE m_datum
       pid,&
       " | tail -1` KBytes"""//Backslash//"c"""
 
-    CALL system(cmdstr)
+    istat = 0
+    istat = system(cmdstr)
+    IF(istat.NE.0) THEN
+      WRITE(*,*) "SYSTEM CALL RETURN (print_memory)",istat,IERRNO()
+    END IF
 
   END SUBROUTINE print_memory
 
@@ -143,11 +148,19 @@ END SUBROUTINE m_datum
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
     CHARACTER(LEN=2*default_string_length+4) :: cmd
+    INTEGER :: istat,system,ierrno
 
 !   ---------------------------------------------------------------------------
 
     cmd = "mv " // source(1:LEN_TRIM(source)) // " " // TARGET(1:LEN_TRIM(TARGET))
-    CALL system(cmd)
+
+    istat = 0
+    istat = system(cmd)
+   
+    IF(istat.NE.0) THEN
+      WRITE(*,*) "SYSTEM CALL RETURN (m_mov)",istat,IERRNO()
+    END IF
+
 
   END SUBROUTINE m_mov
 
