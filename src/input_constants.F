@@ -492,4 +492,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: general_roks   = 1,&
                                 high_spin_roks = 2
 
+  ! VWN xc functional flavours
+  INTEGER, PARAMETER, PUBLIC :: do_vwn5=1,&
+                                do_vwn3=2
+
 END MODULE input_constants

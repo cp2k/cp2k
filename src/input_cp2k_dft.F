@@ -2192,6 +2192,19 @@ CONTAINS
             default_r_val=1._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FUNCTIONAL_TYPE",&
+         description="Which version of the VWN functional should be used",&
+         usage="FUNCTIONAL_TYPE VWN5",&
+         enum_c_vals=s2a("VWN5","VWN3"),&
+         enum_i_vals=(/do_vwn5, do_vwn3 /),&
+         enum_desc=s2a("This is the recommended (correct) version of the VWN functional", &
+                       "This version is the default in Gaussian, but not recommended."//&
+                       "Notice that it is also employed in Gaussian's default version of B3LYP"),&
+         default_i_val=do_vwn5, error=error)
+
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

@@ -22,6 +22,7 @@
 !!     JGH (26.02.2003) : OpenMP enabled
 !!     fawzi (04.2004)  : adapted to the new xc interface
 !!     MG 01.2007       : added scaling
+!!     MG 01.2007       : bug fix in vwn_lda_xx
 !!
 !!*** *************************************************************************
 
@@ -41,6 +42,7 @@ MODULE xc_vwn
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
+  USE input_constants,                 ONLY: do_vwn3,do_vwn5
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -53,16 +55,13 @@ MODULE xc_vwn
                           f23 = 2.0_dp*f13, &
                           f43 = 4.0_dp*f13
 
-  REAL(KIND=dp), PARAMETER :: a  = 0.0310907_dp,&
-                          b  = 3.72744_dp,&
-                          c  = 12.9352_dp,&
-                          x0 = -0.10498_dp
+  REAL(KIND=dp), PARAMETER :: a  = 0.0310907_dp
 
   PUBLIC :: vwn_lda_info, vwn_lda_eval
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn'
 
-  REAL(KIND=dp) :: eps_rho
+  REAL(KIND=dp) :: eps_rho, b, c, x0
 
 ! *****************************************************************************
 
@@ -70,12 +69,39 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE vwn_init ( cutoff )
+  SUBROUTINE vwn_init ( cutoff, vwn_params, error )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
+    TYPE(section_vals_type), POINTER         :: vwn_params
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    INTEGER                                  :: type
+    
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'vwn_init', &
+                                routineP = moduleN//':'//routineN
+
+    LOGICAL                                   :: failure
+
+
+    CALL section_vals_val_get(vwn_params,"functional_type",i_val=type,error=error)
     eps_rho = cutoff
     CALL set_util ( cutoff )
+
+    SELECT CASE(type)
+       CASE(do_vwn5)
+          b  = 3.72744_dp
+          c  = 12.9352_dp
+          x0 = -0.10498_dp
+       CASE(do_vwn3)
+          b  = 13.0720_dp
+          c  = 42.7198_dp
+          x0 = -0.409286_dp
+       CASE DEFAULT
+         failure = .FALSE.
+         CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+                        " Only functionals VWN3 and VWN5 are supported" ,error,failure)
+ 
+    END SELECT
 
   END SUBROUTINE vwn_init
 
@@ -140,7 +166,7 @@ CONTAINS
             local_bounds=bo,rho_cutoff=epsilon_rho,&
             error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       CALL vwn_init(epsilon_rho)
+       CALL vwn_init(epsilon_rho, vwn_params, error)
 
        ALLOCATE ( x(npoints), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -208,12 +234,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                            :: at, dpx, ln1, ln2, px, q, xb
+    REAL(KIND=dp)                            :: at, dpx, ln1, ln2, px, q, xb, px0
 
 !   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
+    px0 = x0*x0+b*x0+c
 
 !$omp parallel do private(ip,px,dpx,at,ln1,ln2)
     DO ip = 1, npoints
@@ -224,7 +251,7 @@ CONTAINS
          at = 2.0_dp/q*ATAN(q/dpx)
          ln1 = LOG(x(ip)*x(ip)/px)
          ln2 = LOG((x(ip)-x0)**2/px)
-         e_0(ip) = e_0(ip) + a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) ) * rho(ip) * sc
+         e_0(ip) = e_0(ip) + a * ( ln1 + b*at - b*x0/px0* ( ln2 + xb * at ) ) * rho(ip) * sc
       END IF
 
     END DO
@@ -245,12 +272,12 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, q, &
-                                                xb
+                                                xb, px0
 
 !   ---------------------------------------------------------------------------
-
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
+    px0 = x0*x0+b*x0+c
 !$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
     DO ip = 1, npoints
 
@@ -264,9 +291,8 @@ CONTAINS
          dln1 = (b*x(ip)+2.0_dp*c)/(x(ip)*px)
          ln2 = LOG((x(ip)-x0)**2/px)
          dln2 = (b*x(ip)+2.0_dp*c+2.0_dp*x0*x(ip)+x0*b)/((x(ip)-x0)*px)
-         ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
-         dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
-               b*x0/px* ( dln2 + xb * dat ) )
+         ex = a * ( ln1 + b*at - b*x0/px0* ( ln2 + xb * at ) )
+         dex = a * ( dln1 + b*dat  - b*x0/px0* ( dln2 + xb * dat )) 
          e_rho(ip) = e_rho(ip) +( ex - x(ip)*dex/6.0_dp ) * sc
       END IF
 
@@ -288,12 +314,14 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, q, &
-                                                xb
+                                                xb, px0
 
 !   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
+    px0 = x0*x0+b*x0+c
+
 !$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
     DO ip = 1, npoints
 
@@ -307,9 +335,8 @@ CONTAINS
          dln1 = (b*x(ip)+2.0_dp*c)/(x(ip)*px)
          ln2 = LOG((x(ip)-x0)**2/px)
          dln2 = (x(ip)*(b+2.0_dp*x0)+2.0_dp*c+x0*b)/((x(ip)-x0)*px)
-         ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
-         dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
-               b*x0/px* ( dln2 + xb * dat ) )
+         ex = a * ( ln1 + b*at - b*x0/px0* ( ln2 + xb * at ) )
+         dex = a * ( dln1 + b*dat  - b*x0/px0* ( dln2 + xb * dat ) )
          e_0(ip) = e_0(ip) + ex * rho(ip) * sc
          e_rho(ip) = e_rho(ip) + ( ex - x(ip)*dex/6.0_dp) * sc
       END IF
@@ -331,15 +358,17 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                            :: at, d2at, d2ex, d2fp, d2ln1, &
-                                                d2ln2, dat, dex, dfp, dln1, &
+    REAL(KIND=dp)                            :: at, d2at, d2ex, d2ln1, &
+                                                d2ln2, dat, dex, dln1, &
                                                 dln2, dpx, fp, ln1, ln2, pa, &
-                                                px, q, xb
+                                                px, q, xb, px0
 
 !   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
+    px0 = x0*x0+b*x0+c
+    fp = -b*x0/px0
 
 !$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,ln1,dln1,d2ln1) &
 !$omp             private(ln2,dln2,d2ln2,fp,dfp,d2fp,dex,d2ex)
@@ -359,12 +388,8 @@ CONTAINS
          dln2 = (x(ip)*xb+2.0_dp*c+x0*b)/((x(ip)-x0)*px)
          d2ln2 = xb/((x(ip)-x0)*px)-(x(ip)*xb+2.0_dp*c+x0*b)/((x(ip)-x0)*px)**2 &
                  * (px+(x(ip)-x0)*dpx)
-         fp = -b*x0/px
-         dfp = b*x0*dpx/(px*px)
-         d2fp = b*x0*2.0_dp*(1.0_dp-dpx*dpx/px)/(px*px)
-         dex = a * ( dln1 + b*dat + dfp * ( ln2 + xb * at ) + fp * ( dln2 + xb * dat ) )
-         d2ex= a * ( d2ln1 + b*d2at + d2fp * ( ln2 + xb * at ) + &
-               2.0_dp*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
+         dex = a * ( dln1 + b*dat + fp * ( dln2 + xb * dat ) )
+         d2ex= a * ( d2ln1 + b*d2at  + fp * ( d2ln2 + xb * d2at ) )
          e_rho_rho(ip) = e_rho_rho(ip)&
               + ( x(ip)/(36.0_dp*rho(ip))*(x(ip)*d2ex-5.0_dp*dex) ) * sc
       END IF
@@ -385,14 +410,16 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error 
 
     INTEGER                                  :: ip
-    REAL(KIND=dp) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2fp, d2ln1, &
-      d2ln2, d3at, d3ex, d3fp, d3ln1, d3ln2, dat, dbx, ddx, dex, dfp, dln1, &
-      dln2, dpx, dx, fp, ln1, ln2, pa, px, q, xb
+    REAL(KIND=dp) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2ln1, &
+      d2ln2, d3at, d3ex, d3ln1, d3ln2, dat, dbx, ddx, dex, dln1, &
+      dln2, dpx, dx, fp, ln1, ln2, pa, px, q, xb, px0
 
 !   ---------------------------------------------------------------------------
 
     q = SQRT ( 4.0_dp*c - b*b )
     xb = 2.0_dp*x0+b
+    px0 = x0*x0+b*x0+c
+    fp = -b*x0/px0
 
 !$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,d3at,ln1,ax,bx) &
 !$omp             private(dbx,d2bx,dln1,d2ln1,d3ln1,ln2,cx,dx,ddx,d2dx,dln2,d2ln2,d3ln2) &
@@ -423,16 +450,9 @@ CONTAINS
          dln2 = cx/dx
          d2ln2 = (xb*dx-cx*ddx)/(dx*dx)
          d3ln2 = -cx*d2dx/(dx*dx) - 2.0_dp*d2ln2*ddx/dx
-         fp = -b*x0/px
-         dfp = b*x0*dpx/(px*px)
-         d2fp = b*x0*2.0_dp*(1.0_dp-dpx*dpx/px)/(px*px)
-         d3fp = b*x0*6.0_dp*dpx*(dpx*dpx/px-2.0_dp)/(px*px*px)
-         dex = a * ( dln1 + b*dat + dfp * ( ln2 + xb * at ) + fp * ( dln2 + xb * dat ) )
-         d2ex= a * ( d2ln1 + b*d2at + d2fp * ( ln2 + xb * at ) + &
-               2.0_dp*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
-         d3ex= a * ( d3ln1 + b*d3at + d3fp * ( ln2 + xb * at ) + &
-               3.0_dp*d2fp * ( dln2 + xb * dat ) + 3.0_dp*dfp * ( d2ln2 + xb * d2at ) + &
-               fp * ( d3ln2 + xb * d3at ) )
+         dex = a * ( dln1 + b*dat + fp * ( dln2 + xb * dat ) )
+         d2ex= a * ( d2ln1 + b*d2at + fp * ( d2ln2 + xb * d2at ) )
+         d3ex= a * ( d3ln1 + b*d3at + fp * ( d3ln2 + xb * d3at ) ) 
          e_rho_rho_rho(ip) = e_rho_rho_rho(ip)&
               - ( 7.0_dp*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d2ex-5.0_dp*dex) + &
               x(ip)*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d3ex-4.0_dp*d2ex) ) * sc
