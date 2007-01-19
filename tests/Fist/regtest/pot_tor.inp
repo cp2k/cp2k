@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile pot_tor.pot
+      parmfile ../sample_pot/pot_tor.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON

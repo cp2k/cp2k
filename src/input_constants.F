@@ -286,7 +286,9 @@ MODULE input_constants
                                 transformation_stage=2
   INTEGER, PARAMETER, PUBLIC, DIMENSION(2) :: transformation_name_index=&
        (/transformation_normal,transformation_stage/)
-
+  ! Free Energy methods
+  INTEGER, PARAMETER, PUBLIC :: do_fe_meta=0,&
+                                do_fe_ui=1
   !
   ! Output format files
   !

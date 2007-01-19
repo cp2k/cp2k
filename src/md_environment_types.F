@@ -28,6 +28,8 @@ MODULE md_environment_types
   USE force_env_types,                 ONLY: force_env_p_type,&
                                              force_env_release,&
                                              force_env_retain
+  USE free_energy_types,               ONLY: fe_env_release,&
+                                             free_energy_type
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
 #include "cp_common_uses.h"
@@ -56,6 +58,7 @@ MODULE md_environment_types
      TYPE ( simulation_parameters_type ), POINTER :: simpar
      TYPE ( reftraj_type ), POINTER :: reftraj_info
      LOGICAL :: init, init_force, init_traj, init_vel
+     TYPE ( free_energy_type) , POINTER :: fe_env
   END TYPE md_environment_type
 
   TYPE reftraj_type
@@ -82,7 +85,8 @@ CONTAINS
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
                           simpar, nhc_part, nhc_coef, nhc_baro, &
                           npt, force_env_p, para_env, reftraj_info, t,&
-                          md_approach_nr, accepted_md, init, init_force, init_traj, init_vel)
+                          md_approach_nr, accepted_md, init, init_force,&
+                          init_traj, init_vel, fe_env)
 
 !   Purpose: Get the integrator environment
 
@@ -107,6 +111,8 @@ CONTAINS
     INTEGER, OPTIONAL, POINTER               :: md_approach_nr, accepted_md
     LOGICAL, OPTIONAL                        :: init, init_force, init_traj, &
                                                 init_vel
+    TYPE(free_energy_type), OPTIONAL, &
+      POINTER                                :: fe_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
       routineP = moduleN//':'//routineN
@@ -114,6 +120,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( itimes ) ) itimes => md_env % itimes
+    IF ( PRESENT ( fe_env ) ) fe_env => md_env % fe_env
     IF ( PRESENT ( md_approach_nr ) ) md_approach_nr => md_env % md_approach_nr
     IF ( PRESENT ( accepted_md ) ) accepted_md => md_env % accepted_md
     IF ( PRESENT ( constant ) ) constant => md_env % constant
@@ -174,6 +181,7 @@ CONTAINS
     NULLIFY ( md_env % nhc_baro )
     NULLIFY ( md_env % npt )
     NULLIFY ( md_env % force_env_p )
+    NULLIFY ( md_env % fe_env )
     md_env % para_env => para_env
     CALL cp_para_env_retain ( md_env % para_env ,error=error)
     ALLOCATE( md_env % itimes , stat=istat )
@@ -285,6 +293,7 @@ SUBROUTINE md_env_release(md_env, error)
      md_env%ref_count=md_env%ref_count-1
      IF (md_env%ref_count==0) THEN
         md_env%ref_count=1
+        CALL fe_env_release( md_env%fe_env, error=error)
         CALL cp_para_env_release ( md_env % para_env, error = error )
         DEALLOCATE( md_env % itimes , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -323,7 +332,7 @@ END SUBROUTINE md_env_release
 
 ! *****************************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
-                          nhc_part, nhc_coef, nhc_baro, &
+                          nhc_part, nhc_coef, nhc_baro, fe_env, &
                           npt, force_env_p, para_env, accepted_md, md_approach_nr ,&
                           init, init_force, init_vel, init_traj, &
                           error)
@@ -341,6 +350,8 @@ END SUBROUTINE md_env_release
     TYPE(lnhc_parameters_type), OPTIONAL, &
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
+    TYPE(free_energy_type), OPTIONAL, &
+      POINTER                                :: fe_env
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
     TYPE(force_env_p_type), OPTIONAL, &
       POINTER                                :: force_env_p( : )
@@ -367,6 +378,7 @@ END SUBROUTINE md_env_release
     IF ( PRESENT ( nhc_baro ) ) md_env % nhc_baro => nhc_baro
     IF ( PRESENT ( npt ) ) md_env % npt => npt
     IF ( PRESENT ( itimes ) ) md_env % itimes => itimes
+    IF ( PRESENT ( fe_env ) ) md_env % fe_env => fe_env
     IF ( PRESENT ( accepted_md ) ) md_env % accepted_md => accepted_md
     IF ( PRESENT ( md_approach_nr ) ) md_env % md_approach_nr => md_approach_nr
     IF ( PRESENT ( constant ) ) md_env % constant => constant
@@ -384,9 +396,6 @@ END SUBROUTINE md_env_release
        END IF
        md_env % force_env_p => force_env_p
     END IF
-
-
-!   ---------------------------------------------------------------------------
 
   END SUBROUTINE set_md_env
 

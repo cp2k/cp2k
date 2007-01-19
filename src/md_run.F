@@ -46,6 +46,9 @@ MODULE md_run
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
+  USE free_energy_methods,             ONLY: free_energy_evaluate
+  USE free_energy_types,               ONLY: fe_env_create,&
+                                             free_energy_type
   USE global_types,                    ONLY: global_environment_type
   USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
@@ -165,6 +168,8 @@ CONTAINS
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(extended_system_type)               :: extended_type
+    TYPE(free_energy_type), POINTER          :: fe_env
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
@@ -174,7 +179,6 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    TYPE(global_constraint_type), POINTER    :: gci
 
     CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -184,7 +188,8 @@ CONTAINS
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,motion_section,gci )
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
-         work_section, print_section, atomic_kinds, local_particles, t)
+         work_section, print_section, atomic_kinds, local_particles, t,&
+         fe_env)
     logger => cp_error_get_logger(error)
     root_section=>force_env_p ( 1 ) % force_env % root_section
     para_env=>force_env_p ( 1 ) % force_env % para_env
@@ -322,9 +327,12 @@ CONTAINS
     END DO
 
     CALL md_env_create ( md_env, para_env, error = error )
+    ! Setup Free Energy Calculation (if required)
+    CALL fe_env_create ( fe_env, motion_section, error)
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
+                    fe_env=fe_env,&
                     nhc_part=extended_type%nhc_part,&
                     nhc_baro=extended_type%nhc_baro,&
                     npt=extended_type%npt_info,&
@@ -421,6 +429,9 @@ CONTAINS
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
            iter_nr=itimes,error=error)
       CALL velocity_verlet(md_env,error)
+      ! Free Energy calculation
+      CALL free_energy_evaluate(md_env,should_stop,motion_section,error)
+      IF (should_stop) EXIT
       ! Test for EXIT_MD or for WALL_TIME to exit 
       ! IF so we don't overwrite the restart or append to the trajectory
       ! because the execution could in principle stop inside the SCF where energy
@@ -512,13 +523,14 @@ END SUBROUTINE md_output
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
-                                                isubsys, natom, iw
+                                                isubsys, iw, natom
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e_kinetic, mass, scale, &
@@ -526,7 +538,6 @@ END SUBROUTINE md_output
     REAL(KIND=dp), DIMENSION(3)              :: v, vcom
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys

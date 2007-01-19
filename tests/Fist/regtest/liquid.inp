@@ -2,7 +2,7 @@
   METHOD FIST
    &MM
      &FORCEFIELD
-       PARMFILE acn.pot
+       PARMFILE ../sample_pot/acn.pot
        PARMTYPE CHM
       &SPLINE
         EMAX_SPLINE 1000.0

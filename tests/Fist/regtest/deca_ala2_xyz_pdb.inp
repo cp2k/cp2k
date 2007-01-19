@@ -21,7 +21,7 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      CONN_FILE deca_ala2.psf
+      CONN_FILE ../sample_psf/deca_ala2.psf
       CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
       COORDINATE PDB

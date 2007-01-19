@@ -1,0 +1,78 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/NaCl_wat.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        NS_MAX 50
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 28.912 29.461 29.496
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE ../sample_pdb/NaCl_wat.pdb
+      COORDINATE pdb
+      CONN_FILE  ../sample_psf/NaCl_wat.psf
+      CONNECTIVITY PSF
+    &END TOPOLOGY
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT nacl_wat_fe
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    &G3X3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      MOLECULE 3
+      ATOMS 1 2 3
+    &END G3X3
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR
+      &RESTRAINT
+        K 0.05
+      &END
+    &END
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 1.0
+    TEMPERATURE 298
+  &END MD
+  &FREE_ENERGY
+    METHOD UI
+    &UMBRELLA_INTEGRATION
+     EPS_CONV 0.01
+     &UVAR
+       COLVAR 1
+     &END
+    &END
+  &END
+&END MOTION

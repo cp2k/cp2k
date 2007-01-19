@@ -150,6 +150,8 @@ OBJECTS_GENERIC =\
  fparser.o\
  fp_types.o\
  fp_methods.o\
+ free_energy_methods.o\
+ free_energy_types.o\
  gamma.o\
  gaussian_gridlevels.o\
  geo_opt.o\

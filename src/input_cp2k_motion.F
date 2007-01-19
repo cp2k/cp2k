@@ -105,7 +105,7 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_metadyn_section(subsection,error)
+       CALL create_fe_section(subsection,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -229,6 +229,131 @@ CONTAINS
 
   END SUBROUTINE create_motion_section
 
+!!****f* input_cp2k/create_fe_section *
+!!
+!!   NAME
+!!     create_fe_section
+!!
+!!   FUNCTION
+!!     creates the free energy section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_fe_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_fe_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection, print_key
+
+    failure=.FALSE.
+    NULLIFY (subsection,keyword,print_key)
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="free_energy",&
+            description="Controls the calculation of free energy and free energy derivatives"//&
+            " with different possible methods",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       
+       CALL keyword_create(keyword, name="METHOD",&
+            description="Defines the method to use to compute free energy.",&
+            usage="METHOD (METADYN|UI)",&
+            enum_c_vals=s2a( "METADYN","UI"),&
+            enum_i_vals=(/do_fe_meta,do_fe_ui/),&
+            enum_desc=s2a("Metadynamics",&
+                          "Umbrella Integration"),&
+            default_i_val=do_fe_meta,repeats=.FALSE.,required=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_metadyn_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_ui_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL cp_print_key_section_create(print_key,"free_energy_info",&
+            description="Controls the printing of basic and summary information during the"//&
+            " Free Energy calculation", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+    END IF
+  END SUBROUTINE create_fe_section
+
+!!****f* input_cp2k/create_ui_section *
+!!
+!!   NAME
+!!     create_ui_section
+!!
+!!   FUNCTION
+!!     creates the umbrella integration section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teodoro laino [tlaino] 01.2007
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_ui_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ui_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+    failure=.FALSE.
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="umbrella_integration",&
+            description="Controls the calculation of free energy derivatives"//&
+            " with the umbrella integration method.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       
+       NULLIFY(keyword, subsection)
+       CALL keyword_create(keyword, name="EPS_CONV",&
+            description="Set the relative tolerance for the convergence of the covariance matrix"//&
+            " used to compute the free energy.",&
+            usage="EPS_CONV <REAL>",&
+            default_r_val=1.0E-2_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL create_uvar_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+    END IF
+  END SUBROUTINE create_ui_section
 
 !!****f* input_cp2k_subsys/create_constraint_section [1.0] *
 !!
@@ -306,7 +431,8 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_clv_rest_section(subsection, error=error)
+       CALL create_collective_section(subsection, error=error)
+       CALL restraint_info_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -319,8 +445,7 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_collective_section(subsection, error=error)
-       CALL restraint_info_section(subsection, error=error)
+       CALL create_clv_rest_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -1843,7 +1968,6 @@ CONTAINS
     END IF
   END SUBROUTINE create_metadyn_history
 
-
 !!****f* input_cp2k/create_metavar_section *
 !!
 !!   NAME
@@ -1938,6 +2062,63 @@ CONTAINS
 
   END SUBROUTINE create_metavar_section
 
+!!****f* input_cp2k/create_uvar_section *
+!!
+!!   NAME
+!!     create_uvar_section
+!!
+!!   FUNCTION
+!!     creates the uvar section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_uvar_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_uvar_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="UVAR",&
+            description="This section specify the nature of the collective variables"//&
+            " used in computing the free energy.",&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="COLVAR",&
+            description="Specifies the colvar used to compute free energy",&
+            usage="COLVAR {integer}", type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SUBSYS",&
+            description="Specifies the subsystem to which the colvar belongs. Default 1.",&
+            usage="SUBSYS {integer}",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+    END IF
+
+  END SUBROUTINE create_uvar_section
 
 !!****f* input_cp2k/create_md_section *
 !!

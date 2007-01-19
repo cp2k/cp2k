@@ -68,7 +68,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      COORD_FILE H2O2.xyz
+      COORD_FILE ../sample_xyz/H2O2.xyz
       COORDINATE XYZ
       &GENERATE
         CREATE_MOLECULES T

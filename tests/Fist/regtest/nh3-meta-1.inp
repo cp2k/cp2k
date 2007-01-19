@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile nh3.pot
+      parmfile ../sample_pot/nh3.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON
@@ -21,7 +21,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE nh3.psf
+      CONN_FILE ../sample_psf/nh3.psf
       CONNECTIVITY UPSF
       COORD_FILE nh3.pdb
       COORDINATE pdb
@@ -50,18 +50,20 @@
     TEMPERATURE 300.0
     TEMP_TOL 10.0
   &END MD
-  &METADYN
-    DO_HILLS
-    LAGRANGE
-    NT_HILLS 3
-    WW 1.0e-2
-    &METAVAR
-      LAMBDA 0.1
-      MASS 10.0
-      SCALE 0.02
-      COLVAR 1
-      SUBSYS 1
-    &END METAVAR
-  &END METADYN
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS
+      LAGRANGE
+      NT_HILLS 3
+      WW 1.0e-2
+      &METAVAR
+        LAMBDA 0.1
+        MASS 10.0
+        SCALE 0.02
+        COLVAR 1
+        SUBSYS 1
+      &END METAVAR
+    &END METADYN
+  &END
 &END MOTION
 

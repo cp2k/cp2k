@@ -35,6 +35,7 @@ MODULE metadynamics
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE input_constants,                 ONLY: do_fe_meta
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -181,26 +182,30 @@ CONTAINS
 !!     04.2004 created
 !!
 !!*** **********************************************************************
-  SUBROUTINE metadyn_read(meta_env,root_section,para_env,metadyn_section,error)
+  SUBROUTINE metadyn_read(meta_env,root_section,para_env,fe_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: metadyn_section
+      POINTER                                :: fe_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iw, n_colvar, n_rep
+    INTEGER                                  :: i, iw, n_colvar, n_rep, id_method
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: md_section, metavar_section
+    TYPE(section_vals_type), POINTER         :: md_section, metadyn_section, &
+                                                metavar_section
 
     logger => cp_error_get_logger(error)
-    CALL section_vals_get(metadyn_section,explicit=explicit,error=error)
+    CALL section_vals_get(fe_section,explicit=explicit,error=error)
     IF (.NOT.explicit) RETURN
+    CALL section_vals_val_get(fe_section,"METHOD",i_val=id_method,error=error)
+    IF (id_method/=do_fe_meta) RETURN
+    metadyn_section => section_vals_get_subs_vals(fe_section,"METADYN",error=error)
     CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
 
     md_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
@@ -216,7 +221,8 @@ CONTAINS
     CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
     CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
     CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps,error=error)
-    CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",i_val=meta_env%hills_env%n_hills,error=error)
+    CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
+         i_val=meta_env%hills_env%n_hills,error=error)
     CALL section_vals_val_get(metadyn_section,"TEMPERATURE",n_rep_val=n_rep,error=error)
     IF ( n_rep /= 0 ) THEN
        meta_env%tempcontrol=.TRUE.

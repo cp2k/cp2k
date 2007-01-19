@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile h2po4.pot
+      parmfile ../sample_pot/h2po4.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON
@@ -21,7 +21,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE h2po4.psf
+      CONN_FILE ../sample_psf/h2po4.psf
       CONNECTIVITY UPSF
       COORD_FILE h2po4.pdb
       COORDINATE pdb

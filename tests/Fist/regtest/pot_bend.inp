@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile pot_bend.pot
+      parmfile ../sample_pot/pot_bend.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON

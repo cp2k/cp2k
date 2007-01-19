@@ -43,7 +43,7 @@
     &END
     &TOPOLOGY
       CHARGE_BETA
-      CONN_FILE cycbut.psf
+      CONN_FILE ../sample_psf/cycbut.psf
       CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/cycbut.pdb
       COORDINATE PDB

@@ -27,7 +27,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE h2o2_amber.psf
+      CONN_FILE ../sample_psf/h2o2_amber.psf
       CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/h2o2_amber.pdb
       COORDINATE PDB

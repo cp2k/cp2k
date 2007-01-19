@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ethene_fake.pot
+      parmfile ../sample_pot/ethene_fake.pot
       parmtype CHM
       &CHARGE
         ATOM CE2

@@ -29,7 +29,7 @@
       COORD_FILE_NAME ../sample_pdb/loop.pdb
       COORDINATE PDB
       CONNECTIVITY UPSF
-      CONN_FILE  loop.psf
+      CONN_FILE  ../sample_psf/loop.psf
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

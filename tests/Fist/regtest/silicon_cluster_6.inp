@@ -65,7 +65,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE silicon_cluster.psf
+      CONN_FILE ../sample_psf/silicon_cluster.psf
       CONNECTIVITY UPSF
       COORD_FILE silicon_cluster.pdb
       COORDINATE PDB

@@ -615,7 +615,7 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     TYPE(section_vals_type), POINTER :: force_env_section, &
       force_env_sections, fp_section, input_file, metadyn_section, &
-      root_section
+      root_section, fe_section
     TYPE(timer_env_type), POINTER            :: timer_env
 
     failure=.FALSE.
@@ -713,7 +713,7 @@ END SUBROUTINE f_env_rm_defaults
                i_force_eval(iforce_eval),i_force_eval(iforce_eval),error)
           NULLIFY(my_force_env)
           ! initialize force_env
-       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+          CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
           SELECT CASE (method_name_id)
           CASE (do_ep)
              ! does not support multi force_env_sections
@@ -744,9 +744,9 @@ END SUBROUTINE f_env_rm_defaults
 CPSourceFileRef,&
                error,failure)
           END SELECT
-          metadyn_section => section_vals_get_subs_vals(root_section,&
-               "MOTION%METADYN",error=error)
-          CALL metadyn_read(meta_env, root_section, para_env, metadyn_section, error=error)
+          fe_section => section_vals_get_subs_vals(root_section,&
+               "MOTION%FREE_ENERGY",error=error)
+          CALL metadyn_read(meta_env, root_section, para_env, fe_section, error=error)
           CALL force_env_set(my_force_env,meta_env=meta_env,error=error)
           CALL meta_env_release(meta_env,error=error)
           NULLIFY(fp_env)

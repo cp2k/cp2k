@@ -375,17 +375,23 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
               CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
            END IF
            !
-           work_section => section_vals_get_subs_vals(input_file,"MOTION%METADYN",error=error)
+           work_section => section_vals_get_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN",&
+                error=error)
            CALL section_vals_get(work_section,explicit=explicit1,error=error)
-           work_section => section_vals_get_subs_vals(restart_input,"MOTION%METADYN",error=error)
+           work_section => section_vals_get_subs_vals(restart_input,"MOTION%FREE_ENERGY%METADYN",&
+                error=error)
            CALL section_vals_get(work_section,explicit=explicit2,error=error)
            CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,&
                 error=error)
            IF (explicit1.AND.explicit2.AND.flag2) THEN
-              CALL section_vals_val_get(restart_input,"MOTION%METADYN%STEP_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_set(input_file,"MOTION%METADYN%STEP_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_get(restart_input,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
-              CALL section_vals_val_set(input_file,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_get(restart_input,&
+                   "MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_set(input_file,&
+                   "MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_get(restart_input,&
+                   "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_set(input_file,&
+                   "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
            END IF
         END IF
         CALL section_vals_val_get(r_section,"RESTART_NEB",l_val=flag,error=error)
@@ -501,25 +507,25 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
              error=error)
         IF (flag) THEN
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%METADYN%SPAWNED_HILLS_POS",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%SPAWNED_HILLS_POS",&
+                "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%METADYN%SPAWNED_HILLS_AMPL",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%SPAWNED_HILLS_AMPL",&
+                "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%SPAWNED_HILLS_HEIGHT",&
+                "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",&
                 section,error=error)
            ! Extended Lagrangian
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%METADYN%EXT_LAGRANGE_SS0",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%EXT_LAGRANGE_SS0",&
+                "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%METADYN%EXT_LAGRANGE_VVP",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%EXT_LAGRANGE_VVP",&
+                "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",&
                 section,error=error)
         END IF
         CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,&
@@ -602,11 +608,11 @@ SUBROUTINE remove_restart_info(input_file,error)
         CALL section_vals_val_unset(input_file,"MOTION%MD%STEP_START_VAL",error=error)
         CALL section_vals_val_unset(input_file,"MOTION%MD%TIME_START_VAL",error=error)
      END IF
-     work_section => section_vals_get_subs_vals(input_file,"MOTION%METADYN",error=error)
+     work_section => section_vals_get_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN",error=error)
      CALL section_vals_get(work_section,explicit=explicit1,error=error)
      IF (explicit1) THEN
-        CALL section_vals_val_unset(input_file,"MOTION%METADYN%STEP_START_VAL",error=error)
-        CALL section_vals_val_unset(input_file,"MOTION%METADYN%NHILLS_START_VAL",error=error)
+        CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",error=error)
+        CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
      END IF
      section_to_delete => section_vals_get_subs_vals(input_file,&
           "MOTION%NEB%REPLICA",error=error)
@@ -670,19 +676,19 @@ SUBROUTINE remove_restart_info(input_file,error)
      CALL section_vals_remove_values(section_to_delete,error)
      ! Constrained/Restrained section not reset.. to be done externally..
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%METADYN%SPAWNED_HILLS_POS",error=error)
+          "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%METADYN%SPAWNED_HILLS_AMPL",error=error)
+          "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_AMPL",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+          "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%METADYN%EXT_LAGRANGE_SS0",error=error)
+          "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%METADYN%EXT_LAGRANGE_VVP",error=error)
+          "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
   END IF
   CALL timestop(handle)

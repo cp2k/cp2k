@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile charmm.pot
+      parmfile ../sample_pot/charmm.pot
       parmtype CHM
       &CHARGE
         ATOM CE2

@@ -35,7 +35,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE NaCl-H2O.psf
+      CONN_FILE ../sample_psf/NaCl-H2O.psf
       CONNECTIVITY UPSF
       COORD_FILE ../sample_pdb/NaCl-H2O.pdb
       COORDINATE PDB

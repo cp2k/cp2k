@@ -56,7 +56,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE ipbv_flex.psf
+      CONN_FILE ../sample_psf/ipbv_flex.psf
       CONNECTIVITY UPSF
       COORD_FILE ipbv.pdb
       COORDINATE pdb

@@ -24,7 +24,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE 5dhfr_cube.psf
+      CONN_FILE ../sample_psf/5dhfr_cube.psf
       CONNECTIVITY UPSF
       COORD_FILE ../sample_pdb/5dhfr_cube.pdb
       COORDINATE PDB

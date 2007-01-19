@@ -62,18 +62,20 @@
     TIMESTEP 0.1
     TEMPERATURE 300.0
   &END MD
- &METADYN
-    DO_HILLS
-    #LAGRANGE
-    NT_HILLS 1
-    WW 1.0e-2
-    # Metavar ref0 e ref1
-    &METAVAR
-      LAMBDA 0.1
-      MASS 10.0
-      SCALE 0.1
-      COLVAR 1
-      SUBSYS 1
-    &END METAVAR
-  &END METADYN
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS
+      #LAGRANGE
+      NT_HILLS 1
+      WW 1.0e-2
+      # Metavar ref0 e ref1
+      &METAVAR
+        LAMBDA 0.1
+        MASS 10.0
+        SCALE 0.1
+        COLVAR 1
+        SUBSYS 1
+      &END METAVAR
+    &END METADYN
+  &END
 &END MOTION

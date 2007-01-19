@@ -24636,7 +24636,7 @@
     H    25.79459       5.716660       35.90224      H2O
     &END COORD
     &TOPOLOGY
-      CONN_FILE wat8192.psf
+      CONN_FILE sample_psf/wat8192.psf
       CONNECTIVITY UPSF
       NHCOPT MOLECULE
     &END TOPOLOGY

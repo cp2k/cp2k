@@ -5,7 +5,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-       PARMFILE acn_respa.pot
+       PARMFILE ../sample_pot/acn_respa.pot
        PARMTYPE CHM
        &CHARGE
         ATOM CT
@@ -53,7 +53,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-       PARMFILE acn.pot 
+       PARMFILE ../sample_pot/acn.pot 
        PARMTYPE CHM
        &CHARGE
         ATOM CT

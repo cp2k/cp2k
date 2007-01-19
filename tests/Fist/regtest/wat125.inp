@@ -32,10 +32,10 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      COORD_FILE wat125.xyz
+      COORD_FILE ../sample_xyz/wat125.xyz
       COORDINATE XYZ
       CONNECTIVITY PSF
-      CONN_FILE wat125.psf
+      CONN_FILE ../sample_psf/wat125.psf
       DUMP_TOP
     &END TOPOLOGY
   &END SUBSYS
