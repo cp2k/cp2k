@@ -212,7 +212,9 @@ CONTAINS
           IF (.NOT. exist) THEN
             density_guess = atomic_guess
           ELSE
-            CALL m_mov(filename, file_name)
+            IF (qs_env%para_env%ionode) THEN
+              CALL m_mov(filename, file_name)
+            END IF
           END IF
         END IF
     ELSE IF (density_guess == history_guess) THEN
