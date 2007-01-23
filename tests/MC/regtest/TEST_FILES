@@ -2,11 +2,31 @@
 # the second field tells which test should be run in order to compare with the last available output
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
+#      6 looks for the final energy of the MC simulation
 #      for details see cp2k/tools/do_regtest
 #
 # QS MC test for volume moves and the ref_cell on water
 MC_QS.inp 6
-# FIST MC testing binary Ar/water GEMC simulation
-MC_Fist_box1.inp 6
+# binary Ar/water GEMC constant pressure simulation...requires an input
+# file for each of the two simulation boxes...constant pressure means each
+# box can change volume independently...uses FIST and the biasing potential
+# (bias_template.inp, which is also used for canonical_bias.inp)
+GEMC_NpT_box1.inp 6
+# same as GEMC_NpT_box1.inp, except performs a canonical Gibbs simulation...
+# this means the overall volume of the system is constant, so an attempt
+# to make one box smaller makes the other box larger...this is the only
+# choice for a one component system with the Gibbs ensemble
+GEMC_NVT_box1.inp 6
+# same as GEMC_NVT_box1.inp, except tests molecule swaps between boxes
+# instead of volume moves
+GEMC_NVT_box1.inp 6
 # KG MC testing AVBMC NpT with KG 
 MC_KG.inp 6
+# a simple canonical (constant NVT) simulation on the binary water/argon
+# system...uses translations, rotations, and bond length/angle changes, 
+# but the last one only for water...uses FIST
+canonical.inp 6
+# same as canonical.inp, but this uses a biasing potential (found in 
+# bias_template.inp)...performs a series of moves with the biasing
+# potential before correcting with the "real" potential
+canonical_bias.inp 6
