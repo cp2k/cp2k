@@ -19,7 +19,7 @@ GEMC_NpT_box1.inp 6
 GEMC_NVT_box1.inp 6
 # same as GEMC_NVT_box1.inp, except tests molecule swaps between boxes
 # instead of volume moves
-GEMC_NVT_box1.inp 6
+GEMC_swap_box1.inp 6
 # KG MC testing AVBMC NpT with KG 
 MC_KG.inp 6
 # a simple canonical (constant NVT) simulation on the binary water/argon
