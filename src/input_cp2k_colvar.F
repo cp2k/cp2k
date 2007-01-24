@@ -166,7 +166,11 @@ CONTAINS
 
        CALL create_colvar_rot_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)      
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_ddiff_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_colvar_var_section
@@ -256,6 +260,59 @@ CONTAINS
 
   END SUBROUTINE create_colvar_coord_section
 
+!!****f* input_cp2k/create_colvar_ddiff_section *
+!!
+!!   NAME
+!!     create_colvar_ddiff_section
+!!
+!!   FUNCTION
+!!     collective variables specifying torsion
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_colvar_ddiff_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_colvar_ddiff_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="distance_difference",&
+            description="Section to define difference between two distances as collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes for the two bonds d1=(1-2) d2=(3-4)."//&
+            " The difference is defined as d1-d2",&
+            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            n_var=4, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_ddiff_section
 
 !!****f* input_cp2k/create_colvar_torsion_section *
 !!

@@ -28,7 +28,7 @@ MODULE colvar_methods
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_create, colvar_setup, colvar_type, &
        coord_colvar_id, dist_colvar_id, plane_distance_colvar_id, &
-       rotation_colvar_id, torsion_colvar_id
+       rotation_colvar_id, ddiff_colvar_id, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -102,10 +102,15 @@ CONTAINS
     INTEGER                                  :: handle, iatm, iw, kk, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
-    LOGICAL, DIMENSION(6)                    :: my_subsection
+    LOGICAL, DIMENSION(7)                    :: my_subsection
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
-      distance_section, plane_dist_section, rotation_section, torsion_section
+    TYPE(section_vals_type), POINTER         :: angle_section,&
+                                                coordination_section, &
+                                                distance_section,&
+                                                plane_dist_section,&
+                                                rotation_section,&
+                                                torsion_section,&
+                                                ddiff_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -115,6 +120,8 @@ CONTAINS
     failure=.FALSE.
 
     distance_section     => section_vals_get_subs_vals(colvar_section,"DISTANCE",i_rep_section=icol,error=error)
+    ddiff_section        => section_vals_get_subs_vals(colvar_section,"DISTANCE_DIFFERENCE",&
+         i_rep_section=icol,error=error)
     angle_section        => section_vals_get_subs_vals(colvar_section,"ANGLE",i_rep_section=icol,error=error)
     torsion_section      => section_vals_get_subs_vals(colvar_section,"TORSION",i_rep_section=icol,error=error)
     coordination_section => section_vals_get_subs_vals(colvar_section,"COORDINATION",i_rep_section=icol,error=error)
@@ -128,6 +135,7 @@ CONTAINS
     CALL section_vals_get(coordination_section,explicit=my_subsection(4),error=error)
     CALL section_vals_get(plane_dist_section,explicit=my_subsection(5),error=error)
     CALL section_vals_get(rotation_section,explicit=my_subsection(6),error=error)
+    CALL section_vals_get(ddiff_section,explicit=my_subsection(7),error=error)
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -192,6 +200,11 @@ CONTAINS
        ALLOCATE(colvar%rotation_param%i_at2_bond2(SIZE(iatms)),stat=stat)
        CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
        colvar%rotation_param%i_at2_bond2 = iatms
+    ELSE IF (my_subsection(7)) THEN
+       ! Difference of two distances
+       CALL colvar_create(colvar, ddiff_colvar_id, error)
+       CALL section_vals_val_get(ddiff_section,"ATOMS",i_vals=iatms,error=error)
+       colvar%ddiff_param%i_at_ddiff = iatms
     END IF
 
     CALL colvar_setup(colvar, error)
@@ -204,6 +217,9 @@ CONTAINS
        CASE(angle_colvar_id)
           WRITE ( iw, '( A,T66,3I5)' )   ' COLVARS| ANGLE          >>> ATOMS:',&
                colvar%angle_param%i_at_angle
+       CASE(ddiff_colvar_id)
+          WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| DIFFERENCE BETWEEN TWO DISTANCES   >>> ATOMS:',&
+               colvar%ddiff_param%i_at_ddiff
        CASE(plane_distance_colvar_id)
           WRITE ( iw, '( A,T66,3I5)' )   ' COLVARS| PLANE DISTANCE    - PLANE  >>> ATOMS:',&
                colvar%plane_distance_param%plane
@@ -305,6 +321,8 @@ CONTAINS
           CALL torsion_colvar(colvar, cell, particles=particles, error=error)
        CASE (angle_colvar_id)
           CALL angle_colvar(colvar, cell, particles=particles, error=error)
+       CASE (ddiff_colvar_id)
+          CALL ddiff_colvar(colvar, cell, particles=particles, error=error)
        CASE (plane_distance_colvar_id)
           CALL plane_distance_colvar(colvar,cell, particles=particles, error=error)
        CASE (rotation_colvar_id)
@@ -370,6 +388,8 @@ CONTAINS
           CALL torsion_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (angle_colvar_id)
           CALL angle_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+       CASE (ddiff_colvar_id)
+          CALL ddiff_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (plane_distance_colvar_id)
           CALL plane_distance_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (rotation_colvar_id)
@@ -607,6 +627,79 @@ CONTAINS
     colvar%dsdr = colvar%dsdr * fmod
         
   END SUBROUTINE rotation_colvar
+
+  !!****f* colvar/ddiff_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     ddiff_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due to the difference of two distances
+  !!
+  !!   NOTES
+  !!     -
+  !!   AUTHOR
+  !!     Teodoro Laino 02.2006 [created]
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE ddiff_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ddiff_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, k, l
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: r12, r34, ss(3), xij(3), xpi(3), &
+                                                xpj(3),xkl(3),xpk(3),xpl(3)
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+    NULLIFY(particles_i)
+
+    CPPrecondition(colvar%type_id==ddiff_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+    i=colvar%ddiff_param%i_at_ddiff(1)
+    j=colvar%ddiff_param%i_at_ddiff(2)
+    ! First bond
+    xpi=my_particles(i)%r(1:3)
+    xpj=my_particles(j)%r(1:3)
+    ss=MATMUL(cell%h_inv,xpi-xpj)
+    ss=ss-NINT(ss)
+    xij=MATMUL(cell%hmat,ss)
+    r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+    ! Second bond
+    k=colvar%ddiff_param%i_at_ddiff(3)
+    l=colvar%ddiff_param%i_at_ddiff(4)
+    xpk=my_particles(k)%r(1:3)
+    xpl=my_particles(l)%r(1:3)
+    ss=MATMUL(cell%h_inv,xpk-xpl)
+    ss=ss-NINT(ss)
+    xkl=MATMUL(cell%hmat,ss)
+    r34=SQRT(xkl(1)**2+xkl(2)**2+xkl(3)**2)
+    !
+    colvar%ss=r12-r34
+    colvar%dsdr(:,1)= xij/r12
+    colvar%dsdr(:,2)=-xij/r12
+    colvar%dsdr(:,3)=-xkl/r34
+    colvar%dsdr(:,4)= xkl/r34
+
+  END SUBROUTINE ddiff_colvar
 
   !!****f* colvar/angle_colvar [1.0] *
   !!

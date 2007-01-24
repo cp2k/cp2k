@@ -47,15 +47,17 @@ MODULE colvar_types
             torsion_colvar_type,&
             angle_colvar_type,&
             plane_distance_colvar_type,&
-            rotation_colvar_type
+            rotation_colvar_type,&
+            ddiff_colvar_type
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id              =-2,&
-                                dist_colvar_id            =1,&
-                                coord_colvar_id           =2,&
-                                torsion_colvar_id         =3,&
-                                angle_colvar_id           =4,&
-                                plane_distance_colvar_id  =5,&
-                                rotation_colvar_id        =6
+                                dist_colvar_id            = 1,&
+                                coord_colvar_id           = 2,&
+                                torsion_colvar_id         = 3,&
+                                angle_colvar_id           = 4,&
+                                plane_distance_colvar_id  = 5,&
+                                rotation_colvar_id        = 6,&
+                                ddiff_colvar_id           = 7
 
   !!****s* colvar/dist_colvar_param [1.0] *
   !!
@@ -112,6 +114,10 @@ MODULE colvar_types
                                       i_at2_bond2
   END TYPE rotation_colvar_type
 
+  TYPE ddiff_colvar_type
+     INTEGER, DIMENSION(4)         :: i_at_ddiff
+  END TYPE ddiff_colvar_type
+
   !!****s* colvar_types/dist_colvar_param [1.0] *
   !!
   !!   NAME
@@ -142,6 +148,7 @@ MODULE colvar_types
      TYPE(angle_colvar_type),POINTER          :: angle_param
      TYPE(plane_distance_colvar_type),POINTER :: plane_distance_param
      TYPE(rotation_colvar_type), POINTER      :: rotation_param
+     TYPE(ddiff_colvar_type), POINTER         :: ddiff_param
   END TYPE colvar_type
 
   TYPE colvar_p_type
@@ -155,6 +162,7 @@ MODULE colvar_types
      INTEGER :: ncoord
      INTEGER :: nplane_dist
      INTEGER :: nrot
+     INTEGER :: nddiff
      INTEGER :: nrestraint
      !
      INTEGER :: ntot
@@ -205,6 +213,7 @@ CONTAINS
     NULLIFY(colvar%torsion_param)
     NULLIFY(colvar%plane_distance_param)
     NULLIFY(colvar%rotation_param)
+    NULLIFY(colvar%ddiff_param)
     NULLIFY(colvar%coord_param)
     NULLIFY(colvar%i_atom)
     NULLIFY(colvar%dsdr)
@@ -216,19 +225,22 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(coord_colvar_id)
           ALLOCATE(colvar%coord_param, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure) 
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(angle_colvar_id)
           ALLOCATE(colvar%angle_param, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)           
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(torsion_colvar_id)
           ALLOCATE(colvar%torsion_param, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)           
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(plane_distance_colvar_id)
           ALLOCATE(colvar%plane_distance_param, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)           
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(rotation_colvar_id)
           ALLOCATE(colvar%rotation_param, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)           
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(ddiff_colvar_id)
+          ALLOCATE(colvar%ddiff_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
        CASE DEFAULT
@@ -284,6 +296,8 @@ CONTAINS
           colvar%n_atom_s=4
        CASE(plane_distance_colvar_id)
           colvar%n_atom_s=4
+       CASE(ddiff_colvar_id)
+          colvar%n_atom_s=4
        CASE(rotation_colvar_id)
           colvar%n_atom_s=SIZE(colvar%rotation_param%i_at1_bond1)+&
                           SIZE(colvar%rotation_param%i_at2_bond1)+&
@@ -314,6 +328,10 @@ CONTAINS
        CASE(torsion_colvar_id)
           DO ii=1,4
              colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
+          ENDDO
+       CASE(ddiff_colvar_id)
+          DO ii=1,4
+             colvar%i_atom(ii)=colvar%ddiff_param%i_at_ddiff(ii)
           ENDDO
        CASE(plane_distance_colvar_id)
           DO ii=1,3
@@ -403,6 +421,9 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(plane_distance_colvar_id)
        DEALLOCATE(colvar%plane_distance_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE(ddiff_colvar_id)
+       DEALLOCATE(colvar%ddiff_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (rotation_colvar_id)
        DEALLOCATE(colvar%rotation_param%i_at1_bond1, stat=stat)
@@ -505,6 +526,8 @@ CONTAINS
        colvar_out%rotation_param%i_at2_bond1  = colvar_in%rotation_param%i_at2_bond1 + my_offset
        colvar_out%rotation_param%i_at1_bond2  = colvar_in%rotation_param%i_at1_bond2 + my_offset
        colvar_out%rotation_param%i_at2_bond2  = colvar_in%rotation_param%i_at2_bond2 + my_offset
+    CASE(ddiff_colvar_id)
+       colvar_out%ddiff_param%i_at_ddiff   = colvar_in%ddiff_param%i_at_ddiff + my_offset
     END SELECT    
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone

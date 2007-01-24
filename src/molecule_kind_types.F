@@ -30,6 +30,7 @@ MODULE molecule_kind_types
                                              colvar_counters,&
                                              coord_colvar_id,&
                                              dist_colvar_id,&
+                                             ddiff_colvar_id,&
                                              plane_distance_colvar_id,&
                                              rotation_colvar_id,&
                                              torsion_colvar_id
@@ -214,6 +215,7 @@ CONTAINS
 
     ncolv%ndist       = 0
     ncolv%nangle      = 0
+    ncolv%nddiff      = 0
     ncolv%ntorsion    = 0
     ncolv%ncoord      = 0
     ncolv%nplane_dist = 0
@@ -231,6 +233,8 @@ CONTAINS
              ncolv%nrot = ncolv%nrot + 1
           CASE(dist_colvar_id)
              ncolv%ndist = ncolv%ndist + 1
+          CASE(ddiff_colvar_id)
+             ncolv%nddiff = ncolv%nddiff + 1
           CASE(plane_distance_colvar_id)
              ncolv%nplane_dist = ncolv%nplane_dist + 1
           CASE(torsion_colvar_id)
@@ -243,6 +247,7 @@ CONTAINS
                  ncolv%ntorsion     +&
                  ncolv%ncoord       +&
                  ncolv%nplane_dist  +&
+                 ncolv%nddiff       +&
                  ncolv%nrot
 
   END SUBROUTINE setup_colvar_counters

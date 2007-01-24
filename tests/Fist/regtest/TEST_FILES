@@ -180,3 +180,5 @@ water_3_g3x3_ext.inp      2
 water_3_rg3x3_ext.inp     2
 #free energy calculation
 NaCl_fe.inp               2
+# new constraints distance_difference
+water_3_ddist.inp         2
