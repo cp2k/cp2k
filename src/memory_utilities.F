@@ -42,8 +42,7 @@ MODULE memory_utilities
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'memory_utilities'
 
-  PUBLIC :: reallocate,&
-            write_memory
+  PUBLIC :: reallocate
 
 ! *****************************************************************************
 
@@ -1043,45 +1042,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE reallocate_s1
-
-! *****************************************************************************
-
-  SUBROUTINE write_memory(checkpoint,root_section,para_env,error)
-
-!   Purpose: Write the current memory size of all processe in KBytes.
-
-!   History: - Creation (24.09.2002,MK)
-
-!   ***************************************************************************
-
-    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
-    INTEGER                                  :: group, ipe, mype, npe
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
-         "GLOBAL%PERFORMANCE/MEMORY",error=error),cp_p_file)) THEN
-
-       group = para_env%group
-       npe = para_env%num_pe
-       mype = para_env%mepos
-
-       DO ipe=0,npe-1
-          WRITE (UNIT=string,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
-          string = ADJUSTL(string)
-          IF (ipe == mype) CALL print_memory(string)
-          CALL mp_sync(group)
-       END DO
-    END IF
-
-  END SUBROUTINE write_memory
-
-! *****************************************************************************
 
 END MODULE memory_utilities

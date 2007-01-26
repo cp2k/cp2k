@@ -30,7 +30,6 @@ MODULE checkpoint_handler
   USE machine,                         ONLY: m_cputime,&
                                              m_flush,&
                                              m_getpid
-  USE memory_utilities,                ONLY: write_memory
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE string_utilities,                ONLY: ascii_to_string,&
@@ -42,54 +41,12 @@ MODULE checkpoint_handler
 
   PRIVATE
 
-  PUBLIC :: write_checkpoint_information,&
-            Pwarning
+  PUBLIC :: Pwarning
 
 !!***
 ! *****************************************************************************
 
 CONTAINS
-
-! *****************************************************************************
-
-  SUBROUTINE write_checkpoint_information(checkpoint,root_section,para_env,error)
-
-!   Purpose: Write checkpoint information.
-
-!   History: - Creation (29.09.2002,MK)
-
-!   ***************************************************************************
-
-    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: iw
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PERFORMANCE/ROUTINES",&
-         extension=".Log",error=error)
-!   ---------------------------------------------------------------------------
-!   *** Wait for ionode and empty IO buffer ***
-    IF (iw>0) WRITE(iw,*)checkpoint
-    IF (iw>0) CALL m_flush(iw)
-    CALL mp_sync(para_env%group)
-
-!   *** Write checkpoint informations ***
-
-    CALL write_cputime(checkpoint,root_section,para_env,error)
-    CALL write_memory(checkpoint,root_section,para_env,error)
-
-    IF (iw>0) CALL m_flush(iw)
-    CALL mp_sync(para_env%group)
-    CALL cp_print_key_finished_output(iw,logger,root_section,&
-         "GLOBAL%PERFORMANCE/ROUTINES",error=error)    
-  END SUBROUTINE write_checkpoint_information
-
-! *****************************************************************************
 
   SUBROUTINE write_cputime(checkpoint,root_section,para_env,error)
 
