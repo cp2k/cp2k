@@ -27,8 +27,10 @@
 
 MODULE atoms_input
 
+  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
-                                             get_cell,&
+                                             get_cell, pbc, &
                                              scaled_to_real
   USE checkpoint_handler,              ONLY: Pwarning
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
@@ -43,6 +45,9 @@ MODULE atoms_input
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE particle_types,                  ONLY: particle_type
+  USE shell_potential_types,           ONLY: shell_type
+  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -52,7 +57,7 @@ MODULE atoms_input
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: read_atoms_input
+  PUBLIC :: read_atoms_input, read_shell_coord_input
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atoms_input'
 !!*****
 !******************************************************************************
@@ -257,5 +262,167 @@ CONTAINS
     END DO
     CALL timestop(handle)
   END SUBROUTINE read_atoms_input
+
+!******************************************************************************
+!!****** atoms_input/read_shell_coord_input [1.0] *
+!!
+!!   NAME
+!!     read_shell_coord_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!    MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!  OPTIONS
+!!
+!!  INPUTS
+!!*** *************************************************************************
+
+  SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell, root_section, subsys_section, error )
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: shell_particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock_atom = 10000
+
+    CHARACTER(len=2*default_string_length)   :: line_att
+    CHARACTER(len=default_string_length)     :: my_default_index
+    CHARACTER(len=default_string_length)     :: name_kind
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), ALLOCATABLE              :: at_name
+    INTEGER                                  :: end_c, handle, ishell, ILEN, &
+                                                istat, j, nshell, output_unit, &
+                                                start_c, sh_index, wrd
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: at_index
+    LOGICAL                                  :: explicit, failure, ionode, &
+                                                is_ok, is_shell, &
+                                                scaled_coordinates
+    REAL(KIND=dp)                            :: unit_of_length
+    REAL(KIND=dp)                            :: dab, rab(3)
+    REAL(KIND=dp), DIMENSION(:,:), &
+      ALLOCATABLE                            :: r
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(section_vals_type), POINTER         :: shell_coord_section
+    TYPE(shell_type), POINTER                :: shell
+    TYPE(val_type), POINTER                  :: val
+
+    failure=.FALSE.
+    NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
+
+    NULLIFY(shell_coord_section)
+    shell_coord_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
+    CALL section_vals_get(shell_coord_section, explicit=explicit, error=error)
+    IF (.NOT.explicit) RETURN
+
+    CALL timeset(routineN,handle)
+    CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
+         n_rep_val=nshell,error=error)
+
+    CPPostcondition(SIZE(shell_particle_set,1)==nshell, cp_failure_level, routineP, error, failure)
+    IF(.NOT. failure) THEN
+      ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell), STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      CALL Pwarning("Overwriting shells coordinates. "//&
+           " Active coordinates READ from &SHELL_COORD section",&
+           root_section, error)
+      CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+      DO ishell=1,nshell
+         ! we use only the first default_string_length characters of each line
+         is_ok=cp_sll_val_next(list,val,error=error)
+         CALL val_get(val,c_val=line_att,error=error)
+         !CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
+         !     i_rep_val=iatom,c_val=line_att,error=error)
+         ! *** Read name and atomic coordinates ***
+         start_c=1
+         DO wrd=1,5
+            DO j=start_c,LEN(line_att)
+               IF (line_att(j:j)/=' ') THEN
+                  start_c=j
+                  EXIT
+               END IF
+            END DO
+            end_c=LEN(line_att)+1
+            DO j=start_c,LEN(line_att)
+               IF (line_att(j:j)==' ') THEN
+                  end_c=j
+                  EXIT
+               END IF
+            END DO
+            CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
+                 cp_assertion_failed,routineP,&
+                 "incorrectly formatted line in coord section'"//line_att//"'",&
+                 error,failure)
+            IF (wrd==1) THEN
+               at_name(ishell)=line_att(start_c:end_c-1)
+               CALL uppercase(at_name(ishell))
+            ELSE IF (wrd==5) THEN
+               READ (line_att(start_c:end_c-1),*) at_index(ishell)
+            ELSE
+               READ (line_att(start_c:end_c-1),*) r(wrd-1,ishell)
+            END IF
+            start_c=end_c
+         END DO
+      END DO
+      !-----------------------------------------------------------------------------
+      !-----------------------------------------------------------------------------
+      ! 3. Check corrispondence and convert coordinates into internal cp2k coordinates
+      !-----------------------------------------------------------------------------
+      DO ishell=1,nshell
+         atomic_kind => particle_set(at_index(ishell))%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              name=name_kind,shell_active=is_shell,shell=shell)
+         CALL uppercase(name_kind)
+         IF((TRIM(at_name(ishell))==TRIM(name_kind)).AND. is_shell) THEN
+           sh_index = particle_set(at_index(ishell))%shell_index
+           IF (scaled_coordinates) THEN
+             CALL scaled_to_real(r(:,ishell),shell_particle_set(sh_index)%r(:),cell)
+           ELSE
+             shell_particle_set(sh_index)%r(:) = r(:,ishell)*unit_of_length
+           END IF
+
+           rab = pbc(shell_particle_set(sh_index)%r,particle_set(at_index(ishell))%r,cell)
+           dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+           IF(shell%max_dist>0.0_dp .AND. shell%max_dist<dab ) THEN
+             IF(ionode) THEN
+               WRITE(output_unit,*) "WARNING : shell and core for atom ", at_index(ishell), " seem to be too distant. "
+             END IF
+           END IF
+ 
+         ELSE
+           CALL cp_assert(.FALSE.,cp_failure_level,&
+                 cp_assertion_failed,routineP,&
+                 "shell coordinate assigned to the wrong atom. check the shell indexes in the input",&
+                 error,failure)
+         END IF
+      END DO
+      DEALLOCATE(r,at_index,at_name,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE read_shell_coord_input
 
 END MODULE atoms_input

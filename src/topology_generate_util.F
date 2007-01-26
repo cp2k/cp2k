@@ -559,7 +559,7 @@ CONTAINS
        CALL timeset(TRIM(routineN)//"_2",'I','',handle2)
        ! Initialize fake particle_set and atomic_kinds to generate the bond list
        ! using the neighboring list routine
-       CALL allocate_atomic_kind_set(atomic_kind_set,1)
+       CALL allocate_atomic_kind_set(atomic_kind_set,1,error)
        CALL allocate_particle_set(particle_set,natom)
        !
        my_maxrad = MAXVAL(radius)*2.0_dp
@@ -806,7 +806,7 @@ CONTAINS
        DEALLOCATE(list,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL deallocate_particle_set(particle_set)
-       CALL deallocate_atomic_kind_set(atomic_kind_set)
+       CALL deallocate_atomic_kind_set(atomic_kind_set,error)
        !
        CALL timestop(0.0_dp,handle2)
        IF (output_unit>0) THEN

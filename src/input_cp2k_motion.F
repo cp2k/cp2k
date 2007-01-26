@@ -150,6 +150,23 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"shell_trajectory",&
+            description="controls the output of the trajectory of  shells when the shell-model is used ",&
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file for the trajectory of shells.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
        CALL cp_print_key_section_create(print_key,"cell",&
             description="controls the output of the simulatin cell",&
             print_level=low_print_level, common_iter_levels=1,&
@@ -172,6 +189,22 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"shell_velocities",&
+            description="controls the output of the velocities of shells when the shell model is used",&
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file for the velocities of shells.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
        
        CALL cp_print_key_section_create(print_key,"forces",&
             description="controls the output of the forces",&
@@ -186,6 +219,22 @@ CONTAINS
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"shell_forces",&
+            description="controls the output of the forces on shells when shell-model is used",&
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file for the forces on shells.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 

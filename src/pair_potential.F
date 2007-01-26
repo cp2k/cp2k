@@ -39,6 +39,8 @@ MODULE pair_potential
        b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
        ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
        pair_potential_pp_type, pair_potential_single_type, wl_type
+  USE shell_potential_types,           ONLY: get_shell, &
+                                             shell_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              potential_s,&
@@ -248,11 +250,13 @@ CONTAINS
     INTEGER                                  :: ewald_type, handle, i, &
                                                 ilevel, j, jx, n, ncount, &
                                                 ngp, npoints, ntype
-    LOGICAL                                  :: failure, found_locut, my_do_14
+    LOGICAL                                  :: failure, found_locut, is_i_shell, &
+                                                is_j_shell, my_do_14
     REAL(KIND=dp) :: alpha, diffmax, dx2, e, eps0, hicut, locut, locut_found, &
-      my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, &
+      my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qci, qcj, qi, qj, qsi, qsj, x, x2, xdum, &
       xdum1, xsav
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_type), POINTER                :: shell_i, shell_j
 
     failure     = .FALSE.
     n      = 0
@@ -287,7 +291,13 @@ CONTAINS
     ! real computation of splines
     DO i = 1, ntype ! i:  first atom type
        atomic_kind=> atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi,shell_active=is_i_shell,shell=shell_i)
+       IF(is_i_shell) THEN
+         CALL get_shell(shell=shell_i, charge_core=qci, charge_shell=qsi, error=error) 
+       ELSE
+         qsi = qi
+         qci = 0.0_dp
+       END IF
        DO j = 1, i  ! j:  second atom type
           IF (iw3>0 .AND. iw<=0) THEN
              IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
@@ -297,18 +307,37 @@ CONTAINS
           ncount = ncount + 1
           potparm%pot(i,j)%pot%undef = .FALSE.
           atomic_kind=> atomic_kind_set(j)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qj)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qj,shell_active=is_j_shell,shell=shell_j)
+          IF(is_j_shell) THEN
+            CALL get_shell(shell=shell_j, charge_core=qcj, charge_shell=qsj, error=error) 
+          ELSE
+            qsj = qj
+            qcj = 0.0_dp
+          END IF
           n = spline_env % spltab(i,j)
           locut = rlow_nb
           hicut = SQRT ( potparm %pot ( i, j ) %pot % rcutsq )
           IF (ABS(hicut) <= 1.0E-15_dp) hicut = 1.0E3_dp
+
           potparm%pot(i,j)%pot %energy_cutoff = 0.0_dp
           potparm%pot(i,j)%pot %e_cutoff_coul = 0.0_dp
           IF (scale_cutoff) THEN
              potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,hicut,my_vdw_scale14)
-             potparm%pot(i,j)%pot %e_cutoff_coul &
-                  = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_type,alpha,eps0,&
-                  my_ei_scale14, my_do_14 )
+             IF((is_i_shell .OR. is_j_shell)) THEN
+               potparm%pot(i,j)%pot %e_cutoff_coul &
+                      = ener_coul ( potparm%pot( i, j )%pot, qsi, qsj, hicut, ewald_type,alpha,eps0,&
+                        my_ei_scale14, my_do_14 )+ &
+                        ener_coul ( potparm%pot( i, j )%pot, qsi, qcj, hicut, ewald_type,alpha,eps0,&
+                        my_ei_scale14, my_do_14 )+ &
+                        ener_coul ( potparm%pot( i, j )%pot, qci, qsj, hicut, ewald_type,alpha,eps0,&
+                        my_ei_scale14, my_do_14 )+ &
+                        ener_coul ( potparm%pot( i, j )%pot, qci, qcj, hicut, ewald_type,alpha,eps0,&
+                        my_ei_scale14, my_do_14 )
+             ELSE
+               potparm%pot(i,j)%pot %e_cutoff_coul &
+                    = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_type,alpha,eps0,&
+                    my_ei_scale14, my_do_14 )
+             END IF
           END IF
 
           ! Find the real locut according emax_spline
@@ -321,7 +350,7 @@ CONTAINS
              dx2 = dx2 / 100.0_dp
              DO jx = 1, 100
                 e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                  + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                  + ener_coul ( potparm%pot( i, j )%pot, qsi, qsj, x, ewald_type,alpha,eps0,&
                                 my_ei_scale14, my_do_14 )
                 IF (ABS(e) > emax_spline) THEN
                    locut_found = x
@@ -344,17 +373,20 @@ CONTAINS
              DO jx = 1, npoints + 1     ! jx: loop over 1/distance**2
                 x = SQRT ( 1.0_dp/x2 )
                 e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                     + ener_coul ( potparm%pot( i, j )%pot, qsi, qsj, x, ewald_type,alpha,eps0,&
                                    my_ei_scale14, my_do_14 )
                 spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
                 spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
                 x2 = x2 + dx2
              END DO ! jx: loop over distance
              IF (my_do_14) THEN
-                myfac1 = my_ei_scale14 * ifourpi / eps0 * qi * qj
+                myfac1 = my_ei_scale14 * ifourpi / eps0 * qsi * qsj
                 myfac2 = 0.0_dp
                 IF (scale_cutoff) THEN
-                   myfac2 = my_ei_scale14 * ifourpi / eps0 * qi * qj / hicut
+                   myfac2 = my_ei_scale14 * ifourpi / eps0 * qsi * qsj / hicut +&
+                            my_ei_scale14 * ifourpi / eps0 * qci * qsj / hicut +&
+                            my_ei_scale14 * ifourpi / eps0 * qsi * qcj / hicut +&
+                            my_ei_scale14 * ifourpi / eps0 * qci * qcj / hicut 
                 END IF
                 CALL init_spline(spline_env%spline_data_p(n)%spline_data,dx=dx2,&
                      ei_scale14=myfac1, ei_cutoff14=myfac2)
@@ -369,7 +401,7 @@ CONTAINS
              DO jx = 1, 5*npoints
                 x = x2
                 e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                     + ener_coul ( potparm%pot( i, j )%pot, qsi, qsj, x, ewald_type,alpha,eps0,&
                                    my_ei_scale14, my_do_14 )
                 IF (e<max_energy) THEN
                    xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
@@ -378,6 +410,7 @@ CONTAINS
                 END IF
                 x2 = x2 + dx2
              END DO
+
              IF (npoints > 5E4) THEN
                 IF (iw>0) THEN
                    WRITE(iw,'(A,I5,A,F15.9)') "SPLINE_INFO| Number of points: ",npoints,&
@@ -412,15 +445,15 @@ CONTAINS
              DO jx = 1, 5000
                 x = x2
                 e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0,&
+                     + ener_coul ( potparm%pot( i, j )%pot, qsi, qsj, x, ewald_type,alpha,eps0,&
                                    my_ei_scale14, my_do_14 )
                 WRITE(1000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
                 x2 = x2 + dx2
              END DO
              WRITE(1000+n,*)
           END IF
-       END DO
-    END DO
+       END DO  ! jkind
+    END DO   !ikind
     CALL finalizef()
     IF (iw3>0) THEN
        WRITE(iw3,'()')
@@ -514,6 +547,7 @@ CONTAINS
              END IF
           END DO
        END DO
+
        IF (ndim==0) CYCLE ! No potential of this kind found
        CALL get_indexes(min_val,ntype,tmpij)
        potparm%pot(tmpij(1),tmpij(2))%pot%undef = .TRUE.
@@ -769,7 +803,8 @@ CONTAINS
        END IF
        DEALLOCATE(my_index,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END DO
+    END DO  ! pot_target
+
     CALL spline_env_create ( spline_env, ntype, ntab_in=nunique, error=error )
     spline_env%spltab=tmp_index
     DEALLOCATE(tmp_index,stat=stat)

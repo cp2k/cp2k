@@ -80,6 +80,9 @@ MODULE atomic_kind_types
                                              init_se_param,&
                                              se_param_set_default,&
                                              write_se_param
+  USE shell_potential_types,           ONLY: shell_release,&
+                                             shell_retain,&
+                                             shell_type
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -93,6 +96,7 @@ MODULE atomic_kind_types
 ! *** Global parameters (only in this module)
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
+
 
 ! *** Define the atomic kind types ***
 
@@ -127,6 +131,9 @@ MODULE atomic_kind_types
     INTEGER                                :: lmax_rho0
     INTEGER, DIMENSION(:), POINTER         :: elec_conf ! used to set up the initial atomic guess
                                                         ! user can specify whatever...
+
+    LOGICAL                                :: shell_active
+    TYPE(shell_type), POINTER              :: shell
   END TYPE atomic_kind_type
 
   TYPE atomic_kind_p_type
@@ -161,7 +168,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_atomic_kind_set(atomic_kind_set,nkind)
+  SUBROUTINE allocate_atomic_kind_set(atomic_kind_set,nkind,error)
 
 !   Purpose: Allocate an atomic kind set.
 
@@ -172,6 +179,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nkind
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_atomic_kind_set'
 
@@ -179,8 +188,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+
     IF (ASSOCIATED(atomic_kind_set)) THEN
-      CALL deallocate_atomic_kind_set(atomic_kind_set)
+      CALL deallocate_atomic_kind_set(atomic_kind_set,error)
     END IF
 
     ALLOCATE (atomic_kind_set(nkind),STAT=istat)
@@ -201,6 +211,7 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%paw_proj_set)
       NULLIFY (atomic_kind_set(ikind)%harmonics)
       NULLIFY (atomic_kind_set(ikind)%grid_atom)
+      NULLIFY (atomic_kind_set(ikind)%shell)
       atomic_kind_set(ikind)%name = ""
       atomic_kind_set(ikind)%element_symbol = ""
       atomic_kind_set(ikind)%mass = 0.0_dp
@@ -217,13 +228,14 @@ CONTAINS
       atomic_kind_set(ikind)%ngrid_ang = 50
       atomic_kind_set(ikind)%lmax_rho0 = 0
       atomic_kind_set(ikind)%ghost = .FALSE.
+      atomic_kind_set(ikind)%shell_active=.FALSE.
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set)
+  SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set,error)
 
 !   Purpose: Deallocate an atomic kind set.
 
@@ -233,6 +245,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_atomic_kind_set'
 
@@ -290,12 +303,12 @@ CONTAINS
             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                              "atomic_kind_set(ikind)%elec_conf")
         ENDIF
+        CALL shell_release(atomic_kind_set(ikind)%shell,error)
+ 
       END DO
-
       DEALLOCATE (atomic_kind_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atomic_kind_set")
-
     ELSE
 
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -320,7 +333,8 @@ CONTAINS
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
                              max_rad_local, gpw_type_forced,&
                              harmonics, max_iso_not0, max_s_harm,&
-                             grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost)
+                             grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,&
+                             shell, shell_active)
 
 !   Purpose: Get informations about an atomic kind.
 
@@ -369,6 +383,8 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ngrid_ang, ngrid_rad, &
                                                 lmax_rho0
     LOGICAL, INTENT(OUT), OPTIONAL           :: ghost
+    TYPE(shell_type), POINTER, OPTIONAL      :: shell
+    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atomic_kind'
 
@@ -526,6 +542,8 @@ CONTAINS
       IF (PRESENT(ngrid_rad)) ngrid_rad = atomic_kind%ngrid_rad
       IF (PRESENT(lmax_rho0)) lmax_rho0 = atomic_kind%lmax_rho0
       IF (PRESENT(ghost)) ghost = atomic_kind%ghost
+      IF (PRESENT(shell)) shell => atomic_kind%shell
+      IF (PRESENT(shell_active)) shell_active = atomic_kind%shell_active
 
     ELSE
 
@@ -546,7 +564,7 @@ CONTAINS
                                  npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
                                  elp_potential_present,paw_atom_present,&
-                                 qm_atom_present,&
+                                 qm_atom_present,shell_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
                                  max_ngrid_rad,&
                                  max_sph_harm,maxg_iso_not0,lmax_rho0,&
@@ -566,7 +584,7 @@ CONTAINS
       ncgf_aux, npgf, nset, nsgf, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       gth_potential_present, elp_potential_present, paw_atom_present, &
-      qm_atom_present
+      qm_atom_present,shell_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -590,6 +608,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
                                                 soft_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
+    TYPE(shell_type), POINTER                :: shell
+
 
 !   ---------------------------------------------------------------------------
 
@@ -624,6 +644,8 @@ CONTAINS
       IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
       IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
       IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
+      IF (PRESENT(shell_present)) shell_present = .FALSE.
+      IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
       IF (PRESENT(kind_of)) kind_of(:) = 0
       IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
@@ -647,7 +669,8 @@ CONTAINS
                              max_iso_not0=max_iso_not0,&
                              paw_atom=paw_atom,&
                              qm_atom=qm_atom,&
-                             lmax_rho0=lmax_rho0_kind)
+                             lmax_rho0=lmax_rho0_kind,&
+                             shell=shell)
         IF (PRESENT(maxatom)) THEN
           maxatom = MAX(maxatom,atomic_kind%natom)
         END IF
@@ -857,6 +880,11 @@ CONTAINS
         IF (PRESENT(qm_atom_present)) THEN
           IF (qm_atom) THEN
             qm_atom_present = .TRUE.
+          END IF
+        END IF
+        IF (PRESENT(shell_present)) THEN
+          IF (ASSOCIATED(shell)) THEN
+            shell_present = .TRUE.
           END IF
         END IF
         IF (PRESENT(atom_of_kind)) THEN
@@ -1610,7 +1638,7 @@ CONTAINS
                              natom,atom_list,elec_conf,&
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
                              elp_potential,soft_basis_set,hard_basis_set,&
-                             lmax_rho0,zeff,ghost)
+                             lmax_rho0,zeff,ghost,shell,shell_active,error)
 
 !   Purpose: Set the components of an atomic kind data set.
 
@@ -1633,6 +1661,10 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: lmax_rho0
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
     LOGICAL, INTENT(IN), OPTIONAL            :: ghost
+    TYPE(shell_type), POINTER, OPTIONAL      :: shell
+    LOGICAL, INTENT(IN),  OPTIONAL           :: shell_active
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_atomic_kind'
 
@@ -1692,6 +1724,11 @@ CONTAINS
         END IF
       END IF
       IF (PRESENT(ghost)) atomic_kind%ghost = ghost
+      IF (PRESENT(shell)) THEN
+        atomic_kind%shell => shell
+        CALL shell_retain(shell,error)
+      END IF
+      IF (PRESENT(shell_active)) atomic_kind%shell_active=shell_active
 
     ELSE
 

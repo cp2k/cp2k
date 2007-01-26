@@ -416,6 +416,7 @@ OBJECTS_GENERIC =\
  semi_empirical_parameters.o\
  semi_empirical_types.o\
  semi_empirical_utils.o\
+ shell_potential_types.o\
  soft_basis_set.o\
  sparse_matrix_output.o\
  sparse_matrix_types.o\

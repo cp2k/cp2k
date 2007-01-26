@@ -291,7 +291,7 @@ SUBROUTINE atomic_kind_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              CALL deallocate_atomic_kind_set(list%els)
+              CALL deallocate_atomic_kind_set(list%els,error)
            END IF
         END IF
         NULLIFY(list%els)

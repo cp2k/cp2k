@@ -28,6 +28,7 @@ MODULE force_field_types
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_p_release,&
                                              pair_potential_p_type
+  USE shell_potential_types,           ONLY: shell_p_release, shell_p_type
   USE splines,                         ONLY: spline_data_release,&
                                              spline_data_type
 #include "cp_common_uses.h"
@@ -116,6 +117,7 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: impr_phi0(:)
     TYPE (pair_potential_p_type), POINTER          :: nonbonded
     TYPE (pair_potential_p_type), POINTER          :: nonbonded14
+    TYPE (shell_p_type), DIMENSION(:), POINTER     :: shell_list
   END TYPE input_info_type
 
   TYPE charmm_info_type
@@ -699,6 +701,7 @@ SUBROUTINE init_inp_info(inp_info)
   NULLIFY(inp_info%impr_phi0)
   NULLIFY(inp_info%nonbonded)
   NULLIFY(inp_info%nonbonded14)
+  NULLIFY(inp_info%shell_list)
 
 END SUBROUTINE init_inp_info
 
@@ -1204,6 +1207,9 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
   END IF
   IF(ASSOCIATED(inp_info%nonbonded14)) THEN
      CALL pair_potential_p_release(inp_info%nonbonded14,error=error)
+  END IF
+  IF(ASSOCIATED(inp_info%shell_list)) THEN
+     CALL shell_p_release(inp_info%shell_list,error=error)
   END IF
 
 END SUBROUTINE deallocate_inp_info

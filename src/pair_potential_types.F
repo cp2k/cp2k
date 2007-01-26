@@ -60,6 +60,11 @@ MODULE pair_potential_types
                                                            bm_type,&
                                                            gp_type/)
 
+  INTEGER, PUBLIC, PARAMETER :: nosh_nosh=0,&
+                                nosh_sh=1,&
+                                sh_sh=2
+  INTEGER, PUBLIC, PARAMETER, DIMENSION(3) :: list_sh_type =(/nosh_nosh,nosh_sh,sh_sh/)
+
   PUBLIC :: pair_potential_type,&
             pair_potential_reallocate
 
@@ -166,6 +171,7 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: e_cutoff_coul
      LOGICAL        :: undef
      INTEGER        :: TYPE
+     INTEGER        :: shell_type
      CHARACTER ( LEN = default_string_length ) :: at1
      CHARACTER ( LEN = default_string_length ) :: at2
      TYPE ( ipbv_pot_type ),       POINTER :: ipbv
@@ -179,6 +185,9 @@ MODULE pair_potential_types
      TYPE ( buckmorse_pot_type ),  POINTER :: buckmo
      TYPE ( spline_data_type ),    POINTER :: pair_spline_data
      TYPE ( spline_data_type ),    POINTER :: rho_spline_data     ! for EAM type potentials
+     TYPE ( spline_data_type ),    POINTER :: c_coul_spline_data      ! for shell-model (core-ion or core-core)
+     TYPE ( spline_data_type ),    POINTER :: cs_coul_spline_data     ! for shell-model (core-shell) 
+     TYPE ( spline_data_type ),    POINTER :: sc_coul_spline_data     ! for shell-model (shell-core) 
   END TYPE pair_potential_single_type
 
   TYPE pair_potential_type
@@ -306,7 +315,10 @@ CONTAINS
                 potparm%buck4r,&
                 potparm%buckmo,&
                 potparm%pair_spline_data,&
-                potparm%rho_spline_data )
+                potparm%rho_spline_data,&
+                potparm%c_coul_spline_data,&
+                potparm%cs_coul_spline_data,&
+                potparm%sc_coul_spline_data)
        CALL pair_potential_single_clean(potparm, error)
     END IF
   END SUBROUTINE pair_potential_single_create
@@ -337,6 +349,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     potparm % type          = nn_type
+    potparm % shell_type    = nosh_nosh
     potparm % undef         = .TRUE.
     potparm % at1           = 'NULL'
     potparm % at2           = 'NULL'
@@ -347,6 +360,12 @@ CONTAINS
          CALL spline_data_release ( potparm % pair_spline_data ,error=error)
     IF (ASSOCIATED( potparm % rho_spline_data )) &
          CALL spline_data_release ( potparm % rho_spline_data ,error=error)
+    IF (ASSOCIATED( potparm % c_coul_spline_data )) &
+         CALL spline_data_release ( potparm % c_coul_spline_data ,error=error)
+    IF (ASSOCIATED( potparm % cs_coul_spline_data )) &
+         CALL spline_data_release ( potparm % cs_coul_spline_data ,error=error)
+    IF (ASSOCIATED( potparm % sc_coul_spline_data )) &
+         CALL spline_data_release ( potparm % sc_coul_spline_data ,error=error)
 
     CALL pair_potential_lj_clean (potparm, error=error)
     CALL pair_potential_williams_clean (potparm, error=error)
@@ -394,6 +413,7 @@ CONTAINS
           CALL pair_potential_single_create(potparm_dest,error)
        END IF
        potparm_dest % TYPE          = potparm_source % TYPE
+       potparm_dest % shell_type    = potparm_source % shell_type
        potparm_dest % undef         = potparm_source % undef
        potparm_dest % at1           = potparm_source % at1
        potparm_dest % at2           = potparm_source % at2
@@ -406,6 +426,15 @@ CONTAINS
        END IF
        IF (ASSOCIATED( potparm_source % rho_spline_data )) THEN
           CALL spline_data_copy ( potparm_source % rho_spline_data, potparm_dest % rho_spline_data, error=error  )
+       END IF
+       IF (ASSOCIATED( potparm_source % c_coul_spline_data )) THEN
+          CALL spline_data_copy ( potparm_source % c_coul_spline_data, potparm_dest % c_coul_spline_data, error=error  )
+       END IF
+       IF (ASSOCIATED( potparm_source % cs_coul_spline_data )) THEN
+          CALL spline_data_copy ( potparm_source % cs_coul_spline_data, potparm_dest % cs_coul_spline_data, error=error  )
+       END IF
+       IF (ASSOCIATED( potparm_source % sc_coul_spline_data )) THEN
+          CALL spline_data_copy ( potparm_source % sc_coul_spline_data, potparm_dest % sc_coul_spline_data, error=error  )
        END IF
 
        CALL pair_potential_lj_copy (potparm_source, potparm_dest, error=error)
@@ -491,6 +520,9 @@ CONTAINS
        CPPostcondition(ASSOCIATED(potparm),cp_failure_level,routineP,error,failure)
        CALL spline_data_release ( potparm% pair_spline_data ,error=error)
        CALL spline_data_release ( potparm% rho_spline_data, error=error )
+       CALL spline_data_release ( potparm% c_coul_spline_data, error=error )
+       CALL spline_data_release ( potparm% cs_coul_spline_data, error=error )
+       CALL spline_data_release ( potparm% sc_coul_spline_data, error=error )
        CALL pair_potential_ipbv_release     ( potparm, error=error )
        CALL pair_potential_lj_release       ( potparm, error=error )
        CALL pair_potential_bmhft_release    ( potparm, error=error )
@@ -877,6 +909,7 @@ CONTAINS
        END IF
        DO i = ub1_old+1, ub1_new
           p % pot ( i ) % pot % type  = nn_type
+          p % pot ( i ) % pot % shell_type  = nosh_nosh
           p % pot ( i ) % pot % undef = .TRUE.
           p % pot ( i ) % pot % at1   = 'NULL'
           p % pot ( i ) % pot % at2   = 'NULL'
@@ -902,6 +935,9 @@ CONTAINS
           END SELECT
           NULLIFY ( p%pot(i)%pot%pair_spline_data )
           NULLIFY ( p%pot(i)%pot%rho_spline_data )
+          NULLIFY ( p%pot(i)%pot%c_coul_spline_data )
+          NULLIFY ( p%pot(i)%pot%sc_coul_spline_data )
+          NULLIFY ( p%pot(i)%pot%cs_coul_spline_data )
        END DO
 
        IF (ASSOCIATED(work)) CALL pair_potential_p_release(work, error=error)

@@ -42,6 +42,7 @@ MODULE ewalds
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
+  USE shell_potential_types,           ONLY: get_shell, shell_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate,&
@@ -307,8 +308,11 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
                                                 iparticle_kind, &
                                                 nparticle_kind, &
                                                 nparticle_local
+    LOGICAL                                  :: is_shell
     REAL(KIND=dp)                            :: alpha, eps0, q, q_self, q_sum
+    REAL(KIND=dp)                            :: qcore, qshell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_type), POINTER                :: shell
 
 !------------------------------------------------------------------------------
 
@@ -319,10 +323,18 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
   nparticle_kind = SIZE ( atomic_kind_set )
   DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
+        CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q,&
+             shell_active=is_shell,shell=shell)
         nparticle_local = local_particles%n_el(iparticle_kind)
-        q_self = q_self + q*q*nparticle_local
-        q_sum = q_sum + q*nparticle_local
+        IF(is_shell) THEN
+          CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell, error=error)
+          q_self = q_self + qcore*qcore*nparticle_local + &
+                   qshell*qshell*nparticle_local
+          q_sum = q_sum + qcore*nparticle_local + qshell*nparticle_local
+        ELSE
+          q_self = q_self + q*q*nparticle_local
+          q_sum = q_sum + q*nparticle_local
+        END IF
   END DO
 
 #if defined(__parallel)

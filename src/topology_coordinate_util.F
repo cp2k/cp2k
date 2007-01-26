@@ -229,14 +229,13 @@ CONTAINS
          WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
     CALL timestop(0.0_dp,handle2)
 
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Allocate the data structure for the atomic kind information 
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_2',handle2)
     NULLIFY(atomic_kind_set)
-    CALL allocate_atomic_kind_set(atomic_kind_set,topology%natom_type)
+    CALL allocate_atomic_kind_set(atomic_kind_set,topology%natom_type,error)
     CALL timestop(0.0_dp,handle2)
 
 

@@ -43,6 +43,7 @@ MODULE cp_subsystem_types
   USE mol_new_list_types,              ONLY: mol_new_list_release,&
                                              mol_new_list_retain,&
                                              mol_new_list_type
+  USE molecule_types_new,              ONLY: global_constraint_type
   USE particle_list_types,             ONLY: particle_list_release,&
                                              particle_list_retain,&
                                              particle_list_type
@@ -83,6 +84,7 @@ MODULE cp_subsystem_types
 !!     - local_molecules: the molecule structures of the actual subsys
 !!       that are local to this processor
 !!     - para_env: the parallel environment of the actual subsys
+!!     - shell_particles: list with the shell of the actual subsys id shell-model is used
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -94,17 +96,18 @@ MODULE cp_subsystem_types
   !***************************************************************************
   TYPE cp_subsystem_type
      INTEGER :: ref_count, id_nr
-     TYPE (atomic_kind_list_type), POINTER  :: atomic_kinds
-     TYPE (particle_list_type), POINTER     :: particles
-     TYPE (distribution_1d_type), POINTER   :: local_particles
-     TYPE (cp_para_env_type), POINTER       :: para_env
-     ! new molecules kinds
-     TYPE (mol_new_list_type), POINTER      :: molecules_new
+     TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
+     TYPE (particle_list_type), POINTER :: particles
+     TYPE (particle_list_type), POINTER :: shell_particles
+     TYPE (distribution_1d_type), POINTER :: local_particles
+     TYPE (cp_para_env_type), POINTER :: para_env
+     !new molecules kinds
+     TYPE (mol_new_list_type), POINTER :: molecules_new
      TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
      TYPE (distribution_1d_type), POINTER   :: local_molecules_new
      ! definitions of the collective variables
      TYPE (colvar_p_type), DIMENSION(:), POINTER :: colvar_p
-     ! Intermolecular constraints
+    ! Intermolecular constraints
      TYPE (global_constraint_type), POINTER  :: gci
   END TYPE cp_subsystem_type
 !!***
@@ -214,7 +217,7 @@ SUBROUTINE cp_subsys_create(subsys, para_env, error)
      subsys%ref_count=1
      CALL cp_para_env_retain(para_env,error=error)
      subsys%para_env => para_env
-     NULLIFY(subsys%atomic_kinds, subsys%particles, &
+     NULLIFY(subsys%atomic_kinds, subsys%particles, subsys%shell_particles , &
           subsys%local_particles, subsys%molecules_new,&
           subsys%molecule_kinds_new, subsys%local_molecules_new,&
           subsys%gci)
@@ -318,6 +321,7 @@ SUBROUTINE cp_subsys_release(subsys, error)
      IF (subsys%ref_count==0) THEN
         CALL atomic_kind_list_release(subsys%atomic_kinds,error=error)
         CALL particle_list_release(subsys%particles, error=error)
+        CALL particle_list_release(subsys%shell_particles, error=error)
         CALL distribution_1d_release(subsys%local_particles, error=error)
         CALL mol_kind_new_list_release(subsys%molecule_kinds_new, error=error)
         CALL mol_new_list_release(subsys%molecules_new, error=error)
@@ -431,7 +435,7 @@ END SUBROUTINE cp_subsys_release
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
                          molecules_new, molecule_kinds_new, local_molecules_new, &
-                         para_env, colvar_p, gci, error)
+                         para_env, colvar_p, shell_particles, gci, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
@@ -449,8 +453,10 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
       POINTER                                :: para_env
     TYPE(colvar_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: colvar_p
-    TYPE(global_constraint_type), POINTER,&
-         OPTIONAL                            :: gci
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: shell_particles
+     TYPE(global_constraint_type), POINTER,&
+          OPTIONAL                            :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_set', &
@@ -502,6 +508,13 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
         CPPrecondition(.NOT.ASSOCIATED(subsys%colvar_p),cp_failure_level,routineP,error,failure)
         subsys%colvar_p=>colvar_p
      ENDIF
+     IF (PRESENT(shell_particles)) THEN
+        IF(ASSOCIATED(shell_particles)) THEN
+          CALL particle_list_retain(shell_particles, error=error)
+          CALL particle_list_release(subsys%shell_particles, error=error)
+          subsys%shell_particles => shell_particles
+        END IF
+     END IF
      IF (PRESENT(gci)) THEN
         CPPrecondition(.NOT.ASSOCIATED(subsys%gci),cp_failure_level,routineP,error,failure)
         subsys%gci => gci
@@ -556,7 +569,7 @@ END SUBROUTINE cp_subsys_set
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
-     para_env, colvar_p, gci, error)
+     para_env, colvar_p, shell_particles, gci, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
@@ -575,8 +588,10 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
       POINTER                                :: para_env
     TYPE(colvar_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: colvar_p
-    TYPE(global_constraint_type), POINTER,&
-         OPTIONAL                            :: gci
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: shell_particles
+     TYPE(global_constraint_type), POINTER,&
+          OPTIONAL                            :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_get', &
@@ -599,8 +614,10 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
      IF (PRESENT(para_env)) para_env => subsys%para_env
      IF (PRESENT(colvar_p)) colvar_p => subsys%colvar_p
+     IF (PRESENT(shell_particles)) shell_particles => subsys%shell_particles
      IF (PRESENT(gci)) gci => subsys%gci
   END IF
 END SUBROUTINE cp_subsys_get
+!***************************************************************************
 
 END MODULE cp_subsystem_types

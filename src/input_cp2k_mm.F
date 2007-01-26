@@ -314,6 +314,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_SHELL_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_BOND_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -746,6 +750,110 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_charge_section
+
+!***************************************************************************
+!!****f* input_cp2k_mm/create_shell_section [1.0] *
+!!
+!!   NAME
+!!     create_shell_section
+!!
+!!   FUNCTION
+!!     This section specifies the charge of the MM atoms
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_shell_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="shell",&
+            description="This section specifies the parameters for shell-model potentials",&
+            n_keywords=6, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="The kind for which the shell potential parameters are given ",&
+            usage="H", default_c_val="DEFAULT", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CORE_CHARGE",&
+            variants=(/"CORE"/),&
+            description="Partial charge assigned to the core (electron charge units)",&
+            usage="CORE_CHARGE {real}",&
+            default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SHELL_CHARGE",&
+            variants=(/"SHELL"/),&
+            description="Partial charge assigned to the shell (electron charge units)",&
+            usage="SHELL_CHARGE {real}",&
+            default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MASS_FRACTION",&
+            variants=(/"MASS"/),&
+            description="Fraction of the mass of the atom to be assigned to the shell",&
+            usage="MASS_FRACTION {real}",&
+            default_r_val=0.1_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="SPRING",&
+            description="Force constant of the spring binding core and shell",&
+            usage="SPRING {real}",&
+            default_r_val=-1._dp,unit_str="hartree*bohr^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_DISTANCE",&
+            description="Assign a maximum elongation of the spring, "//& 
+            "if negative no limit is imposed",&
+            usage="MAX_DISTANCE 0.0",&
+            default_r_val=-1.0_dp,&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SHELL_CUTOFF",&
+            description="Define a screening function to exclude some neighbors "//&
+            " of the shell when electrostatic interaction are considered, "//& 
+            "if negative no screening is operated",&
+            usage="SHELL_CUTOFF -1.0",&
+            default_r_val=-1.0_dp,&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_shell_section
 
 !***************************************************************************
 !!****f* input_cp2k_mm/create_NONBONDED14_section [1.0] *

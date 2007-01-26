@@ -1398,7 +1398,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: kind_section
 
     NULLIFY(logger)
-    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) THEN

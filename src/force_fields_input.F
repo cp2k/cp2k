@@ -60,6 +60,8 @@ MODULE force_fields_input
        ip_type, lj_charmm_type, pair_potential_p_type, &
        pair_potential_reallocate, pair_potential_single_type, wl_type
   USE physcon,                         ONLY: bohr
+  USE shell_potential_types,           ONLY: shell_p_create,&
+                                             shell_p_type
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: stop_program
@@ -115,7 +117,7 @@ CONTAINS
 
     INTEGER                                  :: nb4, nbends, nbm, nbmhft, &
                                                 nbonds, nchg, neam, ngd, ngp, &
-                                                nipbv, nlj, ntors, ntot, &
+                                                nipbv, nlj, nshell, ntors, ntot, &
                                                 nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
@@ -243,6 +245,14 @@ CONTAINS
           CALL reallocate(inp_info%charge,1,nchg)
           CALL read_chrg_section(inp_info%charge_atm,inp_info%charge,tmp_section,ntot,error)
        END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"SHELL",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nshell,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL shell_p_create(inp_info%shell_list,nshell,error)
+          CALL read_shell_section(inp_info%shell_list,tmp_section,ntot,error)
+       END IF
+
        tmp_section => section_vals_get_subs_vals(ff_section,"BOND",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbonds,error=error)
        IF (explicit) THEN
@@ -1043,6 +1053,72 @@ CONTAINS
             error=error)
     END DO
   END SUBROUTINE read_chrg_section
+
+!******************************************************************************
+!!****** force_fields_input/read_shell_section [1.0] *
+!!
+!!   NAME
+!!     read_shell_section
+!!
+!!   FUNCTION
+!!     Reads the SHELL section
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_shell_section(shell_list, section, start, error)
+    TYPE(shell_p_type), &
+      DIMENSION(:), POINTER                  :: shell_list
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: atm_name
+    INTEGER                                  :: i_rep, n_rep
+    REAL(dp)                                 :: ccharge, scharge
+    REAL(dp)                                 :: cutoff
+    REAL(dp)                                 :: mfrac
+    REAL(dp)                                 :: maxdist
+    REAL(dp)                                 :: spring
+
+    CALL section_vals_get(section,n_repetition=n_rep,error=error)
+    DO i_rep = 1, n_rep
+       CALL section_vals_val_get(section,"_SECTION_PARAMETERS_",&
+            c_val=atm_name,i_rep_section=i_rep,error=error)
+       CALL uppercase(atm_name)
+!       CALL section_vals_val_get(section,"ATOM",i_rep_section=i_rep,c_val=atm_name,&
+!            error=error)
+       shell_list(start+i_rep)%atm_name = atm_name
+
+       CALL section_vals_val_get(section,"CORE_CHARGE",i_rep_section=i_rep,r_val=ccharge,&
+            error=error)
+       shell_list(start+i_rep)%shell%charge_core=ccharge
+       CALL section_vals_val_get(section,"SHELL_CHARGE",i_rep_section=i_rep,r_val=scharge,&
+            error=error)
+       shell_list(start+i_rep)%shell%charge_shell=scharge
+       CALL section_vals_val_get(section,"MASS_FRACTION",i_rep_section=i_rep,r_val=mfrac,&
+            error=error)
+       shell_list(start+i_rep)%shell%massfrac=mfrac
+       CALL section_vals_val_get(section,"SPRING",i_rep_section=i_rep,r_val=spring,&
+            error=error)
+       shell_list(start+i_rep)%shell%k_spring=spring
+       CALL section_vals_val_get(section,"MAX_DISTANCE",i_rep_section=i_rep,r_val=maxdist,&
+            error=error)
+       shell_list(start+i_rep)%shell%max_dist=maxdist
+       CALL section_vals_val_get(section,"SHELL_CUTOFF",i_rep_section=i_rep,r_val=cutoff,&
+            error=error)
+       shell_list(start+i_rep)%shell%shell_cutoff=cutoff
+
+    END DO
+
+  END SUBROUTINE read_shell_section
 
 !******************************************************************************
 !!****** force_fields_input/read_bonds_section [1.0] *

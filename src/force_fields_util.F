@@ -30,7 +30,10 @@ MODULE force_fields_util
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
+                                             get_atomic_kind_set,&
                                              set_atomic_kind
+  USE atoms_input,                     ONLY: read_shell_coord_input
+  USE cell_types,                      ONLY: cell_type
   USE checkpoint_handler,              ONLY: Pwarning
   USE colvar_types,                    ONLY: dist_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -67,14 +70,19 @@ MODULE force_fields_util
   USE pair_potential,                  ONLY: get_nonbond_storage,&
                                              spline_nonbond_control
   USE pair_potential_types,            ONLY: &
-       ea_type, lj_charmm_type, lj_type, nn_type, pair_potential_lj_create, &
+       ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh,&
+       nosh_sh, pair_potential_lj_create, &
        pair_potential_pp_create, pair_potential_pp_release, &
        pair_potential_pp_type, pair_potential_single_clean, &
-       pair_potential_single_copy
-  USE particle_types,                  ONLY: particle_type
+       pair_potential_single_copy, sh_sh
+  USE particle_types,                  ONLY: allocate_particle_set, &
+                                             particle_type
   USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE shell_potential_types,           ONLY: shell_create, &
+                                             shell_release, &
+                                             shell_type
   USE splines,                         ONLY: spline_data_release,&
                                              spline_data_retain,&
                                              spline_data_type,&
@@ -126,7 +134,7 @@ CONTAINS
   SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,ff_type,root_section,&
-       qmmm, qmmm_env, mm_section, error)
+       qmmm, qmmm_env, mm_section, subsys_section, shell_particle_set, cell, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -143,7 +151,10 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(section_vals_type), POINTER         :: mm_section, subsys_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: shell_particle_set
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
@@ -157,13 +168,14 @@ CONTAINS
     INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, &
       i, ii, ikind, ilink, imul, itype, iw, iw2, iw3, iw4, j, jj, jkind, k, &
       last, match_names, n, natom, nbend, nbond, nimpr, nkinds, nonfo, &
-      ntorsion, nub, output_unit, stat
+      nshell_tot, ntorsion, nub, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
     INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
     LOGICAL :: allocate_spline_bond_env, failure, fatal, found, found_a, &
-      found_b, ionode, is_link_atom, my_qmmm, only_qm, use_qmmm_ff
-    REAL(KIND=dp)                            :: epsilon, epsilon_a, &
+      found_b, found_shell, ionode, is_link_atom, is_a_shell, is_b_shell, &
+      my_qmmm, only_qm, shell_present, use_qmmm_ff
+    REAL(KIND=dp)                            :: atmmass, epsilon, epsilon_a, &
                                                 epsilon_b, qi1, qi2, qi3, &
                                                 qi4, rmin, rmin2_a, rmin2_b, &
                                                 scale_factor
@@ -189,10 +201,14 @@ CONTAINS
       POINTER                                :: onfo_kind_set
     TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond, potparm_nonbond
+    TYPE(shell_type), POINTER                :: shell
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_environment_type), POINTER   :: spline_bond_env, &
                                                 spline_manybody_env, &
-                                                spline_nonbond_env
+                                                spline_nonbond_env,&
+                                                spline_c_coul_env,&
+                                                spline_cs_coul_env,&
+                                                spline_sc_coul_env
     TYPE(torsion_kind_type), DIMENSION(:), &
       POINTER                                :: torsion_kind_set
     TYPE(torsion_type), DIMENSION(:), &
@@ -224,7 +240,7 @@ CONTAINS
          torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,&
          map_torsion_kind,bond_kind_set,bend_kind_set,ub_kind_set,&
          onfo_kind_set,impr_kind_set,torsion_kind_set,my_atom_list,&
-         potparm_bond, potparm_nonbond)
+         potparm_bond, potparm_nonbond,shell)
     only_qm = .FALSE.
     my_qmmm = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
@@ -1361,11 +1377,12 @@ CONTAINS
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    !12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
+    !12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential parameters
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_qeff',handle2)
     ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    nshell_tot = 0
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1376,6 +1393,7 @@ CONTAINS
             qeff=charge(i))
 
        found = .FALSE.
+       found_shell = .FALSE.
        only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
        IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
@@ -1448,7 +1466,64 @@ CONTAINS
             qeff=charge(i))
        CALL set_atomic_kind(atomic_kind=atomic_kind,&
             elp_potential=elp_potential)
-    END DO
+
+       ! The shell potential can be defined only from input
+       IF(ASSOCIATED(ff_type%inp_info%shell_list)) THEN
+          DO j=1,SIZE(ff_type%inp_info%shell_list)
+             IF (iw>0) WRITE(iw,*)"Shell Checking ::",&
+                       TRIM(ff_type%inp_info%shell_list(j)%atm_name),atmname
+             IF((ff_type%inp_info%shell_list(j)%atm_name)==atmname) THEN
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     shell=shell, mass=atmmass,natom=natom)
+                IF(.NOT. ASSOCIATED(shell)) THEN
+                  CALL shell_create(shell,error)
+                END IF
+                nshell_tot = nshell_tot + natom
+                shell%charge_core=ff_type%inp_info%shell_list(j)%shell%charge_core
+                shell%charge_shell=ff_type%inp_info%shell_list(j)%shell%charge_shell
+                shell%massfrac=ff_type%inp_info%shell_list(j)%shell%massfrac
+                shell%k_spring=ff_type%inp_info%shell_list(j)%shell%k_spring
+                shell%max_dist=ff_type%inp_info%shell_list(j)%shell%max_dist
+                shell%shell_cutoff=ff_type%inp_info%shell_list(j)%shell%shell_cutoff
+
+                shell%mass_shell=shell%massfrac*atmmass
+                shell%mass_core=atmmass-shell%mass_shell
+
+                IF (found_shell) CALL Pwarning("Multiple shell declarations: "//TRIM(atmname)//&
+                     " overwriting!",root_section,error)
+                found_shell = .TRUE.
+                CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                     shell=shell, shell_active=.TRUE.)
+                CALL shell_release(shell, error)
+             END IF
+          END DO
+       END IF   ! associated shell_list
+
+    END DO  ! i atomic kind
+    IF (iw>0) WRITE(iw,*)"Total number of particles with a shell :: ", nshell_tot
+    NULLIFY(shell_particle_set)
+    IF(nshell_tot>0) THEN
+      CALL allocate_particle_set(shell_particle_set,nshell_tot)
+      counter = 0
+      DO i = 1,SIZE(particle_set)
+        NULLIFY(atomic_kind,shell)
+        atomic_kind => particle_set(i)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind, shell_active=is_a_shell)
+        IF(is_a_shell) THEN
+          counter = counter+1
+          particle_set(i)%shell_index = counter
+          shell_particle_set(counter)%shell_index=counter
+          shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
+          shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
+
+        ELSE
+          particle_set(i)%shell_index = 0
+        END IF
+      END DO  ! i atom in particle_set
+      CPPostcondition(counter/=nshell_tot,cp_failure_level,routineP,error,failure)
+      CALL read_shell_coord_input(particle_set,shell_particle_set,cell,root_section, subsys_section,error)
+    END IF  ! nshell_tot>0
+
     ! Give information only if charge is missing and abort..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
     DEALLOCATE (charge,STAT=stat)
@@ -1637,8 +1712,8 @@ CONTAINS
           IF (only_qm) THEN
              CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot ,error=error)
           END IF
-       END DO
-    END DO
+       END DO  ! atom kind j
+    END DO  ! atom kind i
     ! Give information if any 1-4 is missing.. continue calculation..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
     NULLIFY(spline_bond_env)
@@ -1649,6 +1724,7 @@ CONTAINS
          ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4,&
          do_14=.TRUE., scale_cutoff=ff_type%scale_cutoff, error=error)
+
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
           n = spline_bond_env % spltab ( ikind, jkind )
@@ -1673,6 +1749,7 @@ CONTAINS
             nonfo=nonfo,onfo_list=onfo_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+
        DO j=1,nonfo
           atm_a = onfo_list(j)%a
           atomic_kind => particle_set(atm_a+first-1)%atomic_kind
@@ -1700,6 +1777,7 @@ CONTAINS
     END DO
     CALL pair_potential_pp_release ( potparm_bond, error )
     CALL timestop(handle2)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set spline_nonbond_env
@@ -1708,12 +1786,15 @@ CONTAINS
     CALL pair_potential_pp_create ( potparm_nonbond,  &
          SIZE ( atomic_kind_set ), &
          error )
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local,&
+           shell_active=is_a_shell)
        DO j=i,SIZE(atomic_kind_set)
           atomic_kind => atomic_kind_set(j)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local,&
+               shell_active=is_b_shell)
           found = .FALSE.
           name_atm_a = name_atm_a_local
           name_atm_b = name_atm_b_local
@@ -1850,17 +1931,24 @@ CONTAINS
           IF(ff_type%rcut_nb>0.0_dp) THEN
              potparm_nonbond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
+          IF((is_a_shell .AND. .NOT. is_b_shell) .OR. (is_b_shell .AND. .NOT. is_a_shell)) THEN
+             potparm_nonbond%pot(i,j)%pot%shell_type  = nosh_sh
+          ELSE IF (is_a_shell .AND. is_b_shell) THEN
+             potparm_nonbond%pot(i,j)%pot%shell_type  = sh_sh
+          ELSE
+             potparm_nonbond%pot(i,j)%pot%shell_type  = nosh_nosh
+          END IF
           IF (only_qm) THEN
              CALL pair_potential_single_clean( potparm_nonbond%pot(i,j)%pot ,error=error)
           END IF
-       END DO
-    END DO
+       END DO  ! jkind
+    END DO   ! ikind
     ! Give information and abort if any pair potential spline is missing..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
     !---------------------------------------
     ! create the pair potential spline environment
     !---------------------------------------
-    NULLIFY(spline_nonbond_env)
+    NULLIFY(spline_nonbond_env,spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env)
     CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
          error=error)
     CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
@@ -1877,11 +1965,24 @@ CONTAINS
          eps_spline=ff_type%eps_spline,max_energy=ff_type%max_energy,&
          rlow_nb=ff_type%rlow_nb,&
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
+    IF(shell_present) THEN
+      !---------------------------------------
+      ! create the spline environments for shell-model
+      !---------------------------------------
+      nkinds = SIZE(atomic_kind_set)
+      CALL spline_env_create(spline_c_coul_env, nkinds, error=error)
+      CALL spline_env_create(spline_cs_coul_env, nkinds, error=error)
+      CALL spline_env_create(spline_sc_coul_env, nkinds, error=error)
+
+    ELSE
+      NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env) 
+    END IF
 
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
           !---------------------------------------
-          ! 1st: The pair-potential contribution
+          ! 1st: The pair-potential contribution, 
+          !      if shell-model, it is ion-shell or shell-shell 
           !---------------------------------------
           n = spline_nonbond_env % spltab ( ikind, jkind )
           spline_data => spline_nonbond_env % spline_data_p ( n ) % spline_data
@@ -1890,7 +1991,7 @@ CONTAINS
                potparm_nonbond %pot( ikind, jkind )%pot % pair_spline_data, error )
           potparm_nonbond%pot ( ikind, jkind )%pot % pair_spline_data => spline_data
           !---------------------------------------
-          ! 2nd: The many-body contribution
+          ! 2nd: The many-body contribution (only EAM)
           !---------------------------------------
           n = spline_manybody_env % spltab ( ikind, jkind )
           IF (n>0) THEN
@@ -1903,6 +2004,51 @@ CONTAINS
                 potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spline_data
              ENDIF
           END IF
+          IF(shell_present) THEN
+            !---------------------------------------
+            ! 3nd: The ion-core or core-core contribution (only shell-model)
+            !---------------------------------------
+            n = spline_c_coul_env % spltab ( ikind, jkind )
+            IF (n>0) THEN
+               spline_data => spline_c_coul_env % spline_data_p ( n ) % spline_data
+                 ! do i,j
+               IF ( ASSOCIATED ( spline_data ) ) THEN
+                    CALL spline_data_retain ( spline_data, error )
+                  CALL spline_data_release (  &
+                       potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data, error )
+                    potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data => spline_data
+               ENDIF
+            END IF
+            !---------------------------------------
+            ! 4nd: The core-shell contribution (only shell-model)
+            !---------------------------------------
+            n = spline_cs_coul_env % spltab ( ikind, jkind )
+            IF (n>0) THEN
+               spline_data => spline_cs_coul_env % spline_data_p ( n ) % spline_data
+               ! do i,j
+               IF ( ASSOCIATED ( spline_data ) ) THEN
+                  CALL spline_data_retain ( spline_data, error )
+                  CALL spline_data_release (  &
+                       potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data, error )
+                  potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data => spline_data
+               ENDIF
+            END IF
+            !---------------------------------------
+            ! 5nd: The core-shell contribution (only shell-model)
+            !---------------------------------------
+            n = spline_sc_coul_env % spltab ( ikind, jkind )
+            IF (n>0) THEN
+               spline_data => spline_sc_coul_env % spline_data_p ( n ) % spline_data
+               ! do i,j
+               IF ( ASSOCIATED ( spline_data ) ) THEN
+                  CALL spline_data_retain ( spline_data, error )
+                  CALL spline_data_release (  &
+                       potparm_nonbond%pot ( ikind, jkind )%pot % sc_coul_spline_data, error )
+                  potparm_nonbond%pot ( ikind, jkind )%pot % sc_coul_spline_data => spline_data
+               ENDIF
+            END IF
+          END IF  ! shell_present
+
        END DO
     END DO
     CALL fist_nonbond_env_create (  fist_nonbond_env, potparm_nonbond, error )

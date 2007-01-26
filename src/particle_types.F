@@ -78,6 +78,8 @@ MODULE particle_types
                                               v           ! velocity
      ! particle dependent terms for EAM
      REAL(KIND = dp)                       :: rho, f_embed
+     ! particle dependent terms for shell-model
+     INTEGER                               :: shell_index
   END TYPE particle_type
 
   ! Public data types
@@ -150,6 +152,7 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
   p_out%r=p_in%r
   p_out%f=p_in%f
   p_out%v=p_in%v
+  p_out%shell_index=p_in%shell_index
 END SUBROUTINE clone_particle
 !***************************************************************************
 
@@ -186,6 +189,7 @@ END SUBROUTINE clone_particle
       particle_set(iparticle)%f(:) = 0.0_dp
       particle_set(iparticle)%r(:) = 0.0_dp
       particle_set(iparticle)%v(:) = 0.0_dp
+      particle_set(iparticle)%shell_index = 0
     END DO
 
   END SUBROUTINE allocate_particle_set
@@ -208,6 +212,7 @@ END SUBROUTINE clone_particle
     INTEGER                                  :: iparticle, istat
 
 !   ---------------------------------------------------------------------------
+
 
     IF (ASSOCIATED(particle_set)) THEN
 
@@ -233,6 +238,7 @@ END SUBROUTINE clone_particle
                NULLIFY(particle_set(iparticle)%list_exclude_ei)
             END IF
          END IF
+         NULLIFY(particle_set(iparticle)%atomic_kind)
       END DO
       DEALLOCATE (particle_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
