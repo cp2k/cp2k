@@ -49,8 +49,6 @@ MODULE input_section_types
                                              substitute_special_xml_tokens,&
                                              typo_match,&
                                              uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -2208,9 +2206,6 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
     TYPE(section_vals_type), POINTER         :: sval
     TYPE(val_type), POINTER                  :: val
 
-    CALL timeset(routineN,handle)
-
-
   failure=.FALSE.
   my_hide_root=.FALSE.
   IF (PRESENT(hide_root)) my_hide_root=hide_root
@@ -2319,8 +2314,6 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
      END DO
   END IF
   CALL cp_error_dealloc_ref(suberror)
-
-  CALL timestop(handle)
 
 END SUBROUTINE section_vals_write
 

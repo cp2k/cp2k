@@ -25,7 +25,7 @@ MODULE machine_g95
 
   USE ISO_C_BINDING,                   ONLY: C_INT64_T
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp, int_8
 
   IMPLICIT NONE
 
@@ -34,7 +34,7 @@ MODULE machine_g95
 
   PRIVATE
 
-  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_cputime, m_datum, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, total_memory, m_mov
 
@@ -103,25 +103,14 @@ END SUBROUTINE m_datum
 
 ! *****************************************************************************
 
-  SUBROUTINE print_memory(checkpoint)
-
-
-    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-
-    CHARACTER(LEN=90)                        :: tmp
-    INTEGER                                  :: pid
-
-!   ---------------------------------------------------------------------------
-
-    CALL m_getpid(pid)
-    tmp=TRIM(checkpoint)//">:"
-    tmp=ADJUSTL(tmp)
-
-    WRITE(6,'(A4,I8,A90,I8,A7)')  " PID",pid,tmp,(total_memory+1023)/1024," KBytes"
-
-  END SUBROUTINE print_memory
 
 ! *****************************************************************************
+! returns the total amount of memory [bytes] in use, if known, zero otherwise
+! *****************************************************************************
+  FUNCTION m_memory()
+    INTEGER(KIND=int_8) m_memory
+    m_memory=total_memory
+  END FUNCTION m_memory
 
   SUBROUTINE m_mov(source,TARGET)
 

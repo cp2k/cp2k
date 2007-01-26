@@ -320,8 +320,8 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,param_section,"check_spline",&
          extension="."//TRIM(tag)//"Log",error=error)
+    CALL timeset(routineN,"I","",handle)
     IF (iw > 0) THEN
-       CALL timeset(routineN,"I","",handle)
        npoints   = 100
        errf      = 0.0_dp
        maxerrorf = 0.0_dp
@@ -367,8 +367,8 @@ CONTAINS
        END DO
        WRITE(iw,'(A,T5,A,T50,F12.9,T130,F12.9)')"#","Averages",errf/REAL(npoints,kind=dp),&
                                                                errd/REAL(npoints,kind=dp)
-       CALL timestop(0.0_dp,handle)
     END IF
+    CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,param_section,"check_spline", error=error)
 
   END SUBROUTINE check_spline_interp_TabLR

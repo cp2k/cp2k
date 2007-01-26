@@ -34,7 +34,7 @@ MODULE kinds
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
+  PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size, int_8
   PUBLIC :: default_string_length, default_path_length
 
 #if __SGL 
@@ -52,6 +52,10 @@ MODULE kinds
                         int_size = BIT_SIZE(0)/8,&
                         sp_size  = 4
 #endif
+
+  ! this int holds more than the normal 4byte ints
+  ! on standard machines it ought to be an 8byte int but this is not guaranteed
+  INTEGER, PARAMETER :: int_8 = SELECTED_INT_KIND(10)
 
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=250

@@ -758,9 +758,6 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL timeset(routineN,handle)
-
-
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
      "  Informations at step = ",it
      WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
@@ -799,7 +796,6 @@ CONTAINS
         END IF
      END IF
      IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
-     CALL timestop(handle)
  END SUBROUTINE write_cycle_infos
 
 ! ***********************************************************************************
@@ -902,7 +898,6 @@ CONTAINS
 !                                                rmsgcon = 0.00030_dp, &
 !                                                rmsxcon = 0.0015_dp
 
-    CALL timeset(routineN,handle)
 
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force
@@ -1005,7 +1000,6 @@ CONTAINS
         WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
       END IF
     END IF
-    CALL timestop(handle)
 
   END SUBROUTINE check_converg
 

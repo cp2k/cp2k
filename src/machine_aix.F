@@ -22,13 +22,13 @@
 MODULE machine_aix
 
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp, int_8
 
   IMPLICIT NONE
 
   PRIVATE
 
-  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_cputime, m_datum, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 
@@ -162,60 +162,14 @@ END SUBROUTINE m_datum
 
   END SUBROUTINE m_flush
 
+
 ! *****************************************************************************
-
-  SUBROUTINE print_memory(checkpoint)
-
-!   Purpose: Print the memory usage of the program at checkpoint.
-
-!   ***************************************************************************
-
-    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-#if defined(__OSX)
-    !
-    ! This is a hack to by-pass the problem of the xlf compiler
-    ! on OS/X..
-    !
-    CHARACTER(LEN=200)                       :: cmdstr
-    INTEGER                                  :: pid
-
-    CALL m_getpid(pid)
-
-    WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-      "echo -e ""\\n PID""",pid,""" <"//TRIM(checkpoint)//&
-      ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
-
-    CALL system(cmdstr)
-#else
-!   ---------------------------------------------------------------------------
-! here there is definitely a problem with integer sizes. 
-! they should be the C integer size, which is not really know
-! and depends on the 32 (INTEGER*4) or 64 (INTEGER*8) compilation flag
-! this should present a hack
-! we use the fact that the default LOC kind (on IBM) is 4 or 8 in 32 or 64 bit mode
-
-    TYPE memorytype4
-       SEQUENCE
-       INTEGER*4 arena,ordblks,smblks,hblks,hblkhd,usmblks,fsmblks,uordblks,fordblks,keepcost
-    END TYPE memorytype4
-    TYPE memorytype8
-       SEQUENCE
-       INTEGER*8 arena,ordblks,smblks,hblks,hblkhd,usmblks,fsmblks,uordblks,fordblks,keepcost
-    END TYPE memorytype8
-    TYPE(memorytype4) res4
-    TYPE(memorytype8) res8,mallinfo
-    EQUIVALENCE(res8,res4)
-    
-    res8=mallinfo()
-    ! arena is the size of heap
-    ! the sum is the actually allocated memory
-    IF (KIND(LOC(res4%arena)).eq.4) THEN
-        WRITE(6,*) checkpoint,res4%usmblks+res4%uordblks,"/",res4%arena
-    ELSE
-        WRITE(6,*) checkpoint,res8%usmblks+res8%uordblks,"/",res8%arena
-    ENDIF
-#endif
-  END SUBROUTINE print_memory
+! returns the total amount of memory [bytes] in use, if known, zero otherwise
+! *****************************************************************************
+  FUNCTION m_memory()
+    INTEGER(KIND=int_8) m_memory
+    m_memory=0
+  END FUNCTION m_memory
 
 ! *****************************************************************************
 

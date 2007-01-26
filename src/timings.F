@@ -23,10 +23,11 @@
 
 MODULE timings
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE message_passing,                 ONLY: mp_bcast
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
                                              m_walltime,&
-                                             print_memory
+                                             m_memory
   USE mathconstants,                   ONLY: zero
   USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
@@ -79,7 +80,8 @@ MODULE timings
       CHARACTER ( LEN = 10 ) :: perf_unit ( max_timer )
       INTEGER :: num_timer 
       CHARACTER ( LEN = 15 ) :: astring, bstring
-      LOGICAL :: trace
+      LOGICAL :: trace,trace_sync
+      INTEGER :: mepos,group,num_pe
    END TYPE timer_env_type
 
    TYPE timer_env_p_type
@@ -160,7 +162,8 @@ SUBROUTINE timer_env_create(timer_env)
     timer_env%stack_size=0
     timer_env%handle_stack=0
     timer_env%num_timer=0
-    timer_env%trace=.FALSE.
+    timer_env%trace=.FALSE. 
+    timer_env%trace_sync=.FALSE. 
 END SUBROUTINE
 
 !!****f* timings/rm_timer_env *
@@ -272,6 +275,7 @@ SUBROUTINE timer_env_release(timer_env)
         timer_env%handle_stack=0
         timer_env%num_timer=0
         timer_env%trace=.FALSE.
+        timer_env%trace_sync=.FALSE.
         DEALLOCATE(timer_env,stat=stat)
         IF (stat/=0) THEN
            PRINT*,moduleN,':timer_env_release ERROR deallocating, stat=',stat
@@ -321,7 +325,7 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
   INTEGER :: i,stack_size
   CHARACTER ( LEN = 40 )  :: sformat
   CHARACTER ( LEN = 20 )  :: mytag
-  CHARACTER ( LEN = 400 ) :: mystring
+  CHARACTER ( LEN = 400 ) :: mystring,line,line2
   TYPE(timer_env_type), POINTER :: timer_env
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -402,12 +406,25 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
   timer_env%handle_stack (stack_size) = handle
 
 !..if debug mode echo the subroutine name
-  WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,I6,1X,A,A)"
-  IF ( timer_env%trace ) WRITE ( mystring, sformat) &
+  IF ( timer_env%trace ) THEN
+     WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,I6,1X,A,A)"
+     WRITE ( mystring, sformat) &
      timer_env%astring,stack_size, &
      timer_env%routine_calls ( handle ), &
      TRIM( timer_env%routine_stack ( stack_size )),"       start"
-  IF ( timer_env%trace ) CALL print_memory(TRIM(mystring))
+     write(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
+     IF (timer_env%trace_sync) THEN
+      DO i=0,timer_env%num_pe-1
+        line2=line
+        CALL mp_bcast(line2,i,timer_env%group)
+        IF (timer_env%mepos==0) THEN
+           write(6,*) TRIM(line2)
+        ENDIF
+      ENDDO
+     ELSE
+       write(6,*) TRIM(line)
+     ENDIF
+  ENDIF
 
 END SUBROUTINE timeset_full
 
@@ -448,7 +465,7 @@ SUBROUTINE timestop_full ( perf, handle )
   REAL (KIND=dp) :: cpt, wt
   INTEGER :: i
   CHARACTER ( LEN = 40 )  :: sformat
-  CHARACTER ( LEN = 400 )  :: mystring
+  CHARACTER ( LEN = 400 )  :: mystring,line,line2
   TYPE(timer_env_type), POINTER :: timer_env
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -504,13 +521,26 @@ SUBROUTINE timestop_full ( perf, handle )
      END DO
 
 !..if debug mode echo the subroutine name
-  WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-9),"X,I4,1X,I6,1X,A,F12.3)"
-  IF ( timer_env%trace ) WRITE ( mystring, sformat) &
+  IF ( timer_env%trace ) THEN
+     WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-9),"X,I4,1X,I6,1X,A,F12.3)"
+     WRITE ( mystring, sformat) &
      timer_env%bstring, & 
      timer_env%stack_size, &
      timer_env%routine_calls ( handle ), &
      TRIM(timer_env%routine_stack(timer_env%stack_size)),cpt
-  IF ( timer_env%trace ) CALL print_memory(TRIM(mystring ))
+     write(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(m_memory()+1023)/1024,"Kb"
+     IF (timer_env%trace_sync) THEN
+       DO i=0,timer_env%num_pe-1
+          line2=line
+          CALL mp_bcast(line2,i,timer_env%group)
+          IF (timer_env%mepos==0) THEN
+             write(6,*) TRIM(line2)
+          ENDIF
+       ENDDO
+     ELSE
+       write(6,*) TRIM(line)
+     ENDIF
+   ENDIF
 
 !..remove name from subroutine stack
      timer_env%stack_size = timer_env%stack_size - 1
@@ -629,10 +659,11 @@ END SUBROUTINE timeprint
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE trace_debug ( set, para_env )
+SUBROUTINE trace_debug ( set, trace_sync, para_env )
 
 
     CHARACTER(len=*)                         :: set
+    LOGICAL                                  :: trace_sync
     TYPE(cp_para_env_type)                   :: para_env
 
     CHARACTER(len=5)                         :: set2
@@ -649,6 +680,8 @@ SUBROUTINE trace_debug ( set, para_env )
 
   set2=TRIM(set)
   CALL uppercase(set2)
+
+  timer_env%trace_sync=trace_sync
 
   SELECT CASE (set2)
   CASE ("START")
@@ -668,6 +701,10 @@ SUBROUTINE trace_debug ( set, para_env )
                   para_env%num_pe
   WRITE (timer_env%bstring(1:9),"(I4,A,I4)") para_env%mepos,":",&
                   para_env%num_pe
+
+  timer_env%mepos=para_env%mepos
+  timer_env%group=para_env%group
+  timer_env%num_pe=para_env%num_pe
 
 END SUBROUTINE trace_debug
 

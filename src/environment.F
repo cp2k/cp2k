@@ -498,7 +498,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     INTEGER                                  :: iforce_eval, method_name_id, &
                                                 nforce_eval, num_threads, &
                                                 output_unit, print_level
-    LOGICAL                                  :: ata, failure, trace
+    LOGICAL                                  :: ata, failure, trace, trace_sync
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
@@ -520,13 +520,14 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
+    CALL section_vals_val_get(global_section,"TRACE",l_val=trace_sync,error=error)
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
-    IF(trace) CALL trace_debug("start",para_env)
+    IF(trace) CALL trace_debug("start",trace_sync,para_env)
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)

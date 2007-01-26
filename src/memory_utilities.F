@@ -29,7 +29,6 @@ MODULE memory_utilities
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE machine,                         ONLY: print_memory
   USE message_passing,                 ONLY: mp_sync
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"

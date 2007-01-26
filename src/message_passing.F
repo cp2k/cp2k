@@ -27,6 +27,10 @@
 !!
 !!   SOURCE
 !******************************************************************************
+#ifndef __mp_timeset__
+! if the following is defined a circular dependency is created between timings.F and message_passing.F
+! #define __mp_timeset__  
+#endif
 
 MODULE message_passing
   USE kinds,                           ONLY: dp,&
@@ -36,16 +40,15 @@ MODULE message_passing
   USE machine,                         ONLY: m_abort,&
                                              m_walltime
   USE parallel_include
+#if defined(__mp_timeset__)
   USE timings,                         ONLY: timeset,&
                                              timestop
+#endif
 
   IMPLICIT NONE
 
   PRIVATE
 
-#ifndef __mp_timeset__
-#define __mp_timeset__  
-#endif
 
 #ifdef __parallel
   LOGICAL, PARAMETER :: cp2k_is_parallel=.TRUE.

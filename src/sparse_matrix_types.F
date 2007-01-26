@@ -1003,16 +1003,21 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   ---------------------------------------------------------------------------
 
-    IF (ncol.EQ.0) RETURN
 
     IF (PRESENT(alpha)) THEN
         alpha_l=alpha
     ELSE
         alpha_l=1.0_dp
     ENDIF
+    flops=0.0_dp
 
 !   *** Check the association status of the input matrix ***
     CALL timeset("sparse_times_local","I","Gflops",handle)
+
+    IF (ncol.EQ.0) THEN
+        CALL timestop(flops,handle)
+        RETURN
+    ENDIF
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
       CALL stop_program(routine,"The input matrix pointer is not associated")
@@ -1044,7 +1049,6 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routine,"n x n * n x k ?")
     ENDIF
 
-    flops=0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 !   no simple parallel do because we write both the iblock_row and iblock_col

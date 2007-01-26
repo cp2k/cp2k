@@ -23,13 +23,13 @@
 MODULE machine_intel
 
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp, int_8
 
   IMPLICIT NONE
 
   PRIVATE
 
-  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_cputime, m_datum, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, & 
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 
@@ -107,41 +107,17 @@ END SUBROUTINE m_datum
 
 ! *****************************************************************************
 
-  SUBROUTINE print_memory(checkpoint)
-
-!   Purpose: Print the memory usage of the program at checkpoint.
-
-!   ***************************************************************************
-
-    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-
-    CHARACTER(len=1), PARAMETER              :: backslash = CHAR(92)  
-
-    CHARACTER(LEN=200)                       :: cmdstr
-    INTEGER                                  :: pid
-    INTEGER :: istat,system,ierrno
-
-!Backslash character
-!   ---------------------------------------------------------------------------
-
-    CALL m_getpid(pid)
-
-    WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-      "echo -e """//Backslash//"n PID""",&
-      pid,&
-      """ <"//TRIM(checkpoint)//">:"" `ps -o rssize -p",&
-      pid,&
-      " | tail -1` KBytes"""//Backslash//"c"""
-
-    istat = 0
-    istat = system(cmdstr)
-    IF(istat.NE.0) THEN
-      WRITE(*,*) "SYSTEM CALL RETURN (print_memory)",istat,IERRNO()
-    END IF
-
-  END SUBROUTINE print_memory
+! *****************************************************************************
+! returns the total amount of memory [bytes] in use, if known, zero otherwise
+! *****************************************************************************
+  FUNCTION m_memory()
+    INTEGER(KIND=int_8) m_memory
+    m_memory=0
+  END FUNCTION m_memory
 
 ! *****************************************************************************
+
+
 
   SUBROUTINE m_mov(source,TARGET)
 

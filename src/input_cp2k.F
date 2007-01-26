@@ -416,6 +416,16 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="TRACE_SYNC",&
+         description="For parallel TRACEd runs: synchronize the output of all processes,"//&
+                     "i.e. all output written by the parent node."//&
+                     "This does not work for all possible types of CP2K runs "//&
+                     "(requires that timeset/timestop is called by all processes in sync, and fails otherwise)",&
+         usage="TRACE_SYNC",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword,&
                         name="SEED",&
                         description="Initial seed for the global (pseudo)random number "//&
