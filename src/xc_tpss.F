@@ -550,9 +550,11 @@ CONTAINS
        t6 = 0.1e1_dp / pi
        t12 = t5 ** 2
 
-       !$omp parallel do default(private) &
-       !$omp             shared(rho,tau,norm_drho,e_0,e_rho,e_ndrho,e_tau,&
-       !$omp                    epsilon_rho,epsilon_tau)
+       ! the following is incorrect as the private variables are not initialised
+       ! by default, and some need to be, also this directive would need a default(none) clause
+       ! !$omp parallel do default(private) &
+       ! !$omp             shared(rho,tau,norm_drho,e_0,e_rho,e_ndrho,e_tau,&
+       ! !$omp                    epsilon_rho,epsilon_tau,npoints,scale_ec,scale_ex)
        DO ii=1,npoints
           my_tau=tau(ii)
           my_rho=rho(ii)
@@ -1145,10 +1147,13 @@ CONTAINS
        abs_grad_deriv=ABS(grad_deriv)
        non_coer=0
 
-       !$omp parallel do default(private) &
-       !$omp             shared(rhoa,rhob,tau_a,tau_b,norm_drho,norm_drhoa,&
-       !$omp                    norm_drhob,e_0,e_rhoa,e_rhob,e_ndrho,e_ndrhoa,&
-       !$omp                    e_ndrhob,e_tau_a,e_tau_b,epsilon_rho,epsilon_tau)
+       ! the following is incorrect as the private variables are not initialised
+       ! by default, and some need to be, also this directive would need a default(none) clause
+       ! !$omp parallel do default(private) &
+       ! !$omp             shared(rhoa,rhob,tau_a,tau_b,norm_drho,norm_drhoa,&
+       ! !$omp                    norm_drhob,e_0,e_rhoa,e_rhob,e_ndrho,e_ndrhoa,&
+       ! !$omp                    e_ndrhob,e_tau_a,e_tau_b,epsilon_rho,epsilon_tau,&
+       ! !$omp                    scale_ec,scale_ex,npoints)
        DO ii=1,npoints
           my_tau_a=MAX(0.0_dp,tau_a(ii))
           my_tau_b=MAX(0.0_dp,tau_b(ii))

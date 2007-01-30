@@ -499,12 +499,13 @@ CONTAINS
           ft2 =0.0_dp
           ft3 =0.0_dp
           qt=mm_charges(Imm)*dvol/dx
-          !$omp parallel do default (none) &
-          !$omp private(i,j,k,Imm,IndMM,jj,my_k,my_j,&
-          !$omp         r, rc, qt,ix,rx,rx2,rx3,rx4, &
-          !$omp         dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3,&
-          !$omp         ft1,ft2,ft3,dpot,fac)&
-          !$omp shared(Rho,bo,n1,n2,n3,dx,pot0_2,gbo)
+          ! ! the following omp has been commented because it is buggy
+          ! !$omp parallel do default (none) &
+          ! !$omp private(i,j,k,Imm,IndMM,jj,my_k,my_j,&
+          ! !$omp         r, rc, qt,ix,rx,rx2,rx3,rx4, &
+          ! !$omp         dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3,&
+          ! !$omp         ft1,ft2,ft3,dpot,fac)&
+          ! !$omp shared(Rho,bo,n1,n2,n3,dx,pot0_2,gbo)
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k=k-gbo(1,3)
              xs3 = REAL(my_k,dp)*dr3
