@@ -382,7 +382,7 @@ CONTAINS
        !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, ii)
        DO ii=1,npoints
@@ -409,7 +409,7 @@ CONTAINS
        !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
@@ -455,7 +455,7 @@ CONTAINS
        !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
@@ -498,7 +498,7 @@ CONTAINS
        !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
@@ -571,7 +571,7 @@ CONTAINS
        !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,sx)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
@@ -636,7 +636,7 @@ CONTAINS
        !$omp   shared(npoints,rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
        !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv)&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv,sx)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
@@ -1013,7 +1013,7 @@ CONTAINS
           !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
           !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
           !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
           !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
           !$omp     t12, t14)
           DO ii=1,npoints
@@ -1042,7 +1042,7 @@ CONTAINS
           !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
           !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
           !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
           !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
           !$omp     t12, t14, t17, t18, t20, t22, &
           !$omp     t23, t27, t28, t30)
@@ -1087,7 +1087,7 @@ CONTAINS
           !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
           !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
           !$omp e_ndrho_ndrho_rho_spin,&
-          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv,sx),&
           !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
           !$omp     t12, t14, t17, t18, t20, t22, &
           !$omp     t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
