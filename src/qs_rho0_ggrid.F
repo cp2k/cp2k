@@ -224,10 +224,10 @@ MODULE qs_rho0_ggrid
 
       dir = rs_grid%direction
 
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(iat,j,iatom,ra) &
-!$OMP shared(bo,tasks,dir,rs_grid,atom_list,particle_set,cell)
+! !$OMP parallel do &
+! !$OMP default(none) &
+! !$OMP private(iat,j,iatom,ra) &
+! !$OMP shared(bo,tasks,dir,rs_grid,atom_list,particle_set,cell)
       DO iat=bo(1),bo(2)
 
         j = iat - bo(1) + 1
@@ -245,12 +245,12 @@ MODULE qs_rho0_ggrid
       CALL rs_get_my_tasks ( rs_grid, tasks, npme ,error=error)
 
       ithread=0
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(j,iat,iatom,ra,ithread) &
-!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid,r_V0) &
-!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik) &
-!$OMP shared(l0_ikind,igrid,rpgf0_s,error)
+! !$OMP parallel do &
+! !$OMP default(none) &
+! !$OMP private(j,iat,iatom,ra,ithread) &
+! !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid,r_V0) &
+! !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik) &
+! !$OMP shared(l0_ikind,igrid,rpgf0_s,error)
       DO j=1,npme
 
         iat =  tasks(1,j)
@@ -262,7 +262,7 @@ MODULE qs_rho0_ggrid
 
         ra(:) = pbc(particle_set(iatom)%r,cell)
 
-!$      ithread=omp_get_thread_num()
+! !$      ithread=omp_get_thread_num()
         CALL collocate_pgf_product_rspace(&
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
@@ -568,7 +568,7 @@ MODULE qs_rho0_ggrid
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     nthread = 1
-!$  nthread = omp_get_max_threads()
+! !$  nthread = omp_get_max_threads()
 
 !   *** Allocate work storage ***
 
@@ -619,10 +619,10 @@ MODULE qs_rho0_ggrid
 
       dir = rs_v%direction
 
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(iat,j,iatom,ra) &
-!$OMP shared(bo,tasks,dir,rs_v,atom_list,particle_set,cell)
+! !$OMP parallel do &
+! !$OMP default(none) &
+! !$OMP private(iat,j,iatom,ra) &
+! !$OMP shared(bo,tasks,dir,rs_v,atom_list,particle_set,cell)
       DO iat=bo(1),bo(2)
 
         j = iat - bo(1) + 1
@@ -640,19 +640,19 @@ MODULE qs_rho0_ggrid
       CALL rs_get_my_tasks ( rs_v, tasks, npme ,error=error)
 
       ithread=0
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(j,iat,iatom,ra,ithread) &
-!$OMP private(lshell,is,iso,hab,hdab,hadb,hab_sph,hdab_sph)&
-!$OMP private(lx,ly,lz,ic,ico,Qlm)&
-!$OMP private(iset1,iset2,ipgf1,ipgf2,n1,n2,m1,m2,ig1,ig2,iso1,iso2)&
-!$OMP private(force_tmp,rho_atom,int_local_h,int_local_s,icg,ispin)&
-!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
-!$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
-!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
-!$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set)&
-!$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
-!$OMP shared(rho0_mpole,r_V0,nspins,rpgf0_s,igrid,error)
+! !$OMP parallel do &
+! !$OMP default(none) &
+! !$OMP private(j,iat,iatom,ra,ithread) &
+! !$OMP private(lshell,is,iso,hab,hdab,hadb,hab_sph,hdab_sph)&
+! !$OMP private(lx,ly,lz,ic,ico,Qlm)&
+! !$OMP private(iset1,iset2,ipgf1,ipgf2,n1,n2,m1,m2,ig1,ig2,iso1,iso2)&
+! !$OMP private(force_tmp,rho_atom,int_local_h,int_local_s,icg,ispin)&
+! !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
+! !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
+! !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
+! !$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set)&
+! !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
+! !$OMP shared(rho0_mpole,r_V0,nspins,rpgf0_s,igrid,error)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
@@ -785,10 +785,10 @@ MODULE qs_rho0_ggrid
             m1 = m1 + maxso
           END DO  ! iset1
 
-!$OMP critical (qs_core_force_g0s_Vh_elec)
+! !$OMP critical (qs_core_force_g0s_Vh_elec)
           force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + &
                                             force_tmp(1:3)
-!$OMP end critical (qs_core_force_g0s_Vh_elec)
+! !$OMP end critical (qs_core_force_g0s_Vh_elec)
 
         ELSE
 
