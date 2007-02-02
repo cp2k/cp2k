@@ -173,7 +173,7 @@ CONTAINS
          "**                                                                           **",&
          "**                                                ... make the atoms dance   **",&
          "**                                                                           **",&
-         "**            Copyright (C) by CP2K Developers Group (2000 - 2006)           **",&
+         "**            Copyright (C) by CP2K Developers Group (2000 - 2007)           **",&
          "**                                                                           **",&
          "*******************************************************************************"
          !
