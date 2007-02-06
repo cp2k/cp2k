@@ -22,11 +22,11 @@ MODULE cp_control_utils
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: &
-       bsse_run, do_ddapc_constraint, do_ddapc_restraint, do_loc_crazy, &
-       do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, &
-       do_method_eht, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-       do_method_kg_pol, do_method_mndo, do_method_pdg, do_method_pm3, &
-       do_neb, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
+       bsse_run, do_band, do_ddapc_constraint, do_ddapc_restraint, &
+       do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_none, &
+       do_method_am1, do_method_eht, do_method_gapw, do_method_gapw_xc, &
+       do_method_gpw, do_method_kg_pol, do_method_mndo, do_method_pdg, &
+       do_method_pm3, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
        electronic_spectra_run, elstr_method_name, energy_force_run, &
        energy_run, geo_opt_run, linear_response_run, mol_dyn_run, &
@@ -167,7 +167,7 @@ CONTAINS
     CASE (energy_run,mon_car_run,electronic_spectra_run,&
           bsse_run,linear_response_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal,do_neb)
+    CASE (mol_dyn_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal,do_band)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type ")

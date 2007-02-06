@@ -98,7 +98,7 @@ CONTAINS
     TYPE(unit_convert_type), POINTER         :: unit
 
     failure = .FALSE.
-    md_section => section_vals_get_subs_vals(neb_section,"MD",error=error)
+    md_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%MD",error=error)
     CALL section_vals_get(md_section,explicit=explicit,error=error)
     IF ((.NOT.failure).AND.(explicit)) THEN
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=temp_ext,error=error)

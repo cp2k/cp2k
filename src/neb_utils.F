@@ -43,10 +43,13 @@ MODULE neb_utils
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_b_neb,&
+  USE input_constants,                 ONLY: band_diis_opt,&
+                                             do_b_neb,&
                                              do_ci_neb,&
+                                             do_d_neb,&
                                              do_eb,&
-                                             do_it_neb
+                                             do_it_neb,&
+                                             do_sm
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -62,8 +65,8 @@ MODULE neb_utils
   USE neb_md_utils,                    ONLY: neb_initialize_velocity
   USE neb_types,                       ONLY: neb_type
   USE particle_types,                  ONLY: particle_type
-  USE replica_types,                   ONLY: replica_env_type,&
-                                             rep_env_calc_e_f
+  USE replica_types,                   ONLY: rep_env_calc_e_f,&
+                                             replica_env_type
   USE rmsd,                            ONLY: rmsd3
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -300,6 +303,9 @@ CONTAINS
        END IF
        vels(:,1)            = 0.0_dp
        vels(:,SIZE(vels,2)) = 0.0_dp
+       ! If we perform a DIIS optimization we don't need velocities
+       IF (neb_env%opt_type==band_diis_opt) vels = 0.0_dp
+       ! Compute distances between replicas
        DO j=1, input_nr_replica-1
           CALL neb_replica_distance(particle_set, coords,j,j+1,distance(j),iw,&
                rotate=.TRUE.,error=error)
@@ -562,6 +568,9 @@ CONTAINS
              tangent(:) = ( coords(:,i+1) - coords(:,i))*DVmin+(coords(:,i) - coords(:,i-1))*DVmax
           END IF
        END IF
+    CASE(do_d_neb,do_sm)
+       ! Not yet implemented
+       STOP
     END SELECT
     distance0  = SQRT(DOT_PRODUCT(tangent(:),tangent(:)))
     IF (distance0 /= 0.0_dp) tangent(:) = tangent(:) / distance0
@@ -614,6 +623,9 @@ CONTAINS
     SELECT CASE(my_tag)
     CASE(do_b_neb, do_it_neb, do_ci_neb)
        IF (i==SIZE(coords,2)) RETURN
+    CASE(do_d_neb,do_sm)
+       ! Not yet implemented
+       STOP
     END SELECT
     ! otherwise proceeed normally..
     ALLOCATE(wrk(SIZE(coords,1)),stat=stat)
@@ -672,6 +684,9 @@ CONTAINS
           tmp = -2.0_dp*DOT_PRODUCT(wrk,tangent)
           forces(:,i) = wrk + tmp * tangent
        END IF
+    CASE(do_d_neb,do_sm)
+       ! Not yet implemented
+       STOP
     END SELECT
     DEALLOCATE(wrk,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

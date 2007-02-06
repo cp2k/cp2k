@@ -44,16 +44,16 @@
   FFTLIB FFTSG
   PRINT_LEVEL LOW
   PROJECT GLYGLY
-  RUN_TYPE NEB
+  RUN_TYPE BAND
 &END GLOBAL
 &MOTION
   &PRINT
     &VELOCITIES OFF
     &END
   &END
-  &NEB
+  &BAND
     NPROC_REP 1
-    NEB_TYPE IT-NEB
+    BAND_TYPE IT-NEB
     NUMBER_OF_REPLICA 5
     K_SPRING 0.05
     &CONVERGENCE_CONTROL
@@ -66,19 +66,22 @@
     &CI_NEB
        NSTEPS_IT  5
     &END
-    &MD
-      TIMESTEP 0.5
-      TEMPERATURE 100.0
-      MAX_STEPS 10
-      &VEL_CONTROL
-        ANNEALING 0.95
-        PROJ_VELOCITY_VERLET T
+    &OPTIMIZE_BAND
+      OPT_TYPE MD
+      &MD
+        TIMESTEP 0.5
+        TEMPERATURE 100.0
+        MAX_STEPS 10
+        &VEL_CONTROL
+          ANNEALING 0.95
+          PROJ_VELOCITY_VERLET T
+        &END
+        #&TEMP_CONTROL
+        #  TEMPeRATURE 100.0
+        #  TEMP_TOL 50.
+        #  TEMP_TOL_STEPS 100
+        #&END
       &END
-      #&TEMP_CONTROL
-      #  TEMPeRATURE 100.0
-      #  TEMP_TOL 50.
-      #  TEMP_TOL_STEPS 100
-      #&END
     &END
     &REPLICA
       XYZ_COORD_FILENAME  ../amber/MOL.0.xyz
@@ -99,5 +102,5 @@
     &END
     &CONVERGENCE_INFO
     &END
-  &END NEB
+  &END BAND
 &END MOTION

@@ -89,9 +89,9 @@ MODULE input_constants
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
-  ! NEB
-  INTEGER, PARAMETER, PUBLIC           :: neb_md_opt=0,&
-                                          neb_diis_opt=1
+  ! BAND
+  INTEGER, PARAMETER, PUBLIC           :: band_md_opt=0,&
+                                          band_diis_opt=1
   ! Weight_types
   INTEGER, PARAMETER, PUBLIC :: weight_type_unit=0,&
                                 weight_type_mass=1
@@ -173,7 +173,7 @@ MODULE input_constants
                                 linear_response_run=10,&
                                 pint_run=11,&
                                 vib_anal=12,&
-                                do_neb=13
+                                do_band=13
   
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(21), PUBLIC :: run_type_names=&
        (/"NONE                     ",&
@@ -194,7 +194,7 @@ MODULE input_constants
          "MONTECARLO               ",&   !
          "ELECTRONIC_SPECTRA       ",&   !
          "LINEAR_RESPONSE          ",&   !
-         "NEB                      ",&   
+         "BAND                     ",&   
          "VIBRATIONAL_ANALYSIS     ",&   
          "NORMAL_MODES             " /)  !
 
@@ -217,15 +217,17 @@ MODULE input_constants
           mon_car_run,&
           electronic_spectra_run,&
           linear_response_run,&
-          do_neb,&
+          do_band,&
           vib_anal,&
           vib_anal/)
 
-  ! NEB
+  ! BAND
   INTEGER, PARAMETER, PUBLIC :: do_b_neb=0,&
                                 do_it_neb=1,&
                                 do_ci_neb=2,&
-                                do_eb=3
+                                do_d_neb=3,&
+                                do_sm=4,&
+                                do_eb=5
 
   INTEGER, PARAMETER, PUBLIC :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4, densities_guess=5, history_guess=6

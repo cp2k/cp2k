@@ -394,10 +394,10 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                    "MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
            END IF
         END IF
-        CALL section_vals_val_get(r_section,"RESTART_NEB",l_val=flag,error=error)
+        CALL section_vals_val_get(r_section,"RESTART_BAND",l_val=flag,error=error)
         IF (flag) THEN
-           rep_sections => section_vals_get_subs_vals(restart_input,"MOTION%NEB%REPLICA",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%NEB%REPLICA",rep_sections,error=error)
+           rep_sections => section_vals_get_subs_vals(restart_input,"MOTION%BAND%REPLICA",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%BAND%REPLICA",rep_sections,error=error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,&
              error=error)
@@ -615,10 +615,10 @@ SUBROUTINE remove_restart_info(input_file,error)
         CALL section_vals_val_unset(input_file,"MOTION%FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
      END IF
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%NEB%REPLICA",error=error)
+          "MOTION%BAND%REPLICA",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
-          "MOTION%NEB%REPLICA",error=error)
+          "MOTION%BAND%REPLICA",error=error)
      CALL section_vals_remove_values(section_to_delete,error)
      section_to_delete => section_vals_get_subs_vals(input_file,&
           "MOTION%MD%BAROSTAT%MASS",error=error)

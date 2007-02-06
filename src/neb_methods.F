@@ -41,8 +41,8 @@ MODULE neb_methods
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: neb_diis_opt,&
-                                             neb_md_opt
+  USE input_constants,                 ONLY: band_diis_opt,&
+                                             band_md_opt
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -131,8 +131,8 @@ CONTAINS
        CALL cp_add_iter_level(logger%iter_info,"NEB",ihandle,error)
        motion_section => section_vals_get_subs_vals(input,"MOTION",error=error)
        print_section  => section_vals_get_subs_vals(motion_section,"PRINT",error=error)
-       neb_section    => section_vals_get_subs_vals(motion_section,"NEB",error=error)
-       output_unit=cp_print_key_unit_nr(logger,motion_section,"NEB%PROGRAM_RUN_INFO",&
+       neb_section    => section_vals_get_subs_vals(motion_section,"BAND",error=error)
+       output_unit=cp_print_key_unit_nr(logger,motion_section,"BAND%PROGRAM_RUN_INFO",&
             extension=".nebLog",error=error)
 
        CALL section_vals_val_get(neb_section,"NPROC_REP",i_val=prep, error=error)
@@ -178,24 +178,24 @@ CONTAINS
           CALL read_neb_section(neb_env,neb_section,error=error)
           ! Collecting the coordinates of the starting replicas of the NEB
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. START"
-          iw = cp_print_key_unit_nr(logger,motion_section,"NEB%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
+          iw = cp_print_key_unit_nr(logger,motion_section,"BAND%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
             extension=".nebLog",error=error)
           CALL build_replica_coords(neb_section, particle_set,&
                coords, vels, neb_env, rep_env%ndim, iw, globenv, &
                rep_env%para_env, logger, error)
           CALL cp_print_key_finished_output(iw,logger,motion_section,&
-               "NEB%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
+               "BAND%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
           ! Perform NEB optimization
           SELECT CASE(neb_env%opt_type)
-          CASE(neb_md_opt)
+          CASE(band_md_opt)
              neb_env%opt_type_label = "MOLECULAR DYNAMICS"
-             md_section => section_vals_get_subs_vals(neb_section,"MD",error=error)
+             md_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%MD",error=error)
              CALL neb_md(rep_env, neb_env, coords, vels, particle_set, output_unit,&
                   md_section, logger, globenv, error)
-          CASE(neb_diis_opt)
+          CASE(band_diis_opt)
              neb_env%opt_type_label = "DIIS"
-             diis_section => section_vals_get_subs_vals(neb_section,"DIIS",error=error)
+             diis_section => section_vals_get_subs_vals(neb_section,"OPTIMIZE_BAND%DIIS",error=error)
              CALL neb_diis(rep_env, neb_env, coords, vels, particle_set, output_unit,&
                   diis_section, logger, globenv, error)
           END SELECT
@@ -213,7 +213,7 @@ CONTAINS
        END IF
        CALL rep_env_release(rep_env,error=error)
        CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
-            "NEB%PROGRAM_RUN_INFO", error=error)
+            "BAND%PROGRAM_RUN_INFO", error=error)
        CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     END IF
     CALL timestop(0.0_dp,handle)

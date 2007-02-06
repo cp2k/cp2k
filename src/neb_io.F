@@ -35,11 +35,18 @@ MODULE neb_io
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE force_env_types,                 ONLY: force_env_get
-  USE input_constants,                 ONLY: dump_xmol,&
-                                             neb_diis_opt,&
-                                             neb_md_opt
+  USE input_constants,                 ONLY: band_md_opt,&
+                                             dump_xmol
+  USE input_cp2k_motion,               ONLY: create_band_section
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -50,7 +57,6 @@ MODULE neb_io
   USE neb_types,                       ONLY: neb_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -93,41 +99,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_neb_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit_diis, explicit_md, &
-                                                failure
-    TYPE(section_vals_type), POINTER         :: diis_section, md_section
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(neb_env),cp_failure_level,routineP,error,failure)
     neb_env%istep = 0
-    CALL section_vals_val_get(neb_section,"NEB_TYPE",i_val=neb_env%id_type,error=error)
+    CALL section_vals_val_get(neb_section,"BAND_TYPE",i_val=neb_env%id_type,error=error)
     CALL section_vals_val_get(neb_section,"NUMBER_OF_REPLICA",i_val=neb_env%number_of_replica,error=error)
     CALL section_vals_val_get(neb_section,"K_SPRING",r_val=neb_env%K,error=error)
     CALL section_vals_val_get(neb_section,"ROTATE_FRAMES",l_val=neb_env%rotate_frames,error=error)
-    CALL section_vals_val_get(neb_section,"OPTIMIZE_END_POINTS",l_val=neb_env%optimize_end_points,&
+    CALL section_vals_val_get(neb_section,"OPTIMIZE_BAND%OPTIMIZE_END_POINTS",l_val=neb_env%optimize_end_points,&
          error=error)
     ! Climb Image NEB
     CALL section_vals_val_get(neb_section,"CI_NEB%NSTEPS_IT",i_val=neb_env%nsteps_it,error=error)
-
-    NULLIFY(md_section, diis_section)
-    md_section   => section_vals_get_subs_vals(neb_section,"MD",error=error)
-    diis_section => section_vals_get_subs_vals(neb_section,"DIIS",error=error)
-    CALL section_vals_get(md_section,explicit=explicit_md,error=error)
-    CALL section_vals_get(diis_section,explicit=explicit_diis,error=error)
-    IF (explicit_md.AND.explicit_diis) THEN 
-       CALL stop_program(routineN,"Only one section (MD|DIIS) must be provided in the"//&
-            " NEB section. User provided both sections.")
-    END IF
-    IF (.NOT.(explicit_md.OR.explicit_diis)) THEN
-       CALL stop_program(routineN,"At least one section (MD|DIIS) must be provided in the"//&
-            " NEB section. User didn't provide any section.")
-    END IF
-    IF (explicit_md) THEN
-       neb_env%opt_type = neb_md_opt
-    END IF
-    IF (explicit_diis) THEN
-       neb_env%opt_type = neb_diis_opt
-    END IF
+    ! Band Optimization Type
+    CALL section_vals_val_get(neb_section,"OPTIMIZE_BAND%OPT_TYPE",i_val=neb_env%opt_type,error=error)
   END SUBROUTINE read_neb_section
 
 !!****f* neb_IO/dump_neb_info [1.0] *
@@ -166,6 +152,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dump_neb_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=20)                        :: mytype
     CHARACTER(LEN=default_string_length)     :: line, title
     INTEGER                                  :: crd, ener, frc, handle, i, &
                                                 irep, natom, ndig, ndigl, &
@@ -174,6 +161,9 @@ CONTAINS
     REAL(KIND=dp)                            :: f_ann
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ekin, temperatures
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: tc_section, vc_section
     TYPE(unit_convert_type), POINTER         :: unit
 
@@ -235,8 +225,8 @@ CONTAINS
        END DO
        ! NEB summary info on screen
        IF (output_unit>0) THEN
-          tc_section => section_vals_get_subs_vals(neb_env%neb_section,"MD%TEMP_CONTROL",error=error)
-          vc_section => section_vals_get_subs_vals(neb_env%neb_section,"MD%VEL_CONTROL",error=error)
+          tc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%TEMP_CONTROL",error=error)
+          vc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%VEL_CONTROL",error=error)
           ALLOCATE(temperatures(SIZE(coords,2)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(ekin(SIZE(coords,2)),stat=stat)
@@ -245,8 +235,16 @@ CONTAINS
           WRITE(output_unit,'(/)',ADVANCE="NO")
           WRITE(output_unit,FMT='(A,A)')' **************************************', &
                '*****************************************'
+          NULLIFY(section,keyword,enum)
+          CALL create_band_section(section,error=error)
+          keyword => section_get_keyword(section,"BAND_TYPE",error=error)
+          CALL keyword_get(keyword,enum=enum,error=error)
+          mytype=TRIM(enum_i2c(enum,neb_env%id_type,error=error))
           WRITE(output_unit,FMT='(A,T61,A)')&
-               ' NEB TYPE OPTIMIZATION         =',ADJUSTR ( neb_env%opt_type_label(1:20))
+               ' BAND TYPE                     =',ADJUSTR(mytype)
+          CALL section_release(section,error=error)
+          WRITE(output_unit,FMT='(A,T61,A)')&
+               ' BAND TYPE OPTIMIZATION        =',ADJUSTR ( neb_env%opt_type_label(1:20))
           WRITE ( output_unit, '( A,T71,I10 )' )&
                ' STEP NUMBER                   =', istep
           IF (neb_env%rotate_frames) WRITE ( output_unit, '( A,T71,L10 )' )&
@@ -289,7 +287,7 @@ CONTAINS
           IF (SIZE(energies)>4) THEN
              WRITE ( output_unit, '( T17,4F16.6)' )energies(5:SIZE(energies))
           END IF
-          IF (neb_env%opt_type==neb_md_opt) THEN
+          IF (neb_env%opt_type==band_md_opt) THEN
              WRITE ( output_unit, '( A,T33,4(1X,F11.5))' )&
                ' REPLICA TEMPERATURES (K)      =',temperatures(1:MIN(4,SIZE(temperatures)))
              IF (SIZE(temperatures)>4) THEN

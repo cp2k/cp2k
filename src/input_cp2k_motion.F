@@ -49,7 +49,8 @@ MODULE input_cp2k_motion
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_motion'
 
-PUBLIC :: create_motion_section
+PUBLIC :: create_motion_section,&
+          create_band_section
 
 !***
 !****************************************************************************
@@ -125,7 +126,7 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_neb_section(subsection, error)
+       CALL create_band_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -307,7 +308,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
     NULLIFY (subsection,keyword,print_key)
@@ -379,6 +380,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -3351,13 +3353,13 @@ SUBROUTINE create_pint_section(section,error)
   END SUBROUTINE create_pint_section
 !***************************************************************************
 
-!!****f* input_cp2k_motion/create_neb_section *
+!!****f* input_cp2k_motion/create_band_section *
 !!
 !!   NAME
-!!     create_neb_section
+!!     create_band_section
 !!
 !!   FUNCTION
-!!     creates the section for a NEB run
+!!     creates the section for a BAND run
 !!
 !!   NOTES
 !!     -
@@ -3371,11 +3373,11 @@ SUBROUTINE create_pint_section(section,error)
 !!     Teodoro Laino 09.2006 [tlaino]
 !!
 !!*** **********************************************************************
-SUBROUTINE create_neb_section(section,error)
+SUBROUTINE create_band_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_neb_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_band_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -3386,8 +3388,8 @@ SUBROUTINE create_neb_section(section,error)
   failure=.FALSE.  
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-       CALL section_create(section,name="neb",&
-            description="The section that controls a NEB run",&
+       CALL section_create(section,name="band",&
+            description="The section that controls a BAND run",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword, print_key, subsection, subsubsection)
@@ -3399,39 +3401,37 @@ SUBROUTINE create_neb_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="NEB_TYPE",&
-            description="Specifies the type of NEB calculation",&
-            usage="NEB_TYPE (EB|B_NEB|IT-NEB|CI-NEB)",&
+       CALL keyword_create(keyword, name="BAND_TYPE",&
+            description="Specifies the type of BAND calculation",&
+            usage="BAND_TYPE (B-NEB|IT-NEB|CI-NEB|D-NEB|SM|EB)",&
             default_i_val=do_it_neb,&
             enum_c_vals=(/"B-NEB ",&
                           "IT-NEB",&
                           "CI-NEB",&
+                          "D-NEB ",&
+                          "SM    ",&
                           "EB    "/),&
             enum_desc=s2a( "Bisection NEB",&
                            "Improved tangent NEB",&
                            "Climbing Image NEB",&
+                           "Doubly NEB",&
+                           "String Method",&
                            "Elastic Band (Hamiltonian formulation)"),&
-            enum_i_vals=(/do_b_neb,do_it_neb,do_ci_neb,do_eb/),&
+            enum_i_vals=(/do_b_neb,do_it_neb,do_ci_neb,do_d_neb,do_sm,do_eb/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NUMBER_OF_REPLICA",&
-            description="Specify the number of Replica to use in the NEB",&
+            description="Specify the number of Replica to use in the BAND",&
             default_i_val=10, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ROTATE_FRAMES",&
-            description="Compute at each NEB step the RMSD and rotate the frames in order"//&
+            description="Compute at each BAND step the RMSD and rotate the frames in order"//&
             " to minimize it.",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="OPTIMIZE_END_POINTS",&
-            description="Performs also an optimization of the end points of the band.",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3444,31 +3444,31 @@ SUBROUTINE create_neb_section(section,error)
 
        ! Convergence_control
        CALL section_create(subsection,name="CONVERGENCE_CONTROL",&
-            description="Setup parameters to control the convergence criteria for NEB",&
+            description="Setup parameters to control the convergence criteria for BAND",&
             repeats=.FALSE., required=.FALSE., error=error)
        CALL keyword_create(keyword, name="MAX_DR",&
-            description="Tolerance on the maximum value of the displacement on the NEB.",&
+            description="Tolerance on the maximum value of the displacement on the BAND.",&
             usage="MAX_DR {real}",&
             default_r_val=0.0002_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_FORCE",&
-            description="Tolerance on the maximum value of Forces on the NEB.",&
+            description="Tolerance on the maximum value of Forces on the BAND.",&
             usage="MAX_FORCE {real}",&
             default_r_val=0.00045_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMS_DR",&
-            description="Tolerance on RMS displacements on the NEB.",&
+            description="Tolerance on RMS displacements on the BAND.",&
             usage="RMS_DR {real}",&
             default_r_val=0.0001_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMS_FORCE",&
-            description="Tolerance on RMS Forces on the NEB.",&
+            description="Tolerance on RMS Forces on the BAND.",&
             usage="RMS_FORCE {real}",&
             default_r_val=0.00030_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -3490,54 +3490,185 @@ SUBROUTINE create_neb_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       ! Optimization section
+       CALL section_create(subsection,name="optimize_band",&
+            description="Specify the optimization method for the band",&
+            repeats=.TRUE., required=.TRUE., error=error)
+       CALL create_opt_band_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)     
+
+       ! replica section: to specify coordinates and velocities (possibly) of the
+       ! different replica used in the BAND
+       CALL section_create(subsection,name="replica",&
+            description="Specify coordinates and velocities (possibly) of the replica",&
+            repeats=.TRUE., required=.TRUE., error=error)
+       CALL keyword_create(keyword, name="XYZ_COORD_FILENAME",&
+            description="Name of the xyz file with coordinates (alternative to &COORD section)",&
+            usage="XYZ_COORD_FILENAME <CHAR>",&
+            default_lc_val="",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       ! Coordinates and velocities
+       CALL create_coord_section(subsubsection,"BAND",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL create_velocity_section(subsubsection,"BAND",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+       ! Print key section
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing basic info about the BAND run", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+
+       CALL keyword_create(keyword, name="INITIAL_CONFIGURATION_INFO",&
+            description="Print information for the setup of the initial configuration.",&
+            usage="INITIAL_CONFIGURATION_INFO <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"convergence_info",&
+            description="Controls the printing of the convergence criteria during a BAND run", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"replica_info",&
+            description="Controls the printing of each replica info during a BAND run", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+       CALL cp_print_key_section_create(print_key,"ENERGY",&
+            description="Controls the printing of the ENER file in a BAND run", &
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+    END IF
+  END SUBROUTINE create_band_section
+!***************************************************************************
+!!****f* input_cp2k_motion/create_opt_band_section *
+!!
+!!   NAME
+!!     create_opt_band_section
+!!
+!!   FUNCTION
+!!     creates the optimization section for a BAND run
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the pint section
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino 02.2007 [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_opt_band_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_band_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection, subsubsection
+
+    failure=.FALSE.  
+    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword, subsection, subsubsection)
+
+       CALL keyword_create(keyword, name="OPT_TYPE",&
+            description="Specifies the type optimizer used for the band",&
+            usage="OPT_TYPE (MD|DIIS)",&
+            default_i_val=band_diis_opt,&
+            enum_c_vals=(/"MD  ",&
+                          "DIIS"/),&
+            enum_desc=s2a( "Molecular Dynamics based Optimizer",&
+                           "Coupled Steepest Descent / DIIS "),&
+            enum_i_vals=(/band_md_opt,band_diis_opt/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="OPTIMIZE_END_POINTS",&
+            description="Performs also an optimization of the end points of the band.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! MD optimization section
        CALL section_create(subsection,name="MD",&
-            description="Activate the MD based optimization procedure for NEB",&
+            description="Activate the MD based optimization procedure for BAND",&
             repeats=.FALSE., required=.TRUE., error=error)
+
        CALL keyword_create(keyword, name="MAX_STEPS",&
             description="Specify the maximum number of MD steps",&
             default_i_val=100, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(&
-             keyword=keyword,&
-             name="timestep",&
-             description="The length of an integration step",&
-             usage="timestep 1.0",&
-             default_r_val=cp_unit_to_cp2k(value=0.5_dp,&
-                                           unit_str="fs",&
-                                           error=error),&
-             unit_str="fs",&
-             error=error)
+            keyword=keyword,&
+            name="timestep",&
+            description="The length of an integration step",&
+            usage="timestep 1.0",&
+            default_r_val=cp_unit_to_cp2k(value=0.5_dp,&
+            unit_str="fs",&
+            error=error),&
+            unit_str="fs",&
+            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="TEMPERATURE",&
             description="Specify the initial temperature",&
             default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
-                                          unit_str="K",&
-                                          error=error),&
-             unit_str="K",&
-             error=error)
+            unit_str="K",&
+            error=error),&
+            unit_str="K",&
+            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        ! Temp_control
        CALL section_create(subsubsection,name="TEMP_CONTROL",&
-            description="Setup parameters to control the temperature during a NEB MD run.",&
+            description="Setup parameters to control the temperature during a BAND MD run.",&
             repeats=.FALSE., required=.TRUE., error=error)
        CALL keyword_create(keyword, name="TEMPERATURE",&
             description="Specify the target temperature",&
             type_of_var=real_t,unit_str="K",error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
+
        CALL keyword_create(keyword, name="TEMP_TOL",&
             description="Specify the tolerance on the temperature for rescaling",&
-             default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
-                                           unit_str="K",&
-                                           error=error),&
-             unit_str="K",&
-             error=error)
+            default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
+            unit_str="K",&
+            error=error),&
+            unit_str="K",&
+            error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="TEMP_TOL_STEPS",&
             description="Specify the number of steps to apply a temperature control",&
             default_i_val=0, error=error)
@@ -3545,9 +3676,10 @@ SUBROUTINE create_neb_section(section,error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
        CALL section_release(subsubsection,error=error)
+
        ! Vel_control
        CALL section_create(subsubsection,name="VEL_CONTROL",&
-            description="Setup parameters to control the velocity during a NEB MD run.",&
+            description="Setup parameters to control the velocity during a BAND MD run.",&
             repeats=.FALSE., required=.TRUE., error=error)
        CALL keyword_create(keyword, name="ANNEALING",&
             description="Specify the annealing coefficient",&
@@ -3577,7 +3709,7 @@ SUBROUTINE create_neb_section(section,error)
 
        ! DIIS optimization section
        CALL section_create(subsection,name="DIIS",&
-            description="Activate the DIIS based optimization procedure for NEB",&
+            description="Activate the DIIS based optimization procedure for BAND",&
             repeats=.FALSE., required=.TRUE., error=error)
 
        CALL keyword_create(keyword, name="MAX_SD_STEPS",&
@@ -3600,7 +3732,7 @@ SUBROUTINE create_neb_section(section,error)
             default_i_val=7,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="STEPSIZE",&
             description="Initial stepsize used for the line search, sometimes this parameter"//&
             "can be reduced to stablize DIIS",&
@@ -3608,7 +3740,7 @@ SUBROUTINE create_neb_section(section,error)
             default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="MAX_STEPSIZE",&
             description="Maximum stepsize used for the line search, sometimes this parameter"//&
             "can be reduced to stablize the LS for particularly difficult initial geometries",&
@@ -3616,7 +3748,7 @@ SUBROUTINE create_neb_section(section,error)
             default_r_val=2.0_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword, name="NP_LS",&
             description="Number of points used in the line search SD.",&
             usage="NP_LS <INTEGER>",&
@@ -3638,71 +3770,9 @@ SUBROUTINE create_neb_section(section,error)
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-
-       ! replica section: to specify coordinates and velocities (possibly) of the
-       ! different replica used in the NEB
-       CALL section_create(subsection,name="replica",&
-            description="Specify coordinates and velocities (possibly) of the replica",&
-            repeats=.TRUE., required=.TRUE., error=error)
-       CALL keyword_create(keyword, name="XYZ_COORD_FILENAME",&
-            description="Name of the xyz file with coordinates (alternative to &COORD section)",&
-            usage="XYZ_COORD_FILENAME <CHAR>",&
-            default_lc_val="",error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL create_coord_section(subsubsection,"NEB",error=error)
-       CALL section_add_subsection(subsection,subsubsection,error=error)
-       CALL section_release(subsubsection,error=error)
-       CALL create_velocity_section(subsubsection,"NEB",error=error)
-       CALL section_add_subsection(subsection,subsubsection,error=error)
-       CALL section_release(subsubsection,error=error)
-
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
-
-       ! Print key section
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing basic info about the NEB run", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-            error=error)
-
-       CALL keyword_create(keyword, name="INITIAL_CONFIGURATION_INFO",&
-            description="Print information for the setup of the initial configuration.",&
-            usage="INITIAL_CONFIGURATION_INFO <LOGICAL>",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"convergence_info",&
-            description="Controls the printing of the convergence criteria during a NEB run", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"replica_info",&
-            description="Controls the printing of each replica info during a NEB run", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
-
-       CALL cp_print_key_section_create(print_key,"ENERGY",&
-            description="Controls the printing of the ENER file in a NEB run", &
-            print_level=low_print_level, common_iter_levels=1,&
-            filename="",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
-
     END IF
-  END SUBROUTINE create_neb_section
-!***************************************************************************
+  END SUBROUTINE create_opt_band_section
 
 END MODULE input_cp2k_motion

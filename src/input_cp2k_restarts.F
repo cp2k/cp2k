@@ -807,7 +807,7 @@ CONTAINS
     CALL timeset(routineN//"_NEB","I",'',handle2)
     IF (PRESENT(coords).OR.(PRESENT(vels))) THEN
        ! Update NEB section
-       replica_section => section_vals_get_subs_vals(motion_section,"NEB%REPLICA",error=error)
+       replica_section => section_vals_get_subs_vals(motion_section,"BAND%REPLICA",error=error)
        IF (PRESENT(coords)) THEN
           ! Allocate possible missing sections
           DO
@@ -1197,7 +1197,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isubsys, my_unit, stat
-    LOGICAL                                  :: failure, use_ref_cell, scale
+    LOGICAL                                  :: failure, scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -1316,11 +1316,11 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor,&
        scale, cell, error)
-    LOGICAL, INTENT(IN)                      :: scale
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_new_list_type), POINTER         :: molecules
     REAL(KIND=dp)                            :: conv_factor
+    LOGICAL, INTENT(IN)                      :: scale
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1333,11 +1333,11 @@ CONTAINS
                                                 Nlist
     LOGICAL                                  :: failure, ldum, &
                                                 molname_generated
+    REAL(KIND=dp), DIMENSION(3)              :: r, s
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(molecule_type), POINTER             :: molecule_now
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
-    REAL(KIND=dp), DIMENSION(3)              :: r, s
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)

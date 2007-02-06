@@ -48,8 +48,8 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       bsse_run, do_cp2k, do_ep, do_farming, do_fist, do_kg, do_mixed, &
-       do_neb, do_qmmm, do_qs, do_test, electronic_spectra_run, &
+       bsse_run, do_band, do_cp2k, do_ep, do_farming, do_fist, do_kg, &
+       do_mixed, do_qmmm, do_qs, do_test, electronic_spectra_run, &
        energy_force_run, energy_run, geo_opt_run, linear_response_run, &
        mol_dyn_run, mon_car_run, none_run, pint_run, qs_debug_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
@@ -352,7 +352,7 @@ CPSourceFileRef,&
              END SELECT
           CASE (vib_anal)
              CALL vb_anal(root_section,para_env,error=suberror)
-          CASE (do_neb)
+          CASE (do_band)
              CALL neb(root_section,para_env,globenv,error=suberror)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
