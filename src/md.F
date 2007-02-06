@@ -55,6 +55,7 @@ MODULE md
                                              molecule_kind_type
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
+  USE shell_potential_types,           ONLY: shell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -544,7 +545,8 @@ CONTAINS
   !!*** *************************************************************************
 
   SUBROUTINE initialize_velocities(simpar,part,para_env,globenv,molecule_kinds,&
-                                   print_section,work_section,force_rescaling,error)
+                                   print_section,work_section,force_rescaling,&
+                                   work2_section,shell_part, error)
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -554,34 +556,45 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: print_section, work_section
+    TYPE(section_vals_type), POINTER, OPTIONAL :: work2_section
+    TYPE(particle_type), DIMENSION(:), &
+       POINTER, OPTIONAL                     :: shell_part
     LOGICAL, INTENT(IN), OPTIONAL            :: force_rescaling
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, istat, iw, &
-                                                natoms, nfixd
-    LOGICAL                                  :: explicit, is_ok
+                                                natoms, nfixd, nshell
+    LOGICAL                                  :: explicit, explicit2, failure, &
+                                                is_ok, is_shell, shell_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     REAL(KIND=dp)                            :: akin, denom, mass, mass_tot, &
                                                 sc, temp
-    REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
+    REAL(KIND=dp), DIMENSION(3)              :: v, v_sc_com, vcom, vcom_new, vshell
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(cp_sll_val_type), POINTER           :: list, list2
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(shell_type), POINTER                :: shell
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(val_type), POINTER                  :: val
 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
+
+    failure = .FALSE.
+
+    NULLIFY (atomic_kind, fixd_list, list, list2, logger, molecule_kind)
+    NULLIFY (molecule_kind_set, shell, unit, val)
 
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
@@ -599,6 +612,13 @@ CONTAINS
     denom = 0.0_dp
     natoms = SIZE ( part )
     explicit = .FALSE.
+    explicit2 = .FALSE.
+    shell_present = .FALSE.
+    nshell = 0
+    IF(PRESENT(shell_part)) THEN
+      shell_present = ASSOCIATED(shell_part)
+      IF(shell_present) nshell = SIZE(shell_part)
+    END IF
 
     ! Build a list of all fixed atoms (if there any)
 
@@ -624,36 +644,96 @@ CONTAINS
     CALL get_cp2k_units ( unit )
     IF (ASSOCIATED(work_section)) &
          CALL section_vals_get(work_section,explicit=explicit,error=error)
+    IF(shell_present) THEN
+      IF(ASSOCIATED(work2_section)) &
+         CALL section_vals_get(work2_section,explicit=explicit2,error=error)
+    END IF
 
     IF (explicit) THEN
        akin = 0.0_dp
        CALL section_vals_list_get(work_section,"_DEFAULT_KEYWORD_",list=list,error=error)
-       DO i = 1, natoms
-          is_ok=cp_sll_val_next(list,val,error=error)
-          CALL val_get(val,r_vals=vel,error=error)
-          atomic_kind => part ( i ) % atomic_kind
-          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-          mass_tot = mass_tot + mass
-          IF (is_fixed(i)) THEN
-             part ( i ) % v ( 1 ) = 0.0_dp
-             part ( i ) % v ( 2 ) = 0.0_dp
-             part ( i ) % v ( 3 ) = 0.0_dp
-          ELSE
+       IF(explicit2) THEN
+         CALL section_vals_list_get(work2_section,"_DEFAULT_KEYWORD_",list=list2,error=error)
+         DO i = 1,nshell
+           is_ok=cp_sll_val_next(list2,val,error=error)
+           CALL val_get(val,r_vals=vel,error=error)
+           shell_part ( i ) % v  = vel
+         END DO 
+         DO i = 1, natoms
+            is_ok=cp_sll_val_next(list,val,error=error)
+            CALL val_get(val,r_vals=vel,error=error)
+            atomic_kind => part ( i ) % atomic_kind
+            CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
+                 shell_active=is_shell, shell= shell )
+            mass_tot = mass_tot + mass
+            IF(is_shell) THEN
+              IF (is_fixed(i)) THEN
+                part ( i ) % v  = -shell%mass_shell/shell%mass_core * &
+                                   shell_part(part( i )%shell_index)%v( : )
+              ELSE
+                part ( i ) % v  = vel
+                v_sc_com = shell%mass_core * part( i )%v( : ) + &
+                           shell%mass_shell* shell_part(part( i )%shell_index)%v( : )
+                vcom  = vcom + v_sc_com
+                denom = denom + mass
+              END IF
+            ELSE
+              IF (is_fixed(i)) THEN
+                 part ( i ) % v ( 1 ) = 0.0_dp
+                 part ( i ) % v ( 2 ) = 0.0_dp
+                 part ( i ) % v ( 3 ) = 0.0_dp
+              ELSE
+                 part ( i ) % v  = vel
+                 vcom  = vcom + mass * part ( i ) % v
+                 denom = denom + mass
+              END IF
+            END IF
+         END DO 
+       ELSE
+         DO i = 1, natoms
+            is_ok=cp_sll_val_next(list,val,error=error)
+            CALL val_get(val,r_vals=vel,error=error)
+            atomic_kind => part ( i ) % atomic_kind
+            CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
+                 shell_active=is_shell )
+            mass_tot = mass_tot + mass
+            IF (is_fixed(i)) THEN
+               part ( i ) % v ( 1 ) = 0.0_dp
+               part ( i ) % v ( 2 ) = 0.0_dp
+               part ( i ) % v ( 3 ) = 0.0_dp
+            ELSE
              ! CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,r_vals=vel,error=error)
-             part ( i ) % v  = vel
-             vcom  = vcom + mass * part ( i ) % v
-             denom = denom + mass
-          END IF
-       END DO
+               part ( i ) % v  = vel
+               vcom  = vcom + mass * part ( i ) % v
+               denom = denom + mass
+            END IF
+            IF(is_shell) THEN
+         CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
+              shell_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
+              shell_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
+              shell_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
+            END IF
+         END DO
+       END IF
        vcom = vcom / denom
        DO i = 1, natoms
           atomic_kind => part ( i ) % atomic_kind
-          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
+               shell_active=is_shell, shell=shell )
           ! first subtract the COM
           IF (.NOT.is_fixed(i)) THEN
              v = part ( i ) % v ( : ) - vcom ( : )
-             ! now compute the temp
-             akin = akin + 0.5_dp * mass * SUM( v * v)
+             IF(is_shell) THEN
+         CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
+               vshell = shell_part ( part(i)%shell_index ) % v ( : ) - vcom ( : )
+               v_sc_com = shell%mass_core * v( : ) + shell%mass_shell* vshell( : )
+               v_sc_com = v_sc_com/mass
+               ! now compute the temp
+               akin = akin + 0.5_dp * mass * SUM( v_sc_com * v_sc_com )
+             ELSE
+               ! now compute the temp
+               akin = akin + 0.5_dp * mass * SUM( v * v)
+             END IF
           END IF
        END DO
        temp = 0.0_dp
@@ -667,6 +747,13 @@ CONTAINS
                   part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
                   part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
                END DO
+               IF(nshell/=0) THEN
+                 DO i = 1,nshell
+                   shell_part(i)%v(1) = sc *shell_part(i)%v(1)
+                   shell_part(i)%v(2) = sc *shell_part(i)%v(2)
+                   shell_part(i)%v(3) = sc *shell_part(i)%v(3)
+                 END DO 
+               END IF
             END IF
           END IF
        END IF
@@ -677,7 +764,7 @@ CONTAINS
           ! computing the COM velocities
           DO i = 1, natoms
              atomic_kind => part ( i ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass)
              mass_tot = mass_tot + mass
              IF (is_fixed(i)) THEN
                 part ( i ) % v ( 1 ) = 0.0_dp
@@ -729,7 +816,18 @@ CONTAINS
           vcom_new = 0.0_dp
           DO i = 1, natoms
              atomic_kind => part ( i ) % atomic_kind
-             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
+                  shell_active=is_shell )
+
+             ! Initialize the shell velocity to the same value, 
+             ! so that core-shell the relative velocity is zero
+             IF(is_shell) THEN
+         CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
+                shell_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
+                shell_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
+                shell_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
+             END IF
+
              vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
              akin = akin + 0.5_dp *  &
                   ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
@@ -744,6 +842,11 @@ CONTAINS
        DO i = 1, natoms
           CALL mp_bcast ( part ( i ) % v, para_env%source, para_env%group )
        END DO
+       IF(shell_present) THEN
+         DO i = 1,nshell
+           CALL mp_bcast ( shell_part ( i ) % v, para_env%source, para_env%group )
+         END DO 
+       END IF
 #endif
     END IF
 

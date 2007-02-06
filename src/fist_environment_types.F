@@ -149,7 +149,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
-                           qmmm, qmmm_env, input, error )
+                           qmmm, qmmm_env, input, shell_particle_set, error )
 
 !   Purpose: Get the FIST environment.
 
@@ -182,6 +182,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : )
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
@@ -192,6 +193,7 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
 
 !   ---------------------------------------------------------------------------
 
@@ -218,11 +220,13 @@ CONTAINS
                       particles=particles,&
                       molecule_kinds_new=molecule_kinds_new,&
                       molecules_new=molecules_new,&
+                      shell_particles=shell_particles,&
                       error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
+    IF (PRESENT(shell_particle_set)) shell_particle_set => shell_particles%els
 
   END SUBROUTINE get_fist_env
 !

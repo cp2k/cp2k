@@ -55,6 +55,7 @@ MODULE spme
        pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
        rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
        rs_pw_transfer
+  USE shell_potential_types,           ONLY: shell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -65,6 +66,9 @@ MODULE spme
 
   PRIVATE
   PUBLIC :: spme_evaluate
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'spme'
+
 
 !!***
 !******************************************************************************
@@ -88,7 +92,8 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
-                           fg_coulomb, vg_coulomb, pv_g, force_env_section,error )
+                           fg_coulomb, vg_coulomb, pv_g, force_env_section,&
+                           shell_particle_set, fgshell_coulomb, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -102,12 +107,21 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER, OPTIONAL                   :: shell_particle_set
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: fgshell_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ierr, &
                                                 ipart, j, jpart, n, &
-                                                ndim( 3 ), npart, o_spline, p1
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre
+                                                ndim( 3 ), npart, nshell, o_spline,&
+                                                p1, p1_shell
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre, shell_centre
+    LOGICAL                                  :: failure, is_core, is_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
     REAL(KIND=dp), ALLOCATABLE, &
@@ -127,7 +141,10 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
-    NULLIFY( poisson_env)
+  failure = .FALSE.
+
+  NULLIFY(drpot, grid_spme, green, poisson_env,  &
+          phi_g, rhob_g, rhob_r, pw_pool, rden)
   CALL timeset ( 'SPME', 'I', ' ', handle )
   CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
                        o_spline = o_spline, group = group ,error=error)
@@ -151,6 +168,13 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   ALLOCATE ( centre ( 3, npart ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre", 3*npart )
   CALL get_center ( particle_set, box, centre, grid_spme % npts, n )
+  IF(PRESENT(shell_particle_set)) THEN
+    CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
+    nshell=SIZE(shell_particle_set)
+    ALLOCATE ( shell_centre ( 3, nshell ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_centre", 3*nshell )
+    CALL get_center ( shell_particle_set, box, shell_centre, grid_spme % npts, n )
+  END IF
 
 !-------------- DENSITY CALCULATION ----------------
 
@@ -162,13 +186,31 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      CALL set_list ( particle_set, npart, centre, p1, rden, ipart, jpart )
      IF ( p1 == 0 ) EXIT
 
+     is_core  = (particle_set(p1)%shell_index/=0)
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
+     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, & 
+                      is_core=is_core )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch ( rden, rhos, centre(:,p1) )
 
-  END DO
+  END DO     
+  IF(PRESENT(shell_particle_set)) THEN
+     DO
+       ! calculate function on small boxes
+       CALL set_list ( shell_particle_set, nshell, shell_centre, p1_shell,&
+                       rden, ipart, jpart )
+       IF ( p1_shell == 0 ) EXIT
+
+       CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
+                        p1_shell, rhos, is_shell=.TRUE. )
+
+       ! add boxes to real space grid (big box)
+       CALL dg_sum_patch ( rden, rhos, shell_centre(:,p1_shell) )
+
+     END DO
+  END IF
+
 
   CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
                            use_data = REALDATA3D, &
@@ -239,6 +281,9 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 ! initialize the forces
   fg_coulomb = 0.0_dp
   dvols = grid_spme % dvol * inv_fourpi_eps0
+  IF(PRESENT(fgshell_coulomb)) THEN
+    fgshell_coulomb = 0.0_dp
+  END IF
 
   ipart = 0
   jpart = 0
@@ -247,8 +292,9 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      CALL set_list ( particle_set, npart, centre, p1, rden, ipart, jpart )
      IF ( p1 == 0 ) EXIT
 
+     is_core = (particle_set(p1)%shell_index/=0)
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
+     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, is_core=is_core )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch_force_3d ( drpot, rhos, centre(:,p1), fat )
@@ -257,6 +303,24 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
 
   END DO
+  IF(PRESENT(shell_particle_set)) THEN
+     DO
+       ! calculate function on small boxes
+       CALL set_list ( shell_particle_set, nshell, shell_centre, p1_shell,&
+                       rden, ipart, jpart )
+       IF ( p1_shell == 0 ) EXIT
+
+       CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
+                        p1_shell, rhos, is_shell=.TRUE. )
+
+       ! add boxes to real space grid (big box)
+       CALL dg_sum_patch_force_3d ( drpot, rhos, shell_centre(:,p1_shell), fat )
+       fgshell_coulomb ( 1, p1_shell ) = fg_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
+       fgshell_coulomb ( 2, p1_shell ) = fg_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
+       fgshell_coulomb ( 3, p1_shell ) = fg_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
+
+     END DO
+   END IF
 
 !--------------END OF FORCE CALCULATION -------------
 
@@ -268,6 +332,10 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
   DEALLOCATE ( centre, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre" )
+  IF(allocated(shell_centre)) THEN
+    DEALLOCATE ( shell_centre, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_centre" )
+  END IF
 
   CALL timestop ( 0.0_dp, handle )
 
@@ -290,7 +358,7 @@ END SUBROUTINE spme_evaluate
 !!
 !!*** *************************************************************************
 
-SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
+SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell )
 
 
     TYPE(particle_type), DIMENSION(:), &
@@ -301,18 +369,37 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
     INTEGER, INTENT(IN)                      :: p
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: rhos
+    LOGICAL, OPTIONAL                        :: is_core, is_shell
 
     INTEGER                                  :: nbox
+    LOGICAL                                  :: my_is_core, my_is_shell
     REAL(KIND=dp)                            :: q
     REAL(KIND=dp), DIMENSION(3)              :: delta, r
+    TYPE(shell_type), POINTER                :: shell
 
 !------------------------------------------------------------------------------
 
+  NULLIFY(shell)
+  my_is_core = .FALSE.
+  IF(PRESENT(is_core)) my_is_core = is_core
+  my_is_shell = .FALSE.
+  IF(PRESENT(is_shell)) my_is_shell = is_shell
+  IF(my_is_core .AND. my_is_shell) THEN
+    CALL stop_program ( "spme%get_patch","shell-model: cannot be core and shell simultaneously" )
+  END IF
+
   nbox = SIZE ( rhos, 1 )
   r = part(p)% r
-
-  CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, qeff=q)
-
+  IF(my_is_core) THEN
+    CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, shell=shell)
+    q = shell%charge_core
+  ELSE IF (my_is_shell) THEN
+    CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, shell=shell)
+    q = shell%charge_shell
+  ELSE
+    CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, qeff=q)
+  END IF
+ 
   CALL get_delta ( box, r, npts, delta, nbox )
 
   CALL spme_get_patch ( rhos, nbox, delta, q, green % p3m_coeff )
@@ -449,7 +536,7 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
     IF ( ipart > npart ) EXIT
     atomic_kind => part(ipart)%atomic_kind
     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=charge)
-    IF ( charge == 0.0_dp ) CYCLE
+    IF ( charge == 0.0_dp .AND. part(ipart)%shell_index==0 ) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid

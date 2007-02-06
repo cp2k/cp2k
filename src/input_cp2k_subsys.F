@@ -680,13 +680,13 @@ CONTAINS
   END SUBROUTINE create_velocity_section
 
 !***************************************************************************
-!!****f* input_cp2k_subsys/create_velocity_section [1.0] *
+!!****f* input_cp2k_subsys/create_shell_vel_section [1.0] *
 !!
 !!   NAME
-!!     create_velocity_section
+!!     create_shell_vel_section
 !!
 !!   FUNCTION
-!!     Creates the velocity section
+!!     Creates the shell velocity section
 !!
 !!   NOTES
 !!     -

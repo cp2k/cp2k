@@ -22,7 +22,8 @@
 MODULE md_run
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -153,7 +154,7 @@ CONTAINS
                                                 iter_level, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: apply_cns0, failure, &
-                                                should_stop
+                                                shell_present, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: t, used_time
@@ -174,8 +175,9 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
     TYPE(section_vals_type), POINTER :: force_env_section, motion_section, &
-      print_section, root_section, subsys_section, work_section
+      print_section, root_section, subsys_section, work_section, work2_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
@@ -185,10 +187,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
 
     failure=.FALSE.
-    NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
+    NULLIFY ( particles, shell_particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,motion_section,gci )
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
-         work_section, print_section, atomic_kinds, local_particles, t,&
+         work_section, work2_section, print_section, atomic_kinds, local_particles, t,&
          fe_env)
     logger => cp_error_get_logger(error)
     root_section=>force_env_p ( 1 ) % force_env % root_section
@@ -301,19 +303,37 @@ CONTAINS
                                                       i_rep_section=isubsys,&
                                                       error=error)
          CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                            atomic_kinds=atomic_kinds,&
                             molecule_kinds_new=molecule_kinds_new,&
                             particles=particles,&
+                            shell_particles=shell_particles,&
                             error=error)
-         NULLIFY (work_section)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
+              shell_present=shell_present)
+         NULLIFY (work_section,work2_section)
          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
-         CALL initialize_velocities(simpar,particles%els,&
-                                    molecule_kinds=molecule_kinds_new,&
-                                    para_env=para_env,&
-                                    globenv=globenv,&
-                                    print_section=print_section,&
-                                    work_section=work_section,&
-                                    error=error)
+
+         IF(shell_present) THEN
+           work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+           CALL initialize_velocities(simpar,particles%els,&
+                                      molecule_kinds=molecule_kinds_new,&
+                                      para_env=para_env,&
+                                      globenv=globenv,&
+                                      print_section=print_section,&
+                                      work_section=work_section,&
+                                      work2_section=work2_section,&
+                                      shell_part=shell_particles%els,&
+                                      error=error)
+         ELSE
+           CALL initialize_velocities(simpar,particles%els,&
+                                      molecule_kinds=molecule_kinds_new,&
+                                      para_env=para_env,&
+                                      globenv=globenv,&
+                                      print_section=print_section,&
+                                      work_section=work_section,&
+                                      error=error)
+         END IF
        END DO
 
        ! Set V0 if needed

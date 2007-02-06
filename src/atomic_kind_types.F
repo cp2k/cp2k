@@ -188,7 +188,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-
     IF (ASSOCIATED(atomic_kind_set)) THEN
       CALL deallocate_atomic_kind_set(atomic_kind_set,error)
     END IF
@@ -304,11 +303,13 @@ CONTAINS
                                              "atomic_kind_set(ikind)%elec_conf")
         ENDIF
         CALL shell_release(atomic_kind_set(ikind)%shell,error)
- 
+
       END DO
+
       DEALLOCATE (atomic_kind_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atomic_kind_set")
+
     ELSE
 
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -564,7 +565,7 @@ CONTAINS
                                  npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
                                  elp_potential_present,paw_atom_present,&
-                                 qm_atom_present,shell_present,&
+                                 qm_atom_present,shell_present, shell_adiabatic,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
                                  max_ngrid_rad,&
                                  max_sph_harm,maxg_iso_not0,lmax_rho0,&
@@ -584,7 +585,7 @@ CONTAINS
       ncgf_aux, npgf, nset, nsgf, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       gth_potential_present, elp_potential_present, paw_atom_present, &
-      qm_atom_present,shell_present
+      qm_atom_present,shell_present, shell_adiabatic
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -645,6 +646,7 @@ CONTAINS
       IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
       IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
       IF (PRESENT(shell_present)) shell_present = .FALSE.
+      IF (PRESENT(shell_adiabatic)) shell_adiabatic = .TRUE.
       IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
       IF (PRESENT(kind_of)) kind_of(:) = 0
@@ -886,6 +888,9 @@ CONTAINS
           IF (ASSOCIATED(shell)) THEN
             shell_present = .TRUE.
           END IF
+        END IF
+        IF (PRESENT(shell_adiabatic) .AND. ASSOCIATED(shell) )THEN
+           shell_adiabatic = (shell%massfrac /= 0.0_dp)
         END IF
         IF (PRESENT(atom_of_kind)) THEN
           DO iatom=1,atomic_kind%natom
