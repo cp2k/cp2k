@@ -314,7 +314,7 @@ CPSourceFileRef,&
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    IF (PRESENT(b_first_row)) THEN
+    IF (PRESENT(a_first_row)) THEN
       i_a = a_first_row
     ELSE
       i_a = 1
