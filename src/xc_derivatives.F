@@ -76,7 +76,8 @@ MODULE xc_derivatives
                                              tpss_lsd_eval,&
                                              tpss_lsd_info
   USE xc_vwn,                          ONLY: vwn_lda_eval,&
-                                             vwn_lda_info
+                                             vwn_lda_info,&
+                                             vwn_lsd_eval
   USE xc_xalpha,                       ONLY: xalpha_info,&
                                              xalpha_lda_eval,&
                                              xalpha_lsd_eval
@@ -219,8 +220,11 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("TF")
         CALL thomas_fermi_info(lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("VWN")
-        CPPrecondition(.NOT.lsd,cp_failure_level,routineP,error,failure)
-        CALL vwn_lda_info(reference,shortform,needs,max_deriv,error=error)
+        IF (lsd) THEN
+           CALL vwn_lda_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL vwn_lda_info(reference,shortform,needs,max_deriv,error=error)
+        END IF
      CASE("XALPHA")
         CALL section_vals_val_get(functional,"XA",r_val=r_param,&
              error=error)
@@ -403,8 +407,11 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL thomas_fermi_lda_eval(rho_set,deriv_set,deriv_order,error=error)
         END IF        
      CASE("VWN")
-        CPPrecondition(.NOT.lsd,cp_failure_level,routineP,error,failure)
-        CALL vwn_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        IF (lsd) THEN
+           CALL vwn_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL vwn_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
      CASE("XALPHA")
         CALL section_vals_val_get(functional,"XA",r_val=r_param,&
              error=error)
