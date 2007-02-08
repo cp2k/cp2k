@@ -72,7 +72,7 @@ CONTAINS
   !******************************************************************************
 
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
-       pot_nonbond, f_nonbond, ptens_nonbond, shell_particle_set,fshell_nonbond , error )
+       pot_nonbond, f_nonbond, ptens_nonbond, shell_particle_set, fshell_nonbond , error )
 
     ! Calculates the force and the potential of the minimum image, and
     ! the pressure tensor
@@ -91,14 +91,15 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: fshell_nonbond
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
-                                                ikind, ilist, inode, ipair, &
-                                                jkind, nkinds, nlist, nnode, &
+                                                ikind, ilist, ipair, &
+                                                jkind, nkinds,  &
                                                 npairs, shell_a, shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: is_eam, is_shell
+    LOGICAL                                  :: is_eam, failure
     REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fscalar, ptens11, &
       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
       rab(3), rab2, rab2_max
@@ -117,7 +118,7 @@ CONTAINS
                                                 sc_spline_data
 
     CALL timeset ( routineN, handle )
-
+    failure = .FALSE.
     NULLIFY(c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update, &
@@ -127,7 +128,10 @@ CONTAINS
     ! initializing the potential energy, pressure tensor and force
     pot_nonbond = 0.0_dp
     f_nonbond = 0.0_dp
-    fshell_nonbond = 0.0_dp
+    IF(PRESENT(fshell_nonbond)) THEN
+!      CPPostcondition(ASSOCIATED(fshell_nonbond),cp_failure_level,routineP,error,failure)
+      fshell_nonbond = 0.0_dp
+    END IF
     ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
     ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
     ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
@@ -164,7 +168,11 @@ CONTAINS
        cvi   = neighbor_kind_pair%cell_vector
        spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
        is_eam=(potparm %pot( ikind, jkind ) %pot % TYPE == ea_type)
-       shell_type=potparm %pot( ikind, jkind ) %pot % shell_type 
+       IF(PRESENT(shell_particle_set) .AND. PRESENT(fshell_nonbond)) THEN
+         shell_type=potparm %pot( ikind, jkind ) %pot % shell_type 
+       ELSE
+          shell_type = nosh_nosh 
+       END IF
        IF(shell_type/=nosh_nosh) THEN
          c_spline_data => potparm % pot( ikind, jkind ) %pot % c_coul_spline_data
        ELSE
