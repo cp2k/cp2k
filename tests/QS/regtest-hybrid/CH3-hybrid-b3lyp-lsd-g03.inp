@@ -1,0 +1,78 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    LSD
+    &MGRID
+      CUTOFF 250
+      REL_CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      &OT off
+       PRECONDITIONER FULL_ALL
+      &END OT
+      MAX_SCF 2 
+    &END SCF
+#These are the coefficients used for B3LYP using VWN3, this is the default Gaussian definition, but not recommended
+    &XC
+      &XC_FUNCTIONAL
+       &LYP
+         SCALE_C 0.81
+       &END 
+       &BECKE88
+         SCALE_X 0.72
+       &END
+       &VWN
+         SCALE_C 0.19
+         FUNCTIONAL_TYPE VWN3
+       &END 
+       &XALPHA
+         SCALE_X 0.08
+       &END 
+      &END XC_FUNCTIONAL
+      &HF
+       EPS_SCHWARZ 1.0E-16 
+       MAX_MEMORY  100 
+       FRACTION 0.20
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    C   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    H   0.757136    0.520545    0.000000
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+    &KIND C
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+#  TRACE
+  FFTLIB FFTSG
+  PROJECT gapw_all_pade
+  PRINT_LEVEL MEDIUM 
+&END GLOBAL
