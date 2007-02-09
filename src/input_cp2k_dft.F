@@ -4789,7 +4789,7 @@ CONTAINS
 
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
-            description="print results of nmr calculation",&
+            description="print results of kg_gpw calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
        CALL cp_print_key_section_create(print_key,"kg_info",&

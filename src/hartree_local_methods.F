@@ -471,9 +471,6 @@ MODULE  hartree_local_methods
                           ga_Vlocal_gb_h=int_local_h,&
                           ga_Vlocal_gb_s=int_local_s)
 
-!        NULLIFY(Vh1_h,Vh1_s,rrad_0)
-!        CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s)
-
         NULLIFY(rrad_0,vrrad_0)
         rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
         vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
@@ -666,22 +663,24 @@ MODULE  hartree_local_methods
 
     CALL mp_sum(energy_hartree_1c,para_env%group)
 
-    DEALLOCATE(gexp,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"gexp")
+      DEALLOCATE(gexp,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"gexp")
+      ENDIF
+    IF(ASSOCIATED(gsph)) THEN
+      DEALLOCATE(gsph,STAT=istat)
+      IF (istat /= 0) THEN
+         CALL stop_memory(routineN,moduleN,__LINE__,"gsph")
+      ENDIF
     ENDIF
-    DEALLOCATE(gsph,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"gsph")
-    ENDIF
-    DEALLOCATE(g0_h_w,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"g0_h_w")
-    ENDIF
-    DEALLOCATE(sqrtwr,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"sqrtwr")
-    ENDIF
+      DEALLOCATE(g0_h_w,STAT=istat)
+      IF (istat /= 0) THEN
+         CALL stop_memory(routineN,moduleN,__LINE__,"g0_h_w")
+      ENDIF
+      DEALLOCATE(sqrtwr,STAT=istat)
+      IF (istat /= 0) THEN
+         CALL stop_memory(routineN,moduleN,__LINE__,"sqrtwr")
+      ENDIF
 
    CALL timestop(0.0_dp,handle)
 
