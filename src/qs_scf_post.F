@@ -227,7 +227,7 @@ CONTAINS
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER  :: unoccupied_evals
     INTEGER            ::  handle, ispin, istat, n, nmo, output_unit,i
-    INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr, idir
+    INTEGER            :: file_unit,ivector,nao,nlumos,nhomo, homo, unit_nr, idir
     LOGICAL            :: homoEQnmo, ghost
     CHARACTER(LEN=default_string_length)  :: filename
     CHARACTER(LEN=default_string_length)  :: title
@@ -379,8 +379,10 @@ CONTAINS
 
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
                   error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error)) THEN
+                nhomo=section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)
+                IF (nhomo==-1) nhomo=homo
                 DO ivector=MAX(1,&
-                   homo-section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) +1),homo
+                   homo-nhomo+1),homo
                    CALL get_qs_env(qs_env=qs_env,&
                                    atomic_kind_set=atomic_kind_set,&
                                    cell=cell,&
@@ -602,6 +604,7 @@ CONTAINS
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo,nao=nao,nmo=nmo)
              CALL cp_fm_get_info(mo_coeff, nrow_global=n,error=error)
              nlumos=MAX(1,MIN(section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error),nao-homo))
+             IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error)==-1) nlumos=nao-homo
              ALLOCATE(unoccupied_evals(ispin)%evals(nlumos))
              CALL cp_fm_struct_create(fm_struct_tmp,para_env=qs_env%para_env,context=qs_env%blacs_env, &
                                                     nrow_global=n,ncol_global=nlumos,error=error)

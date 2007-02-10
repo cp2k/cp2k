@@ -992,12 +992,14 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="nlumo",&
-            description="If the printkey is activated controls the number of lumos that are printed (-1=all)",&
+            description="If the printkey is activated controls the number of lumos"//&
+                        "that are printed and dumped as a cube (-1=all)",&
             default_i_val=5, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="nhomo",&
-            description="If the printkey is activated controls the number of homos that are calculated and printed",&
+            description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"//&
+                        " eigenvalues are always all dumped",&
             default_i_val=1, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
