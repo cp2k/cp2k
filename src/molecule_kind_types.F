@@ -47,6 +47,7 @@ MODULE molecule_kind_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 #include "cp_common_uses.h"
@@ -63,6 +64,12 @@ MODULE molecule_kind_types
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     CHARACTER(LEN=default_string_length)  :: name
   END TYPE atom_type
+
+  TYPE shell_type
+    TYPE(shell_kind_type), POINTER :: shell_kind
+    INTEGER :: a
+    CHARACTER(LEN=default_string_length)  :: name
+  END TYPE shell_type
 
   TYPE bond_type
     TYPE(bond_kind_type), POINTER :: bond_kind
@@ -148,6 +155,7 @@ MODULE molecule_kind_types
     TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
     TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
     TYPE(fixd_constraint_type), DIMENSION(:), POINTER :: fixd_list
+    TYPE(shell_type), DIMENSION(:), POINTER           :: shell_list
     CHARACTER(LEN=default_string_length)              :: name
     INTEGER                                           :: nhcopt
     REAL(KIND = dp)                                   :: charge,&
@@ -163,7 +171,7 @@ MODULE molecule_kind_types
                                                          ng3x3, ng3x3_restraint,&
                                                          ng4x6, ng4x6_restraint,&
                                                          nfixd, nfixd_restraint,&
-                                                         nmolecule
+                                                         nmolecule, nshell
     TYPE(colvar_counters)                             :: ncolv
     INTEGER                                           :: nsgf, nelectron
     INTEGER, DIMENSION(:), POINTER                    :: molecule_list
@@ -196,7 +204,8 @@ MODULE molecule_kind_types
             g3x3_constraint_type,&
             g4x6_constraint_type,&
             fixd_constraint_type,&
-            molecule_kind_type
+            molecule_kind_type,&
+            shell_type
 
 !!***
 ! *****************************************************************************
@@ -296,6 +305,7 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g4x6_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%fixd_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%shell_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%torsion_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%bond_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%bend_kind_set)
@@ -322,6 +332,7 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%nfixd_restraint = 0
       molecule_kind_set(imolecule_kind)%nmolecule = 0
       molecule_kind_set(imolecule_kind)%ntorsion = 0
+      molecule_kind_set(imolecule_kind)%nshell = 0
       NULLIFY (molecule_kind_set(imolecule_kind)%molecule_list)
     END DO
 
@@ -471,6 +482,13 @@ CONTAINS
                               "molecule_kind_set(imolecule_kind)%torsion_kind_set")
            END IF
         END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%shell_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%shell_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routineN,moduleN,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%shell_list")
+           END IF
+        END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list,STAT=istat)
            IF (istat /= 0) THEN
@@ -505,12 +523,13 @@ CONTAINS
 
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
                                ub_list,impr_list,onfo_list,colv_list,fixd_list,&
-                               g3x3_list,g4x6_list,torsion_list,name,nhcopt,&
+                               g3x3_list,g4x6_list,torsion_list,shell_list,&
+                               name,nhcopt,&
                                mass,charge,kind_number,natom,nbend,nbond,nub,&
                                nimpr,nonfo,nconstraint,nfixd,&
                                ncolv,ng3x3,ng4x6,&
                                nfixd_restraint, ng3x3_restraint, ng4x6_restraint,&
-                               nrestraints,nmolecule,nsgf,ntorsion,&
+                               nrestraints,nmolecule,nsgf,nshell,ntorsion,&
                                molecule_list,nelectron,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                impr_kind_set,onfo_kind_set,torsion_kind_set,&
@@ -543,6 +562,8 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
+    TYPE(shell_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: shell_list
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
     CHARACTER(LEN=default_string_length), &
@@ -555,7 +576,7 @@ CONTAINS
     TYPE(colvar_counters), INTENT(out), &
       OPTIONAL                               :: ncolv
     INTEGER, INTENT(OUT), OPTIONAL :: ng3x3, ng4x6, nfixd_restraint, &
-      ng3x3_restraint, ng4x6_restraint, nmolecule, nsgf, ntorsion, nrestraints
+      ng3x3_restraint, ng4x6_restraint, nmolecule, nsgf, nshell, ntorsion, nrestraints
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -595,6 +616,7 @@ CONTAINS
       IF (PRESENT(g4x6_list)) g4x6_list => molecule_kind%g4x6_list
       IF (PRESENT(fixd_list)) fixd_list => molecule_kind%fixd_list
       IF (PRESENT(torsion_list)) torsion_list => molecule_kind%torsion_list
+      IF (PRESENT(shell_list)) shell_list => molecule_kind%shell_list
       IF (PRESENT(name)) name = molecule_kind%name
       IF (PRESENT(molname_generated)) molname_generated = molecule_kind%molname_generated
       IF (PRESENT(nhcopt)) nhcopt = molecule_kind%nhcopt
@@ -621,6 +643,7 @@ CONTAINS
                                               molecule_kind%ng3x3_restraint +&
                                               molecule_kind%ng4x6_restraint
       IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
+      IF (PRESENT(nshell)) nshell= molecule_kind%nshell
       IF (PRESENT(ntorsion)) ntorsion= molecule_kind%ntorsion
       IF (PRESENT(nsgf)) nsgf = molecule_kind%nsgf
       IF (PRESENT(nelectron)) nelectron = molecule_kind%nelectron
@@ -803,6 +826,7 @@ CONTAINS
                                nonfo,onfo_list,ntorsion,torsion_list,fixd_list,&
                                ncolv,colv_list,ng3x3,g3x3_list,ng4x6,nfixd,g4x6_list,&
                                ng3x3_restraint,ng4x6_restraint,nfixd_restraint,&
+                               nshell, shell_list,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                torsion_kind_set,impr_kind_set,onfo_kind_set,&
                                nelectron,nsgf,molname_generated)
@@ -850,6 +874,9 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ng4x6, nfixd
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
+    INTEGER, INTENT(IN), OPTIONAL            :: nshell
+    TYPE(shell_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: shell_list
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3_restraint, &
                                                 ng4x6_restraint, &
                                                 nfixd_restraint
@@ -918,6 +945,8 @@ CONTAINS
       IF (PRESENT(torsion_kind_set)) molecule_kind%torsion_kind_set => torsion_kind_set
       IF (PRESENT(impr_kind_set)) molecule_kind%impr_kind_set => impr_kind_set
       IF (PRESENT(onfo_kind_set)) molecule_kind%onfo_kind_set => onfo_kind_set
+      IF (PRESENT(nshell)) molecule_kind%nshell = nshell
+      IF (PRESENT(shell_list)) molecule_kind%shell_list => shell_list
       IF (PRESENT(molecule_list)) THEN
         n = SIZE(molecule_list)
         molecule_kind%nmolecule = n

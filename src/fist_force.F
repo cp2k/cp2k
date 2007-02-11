@@ -132,7 +132,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     LOGICAL                                  :: failure, shell_present
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(KIND=dp) :: pot_bend, pot_bond, pot_imptors, pot_manybody, &
-      pot_nonbond, pot_onef, pot_torsion, pot_urey_bradley, vg_coulomb, &
+      pot_nonbond, pot_onef, pot_shell, pot_torsion, pot_urey_bradley, vg_coulomb, &
       xdum1, xdum2, xdum3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: f_nonbond, f_total, &
@@ -140,7 +140,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                                                 fshell_nonbond, &
                                                 fshell_total
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
-      pv_imptors, pv_nonbond, pv_onef, pv_torsion, pv_urey_bradley
+      pv_imptors, pv_nonbond, pv_onef, pv_shell, pv_torsion, pv_urey_bradley
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -196,11 +196,13 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   nshell = 0
   CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
   IF(shell_present) THEN
-    CALL get_fist_env ( fist_env, shell_particle_set=shell_particle_set, error=error)  
+    CALL get_fist_env ( fist_env, shell_particle_set=shell_particle_set, error=error)
     CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
     nshell = SIZE(shell_particle_set)
     ALLOCATE ( fshell_nonbond ( 3, nshell ), STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ELSE
+    NULLIFY(shell_particle_set)
   END IF
 
 ! first check with list_control to update neighbor lists
@@ -236,6 +238,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   pv_imptors = 0.0_dp
   pv_onef = 0.0_dp
   pv_urey_bradley = 0.0_dp
+  pv_shell = 0.0_dp
   pot_nonbond = 0.0_dp
   pot_manybody = 0.0_dp
   pot_bond = 0.0_dp
@@ -244,6 +247,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   pot_imptors = 0.0_dp
   pot_onef = 0.0_dp
   pot_urey_bradley = 0.0_dp
+  pot_shell = 0.0_dp
   vg_coulomb = 0.0_dp
   thermo % pot = 0.0_dp
   virial % pv_virial = 0.0_dp
@@ -363,16 +367,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 !
   IF ( PRESENT ( debug ) ) THEN
     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                   particle_set, pot_bond, pot_bend, pot_urey_bradley, &
-                   pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend, &
-                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef,    &
+                   particle_set,shell_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                   pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
+                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell,    &
                    debug % f_bond, debug % f_bend, debug % f_torsion,  &
                    debug % f_ub, debug % f_imptors, debug % f_onef, cell )
   ELSE
     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                   particle_set, pot_bond, pot_bend, pot_urey_bradley, &
-                   pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend, &
-                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, cell=cell )
+                   particle_set, shell_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                   pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
+                   pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell, cell=cell )
   ENDIF
 
   IF (iw>0) THEN

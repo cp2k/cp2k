@@ -82,7 +82,7 @@ MODULE atomic_kind_types
                                              write_se_param
   USE shell_potential_types,           ONLY: shell_release,&
                                              shell_retain,&
-                                             shell_type
+                                             shell_kind_type
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -133,7 +133,7 @@ MODULE atomic_kind_types
                                                         ! user can specify whatever...
 
     LOGICAL                                :: shell_active
-    TYPE(shell_type), POINTER              :: shell
+    TYPE(shell_kind_type), POINTER              :: shell
   END TYPE atomic_kind_type
 
   TYPE atomic_kind_p_type
@@ -384,7 +384,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ngrid_ang, ngrid_rad, &
                                                 lmax_rho0
     LOGICAL, INTENT(OUT), OPTIONAL           :: ghost
-    TYPE(shell_type), POINTER, OPTIONAL      :: shell
+    TYPE(shell_kind_type), POINTER, OPTIONAL      :: shell
     LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atomic_kind'
@@ -609,7 +609,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
                                                 soft_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER                :: shell
 
 
 !   ---------------------------------------------------------------------------
@@ -1666,7 +1666,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: lmax_rho0
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
     LOGICAL, INTENT(IN), OPTIONAL            :: ghost
-    TYPE(shell_type), POINTER, OPTIONAL      :: shell
+    TYPE(shell_kind_type), POINTER, OPTIONAL      :: shell
     LOGICAL, INTENT(IN),  OPTIONAL           :: shell_active
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

@@ -55,7 +55,7 @@ MODULE spme
        pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
        rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
        rs_pw_transfer
-  USE shell_potential_types,           ONLY: shell_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -375,7 +375,7 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell )
     LOGICAL                                  :: my_is_core, my_is_shell
     REAL(KIND=dp)                            :: q
     REAL(KIND=dp), DIMENSION(3)              :: delta, r
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER                :: shell
 
 !------------------------------------------------------------------------------
 

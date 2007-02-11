@@ -42,7 +42,7 @@ MODULE ewalds
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
-  USE shell_potential_types,           ONLY: get_shell, shell_type
+  USE shell_potential_types,           ONLY: get_shell, shell_kind_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate,&
@@ -312,7 +312,7 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
     REAL(KIND=dp)                            :: alpha, eps0, q, q_self, q_sum
     REAL(KIND=dp)                            :: qcore, qshell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER           :: shell
 
 !------------------------------------------------------------------------------
 

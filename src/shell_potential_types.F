@@ -34,7 +34,7 @@ MODULE shell_potential_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'shell_potential_types'
 
 ! *** Define the shell types ***
-  TYPE shell_type
+  TYPE shell_kind_type
     INTEGER                                :: ref_count
     REAL(dp)                               :: charge_core, &
                                               charge_shell
@@ -44,13 +44,13 @@ MODULE shell_potential_types
     REAL(dp)                               :: k_spring
     REAL(dp)                               :: max_dist
     REAL(dp)                               :: shell_cutoff
-  END TYPE shell_type
+  END TYPE shell_kind_type
 
 
   TYPE shell_p_type
     CHARACTER (LEN=default_string_length)   :: atm_name
 !!    INTEGER                                 :: ref_count
-    TYPE(shell_type), POINTER               :: shell
+    TYPE(shell_kind_type), POINTER               :: shell
   END TYPE shell_p_type
 
 ! *** Public subroutines ***
@@ -60,7 +60,7 @@ MODULE shell_potential_types
 
 ! *** Public data types ***
 
-  PUBLIC :: shell_p_type, shell_type
+  PUBLIC :: shell_p_type, shell_kind_type
 
 
 !!***
@@ -72,7 +72,7 @@ CONTAINS
   SUBROUTINE get_shell(shell,charge_core,charge_shell,mass_core,mass_shell,&
              k_spring,max_dist,shell_cutoff,error)
 
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER                :: shell
     REAL(kind=dp), INTENT(out), OPTIONAL     :: charge_core,charge_shell  
     REAL(kind=dp), INTENT(out), OPTIONAL     :: mass_core,mass_shell  
     REAL(kind=dp), INTENT(out), OPTIONAL     :: k_spring,max_dist,shell_cutoff
@@ -98,7 +98,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE shell_create(shell,error)
 
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER                :: shell
     
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -149,7 +149,7 @@ CONTAINS
   
   SUBROUTINE shell_retain(shell,error)
 
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER                :: shell
     
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -195,7 +195,7 @@ CONTAINS
   
   SUBROUTINE shell_release(shell,error)
 
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER                :: shell
     
     TYPE(cp_error_type), INTENT(inout)       :: error
 

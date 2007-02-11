@@ -46,7 +46,7 @@ MODULE atoms_input
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
-  USE shell_potential_types,           ONLY: shell_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -316,7 +316,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(section_vals_type), POINTER         :: shell_coord_section
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER                :: shell
     TYPE(val_type), POINTER                  :: val
 
     failure=.FALSE.

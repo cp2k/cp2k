@@ -47,7 +47,7 @@ MODULE fist_nonbond_force
                                              pair_potential_pp_type,&
                                              pair_potential_single_type
   USE particle_types,                  ONLY: particle_type
-  USE shell_potential_types,           ONLY: shell_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE splines,                         ONLY: potential_s,&
                                              spline_data_type
   USE termination,                     ONLY: stop_memory
@@ -72,7 +72,8 @@ CONTAINS
   !******************************************************************************
 
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
-       pot_nonbond, f_nonbond, ptens_nonbond, shell_particle_set, fshell_nonbond , error )
+       pot_nonbond, f_nonbond, ptens_nonbond, shell_particle_set, &
+       fshell_nonbond , error )
 
     ! Calculates the force and the potential of the minimum image, and
     ! the pressure tensor
@@ -95,11 +96,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
-                                                ikind, ilist, ipair, &
-                                                jkind, nkinds,  &
-                                                npairs, shell_a, shell_b, shell_type
+                                                ikind, ilist, inode, ipair, &
+                                                jkind, nkinds, nlist, nnode, &
+                                                npairs, shell_a, shell_b, &
+                                                shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: is_eam, failure
+    LOGICAL                                  :: failure, is_eam, is_shell
     REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fscalar, ptens11, &
       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
       rab(3), rab2, rab2_max
@@ -118,7 +120,7 @@ CONTAINS
                                                 sc_spline_data
 
     CALL timeset ( routineN, handle )
-    failure = .FALSE.
+
     NULLIFY(c_spline_data,cs_spline_data,sc_spline_data,rshell_last_update_pbc)
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update, &
@@ -128,10 +130,7 @@ CONTAINS
     ! initializing the potential energy, pressure tensor and force
     pot_nonbond = 0.0_dp
     f_nonbond = 0.0_dp
-    IF(PRESENT(fshell_nonbond)) THEN
-!      CPPostcondition(ASSOCIATED(fshell_nonbond),cp_failure_level,routineP,error,failure)
-      fshell_nonbond = 0.0_dp
-    END IF
+    IF(PRESENT(fshell_nonbond)) fshell_nonbond = 0.0_dp
     ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
     ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
     ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
@@ -168,15 +167,13 @@ CONTAINS
        cvi   = neighbor_kind_pair%cell_vector
        spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
        is_eam=(potparm %pot( ikind, jkind ) %pot % TYPE == ea_type)
-       IF(PRESENT(shell_particle_set) .AND. PRESENT(fshell_nonbond)) THEN
-         shell_type=potparm %pot( ikind, jkind ) %pot % shell_type 
-       ELSE
-          shell_type = nosh_nosh 
-       END IF
+       shell_type=potparm %pot( ikind, jkind ) %pot % shell_type 
        IF(shell_type/=nosh_nosh) THEN
          c_spline_data => potparm % pot( ikind, jkind ) %pot % c_coul_spline_data
+         CPPostcondition(PRESENT(shell_particle_set),cp_failure_level,routineP,error,failure)
        ELSE
          c_spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
+         CPPostcondition(.NOT.PRESENT(shell_particle_set),cp_failure_level,routineP,error,failure)
        END IF
        IF(shell_type==sh_sh) THEN
          cs_spline_data => potparm % pot( ikind, jkind ) %pot % cs_coul_spline_data
@@ -628,7 +625,7 @@ CONTAINS
                                                 qci, qcj, qi, qj, qsi, qsj, rijsq, tc
     REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj, rsi, rsj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(shell_type), POINTER                :: shell_i, shell_j
+    TYPE(shell_kind_type), POINTER                :: shell_i, shell_j
 
 ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
 !------------------------------------------------------------------------------

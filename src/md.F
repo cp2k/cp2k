@@ -55,7 +55,7 @@ MODULE md
                                              molecule_kind_type
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
-  USE shell_potential_types,           ONLY: shell_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -583,7 +583,7 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(val_type), POINTER                  :: val
 

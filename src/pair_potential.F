@@ -40,7 +40,7 @@ MODULE pair_potential
        ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
        pair_potential_pp_type, pair_potential_single_type, wl_type
   USE shell_potential_types,           ONLY: get_shell, &
-                                             shell_type
+                                             shell_kind_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              potential_s,&
@@ -256,7 +256,7 @@ CONTAINS
       my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qci, qcj, qi, qj, qsi, qsj, x, x2, xdum, &
       xdum1, xsav
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(shell_type), POINTER                :: shell_i, shell_j
+    TYPE(shell_kind_type), POINTER           :: shell_i, shell_j
 
     failure     = .FALSE.
     n      = 0

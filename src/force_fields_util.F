@@ -64,7 +64,7 @@ MODULE force_fields_util
        atom_type, bend_type, bond_type, colvar_constraint_type, &
        g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
        impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
-       torsion_type, ub_type
+       shell_type, torsion_type, ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE pair_potential,                  ONLY: get_nonbond_storage,&
@@ -82,7 +82,7 @@ MODULE force_fields_util
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE shell_potential_types,           ONLY: shell_create, &
                                              shell_release, &
-                                             shell_type
+                                             shell_kind_type
   USE splines,                         ONLY: spline_data_release,&
                                              spline_data_retain,&
                                              spline_data_type,&
@@ -167,9 +167,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: Ainfo
     INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, &
       i, ii, ikind, ilink, imul, itype, iw, iw2, iw3, iw4, j, jj, jkind, k, &
-      last, match_names, n, natom, nbend, nbond, nimpr, nkinds, nonfo, &
+      last, match_names, n, natom, nbend, nbond, nimpr, nkinds, nmol, nonfo, &
       nshell_tot, ntorsion, nub, output_unit, stat
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list, shell_list_tmp
     INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
     LOGICAL :: allocate_spline_bond_env, failure, fatal, found, found_a, &
@@ -201,7 +201,8 @@ CONTAINS
       POINTER                                :: onfo_kind_set
     TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond, potparm_nonbond
-    TYPE(shell_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER           :: shell
+    TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_environment_type), POINTER   :: spline_bond_env, &
                                                 spline_manybody_env, &
@@ -1383,6 +1384,7 @@ CONTAINS
     ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nshell_tot = 0
+    n = 0
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1496,11 +1498,13 @@ CONTAINS
                      shell=shell, shell_active=.TRUE.)
                 CALL shell_release(shell, error)
              END IF
-          END DO
+          END DO  ! j shell kind
        END IF   ! associated shell_list
 
     END DO  ! i atomic kind
+
     IF (iw>0) WRITE(iw,*)"Total number of particles with a shell :: ", nshell_tot
+    ! If shell-model is present: Create particle_set of shells (coord. vel. force)
     NULLIFY(shell_particle_set)
     IF(nshell_tot>0) THEN
       CALL allocate_particle_set(shell_particle_set,nshell_tot)
@@ -1515,14 +1519,63 @@ CONTAINS
           shell_particle_set(counter)%shell_index=counter
           shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
           shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
-
         ELSE
           particle_set(i)%shell_index = 0
         END IF
       END DO  ! i atom in particle_set
       CPPostcondition(counter/=nshell_tot,cp_failure_level,routineP,error,failure)
+      ! Initialize the shells coordinates
       CALL read_shell_coord_input(particle_set,shell_particle_set,cell,root_section, subsys_section,error)
+
+
+      ! Determine the number of shells per molecule kind
+      n = 0
+      DO i=1,SIZE(molecule_kind_set)
+        molecule_kind => molecule_kind_set(i)
+        CALL get_molecule_kind(molecule_kind=molecule_kind,&
+             molecule_list=molecule_list, natom=natom, nmolecule=nmol)
+        molecule=>molecule_set(molecule_list(1))
+        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+        ALLOCATE(shell_list_tmp(natom),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        counter = 0
+        DO j = first, last
+          atomic_kind => particle_set(j)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               shell_active=is_a_shell)
+          IF(is_a_shell) THEN
+            counter = counter+1
+            shell_list_tmp(counter) = j - first + 1
+          END IF
+        END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
+        IF(counter/=0) THEN
+          CALL get_molecule_kind(molecule_kind=molecule_kind,&
+               shell_list=shell_list)
+          IF(ASSOCIATED(shell_list)) THEN
+             DEALLOCATE(shell_list,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             NULLIFY(shell_list)
+          END IF
+          ALLOCATE(shell_list(counter), STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO j = 1, counter
+            shell_list(j)%a = shell_list_tmp(j)
+            atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                 name=atmname, shell=shell)
+            CALL uppercase(atmname)
+            shell_list(j)%name = atmname 
+            shell_list(j)%shell_kind => shell
+          END DO
+          CALL set_molecule_kind(molecule_kind=molecule_kind,&
+               nshell=counter, shell_list=shell_list)
+        END IF
+        DEALLOCATE(shell_list_tmp,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        n = n + nmol * counter 
+      END DO  ! i molecule kind
     END IF  ! nshell_tot>0
+    CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
 
     ! Give information only if charge is missing and abort..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
