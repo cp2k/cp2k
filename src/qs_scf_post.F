@@ -99,6 +99,7 @@ MODULE qs_scf_post
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
@@ -811,6 +812,15 @@ CONTAINS
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
               cp_p_file)) THEN
        CALL qs_efg_calc(qs_env=qs_env,error=error)
+    END IF
+
+    ! Calculation of EPR Hyperfine Coupling Tensors
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR",&
+                   error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+              cp_p_file)) THEN
+       CALL qs_epr_hyp_calc(qs_env=qs_env,error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)

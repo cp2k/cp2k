@@ -1248,6 +1248,27 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key_section=print_key,&
+            name="HYPERFINE_COUPLING_TENSOR",&
+            description="Calculate and print the EPR hyperfine coupling tensor"//&
+            " at atomic positions",&
+            print_level=debug_print_level,each=(/1/),&
+            filename="__STD_OUT__",error=error)
+
+       CALL keyword_create(keyword=keyword,&
+            name="INTERACTION_RADIUS",&
+            description="Radius of interaction for EPR hyperfine tensor calculation",&
+            usage="INTERACTION_RADIUS radius {real}",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,default_r_val=10._dp,&
+            type_of_var=real_t, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
     END IF
 
   END SUBROUTINE create_print_dft_section
