@@ -102,14 +102,14 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: efg_interpolation, failure, &
                                                 gapw, paw_atom, smoothing, &
-                                                success
+                                                efg_debug, success
     REAL(KIND=dp)                            :: ecut, efg_units, efg_val, &
                                                 ehartree, eps_r, eps_x, f1, &
                                                 f2, sigma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: efg_diagval, vh0
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: efg_tensor
+      DIMENSION(:, :, :)                     :: efg_tensor, efg_pw
     REAL(KIND=dp), DIMENSION(3)              :: eigenvalues, ra
     REAL(KIND=dp), DIMENSION(3, 3)           :: eigenvectors
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
@@ -155,6 +155,9 @@ CONTAINS
 
     efg_interpolation = section_get_lval(section_vals=dft_section,&
                 keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATION",&
+                error=error)
+    efg_debug = section_get_lval(section_vals=dft_section,&
+                keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%DEBUG",&
                 error=error)
     CALL section_vals_val_get(dft_section,&
                 "PRINT%ELECTRIC_FIELD_GRADIENT%GSPACE_SMOOTHING",&
@@ -208,6 +211,11 @@ CONTAINS
     ALLOCATE (efg_tensor(3,3,natom),STAT=istat )
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     efg_tensor = 0._dp
+    IF ( efg_debug ) THEN
+      ALLOCATE (efg_pw(3,3,natom),STAT=istat )
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      efg_pw = 0._dp
+    END IF
     ALLOCATE (efg_diagval(3,natom),STAT=istat )
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     efg_diagval = 0._dp
@@ -322,6 +330,9 @@ CONTAINS
           END DO
           efg_tensor(:,:,iatom)=efg_tensor(:,:,iatom)/structure_factor%pw%pw_grid%vol
         END IF
+        IF ( efg_debug ) THEN
+          efg_pw(:,:,iatom)=efg_tensor(:,:,iatom)
+        END IF
       END DO
 
       IF( paw_atom) THEN
@@ -354,6 +365,23 @@ CONTAINS
     efg_tensor(:,:,:) = efg_tensor(:,:,:)*efg_units
     efg_diagval(:,:) = efg_diagval(:,:)*efg_units
 
+    IF ( efg_debug ) THEN
+      efg_pw(:,:,:) = efg_pw(:,:,:)*efg_units
+      DO iatom=1,natom
+        IF (unit_nr > 0) THEN
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                            element_symbol=element_symbol)
+          WRITE (UNIT=unit_nr,FMT="(T2,I5,T8,A,T12,A,T15,6F11.5)")&
+           iatom, element_symbol,"PW",((efg_pw(i,j,iatom),i=1,j),j=1,3)
+          WRITE (UNIT=unit_nr,FMT="(T12,A,T15,6F11.5)")&
+           "AT",((efg_tensor(i,j,iatom)-efg_pw(i,j,iatom),i=1,j),j=1,3)
+        END IF
+      ENDDO
+      IF (unit_nr > 0) THEN
+          WRITE (UNIT=unit_nr,FMT=*)
+      END IF
+    END IF
+
     DO iatom=1,natom
       IF (unit_nr > 0) THEN
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
@@ -382,6 +410,10 @@ CONTAINS
 
     DEALLOCATE (efg_tensor,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF ( efg_debug ) THEN
+      DEALLOCATE (efg_pw,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     DEALLOCATE (vh0,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

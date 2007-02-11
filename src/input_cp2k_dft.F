@@ -1207,6 +1207,7 @@ CONTAINS
             "at atomic positions",&
             print_level=debug_print_level,each=(/1/),&
             filename="__STD_OUT__",error=error)
+
        CALL keyword_create(keyword=keyword,&
             name="INTERPOLATION",&
             description="Use interpolation method from real space grid",&
@@ -1229,6 +1230,16 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,&
+            name="DEBUG",&
+            description="Print additional debug output",&
+            usage="DEBUG {logical}",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL create_gspace_interp_section(subsection,error=error)
        CALL section_add_subsection(print_key, subsection, error=error)
