@@ -31,3 +31,5 @@ kg_gpw_2H2O_llp.inp
 # new defaults for single molecule box size (again)
 kg_gpw_1H2O_TF.inp
 kg_gpw_2H2O_llp.inp
+# delete Pauli option
+kg_gpw_2H2O_ppot.inp

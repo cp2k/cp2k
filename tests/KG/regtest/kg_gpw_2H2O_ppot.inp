@@ -20,8 +20,6 @@
       EXTRAPOLATION USE_PREV_P
     &END
     &KG
-      OVERLAP_ANALYSIS
-      PAULI_REPULSION 0.1
     &END
     &XC
       &XC_FUNCTIONAL
