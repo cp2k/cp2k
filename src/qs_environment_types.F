@@ -114,7 +114,8 @@ MODULE qs_environment_types
                                              mpools_retain,&
                                              qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: make_basis_cholesky,&
-                                             make_basis_sm
+                                             make_basis_sm,&
+                                             make_basis_simple
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -1358,7 +1359,8 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
 
     INTEGER                                  :: handle, my_n_col
     LOGICAL                                  :: failure, &
-                                                ortho_contains_cholesky
+                                                ortho_contains_cholesky, &
+                                                ortho_basis
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1392,7 +1394,15 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
         ortho_contains_cholesky=.FALSE.
      END IF
 
-     IF (ortho_contains_cholesky) THEN
+     ortho_basis = .FALSE.
+     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+       IF (qs_env%dft_control%qs_control%se_control%orthogonal_basis) &
+          ortho_basis = .TRUE.
+     END IF
+
+     IF (ortho_basis) THEN
+        CALL make_basis_simple(v_matrix,my_n_col,error=error)
+     ELSE IF (ortho_contains_cholesky) THEN
         CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=scf_env%ortho,error=error)
      ELSE

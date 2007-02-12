@@ -222,6 +222,7 @@ CONTAINS
 
     CALL qs_energies(qs_env,globenv,error=error)
 
+
     CALL get_qs_env(qs_env=qs_env,&
                     ks_env=ks_env,&
                     matrix_ks=matrix_ks,&
