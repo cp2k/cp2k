@@ -313,8 +313,9 @@ CONTAINS
 
     ! Load the contribution of the soft electronic density
     CALL coeff_sumup(rho%rho_g(1),rhototspin_elec_gspace)
-    CALL coeff_reduce(rho%rho_g(2),rhototspin_elec_gspace)
-
+    IF (SIZE(rho%rho_g)>1) THEN
+       CALL coeff_reduce(rho%rho_g(2),rhototspin_elec_gspace)
+    END IF
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
