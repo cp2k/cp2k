@@ -991,34 +991,54 @@ CONTAINS
         natom = SIZE(molecule_kind%atom_list)
         nmolecule = SIZE(molecule_kind%molecule_list)
 
-        WRITE (UNIT=output_unit,FMT="(/,T2,I5,A,T50,A,T75,I6,/,T22,A)")&
-          molecule_kind%kind_number,&
-          ". Molecule kind: "//TRIM(molecule_kind%name),&
-          "Number of atoms:    ",natom,&
-          "Atom         Atomic kind name             Atom name (label)"
-        DO iatom=1,natom
-          atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
+        IF ( natom == 1 ) THEN
+          atomic_kind => molecule_kind%atom_list(1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
-          WRITE (UNIT=output_unit,FMT="(T20,I6,(7X,A18,11X,A19))")&
-            iatom,TRIM(name),TRIM(molecule_kind%atom_list(iatom)%name)
-        END DO
-        WRITE (UNIT=output_unit,FMT="(/,T9,A,L1)")"The name was automatically generated: ",&
+          WRITE (UNIT=output_unit,FMT="(/,T2,I5,A,T36,A,A,T64,A,A)")&
+            molecule_kind%kind_number,&
+            ". Molecule kind: "//TRIM(molecule_kind%name),&
+            "Atomic kind name:   ",TRIM(name),"Atom label:   ",&
+            TRIM(molecule_kind%atom_list(1)%name)
+          WRITE (UNIT=output_unit,FMT="(T9,A,L1,T55,A,T75,I6)")&
+             "Automatic name: ",molecule_kind%molname_generated,&
+             "Number of molecules:",nmolecule
+        ELSE
+          WRITE (UNIT=output_unit,FMT="(/,T2,I5,A,T50,A,T75,I6,/,T22,A)")&
+            molecule_kind%kind_number,&
+            ". Molecule kind: "//TRIM(molecule_kind%name),&
+            "Number of atoms:    ",natom,&
+            "Atom         Atomic kind name             Atom name (label)"
+          DO iatom=1,natom
+            atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,name=name)
+            WRITE (UNIT=output_unit,FMT="(T20,I6,(7X,A18,11X,A19))")&
+              iatom,TRIM(name),TRIM(molecule_kind%atom_list(iatom)%name)
+          END DO
+          WRITE (UNIT=output_unit,FMT="(/,T9,A,L1)")&
+             "The name was automatically generated: ",&
              molecule_kind%molname_generated
-        WRITE (UNIT=output_unit,FMT="(T9,A,I6,/,T9,A,(T30,10I5))")&
-          "Number of molecules:",nmolecule,"Molecule list:",&
-          (molecule_kind%molecule_list(imolecule),imolecule=1,nmolecule)
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
-          "Number of bonds:       ",molecule_kind%nbond
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
-          "Number of bends:       ",molecule_kind%nbend
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
-          "Number of Urey-Bradley:",molecule_kind%nub
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
-          "Number of torsions:    ",molecule_kind%ntorsion
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
-          "Number of improper:    ",molecule_kind%nimpr
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
-          "Number of one-four:    ",molecule_kind%nonfo
+          WRITE (UNIT=output_unit,FMT="(T9,A,I6,/,T9,A,(T30,10I5))")&
+            "Number of molecules:",nmolecule,"Molecule list:",&
+            (molecule_kind%molecule_list(imolecule),imolecule=1,nmolecule)
+          IF ( molecule_kind%nbond > 0 ) &
+            WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+            "Number of bonds:       ",molecule_kind%nbond
+          IF ( molecule_kind%nbend > 0 ) &
+            WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+            "Number of bends:       ",molecule_kind%nbend
+          IF ( molecule_kind%nub > 0 ) &
+            WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+            "Number of Urey-Bradley:",molecule_kind%nub
+          IF ( molecule_kind%ntorsion > 0 ) &
+            WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+            "Number of torsions:    ",molecule_kind%ntorsion
+          IF ( molecule_kind%nimpr > 0 ) &
+            WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+            "Number of improper:    ",molecule_kind%nimpr
+          IF ( molecule_kind%nonfo > 0 ) &
+            WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+            "Number of one-four:    ",molecule_kind%nonfo
+        END IF
 
       ELSE
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1069,7 +1089,6 @@ CONTAINS
         END DO
 
 
-        WRITE(UNIT=output_unit,FMT="(/,/,T2,A)") "MOLECULE KIND SET INFORMATION"
         CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
                                    nbond=nbond,&
                                    nbend=nbend,&
@@ -1077,17 +1096,18 @@ CONTAINS
                                    ntorsion=ntors,&
                                    nimpr=nimpr,&
                                    nonfo=nonfo)
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+        WRITE(UNIT=output_unit,FMT="(/,/,T2,A,T45,A30,I6)") &
+          "MOLECULE KIND SET INFORMATION", &
           "Total Number of bonds:       ",nbond
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
           "Total Number of bends:       ",nbend
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
           "Total Number of Urey-Bradley:",nub
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
           "Total Number of torsions:    ",ntors
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
           "Total Number of improper:    ",nimpr
-        WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
+        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
           "Total Number of one-four:    ",nonfo
       ELSE
          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

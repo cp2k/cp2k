@@ -1772,9 +1772,9 @@ CONTAINS
 
       IF (ASSOCIATED(atomic_kind)) THEN
 
-        WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,/,/,T6,A,T75,I6)")&
+        WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,T57,A,T75,I6)")&
           atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
-          "Number of atoms of this atomic kind: ",atomic_kind%natom
+          "Number of atoms: ",atomic_kind%natom
 
         CALL write_orb_basis_set(atomic_kind%orb_basis_set,force_env_section,&
                                  output_unit,error)
@@ -1785,7 +1785,7 @@ CONTAINS
         END IF
 
         IF (atomic_kind%paw_atom) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T6,A,/)")&
+          WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
             "The atoms of this atomic kind are PAW atoms (GAPW):"
           WRITE (UNIT=output_unit,FMT="(T8,A,T71,F10.3)")&
             "Hard Gaussian function radius:",atomic_kind%hard_radius,&
