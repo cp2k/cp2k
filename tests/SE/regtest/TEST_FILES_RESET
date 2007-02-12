@@ -36,3 +36,9 @@ st.inp
 st.inp
 # numerical diifferences after reorganizing BFGS
 st.inp
+# numerical diifferences after bug fix in wfn extrapolation
+water_3.inp
+mol.inp
+ch2o.inp
+h2o_lsd.inp
+st.inp
