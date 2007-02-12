@@ -117,7 +117,8 @@ CONTAINS
                                                 idir1, idir2, ig, group, &
                                                 bo(2), num_pe, mepos
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: all_potential_present, paw_atom, failure
+    LOGICAL                                  :: all_potential_present, paw_atom, &
+                                                lsd, failure
     REAL(dp)                                 :: hypanisotemp, sum, hard_radius, arg, &
                                                 rab2, rtemp, int_radius
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
@@ -150,6 +151,17 @@ CONTAINS
     CALL section_vals_val_get(dft_section,&
                 "PRINT%HYPERFINE_COUPLING_TENSOR%INTERACTION_RADIUS",&
                 r_val=int_radius,error=error)
+    CALL section_vals_val_get(dft_section,"LSD",l_val=lsd,error=error)
+
+    IF ( .NOT. lsd ) THEN
+      ! EPR calculation only for LSD
+      IF (output_unit>0) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T2,A)") &
+            "Calculation of EPR hyperfine coupling tensors only for LSD"
+      END IF
+      NULLIFY(logger,dft_section)
+      RETURN
+    END IF
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,&
                     rho=rho,atomic_kind_set=atomic_kind_set,&
@@ -160,7 +172,7 @@ CONTAINS
 
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,/,T2,A)") &
-            "Calculation of the hyperfine parameters", &
+            "Calculation of EPR hyperfine coupling tensors",&
             REPEAT("-",79)
     END IF
 
@@ -312,10 +324,9 @@ CONTAINS
     pw_grid => rhototspin_elec_gspace%pw%pw_grid
 
     ! Load the contribution of the soft electronic density
+    CPPrecondition(SIZE(rho%rho_g)>1,cp_failure_level,routineP,error,failure)
     CALL coeff_sumup(rho%rho_g(1),rhototspin_elec_gspace)
-    IF (SIZE(rho%rho_g)>1) THEN
-       CALL coeff_reduce(rho%rho_g(2),rhototspin_elec_gspace)
-    END IF
+    CALL coeff_reduce(rho%rho_g(2),rhototspin_elec_gspace)
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
