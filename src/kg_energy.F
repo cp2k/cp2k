@@ -54,7 +54,6 @@ MODULE kg_energy
   USE kg_intra,                        ONLY: calculate_ebond_corr
   USE kg_kxc,                          ONLY: calculate_kxc_derivatives
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
-  USE kg_pauli_potential,              ONLY: kg_gpw_pauli
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
                                              calculate_rho0_ppl
   USE kg_rho_types,                    ONLY: kg_rho_get,&
@@ -490,9 +489,6 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
                                        globenv=globenv,&
                                        calculate_forces=.FALSE., error=error)
     CALL kg_qs_env_update(kg_env,qs_env,error=error)
-
-    ! add Pauli potential
-    CALL kg_gpw_pauli( kg_env, .TRUE., .FALSE., .FALSE., error )
 
     ! Perform a SCF run
     CALL kg_qs_scf(kg_env,globenv,error=error)

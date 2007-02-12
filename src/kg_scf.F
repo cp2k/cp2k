@@ -75,7 +75,6 @@ MODULE kg_scf
                                              write_mo_mol_restart
   USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
-  USE kg_pauli_potential,              ONLY: kg_gpw_pauli
   USE kg_scf_post,                     ONLY: scf_post_calculation
   USE kg_scf_types,                    ONLY: kg_scf_env_release,&
                                              kg_scf_env_type
@@ -763,11 +762,6 @@ CONTAINS
 
 ! ** compute properties that depend on the converged wavefunction
     IF ( .NOT. should_stop ) THEN
-      CALL section_vals_val_get(kg_section,"OVERLAP_ANALYSIS",&
-                                l_val=do_overlap,error=error)
-      IF ( do_overlap ) THEN
-        CALL kg_gpw_pauli( kg_env, .FALSE., .FALSE., .TRUE., error=error )
-      END IF
       CALL scf_post_calculation(dft_section, kg_env, error=error)
     END IF
 

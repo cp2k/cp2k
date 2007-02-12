@@ -45,7 +45,6 @@ MODULE qs_force_types
                                          hartree_2c,&
                                          hartree_3c,&
                                          kg_gpw_ekin_mol,&
-                                         kg_gpw_pauli,&
                                          other,&
                                          ch_pulay,&
                                          total
@@ -150,10 +149,6 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%kg_gpw_ekin_mol",3*n*dp_size)
-      END IF
-      ALLOCATE (qs_force(ikind)%kg_gpw_pauli(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%kg_gpw_pauli",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%other(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -293,13 +288,6 @@ CONTAINS
         END IF
       END IF
 
-      IF (ASSOCIATED(qs_force(ikind)%kg_gpw_pauli)) THEN
-        DEALLOCATE (qs_force(ikind)%kg_gpw_pauli,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%kg_gpw_pauli")
-        END IF
-      END IF
-
       IF (ASSOCIATED(qs_force(ikind)%other)) THEN
         DEALLOCATE (qs_force(ikind)%other,STAT=istat)
         IF (istat /= 0) THEN
@@ -367,7 +355,6 @@ CONTAINS
       qs_force(ikind)%hartree_2c(:,:) = 0.0_dp
       qs_force(ikind)%hartree_3c(:,:) = 0.0_dp
       qs_force(ikind)%kg_gpw_ekin_mol(:,:) = 0.0_dp
-      qs_force(ikind)%kg_gpw_pauli(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
@@ -454,8 +441,6 @@ CONTAINS
         qs_force_output(ikind)%hartree_3c(:,:) = qs_force_input(ikind)%hartree_3c(:,:)
         qs_force_output(ikind)%kg_gpw_ekin_mol(:,:) = &
            qs_force_input(ikind)%kg_gpw_ekin_mol(:,:)
-        qs_force_output(ikind)%kg_gpw_pauli(:,:) = &
-           qs_force_input(ikind)%kg_gpw_pauli(:,:)
         qs_force_output(ikind)%other(:,:) = qs_force_input(ikind)%other(:,:)
         qs_force_output(ikind)%total(:,:) = qs_force_input(ikind)%total(:,:)
       END DO
