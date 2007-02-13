@@ -554,7 +554,7 @@ CONTAINS
             rotate=.FALSE.,error=error)
        tangent(:) = (coords(:,i)  -coords(:,i-1))/distance1 +&
                     (coords(:,i+1)-coords(:,i)  )/distance2
-    CASE(do_it_neb, do_ci_neb)
+    CASE(do_it_neb, do_ci_neb, do_d_neb)
        IF      ((energies(i+1).GT.energies(i)).AND.(energies(i).GT.(energies(i-1)))) THEN
           tangent(:) = coords(:,i+1) - coords(:,i)
        ELSE IF ((energies(i+1).LT.energies(i)).AND.(energies(i).LT.(energies(i-1)))) THEN
@@ -568,9 +568,9 @@ CONTAINS
              tangent(:) = ( coords(:,i+1) - coords(:,i))*DVmin+(coords(:,i) - coords(:,i-1))*DVmax
           END IF
        END IF
-    CASE(do_d_neb,do_sm)
-       ! Not yet implemented
+    CASE(do_sm)
        STOP
+       ! String method..
     END SELECT
     distance0  = SQRT(DOT_PRODUCT(tangent(:),tangent(:)))
     IF (distance0 /= 0.0_dp) tangent(:) = tangent(:) / distance0
@@ -621,9 +621,9 @@ CONTAINS
     ! All methods but not the classical elastic band will skip the force 
     ! calculation for the last frame of the band
     SELECT CASE(my_tag)
-    CASE(do_b_neb, do_it_neb, do_ci_neb)
+    CASE(do_b_neb, do_it_neb, do_ci_neb, do_d_neb)
        IF (i==SIZE(coords,2)) RETURN
-    CASE(do_d_neb,do_sm)
+    CASE(do_sm)
        ! Not yet implemented
        STOP
     END SELECT
@@ -684,7 +684,21 @@ CONTAINS
           tmp = -2.0_dp*DOT_PRODUCT(wrk,tangent)
           forces(:,i) = wrk + tmp * tangent
        END IF
-    CASE(do_d_neb,do_sm)
+    CASE(do_d_neb)
+       ! Doubly NEB
+       ALLOCATE(dtmp1(SIZE(coords,1)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       dtmp1       = forces(:,i)-DOT_PRODUCT(forces(:,i),tangent)*tangent
+       forces(:,i) = dtmp1
+       dtmp1 = dtmp1 / SQRT(DOT_PRODUCT(dtmp1,dtmp1))
+       ! Project out only the spring component interfering with the 
+       ! orthogonal gradient of the band
+       wrk   = (coords(:,i+1)-2.0_dp*coords(:,i)+coords(:,i-1))
+       dtmp1 = neb_env%k * (wrk - DOT_PRODUCT(wrk,dtmp1)*dtmp1)
+       forces(:,i) = forces(:,i) + dtmp1
+       DEALLOCATE(dtmp1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE(do_sm)
        ! Not yet implemented
        STOP
     END SELECT
