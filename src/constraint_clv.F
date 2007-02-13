@@ -72,13 +72,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_colv_int( molecule, particle_set, pos, vel, dt, ishake,&
-       log_unit, cell,  imass, max_sigma, error )
+       cell,  imass, max_sigma, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -102,7 +102,7 @@ CONTAINS
     CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Shake
     CALL shake_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, dt, ishake, log_unit, cell,  imass, max_sigma,&
+       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma,&
        error )
 
   END SUBROUTINE shake_colv_int
@@ -126,13 +126,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_colv_int( molecule, particle_set, vel, dt, irattle,&
-       log_unit, cell, imass, max_sigma, error )
+       cell, imass, max_sigma, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: irattle, log_unit
+    INTEGER, INTENT(IN)                      :: irattle
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -151,7 +151,7 @@ CONTAINS
     CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Rattle
     CALL rattle_colv_low ( fixd_list, colv_list, lcolv, &
-       particle_set, vel, dt, irattle, log_unit, cell, imass, max_sigma, error )
+       particle_set, vel, dt, irattle, cell, imass, max_sigma, error )
 
   END SUBROUTINE rattle_colv_int
 
@@ -174,7 +174,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_colv_int( molecule, particle_set, pos, vel, r_shake, v_shake, &
-       dt, ishake, log_unit, cell, imass, max_sigma, error )
+       dt, ishake, cell, imass, max_sigma, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -182,7 +182,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(in)                      :: ishake, log_unit
+    INTEGER, INTENT(in)                      :: ishake
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -201,7 +201,7 @@ CONTAINS
     CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Shake
     CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, cell,&
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, cell,&
        imass, max_sigma, error )
 
   END SUBROUTINE shake_roll_colv_int
@@ -225,13 +225,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_roll_colv_int ( molecule, particle_set, vel, r_rattle,  &
-       dt, irattle, log_unit, veps,  cell, imass, max_sigma, error )
+       dt, irattle, veps,  cell, imass, max_sigma, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : ), dt
-    INTEGER, INTENT(in)                      :: irattle, log_unit
+    INTEGER, INTENT(in)                      :: irattle
     REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -251,7 +251,7 @@ CONTAINS
     CALL get_molecule ( molecule, lcolv=lcolv )
     ! Real Rattle
     CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
-       particle_set, vel, r_rattle, dt, irattle, log_unit, veps,  cell,&
+       particle_set, vel, r_rattle, dt, irattle, veps,  cell,&
        imass, max_sigma, error )
 
   END SUBROUTINE rattle_roll_colv_int
@@ -275,13 +275,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_colv_ext( gci, particle_set, pos, vel, dt, ishake,&
-       log_unit, cell,  imass, max_sigma, error )
+       cell,  imass, max_sigma, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -301,7 +301,7 @@ CONTAINS
     lcolv => gci%lcolv
     ! Real Shake
     CALL shake_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, dt, ishake, log_unit, cell,  imass, max_sigma,&
+       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma,&
        error )
 
   END SUBROUTINE shake_colv_ext
@@ -325,13 +325,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_colv_ext( gci, particle_set, vel, dt, irattle,&
-       log_unit, cell, imass, max_sigma, error )
+       cell, imass, max_sigma, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: irattle, log_unit
+    INTEGER, INTENT(IN)                      :: irattle
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -348,7 +348,7 @@ CONTAINS
     lcolv => gci%lcolv
     ! Real Rattle
     CALL rattle_colv_low ( fixd_list, colv_list, lcolv, &
-       particle_set, vel, dt, irattle, log_unit, cell, imass, max_sigma, error )
+       particle_set, vel, dt, irattle, cell, imass, max_sigma, error )
 
   END SUBROUTINE rattle_colv_ext
 
@@ -371,7 +371,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake, v_shake, &
-       dt, ishake, log_unit, cell, imass, max_sigma, error )
+       dt, ishake, cell, imass, max_sigma, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -379,7 +379,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(in)                      :: ishake, log_unit
+    INTEGER, INTENT(in)                      :: ishake
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -396,7 +396,7 @@ CONTAINS
     lcolv => gci%lcolv
     ! Real Shake
     CALL shake_roll_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, cell,&
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, cell,&
        imass, max_sigma, error )
 
   END SUBROUTINE shake_roll_colv_ext
@@ -420,13 +420,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_roll_colv_ext ( gci, particle_set, vel, r_rattle,  &
-       dt, irattle, log_unit, veps,  cell, imass, max_sigma, error )
+       dt, irattle, veps,  cell, imass, max_sigma, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : ), dt
-    INTEGER, INTENT(in)                      :: irattle, log_unit
+    INTEGER, INTENT(in)                      :: irattle
     REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -444,7 +444,7 @@ CONTAINS
     lcolv => gci%lcolv
     ! Real Rattle
     CALL rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
-       particle_set, vel, r_rattle, dt, irattle, log_unit, veps,  cell,&
+       particle_set, vel, r_rattle, dt, irattle, veps,  cell,&
        imass, max_sigma, error )
 
   END SUBROUTINE rattle_roll_colv_ext
@@ -468,7 +468,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, dt, ishake, log_unit, cell,  imass, max_sigma,&
+       particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma,&
        error )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -478,7 +478,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -539,7 +539,6 @@ CONTAINS
             colv_list ( iconst ) % expected_value
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
-    IF (log_unit>0) WRITE(log_unit,'(T2,"SHAKE COLVAR: ",I5,F15.9)')ishake,ABS(max_sigma)
   END SUBROUTINE shake_colv_low
 
 !!****** constraint_clv/rattle_colv_low [1.0] *
@@ -561,7 +560,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_colv_low ( fixd_list, colv_list, lcolv, &
-       particle_set, vel, dt, irattle, log_unit, cell, imass, max_sigma, error )
+       particle_set, vel, dt, irattle, cell, imass, max_sigma, error )
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -571,7 +570,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: irattle, log_unit
+    INTEGER, INTENT(IN)                      :: irattle
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -613,7 +612,6 @@ CONTAINS
        lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,error=error)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
-    IF (log_unit>0)  WRITE(log_unit,'(T2,"RATTLE COLVAR: ",I5,F15.9)')irattle,ABS(max_sigma)
     
   END SUBROUTINE rattle_colv_low
 
@@ -636,7 +634,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_colv_low( fixd_list, colv_list, lcolv, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, cell,&
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, cell,&
        imass, max_sigma, error )
 
     TYPE(fixd_constraint_type), &
@@ -649,7 +647,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(in)                      :: ishake, log_unit
+    INTEGER, INTENT(in)                      :: ishake
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
@@ -706,8 +704,6 @@ CONTAINS
             colv_list ( iconst ) % expected_value
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
-    IF (log_unit>0) WRITE(log_unit,'(T2,"SHAKE ROLL COLVAR: ",I5,F15.9)')&
-         ishake,ABS(max_sigma)
 
   END SUBROUTINE shake_roll_colv_low
 
@@ -730,7 +726,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
-       particle_set, vel, r_rattle, dt, irattle, log_unit, veps,  cell,&
+       particle_set, vel, r_rattle, dt, irattle, veps,  cell,&
        imass, max_sigma, error )
 
     TYPE(fixd_constraint_type), &
@@ -741,7 +737,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : ), dt
-    INTEGER, INTENT(in)                      :: irattle, log_unit
+    INTEGER, INTENT(in)                      :: irattle
     REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -788,7 +784,7 @@ CONTAINS
             error=error)
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
-    IF (log_unit>0) WRITE(log_unit,'(T2,"RATTLE ROLL COLVAR: ",I5,F15.9)')irattle,ABS(max_sigma)
+
   END SUBROUTINE rattle_roll_colv_low
 
 !!****** constraint_clv/update_con_colv [1.0] *

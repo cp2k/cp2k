@@ -69,14 +69,14 @@ CONTAINS
 !!
 !!   SOURCE
   !******************************************************************************
-  SUBROUTINE shake_3x3_int( molecule, particle_set, pos, vel, dt, ishake, log_unit,&
+  SUBROUTINE shake_3x3_int( molecule, particle_set, pos, vel, dt, ishake,&
        max_sigma, error)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -95,7 +95,7 @@ CONTAINS
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Shake
     CALL shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, dt, ishake, log_unit, max_sigma, error)
+       particle_set, pos, vel, dt, ishake, max_sigma, error)
 
   END SUBROUTINE shake_3x3_int
 
@@ -114,7 +114,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_3x3_int( molecule, particle_set, pos, vel, r_shake,  &
-       v_shake, dt, ishake, log_unit, max_sigma, error )
+       v_shake, dt, ishake, max_sigma, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -122,7 +122,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -141,7 +141,7 @@ CONTAINS
     CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3 )
     ! Real Shake
     CALL shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, max_sigma,&
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
        error )
 
   END SUBROUTINE shake_roll_3x3_int
@@ -246,14 +246,14 @@ CONTAINS
 !!
 !!   SOURCE
   !******************************************************************************
-  SUBROUTINE shake_3x3_ext( gci, particle_set, pos, vel, dt, ishake, log_unit,&
+  SUBROUTINE shake_3x3_ext( gci, particle_set, pos, vel, dt, ishake,&
        max_sigma, error)
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -271,7 +271,7 @@ CONTAINS
     lg3x3     => gci%lg3x3
     ! Real Shake
     CALL shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, dt, ishake, log_unit, max_sigma, error)
+       particle_set, pos, vel, dt, ishake, max_sigma, error)
 
   END SUBROUTINE shake_3x3_ext
 
@@ -290,7 +290,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_3x3_ext(gci, particle_set, pos, vel, r_shake,  &
-       v_shake, dt, ishake, log_unit, max_sigma, error )
+       v_shake, dt, ishake, max_sigma, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -298,7 +298,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -316,7 +316,7 @@ CONTAINS
     lg3x3     => gci%lg3x3
     ! Real Shake
     CALL shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, max_sigma,&
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
        error )
 
   END SUBROUTINE shake_roll_3x3_ext
@@ -420,7 +420,7 @@ CONTAINS
 !!   SOURCE
   !******************************************************************************
   SUBROUTINE shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, dt, ishake, log_unit, max_sigma, error)
+       particle_set, pos, vel, dt, ishake, max_sigma, error)
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -431,7 +431,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -551,7 +551,6 @@ CONTAINS
        sigma = DOT_PRODUCT(r23,r23) - g3x3_list ( iconst ) % dbc *  &
             g3x3_list ( iconst ) % dbc
        max_sigma=MAX(max_sigma,ABS(sigma))
-       IF (log_unit>0) WRITE(log_unit,'(T2,"SHAKE G3X3: ",I5,F15.9)')ishake,ABS(max_sigma)
        ! update positions with full multiplier
        pos ( :, index_a ) = r1 ( : )
        pos ( :, index_b ) = r2 ( : )
@@ -580,7 +579,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
-       particle_set, pos, vel, r_shake, v_shake, dt, ishake, log_unit, max_sigma, error )
+       particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma, error )
 
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -593,7 +592,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
     REAL(kind=dp), INTENT(in)                :: dt
-    INTEGER, INTENT(IN)                      :: ishake, log_unit
+    INTEGER, INTENT(IN)                      :: ishake
     REAL(KIND=dp), INTENT(INOUT)             :: max_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -742,8 +741,6 @@ CONTAINS
        vel ( :, index_a ) = v1 ( : )
        vel ( :, index_b ) = v2 ( : )
        vel ( :, index_c ) = v3 ( : )
-       IF (log_unit>0) WRITE(log_unit,'(T2,"SHAKE ROLL G3X3: ",I5,F15.9)')&
-            ishake,ABS(max_sigma) 
     END DO
   END SUBROUTINE shake_roll_3x3_low
 

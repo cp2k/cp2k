@@ -502,7 +502,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"constraint_info",&
             description="",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+            print_level=high_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
