@@ -445,12 +445,12 @@ SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
 
   DO i = lb ( 1 ), ub ( 1 )
     ia = i - lb ( 1 ) + 1
-    ii = center ( 1 ) + i - rs % lb ( 1 )
+    ii = center ( 1 ) + i - rs % lb_local ( 1 )
     IF ( ii < 0 ) THEN
-      rs % px ( ia ) = ii + rs % npts( 1 ) + 1
+      rs % px ( ia ) = ii + rs % npts_local( 1 ) + 1
       folded = .TRUE.
-    ELSEIF ( ii >= rs % npts( 1 ) ) THEN
-      rs % px ( ia ) = ii - rs % npts( 1 ) + 1
+    ELSEIF ( ii >= rs % npts_local( 1 ) ) THEN
+      rs % px ( ia ) = ii - rs % npts_local( 1 ) + 1
       folded = .TRUE.
     ELSE
       rs % px ( ia ) = ii + 1
@@ -458,12 +458,12 @@ SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
   END DO
   DO i = lb ( 2 ), ub ( 2 )
     ia = i - lb ( 2 ) + 1
-    ii = center ( 2 ) + i - rs % lb ( 2 )
+    ii = center ( 2 ) + i - rs % lb_local ( 2 )
     IF ( ii < 0 ) THEN
-      rs % py ( ia ) = ii + rs % npts( 2 ) + 1
+      rs % py ( ia ) = ii + rs % npts_local( 2 ) + 1
       folded = .TRUE.
-    ELSEIF ( ii >= rs % npts( 2 ) ) THEN
-      rs % py ( ia ) = ii - rs % npts( 2 ) + 1
+    ELSEIF ( ii >= rs % npts_local( 2 ) ) THEN
+      rs % py ( ia ) = ii - rs % npts_local( 2 ) + 1
       folded = .TRUE.
     ELSE
       rs % py ( ia ) = ii + 1
@@ -471,12 +471,12 @@ SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
   END DO
   DO i = lb ( 3 ), ub ( 3 )
     ia = i - lb ( 3 ) + 1
-    ii = center ( 3 ) + i - rs % lb ( 3 )
+    ii = center ( 3 ) + i - rs % lb_local ( 3 )
     IF ( ii < 0 ) THEN
-      rs % pz ( ia ) = ii + rs % npts( 3 ) + 1
+      rs % pz ( ia ) = ii + rs % npts_local( 3 ) + 1
       folded = .TRUE.
-    ELSEIF ( ii >= rs % npts( 3 ) ) THEN
-      rs % pz ( ia ) = ii - rs % npts( 3 ) + 1
+    ELSEIF ( ii >= rs % npts_local( 3 ) ) THEN
+      rs % pz ( ia ) = ii - rs % npts_local( 3 ) + 1
       folded = .TRUE.
     ELSE
       rs % pz ( ia ) = ii + 1
@@ -521,54 +521,54 @@ SUBROUTINE dg_sum_patch_force_arr_3d ( drpot, rhos, center, force )
 
   DO i = lb ( 1 ), ub ( 1 )
     ia = i - lb ( 1 ) + 1
-    ii = center ( 1 ) + i - drpot ( 1 )%rs_grid% lb ( 1 )
+    ii = center ( 1 ) + i - drpot(1)%rs_grid%lb_local(1)
     IF ( ii < 0 ) THEN
-      drpot ( 1 )%rs_grid % px ( ia ) = ii + drpot ( 1 )%rs_grid % npts( 1 ) + 1
+      drpot(1)%rs_grid%px(ia) = ii + drpot(1)%rs_grid%npts_local(1) + 1
       folded = .TRUE.
-    ELSEIF ( ii >= drpot ( 1 )%rs_grid % npts( 1 ) ) THEN
-      drpot ( 1 )%rs_grid % px ( ia ) = ii - drpot ( 1 )%rs_grid % npts( 1 ) + 1
+    ELSEIF ( ii >= drpot(1)%rs_grid%npts_local(1) ) THEN
+      drpot(1)%rs_grid%px(ia) = ii - drpot(1)%rs_grid%npts_local(1) + 1
       folded = .TRUE.
     ELSE
-      drpot ( 1 )%rs_grid % px ( ia ) = ii + 1
+      drpot(1)%rs_grid%px(ia) = ii + 1
     ENDIF
   END DO
   DO i = lb ( 2 ), ub ( 2 )
     ia = i - lb ( 2 ) + 1
-    ii = center ( 2 ) + i - drpot ( 1 )%rs_grid % lb ( 2 )
+    ii = center ( 2 ) + i - drpot(1)%rs_grid%lb_local(2)
     IF ( ii < 0 ) THEN
-      drpot ( 1 )%rs_grid % py ( ia ) = ii + drpot ( 1 )%rs_grid % npts( 2 ) + 1
+      drpot(1)%rs_grid%py(ia) = ii + drpot(1)%rs_grid%npts_local(2) + 1
       folded = .TRUE.
-    ELSEIF ( ii >=  drpot ( 1 )%rs_grid % npts( 2 ) ) THEN
-      drpot ( 1 )%rs_grid % py ( ia ) = ii - drpot ( 1 )%rs_grid % npts( 2 ) + 1
+    ELSEIF ( ii >=  drpot(1)%rs_grid%npts_local(2) ) THEN
+      drpot(1)%rs_grid%py(ia) = ii - drpot(1)%rs_grid%npts_local(2) + 1
       folded = .TRUE.
     ELSE
-      drpot ( 1 )%rs_grid % py ( ia ) = ii + 1
+      drpot(1)%rs_grid%py(ia) = ii + 1
     ENDIF
   END DO
   DO i = lb ( 3 ), ub ( 3 )
     ia = i - lb ( 3 ) + 1
-    ii = center ( 3 ) + i - drpot ( 1 )%rs_grid % lb ( 3 )
+    ii = center ( 3 ) + i - drpot(1)%rs_grid%lb_local(3)
     IF ( ii < 0 ) THEN
-      drpot ( 1 )%rs_grid % pz ( ia ) = ii + drpot ( 1 )%rs_grid % npts( 3 ) + 1
+      drpot(1)%rs_grid%pz(ia) = ii + drpot(1)%rs_grid%npts_local(3) + 1
       folded = .TRUE.
-    ELSEIF ( ii >= drpot ( 1 )%rs_grid % npts( 3 ) ) THEN
-      drpot ( 1 )%rs_grid % pz ( ia ) = ii - drpot ( 1 )%rs_grid % npts( 3 ) + 1
+    ELSEIF ( ii >= drpot(1)%rs_grid%npts_local(3) ) THEN
+      drpot(1)%rs_grid%pz(ia) = ii - drpot(1)%rs_grid%npts_local(3) + 1
       folded = .TRUE.
     ELSE
-      drpot ( 1 )%rs_grid % pz ( ia ) = ii + 1
+      drpot(1)%rs_grid%pz(ia) = ii + 1
     ENDIF
   END DO
 
   IF ( folded ) THEN
-    CALL dg_int_patch_3d ( drpot ( 1 )%rs_grid % r, drpot ( 2 )%rs_grid % r,&
-         drpot ( 3 )%rs_grid % r, rhos, force, ns, &
-         drpot ( 1 )%rs_grid % px, drpot ( 1 )%rs_grid % py, drpot ( 1 )%rs_grid % pz )
+    CALL dg_int_patch_3d ( drpot(1)%rs_grid%r, drpot(2)%rs_grid%r,&
+         drpot(3)%rs_grid%r, rhos, force, ns, &
+         drpot(1)%rs_grid%px, drpot(1)%rs_grid%py, drpot(1)%rs_grid%pz )
   ELSE
-    nc ( 1 ) = drpot ( 1 )%rs_grid % px ( 1 ) - 1
-    nc ( 2 ) = drpot ( 1 )%rs_grid % py ( 1 ) - 1
-    nc ( 3 ) = drpot ( 1 )%rs_grid % pz ( 1 ) - 1
-    CALL dg_int_patch_3d ( drpot ( 1 )%rs_grid % r, drpot ( 2 )%rs_grid % r,&
-         drpot ( 3 )%rs_grid % r, rhos, force, ns, nc )
+    nc ( 1 ) = drpot(1)%rs_grid%px(1) - 1
+    nc ( 2 ) = drpot(1)%rs_grid%py(1) - 1
+    nc ( 3 ) = drpot(1)%rs_grid%pz(1) - 1
+    CALL dg_int_patch_3d ( drpot(1)%rs_grid%r, drpot(2)%rs_grid%r,&
+         drpot(3)%rs_grid%r, rhos, force, ns, nc )
   END IF
 
 END SUBROUTINE dg_sum_patch_force_arr_3d

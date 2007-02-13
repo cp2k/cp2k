@@ -454,20 +454,30 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection)
-       CALL section_create(subsection,name="PRINT",&
-            description="Controls printing of Ewald properties",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
-            error=error)
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="controls the printing of ewald setup",&
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
+    CALL keyword_create(keyword, name="RS_GRID",&
+         description="Parallellisation strategy of the realspace grids",&
+         usage="RS_GRID DISTRIBUTED",&
+         enum_c_vals=s2a("DISTRIBUTED","REPLICATED"),&
+         enum_desc=s2a("Better memory usage", "default"),&
+         enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
+         default_i_val=do_rsgrid_replicated, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="PRINT",&
+         description="Controls printing of Ewald properties",&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+         error=error)
+    NULLIFY(print_key)
+    CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+         description="controls the printing of ewald setup",&
+         print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
 
   END IF
 END SUBROUTINE create_ewald_section

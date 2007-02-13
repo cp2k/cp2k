@@ -31,6 +31,7 @@ MODULE spme
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
+  USE input_constants,                 ONLY: do_rsgrid_distributed
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -117,9 +118,9 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ierr, &
-                                                ipart, j, jpart, n, &
+                                                ipart, j, jpart, n, nsmax, &
                                                 ndim( 3 ), npart, nshell, o_spline,&
-                                                p1, p1_shell
+                                                p1, p1_shell, rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre, shell_centre
     LOGICAL                                  :: failure, is_core, is_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
@@ -147,7 +148,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
           phi_g, rhob_g, rhob_r, pw_pool, rden)
   CALL timeset ( 'SPME', 'I', ' ', handle )
   CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
-                       o_spline = o_spline, group = group ,error=error)
+                       o_spline = o_spline, group = group, &
+                       rs_distributed_id = rs_distributed_id, error=error)
   CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, &
        poisson_env=poisson_env)
   CALL pw_poisson_rebuild(poisson_env,error=error)
@@ -161,8 +163,12 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
   ndim = n
-  CALL rs_grid_create ( rden, grid_spme, -MAXVAL ( ndim(1:3) ),&
-       error=error)
+  If ( rs_distributed_id == do_rsgrid_distributed ) THEN
+    nsmax = MAXVAL ( ndim(1:3) )
+  ELSE
+    nsmax = -1
+  END IF
+  CALL rs_grid_create ( rden, grid_spme, nsmax, error=error)
   rden % r = 0.0_dp
 
   ALLOCATE ( centre ( 3, npart ), STAT = ierr )
@@ -193,7 +199,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch ( rden, rhos, centre(:,p1) )
-
+     
   END DO     
   IF(PRESENT(shell_particle_set)) THEN
      DO
@@ -210,7 +216,6 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
      END DO
   END IF
-
 
   CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
                            use_data = REALDATA3D, &
@@ -238,7 +243,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   CALL pw_pool_create_pw ( pw_pool, phi_g,  &
                            use_data = COMPLEXDATA1D,   &
                            in_space = RECIPROCALSPACE ,error=error)
-  CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, h_stress ,error=error)
+  CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
+                          h_stress ,error=error)
 
   CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
   CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
@@ -264,8 +270,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
   ! move derivative of potential to real space grid and
   ! multiply by charge function in g-space
-  CALL rs_grid_p_create ( drpot, 3, grid_spme, -MAXVAL ( ndim(1:3) ),&
-       error=error)
+  CALL rs_grid_p_create ( drpot, 3, grid_spme, nsmax, error=error)
   DO i = 1, 3
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               green % p3m_charge % cr
@@ -294,7 +299,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
      is_core = (particle_set(p1)%shell_index/=0)
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, is_core=is_core )
+     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, &
+                      rhos, is_core=is_core )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch_force_3d ( drpot, rhos, centre(:,p1), fat )
@@ -599,7 +605,7 @@ SUBROUTINE get_center ( part, box, centre, npts, n )
   mp = MAXVAL ( npts(:) )
   rmp = REAL ( mp,KIND=dp)
   DO ipart = 1, SIZE ( part )
-    ! compute the scaled coordinate of atomi
+    ! compute the scaled coordinate of atom ipart
     CALL real_to_scaled(s,part(ipart)%r,box)
     s = s - NINT ( s )
     gp = REAL ( npts,KIND=dp) * s

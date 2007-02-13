@@ -70,7 +70,8 @@ MODULE realspace_grid_types
             rs_grid_retain,&
             rs_grid_release,&
             rs_grid_p_create,&
-            rs_grid_p_release
+            rs_grid_p_release, &
+            rs_total_sum
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
@@ -78,7 +79,7 @@ MODULE realspace_grid_types
   INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
 
   TYPE realspace_grid_type
-     INTEGER :: grid_id                               ! tag of the pw_grid
+     INTEGER :: grid_id                                  ! tag of the pw_grid
      INTEGER :: id_nr                                    ! unique identifier of rs
      INTEGER :: ref_count                                ! reference count
      INTEGER :: ngpts                                    ! # grid points
@@ -116,10 +117,12 @@ MODULE realspace_grid_types
      MODULE PROCEDURE rs_grid_setup_1, rs_grid_setup_n
   END INTERFACE
 
+!-----------------------------------------------------------------------------!
 
 CONTAINS
 
-  !******************************************************************************
+!-----------------------------------------------------------------------------!
+!******************************************************************************
 !!****** realspace_grid_types/rs_grid_allocate [1.0] *
 !!
 !!   NAME
@@ -135,7 +138,7 @@ CONTAINS
 !!     none
 !!
 !!   SOURCE
-  !******************************************************************************
+!******************************************************************************
 
   SUBROUTINE rs_grid_allocate_1 ( rs, error )
 
@@ -1830,6 +1833,32 @@ SUBROUTINE rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
      IF(nset_pairs>0) atasks(2,nset_pairs) = npme
 
 END SUBROUTINE rs_get_loop_vars
+!-----------------------------------------------------------------------------!
+SUBROUTINE rs_total_sum ( rs )
+
+  TYPE(realspace_grid_type), POINTER       :: rs
+
+  REAL(dp)       :: local_sum, global_sum
+  REAL(dp)       :: local_sum_abs, global_sum_abs
+
+  local_sum = SUM(rs%r)
+  local_sum_abs = SUM(ABS(rs%r))
+  IF ( rs%parallel ) THEN
+    global_sum = local_sum
+    CALL mp_sum ( global_sum, rs % group )
+    global_sum_abs = local_sum_abs
+    CALL mp_sum ( global_sum_abs, rs % group )
+    IF ( rs%group_head ) THEN
+      WRITE(*,*) " TOTAL SUM OF REAL SPACE GRID     :",global_sum
+      WRITE(*,*) " TOTAL ABSSUM OF REAL SPACE GRID  :",global_sum_abs
+    END IF
+  ELSE
+    WRITE(*,*) " TOTAL SUM OF REAL SPACE GRID     :",local_sum
+    WRITE(*,*) " TOTAL ABSSUM OF REAL SPACE GRID  :",local_sum_abs
+  ENDIF
+
+END SUBROUTINE rs_total_sum 
+!******************************************************************************
 
 END MODULE realspace_grid_types
 

@@ -38,6 +38,7 @@ MODULE pme
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
   USE input_section_types,             ONLY: section_vals_type
+  USE input_constants,                 ONLY: do_rsgrid_distributed
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
@@ -116,7 +117,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ipart, j, &
-                                                jpart, npart, p1, p2
+                                                jpart, npart, p1, p2, nsmax, &
+                                                rs_distributed_id
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
@@ -138,7 +140,8 @@ CONTAINS
     NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
     CALL timeset ( 'PME', 'I', ' ', handle )
-    CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group ,error=error)
+    CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, &
+         rs_distributed_id = rs_distributed_id, group = group ,error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
                        pw_small_pool=pw_small_pool, &
                        poisson_env=poisson_env, dg = dg )
@@ -159,8 +162,12 @@ CONTAINS
     CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
                               use_data = REALDATA3D ,error=error)
 
-    CALL rs_grid_create( rden, grid_b, -MAXVAL ( grid_s % npts ),&
-         error=error)
+    If ( rs_distributed_id == do_rsgrid_distributed ) THEN
+      nsmax = MAXVAL ( grid_s % npts(1:3) )
+    ELSE
+      nsmax = -1
+    END IF
+    CALL rs_grid_create ( rden, grid_b, nsmax, error=error)
     rden % r = 0.0_dp
 
     IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
@@ -227,8 +234,7 @@ CONTAINS
 
     !--------END OF STRESS TENSOR CALCULATION -----------
 
-    CALL rs_grid_p_create ( drpot, 3, grid_b , -MAXVAL ( grid_s % npts ),&
-          error=error )
+    CALL rs_grid_p_create ( drpot, 3, grid_b , nsmax, error=error )
 
     DO i = 1, 3
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
