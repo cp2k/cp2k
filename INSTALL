@@ -50,7 +50,7 @@ How to compile CP2K code
      and modify ~/cp2k/arch/<result of get_arch_code>.* (or possible first rename a close match) to 
      the correct values for your system.
 
-     some notes:
+     some notes (in addition to the file ~/cp2k/arch/README):
 
      - ~/cp2k/arch/*.* files have paths to libraries hard-wired 
         (e.g. blass, lapack, ...) so these will most likely need modification.
