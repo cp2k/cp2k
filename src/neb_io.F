@@ -290,9 +290,10 @@ CONTAINS
           IF (neb_env%opt_type==band_md_opt) THEN
              WRITE ( output_unit, '( A,T33,4(1X,F11.5))' )&
                ' REPLICA TEMPERATURES (K)      =',temperatures(1:MIN(4,SIZE(temperatures)))
-             IF (SIZE(temperatures)>4) THEN
-                WRITE ( output_unit, '( T33,4(1X,F11.5))' )temperatures(5:SIZE(temperatures))
-             END IF
+             DO i = 5, SIZE(temperatures), 4
+                WRITE ( output_unit, '( T33,4(1X,F11.5))' )&
+                     temperatures(i:MIN(i+3,SIZE(temperatures)))
+             END DO
           END IF
           WRITE ( output_unit, '( A,T56,F25.14)' )&
                ' BAND TOTAL ENERGY [au]        =',SUM(energies(:)+ekin(:))+&
