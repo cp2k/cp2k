@@ -19,6 +19,7 @@
 !!     c_light     : Speed of light in vacuum [m/s]
 !!     e_charge    : Elementary charge [C]
 !!     e_mass      : Electron mass [kg]
+!!     e_gfactor   : Electron g factor []
 !!     esu         : Conversion factors [a.u.] -> [esu]
 !!     evolt       : Conversion factor [a.u.] -> [eV]
 !!     femtoseconds: Conversion factor [a.u.] -> [fs]
@@ -73,7 +74,7 @@ MODULE physcon
   REAL(KIND = dp) :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
               e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
               kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
-              seconds,vibfac,wavenum, debye
+              seconds,vibfac,wavenum, debye, e_gfactor
 
   REAL(KIND = dp), DIMENSION(maxmom) :: esu
 
@@ -82,7 +83,7 @@ MODULE physcon
   PUBLIC :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
             e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
             kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
-            seconds,vibfac,wavenum, debye
+            seconds,vibfac,wavenum, debye, e_gfactor
 
 ! *** Public subroutines ***
 
@@ -140,6 +141,10 @@ CONTAINS
 !   *** Electron mass [kg] ***
 
     e_mass = 9.10938188E-31_dp
+
+!   *** Electron g factor [] ***
+
+    e_gfactor = -2.0023193043718_dp
 
 !   *** Fine-structure constant ***
 
@@ -281,6 +286,8 @@ CONTAINS
       "Elementary charge [C]",e_charge
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
       "Electron mass [kg]",e_mass
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Electron g factor []",e_gfactor
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
       "Fine-structure constant",a_fine
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&

@@ -45,7 +45,13 @@ MODULE qs_epr_hyp
                                              mp_sync
   USE particle_types,                  ONLY: particle_type
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: a_fine
+  USE physcon,                         ONLY: a_fine,&
+                                             a_bohr,&
+                                             mu_perm,&
+                                             e_charge,&
+                                             e_mass,&
+                                             e_gfactor,&
+                                             h_bar 
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -120,7 +126,7 @@ CONTAINS
     LOGICAL                                  :: all_potential_present, paw_atom, &
                                                 lsd, failure
     REAL(dp)                                 :: hypanisotemp, sum, hard_radius, arg, &
-                                                rab2, rtemp, int_radius
+                                                rab2, rtemp, int_radius, hypfactor
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: hypiso, hypiso_one
@@ -162,6 +168,8 @@ CONTAINS
       NULLIFY(logger,dft_section)
       RETURN
     END IF
+
+    hypfactor = -1.0_dp * mu_perm * e_charge * h_bar * e_gfactor / ( 2.0_dp * e_mass * a_bohr ** 3 )
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,&
                     rho=rho,atomic_kind_set=atomic_kind_set,&
@@ -375,13 +383,13 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                            z=z)
       hypiso(iatom) = hypiso(iatom) *&
-                      104.98_dp*ptable(z)%gyrom_ratio
+                      2.0_dp/3.0_dp*hypfactor * ptable(z)%gyrom_ratio
       hypiso_one(iatom) = hypiso_one(iatom) *&
-                      104.98_dp*ptable(z)%gyrom_ratio
+                      2.0_dp/3.0_dp*hypfactor * ptable(z)%gyrom_ratio
       DO idir1=1,3
         DO idir2=idir1,3
           hypaniso(idir1,idir2,iatom) = hypaniso(idir1,idir2,iatom) *&
-                                        12.531_dp*ptable(z)%gyrom_ratio
+                                        hypfactor/fourpi * ptable(z)%gyrom_ratio
           IF (idir1 /= idir2) THEN
             hypaniso(idir2,idir1,iatom) = hypaniso(idir1,idir2,iatom)
           END IF
