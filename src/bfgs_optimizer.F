@@ -727,18 +727,21 @@ CONTAINS
 !    ** Conv. in energy **
 
      conv = .FALSE.
-     IF( ((pred < 0.0_dp) .AND. (ABS(pred) < limit)) .OR. &
-         (ABS(pred) < 4.0E-10_dp) )THEN
-        IF(ionode)THEN
-          WRITE(UNIT=output_unit,FMT="(/,T2,A,F15.10)") &
-            " Predicted energy difference is too small: ", pred
-          WRITE(UNIT=output_unit,FMT="(/,T2,80('*'))")
-          WRITE(UNIT=output_unit,FMT="(T2,2('*'),21X,A,21X,2('*'))")&
-             "GEOMETRY OPTIMIZATION COMPLETED"
-          WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
-        END  IF
-        conv = .TRUE.
-   END IF
+     !
+     ! do not stop on predictions, but on actually reached tolerances
+     ! 
+     ! IF( ((pred < 0.0_dp) .AND. (ABS(pred) < limit)) .OR. &
+     !     (ABS(pred) < 4.0E-10_dp) )THEN
+     !    IF(ionode)THEN
+     !      WRITE(UNIT=output_unit,FMT="(/,T2,A,F15.10)") &
+     !        " Predicted energy difference is too small: ", pred
+     !      WRITE(UNIT=output_unit,FMT="(/,T2,80('*'))")
+     !      WRITE(UNIT=output_unit,FMT="(T2,2('*'),21X,A,21X,2('*'))")&
+     !         "GEOMETRY OPTIMIZATION COMPLETED"
+     !      WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
+     !    END  IF
+     !    conv = .TRUE.
+     ! END IF
    CALL timestop(handle)
 
   END SUBROUTINE energy_predict
