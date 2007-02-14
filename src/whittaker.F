@@ -33,14 +33,73 @@
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'whittaker'
+  REAL(KIND=dp), PARAMETER :: epsilon=1.e-2_dp
 
   PRIVATE
 
-  PUBLIC :: whittaker_c0, whittaker_ci
+  PUBLIC :: whittaker_c0a, whittaker_c0, whittaker_ci
 
 ! *****************************************************************************
 
 CONTAINS
+
+! *****************************************************************************
+
+  SUBROUTINE whittaker_c0a ( wc, r, expa, erfa, alpha, l1, l2, n )
+
+!
+!   int(y^(2+l) * exp(-alpha*y*y),y=0..x);
+!
+!   wc(:)    :: output
+!   r(:)     :: coordinate
+!   expa(:)  :: exp(-alpha*r(:)**2)
+!   erfa(:)  :: erf(sqrt(alpha)*r(:))
+!   alpha    :: exponent
+!   l1, l2   :: L-quantum number
+!   n        :: number of points
+
+    INTEGER, INTENT(IN)                      :: n, l1, l2
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    REAL(KIND=dp), DIMENSION(n)              :: erfa, expa, r, wc
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_c0'
+
+    INTEGER                                  :: i, k, l
+    REAL(dp) :: x, t1, y
+
+! -----------------------------------------------------------------------------
+
+    l = l1 + l2
+
+    IF ( MOD(l,2) /= 0 ) THEN
+        CALL stop_program(moduleN,routineN,__LINE__,&
+             "Total angular momentum has to be even")
+    END IF
+    IF ( l1 < l2 ) THEN
+        CALL stop_program(moduleN,routineN,__LINE__,"l1 >= l2")
+    END IF
+
+    t1 = SQRT(alpha)
+    y = REAL(l,dp)
+    DO i = 1, n
+      x  = r(i)
+      IF ( x < epsilon ) THEN
+        wc(i) = x**l1 * ( x**2/(3._dp+y) - alpha*x**4/(5._dp+y) + &
+                   alpha**2*x**6/(14._dp+2._dp*y) - &
+                   alpha**3*x**8/(54._dp+6._dp*y) + &
+                   alpha**4*x**10/(256._dp+24._dp*y)- &
+                   alpha**5*x**12/120._dp/(13._dp+y))
+      ELSE
+        wc(i) = -rootpi*erfa(i)*alpha*dfac(l+1)
+        DO k = 0, l/2
+          wc(i) = wc(i) + expa(i)*x**(2*k+1)*t1**(2*k+3)*&
+                  dfac(l+1)/dfac(2*k+1)*2**(k+1)
+        END DO
+        wc(i) = -wc(i)/2._dp**(l/2+2)/t1**(l+5)/x**(l2+1)
+      END IF
+    END DO
+
+  END SUBROUTINE whittaker_c0a
 
 ! *****************************************************************************
 

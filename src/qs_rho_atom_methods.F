@@ -66,7 +66,7 @@ MODULE qs_rho_atom_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE whittaker,                       ONLY: whittaker_c0,&
+  USE whittaker,                       ONLY: whittaker_c0a,&
                                              whittaker_ci
 #include "cp_common_uses.h"
 
@@ -272,11 +272,10 @@ MODULE qs_rho_atom_methods
                  IF(l_sum == 0) THEN
                   vgg(1:nr,l,l_iso) = erf_zet12(1:nr)* grid_atom%oorad2l(1:nr,1) * c2
                  ELSE
-                   CALL whittaker_c0(int1,grid_atom%rad,gg0,erf_zet12,zet12,L_sum,nr)
+                   CALL whittaker_c0a(int1,grid_atom%rad,gg0,erf_zet12,zet12,l,l_iso,nr)
                    CALL whittaker_ci(int2,grid_atom%rad,gg0,zet12,L_sub,nr)
 
                    DO ir = 1,nr
-                     int1(ir) = grid_atom%oorad2l(ir,l_iso+1)*int1(ir)
                      int2(ir) = grid_atom%rad2l(ir,l_iso)*int2(ir)
                      vgg(ir,l,l_iso) = c1 * (int1(ir) + int2(ir))
                    END DO
