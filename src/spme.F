@@ -55,12 +55,13 @@ MODULE spme
   USE realspace_grid_types,            ONLY: &
        pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
        rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
-       rs_pw_transfer
+       rs_pw_transfer, rs_total_sum
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -121,7 +122,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                                                 ipart, j, jpart, n, nsmax, &
                                                 ndim( 3 ), npart, nshell, o_spline,&
                                                 p1, p1_shell, rs_distributed_id
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre, shell_centre
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, shell_center
     LOGICAL                                  :: failure, is_core, is_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
@@ -171,15 +172,15 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   CALL rs_grid_create ( rden, grid_spme, nsmax, error=error)
   rden % r = 0.0_dp
 
-  ALLOCATE ( centre ( 3, npart ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre", 3*npart )
-  CALL get_center ( particle_set, box, centre, grid_spme % npts, n )
+  ALLOCATE ( center ( 3, npart ), STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "center", 3*npart )
+  CALL get_center ( particle_set, box, center, grid_spme % npts, n )
   IF(PRESENT(shell_particle_set)) THEN
     CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
     nshell=SIZE(shell_particle_set)
-    ALLOCATE ( shell_centre ( 3, nshell ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_centre", 3*nshell )
-    CALL get_center ( shell_particle_set, box, shell_centre, grid_spme % npts, n )
+    ALLOCATE ( shell_center ( 3, nshell ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center", 3*nshell )
+    CALL get_center ( shell_particle_set, box, shell_center, grid_spme % npts, n )
   END IF
 
 !-------------- DENSITY CALCULATION ----------------
@@ -189,7 +190,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
   DO
 
-     CALL set_list ( particle_set, npart, centre, p1, rden, ipart, jpart )
+     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
      IF ( p1 == 0 ) EXIT
 
      is_core  = (particle_set(p1)%shell_index/=0)
@@ -198,7 +199,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                       is_core=is_core )
 
      ! add boxes to real space grid (big box)
-     CALL dg_sum_patch ( rden, rhos, centre(:,p1) )
+     CALL dg_sum_patch ( rden, rhos, center(:,p1) )
      
   END DO     
   IF(PRESENT(shell_particle_set)) THEN
@@ -206,7 +207,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      jpart = 0
      DO
        ! calculate function on small boxes
-       CALL set_list ( shell_particle_set, nshell, shell_centre, p1_shell,&
+       CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
                        rden, ipart, jpart )
        IF ( p1_shell == 0 ) EXIT
 
@@ -214,7 +215,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                         p1_shell, rhos, is_shell=.TRUE. )
 
        ! add boxes to real space grid (big box)
-       CALL dg_sum_patch ( rden, rhos, shell_centre(:,p1_shell) )
+       CALL dg_sum_patch ( rden, rhos, shell_center(:,p1_shell) )
 
      END DO
   END IF
@@ -293,7 +294,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   jpart = 0
   DO
 
-     CALL set_list ( particle_set, npart, centre, p1, rden, ipart, jpart )
+     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
      IF ( p1 == 0 ) EXIT
 
      is_core = (particle_set(p1)%shell_index/=0)
@@ -302,7 +303,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                       rhos, is_core=is_core )
 
      ! add boxes to real space grid (big box)
-     CALL dg_sum_patch_force_3d ( drpot, rhos, centre(:,p1), fat )
+     CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
      fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
      fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
      fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
@@ -316,7 +317,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
       fgshell_coulomb = 0.0_dp
       DO
         ! calculate function on small boxes
-        CALL set_list ( shell_particle_set, nshell, shell_centre, p1_shell,&
+        CALL set_list ( shell_particle_set, nshell, shell_center, p1_shell,&
                         rden, ipart, jpart )
         IF ( p1_shell == 0 ) EXIT
 
@@ -324,7 +325,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                         p1_shell, rhos, is_shell=.TRUE. )
 
         ! add boxes to real space grid (big box)
-        CALL dg_sum_patch_force_3d ( drpot, rhos, shell_centre(:,p1_shell), fat )
+        CALL dg_sum_patch_force_3d ( drpot, rhos, shell_center(:,p1_shell), fat )
         fgshell_coulomb ( 1, p1_shell ) = fgshell_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
         fgshell_coulomb ( 2, p1_shell ) = fgshell_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
         fgshell_coulomb ( 3, p1_shell ) = fgshell_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
@@ -341,11 +342,11 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   CALL rs_grid_p_release ( drpot ,error=error)
   DEALLOCATE ( rhos, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
-  DEALLOCATE ( centre, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre" )
-  IF(allocated(shell_centre)) THEN
-    DEALLOCATE ( shell_centre, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_centre" )
+  DEALLOCATE ( center, STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "center" )
+  IF(allocated(shell_center)) THEN
+    DEALLOCATE ( shell_center, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center" )
   END IF
 
   CALL timestop ( 0.0_dp, handle )
@@ -591,13 +592,13 @@ END FUNCTION in_slice
 
 !******************************************************************************
 
-SUBROUTINE get_center ( part, box, centre, npts, n )
+SUBROUTINE get_center ( part, box, center, npts, n )
 
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
     TYPE(cell_type), POINTER                 :: box
-    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: center
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     INTEGER, INTENT(IN)                      :: n
 
@@ -616,10 +617,13 @@ SUBROUTINE get_center ( part, box, centre, npts, n )
     gp = REAL ( npts,KIND=dp) * s
     ! find the closest grid point (on big grid)
     IF ( MOD ( n, 2 ) == 0 ) THEN
-      centre ( :, ipart ) = INT ( gp + rmp ) - mp
+      center ( :, ipart ) = INT ( gp + rmp ) - mp
     ELSE
-      centre ( :, ipart ) = NINT ( gp )
+      center ( :, ipart ) = NINT ( gp )
     END IF
+    center ( :, ipart ) = center ( :, ipart ) + npts(:)/2
+    center ( :, ipart ) = MODULO ( center ( :, ipart ), npts(:) )
+    center ( :, ipart ) = center ( :, ipart ) - npts(:)/2
   END DO
 
 END SUBROUTINE get_center
@@ -635,7 +639,7 @@ SUBROUTINE get_delta ( box, r, npts, delta, n )
     INTEGER, INTENT(IN)                      :: n
 
     INTEGER                                  :: mp
-    INTEGER, DIMENSION(3)                    :: centre
+    INTEGER, DIMENSION(3)                    :: center
     REAL(KIND=dp)                            :: rmp
     REAL(KIND=dp), DIMENSION(3)              :: ca, grid_i, s
 
@@ -653,11 +657,11 @@ SUBROUTINE get_delta ( box, r, npts, delta, n )
 ! find the closest grid point
 
   IF ( MOD ( n, 2 ) == 0 ) THEN
-    centre ( : ) = INT ( grid_i ( : ) + rmp ) - mp
-    ca ( : ) = REAL ( centre ( : ) ) + 0.5_dp
+    center ( : ) = INT ( grid_i ( : ) + rmp ) - mp
+    ca ( : ) = REAL ( center ( : ) ) + 0.5_dp
   ELSE
-    centre ( : ) = NINT ( grid_i ( : ) )
-    ca ( : ) = REAL ( centre ( : ) )
+    center ( : ) = NINT ( grid_i ( : ) )
+    ca ( : ) = REAL ( center ( : ) )
   END IF
 
 ! find the distance vector
