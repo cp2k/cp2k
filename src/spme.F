@@ -202,6 +202,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      
   END DO     
   IF(PRESENT(shell_particle_set)) THEN
+     ipart = 0
+     jpart = 0
      DO
        ! calculate function on small boxes
        CALL set_list ( shell_particle_set, nshell, shell_centre, p1_shell,&
@@ -286,9 +288,6 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 ! initialize the forces
   fg_coulomb = 0.0_dp
   dvols = grid_spme % dvol * inv_fourpi_eps0
-  IF(PRESENT(fgshell_coulomb)) THEN
-    fgshell_coulomb = 0.0_dp
-  END IF
 
   ipart = 0
   jpart = 0
@@ -309,23 +308,29 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
 
   END DO
-  IF(PRESENT(shell_particle_set)) THEN
-     DO
-       ! calculate function on small boxes
-       CALL set_list ( shell_particle_set, nshell, shell_centre, p1_shell,&
-                       rden, ipart, jpart )
-       IF ( p1_shell == 0 ) EXIT
 
-       CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
+  ipart = 0
+  jpart = 0
+  IF(PRESENT(shell_particle_set)) THEN
+    IF(PRESENT(fgshell_coulomb)) THEN
+      fgshell_coulomb = 0.0_dp
+      DO
+        ! calculate function on small boxes
+        CALL set_list ( shell_particle_set, nshell, shell_centre, p1_shell,&
+                        rden, ipart, jpart )
+        IF ( p1_shell == 0 ) EXIT
+
+        CALL get_patch ( shell_particle_set, box, green, grid_spme % npts, &
                         p1_shell, rhos, is_shell=.TRUE. )
 
-       ! add boxes to real space grid (big box)
-       CALL dg_sum_patch_force_3d ( drpot, rhos, shell_centre(:,p1_shell), fat )
-       fgshell_coulomb ( 1, p1_shell ) = fg_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
-       fgshell_coulomb ( 2, p1_shell ) = fg_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
-       fgshell_coulomb ( 3, p1_shell ) = fg_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
+        ! add boxes to real space grid (big box)
+        CALL dg_sum_patch_force_3d ( drpot, rhos, shell_centre(:,p1_shell), fat )
+        fgshell_coulomb ( 1, p1_shell ) = fgshell_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
+        fgshell_coulomb ( 2, p1_shell ) = fgshell_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
+        fgshell_coulomb ( 3, p1_shell ) = fgshell_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
 
-     END DO
+      END DO
+    END IF
    END IF
 
 !--------------END OF FORCE CALCULATION -------------
@@ -381,7 +386,7 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell )
     LOGICAL                                  :: my_is_core, my_is_shell
     REAL(KIND=dp)                            :: q
     REAL(KIND=dp), DIMENSION(3)              :: delta, r
-    TYPE(shell_kind_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER           :: shell
 
 !------------------------------------------------------------------------------
 

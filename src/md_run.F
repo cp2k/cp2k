@@ -434,9 +434,16 @@ CONTAINS
               particles=particles,&
               error=error)
 
-       CALL virial_evaluate(atomic_kinds%els, particles%els, &
-            local_particles, force_env_p(ibead)%force_env% virial,&
-            force_env_p(ibead)%force_env%para_env%group)
+       IF(shell_present) THEN
+         CALL virial_evaluate(atomic_kinds%els, particles%els, &
+              local_particles, force_env_p(ibead)%force_env% virial,&
+              force_env_p(ibead)%force_env%para_env%group,&
+              shell_particle_set=shell_particles%els,error=error)
+       ELSE
+         CALL virial_evaluate(atomic_kinds%els, particles%els, &
+              local_particles, force_env_p(ibead)%force_env% virial,&
+              force_env_p(ibead)%force_env%para_env%group,error=error)
+       END IF
 
     END DO
 

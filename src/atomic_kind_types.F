@@ -646,7 +646,7 @@ CONTAINS
       IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
       IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
       IF (PRESENT(shell_present)) shell_present = .FALSE.
-      IF (PRESENT(shell_adiabatic)) shell_adiabatic = .TRUE.
+      IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
       IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
       IF (PRESENT(kind_of)) kind_of(:) = 0
@@ -890,7 +890,7 @@ CONTAINS
           END IF
         END IF
         IF (PRESENT(shell_adiabatic) .AND. ASSOCIATED(shell) )THEN
-           shell_adiabatic = (shell%massfrac /= 0.0_dp)
+           IF(.NOT. shell_adiabatic) shell_adiabatic = (shell%massfrac /= 0.0_dp)
         END IF
         IF (PRESENT(atom_of_kind)) THEN
           DO iatom=1,atomic_kind%natom

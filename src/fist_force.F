@@ -308,9 +308,17 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
         fg_coulomb = 0.0_dp
         IF(shell_present) THEN
          CALL stop_program ( "fist_force_control","pme and shell model NIY" )
+         ALLOCATE ( fgshell_coulomb ( 3, nshell ), STAT=stat )
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         fgshell_coulomb = 0.0_dp 
+         CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
+                            vg_coulomb, fg_coulomb, pv_g , force_env_section, &
+                            shell_particle_set=shell_particle_set,&
+                            fgshell_coulomb=fgshell_coulomb, error=error)
         ELSE
           CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
-                            vg_coulomb, fg_coulomb, pv_g , force_env_section, error)
+                            vg_coulomb, fg_coulomb, pv_g , force_env_section, &
+                            error=error)
         END IF
         CALL mp_sum ( fg_coulomb, para_env%group )
      CASE ( do_ewald_spme )
@@ -328,7 +336,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                                fgshell_coulomb=fgshell_coulomb, error=error)
           CALL mp_sum ( fgshell_coulomb, para_env%group )
         ELSE
-           CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
+          CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                                fg_coulomb, vg_coulomb, pv_g, force_env_section,&
                                error=error)
         END IF
@@ -398,7 +406,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 ! add up all the potential energies
 !
   thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
-                 pot_imptors + pot_urey_bradley + pot_manybody
+                 pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
   CALL mp_sum ( thermo % pot, para_env%group )
 !
 ! add g-space contributions if needed
@@ -454,6 +462,12 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
           f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, node )
           f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, node )
           f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, node )
+          IF(shell_present) THEN
+            j = particle_set(ii) % shell_index
+            shell_particle_set(j)%f(1) = fshell_total(1,j) ! missing term 
+            shell_particle_set(j)%f(2) = fshell_total(2,j)  ! missing term 
+            shell_particle_set(j)%f(3) = fshell_total(3,j)  ! missing term 
+          END IF
           IF ( PRESENT ( debug )  ) THEN
             debug % f_g ( 1, ii ) =  debug % f_g ( 1, ii ) + fg_coulomb ( 1, node )
             debug % f_g ( 2, ii ) =  debug % f_g ( 2, ii ) + fg_coulomb ( 2, node )
@@ -503,12 +517,26 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
       particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) + fg_coulomb ( 2, i )
       particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) + fg_coulomb ( 3, i )
     END DO
+    IF(shell_present) THEN
+      DO i = 1,nshell
+        shell_particle_set(i)%f(1) = fshell_total(1,i) + fgshell_coulomb(1,i)
+        shell_particle_set(i)%f(2) = fshell_total(2,i) + fgshell_coulomb(2,i)
+        shell_particle_set(i)%f(3) = fshell_total(3,i) + fgshell_coulomb(3,i)
+      END DO
+    END IF
   CASE ( do_ewald_ewald, do_ewald_none )
     DO i = 1, natoms
       particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
       particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
       particle_set ( i ) % f ( 3 ) = f_total ( 3, i )
     END DO
+    IF(shell_present) THEN
+      DO i = 1,nshell
+        shell_particle_set(i)%f(1) = fshell_total(1,i) 
+        shell_particle_set(i)%f(2) = fshell_total(2,i) 
+        shell_particle_set(i)%f(3) = fshell_total(3,i) 
+      END DO
+    END IF
   END SELECT
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
@@ -587,6 +615,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      DEALLOCATE ( fshell_total, STAT = stat )
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
+  IF(ALLOCATED(fgshell_coulomb)) THEN
+    DEALLOCATE ( fgshell_coulomb, STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ENDIF
   IF(ALLOCATED (fshell_nonbond)) THEN
      DEALLOCATE ( fshell_nonbond, STAT = stat )
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

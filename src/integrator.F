@@ -27,7 +27,8 @@ MODULE integrator
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind, &
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              get_hinv
   USE constraint,                      ONLY: rattle_control,&
@@ -81,6 +82,7 @@ MODULE integrator
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE virial_methods,                  ONLY: virial_evaluate
@@ -359,7 +361,7 @@ CONTAINS
         CALL pv_constraint(gci,local_molecules,molecule_set,molecule_kind_set,&
                            particle_set,virial,para_env%group)
         CALL virial_evaluate(atomic_kind_set,particle_set,local_particles,&
-                             virial,para_env%group)
+                             virial,para_env%group, error=error)
       END IF
 
     END DO ! next subsys or sub-system
@@ -394,11 +396,14 @@ CONTAINS
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
-      nparticle_kind, nparticle_local
+      nparticle_kind, nparticle_local, nshell, shell_index
+    LOGICAL :: is_shell, shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: shell_pos, shell_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -426,13 +431,18 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: shell_particle_set
+    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,gci)
+    NULLIFY (shell,shell_particles,shell_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
@@ -466,6 +476,10 @@ CONTAINS
       nmolecule = molecules % n_els
       molecule_set => molecules % els
 
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+           shell_present=shell_present,shell_adiabatic=shell_adiabatic)
+
+
 !     *** Allocate work storage for positions and velocities ***
       ALLOCATE (pos(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -476,23 +490,73 @@ CONTAINS
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
 
+      IF(shell_present) THEN
+        CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+             shell_particles=shell_particles, error=error)
+        shell_particle_set =>  shell_particles%els
+        nshell = SIZE(shell_particles%els)
+
+        IF(shell_adiabatic) THEN
+           !     *** Allocate work storage for positions and velocities ***
+           ALLOCATE (shell_pos(3,nshell),STAT=istat)
+           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "shellpos",3*nshell*dp_size)
+           ALLOCATE (shell_vel(3,nshell),STAT=istat)
+           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "shellvel",3*nshell*dp_size)
+           shell_pos(:,:) = 0.0_dp
+           shell_vel(:,:) = 0.0_dp
+        END IF
+      ELSE
+          shell_adiabatic = .FALSE.
+      END IF
+
       IF (simpar%constraint) CALL getold(gci,local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set, cell, error)
 
 !     *** Velocity Verlet (first part) ***
-      DO iparticle_kind=1,nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-        dm = 0.5_dp*dt/mass
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local=1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel (:,iparticle) = particle_set(iparticle)%v(:) +&
-                              dm * particle_set(iparticle)%f(:)
-          pos (:,iparticle) = particle_set(iparticle)%r(:) +&
-                              dt * vel ( :, iparticle )
+      IF(shell_adiabatic) THEN
+        DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
+               shell_active=is_shell,shell=shell)
+          IF(is_shell) THEN
+            dm = 0.5_dp*dt/shell%mass_core
+          ELSE
+            dm = 0.5_dp*dt/mass
+          END IF
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            vel (:,iparticle) = particle_set(iparticle)%v(:) +&
+                                dm * particle_set(iparticle)%f(:)
+            pos (:,iparticle) = particle_set(iparticle)%r(:) +&
+                                dt * vel ( :, iparticle )
+            IF(is_shell) THEN
+              dm = 0.5_dp*dt/shell%mass_shell
+              shell_index = particle_set(iparticle)%shell_index
+              shell_vel (:,shell_index) = shell_particle_set(shell_index)%v(:) +&
+                                dm * shell_particle_set(shell_index)%f(:)
+              shell_pos (:,shell_index) = particle_set(shell_index)%r(:) +&
+                                dt * shell_vel ( :, shell_index )
+            END IF
+          END DO
         END DO
-      END DO
+      ELSE
+        DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+          dm = 0.5_dp*dt/mass
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            vel (:,iparticle) = particle_set(iparticle)%v(:) +&
+                                dm * particle_set(iparticle)%f(:)
+            pos (:,iparticle) = particle_set(iparticle)%r(:) +&
+                                dt * vel ( :, iparticle )
+          END DO
+        END DO
+      END IF
 
 
       IF (simpar%constraint) CALL shake_control(gci,local_molecules, molecule_set,   &
@@ -618,7 +682,7 @@ CONTAINS
                                                       para_env % group )
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, para_env % group  )
+                             local_particles, virial, para_env % group  ,error=error)
 
     END DO ! next subsys or sub-system
 
@@ -1065,7 +1129,7 @@ CONTAINS
       END IF
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, para_env % group  )
+                             local_particles, virial, para_env % group, error=error)
 
     END DO ! next subsys or sub-system
 
@@ -1190,7 +1254,7 @@ CONTAINS
 
       IF ( first_time ) THEN
         CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                               local_particles, virial, para_env % group  )
+                               local_particles, virial, para_env % group, error=error)
       END IF
 
 
@@ -1367,7 +1431,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, para_env % group  )
+                             local_particles, virial, para_env % group , error=error)
 
 ! Deallocate old variables
     CALL deallocate_old ( )
@@ -1583,7 +1647,7 @@ CONTAINS
 
       IF ( first_time ) THEN
         CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                               local_particles, virial, para_env % group  )
+                               local_particles, virial, para_env % group  ,error=error)
       END IF
 
 !     *** Allocate work storage for positions and velocities ***
@@ -1752,7 +1816,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, para_env % group  )
+                             local_particles, virial, para_env % group, error=error)
 
 ! Deallocate old variables
     CALL deallocate_old ( )
@@ -1877,7 +1941,7 @@ CONTAINS
 
       IF ( first_time ) THEN
         CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                               local_particles, virial, para_env % group  )
+                               local_particles, virial, para_env % group , error=error)
       END IF
 
 
@@ -2071,7 +2135,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                             local_particles, virial, para_env % group  )
+                             local_particles, virial, para_env % group, error=error)
 
 ! Deallocate old variables
     CALL deallocate_old ( )
@@ -2433,7 +2497,7 @@ CONTAINS
 
       IF ( first_time ) THEN
         CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                               local_particles, virial, para_env % group  )
+                               local_particles, virial, para_env % group  ,error=error)
       END IF
 
 !     *** Allocate work storage for positions and velocities ***
@@ -2624,7 +2688,7 @@ CONTAINS
      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
      CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-                            local_particles, virial, para_env % group  )
+                            local_particles, virial, para_env % group, error=error  )
 
 ! Deallocate old variables
     CALL deallocate_old ( )
@@ -3441,7 +3505,7 @@ END SUBROUTINE update_veps
                para_env % group )
 
           CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-               local_particles, virial, para_env % group  )
+               local_particles, virial, para_env % group , error=error )
        END DO
           DEALLOCATE (pos,STAT=istat)
 

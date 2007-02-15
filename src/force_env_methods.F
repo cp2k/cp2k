@@ -274,6 +274,7 @@ CONTAINS
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        IF (.NOT.my_skip) THEN
+! warning: shell-model not yet implemented for these options
           ! Metadynamics
           IF (ASSOCIATED(force_env%meta_env)) THEN
              CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)

@@ -62,9 +62,12 @@ MODULE pme
        pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
        rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
        rs_pw_transfer
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
-                                             structure_factor_deallocate
+                                             structure_factor_deallocate,&
+                                             structure_factor_init
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -100,8 +103,9 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, fg_coulomb,&
-       pv_g, force_env_section, error )
+  SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
+                            fg_coulomb, pv_g, force_env_section, shell_particle_set, &
+                            fgshell_coulomb, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: box
@@ -111,15 +115,20 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER, OPTIONAL                      :: shell_particle_set
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: fgshell_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ipart, j, &
-                                                jpart, npart, p1, p2, nsmax, &
+                                                jpart, npart, nshell, p1, p2, nsmax, &
                                                 rs_distributed_id
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, is1_core, is2_core, &
+                                                is1_shell, is2_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
     REAL(KIND=dp), DIMENSION(3)              :: fat
@@ -136,6 +145,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden
     TYPE(structure_factor_type)              :: exp_igr
+
+!------------------------------------------------------------------------------
 
     NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
@@ -154,8 +165,18 @@ CONTAINS
     inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
     npart = SIZE ( particle_set )
 
-    CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
-         allocate_centre = .TRUE. )
+    CALL structure_factor_init(exp_igr)
+
+    IF(PRESENT(shell_particle_set)) THEN
+      CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
+      nshell=SIZE(shell_particle_set)
+      CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
+           allocate_centre = .TRUE., allocate_shell_e=.TRUE., allocate_shell_centre = .TRUE., nshell=nshell )
+      
+    ELSE
+      CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
+           allocate_centre = .TRUE. )
+    END IF
 
     CALL pw_pool_init_coeff ( pw_small_pool, rhos1, &
                               use_data = REALDATA3D ,error=error)
@@ -173,6 +194,9 @@ CONTAINS
     IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
        CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts )
     END IF
+    IF ( PRESENT(shell_particle_set) .AND. rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
+         CALL get_center ( shell_particle_set, box, exp_igr % shell_centre, grid_b % npts )
+    END IF
 
     !-------------- DENSITY CALCULATION ----------------
 
@@ -184,15 +208,37 @@ CONTAINS
             ipart, jpart )
        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
+       is1_core  = (particle_set(p1)%shell_index/=0)
+       IF(p2 /= 0) THEN
+         is2_core  = (particle_set(p2)%shell_index/=0)
+       ELSE
+         is2_core  = .FALSE.
+       END IF
+
        ! calculate function on small boxes (we use double packing in FFT)
        CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-            rhos1, rhos2 )
+            rhos1, rhos2 , is1_core=is1_core, is2_core=is2_core)
 
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
        IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
 
     END DO
+    IF(PRESENT(shell_particle_set)) THEN
+      ipart = 0
+      jpart = 0
+      DO
+        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, p2, rden, &
+            ipart, jpart )
+        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
+        ! calculate function on small boxes (we use double packing in FFT)
+        CALL get_patch ( dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
+            rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. )
+        ! add boxes to real space grid (big box)
+        CALL dg_sum_patch ( rden, rhos1, exp_igr % shell_centre ( :, p1 ) )
+        IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % shell_centre ( :, p2 ) )
+      END DO
+    END IF
 
     CALL pw_pool_create_pw ( pw_big_pool, rhob_r, use_data = REALDATA3D, in_space = REALSPACE ,error=error)
     CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
@@ -258,23 +304,59 @@ CONTAINS
           CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
-          ! calculate function on small boxes (we use double packing in FFT)
-          CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
+         is1_core  = (particle_set(p1)%shell_index/=0)
+         IF(p2 /= 0) THEN
+            is2_core  = (particle_set(p2)%shell_index/=0)
+         ELSE
+           is2_core  = .FALSE.
+         END IF
 
-          ! sum boxes on real space grids (big box)
-          CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
-          fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
-          fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
-          fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
-          IF ( p2 /= 0 ) THEN
+         ! calculate function on small boxes (we use double packing in FFT)
+         CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, &
+              is1_core = is1_core, is2_core=is2_core )
+
+         ! sum boxes on real space grids (big box)
+         CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
+         fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
+         fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
+         fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
+         IF ( p2 /= 0 ) THEN
              CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
              fg_coulomb ( 1, p2 ) = fg_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
              fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
              fg_coulomb ( 3, p2 ) = fg_coulomb ( 3, p2 ) - fat ( 3 ) * dvols
-          END IF
+         END IF
 
        END DO
     ENDIF
+    IF(PRESENT(fgshell_coulomb)) THEN
+      fgshell_coulomb = 0.0_dp
+      dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
+
+      ipart = 0
+      jpart = 0
+      DO
+         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, p2, rden, ipart, jpart )
+         IF ( p1 == 0 .AND. p2 == 0 ) EXIT
+
+         ! calculate function on small boxes (we use double packing in FFT)
+         CALL get_patch_again ( dg, shell_particle_set, exp_igr, p1, p2, rhos1, rhos2, &
+              is1_shell=.TRUE. , is2_shell = .TRUE.)
+
+         ! sum boxes on real space grids (big box)
+         CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % shell_centre ( :, p1 ), fat )
+         fgshell_coulomb ( 1, p1 ) = fgshell_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
+         fgshell_coulomb ( 2, p1 ) = fgshell_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
+         fgshell_coulomb ( 3, p1 ) = fgshell_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
+         IF ( p2 /= 0 ) THEN
+            CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % shell_centre ( :, p2 ), fat )
+            fgshell_coulomb ( 1, p2 ) = fgshell_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
+            fgshell_coulomb ( 2, p2 ) = fgshell_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
+            fgshell_coulomb ( 3, p2 ) = fgshell_coulomb ( 3, p2 ) - fat ( 3 ) * dvols
+         END IF
+      END DO
+
+    END IF
     !--------------END OF FORCE CALCULATION -------------
 
     !------------------CLEANING UP ----------------------
@@ -309,7 +391,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
-           grid_b, grid_s, rhos1, rhos2 )
+           grid_b, grid_s, rhos1, rhos2 , is1_core, is2_core, is1_shell, is2_shell)
 
 
     TYPE(dg_type), POINTER                   :: dg
@@ -320,40 +402,89 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     INTEGER, INTENT(IN)                      :: p1, p2
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(coeff_type)                         :: rhos1, rhos2
+    LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
+                                                is1_shell, is2_shell
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
+    LOGICAL                                  :: my_is1_core, my_is2_core,&
+                                                my_is1_shell, my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(shell_kind_type), POINTER           :: shell
 
 !------------------------------------------------------------------------------
+
+  NULLIFY(shell)
+  my_is1_core = .FALSE.
+  my_is2_core = .FALSE.
+  IF(PRESENT(is1_core)) my_is1_core = is1_core
+  IF(PRESENT(is2_core)) my_is2_core = is2_core
+  my_is1_shell = .FALSE.
+  my_is2_shell = .FALSE.
+  IF(PRESENT(is1_shell)) my_is1_shell = is1_shell
+  IF(PRESENT(is2_shell)) my_is2_shell = is2_shell
+  IF(my_is1_core .AND. my_is1_shell) THEN
+    CALL stop_program ( "pme%get_patch","shell-model: cannot be core and shell simultaneously" )
+  END IF
 
   CALL dg_get ( dg, dg_rho0 = dg_rho0 )
   rho0 => dg_rho0 % density
 
   r1 = particle_set ( p1 ) % r
-
   atomic_kind => particle_set (p1) % atomic_kind
-  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1)
+  IF(my_is1_core) THEN
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+    q1 = shell%charge_core
+  ELSE IF (my_is1_shell) THEN
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+    q1 = shell%charge_shell
+  ELSE
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q1)
+  END IF
 
-  center1 => exp_igr % centre ( :, p1 )
-  ex1 => exp_igr % ex ( :, p1 )
-  ey1 => exp_igr % ey ( :, p1 )
-  ez1 => exp_igr % ez ( :, p1 )
+  IF(my_is1_shell) THEN
+    center1 => exp_igr % shell_centre ( :, p1 )
+    ex1 => exp_igr % shell_ex ( :, p1 )
+    ey1 => exp_igr % shell_ey ( :, p1 )
+    ez1 => exp_igr % shell_ez ( :, p1 )
+  ELSE
+    center1 => exp_igr % centre ( :, p1 )
+    ex1 => exp_igr % ex ( :, p1 )
+    ey1 => exp_igr % ey ( :, p1 )
+    ez1 => exp_igr % ez ( :, p1 )
+  END IF
+  
   CALL dg_get_strucfac ( box, r1, grid_s % npts, grid_b % npts, center1, &
        exp_igr % lb, ex1, ey1, ez1 )
 
   IF ( p2 /= 0 ) THEN
      r2 = particle_set ( p2 ) % r
      atomic_kind => particle_set (p2) % atomic_kind
-     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2)
-     center2 => exp_igr % centre ( :, p2 )
-     ex2 => exp_igr % ex ( :, p2 )
-     ey2 => exp_igr % ey ( :, p2 )
-     ez2 => exp_igr % ez ( :, p2 )
+     IF(my_is2_core) THEN
+       CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+       q2 = shell%charge_core
+     ELSE IF (my_is2_shell) THEN
+       CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+       q2 = shell%charge_shell
+     ELSE
+       CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q2)
+     END IF
+
+     IF(my_is2_shell) THEN
+       center2 => exp_igr % shell_centre ( :, p2 )
+       ex2 => exp_igr % shell_ex ( :, p2 )
+       ey2 => exp_igr % shell_ey ( :, p2 )
+       ez2 => exp_igr % shell_ez ( :, p2 )
+     ELSE
+       center2 => exp_igr % centre ( :, p2 )
+       ex2 => exp_igr % ex ( :, p2 )
+       ey2 => exp_igr % ey ( :, p2 )
+       ez2 => exp_igr % ez ( :, p2 )
+     END IF
      CALL dg_get_strucfac ( box, r2, grid_s % npts, grid_b % npts, center2, &
           exp_igr % lb, ex2, ey2, ez2 )
   END IF
@@ -369,7 +500,7 @@ END SUBROUTINE get_patch
 
 !******************************************************************************
 
-SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
+SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is1_core, is2_core, is1_shell, is2_shell )
 
 
     TYPE(dg_type), POINTER                   :: dg
@@ -378,30 +509,71 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
     TYPE(structure_factor_type)              :: exp_igr
     INTEGER, INTENT(IN)                      :: p1, p2
     TYPE(coeff_type)                         :: rhos1, rhos2
+    LOGICAL, OPTIONAL ::  is1_core, is2_core, is1_shell, is2_shell
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
+    LOGICAL ::  my_is1_core, my_is2_core, my_is1_shell, my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(shell_kind_type), POINTER           :: shell
 
 !------------------------------------------------------------------------------
+
+  NULLIFY(shell)
+  my_is1_core = .FALSE.
+  my_is2_core = .FALSE.
+  IF(PRESENT(is1_core)) my_is1_core = is1_core
+  IF(PRESENT(is2_core)) my_is2_core = is2_core
+  my_is1_shell = .FALSE.
+  my_is2_shell = .FALSE.
+  IF(PRESENT(is1_shell)) my_is1_shell = is1_shell
+  IF(PRESENT(is2_shell)) my_is2_shell = is2_shell
 
   CALL dg_get ( dg, dg_rho0 = dg_rho0 )
   rho0 => dg_rho0 % density
 
   atomic_kind => particle_set (p1) % atomic_kind
-  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1)
-  ex1 => exp_igr % ex ( :, p1 )
-  ey1 => exp_igr % ey ( :, p1 )
-  ez1 => exp_igr % ez ( :, p1 )
+  IF(my_is1_core) THEN
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+    q1 = shell%charge_core
+  ELSE IF (my_is1_shell) THEN
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+    q1 = shell%charge_shell
+  ELSE
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q1)
+  END IF
+  IF (my_is1_shell) THEN
+    ex1 => exp_igr % shell_ex ( :, p1 )
+    ey1 => exp_igr % shell_ey ( :, p1 )
+    ez1 => exp_igr % shell_ez ( :, p1 )
+  ELSE
+    ex1 => exp_igr % ex ( :, p1 )
+    ey1 => exp_igr % ey ( :, p1 )
+    ez1 => exp_igr % ez ( :, p1 )
+  END IF
 
   IF ( p2 /= 0 ) THEN
      atomic_kind => particle_set (p2) % atomic_kind
-     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2)
-     ex2 => exp_igr % ex ( :, p2 )
-     ey2 => exp_igr % ey ( :, p2 )
-     ez2 => exp_igr % ez ( :, p2 )
+     IF(my_is2_core) THEN
+       CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+       q2 = shell%charge_core
+     ELSE IF (my_is2_shell) THEN
+       CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
+       q2 = shell%charge_shell
+     ELSE
+       CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q2)
+     END IF
+     IF (my_is2_shell) THEN
+       ex2 => exp_igr % shell_ex ( :, p2 )
+       ey2 => exp_igr % shell_ey ( :, p2 )
+       ez2 => exp_igr % shell_ez ( :, p2 )
+     ELSE
+       ex2 => exp_igr % ex ( :, p2 )
+       ey2 => exp_igr % ey ( :, p2 )
+       ez2 => exp_igr % ez ( :, p2 )
+     END IF
   END IF
 
   IF ( p2 == 0 ) THEN
@@ -466,7 +638,7 @@ SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
     IF ( ipart > npart ) EXIT
     atomic_kind => particle_set ( ipart ) % atomic_kind
     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
-    IF ( charge == 0.0_dp ) CYCLE
+    IF ( charge == 0.0_dp .AND. particle_set(ipart)%shell_index==0) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid
@@ -494,7 +666,7 @@ SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
     IF ( ipart > npart ) EXIT
     atomic_kind => particle_set ( ipart ) % atomic_kind
     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
-    IF ( charge == 0.0_dp ) CYCLE
+    IF ( charge == 0.0_dp .AND. particle_set(ipart)%shell_index==0) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid
