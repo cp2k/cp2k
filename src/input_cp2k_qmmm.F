@@ -30,12 +30,12 @@ MODULE input_cp2k_qmmm
                                              create_LJ_section,&
                                              create_NONBONDED14_section,&
                                              create_Williams_section
+  USE input_cp2k_poisson,              ONLY: create_gspace_interp_section,&
+                                             create_multipole_section
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
-  USE input_poisson,                   ONLY: create_gspace_interp_section,&
-                                             create_multipole_section
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&

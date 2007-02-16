@@ -29,7 +29,7 @@ MODULE input_cp2k_dft
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
-  USE input_poisson,                   ONLY: create_poisson_section
+  USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&

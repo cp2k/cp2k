@@ -37,11 +37,13 @@ MODULE pme
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE input_section_types,             ONLY: section_vals_type
   USE input_constants,                 ONLY: do_rsgrid_distributed
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
+  USE pme_tools,                       ONLY: get_center,&
+                                             set_list
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -116,7 +118,7 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: shell_particle_set
+      OPTIONAL, POINTER                      :: shell_particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fgshell_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -125,10 +127,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ipart, j, &
-                                                jpart, npart, nshell, p1, p2, nsmax, &
-                                                rs_distributed_id
-    LOGICAL                                  :: failure, is1_core, is2_core, &
-                                                is1_shell, is2_shell
+                                                jpart, npart, nshell, nsmax, &
+                                                p1, p2, rs_distributed_id
+    LOGICAL                                  :: failure, is1_core, is1_shell, &
+                                                is2_core, is2_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
     REAL(KIND=dp), DIMENSION(3)              :: fat
@@ -183,7 +185,7 @@ CONTAINS
     CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
                               use_data = REALDATA3D ,error=error)
 
-    If ( rs_distributed_id == do_rsgrid_distributed ) THEN
+    IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
       nsmax = MAXVAL ( grid_s % npts(1:3) )
     ELSE
       nsmax = -1
@@ -192,10 +194,10 @@ CONTAINS
     rden % r = 0.0_dp
 
     IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
-       CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts )
+       CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts, 1 )
     END IF
     IF ( PRESENT(shell_particle_set) .AND. rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
-         CALL get_center ( shell_particle_set, box, exp_igr % shell_centre, grid_b % npts )
+         CALL get_center ( shell_particle_set, box, exp_igr % shell_centre, grid_b % npts, 1 )
     END IF
 
     !-------------- DENSITY CALCULATION ----------------
@@ -204,8 +206,8 @@ CONTAINS
     jpart = 0
     DO
 
-       CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, &
-            ipart, jpart )
+       CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart )
+       CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart )
        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
        is1_core  = (particle_set(p1)%shell_index/=0)
@@ -228,8 +230,8 @@ CONTAINS
       ipart = 0
       jpart = 0
       DO
-        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, p2, rden, &
-            ipart, jpart )
+        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, rden, ipart, jpart )
+        CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p2, rden, ipart, jpart )
         IF ( p1 == 0 .AND. p2 == 0 ) EXIT
         ! calculate function on small boxes (we use double packing in FFT)
         CALL get_patch ( dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
@@ -301,7 +303,8 @@ CONTAINS
        jpart = 0
        DO
 
-          CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
+          CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart )
+          CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart )
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
          is1_core  = (particle_set(p1)%shell_index/=0)
@@ -336,7 +339,8 @@ CONTAINS
       ipart = 0
       jpart = 0
       DO
-         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, p2, rden, ipart, jpart )
+         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p1, rden, ipart, jpart )
+         CALL set_list ( shell_particle_set, nshell, exp_igr % shell_centre, p2, rden, ipart, jpart )
          IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
          ! calculate function on small boxes (we use double packing in FFT)
@@ -407,8 +411,8 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    LOGICAL                                  :: my_is1_core, my_is2_core,&
-                                                my_is1_shell, my_is2_shell
+    LOGICAL                                  :: my_is1_core, my_is1_shell, &
+                                                my_is2_core, my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -509,10 +513,12 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
     TYPE(structure_factor_type)              :: exp_igr
     INTEGER, INTENT(IN)                      :: p1, p2
     TYPE(coeff_type)                         :: rhos1, rhos2
-    LOGICAL, OPTIONAL ::  is1_core, is2_core, is1_shell, is2_shell
+    LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
+                                                is1_shell, is2_shell
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
-    LOGICAL ::  my_is1_core, my_is2_core, my_is1_shell, my_is2_shell
+    LOGICAL                                  :: my_is1_core, my_is1_shell, &
+                                                my_is2_core, my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
@@ -584,158 +590,6 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
   END IF
 
 END SUBROUTINE get_patch_again
-
-!!*****
-!******************************************************************************
-!!****** pme/set_list [1.0] *
-!!
-!!   NAME
-!!     set_list
-!!
-!!   FUNCTION
-!!     Radvances in the link list of particles to the next to be calculated
-!!
-!!   AUTHOR
-!!     JGH (21-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (23-Mar-2001) : Switch to integer from particle list pointers
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
-
-
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, INTENT(IN)                      :: npart
-    INTEGER, DIMENSION(:, :), INTENT(IN)     :: center
-    INTEGER, INTENT(OUT)                     :: p1, p2
-    TYPE(realspace_grid_type)                :: rs
-    INTEGER, INTENT(INOUT)                   :: ipart, jpart
-
-    INTEGER                                  :: dir, lb, ndim, npos, ub
-    REAL(KIND=dp)                            :: charge
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-
-!------------------------------------------------------------------------------
-
-  p1 = 0
-  p2 = 0
-  IF ( rs % parallel .AND. rs % group_dim ( 1 ) /= 1 ) THEN
-    dir = rs % direction
-    lb = rs % lb_local ( dir ) + rs % border
-    ub = rs % ub_local ( dir ) - rs % border
-  END IF
-  IF ( rs % parallel ) THEN
-    ndim = rs % group_dim ( 2 )
-    npos = rs % group_coor ( 2 )
-  END IF
-
-  DO
-    ipart = ipart + 1
-    IF ( ipart > npart ) EXIT
-    atomic_kind => particle_set ( ipart ) % atomic_kind
-    CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
-    IF ( charge == 0.0_dp .AND. particle_set(ipart)%shell_index==0) CYCLE
-    IF ( rs % parallel ) THEN
-      IF ( rs % group_dim ( 1 ) == 1 ) THEN
-        ! All processor work on the same grid
-        IF ( MOD ( ipart, ndim ) == npos ) THEN
-          p1 = ipart
-          EXIT
-        END IF
-      ELSE
-        ! First check if this atom is on my grid
-        IF ( in_slice ( center ( dir, ipart ), lb, ub ) ) THEN
-          jpart = jpart + 1
-          IF ( MOD ( jpart, ndim ) == npos ) THEN
-            p1 = ipart
-            EXIT
-          END IF
-        END IF
-      END IF
-    ELSE
-      p1 = ipart
-      EXIT
-    END IF
-  END DO
-  DO
-    ipart = ipart + 1
-    IF ( ipart > npart ) EXIT
-    atomic_kind => particle_set ( ipart ) % atomic_kind
-    CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
-    IF ( charge == 0.0_dp .AND. particle_set(ipart)%shell_index==0) CYCLE
-    IF ( rs % parallel ) THEN
-      IF ( rs % group_dim ( 1 ) == 1 ) THEN
-        ! All processor work on the same grid
-        IF ( MOD ( ipart, ndim ) == npos ) THEN
-          p2 = ipart
-          EXIT
-        END IF
-      ELSE
-        ! First check if this atom is on my grid
-        IF ( in_slice ( center ( dir, ipart ), lb, ub ) ) THEN
-          jpart = jpart + 1
-          IF ( MOD ( jpart, ndim ) == npos ) THEN
-            p2 = ipart
-            EXIT
-          END IF
-        END IF
-      END IF
-    ELSE
-      p2 = ipart
-      EXIT
-    END IF
-  END DO
-
-END SUBROUTINE set_list
-
-!******************************************************************************
-
-FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
-
-
-    INTEGER, INTENT(IN)                      :: pos, lb, ub
-    LOGICAL                                  :: internal
-
-  IF ( pos >= lb .AND. pos <= ub ) THEN
-    internal = .TRUE.
-  ELSE
-    internal = .FALSE.
-  END IF
-
-END FUNCTION in_slice
-
-!!*****
-!******************************************************************************
-
-SUBROUTINE get_center ( particle_set, box, centre, npts )
-
-
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(cell_type), INTENT(IN)              :: box
-    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-
-    INTEGER                                  :: ipart
-    REAL(KIND=dp), DIMENSION(3)              :: s
-
-!------------------------------------------------------------------------------
-
-  DO ipart = 1, SIZE ( particle_set )
-    ! compute the scaled coordinate of atomi
-    s = MATMUL ( box % h_inv, particle_set ( ipart ) % r )
-    s = s - NINT ( s )
-    ! find the closest grid point (on big grid)
-    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 ) )
-  END DO
-
-END SUBROUTINE get_center
-
-!******************************************************************************
 
 END MODULE pme
 

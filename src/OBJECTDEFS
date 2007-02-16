@@ -179,13 +179,13 @@ OBJECTS_GENERIC =\
  input_cp2k_eip.o\
  input_cp2k_mm.o\
  input_cp2k_motion.o\
+ input_cp2k_poisson.o\
  input_cp2k_qmmm.o\
  input_cp2k_restarts.o\
  input_cp2k_subsys.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\
- input_poisson.o\
  input_section_types.o\
  input_val_types.o\
  integrator.o\
@@ -292,6 +292,7 @@ OBJECTS_GENERIC =\
  pint_methods.o\
  pint_types.o\
  pme.o\
+ pme_tools.o\
  preconditioner.o\
  pw_env_methods.o\
  pw_env_types.o\

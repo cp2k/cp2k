@@ -3,10 +3,10 @@
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_poisson *
+!!****h* cp2k/input_cp2k_poisson *
 !!
 !!   NAME
-!!     input_poisson
+!!     input_cp2k_poisson
 !!
 !!   FUNCTION
 !!     function that build the poisson section of the input
@@ -22,7 +22,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE input_poisson
+MODULE input_cp2k_poisson
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -44,7 +44,7 @@ MODULE input_poisson
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_poisson'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_poisson'
 
   PUBLIC :: create_poisson_section,&
             create_gspace_interp_section,&
@@ -53,7 +53,7 @@ MODULE input_poisson
 !****************************************************************************
 CONTAINS
 
-!!****f* input_poisson/create_poisson_section [1.0] *
+!!****f* input_cp2k_poisson/create_poisson_section [1.0] *
 !!
 !!   NAME
 !!     create_poisson_section
@@ -139,7 +139,7 @@ CONTAINS
 !***************************************************************************
 
 !***************************************************************************
-!!****f* input_poisson/create_multipole_section [1.0] *
+!!****f* input_cp2k_poisson/create_multipole_section [1.0] *
 !!
 !!   NAME
 !!     create_multipole_section
@@ -234,7 +234,7 @@ CONTAINS
   END SUBROUTINE create_multipole_section
 
 !***************************************************************************
-!!****f* input_poisson/create_screening_section [1.0] *
+!!****f* input_cp2k_poisson/create_screening_section [1.0] *
 !!
 !!   NAME
 !!     create_screening_section
@@ -460,7 +460,7 @@ SUBROUTINE create_ewald_section(section,error)
          enum_c_vals=s2a("DISTRIBUTED","REPLICATED"),&
          enum_desc=s2a("Better memory usage", "default"),&
          enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
-         default_i_val=do_rsgrid_replicated, error=error)
+         default_i_val=do_rsgrid_distributed, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -581,4 +581,4 @@ END SUBROUTINE create_ewald_section
   END SUBROUTINE create_gspace_interp_section
 !**************************************************************************
 
-END MODULE input_poisson
+END MODULE input_cp2k_poisson

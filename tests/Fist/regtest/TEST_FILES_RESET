@@ -241,3 +241,9 @@ nh3-restraint-fixd.inp
 water_3_g3x3.inp
 # resetting due to cvs problem with the server (created a wrong reference)
 H2O-restraint_1_ext.inp
+# Making distributed pme/spme grids the default
+water_3_dist_2.inp
+water_3_dist_3.inp
+water_3_dist.inp
+water_3_dist_inter2.inp
+water_3_g3x3.inp
