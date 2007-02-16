@@ -338,17 +338,17 @@ SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
   s = s - NINT ( s )
 
 ! find the continuous ``grid'' point (on big grid)
-! dbg
-!  npts = npts_b/2 * 2
-!  grid_i ( 1:3 ) = REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 )
   grid_i ( 1:3 ) = REAL ( npts_b ( 1:3 ),KIND=dp) * s ( 1:3 )
-! dbg
 
 ! find the closest grid point (on big grid)
   centre ( : ) = NINT ( grid_i ( : ) )
 
 ! find the distance vector
   delta ( : ) = ( grid_i ( : ) - centre ( : ) ) / REAL ( npts_s ( : ),KIND=dp)
+
+  centre ( : ) = centre ( : ) + npts_b(:)/2
+  centre ( : ) = MODULO ( centre ( : ), npts_b(:) )
+  centre ( : ) = centre ( : ) - npts_b(:)/2
 
 END SUBROUTINE dg_get_delta
 
