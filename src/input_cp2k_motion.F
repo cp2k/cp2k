@@ -992,6 +992,20 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EXCLUDE_QM",&
+            description="Does not shake HBONDS in the QM region within a QM/MM calculation",&
+            usage="EXCLUDE_QM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXCLUDE_MM",&
+            description="Does not shake HBONDS in the MM region within a QM/MM calculation",&
+            usage="EXCLUDE_MM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Real
        CALL keyword_create(keyword, name="TARGETS",&
             description="The constrained distances' values  for the types defines in ATOM_TYPE.",&

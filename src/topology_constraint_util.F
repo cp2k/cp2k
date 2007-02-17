@@ -136,7 +136,8 @@ CONTAINS
                                                 molecule_list
     LOGICAL :: failure, fix_atom_mm, fix_atom_molname, fix_atom_qm, &
       fix_atom_qmmm, fix_fixed_atom, ionode, ishbond, ldummy, &
-      restart_restraint_clv, restart_restraint_pos
+      restart_restraint_clv, restart_restraint_pos, is_qm,&
+      exclude_qm, exclude_mm
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
@@ -273,6 +274,8 @@ CONTAINS
        IF (ASSOCIATED(hdist)) THEN
           CPPostcondition(SIZE(hdist)==SIZE(atom_typeh),cp_failure_level,routineP,error,failure)
        END IF
+       CALL section_vals_val_get(hbonds_section,"exclude_qm",l_val=exclude_qm,error=error)
+       CALL section_vals_val_get(hbonds_section,"exclude_mm",l_val=exclude_mm,error=error)
        nhdist = 0
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
@@ -292,16 +295,20 @@ CONTAINS
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol)
-             ldummy = qmmm_ff_precond_only_qm(id1=name)
+             is_qm = qmmm_ff_precond_only_qm(id1=name)
              IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
+             IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
+             IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              IF (.NOT.ishbond) THEN
                 j = bond_list(k)%b
                 IF (j<1.OR.j>natom)CYCLE
                 atomic_kind => atom_list(j)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name,element_symbol=element_symbol)
-                ldummy = qmmm_ff_precond_only_qm(id1=name)
+                is_qm = qmmm_ff_precond_only_qm(id1=name)
                 IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
+                IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
+                IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              END IF
              IF (ishbond) THEN
                 nhdist = nhdist + 1
@@ -341,16 +348,20 @@ CONTAINS
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol)
-             ldummy = qmmm_ff_precond_only_qm(id1=name)
+             is_qm = qmmm_ff_precond_only_qm(id1=name)
              IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H"))    ishbond = .TRUE.
+             IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
+             IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              IF (.NOT.ishbond) THEN
                 j = bond_list(k)%b
                 IF (j<1.OR.j>natom)CYCLE
                 atomic_kind => atom_list(j)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name,element_symbol=element_symbol)
-                ldummy = qmmm_ff_precond_only_qm(id1=name)
+                is_qm = qmmm_ff_precond_only_qm(id1=name)
                 IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) ishbond = .TRUE.
+                IF(      is_qm .AND.exclude_qm) ishbond = .FALSE.
+                IF(.NOT.(is_qm).AND.exclude_mm) ishbond = .FALSE.
              END IF
              IF (ishbond) THEN
                 nhdist = nhdist + 1
