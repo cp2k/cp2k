@@ -253,3 +253,11 @@ water_3_dist_3.inp
 water_3_dist.inp
 water_3_dist_inter2.inp
 water_3_g3x3.inp
+# On a medium system size (80K atoms) distributed is slightly slower than replicated (< 10% for spme only).
+# Therefore restoring replicated as default and in case of memory problems the distributed grid is 
+# the right choice to go for..
+water_3_dist_2.inp
+water_3_dist_3.inp
+water_3_dist.inp
+water_3_dist_inter2.inp
+water_3_g3x3.inp

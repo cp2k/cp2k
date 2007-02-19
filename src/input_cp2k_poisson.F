@@ -460,7 +460,7 @@ SUBROUTINE create_ewald_section(section,error)
          enum_c_vals=s2a("DISTRIBUTED","REPLICATED"),&
          enum_desc=s2a("Better memory usage", "default"),&
          enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
-         default_i_val=do_rsgrid_distributed, error=error)
+         default_i_val=do_rsgrid_replicated, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
