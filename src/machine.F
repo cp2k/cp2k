@@ -37,6 +37,11 @@ MODULE machine
        m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
+#elif defined ( __GFORTRAN )
+  USE machine_gfortran, ONLY    : &
+       m_cputime, m_datum, m_flush, &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
+       m_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov
 #elif defined ( __INTEL )
   USE machine_intel, ONLY  : &
        m_cputime, m_datum, m_flush, &
