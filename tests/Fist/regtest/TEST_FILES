@@ -182,3 +182,6 @@ water_3_rg3x3_ext.inp     2
 NaCl_fe.inp               2
 # new constraints distance_difference
 water_3_ddist.inp         2
+# distributed grid for spme/pme
+JAC_distr.inp             2
+H2O-32_PME_distr.inp      2
