@@ -2,8 +2,8 @@
 &FORCE_EVAL
   METHOD QMMM
   &DFT
-    BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
+    BASIS_SET_FILE_NAME ../BASIS_SET
+    POTENTIAL_FILE_NAME ../POTENTIAL
     &MGRID
       COMMENSURATE
       CUTOFF 50
@@ -20,7 +20,7 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parmfile 2H2O.pot
+      parmfile ../sample_pot/2H2O.pot
       parmtype CHM
       &spline
        rcut_nb 5.2917720830
@@ -36,13 +36,13 @@
     &END POISSON
   &END MM
   &QMMM
+    MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
     &CELL
       ABC 7.0 7.0 7.0
       UNIT ANGSTROM
     &END CELL
     ECOUPL NONE
     NOCOMPATIBILITY
-    MM_POTENTIAL_FILE_NAME MM_POTENTIAL
     &QM_KIND H
       MM_INDEX 5 6
     &END QM_KIND
@@ -67,9 +67,9 @@
       POTENTIAL GTH-BLYP-q6
     &END KIND
     &TOPOLOGY
-      CONN_FILE 2H2O.psf
+      CONN_FILE ../sample_psf/2H2O.psf
       CONNECTIVITY UPSF
-      COORD_FILE 2H2O.pdb
+      COORD_FILE ../sample_pdb/2H2O.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

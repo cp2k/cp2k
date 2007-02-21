@@ -37,6 +37,7 @@ MODULE qmmm_electrostatic_methods
                                              do_qmmm_gauss,&
                                              do_qmmm_grid,&
                                              do_qmmm_none,&
+                                             do_qmmm_swave,&
                                              linear_interp,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
@@ -157,7 +158,7 @@ CONTAINS
        IF (qs_env%dft_control%qs_control%semi_empirical) THEN
           ! SEMIEMPIRICAL
           SELECT CASE(qmmm_env%qmmm_coupl_type)
-          CASE(do_qmmm_grid,do_qmmm_gauss)
+          CASE(do_qmmm_grid,do_qmmm_gauss,do_qmmm_swave)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="QM/MM electrostatic coupling not yet implemented for semiempirical.", &
                   error=error, error_level=cp_failure_level)
@@ -180,7 +181,7 @@ CONTAINS
                                              mm_particles=mm_particles,&
                                              mm_cell=mm_cell,&
                                              error=error)
-          CASE(do_qmmm_gauss)
+          CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) &
                   WRITE(iw,'(T2,"QMMM|",1X,A)')&
                   "QM/MM Coupling computed collocating the Gaussian Potential Functions."

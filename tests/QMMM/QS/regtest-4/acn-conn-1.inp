@@ -1,12 +1,12 @@
 &FORCE_EVAL
   METHOD QMMM
   &DFT
-    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
     CHARGE 0
     MULTIPLICITY 1
    
-    POTENTIAL_FILE_NAME POTENTIAL
-    RESTART_FILE_NAME RESTART
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    RESTART_FILE_NAME ../RESTART
     &MGRID
       CUTOFF 5
       COMMENSURATE
@@ -28,7 +28,7 @@
   &END DFT
   &MM
     &FORCEFIELD
-       PARMFILE acn.pot
+       PARMFILE ../sample_pot/acn.pot
        PARMTYPE CHM
     &END FORCEFIELD
     &POISSON
@@ -41,6 +41,7 @@
     &END POISSON
   &END MM
   &QMMM
+    MM_POTENTIAL_FILE_NAME ../MM_POTENTIAL
     &CELL
      UNITS ANGSTROM
      ABC 15.0 15.0 15.0
@@ -152,7 +153,7 @@
       &END
       DUMP_TOP
       MOL_CHECK
-      COORD_FILE solvated_system2.pdb
+      COORD_FILE ../sample_pdb/solvated_system2.pdb
       COORD pdb
     &END TOPOLOGY
     &KIND H

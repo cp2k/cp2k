@@ -39,6 +39,7 @@ MODULE qmmm_methods
                                              do_qmmm_gauss,&
                                              do_qmmm_grid,&
                                              do_qmmm_none,&
+                                             do_qmmm_swave,&
                                              linear_interp,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
@@ -187,7 +188,7 @@ CONTAINS
     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
        ! SEMIEMPIRICAL
        SELECT CASE(qmmm_env%qmmm_coupl_type)
-       CASE(do_qmmm_grid,do_qmmm_gauss)
+       CASE(do_qmmm_grid,do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="QM/MM forces not yet implemented for semiempirical.", &
                error=error, error_level=cp_failure_level)
@@ -242,7 +243,7 @@ CONTAINS
                                             Forces_added_charges=Forces_added_charges,&
                                             mm_cell=mm_cell,&
                                             error=error)
-          CASE(do_qmmm_gauss)
+          CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                   "- QM/MM Coupling computed collocating the Gaussian Potential Functions."
              CALL qmmm_forces_with_gaussian(rho=rho_tot_r,&
@@ -1617,7 +1618,7 @@ CONTAINS
                                                 mm_particles=mm_particles,&
                                                 mm_cell=mm_cell,&
                                                 error=error)
-             CASE(do_qmmm_gauss)
+             CASE(do_qmmm_gauss,do_qmmm_swave)
                 CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
                                                 v_qmmm=v_qmmm_rspace,&
                                                 mm_particles=mm_particles,&
@@ -1649,7 +1650,7 @@ CONTAINS
     END DO Atoms
 
     SELECT CASE(qmmm_env%qmmm_coupl_type)
-    CASE(do_qmmm_grid,do_qmmm_gauss)
+    CASE(do_qmmm_grid,do_qmmm_gauss,do_qmmm_swave)
        IF (iw>0) WRITE(iw,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
        DO I =  1, num_mm_atoms
           IndMM = mm_atom_index(I)

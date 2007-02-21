@@ -30,7 +30,8 @@ MODULE qmmm_per_elpot
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE input_constants,                 ONLY: do_qmmm_gauss,&
-                                             do_qmmm_grid
+                                             do_qmmm_grid,&
+                                             do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -102,11 +103,8 @@ CONTAINS
       n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: Ak, alpha, box(3), Fac(3), &
-                                                fs, g, g2, Gk, Gmax, &
-                                                mymaxradius, npl, npt, &
-                                                Prefactor, rc, rc2, Rmax, &
-                                                vec(3), vol
+    REAL(KIND=dp) :: Ak, alpha, box(3), Fac(3), fs, g, g2, Gk, Gmax, &
+      mymaxradius, npl, npt, Prefactor, rc, rc2, Rmax, tmp, vec(3), vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, Lg
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
@@ -128,7 +126,7 @@ CONTAINS
     Ndim    = (Kmax(1)+1)*(2*Kmax(2)+1)*(2*Kmax(3)+1)
     ig_start = 1
     n_rep_real = n_rep_real_val
-    IF (compatibility) ig_start = 2
+    IF (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)) ig_start = 2
 
     CPPrecondition(.NOT.ASSOCIATED(per_potentials),cp_failure_level,routineP,error,failure)
     ALLOCATE(per_potentials(SIZE(pgfs)),stat=stat)
@@ -143,7 +141,7 @@ CONTAINS
        CASE(do_qmmm_grid)
           ! Not yet implemented for this case
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       CASE(do_qmmm_gauss)
+       CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(Lg(Ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(gx(Ndim), stat=stat)
@@ -163,7 +161,7 @@ CONTAINS
        CASE(do_qmmm_grid)
           ! Not yet implemented for this case
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)          
-       CASE(do_qmmm_gauss)
+       CASE(do_qmmm_gauss,do_qmmm_swave)
 
           pgf => pgfs(K)%pgf
           idim = 0
@@ -183,7 +181,12 @@ CONTAINS
                       g2  =  DOT_PRODUCT(vec,vec)
                       rc2 =  rc*rc
                       g   =  SQRT(g2)
-                      LG (idim) = 4.0_dp*Pi/g2 * EXP(-(g2*rc2)/4.0_dp)
+                      IF     (qmmm_coupl_type==do_qmmm_gauss) THEN
+                         LG (idim) = 4.0_dp*Pi/g2 * EXP(-(g2*rc2)/4.0_dp)
+                      ELSEIF (qmmm_coupl_type==do_qmmm_swave) THEN
+                         tmp = 4.0_dp/rc2
+                         LG (idim) = 4.0_dp*Pi*tmp**2 / (g2*(g2+tmp)**2)
+                      END IF
                       DO Ig = ig_start, pgf%number_of_gaussians
                          Gk = pgf%Gk(Ig)
                          Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp

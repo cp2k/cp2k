@@ -30,7 +30,8 @@ MODULE qmmm_elpot
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE input_constants,                 ONLY: do_qmmm_gauss,&
-                                             do_qmmm_grid
+                                             do_qmmm_grid,&
+                                             do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -160,7 +161,7 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_grid)
           ALLOCATE(pot0_2(3,np), stat=stat)
-       CASE(do_qmmm_gauss)
+       CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(pot0_2(2,np), stat=stat)
        END SELECT
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -214,21 +215,34 @@ CONTAINS
                 CLOSE(21)
              END IF
           END IF
-          
-       CASE(do_qmmm_gauss)
-          pot0_2(1,1)= 2.0_dp/(rootpi*rc)
-          pot0_2(2,1)= 0.0_dp
-          x=0.0_dp
-          DO i=2,np
-             x=x+dx
-             pot0_2(1,i)=erf(x/rc)/x
-             t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
-             pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
-          END DO
+       CASE(do_qmmm_gauss,do_qmmm_swave)
+          IF     (qmmm_coupl_type==do_qmmm_gauss) THEN
+             ! Smooth Coulomb Potential ::  Erf(x/rc)/x
+             pot0_2(1,1)= 2.0_dp/(rootpi*rc)
+             pot0_2(2,1)= 0.0_dp
+             x=0.0_dp
+             DO i=2,np
+                x=x+dx
+                pot0_2(1,i)=erf(x/rc)/x
+                t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
+                pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
+             END DO
+          ELSEIF (qmmm_coupl_type==do_qmmm_swave) THEN
+             ! S-wave expansion :: 1/x - exp(-2*x/rc) * ( 1/x - 1/rc ) 
+             pot0_2(1,1)= 1.0_dp/rc
+             pot0_2(2,1)= 0.0_dp
+             x=0.0_dp
+             DO i=2,np
+                x=x+dx
+                t=EXP(-2.0_dp*x/rc)/rc
+                pot0_2(1,i)=(1.0_dp-t*(rc+x))/x
+                pot0_2(2,i)=((t*(rc**2+2.0_dp*rc*x+2.0_dp*x**2)/rc-1.0_dp)/x**2)*dx
+             END DO             
+          END IF
           pgf => pgfs(K)%pgf
           CPPostcondition(pgf%Elp_Radius==rc,cp_failure_level,routineP,error,failure)
           ig_start = 1
-          IF (compatibility) ig_start = 2
+          IF (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)) ig_start = 2
           DO Ig = ig_start, pgf%number_of_gaussians
              A = pgf%Ak(Ig)
              G = pgf%Gk(Ig)
@@ -253,14 +267,15 @@ CONTAINS
              IF (para_env%ionode) THEN 
                 OPEN(UNIT=21,FILE=FileName)
                 WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
-                WRITE(21,'(A,T10,A,T30,A,T211,A)')"#","Xval","Gaussians","LongRange"
+                WRITE(21,'(A,I5)')"# MM ELECTROSTATIC POTENTIAL - Nr. of Gaussians:",pgf%number_of_gaussians
+                WRITE(21,'(A,T10,A,T30,A,T300,A)')"#","Xval","Gaussians","LongRange"
                 myFormat = "T10,F15.9,T30,"
                 DO Ig=1,pgf%number_of_gaussians
                    myind = INDEX(myFormat," ")
                    WRITE(myFormat(myind:),'(A6)')"F12.9,"
                 END DO
                 myind = INDEX(myFormat," ")-1
-                myFormat = myFormat(1:myind)//"T211,F15.9"
+                myFormat = myFormat(1:myind)//"T300,F15.9"
                 myind = INDEX(myFormat," ")-1
                 x=0.0_dp
                 DO i=1,np
@@ -271,7 +286,6 @@ CONTAINS
                 CLOSE(21)
              END IF
           END IF
-
        CASE DEFAULT
           DEALLOCATE(potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)

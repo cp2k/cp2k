@@ -10,7 +10,8 @@ QS/regtest-ot-2
 Fist/regtest
 QMMM/SE/regtest
 QMMM/QS/regtest-1
-QMMM/QS/regtest-2
+QMMM/QS/regtest-2-erf
+QMMM/QS/regtest-2-swave
 QMMM/QS/regtest-3
 QMMM/QS/regtest-4
 QMMM/QS/regtest-gapw

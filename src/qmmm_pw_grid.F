@@ -21,7 +21,8 @@ MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_par_atom,&
-                                             do_qmmm_gauss
+                                             do_qmmm_gauss,&
+                                             do_qmmm_swave
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -94,7 +95,7 @@ CONTAINS
     failure = .FALSE.
     Maxdr   = TINY(0.0_dp)
     Mindr   = HUGE(0.0_dp)
-    IF (qmmm_env%qmmm_coupl_type == do_qmmm_gauss) THEN 
+    IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN 
        CALL pw_env_get(pw_env=pw_env,&
                        pw_pools=pw_pools,&
                        auxbas_grid=auxbas_grid,&

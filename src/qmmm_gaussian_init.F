@@ -31,7 +31,8 @@ MODULE qmmm_gaussian_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_constants,                 ONLY: do_qmmm_gauss
+  USE input_constants,                 ONLY: do_qmmm_gauss,&
+                                             do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -43,7 +44,8 @@ MODULE qmmm_gaussian_init
   USE qmmm_gaussian_data,              ONLY: max_geep_lib_gauss,&
                                              min_geep_lib_gauss
   USE qmmm_gaussian_input,             ONLY: read_mm_potential,&
-                                             set_mm_potential
+                                             set_mm_potential_erf,&
+                                             set_mm_potential_swave
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qs_util,                         ONLY: exp_radius
@@ -130,7 +132,7 @@ CONTAINS
           CPPostcondition(num_geep_gauss<=max_geep_lib_gauss,cp_failure_level,routineP,error,failure)          
        END IF
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_gauss)
+       CASE(do_qmmm_gauss,do_qmmm_swave)
           !
           ! Preprocessing...
           !
@@ -194,11 +196,16 @@ CONTAINS
           END IF
           !
           IF (use_geep_lib) THEN
-             CALL  set_mm_potential(qmmm_gaussian_fns, qm_cell_small,&
-                  compatibility, num_geep_gauss, error)
+             IF     (qmmm_coupl_type==do_qmmm_gauss) THEN
+                CALL  set_mm_potential_erf(qmmm_gaussian_fns, qm_cell_small,&
+                     compatibility, num_geep_gauss, error)
+             ELSEIF (qmmm_coupl_type==do_qmmm_swave) THEN
+                CALL  set_mm_potential_swave(qmmm_gaussian_fns, qm_cell_small,&
+                     num_geep_gauss, error)
+             END IF
           ELSE
              CALL read_mm_potential(para_env, qmmm_gaussian_fns, qm_cell_small,&
-                  compatibility, qmmm_section, error)
+                  (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)), qmmm_section, error)
           END IF
           !
           CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info,&
@@ -233,6 +240,5 @@ CONTAINS
        END SELECT
     END IF
   END SUBROUTINE qmmm_gaussian_initialize
-
 
 END MODULE qmmm_gaussian_init

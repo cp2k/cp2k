@@ -26,3 +26,5 @@ C4H10-qmmm-gauss-12.inp 1
 # hbonds selective constraints on QM and MM subsystems
 constr_hb_mm.inp  1
 constr_hb_qm.inp  1
+#constraints
+water_3_dist.inp               2

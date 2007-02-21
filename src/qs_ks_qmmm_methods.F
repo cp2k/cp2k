@@ -23,7 +23,8 @@ MODULE qs_ks_qmmm_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
-  USE input_constants,                 ONLY: do_qmmm_gauss
+  USE input_constants,                 ONLY: do_qmmm_gauss,&
+                                             do_qmmm_swave
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_retain
@@ -164,7 +165,7 @@ CONTAINS
        CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
-       IF (qmmm_env%qmmm_coupl_type.EQ.do_qmmm_gauss) THEN
+       IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
           CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
           ALLOCATE(cube_info(SIZE(pools)), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

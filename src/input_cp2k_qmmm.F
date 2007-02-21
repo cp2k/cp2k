@@ -137,7 +137,8 @@ CONTAINS
        CALL keyword_create(keyword, name="nocompatibility",&
             description="This keyword disables the compatibility of QM/MM "//&
             "potential between CPMD and CP2K implementations. The compatibility"//&
-            " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2] .",&
+            " is achieved using an MM potential of the form: Erf[x/rc]/x + (1/rc -2/(pi^1/2*rc))*Exp[-(x/rc)^2] ."//&
+            "This keyword has effect only selecting GAUSS or GRID QMMM type.",&
             usage="nocompatibility LOGICAL",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -179,11 +180,12 @@ CONTAINS
             variants=s2a("QMMM_COUPLING","ECOUPL"),& 
             description="Specifies the type of the QM - MM electrostatic coupling.",&
             usage="E_COUPL GAUSS",&
-            enum_c_vals=s2a( "NONE","GRID","GAUSS"),&
-            enum_i_vals=(/ do_qmmm_none, do_qmmm_grid, do_qmmm_gauss/),&
+            enum_c_vals=s2a( "NONE","GRID","GAUSS","S-WAVE"),&
+            enum_i_vals=(/ do_qmmm_none, do_qmmm_grid, do_qmmm_gauss, do_qmmm_swave/),&
             enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
                           "Using analytical collocation on the grids (for debugging/reference only)",&
-                          "Using fast gaussian expansion of he electrostatic potential (recommended)"),&
+                          "Using fast gaussian expansion of the electrostatic potential (Erf(r/rc)/r)",&
+                          "Using fast gaussian expansion of the s-wave electrostatic potential"),&
             default_i_val=do_qmmm_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
@@ -238,7 +240,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CORR_RADIUS",&
-            description="Specifies the correction radius of the atomic kinds [angstrom]",&
+            description="Specifies the correction radius of the atomic kinds [angstrom]."//&
+            " The correction radius is connected to the use of the compatibility keyword.",&
             usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
