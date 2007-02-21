@@ -187,7 +187,7 @@ CONTAINS
                extension=".efg",log_filename=.FALSE.,error=error)
 
     IF (unit_nr > 0) THEN
-      WRITE(unit_nr,"(/,A,/)") " ELECTRIC FIELD GRADIENTS [V/m^2]"
+      WRITE(unit_nr,"(/,A,/)") " ELECTRIC FIELD GRADIENTS [10**21 V/m^2]"
       IF (efg_interpolation) THEN
         WRITE(unit_nr,"(T16,A)") &
             " Smooth potential contribution calculated by spline interpolation"
