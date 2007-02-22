@@ -19,7 +19,7 @@
 !!     c_light     : Speed of light in vacuum [m/s]
 !!     e_charge    : Elementary charge [C]
 !!     e_mass      : Electron mass [kg]
-!!     e_gfactor   : Electron g factor []
+!!     e_gfactor   : Electron g factor [ ]
 !!     esu         : Conversion factors [a.u.] -> [esu]
 !!     evolt       : Conversion factor [a.u.] -> [eV]
 !!     femtoseconds: Conversion factor [a.u.] -> [fs]
@@ -142,7 +142,7 @@ CONTAINS
 
     e_mass = 9.10938188E-31_dp
 
-!   *** Electron g factor [] ***
+!   *** Electron g factor [ ] ***
 
     e_gfactor = -2.0023193043718_dp
 
@@ -286,8 +286,8 @@ CONTAINS
       "Elementary charge [C]",e_charge
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
       "Electron mass [kg]",e_mass
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Electron g factor []",e_gfactor
+    WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES21.14)")&
+      "Electron g factor [ ]",e_gfactor
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
       "Fine-structure constant",a_fine
     WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
