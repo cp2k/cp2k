@@ -345,7 +345,7 @@ CONTAINS
        DO i_rep=1,n_rep
          CALL section_vals_val_get(section,"NMOL",i_val=nmol,&
                                     i_rep_section=i_rep,error=error)
-         CALL section_vals_val_get(section,"CONN_FILE",c_val=filename,&
+         CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,&
                                     i_rep_section=i_rep,error=error)
          DO imol=1,nmol
            CALL read_topology_psf(filename,topology,para_env,subsys_section,&

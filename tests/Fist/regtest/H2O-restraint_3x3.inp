@@ -3,7 +3,7 @@
    METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/water_fake.pot
+      parm_file_name ../sample_pot/water_fake.pot
       parmtype CHM
       &CHARGE
         ATOM OT
@@ -29,7 +29,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      COORD_FILE ../sample_pdb/water_1.pdb
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

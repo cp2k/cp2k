@@ -226,7 +226,7 @@ CONTAINS
                coords((j-1)*3+1:(j-1)*3+3,i) = rptr(1:3)
              END DO
           ELSE
-             CALL section_vals_val_get(replica_section,"XYZ_COORD_FILENAME",&
+             CALL section_vals_val_get(replica_section,"COORD_FILE_NAME",&
                   i_rep_section=i,c_val=filename,error=error)
              CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
              CALL parser_create(parser,filename,para_env=para_env,error=error)

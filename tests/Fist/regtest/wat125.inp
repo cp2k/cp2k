@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/wat125.pot
+      parm_file_name ../sample_pot/wat125.pot
       parmtype CHM
       &spline
         EMAX_SPLINE 1.0
@@ -32,10 +32,10 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      COORD_FILE ../sample_xyz/wat125.xyz
+      COORD_FILE_NAME ../sample_xyz/wat125.xyz
       COORDINATE XYZ
       CONNECTIVITY PSF
-      CONN_FILE ../sample_psf/wat125.psf
+      CONN_FILE_NAME ../sample_psf/wat125.psf
       DUMP_TOP
     &END TOPOLOGY
   &END SUBSYS

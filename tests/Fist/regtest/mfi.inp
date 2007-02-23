@@ -79,7 +79,7 @@
     &END CELL
     &TOPOLOGY
         COORDINATE XYZ
-        COORD_FILE ../sample_xyz/mfi.xyz
+        COORD_FILE_NAME ../sample_xyz/mfi.xyz
         &GENERATE
             CREATE_MOLECULES T
         &END GENERATE

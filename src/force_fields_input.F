@@ -128,7 +128,7 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(ff_section,"PARMTYPE",c_val=ff_type%ff_type,error=error)
-       CALL section_vals_val_get(ff_section,"PARMFILE",c_val=ff_type%ff_file_name,error=error)
+       CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name,error=error)
        CALL section_vals_val_get(ff_section,"EI_SCALE14",r_val=ff_type%ei_scale14,error=error)
        CALL section_vals_val_get(ff_section,"VDW_SCALE14",r_val=ff_type%vdw_scale14,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%RCUT_NB",r_val=ff_type%rcut_nb,error=error)
@@ -495,7 +495,7 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
+       CALL section_vals_val_get(section,"PARM_FILE_NAME",i_rep_section=isec,&
             c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
        CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, para_env,  mm_section,error)
        nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%eam%acutal**2

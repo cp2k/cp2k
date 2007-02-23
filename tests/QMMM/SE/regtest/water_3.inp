@@ -11,7 +11,7 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parmfile ../../../Fist/sample_pot/water.pot
+      parm_file_name ../../../Fist/sample_pot/water.pot
       parmtype CHM
       &CHARGE
         ATOM OT
@@ -49,7 +49,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      COORD_FILE ../../../Fist/sample_pdb/water_2.pdb
+      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

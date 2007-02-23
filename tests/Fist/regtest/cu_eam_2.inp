@@ -9,7 +9,7 @@
       &NONBONDED
         &EAM
           atoms Cu Cu
-          PARMFILE ../EAM_LIB/CU.pot
+          PARM_FILE_NAME ../EAM_LIB/CU.pot
         &END EAM
       &END NONBONDED
     &END FORCEFIELD

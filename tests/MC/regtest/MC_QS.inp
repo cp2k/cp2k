@@ -51,7 +51,7 @@
     &TOPOLOGY
       &MOL_SET
         NMOL 3
-        CONN_FILE topology_atoms_WAT.psf
+        CONN_FILE_NAME topology_atoms_WAT.psf
       &END
       CONNECTIVITY MOL_SET
     &END TOPOLOGY

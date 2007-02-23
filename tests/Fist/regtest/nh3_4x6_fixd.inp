@@ -6,7 +6,7 @@
       &spline
        rcut_nb 6.9
       &end
-      parmfile ../sample_pot/charmm.pot
+      parm_file_name ../sample_pot/charmm.pot
       parmtype CHM
       &CHARGE
         ATOM NH3

@@ -119,9 +119,9 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
         CALL section_vals_val_get(topology_section,"COORD_FILE",c_val=topology % coord_file_name,&
              error=error)
      END IF
-     CALL section_vals_val_get(topology_section,"CONN_FILE",n_rep_val=n_rep, error=error)
+     CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",n_rep_val=n_rep, error=error)
      IF (n_rep /=0) THEN
-        CALL section_vals_val_get(topology_section,"CONN_FILE",c_val=topology % conn_file_name,error=error)
+        CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",c_val=topology % conn_file_name,error=error)
      END IF
      ! Enumeration
      CALL section_vals_val_get(topology_section,"COORDINATE",i_val=topology % coord_type ,error=error)

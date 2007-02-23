@@ -432,7 +432,7 @@
       ELEMENT H
     &END KIND
     &TOPOLOGY
-      CONN_FILE ../sample_psf/sio2.psf
+      CONN_FILE_NAME ../sample_psf/sio2.psf
       CONNECTIVITY UPSF
     &END TOPOLOGY
   &END SUBSYS

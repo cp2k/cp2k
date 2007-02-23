@@ -3517,9 +3517,9 @@ SUBROUTINE create_band_section(section,error)
        CALL section_create(subsection,name="replica",&
             description="Specify coordinates and velocities (possibly) of the replica",&
             repeats=.TRUE., required=.TRUE., error=error)
-       CALL keyword_create(keyword, name="XYZ_COORD_FILENAME",&
+       CALL keyword_create(keyword, name="COORD_FILE_NAME",&
             description="Name of the xyz file with coordinates (alternative to &COORD section)",&
-            usage="XYZ_COORD_FILENAME <CHAR>",&
+            usage="COORD_FILE_NAME <CHAR>",&
             default_lc_val="",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

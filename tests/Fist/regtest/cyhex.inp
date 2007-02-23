@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/cyhex.pot
+      parm_file_name ../sample_pot/cyhex.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON
@@ -21,7 +21,7 @@
     &END CELL
     &TOPOLOGY
       CHARGE_BETA
-      CONN_FILE ../sample_psf/cyhex.psf
+      CONN_FILE_NAME ../sample_psf/cyhex.psf
       CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/cyhex.pdb
       COORDINATE PDB

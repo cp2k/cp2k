@@ -20,7 +20,7 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/2H2O.pot
+      parm_file_name ../sample_pot/2H2O.pot
       parmtype CHM
       &spline
        rcut_nb 5.2917720830
@@ -67,9 +67,9 @@
       POTENTIAL GTH-BLYP-q6
     &END KIND
     &TOPOLOGY
-      CONN_FILE ../sample_psf/2H2O.psf
+      CONN_FILE_NAME ../sample_psf/2H2O.psf
       CONNECTIVITY UPSF
-      COORD_FILE ../sample_pdb/2H2O.pdb
+      COORD_FILE_NAME ../sample_pdb/2H2O.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

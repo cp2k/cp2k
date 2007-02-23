@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/NaCl_wat.pot
+      parm_file_name ../sample_pot/NaCl_wat.pot
       parmtype CHM
       &CHARGE
         ATOM OT
@@ -28,9 +28,9 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      COORD_FILE ../sample_pdb/NaCl_wat.pdb
+      COORD_FILE_NAME ../sample_pdb/NaCl_wat.pdb
       COORDINATE pdb
-      CONN_FILE  ../sample_psf/NaCl_wat.psf
+      CONN_FILE_NAME  ../sample_psf/NaCl_wat.psf
       CONNECTIVITY PSF
     &END TOPOLOGY
     &COLVAR

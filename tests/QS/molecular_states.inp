@@ -32,7 +32,7 @@
     &END KIND
     &TOPOLOGY
       CONNECTIVITY generate
-      COORD_FILE sample_pdb/water_32.pdb
+      COORD_FILE_NAME sample_pdb/water_32.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

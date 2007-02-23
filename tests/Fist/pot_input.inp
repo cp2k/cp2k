@@ -262,7 +262,7 @@
     &END CELL
     &TOPOLOGY
       CHARGE_B
-      COORD_FILE sample_pdb/butane.pdb
+      COORD_FILE_NAME sample_pdb/butane.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

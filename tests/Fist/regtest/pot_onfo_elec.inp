@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/pot_onfo.pot
+      parm_file_name ../sample_pot/pot_onfo.pot
       parmtype CHM
       ei_scale14 1.0
     &END FORCEFIELD
@@ -23,7 +23,7 @@
     &END CELL
     &TOPOLOGY
       CHARGE_O
-      COORD_FILE ../sample_pdb/butane.pdb
+      COORD_FILE_NAME ../sample_pdb/butane.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

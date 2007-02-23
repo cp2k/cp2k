@@ -33,7 +33,7 @@
   &END DFT
   &MM
     &FORCEFIELD
-       PARMFILE ../sample_pot/acn.pot
+       PARM_FILE_NAME ../sample_pot/acn.pot
        PARMTYPE CHM
     &END FORCEFIELD
     &POISSON
@@ -94,8 +94,8 @@
       CONNECTIVITY GENERATE
       DUMP_TOP
       MOL_CHECK
-      COORD_FILE ../sample_pdb/solvated_system.pdb
-      COORD pdb
+      COORD_FILE_NAME ../sample_pdb/solvated_system.pdb
+      COORDINATE pdb
     &END TOPOLOGY
     &KIND Cl
       BASIS_SET TZV2P-GTH

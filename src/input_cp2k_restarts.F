@@ -816,7 +816,7 @@ CONTAINS
           END DO
           ! Write Values
           DO isec = 1, SIZE(coords,2)
-             CALL section_vals_val_unset(replica_section,"XYZ_COORD_FILENAME",i_rep_section=isec,error=error) 
+             CALL section_vals_val_unset(replica_section,"COORD_FILE_NAME",i_rep_section=isec,error=error) 
              work_section => section_vals_get_subs_vals3(replica_section,"COORD",i_rep_section=isec,error=error)
              CALL section_neb_coord_val_set(work_section,coords(:,isec),SIZE(coords,1),error)
           END DO

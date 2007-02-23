@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/par_all27_prot_lipid.inp
+      parm_file_name ../sample_pot/par_all27_prot_lipid.inp
       parmtype CHM
       &spline
        rcut_nb 9.0

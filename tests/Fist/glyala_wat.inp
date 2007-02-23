@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile sample_pot/glyala_wat.pot
+      parm_file_name sample_pot/glyala_wat.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON_MM

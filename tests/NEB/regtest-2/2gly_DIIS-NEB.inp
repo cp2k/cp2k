@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../amber/mol.pot
+      parm_file_name ../amber/mol.pot
       parmtype CHM
       &SPLINE
         EMAX_ACCURACY 1.0
@@ -36,7 +36,7 @@
       COORD_FILE_NAME ../amber/mol.pdb
       COORDINATE PDB
       CONNECTIVITY UPSF
-      CONN_FILE  ../amber/mol.psf
+      CONN_FILE_NAME  ../amber/mol.psf
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
@@ -73,19 +73,19 @@
       &END
     &END
     &REPLICA
-      XYZ_COORD_FILENAME  ../amber/MOL.0.xyz
+      COORD_FILE_NAME  ../amber/MOL.0.xyz
     &END
     &REPLICA
-      XYZ_COORD_FILENAME  ../amber/MOL.1.xyz
+      COORD_FILE_NAME  ../amber/MOL.1.xyz
     &END
     &REPLICA
-      XYZ_COORD_FILENAME  ../amber/MOL.2.xyz
+      COORD_FILE_NAME  ../amber/MOL.2.xyz
     &END
     &REPLICA
-      XYZ_COORD_FILENAME  ../amber/MOL.3.xyz
+      COORD_FILE_NAME  ../amber/MOL.3.xyz
     &END
     &REPLICA
-      XYZ_COORD_FILENAME  ../amber/MOL.4.xyz
+      COORD_FILE_NAME  ../amber/MOL.4.xyz
     &END
     &PROGRAM_RUN_INFO 
     &END

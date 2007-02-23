@@ -54,9 +54,9 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE ../sample_psf/ipbv.psf
+      CONN_FILE_NAME ../sample_psf/ipbv.psf
       CONNECTIVITY UPSF
-      COORD_FILE ipbv.pdb
+      COORD_FILE_NAME ipbv.pdb
       COORDINATE pdb
       NHCOPT MOLECULE
     &END TOPOLOGY

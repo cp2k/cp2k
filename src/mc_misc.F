@@ -1038,13 +1038,13 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
         WRITE(unit,10000) "      &MOL_SET"
         SELECT CASE ( force_env%in_use )
         CASE ( use_fist_force )
-           WRITE(unit,10000) '        CONN_FILE topology_fist_' &
+           WRITE(unit,10000) '        CONN_FILE_NAME topology_fist_' &
                 // TRIM(ADJUSTL(mol_name)) // '.psf'
         CASE ( use_qs_force )
-           WRITE(unit,10000) '        CONN_FILE topology_atoms_' &
+           WRITE(unit,10000) '        CONN_FILE_NAME topology_atoms_' &
                 // TRIM(ADJUSTL(mol_name)) // '.psf'
         CASE ( use_kg_force )
-           WRITE(unit,10000) '        CONN_FILE topology_atoms_' &
+           WRITE(unit,10000) '        CONN_FILE_NAME topology_atoms_' &
                 // TRIM(ADJUSTL(mol_name)) // '.psf'
         CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)

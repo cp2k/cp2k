@@ -584,7 +584,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
               c_val=restart_file_name , ignore_required=.TRUE., error=error)
          CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
               c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
-         CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE",&
+         CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
               c_val=coord_file_name, ignore_required=.TRUE., error=error)
          CALL integer_to_string(iforce_eval,env_num)
 

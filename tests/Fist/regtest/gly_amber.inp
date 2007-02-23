@@ -9,7 +9,7 @@
       ! PARM94 and Following
       VDW_SCALE14 0.5 
       EI_SCALE14  0.8333333
-      parmfile ../sample_pot/gly.pot
+      parm_file_name ../sample_pot/gly.pot
       parmtype CHM
       scale_cutoff .false.
     &END FORCEFIELD
@@ -27,7 +27,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE ../sample_psf/gly.psf
+      CONN_FILE_NAME ../sample_psf/gly.psf
       CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/gly.pdb
       COORDINATE PDB

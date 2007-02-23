@@ -271,9 +271,9 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PARMFILE",&
+       CALL keyword_create(keyword, name="PARM_FILE_NAME",&
             description="Specifies the filename that contains the parameters of the FF.",&
-            usage="PARMFILE {FILENAME}",default_lc_val=" ",error=error)
+            usage="PARM_FILE_NAME {FILENAME}",default_lc_val=" ",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1144,9 +1144,10 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PARMFILE",&
+       CALL keyword_create(keyword, name="PARM_FILE_NAME",&
+            variants=(/"PARMFILE"/),&
             description="Specifies the filename that contains the parameters of the EAM FF.",&
-            usage="PARMFILE {FILENAME}",default_lc_val=" ",error=error)
+            usage="PARM_FILE_NAME {FILENAME}",default_lc_val=" ",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

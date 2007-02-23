@@ -2,7 +2,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-       PARMFILE ../sample_pot/acn.pot 
+       PARM_FILE_NAME ../sample_pot/acn.pot 
        PARMTYPE CHM
        &CHARGE
         ATOM CT
@@ -47,8 +47,8 @@
       &END
       DUMP_TOP
       MOL_CHECK
-      COORD_FILE acn.pdb
-      COORD      pdb
+      COORD_FILE_NAME acn.pdb
+      COORDINATE      pdb
     &END TOPOLOGY
   &END SUBSYS
   &PRINT

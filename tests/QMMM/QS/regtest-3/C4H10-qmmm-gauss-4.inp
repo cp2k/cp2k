@@ -20,7 +20,7 @@
   &END DFT
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/butane.pot
+      parm_file_name ../sample_pot/butane.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON
@@ -97,7 +97,7 @@
     &END KIND
     &TOPOLOGY
       CHARGE_BETA
-      COORD_FILE ../sample_pdb/butane.pdb
+      COORD_FILE_NAME ../sample_pdb/butane.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

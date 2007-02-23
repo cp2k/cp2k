@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/cycbut.pot
+      parm_file_name ../sample_pot/cycbut.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON
@@ -43,7 +43,7 @@
     &END
     &TOPOLOGY
       CHARGE_BETA
-      CONN_FILE ../sample_psf/cycbut.psf
+      CONN_FILE_NAME ../sample_psf/cycbut.psf
       CONNECTIVITY UPSF
       COORD_FILE_NAME ../sample_pdb/cycbut.pdb
       COORDINATE PDB

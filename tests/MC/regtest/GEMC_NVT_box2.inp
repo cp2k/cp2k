@@ -109,11 +109,11 @@
       CONNECTIVITY MOL_SET
       &MOL_SET
         NMOL 6
-        CONN_FILE topology_fist_WAT.psf
+        CONN_FILE_NAME topology_fist_WAT.psf
       &END
       &MOL_SET
         NMOL 5
-        CONN_FILE topology_fist_ARG.psf
+        CONN_FILE_NAME topology_fist_ARG.psf
       &END
     &END
   &END SUBSYS

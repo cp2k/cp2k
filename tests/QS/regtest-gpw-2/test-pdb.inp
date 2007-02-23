@@ -42,7 +42,7 @@
       PERIODIC NONE
     &END CELL
     &TOPOLOGY
-      COORD_FILE qm-subsys.pdb
+      COORD_FILE_NAME qm-subsys.pdb
       COORDINATE PDB
     &END TOPOLOGY
     &KIND H

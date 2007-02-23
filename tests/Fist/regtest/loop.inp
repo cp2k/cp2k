@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/loop.pot
+      parm_file_name ../sample_pot/loop.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON
@@ -29,7 +29,7 @@
       COORD_FILE_NAME ../sample_pdb/loop.pdb
       COORDINATE PDB
       CONNECTIVITY UPSF
-      CONN_FILE  ../sample_psf/loop.psf
+      CONN_FILE_NAME  ../sample_psf/loop.psf
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

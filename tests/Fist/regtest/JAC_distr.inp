@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/par_all27_prot_lipid.inp
+      parm_file_name ../sample_pot/par_all27_prot_lipid.inp
       parmtype CHM
       &spline
        rcut_nb 9.0
@@ -25,9 +25,9 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE ../sample_psf/5dhfr_cube.psf
+      CONN_FILE_NAME ../sample_psf/5dhfr_cube.psf
       CONNECTIVITY UPSF
-      COORD_FILE ../sample_pdb/5dhfr_cube.pdb
+      COORD_FILE_NAME ../sample_pdb/5dhfr_cube.pdb
       COORDINATE PDB
       PARA_RES
     &END TOPOLOGY

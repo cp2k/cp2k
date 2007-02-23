@@ -9,7 +9,7 @@
   &SUBSYS
     &TOPOLOGY
       CONNECTIVITY UPSF
-      CONN_FILE ../sample_psf/../sample_psf/../sample_psf/topo.psf
+      CONN_FILE_NAME ../sample_psf/../sample_psf/../sample_psf/topo.psf
     &END TOPOLOGY
     &KIND F3
         ELEMENT FE
@@ -894,7 +894,7 @@
   &SUBSYS
     &TOPOLOGY
       CONNECTIVITY UPSF
-      CONN_FILE ../sample_psf/../sample_psf/../sample_psf/topo.psf
+      CONN_FILE_NAME ../sample_psf/../sample_psf/../sample_psf/topo.psf
     &END TOPOLOGY
     &KIND F3
         ELEMENT FE
@@ -1779,7 +1779,7 @@
   &SUBSYS
     &TOPOLOGY
       CONNECTIVITY UPSF
-      CONN_FILE ../sample_psf/../sample_psf/../sample_psf/topo.psf
+      CONN_FILE_NAME ../sample_psf/../sample_psf/../sample_psf/topo.psf
     &END TOPOLOGY
     &KIND F3
         ELEMENT FE

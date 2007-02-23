@@ -1113,23 +1113,22 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        ! Character
-       CALL keyword_create(keyword, name="COORD_FILE",&
-            variants=s2a("COORD_FI", "COORD_FILE_NAME"),&
+       CALL keyword_create(keyword, name="COORD_FILE_NAME",&
+            variants=s2a("COORD_FILE"),&
             description="Specifies the filename that contains coordinates.",&
             usage="COORD_FILE FILENAME",required=.TRUE.,type_of_var=lchar_t,&
             default_lc_val="UNSET",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONN_FILE",&
-            variants=(/"CONN_FIL"/),&
+       CALL keyword_create(keyword, name="CONN_FILE_NAME",&
+            variants=(/"CONN_FILE"/),&
             description="Specifies the filename that contains the molecular connectivity.",&
-            usage="CONN_FILE FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
+            usage="CONN_FILE_NAME FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
        CALL keyword_create(keyword, name="COORDINATE",&
-            variants=s2a( "COORDINA", "COORD"),&
             description="Set up the way in which coordinates will be read.",&
             usage="COORDINATE (PDB||XYZ||G96||OFF)", &
             enum_c_vals=s2a( "PDB","XYZ","G96","OFF"),&
@@ -1143,7 +1142,6 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
  
        CALL keyword_create(keyword, name="CONNECTIVITY",&
-            variants=(/ "CONNECTI"/),&
             description="Ways to determine and generate a molecules. "// &
             "Default is to use GENERATE",&
             usage="CONNECTIVITY (PSF||UPSF||MOL_SET||GENERATE||OFF||G87||G96)", &
@@ -1388,9 +1386,9 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONN_FILE",&
+       CALL keyword_create(keyword, name="CONN_FILE_NAME",&
             description="filename that contains the molecular connectivity.",&
-            usage="CONN_FILE FILENAME",required=.TRUE.,&
+            usage="CONN_FILE_NAME FILENAME",required=.TRUE.,&
             type_of_var=lchar_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

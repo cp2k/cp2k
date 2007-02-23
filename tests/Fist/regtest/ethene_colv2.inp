@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/charmm.pot
+      parm_file_name ../sample_pot/charmm.pot
       parmtype CHM
       &CHARGE
         ATOM CE2
@@ -29,7 +29,7 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      COORD_FILE ../sample_pdb/ethene.pdb
+      COORD_FILE_NAME ../sample_pdb/ethene.pdb
       COORDINATE pdb
     &END TOPOLOGY
     &COLVAR

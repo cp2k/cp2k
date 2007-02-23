@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/arginine.pot
+      parm_file_name ../sample_pot/arginine.pot
       parmtype CHM
     &END FORCEFIELD
     &POISSON

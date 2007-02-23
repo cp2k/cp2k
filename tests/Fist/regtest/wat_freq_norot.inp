@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile ../sample_pot/water.pot
+      parm_file_name ../sample_pot/water.pot
       parmtype CHM
       &CHARGE
         ATOM OT
