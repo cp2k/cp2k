@@ -348,6 +348,12 @@ OBJECTS_GENERIC =\
  qs_ks_qmmm_methods.o\
  qs_ks_qmmm_types.o\
  qs_ks_types.o\
+ qs_linres_epr_atom_current.o\
+ qs_linres_epr_bind0.o\
+ qs_linres_epr_current.o\
+ qs_linres_epr_op.o\
+ qs_linres_epr_ownutils.o\
+ qs_linres_epr_utils.o\
  qs_linres_methods.o\
  qs_linres_module.o\
  qs_linres_nmr_atom_current.o\

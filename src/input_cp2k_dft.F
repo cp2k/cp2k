@@ -4550,6 +4550,11 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       NULLIFY(subsection) !R
+       CALL create_epr_section(subsection,error=error) !R
+       CALL section_add_subsection(section,subsection,error=error) !R
+       CALL section_release(subsection,error=error) !R
+
        CALL section_create(subsection,"PRINT","printing of information during the XAS calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
@@ -4729,6 +4734,127 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_nmr_section
+
+  SUBROUTINE create_epr_section(section,error) !R
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_epr_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+    NULLIFY(keyword,print_key, subsection)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="epr",&
+            description="The g tensor is calculated by DFPT ",&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+           description="controls the activation of the epr calculation",&
+           usage="&EPR T",&
+           default_l_val=.FALSE.,&
+           lone_keyword_l_val=.TRUE.,&
+           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FULL",&
+            description="Calculate the orbital dependent correction "//&
+            " to get the full current density", usage="FULL",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART_EPR",&
+            description="Restart the EPR calculation from a previous run",&
+            usage="RESTART_EPR",default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="PRINT",&
+            description="print results of epr calculation",&
+            error=error,repeats=.FALSE.,required=.FALSE.)
+ 
+       CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
+            description="Controls the printing of the current density ", &
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+ 
+       CALL cp_print_key_section_create(print_key,"NABLAVKS_CUBES",&
+            description="Controls the printing of the components of nabla v_ks ", &
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+ 
+       CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
+            description="Controls the printing of the response functions ", &
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+ 
+       CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
+            variants=(/"CUBES_LU"/),&
+            description="The lower and upper index of the states to be printed as cube",&
+            usage="CUBES_LU_BOUNDS integer integer",&
+            n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+ 
+       CALL keyword_create(keyword,name="CUBES_LIST",&
+            description="Indexes of the states to be printed as cube files"//&
+            "This keyword can be repeated several times"//&
+            "(useful if you have to specify many indexes).",&
+            usage="CUBES_LIST 1 2",&
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+ 
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+ 
+       NULLIFY(subsection)
+       CALL create_interp_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+ 
+     END IF
+
+  END SUBROUTINE create_epr_section
+
 
   !!****f* input_cp2k_dft/create_kg_section *
   !!

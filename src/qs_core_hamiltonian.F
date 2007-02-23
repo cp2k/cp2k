@@ -251,7 +251,8 @@ CONTAINS
                           build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
                           return_s_derivatives,return_t_derivatives,&
-                          oce_present, rho0_present, harris_flag, xas_calculation
+                          oce_present, rho0_present, harris_flag, xas_calculation,&
+                          epr_calculation
 
     REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
     REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
@@ -558,13 +559,17 @@ CONTAINS
 !    call section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",l_val=xas_calculation)
     CALL section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos,error=error)
     xas_calculation = (added_mos>0)
+    
+    ! The g tensor needs the kinetic matrix !R
+    CALL section_vals_val_get(qs_env%input,& !R
+      "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr_calculation,error=error) !R
 
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
-                                   cp_print_key_should_output(logger%iter_info,&
+         cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error)/=0.OR.&
-                                    cp_print_key_should_output(logger%iter_info,&
+         cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error)/=0.OR.&
-                                   lr_precond == lr_precond_kinetic .OR. xas_calculation)
+         lr_precond == lr_precond_kinetic .OR. xas_calculation .OR. epr_calculation)
     ! assume false by default
     return_t_derivatives = .FALSE.
 

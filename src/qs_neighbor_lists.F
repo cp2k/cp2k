@@ -153,7 +153,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
     LOGICAL :: all_pairs_list, all_potential_present, cls, &
-      gth_potential_present, mic, molecule_only, nmr, paw_atom, &
+      gth_potential_present, mic, molecule_only, nmr, epr, paw_atom, & !R 
       paw_atom_present, print_subcell_grid, rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, oce_present, &
       orb_present, ppl_present, ppnl_present, Qlm_present, semi_present
@@ -231,7 +231,9 @@ CONTAINS
             "DFT%XAS%_SECTION_PARAMETERS_", l_val=cls,error=error)
     CALL section_vals_val_get(qs_env%input,&
             "PROPERTIES%LINRES%NMR%_SECTION_PARAMETERS_",l_val=nmr,error=error)
-    IF(cls .OR. nmr) THEN
+    CALL section_vals_val_get(qs_env%input,& !R
+            "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr,error=error) !R
+    IF(cls .OR. nmr .OR. epr) THEN !R
        all_pairs_list = .TRUE.
     ELSE
        all_pairs_list = .FALSE.

@@ -457,7 +457,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: xas_scf_default=0,xas_scf_general=1, xas_scf_ot=2
 
   ! Linear Response for properties
-  INTEGER, PARAMETER, PUBLIC :: lr_none=0, lr_chemshift=1
+  INTEGER, PARAMETER, PUBLIC :: lr_none=0, lr_chemshift=1, lr_gtensor=2 !R
   INTEGER, PARAMETER, PUBLIC :: lr_cg=1, lr_diis=2, lr_sd=3
   INTEGER, PARAMETER, PUBLIC :: lr_precond_none=0, &
                                 lr_precond_single=1, &
