@@ -64,8 +64,7 @@ MODULE semi_empirical_parameters
 
 ! *** Public subroutines ***
 
-  PUBLIC :: eht_default_parameter, &
-            mndo_default_parameter, &
+  PUBLIC :: mndo_default_parameter, &
             am1_default_parameter, &
             pdg_default_parameter, &
             pm3_default_parameter,&
@@ -75,38 +74,6 @@ MODULE semi_empirical_parameters
 ! *****************************************************************************
 
 CONTAINS
-
-! *****************************************************************************
-
-  SUBROUTINE eht_default_parameter ( sep, z )
-
-    TYPE(semi_empirical_type), POINTER       :: sep
-    INTEGER                                  :: z
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'eht_default_parameter'
-
-    INTEGER, DIMENSION(0:3)                  :: norb
-    REAL(dp), DIMENSION(1, 0:3)              :: alpha
-
-! -----------------------------------------------------------------------------
-
-    sep%typ = "EHT"
-    sep%name = ptable(z)%name
-    sep%z = z
-    CALL valence_electrons ( z, sep%zeff, sep%natorb )
-    norb=0
-    IF(sep%natorb >= 1) norb(0)=1
-    IF(sep%natorb >= 4) norb(1)=1
-    IF(sep%natorb >= 9) norb(2)=1
-    IF(sep%natorb >=16) norb(3)=1
-    CALL slater_exponents ( z, norb, alpha, 1 ) 
-    sep%sto_exponents(0:3) = alpha(1,0:3)
-    sep%beta(0:3) = ptable(z)%eht_param(0:3)/evolt
-    IF ( ABS ( SUM (sep%beta(0:3)) ) > 0._dp ) sep%defined = .TRUE.
-    sep%ngauss = 6
-    sep%eheat = ptable(z)%heat_of_formation / kcalmol
-
-  END SUBROUTINE eht_default_parameter
 
 ! *****************************************************************************
 

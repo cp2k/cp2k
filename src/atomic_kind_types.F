@@ -45,7 +45,6 @@ MODULE atomic_kind_types
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_method_am1,&
-                                             do_method_eht,&
                                              do_method_mndo,&
                                              do_method_pdg,&
                                              do_method_pm3,&
@@ -1509,7 +1508,7 @@ CONTAINS
        CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=qs_method,&
             error=error)
        SELECT CASE (qs_method)
-       CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+       CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
           no_fail = .TRUE.
        END SELECT
     END IF

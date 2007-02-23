@@ -37,7 +37,6 @@ MODULE semi_empirical_utils
                                              evolt,&
                                              kcalmol
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
-                                             eht_default_parameter,&
                                              mndo_default_parameter,&
                                              pdg_default_parameter,&
                                              pm3_default_parameter
@@ -427,29 +426,6 @@ CONTAINS
           CASE DEFAULT
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "Typ unknown: "//typ)
-          CASE ('EHT')
-             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-                  " Semi empirical parameters: ","Extended Huckel ",TRIM(name)
-             IF ( defined ) THEN
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-                     "Effective core charge:",zeff
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-                     "Number of orbitals:",natorb, &
-                     "Basis set expansion (STO-NG)",ngauss
-                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-                DO l=0,3
-                   IF (ABS(beta(l)) > 0._dp) THEN
-                      WRITE (UNIT=output_unit,&
-                           FMT="(T16,A,I2,T48,A,F17.4,/,T47,A,F17.4)") &
-                           "Shell: ",l,"Slater exponent:",sexp(l),&
-                           "H parameter [eV]:",beta(l)*evolt
-                   END IF
-                END DO
-             ELSE
-                WRITE (UNIT=output_unit,FMT="(T55,A)")&
-                     "Parameters are not defined"
-             END IF
           CASE ('AM1')
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
@@ -605,8 +581,6 @@ CONTAINS
                         "Atomic number < 0")
       END IF
       SELECT CASE (method)
-        CASE ("EHT")
-          CALL eht_default_parameter(se_parameter,z)
         CASE ("AM1")
           CALL am1_default_parameter(se_parameter,z)
         CASE ("PM3")
@@ -637,9 +611,7 @@ CONTAINS
 
     SELECT CASE (se_method)
        CASE DEFAULT
-         se_type=0
-       CASE ("EHT")
-         se_type=0
+         se_type=-1
        CASE ("AM1")
          se_type=2
        CASE ("PM3")

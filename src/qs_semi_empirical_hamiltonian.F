@@ -170,7 +170,6 @@ CONTAINS
 
      ! kh might be set in qs_control
      kh=1._dp
-     IF(dft_control%qs_control%method == "EHT") kh=1.75_dp
      itype = get_se_type(dft_control%qs_control%method)
      kh = 0.5_dp * kh
 
@@ -242,7 +241,6 @@ CONTAINS
              sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
              SELECT CASE (dft_control%qs_control%method)
-               CASE ("EHT")
                CASE ("MNDO","AM1","PM3","PDG")
                  NULLIFY(h_blocka)
                  CALL get_block_node(matrix=diagmat_h,&
@@ -270,10 +268,6 @@ CONTAINS
                     CASE DEFAULT
                       CALL stop_program(routineN,moduleN,__LINE__,&
                                       "Method not available",para_env)
-                    CASE ("EHT")
-                      DO i=1,SIZE(h_blocka,1)
-                        h_blocka(i,i)=h_blocka(i,i)+ha(i)
-                      END DO
                     CASE ("AM1","PM3","MNDO","PDG")
                       DO i=1,SIZE(h_blocka,1)
                         h_blocka(i,i)=h_blocka(i,i)+ua(i)

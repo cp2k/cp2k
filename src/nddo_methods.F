@@ -440,7 +440,6 @@ CONTAINS
                    END IF
 
                    SELECT CASE (dft_control%qs_control%method)
-                     CASE ("EHT")
                      CASE ("MNDO","AM1","PM3","PDG")
                      IF ( .NOT. switch ) THEN
                        CALL rotnuc (se_kind_a,se_kind_b,rij,e1b,e2a,enuc,itype)

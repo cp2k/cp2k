@@ -24,7 +24,7 @@ MODULE cp_control_utils
   USE input_constants,                 ONLY: &
        bsse_run, do_band, do_ddapc_constraint, do_ddapc_restraint, &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_none, &
-       do_method_am1, do_method_eht, do_method_gapw, do_method_gapw_xc, &
+       do_method_am1, do_method_gapw, do_method_gapw_xc, &
        do_method_gpw, do_method_kg_pol, do_method_mndo, do_method_pdg, &
        do_method_pm3, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
@@ -105,7 +105,7 @@ CONTAINS
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-    CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+    CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
        not_SE = .FALSE.
     END SELECT
     ! Check for XC section and XC_FUNCTIONAL section
@@ -451,7 +451,7 @@ CONTAINS
         qs_control%gapw_xc = .TRUE.
       CASE (do_method_gpw)
         qs_control%gpw = .TRUE.
-      CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
         qs_control%semi_empirical = .TRUE.
     END SELECT
 
