@@ -28,7 +28,10 @@
       COORD_FILE_NAME ../sample_pdb/5dhfr_cube_types.pdb
       COORDINATE PDB
       PARA_RES
-      DUMP_TOP
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

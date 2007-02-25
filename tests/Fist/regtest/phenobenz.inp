@@ -118,7 +118,10 @@
      H -0.825  2.652 14.000     X 
     &END COORD
     &TOPOLOGY
-      DUMP_TOP
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
       &GENERATE
         CREATE_MOLECULES
         REORDER

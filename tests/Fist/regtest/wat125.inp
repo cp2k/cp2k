@@ -36,7 +36,10 @@
       COORDINATE XYZ
       CONNECTIVITY PSF
       CONN_FILE_NAME ../sample_psf/wat125.psf
-      DUMP_TOP
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

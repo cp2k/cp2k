@@ -40,9 +40,8 @@ MODULE topology
   USE mm_mapping_library,              ONLY: create_ff_map,&
                                              destroy_ff_map
   USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type,&
-                                             local_constraint_type,&
-                                             global_constraint_type
+  USE molecule_types_new,              ONLY: global_constraint_type,&
+                                             molecule_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_topology_util,              ONLY: qmmm_connectivity_control,&
                                              qmmm_coordinate_control
@@ -140,7 +139,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
+    INTEGER                                  :: handle, iw, iw2
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: cell_section, &
@@ -261,11 +260,20 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 10. Dump the topology informations
     !-----------------------------------------------------------------------------
-    IF(topology%dump_topology) THEN
-       CALL write_topology_psf(topology,para_env,subsys_section,force_env_section,error)
-       CALL write_coordinate_pdb(topology,para_env,subsys_section,error)
+    iw2 = cp_print_key_unit_nr(logger,subsys_section,"TOPOLOGY%DUMP_PDB",&
+          file_status="REPLACE",extension=".pdb",error=error)
+    IF (iw2>0) THEN
+       CALL write_coordinate_pdb(iw2,topology,para_env,subsys_section,error)
     END IF
-
+    CALL cp_print_key_finished_output(iw2,logger,subsys_section,&
+         "TOPOLOGY%DUMP_PDB",error=error)  
+    iw2 = cp_print_key_unit_nr(logger,subsys_section,"TOPOLOGY%DUMP_PSF",&
+          file_status="REPLACE",extension=".psf",error=error)
+    IF (iw2>0) THEN
+       CALL write_topology_psf(iw2,topology,para_env,subsys_section,force_env_section,error)
+    END IF
+    CALL cp_print_key_finished_output(iw2,logger,subsys_section,&
+         "TOPOLOGY%DUMP_PSF",error=error)  
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. Cleanup the topology structure type

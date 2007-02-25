@@ -22,9 +22,8 @@
 !******************************************************************************
 
 MODULE topology_psf
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
@@ -631,7 +630,8 @@ CPSourceFileRef,&
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE write_topology_psf (topology,para_env,subsys_section,force_env_section,error)
+  SUBROUTINE write_topology_psf (file_unit,topology,para_env,subsys_section,force_env_section,error)
+    INTEGER, INTENT(IN)                      :: file_unit
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -647,18 +647,18 @@ CPSourceFileRef,&
                                                 my_tag3, record
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: charge_atm
-    INTEGER                                  :: file_unit, handle, i, iw, j, &
-                                                nchg, stat
+    INTEGER                                  :: handle, i, iw, j, nchg, stat
     LOGICAL                                  :: explicit, failure, ldum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp, charges
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: tmp_section
+    TYPE(section_vals_type), POINTER         :: print_key, tmp_section
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PSF",error=error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -698,17 +698,13 @@ CPSourceFileRef,&
     ELSE
        charges = atom_info%atm_charge
     END IF
-    record = "topology_dump.psf"
+    record = cp_print_key_generate_filename(logger,print_key,&
+         extension=".psf",my_local=.FALSE.,error=error)
     ! build the EXT format
     c_int="I10"
     psf_format = '(I10,T12,A,T21,I0,T30,A,T39,A,T47,A,T53,F10.6,T69,F8.3,T88,I1)'
     IF(iw>0) WRITE(iw,'(T2,A)') &
          "PSF_WRITE| Writing out PSF file with CHARMM31 EXTErnal format: ",TRIM(record)
-
-    CALL open_file(file_name=record,&
-         file_status="REPLACE",&
-         file_action="WRITE",&
-         unit_number=file_unit)
 
     WRITE(file_unit,FMT='(A)') "PSF EXT"
     WRITE(file_unit,FMT='(A)') ""
@@ -796,8 +792,6 @@ CPSourceFileRef,&
     WRITE(file_unit,FMT='(/)')
     WRITE(file_unit,FMT='('//TRIM(c_int)//',A)') 0," !NNB"
     WRITE(file_unit,FMT='(/)')
-
-    CALL close_file(file_unit)
 
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)

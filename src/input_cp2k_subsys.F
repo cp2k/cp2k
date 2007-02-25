@@ -864,7 +864,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -876,7 +875,7 @@ CONTAINS
             n_keywords=17, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
+       NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="The name of the kind described in this section.",&
@@ -1061,7 +1060,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, subsubsection
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsubsection
 
     failure=.FALSE.
 
@@ -1073,7 +1073,7 @@ CONTAINS
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword, print_key)
        ! Logical
        CALL keyword_create(keyword, name="CHARGE_OCCUP",&
             variants=(/ "CHARGE_O" /),&
@@ -1098,19 +1098,24 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DUMP_TOP",&
-            description="This keyword enables the dumping of the topology as a PSF file.",&
-            usage="DUMP_TOP logical",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MOL_CHECK",&
             description="Check molecules have the same number of atom and names.",&
             usage="MOL_CHECK logical",&
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key,"dump_pdb",&
+            description="controls the dumping of the PDB at the starting geometry",&
+            print_level=debug_print_level, filename="topology_pdb.pdb",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"dump_psf",&
+            description="controls the dumping of the PSF connectivity",&
+            print_level=debug_print_level, filename="topology_psf.psf",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
        ! Character
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&

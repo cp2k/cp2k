@@ -91,7 +91,10 @@
       &GENERATE
        BONDPARM_FACTOR 1.31
       &END
-      DUMP_TOP
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
       MOL_CHECK
       COORD_FILE_NAME acn.pdb
       COORDINATE      pdb

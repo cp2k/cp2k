@@ -949,7 +949,7 @@ END FUNCTION cp_print_key_generate_filename
 
 FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
      middle_name, local, log_filename,ignore_should_output, file_form, file_position,&
-     file_action, do_backup, on_file, error) RESULT(res)
+     file_action, file_status, do_backup, on_file, error) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
     CHARACTER(len=*), INTENT(in)             :: print_key_path, extension
@@ -957,7 +957,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
     LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
                                                 ignore_should_output
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: file_form, file_position, &
-                                                file_action
+                                                file_action, file_status
     LOGICAL, INTENT(in), OPTIONAL            :: do_backup, on_file
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
@@ -967,7 +967,8 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
 
     CHARACTER(len=default_path_length)       :: filename, filename_bak
     CHARACTER(len=default_string_length)     :: my_file_action, my_file_form, &
-                                                my_file_position, outPath
+                                                my_file_position, &
+                                                my_file_status, outPath
     INTEGER, SAVE                            :: ibak = 0
     LOGICAL                                  :: failure, found, my_do_backup, &
                                                 my_local, my_on_file, &
@@ -982,10 +983,12 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
   my_file_form="FORMATTED"
   my_file_position="APPEND"
   my_file_action="WRITE"
+  my_file_status="UNKNOWN"
   my_on_file=.FALSE.
   IF (PRESENT(file_form)) my_file_form = file_form
   IF (PRESENT(file_position)) my_file_position = file_position
   IF (PRESENT(file_action)) my_file_action = file_action
+  IF (PRESENT(file_status)) my_file_status = file_status
   IF (PRESENT(do_backup)) my_do_backup = do_backup
   IF (PRESENT(on_file)) my_on_file=on_file
   NULLIFY(print_key)
@@ -1030,7 +1033,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
                  CALL m_mov(TRIM(filename), TRIM(filename_bak))
               END IF
            END IF
-           CALL open_file(file_name=filename,file_status="UNKNOWN",&
+           CALL open_file(file_name=filename,file_status=my_file_status,&
                 file_form=my_file_form,file_action=my_file_action,&
                 file_position=my_file_position,unit_number=res)
            IF (PRESENT(log_filename)) THEN

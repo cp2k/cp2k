@@ -42,16 +42,16 @@
 MODULE topology_pdb
 
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_next_line,&
                                              parser_release
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -251,8 +251,9 @@ CONTAINS
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-  SUBROUTINE write_coordinate_pdb (topology,para_env,subsys_section,error)
+  SUBROUTINE write_coordinate_pdb (file_unit,topology,para_env,subsys_section,error)
   
+    INTEGER, INTENT(IN)                      :: file_unit
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -263,29 +264,26 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: line, my_tag1, my_tag2, &
                                                 my_tag3, my_tag4, record
-    INTEGER                                  :: file_unit, handle, i, id1, &
-                                                id2, idres, iw, natom
+    INTEGER                                  :: handle, i, id1, id2, idres, &
+                                                iw, natom
     LOGICAL                                  :: ldum
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
          extension=".subsysLog",error=error)    
-    
+    print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PDB",error=error) 
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
-    record = "topology_dump.pdb"
+    record = cp_print_key_generate_filename(logger,print_key,&
+         extension=".pdb",my_local=.FALSE.,error=error)
 
     IF(iw>0) WRITE(iw,*) "    Writing out PDB file ",TRIM(record)
 
-    CALL open_file(file_name=record,&
-         file_status="REPLACE",&
-         file_action="WRITE",&
-         unit_number=file_unit)
-    
     natom = topology%natoms
     idres = 0
     id1   = 0
@@ -331,7 +329,6 @@ CONTAINS
        WRITE(file_unit,"(A)")line
     END DO
     WRITE(file_unit,"(A3)")"END"
-    CALL close_file(unit_number=file_unit)
 
     IF(iw>0) WRITE(iw,*) "  Exiting write_coordinate_pdb"
 
