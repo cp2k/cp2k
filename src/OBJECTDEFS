@@ -6,6 +6,7 @@ OBJECTS_GENERIC =\
  ai_moments.o\
  ai_nuclear.o\
  ai_overlap3.o\
+ ai_overlap_k.o\
  ai_overlap_new.o\
  ai_overlap_ppl.o\
  ai_verfc.o\

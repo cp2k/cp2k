@@ -45,7 +45,8 @@ MODULE ai_overlap_k
 ! *****************************************************************************
 
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi, gaussi
+  USE mathconstants,                   ONLY: gaussi,&
+                                             pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
 
@@ -75,8 +76,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: la_min, lb_max
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kpoint
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kpoint, rab
     REAL(KIND=dp), INTENT(IN)                :: rab2
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sabk
@@ -85,7 +85,7 @@ CONTAINS
                                                 ipgf, j, jpgf, la, la_start, &
                                                 lb, na, nb
     REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
-                                                fz, zetp, k2
+                                                fz, k2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max))                        :: s
@@ -110,7 +110,7 @@ CONTAINS
         IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
           DO j=nb+1,nb+ncoset(lb_max)
             DO i=na+1,na+ncoset(la_max)
-              sab(i,j) = CMPLX(0.0_dp,0.0_dp,dp)
+              sabk(i,j) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
             END DO
           END DO
           nb = nb + ncoset(lb_max)
@@ -163,7 +163,7 @@ CONTAINS
             DO ay=2,la
               az = la - ay
               s(coset(0,ay,az),1) = rap(2)*s(coset(0,ay-1,az),1) +&
-                                    f2*kpoint(2)*s(coset(0,ay-1,az),1)gaussi +&
+                                    f2*kpoint(2)*s(coset(0,ay-1,az),1)*gaussi +&
                                     f2*REAL(ay-1,dp)*s(coset(0,ay-2,az),1)
             END DO
 
@@ -193,7 +193,7 @@ CONTAINS
 
             DO j=2,ncoset(lb_max)
               DO i=1,ncoset(la_max)
-                s(i,j) = CMPLX(0.0_dp,0.0_dp,dp)
+                s(i,j) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
               END DO
             END DO
 
@@ -481,7 +481,7 @@ CONTAINS
 
         DO j=1,ncoset(lb_max)
           DO i=1,ncoset(la_max)
-            sab(na+i,nb+j) = s(i,j)
+            sabk(na+i,nb+j) = s(i,j)
           END DO
         END DO
 
