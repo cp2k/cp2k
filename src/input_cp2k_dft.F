@@ -30,6 +30,7 @@ MODULE input_cp2k_dft
                                              keyword_release,&
                                              keyword_type
   USE input_cp2k_poisson,              ONLY: create_poisson_section
+  USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&
@@ -3255,6 +3256,10 @@ CONTAINS
        NULLIFY (subsection)
 
        CALL create_linres_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_resp_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

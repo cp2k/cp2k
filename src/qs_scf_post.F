@@ -119,10 +119,11 @@ MODULE qs_scf_post
                                              mo_set_p_type,&
                                              write_mo_set
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+  USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_pw_to_cube
+                                             rs_pw_to_cube 
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
@@ -312,6 +313,8 @@ CONTAINS
           CALL cp_print_key_finished_output(unit_nr, logger,input,&
                "DFT%PRINT%LOWDIN", error=error)
        END IF
+
+       CALL resp_fit(qs_env,error)
 
 !    *** Fit charges with the Bloechl scheme
        print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)

@@ -42,3 +42,5 @@ H2O-solv.inp       1
 H2O-xc_none.inp    1
 # ghost atom dynamics
 dynamics.inp       1
+# RESP charges
+CH3OH.inp          0
