@@ -78,6 +78,7 @@
 # - emptycheck: useful for automatic testers, no testing if nothing changed in CVS (YES|NO)
 # - leakcheck: if using g95, set this variable to "YES" in order to get memory leak checking
 #
+export LC_ALL=C
 export FORT_C_NAME=g95
 dir_base=/home/regtest/autotest/g95
 cp2k_version=sopt
