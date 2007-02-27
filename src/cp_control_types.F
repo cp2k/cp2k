@@ -11,7 +11,7 @@
 !!
 !!   FUNCTION
 !!     Defines control structures, which contain the parameters and the
-!!     settings for the calculations.
+!!     settings for the DFT-based calculations.
 !!
 !!   SOURCE
 !******************************************************************************
@@ -32,14 +32,14 @@ MODULE cp_control_types
 
   PRIVATE
 
-! *** Control parameters for pw grids ***
-
+!------------------------------------------------------------------------------!
+! Control parameters for pw grids
   TYPE pw_grid_option
      LOGICAL :: spherical
      LOGICAL :: fullspace
   END TYPE pw_grid_option
-
-! *** Control parameters for semi empirical calculations
+!------------------------------------------------------------------------------!
+! Control parameters for semi empirical calculations
   TYPE semi_empirical_control_type
      LOGICAL               :: orthogonal_basis
      REAL(KIND = dp)       :: delta
@@ -47,9 +47,8 @@ MODULE cp_control_types
      REAL(KIND = dp)       :: rc_coulomb
      REAL(KIND = dp)       :: rc_range
   END TYPE semi_empirical_control_type
-
-! *** Control parameters for GAPW method within QUICKSTEP ***
-
+!------------------------------------------------------------------------------!
+! Control parameters for GAPW method within QUICKSTEP ***
 ! eps_3c_reduce:to reduce the cutoff value for the interaction of
 !              the primitive Gaussian-type
 !              functions with the GAPW projectors in the construction of
@@ -60,27 +59,32 @@ MODULE cp_control_types
 !              allocations, but should be tested first.
   TYPE gapw_control_type
     REAL(KIND = dp)                 :: eps_3c_reduce,&
-                                       eps_fit,eps_iso,eps_Vrho0,eps_svd
-    INTEGER                         :: ladd_rho0,lmax_rho0,&
-                                       lmax_sphere, quadrature
+                                       eps_fit,&
+                                       eps_iso,&
+                                       eps_Vrho0,&
+                                       eps_svd
+    INTEGER                         :: ladd_rho0,&
+                                       lmax_rho0,&
+                                       lmax_sphere,&
+                                       quadrature
     CHARACTER(LEN=30)               :: quadrature_name
     LOGICAL                         :: lrho1_eq_lrho0
-    LOGICAL                         :: alpha0_hard_from_input, &
-                                       alpha0_soft_from_input, &
+    LOGICAL                         :: alpha0_hard_from_input,&
+                                       alpha0_soft_from_input,&
                                        full_gapw
-    REAL(KIND = dp)                 :: alpha0_hard, alpha0_soft
+    REAL(KIND = dp)                 :: alpha0_hard,&
+                                       alpha0_soft
     REAL(KIND = dp)                 :: max_rad_local
   END TYPE gapw_control_type
-
-! *** parameters for finite field calculations
+!------------------------------------------------------------------------------!
+! parameters for finite field calculations
   TYPE finite_field_type
     LOGICAL                         :: berry_phase
     REAL(KIND = dp)                 :: efield_strength
     REAL(KIND = dp), DIMENSION(3)   :: efield_polarisation
   END TYPE finite_field_type
-
-
-! *** some parameters useful for mulliken_restraints
+!------------------------------------------------------------------------------!
+! some parameters useful for mulliken_restraints
   TYPE mulliken_restraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
@@ -88,8 +92,8 @@ MODULE cp_control_types
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE mulliken_restraint_type
-
-! *** some parameters useful for ddapc_restraints
+!------------------------------------------------------------------------------!
+! some parameters useful for ddapc_restraints
   TYPE ddapc_restraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
@@ -99,8 +103,8 @@ MODULE cp_control_types
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE ddapc_restraint_type
-
-! *** some parameters useful for s2_restraints
+!------------------------------------------------------------------------------!
+! some parameters useful for s2_restraints
   TYPE s2_restraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
@@ -108,15 +112,13 @@ MODULE cp_control_types
     REAL(KIND = dp)                 :: s2_order_p
     INTEGER                         :: functional_form
   END TYPE s2_restraint_type
-
-! *** Control parameters for a KIM-GORDON calculation ***
-! *** Control parameters for a QUICKSTEP calculation ***
-
+!------------------------------------------------------------------------------!
+! Control parameters for a QUICKSTEP and KIM-GORDON calculation ***
+!
 ! eps_pgf_orb: Cutoff value for the interaction of the primitive Gaussian-type
 !              functions (primitive basis functions).
-
+!
   TYPE qs_control_type
-!MK PRIVATE would be nice
     CHARACTER(LEN=10)               :: method
     INTEGER                         :: method_id
     REAL(KIND = dp)                 :: eps_core_charge,&
@@ -134,6 +136,7 @@ MODULE cp_control_types
     LOGICAL                         :: map_paa
     LOGICAL                         :: map_consistent
     LOGICAL                         :: gapw,gapw_xc,gpw,pao
+    LOGICAL                         :: dftb
     LOGICAL                         :: semi_empirical
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
@@ -144,6 +147,7 @@ MODULE cp_control_types
     TYPE (ddapc_restraint_type), POINTER :: ddapc_restraint_control
     TYPE (s2_restraint_type), POINTER :: s2_restraint_control
     TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
+!   TYPE (dftb_control_type)                :: dftb_control
     TYPE (semi_empirical_control_type)      :: se_control
     REAL(KIND = dp)                         :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER  :: e_cutoff
@@ -154,32 +158,21 @@ MODULE cp_control_types
     INTEGER                         :: wf_interpolation_method_nr
     INTEGER                         :: wf_extrapolation_order
   END TYPE qs_control_type
-
-! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
-
-!!****s* cp_control_types/tddfpt_control_type
-!!
-!! NAME
-!!   tddfpt_control_type
-!!
-!! FUNCTION
-!!   A type that holds controling information for a time-dependent
-!!   perturbation calculation.
-!!
-!! ATTRIBUTES
-!!   - n_ev       : number of eigenvalues to calculate
-!!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
-!!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
-!!   - res_etype : { SINGLET | TRIPLET } which excitations
-!!                  to calculate
-!!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
-!!
-!! NOTES
-!!   The lumos are helpfull in choosing a initial vector for the TDDFPT
-!!   calculation, since they can be used to construct the solutions of the
-!!   TDDFPT operator without the perturbation kernel.
-!!
-!!***
+!------------------------------------------------------------------------------!
+! Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
+! ATTRIBUTES
+!   - n_ev       : number of eigenvalues to calculate
+!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
+!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
+!   - res_etype : { SINGLET | TRIPLET } which excitations
+!                  to calculate
+!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
+!
+! NOTES
+!   The lumos are helpfull in choosing a initial vector for the TDDFPT
+!   calculation, since they can be used to construct the solutions of the
+!   TDDFPT operator without the perturbation kernel.
+!
   TYPE tddfpt_control_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
      REAL(KIND=dp)                             :: tolerance
@@ -199,14 +192,13 @@ MODULE cp_control_types
      REAL(KIND=dp)                             :: sic_scaling_a,sic_scaling_b
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lumos_eigenvalues
   END TYPE tddfpt_control_type
-
-  ! *** Control parameters for a DFT calculation ***
-
+!------------------------------------------------------------------------------!
+! Control parameters for a DFT calculation
   TYPE dft_control_type
      TYPE(qs_control_type)           :: qs_control
      TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(xas_control_type), POINTER :: xas_control
-     TYPE (finite_field_type)        :: finite_field_control
+     TYPE(finite_field_type)         :: finite_field_control
      INTEGER                         :: nspins,&
                                         charge,&
                                         multiplicity,&
@@ -214,14 +206,15 @@ MODULE cp_control_types
                                         ref_count,&
                                         id_nr,&
                                         xas_estate
-     REAL(KIND=dp)                   :: sic_scaling_a,sic_scaling_b
+     REAL(KIND=dp)                   :: sic_scaling_a,&
+                                        sic_scaling_b
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
                                         do_xas_calculation, &
                                         use_kinetic_energy_density, &
                                         restricted,roks,uks,lsd
-     !FM add xc_section ?
   END TYPE dft_control_type
+!------------------------------------------------------------------------------!
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
 
@@ -231,48 +224,37 @@ MODULE cp_control_types
 
   PUBLIC :: dft_control_type,&
             qs_control_type,&
-            gapw_control_type,&
             tddfpt_control_type,&
+            gapw_control_type,&
             finite_field_type,&
-            pw_grid_option, mulliken_restraint_type, ddapc_restraint_type,&
-            semi_empirical_control_type, s2_restraint_type
-
+            pw_grid_option,&
+            mulliken_restraint_type,&
+            ddapc_restraint_type,&
+            semi_empirical_control_type,&
+            s2_restraint_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
-            dft_control_create,&
-            gapw_control_create,&
-            mulliken_control_create,&
-            mulliken_control_retain,&
-            mulliken_control_release,&
-            ddapc_control_create,&
-            ddapc_control_retain,&
-            ddapc_control_release,&
-            s2_control_create,&
-            s2_control_retain,&
-            s2_control_release
+            dft_control_create
 
 !!***
 ! *****************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
 !!****f* cp_control_types/mulliken_control_create/retain/release *
 !!
 !!   NAME
 !!      mulliken_control_create/retain/release
 !!   FUNCTION
 !!      create retain release the mulliken_restraint_type
-!!   NOTES
-!!
-!!   INPUTS
 !!
 !!   MODIFICATION HISTORY
 !!     02.2005 created [Joost VandeVondele]
 !!
-!!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
@@ -297,7 +279,7 @@ SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
    NULLIFY(mulliken_restraint_control%atoms)
 
 END SUBROUTINE mulliken_control_create
-
+!------------------------------------------------------------------------------!
 SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -321,7 +303,7 @@ SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
       DEALLOCATE(mulliken_restraint_control)
    ENDIF
 END SUBROUTINE mulliken_control_release
-
+!------------------------------------------------------------------------------!
 SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -336,21 +318,17 @@ SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
 
    mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
 END SUBROUTINE mulliken_control_retain
-
+! *****************************************************************************
 !!****f* cp_control_types/ddapc_control_create/retain/release *
 !!
 !!   NAME
 !!      ddapc_control_create/retain/release
 !!   FUNCTION
 !!      create retain release the ddapc_restraint_type
-!!   NOTES
-!!
-!!   INPUTS
 !!
 !!   MODIFICATION HISTORY
 !!     02.2006 created [Joost VandeVondele]
 !!
-!!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
@@ -377,7 +355,7 @@ SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
    NULLIFY(ddapc_restraint_control%atoms)
 
 END SUBROUTINE ddapc_control_create
-
+!------------------------------------------------------------------------------!
 SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -401,7 +379,7 @@ SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
       DEALLOCATE(ddapc_restraint_control)
    ENDIF
 END SUBROUTINE ddapc_control_release
-
+!------------------------------------------------------------------------------!
 SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -416,21 +394,17 @@ SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
 
    ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
 END SUBROUTINE ddapc_control_retain
-
+! *****************************************************************************
 !!****f* cp_control_types/s2_control_create/retain/release *
 !!
 !!   NAME
 !!      s2_control_create/retain/release
 !!   FUNCTION
 !!      create retain release the s2_restraint_type
-!!   NOTES
-!!
-!!   INPUTS
 !!
 !!   MODIFICATION HISTORY
 !!     03.2006 created [Joost VandeVondele]
 !!
-!!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE s2_control_create(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
@@ -455,7 +429,7 @@ SUBROUTINE s2_control_create(s2_restraint_control,error)
    s2_restraint_control%target=1.0_dp
 
 END SUBROUTINE s2_control_create
-
+!------------------------------------------------------------------------------!
 SUBROUTINE s2_control_release(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -476,7 +450,7 @@ SUBROUTINE s2_control_release(s2_restraint_control,error)
       DEALLOCATE(s2_restraint_control)
    ENDIF
 END SUBROUTINE s2_control_release
-
+!------------------------------------------------------------------------------!
 SUBROUTINE s2_control_retain(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -491,17 +465,14 @@ SUBROUTINE s2_control_retain(s2_restraint_control,error)
 
    s2_restraint_control%ref_count=s2_restraint_control%ref_count+1
 END SUBROUTINE s2_control_retain
-
+! *****************************************************************************
 !!****f* cp_control_types/dft_control_create [1.0] *
 !!
 !!   NAME
-!!     dft_control_create
+!!     dft_control_create/retain/release
 !!
 !!   FUNCTION
 !!     allocates and perform a very basic initialization
-!!
-!!   NOTES
-!!     -
 !!
 !!   ARGUMENTS
 !!     - dft_control: the object to create
@@ -542,31 +513,7 @@ SUBROUTINE dft_control_create(dft_control, error)
      CALL xas_control_create(dft_control%xas_control,error=error)
   END IF
 END SUBROUTINE dft_control_create
-!***************************************************************************
-
-!!****f* cp_control_types/dft_control_retain [1.0] *
-!!
-!!   NAME
-!!     dft_control_retain
-!!
-!!   FUNCTION
-!!     retains the given dft_control
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - dft_control: the dft_control to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!------------------------------------------------------------------------------!
 SUBROUTINE dft_control_retain(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -583,31 +530,7 @@ SUBROUTINE dft_control_retain(dft_control,error)
      dft_control%ref_count=dft_control%ref_count+1
   END IF
 END SUBROUTINE dft_control_retain
-!***************************************************************************
-
-!!****f* cp_control_types/dft_control_release [1.0] *
-!!
-!!   NAME
-!!     dft_control_release
-!!
-!!   FUNCTION
-!!     releases the given dft_control
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - dft_control: the dft_control to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!------------------------------------------------------------------------------!
 SUBROUTINE dft_control_release(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -623,8 +546,8 @@ SUBROUTINE dft_control_release(dft_control,error)
      CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP,error)
      dft_control%ref_count=dft_control%ref_count-1
      IF (dft_control%ref_count==0) THEN
-        CALL qs_control_dealloc_ref(dft_control%qs_control, error=error)
-        CALL tddfpt_control_dealloc_ref(dft_control%tddfpt_control, error=error)
+        CALL qs_control_release(dft_control%qs_control, error=error)
+        CALL tddfpt_control_release(dft_control%tddfpt_control, error=error)
         CALL xas_control_release(dft_control%xas_control, error=error)
         DEALLOCATE(dft_control, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -632,6 +555,7 @@ SUBROUTINE dft_control_release(dft_control,error)
   END IF
   NULLIFY(dft_control)
 END SUBROUTINE dft_control_release
+
 !***************************************************************************
 
 SUBROUTINE gapw_control_create(gapw_control, error)
@@ -652,6 +576,7 @@ SUBROUTINE gapw_control_create(gapw_control, error)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE gapw_control_create
+
 !***************************************************************************
 
 SUBROUTINE qs_control_init(qs_control, error)
@@ -671,13 +596,15 @@ SUBROUTINE qs_control_init(qs_control, error)
 
   CALL localized_wfn_control_create(qs_control%localized_wfn_control, error=error)
 
-END SUBROUTINE qs_control_init
+  CALL gapw_control_create(qs_control%gapw_control, error=error)
 
-SUBROUTINE qs_control_dealloc_ref(qs_control, error)
+END SUBROUTINE qs_control_init
+!------------------------------------------------------------------------------!
+SUBROUTINE qs_control_release(qs_control, error)
     TYPE(qs_control_type), INTENT(inout)     :: qs_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_dealloc_ref', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -696,20 +623,23 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-END SUBROUTINE qs_control_dealloc_ref
+END SUBROUTINE qs_control_release
+
+!***************************************************************************
 
 SUBROUTINE tddfpt_control_init(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(out)   :: tddfpt_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
-END SUBROUTINE tddfpt_control_init
 
-SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
+END SUBROUTINE tddfpt_control_init
+!------------------------------------------------------------------------------!
+SUBROUTINE tddfpt_control_release(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_dealloc_ref', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, stat
@@ -731,6 +661,10 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
      DEALLOCATE(tddfpt_control%lumos_eigenvalues,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
-END SUBROUTINE tddfpt_control_dealloc_ref
+END SUBROUTINE tddfpt_control_release
+
+!***************************************************************************
 
 END MODULE cp_control_types
+
+!***************************************************************************
