@@ -40,12 +40,22 @@ MODULE fist_nonbond_force
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
-  USE pair_potential_types,            ONLY: ea_type,&
+  USE splines,                         ONLY: potential_s
+  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+                                             pair_potential_single_type,&
+                                             nn_type,&
+                                             lj_type,&
+                                             ft_type,&
+                                             wl_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             ea_type, &
                                              nosh_nosh,&
                                              nosh_sh,&
                                              sh_sh,&
-                                             pair_potential_pp_type,&
-                                             pair_potential_single_type
+                                             oocf_type, &
+                                             ohcf_type, &
+                                             hhcf_type   
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE splines,                         ONLY: potential_s,&

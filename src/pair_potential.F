@@ -35,10 +35,24 @@ MODULE pair_potential
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE pair_potential_types,            ONLY: &
-       b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
-       ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
-       pair_potential_pp_type, pair_potential_single_type, wl_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type, &
+                                             pair_potential_single_type, &
+                                             compare_pot, &
+                                             list_pot, &
+                                             nn_type, &
+                                             lj_type, &
+                                             lj_charmm_type, &
+                                             ft_type, &
+                                             wl_type, &
+                                             gw_type, &
+                                             ip_type, &
+                                             ea_type, &
+                                             b4_type, &
+                                             bm_type, &
+                                             oocf_type, &
+                                             ohcf_type, &
+                                             hhcf_type, &
+                                             gp_type
   USE shell_potential_types,           ONLY: get_shell, &
                                              shell_kind_type
   USE splines,                         ONLY: init_spline,&
@@ -110,6 +124,20 @@ CONTAINS
        ener_pot=ener_pot - pot % energy_cutoff
     ELSE IF (pot%type==wl_type) THEN
        ener_pot = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
+            - pot%energy_cutoff
+    ELSE IF (pot%type==oocf_type) THEN
+       ener_pot = pot%oocf%a1/(r**pot%oocf%a2) &  
+            - pot%oocf%a3*EXP(-pot%oocf%a4*(r - pot%oocf%a5)**2) &
+            - pot%oocf%a6*EXP(-pot%oocf%a7*(r - pot%oocf%a8)**2) &
+            - pot%energy_cutoff
+    ELSE IF (pot%type==ohcf_type) THEN
+       ener_pot = pot%ohcf%a1/(r**pot%ohcf%a2) &  
+            - pot%ohcf%a3/(1+EXP(pot%ohcf%a4*(r - pot%ohcf%a5))) &
+            - pot%ohcf%a6/(1+EXP(pot%ohcf%a7*(r - pot%ohcf%a8))) &
+            - pot%energy_cutoff
+    ELSE IF (pot%type==hhcf_type) THEN
+       ener_pot = pot%hhcf%a1/(1+EXP(pot%hhcf%a2*(r - pot%hhcf%a3))) &
+            - pot%hhcf%a4*EXP(-pot%hhcf%a5*(r - pot%hhcf%a6)**2) &
             - pot%energy_cutoff
     ELSE IF (pot%type==gw_type) THEN
        scale = EXP(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
@@ -550,6 +578,7 @@ CONTAINS
 
        IF (ndim==0) CYCLE ! No potential of this kind found
        CALL get_indexes(min_val,ntype,tmpij)
+       print*,'ntype = ',ntype
        potparm%pot(tmpij(1),tmpij(2))%pot%undef = .TRUE.
        n     = 1
        ALLOCATE(my_index(ndim),stat=stat)
@@ -577,10 +606,17 @@ CONTAINS
           nvar = 2 + nvar
        CASE (nn_type)
           nvar = nvar
+       CASE (oocf_type)
+          nvar = 8 + nvar
+       CASE (ohcf_type)
+          nvar = 8 + nvar
+       CASE (hhcf_type)
+          nvar = 6 + nvar
        CASE DEFAULT
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        IF (nvar /=0) THEN
+          print*,'ndim =', ndim,' nvar = ',nvar
           ALLOCATE(pot_par(ndim,nvar),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           n  = 0
@@ -645,6 +681,31 @@ CONTAINS
                       pot_par(nk,9)  = potparm%pot(i,j)%pot%buckmo%beta
                    CASE (nn_type)
                       ! no checks
+                   CASE (oocf_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%oocf%a1
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%oocf%a2
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%oocf%a3
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%oocf%a4
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%oocf%a5
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%oocf%a6
+                      pot_par(nk,7)  = potparm%pot(i,j)%pot%oocf%a7
+                      pot_par(nk,8)  = potparm%pot(i,j)%pot%oocf%a8
+                   CASE (ohcf_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%ohcf%a1
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%ohcf%a2
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%ohcf%a3
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%ohcf%a4
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%ohcf%a5
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%ohcf%a6
+                      pot_par(nk,7)  = potparm%pot(i,j)%pot%ohcf%a7
+                      pot_par(nk,8)  = potparm%pot(i,j)%pot%ohcf%a8
+                   CASE (hhcf_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%hhcf%a1
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%hhcf%a2
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%hhcf%a3
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%hhcf%a4
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%hhcf%a5
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%hhcf%a6
                    CASE DEFAULT
                       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                    END SELECT

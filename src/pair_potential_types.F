@@ -43,12 +43,15 @@ MODULE pair_potential_types
                                 wl_type= 4,&
                                 gw_type= 5,&
                                 ip_type= 6,&
-                                ea_type= 7,&
+                                ea_type= 7,& 
                                 b4_type= 8,&
                                 bm_type= 9,&
-                                gp_type=10
+                                oocf_type= 10,& 
+                                ohcf_type= 11,& 
+                                hhcf_type= 12,&
+                                gp_type=13
 
-  INTEGER, PUBLIC, PARAMETER, DIMENSION(11) :: list_pot = (/nn_type,&
+  INTEGER, PUBLIC, PARAMETER, DIMENSION(14) :: list_pot = (/nn_type,&
                                                            lj_type,&
                                                            lj_charmm_type,&
                                                            ft_type,&
@@ -58,6 +61,9 @@ MODULE pair_potential_types
                                                            ea_type,&
                                                            b4_type,&
                                                            bm_type,&
+                                                           oocf_type,&
+                                                           ohcf_type,&
+                                                           hhcf_type,&
                                                            gp_type/)
 
   INTEGER, PUBLIC, PARAMETER :: nosh_nosh=0,&
@@ -89,6 +95,9 @@ MODULE pair_potential_types
             eam_pot_type,&
             buck4ran_pot_type,&
             buckmorse_pot_type,&
+            oocf_pot_type, &
+            ohcf_pot_type, &
+            hhcf_pot_type, & 
             gp_pot_type
 
   PUBLIC :: pair_potential_lj_create
@@ -125,6 +134,18 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: m, mc
      REAL (KIND=dp) :: d, dc
   END TYPE goodwin_pot_type
+
+  TYPE oocf_pot_type
+     REAL (KIND=dp) :: a1, a2, a3, a4, a5, a6, a7, a8
+  END TYPE oocf_pot_type
+
+  TYPE ohcf_pot_type
+     REAL (KIND=dp) :: a1, a2, a3, a4, a5, a6, a7, a8
+  END TYPE ohcf_pot_type
+
+  TYPE hhcf_pot_type
+     REAL (KIND=dp) :: a1, a2, a3, a4, a5, a6
+  END TYPE hhcf_pot_type
 
   TYPE eam_pot_type
      CHARACTER ( len = default_string_length ) :: eam_file_name
@@ -183,6 +204,9 @@ MODULE pair_potential_types
      TYPE ( eam_pot_type ),        POINTER :: eam
      TYPE ( buck4ran_pot_type ),   POINTER :: buck4r
      TYPE ( buckmorse_pot_type ),  POINTER :: buckmo
+     TYPE ( oocf_pot_type ),       POINTER :: oocf
+     TYPE ( ohcf_pot_type ),       POINTER :: ohcf
+     TYPE ( hhcf_pot_type ),       POINTER :: hhcf
      TYPE ( spline_data_type ),    POINTER :: pair_spline_data
      TYPE ( spline_data_type ),    POINTER :: rho_spline_data     ! for EAM type potentials
      TYPE ( spline_data_type ),    POINTER :: c_coul_spline_data      ! for shell-model (core-ion or core-core)
@@ -247,6 +271,31 @@ CONTAINS
             (pot1%goodwin%mc ==pot2%goodwin%mc ).AND.&
             (pot1%goodwin%d  ==pot2%goodwin%d  ).AND.&
             (pot1%goodwin%dc ==pot2%goodwin%dc )) compare=.TRUE.
+    CASE (oocf_type)
+       IF  ((pot1%oocf%a1==pot2%oocf%a1).AND.&
+            (pot1%oocf%a2==pot2%oocf%a2  ).AND.&
+            (pot1%oocf%a3==pot2%oocf%a3 ).AND.&
+            (pot1%oocf%a4==pot2%oocf%a4 ).AND.&
+            (pot1%oocf%a5==pot2%oocf%a5 ).AND.&
+            (pot1%oocf%a6==pot2%oocf%a6 ).AND.&
+            (pot1%oocf%a7==pot2%oocf%a7 ).AND.&
+            (pot1%oocf%a8==pot2%oocf%a8 ) ) compare=.TRUE.
+    CASE (ohcf_type)
+       IF  ((pot1%ohcf%a1==pot2%ohcf%a1).AND.&
+            (pot1%ohcf%a2==pot2%ohcf%a2  ).AND.&
+            (pot1%ohcf%a3==pot2%ohcf%a3 ).AND.&
+            (pot1%ohcf%a4==pot2%ohcf%a4 ).AND.&
+            (pot1%ohcf%a5==pot2%ohcf%a5 ).AND.&
+            (pot1%ohcf%a6==pot2%ohcf%a6 ).AND.&
+            (pot1%ohcf%a7==pot2%ohcf%a7 ).AND.&
+            (pot1%ohcf%a8==pot2%ohcf%a8 ) ) compare=.TRUE.
+    CASE (hhcf_type)
+       IF  ((pot1%hhcf%a1==pot2%hhcf%a1).AND.&
+            (pot1%hhcf%a2==pot2%hhcf%a2  ).AND.&
+            (pot1%hhcf%a3==pot2%hhcf%a3 ).AND.&
+            (pot1%hhcf%a4==pot2%hhcf%a4 ).AND.&
+            (pot1%hhcf%a5==pot2%hhcf%a5 ).AND.&
+            (pot1%hhcf%a6==pot2%hhcf%a6 ) ) compare=.TRUE.
     CASE (ea_type)
        IF  ((pot1%eam%drar  ==pot2%eam%drar  ).AND.&
             (pot1%eam%drhoar==pot2%eam%drhoar).AND.&
@@ -310,6 +359,9 @@ CONTAINS
                 potparm%gp,&
                 potparm%ft,&
                 potparm%willis,&
+                potparm%oocf,&
+                potparm%ohcf,&
+                potparm%hhcf,&
                 potparm%goodwin,&
                 potparm%eam,&
                 potparm%buck4r,&
@@ -375,6 +427,9 @@ CONTAINS
     CALL pair_potential_buckmo_clean (potparm, error=error)
     CALL pair_potential_bmhft_clean (potparm, error=error)
     CALL pair_potential_ipbv_clean (potparm, error=error)
+    CALL pair_potential_oocf_clean (potparm, error=error)
+    CALL pair_potential_hhcf_clean (potparm, error=error)
+    CALL pair_potential_ohcf_clean (potparm, error=error)
     CALL pair_potential_gp_clean (potparm, error=error)
 
   END SUBROUTINE pair_potential_single_clean
@@ -440,6 +495,9 @@ CONTAINS
        CALL pair_potential_lj_copy (potparm_source, potparm_dest, error=error)
        CALL pair_potential_williams_copy (potparm_source, potparm_dest, error=error)
        CALL pair_potential_goodwin_copy (potparm_source, potparm_dest, error=error)
+       CALL pair_potential_oocf_copy (potparm_source, potparm_dest, error=error)
+       CALL pair_potential_ohcf_copy (potparm_source, potparm_dest, error=error)
+       CALL pair_potential_hhcf_copy (potparm_source, potparm_dest, error=error)
        CALL pair_potential_eam_copy (potparm_source, potparm_dest, error=error)
        CALL pair_potential_bmhft_copy (potparm_source, potparm_dest, error=error)
        CALL pair_potential_ipbv_copy (potparm_source, potparm_dest, error=error)
@@ -524,6 +582,9 @@ CONTAINS
        CALL spline_data_release ( potparm% cs_coul_spline_data, error=error )
        CALL spline_data_release ( potparm% sc_coul_spline_data, error=error )
        CALL pair_potential_ipbv_release     ( potparm, error=error )
+       CALL pair_potential_oocf_release       ( potparm, error=error )
+       CALL pair_potential_ohcf_release       ( potparm, error=error )
+       CALL pair_potential_hhcf_release       ( potparm, error=error )
        CALL pair_potential_lj_release       ( potparm, error=error )
        CALL pair_potential_bmhft_release    ( potparm, error=error )
        CALL pair_potential_williams_release ( potparm, error=error )
@@ -799,12 +860,13 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,goodwin,&
-       eam,bmhft,ipbv,buck4r,buckmo,gp,error)
+       eam,bmhft,ipbv,buck4r,buckmo,oocf,ohcf,hhcf,gp,error)
     TYPE(pair_potential_p_type), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
     LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
                                                 goodwin, eam, bmhft, ipbv, &
-                                                buck4r, buckmo, gp
+                                                buck4r, buckmo, &
+                                                oocf, hhcf, ohcf, gp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
@@ -814,7 +876,8 @@ CONTAINS
     LOGICAL                                  :: check, failure, lbmhft, &
                                                 lbuck4r, lbuckmo, leam, &
                                                 lgoodwin, lgp, lipbv, llj, &
-                                                llj_charmm, lwilliams
+                                                llj_charmm, lwilliams, &
+                                                loocf, lohcf, lhhcf
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
@@ -829,66 +892,100 @@ CONTAINS
     lipbv     = .FALSE. ; IF (PRESENT(ipbv))      lipbv     = ipbv
     lbuck4r   = .FALSE. ; IF (PRESENT(buck4r))    lbuck4r   = buck4r
     lbuckmo   = .FALSE. ; IF (PRESENT(buckmo))    lbuckmo   = buckmo
+    loocf     = .FALSE. ; IF (PRESENT(oocf))      loocf     = oocf
+    lohcf     = .FALSE. ; IF (PRESENT(ohcf))      lohcf     = ohcf
+    lhhcf     = .FALSE. ; IF (PRESENT(hhcf))      lhhcf     = hhcf
     lgp       = .FALSE. ; IF (PRESENT(gp))        lgp       = gp
 
     IF (llj) THEN
        ipot  = lj_type
        check = .NOT.(llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft&
-                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo.OR.lgp)
+                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (llj_charmm) THEN
        ipot  = lj_charmm_type
        check = .NOT.(llj.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
+                     .OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lwilliams) THEN
        ipot  = wl_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
+       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lbmhft&
+                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgoodwin) THEN
        ipot  = gw_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.leam.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.leam.OR.lbmhft&
+                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (leam) THEN
        ipot  = ea_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.lwilliams.OR.lbmhft.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.lbmhft&
+                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbmhft) THEN
        ipot  = ft_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lipbv&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lipbv) THEN
        ipot  = ip_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                     .OR.lbuck4r.OR.lbuckmo.OR.lgp)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lbmhft.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuck4r) THEN
        ipot  = b4_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                     .OR.lipbv.OR.lbuckmo.OR.lgp)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lbmhft.OR.lipbv.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbuckmo) THEN
        ipot  = bm_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                    .OR.lipbv.OR.lbuck4r.OR.lgp)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lbmhft.OR.lipbv.OR.lbuck4r&
+                     .OR.loocf.OR.lohcf.OR.lhhcf.OR.lgp)
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (loocf) THEN
+       ipot  = oocf_type
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lbmhft.OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.lohcf.OR.lhhcf.OR.lgp)
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (lohcf) THEN
+       ipot  = ohcf_type
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lbmhft.OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lhhcf.OR.lgp)
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (lhhcf) THEN
+       ipot  = hhcf_type
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lbmhft.OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lgp)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgp) THEN
        ipot  = gp_type
-       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft&
-                    .OR.lipbv.OR.lbuck4r.OR.lbuckmo)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam&
+                     .OR.lbmhft.OR.lipbv.OR.lbuck4r.OR.lbuckmo&
+                     .OR.loocf.OR.lohcf.OR.lhhcf)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -918,6 +1015,12 @@ CONTAINS
              CALL pair_potential_lj_create(p%pot(i)%pot, error=error)
           CASE (wl_type)
              CALL pair_potential_williams_create(p%pot(i)%pot, error=error)
+          CASE (oocf_type)
+             CALL pair_potential_oocf_create(p%pot(i)%pot, error=error)
+          CASE (ohcf_type)
+             CALL pair_potential_ohcf_create(p%pot(i)%pot, error=error)
+          CASE (hhcf_type)
+             CALL pair_potential_hhcf_create(p%pot(i)%pot, error=error)
           CASE (gw_type)
              CALL pair_potential_goodwin_create(p%pot(i)%pot, error=error)
           CASE (ea_type)
@@ -1268,6 +1371,503 @@ CONTAINS
        NULLIFY(potparm%lj)
     END IF
   END SUBROUTINE pair_potential_lj_release
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_oocf_create [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_oocf_create
+  !!
+  !!   FUNCTION
+  !!     Creates the oocf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_oocf_create(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_oocf_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CPPostcondition(.NOT.ASSOCIATED(potparm%oocf),cp_failure_level,routineP,error,failure)
+       ALLOCATE(potparm%oocf, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pair_potential_oocf_clean(potparm, error=error)
+    END IF    
+  END SUBROUTINE pair_potential_oocf_create
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_oocf_copy [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_oocf_copy
+  !!
+  !!   FUNCTION
+  !!     Copy two oocf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_oocf_copy(potparm_source, potparm_dest, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_oocf_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm_source%oocf)) RETURN 
+       IF (ASSOCIATED(potparm_dest%oocf)) CALL pair_potential_oocf_release(potparm_dest, error=error)
+       CALL pair_potential_oocf_create(potparm_dest, error=error)
+       potparm_dest% oocf % a1 = potparm_source% oocf % a1 
+       potparm_dest% oocf % a2 = potparm_source% oocf % a2 
+       potparm_dest% oocf % a3 = potparm_source% oocf % a3 
+       potparm_dest% oocf % a4 = potparm_source% oocf % a4 
+       potparm_dest% oocf % a5 = potparm_source% oocf % a5 
+       potparm_dest% oocf % a6 = potparm_source% oocf % a6 
+       potparm_dest% oocf % a7 = potparm_source% oocf % a7
+       potparm_dest% oocf % a8 = potparm_source% oocf % a8 
+    END IF
+  END SUBROUTINE pair_potential_oocf_copy
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_oocf_clean [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_oocf_clean
+  !!
+  !!   FUNCTION
+  !!     Creates the oocf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_oocf_clean(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_oocf_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm%oocf)) RETURN
+       potparm% oocf % a1 = 0.0_dp
+       potparm% oocf % a2 = 0.0_dp
+       potparm% oocf % a3 = 0.0_dp
+       potparm% oocf % a4 = 0.0_dp
+       potparm% oocf % a5 = 0.0_dp
+       potparm% oocf % a6 = 0.0_dp
+       potparm% oocf % a7 = 0.0_dp
+       potparm% oocf % a8 = 0.0_dp
+    END IF
+  END SUBROUTINE pair_potential_oocf_clean
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_oocf_release [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_oocf_release
+  !!
+  !!   FUNCTION
+  !!     Destroys the oocf potential type
+  !!
+  !!   AUTHOR
+  !!     C J Mundy and N Goldman  6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_oocf_release(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_oocf_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (ASSOCIATED(potparm%oocf)) THEN
+          DEALLOCATE(potparm%oocf, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       NULLIFY(potparm%oocf)
+    END IF
+  END SUBROUTINE pair_potential_oocf_release
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_ohcf_create [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_ohcf_create
+  !!
+  !!   FUNCTION
+  !!     Creates the ohcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_ohcf_create(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_ohcf_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CPPostcondition(.NOT.ASSOCIATED(potparm%ohcf),cp_failure_level,routineP,error,failure)
+       ALLOCATE(potparm%ohcf, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pair_potential_ohcf_clean(potparm, error=error)
+    END IF    
+  END SUBROUTINE pair_potential_ohcf_create
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_ohcf_copy [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_ohcf_copy
+  !!
+  !!   FUNCTION
+  !!     Copy two ohcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_ohcf_copy(potparm_source, potparm_dest, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_ohcf_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm_source%ohcf)) RETURN 
+       IF (ASSOCIATED(potparm_dest%ohcf)) CALL pair_potential_ohcf_release(potparm_dest, error=error)
+       CALL pair_potential_ohcf_create(potparm_dest, error=error)
+       potparm_dest% ohcf % a1 = potparm_source% ohcf % a1 
+       potparm_dest% ohcf % a2 = potparm_source% ohcf % a2 
+       potparm_dest% ohcf % a3 = potparm_source% ohcf % a3 
+       potparm_dest% ohcf % a4 = potparm_source% ohcf % a4 
+       potparm_dest% ohcf % a5 = potparm_source% ohcf % a5 
+       potparm_dest% ohcf % a6 = potparm_source% ohcf % a6 
+       potparm_dest% ohcf % a7 = potparm_source% ohcf % a7
+       potparm_dest% ohcf % a8 = potparm_source% ohcf % a8 
+    END IF
+  END SUBROUTINE pair_potential_ohcf_copy
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_ohcf_clean [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_ohcf_clean
+  !!
+  !!   FUNCTION
+  !!     Creates the ohcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_ohcf_clean(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ohcf_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm%ohcf)) RETURN
+       potparm% ohcf % a1 = 0.0_dp
+       potparm% ohcf % a2 = 0.0_dp
+       potparm% ohcf % a3 = 0.0_dp
+       potparm% ohcf % a4 = 0.0_dp
+       potparm% ohcf % a5 = 0.0_dp
+       potparm% ohcf % a6 = 0.0_dp
+       potparm% ohcf % a7 = 0.0_dp
+       potparm% ohcf % a8 = 0.0_dp
+    END IF
+  END SUBROUTINE pair_potential_ohcf_clean
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_ohcf_release [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_ohcf_release
+  !!
+  !!   FUNCTION
+  !!     Destroys the ohcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman  6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_ohcf_release(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ohcf_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (ASSOCIATED(potparm%ohcf)) THEN
+          DEALLOCATE(potparm%ohcf, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       NULLIFY(potparm%ohcf)
+    END IF
+  END SUBROUTINE pair_potential_ohcf_release
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_hhcf_create [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_hhcf_create
+  !!
+  !!   FUNCTION
+  !!     Creates the hhcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_hhcf_create(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_hhcf_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CPPostcondition(.NOT.ASSOCIATED(potparm%hhcf),cp_failure_level,routineP,error,failure)
+       ALLOCATE(potparm%hhcf, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pair_potential_hhcf_clean(potparm, error=error)
+    END IF    
+  END SUBROUTINE pair_potential_hhcf_create
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_hhcf_copy [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_hhcf_copy
+  !!
+  !!   FUNCTION
+  !!     Copy two hhcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_hhcf_copy(potparm_source, potparm_dest, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_hhcf_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm_source%hhcf)) RETURN 
+       IF (ASSOCIATED(potparm_dest%hhcf)) CALL pair_potential_hhcf_release(potparm_dest, error=error)
+       CALL pair_potential_hhcf_create(potparm_dest, error=error)
+       potparm_dest% hhcf % a1 = potparm_source% hhcf % a1 
+       potparm_dest% hhcf % a2 = potparm_source% hhcf % a2 
+       potparm_dest% hhcf % a3 = potparm_source% hhcf % a3 
+       potparm_dest% hhcf % a4 = potparm_source% hhcf % a4 
+       potparm_dest% hhcf % a5 = potparm_source% hhcf % a5 
+       potparm_dest% hhcf % a6 = potparm_source% hhcf % a6 
+    END IF
+  END SUBROUTINE pair_potential_hhcf_copy
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_hhcf_clean [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_hhcf_clean
+  !!
+  !!   FUNCTION
+  !!     Creates the hhcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman 6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_hhcf_clean(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_hhcf_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (.NOT.ASSOCIATED(potparm%hhcf)) RETURN
+       potparm% hhcf % a1 = 0.0_dp
+       potparm% hhcf % a2 = 0.0_dp
+       potparm% hhcf % a3 = 0.0_dp
+       potparm% hhcf % a4 = 0.0_dp
+       potparm% hhcf % a5 = 0.0_dp
+       potparm% hhcf % a6 = 0.0_dp
+    END IF
+  END SUBROUTINE pair_potential_hhcf_clean
+
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/pair_potential_hhcf_release [1.0] *
+  !!
+  !!   NAME
+  !!     pair_potential_hhcf_release
+  !!
+  !!   FUNCTION
+  !!     Destroys the hhcf potential type
+  !!
+  !!   AUTHOR
+  !!     CJ Mundy and N Goldman  6.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE pair_potential_hhcf_release(potparm, error)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_hhcf_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       IF (ASSOCIATED(potparm%hhcf)) THEN
+          DEALLOCATE(potparm%hhcf, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       NULLIFY(potparm%hhcf)
+    END IF
+  END SUBROUTINE pair_potential_hhcf_release
 
   !******************************************************************************
   !!****

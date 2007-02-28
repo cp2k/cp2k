@@ -57,8 +57,18 @@ MODULE fist_force_numer
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE pair_potential,                  ONLY: potential_f
-  USE pair_potential_types,            ONLY: ea_type,&
-                                             pair_potential_pp_type
+  USE splines,                         ONLY: potential_s
+  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+                                             nn_type,&
+                                             lj_type,&
+                                             ft_type,&
+                                             wl_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             ea_type,&
+                                             oocf_type, &
+                                             ohcf_type, &
+                                             hhcf_type        
   USE particle_types,                  ONLY: particle_type
   USE pme,                             ONLY: pme_evaluate
   USE pw_grid_types,                   ONLY: pw_grid_type
