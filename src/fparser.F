@@ -17,6 +17,7 @@ MODULE fparser
   !
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   USE kinds,                    ONLY: rn => dp
+  USE termination,              ONLY: stop_program
   IMPLICIT NONE
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   PUBLIC                     :: initf,    & ! Initialize function parser for n functions
@@ -164,6 +165,7 @@ CONTAINS
                                           DP,              & ! Data pointer
                                           SP                 ! Stack pointer
     REAL(rn),                PARAMETER :: zero = 0._rn
+    INTEGER                            :: ipow
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     DP = 1
     SP = 0
@@ -177,7 +179,19 @@ CONTAINS
        CASE   (cMul); Comp(i)%Stack(SP-1)=Comp(i)%Stack(SP-1)*Comp(i)%Stack(SP); SP=SP-1
        CASE   (cDiv); IF (Comp(i)%Stack(SP)==0._rn) THEN; EvalErrType=1; res=zero; RETURN; ENDIF
                       Comp(i)%Stack(SP-1)=Comp(i)%Stack(SP-1)/Comp(i)%Stack(SP); SP=SP-1
-       CASE   (cPow); Comp(i)%Stack(SP-1)=Comp(i)%Stack(SP-1)**Comp(i)%Stack(SP); SP=SP-1
+       CASE   (cPow)
+          ! Fixing for possible Negative floating-point value raised to a real power
+          IF (Comp(i)%Stack(SP-1)<0.0_rn) THEN
+             ipow = FLOOR(Comp(i)%Stack(SP))
+             IF (MOD(Comp(i)%Stack(SP),REAL(ipow,KIND=rn))==0.0_rn) THEN
+                Comp(i)%Stack(SP-1)=Comp(i)%Stack(SP-1)**ipow
+             ELSE
+                CALL stop_program("evalf","Error: Negative floating-point value raised to a real power!")
+             END IF
+          ELSE
+             Comp(i)%Stack(SP-1)=Comp(i)%Stack(SP-1)**Comp(i)%Stack(SP)
+          END IF
+          SP=SP-1
        CASE   (cAbs); Comp(i)%Stack(SP)=ABS(Comp(i)%Stack(SP))
        CASE   (cExp); Comp(i)%Stack(SP)=EXP(Comp(i)%Stack(SP))
        CASE (cLog10); IF (Comp(i)%Stack(SP)<=0._rn) THEN; EvalErrType=3; res=zero; RETURN; ENDIF
