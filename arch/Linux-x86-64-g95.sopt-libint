@@ -11,7 +11,7 @@ CPPFLAGS = -C -D__G95 -D__FFTSG -traditional  -D__LIBINT
 FCFLAGS  = -cpp -O3 -ffast-math -march=nocona
 FCFLAGS2 = -cpp -O0
 LDFLAGS  = $(FCFLAGS) -L/scratch/${USER}/lib
-LIBS     = ~/GOTOBLAS/GotoBLAS/libgoto_core2-r1.07.a  ~/LAPACK/liblapack_G95_x86.a  ~/GOTOBLAS/GotoBLAS/libgoto_core2-r1.07.a -L/users/vondele/libint/lib -lint -lstdc++
+LIBS     = ~/GOTOBLAS/GotoBLAS/libgoto_core2-r1.07.a  ~/LAPACK/liblapack_G95_x86.a  ~/GOTOBLAS/GotoBLAS/libgoto_core2-r1.07.a -L/users/vondele/libint/lib -lderiv -lint -lstdc++
 
 OBJECTS_ARCHITECTURE = machine_g95.o
 
