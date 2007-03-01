@@ -40,22 +40,12 @@ MODULE fist_nonbond_force
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
-  USE splines,                         ONLY: potential_s
-  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-                                             pair_potential_single_type,&
-                                             nn_type,&
-                                             lj_type,&
-                                             ft_type,&
-                                             wl_type,&
-                                             gw_type,&
-                                             ip_type,&
-                                             ea_type, &
+  USE pair_potential_types,            ONLY: ea_type,&
                                              nosh_nosh,&
                                              nosh_sh,&
-                                             sh_sh,&
-                                             oocf_type, &
-                                             ohcf_type, &
-                                             hhcf_type   
+                                             pair_potential_pp_type,&
+                                             pair_potential_single_type,&
+                                             sh_sh
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE splines,                         ONLY: potential_s,&
@@ -102,16 +92,15 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: fshell_nonbond
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ab, atom_a, atom_b, handle, &
-                                                ikind, ilist, inode, ipair, &
-                                                jkind, nkinds, nlist, nnode, &
-                                                npairs, shell_a, shell_b, &
-                                                shell_type
+    INTEGER                                  :: atom_a, atom_b, handle, &
+                                                ikind, ilist, ipair, jkind, &
+                                                nkinds, npairs, shell_a, &
+                                                shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: failure, is_eam, is_shell
+    LOGICAL                                  :: failure, is_eam
     REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fscalar, ptens11, &
       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
       rab(3), rab2, rab2_max
@@ -124,10 +113,9 @@ CONTAINS
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc, &
                                                 rshell_last_update_pbc
-    TYPE(spline_data_type), POINTER          :: spline_data, &
-                                                c_spline_data, &
+    TYPE(spline_data_type), POINTER          :: c_spline_data, &
                                                 cs_spline_data, &
-                                                sc_spline_data
+                                                sc_spline_data, spline_data
 
     CALL timeset ( routineN, handle )
 
@@ -616,7 +604,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: v_bonded_corr
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_bc
-    TYPE(particle_type), POINTER, OPTIONAL   :: shell_particle_set( : )
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian'
@@ -626,16 +614,14 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, iatom, &
                                                 iexl, ikind, j, &
-                                                natoms_per_kind, nkind,&
+                                                natoms_per_kind, nkind, &
                                                 shell_i_index, shell_j_index
     LOGICAL                                  :: i_is_shell, j_is_shell
-    REAL(KIND=dp)                            :: alpha, arg, const, dij, &
-                                                e_arg_arg, eps0, errf, flops, &
-                                                fscalar, idij, ifourpieps0, &
-                                                qci, qcj, qi, qj, qsi, qsj, rijsq, tc
+    REAL(KIND=dp) :: alpha, arg, const, dij, e_arg_arg, eps0, errf, flops, &
+      fscalar, idij, ifourpieps0, qci, qcj, qi, qj, qsi, qsj, rijsq, tc
     REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj, rsi, rsj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(shell_kind_type), POINTER                :: shell_i, shell_j
+    TYPE(shell_kind_type), POINTER           :: shell_i, shell_j
 
 ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
 !------------------------------------------------------------------------------

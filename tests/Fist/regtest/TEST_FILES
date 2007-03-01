@@ -187,3 +187,4 @@ JAC_distr.inp             2
 H2O-32_PME_distr.inp      2
 # Central Force Water test (Nir)
 cf.inp                    2
+cf_genpot.inp             2

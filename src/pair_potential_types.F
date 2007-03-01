@@ -865,19 +865,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
     LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
                                                 goodwin, eam, bmhft, ipbv, &
-                                                buck4r, buckmo, &
-                                                oocf, hhcf, ohcf, gp
+                                                buck4r, buckmo, oocf, ohcf, &
+                                                hhcf, gp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ipot, lb1_old, ub1_old
-    LOGICAL                                  :: check, failure, lbmhft, &
-                                                lbuck4r, lbuckmo, leam, &
-                                                lgoodwin, lgp, lipbv, llj, &
-                                                llj_charmm, lwilliams, &
-                                                loocf, lohcf, lhhcf
+    LOGICAL :: check, failure, lbmhft, lbuck4r, lbuckmo, leam, lgoodwin, lgp, &
+      lhhcf, lipbv, llj, llj_charmm, lohcf, loocf, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
@@ -1395,8 +1392,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_oocf_create', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_oocf_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -1434,8 +1430,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_oocf_copy', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_oocf_copy', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -1562,8 +1557,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_ohcf_create', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ohcf_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -1601,8 +1595,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_ohcf_copy', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ohcf_copy', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -1729,8 +1722,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_hhcf_create', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_hhcf_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -1768,8 +1760,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_hhcf_copy', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_hhcf_copy', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

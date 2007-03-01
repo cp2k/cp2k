@@ -62,7 +62,6 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
                                                 length, tau_nhc, mass, angle, &
                                                 eps0
     INTEGER, INTENT(IN), OPTIONAL            :: l_power, t_power
-! define real for a power for really screwed up potentials as OOCF, OHCF, HHCF
     TYPE(particle_type), INTENT(INOUT), &
       OPTIONAL                               :: part( : )
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box

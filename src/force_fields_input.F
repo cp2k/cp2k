@@ -55,22 +55,11 @@ MODULE force_fields_input
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE pair_potential_types,            ONLY: pair_potential_p_type, &
-                                             pair_potential_reallocate, &
-                                             pair_potential_single_type, &
-                                             lj_charmm_type, &
-                                             ft_type, &
-                                             wl_type, &
-                                             gw_type, &
-                                             ip_type, &
-                                             ea_type, &
-                                             eam_pot_type, &
-                                             b4_type, &
-                                             bm_type, &
-                                             oocf_type, &
-                                             ohcf_type, &
-                                             hhcf_type, &
-                                             gp_type
+  USE pair_potential_types,            ONLY: &
+       b4_type, bm_type, ea_type, eam_pot_type, ft_type, gp_type, gw_type, &
+       hhcf_type, ip_type, lj_charmm_type, ohcf_type, oocf_type, &
+       pair_potential_p_type, pair_potential_reallocate, &
+       pair_potential_single_type, wl_type
   USE physcon,                         ONLY: bohr
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
@@ -127,11 +116,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nb4, nbends, nbm, nbmhft, &
-                                                nbonds, nchg, neam, ngd, ngp, &
-                                                nipbv, nlj, nshell, ntors, ntot, &
-                                                nubs, nwl,&
-                                                noocf, nohcf, nhhcf
+    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nhhcf, &
+      nipbv, nlj, nohcf, noocf, nshell, ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -1103,7 +1089,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_oocf_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ohcf_section', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
@@ -1148,7 +1134,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_oocf_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_hhcf_section', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
@@ -1386,8 +1372,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_shell_section(shell_list, section, start, error)
-    TYPE(shell_p_type), &
-      DIMENSION(:), POINTER                  :: shell_list
+    TYPE(shell_p_type), DIMENSION(:), &
+      POINTER                                :: shell_list
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1397,11 +1383,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: atm_name
     INTEGER                                  :: i_rep, n_rep
-    REAL(dp)                                 :: ccharge, scharge
-    REAL(dp)                                 :: cutoff
-    REAL(dp)                                 :: mfrac
-    REAL(dp)                                 :: maxdist
-    REAL(dp)                                 :: spring
+    REAL(dp)                                 :: ccharge, cutoff, maxdist, &
+                                                mfrac, scharge, spring
 
     CALL section_vals_get(section,n_repetition=n_rep,error=error)
     DO i_rep = 1, n_rep
