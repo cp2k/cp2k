@@ -66,7 +66,8 @@ MODULE qs_ks_methods
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE four_center_integrals,           ONLY: integrate_four_center
+  USE four_center_integrals,           ONLY: integrate_four_center,&
+                                             derivatives_four_center
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -141,6 +142,7 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -622,14 +624,19 @@ CONTAINS
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hf ) THEN
          DO ispin = 1,nspins
-                  CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
+           CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
          CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
                                     para_env,ks_env%s_mstruct_changed,error)
+         IF ( calculate_forces ) THEN
+           CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                        para_env,error)
+         END IF
          ! *** Add Core-Hamiltonian-Matrix ***
          DO ispin=1,nspins
             CALL cp_sm_scale_and_add(ks_matrix(ispin)%matrix,matrix_b=matrix_h(1)%matrix,error=error)
          END DO
+
        END IF 
 
        ! ***  Single atom contributions ***
@@ -952,7 +959,6 @@ CONTAINS
 
 
        ! sum all energy terms to obtain the total energy
-
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + &
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&

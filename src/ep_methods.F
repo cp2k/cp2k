@@ -2279,6 +2279,7 @@ CONTAINS
        CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
        CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
        CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
+       CALL mp_sum(force(ikind)%fock_4c,para_env%group)
        force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
             force(ikind)%core_overlap(:,:) +&
             force(ikind)%gth_ppl(:,:) +&
@@ -2291,7 +2292,8 @@ CONTAINS
             force(ikind)%vhxc_atom(:,:) +&
             force(ikind)%g0s_Vh_elec(:,:) +&
             force(ikind)%hartree_2c(:,:) +&
-            force(ikind)%hartree_3c(:,:)
+            force(ikind)%hartree_3c(:,:) +&
+            force(ikind)%fock_4c(:,:)
     END DO
 
     DO iatom=1,natom

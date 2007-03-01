@@ -947,6 +947,7 @@ END SUBROUTINE kg_calculate_forces
       CALL mp_sum(force(ikind)%core_overlap,para_env%group)
       CALL mp_sum(force(ikind)%rho_core,para_env%group)
       CALL mp_sum(force(ikind)%rho_elec,para_env%group)
+      CALL mp_sum(force(ikind)%fock_4c,para_env%group)
       CALL mp_sum(force(ikind)%kg_gpw_ekin_mol,para_env%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
@@ -956,6 +957,7 @@ END SUBROUTINE kg_calculate_forces
                                 force(ikind)%overlap(:,:) +&
                                 force(ikind)%rho_core(:,:) +&
                                 force(ikind)%rho_elec(:,:) +&
+                                force(ikind)%fock_4c(:,:) +&
                                 force(ikind)%kg_gpw_ekin_mol(:,:)
     END DO
 

@@ -222,7 +222,6 @@ CONTAINS
 
     CALL qs_energies(qs_env,globenv,error=error)
 
-
     CALL get_qs_env(qs_env=qs_env,&
                     ks_env=ks_env,&
                     matrix_ks=matrix_ks,&
@@ -329,6 +328,7 @@ CONTAINS
         CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
         CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
         CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
+        CALL mp_sum(force(ikind)%fock_4c,para_env%group)
         force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                   force(ikind)%core_overlap(:,:) +&
                                   force(ikind)%gth_ppl(:,:) +&
@@ -341,8 +341,10 @@ CONTAINS
                                   force(ikind)%vhxc_atom(:,:) +&
                                   force(ikind)%g0s_Vh_elec(:,:) +&
                                   force(ikind)%hartree_2c(:,:) +&
-                                  force(ikind)%hartree_3c(:,:)
+                                  force(ikind)%hartree_3c(:,:) +&
+                                  force(ikind)%fock_4c(:,:)
       END DO
+
 
       DO iatom=1,natom
         ikind = kind_of(iatom)
@@ -528,6 +530,7 @@ CONTAINS
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
+                  iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -549,6 +552,7 @@ CONTAINS
                   iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),&
                   iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
+                  iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -575,7 +579,9 @@ CONTAINS
                   iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"kg_gpw_ekin_mol",qs_force(ikind)%kg_gpw_ekin_mol(1:3,i),&
+                  iatom,ikind,"   kg_gpw_pauli",qs_force(ikind)%kg_gpw_pauli(1:3,i),&
                   iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
+                  iatom,ikind,"        fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
