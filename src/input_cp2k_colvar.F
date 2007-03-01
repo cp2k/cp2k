@@ -218,14 +218,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS_FROM",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,&
+            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ATOMS_TO",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,&
+            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

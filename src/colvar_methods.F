@@ -27,8 +27,9 @@ MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_create, colvar_setup, colvar_type, &
-       coord_colvar_id, dist_colvar_id, plane_distance_colvar_id, &
-       rotation_colvar_id, ddiff_colvar_id, torsion_colvar_id
+       coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
+       plane_distance_colvar_id, rotation_colvar_id, torsion_colvar_id
+  USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -42,13 +43,12 @@ MODULE colvar_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
+  USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: fixd_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -99,18 +99,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatm, iw, kk, stat
+    INTEGER                                  :: handle, iatm, iw, k, kk, n_var, &
+                                                ndim, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(7)                    :: my_subsection
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: angle_section,&
-                                                coordination_section, &
-                                                distance_section,&
-                                                plane_dist_section,&
-                                                rotation_section,&
-                                                torsion_section,&
-                                                ddiff_section
+    TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
+      ddiff_section, distance_section, plane_dist_section, rotation_section, &
+      torsion_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -160,16 +157,29 @@ CONTAINS
     ELSE IF (my_subsection(4)) THEN
        ! Coordination
        CALL colvar_create(colvar, coord_colvar_id, error)
-       CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_vals=iatms,error=error)
-       colvar%coord_param%n_atoms_from = SIZE(iatms)
-       ALLOCATE(colvar%coord_param%i_at_from(SIZE(iatms)),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-       colvar%coord_param%i_at_from = iatms
-       CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_vals=iatms,error=error)
-       colvar%coord_param%n_atoms_to = SIZE(iatms)
-       ALLOCATE(colvar%coord_param%i_at_to(SIZE(iatms)),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-       colvar%coord_param%i_at_to = iatms       
+       ! This section can be repeated
+       CALL section_vals_val_get(coordination_section,"ATOMS_FROM",n_rep_val=n_var,error=error)
+       ndim = 0
+       NULLIFY(colvar%coord_param%i_at_from)
+       NULLIFY(colvar%coord_param%i_at_to)
+       DO k = 1, n_var
+          CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
+          CALL reallocate(colvar%coord_param%i_at_from,1, ndim+SIZE(iatms))
+          colvar%coord_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
+          ndim = ndim + SIZE(iatms)
+       END DO
+       colvar%coord_param%n_atoms_from = ndim
+       ! This section can be repeated
+       CALL section_vals_val_get(coordination_section,"ATOMS_TO",n_rep_val=n_var,error=error)
+       ndim = 0
+       DO k = 1, n_var
+          CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
+          CALL reallocate(colvar%coord_param%i_at_to,1, ndim+SIZE(iatms))
+          colvar%coord_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
+          ndim = ndim + SIZE(iatms)
+       END DO
+       colvar%coord_param%n_atoms_to = ndim
+       ! Let's finish reading the other parameters
        CALL section_vals_val_get(coordination_section,"R0",r_val=colvar%coord_param%r_0,error=error)
        CALL section_vals_val_get(coordination_section,"NN",i_val=colvar%coord_param%nncrd,error=error)
        CALL section_vals_val_get(coordination_section,"ND",i_val=colvar%coord_param%ndcrd,error=error)
@@ -656,8 +666,9 @@ CONTAINS
 
     INTEGER                                  :: i, j, k, l
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: r12, r34, ss(3), xij(3), xpi(3), &
-                                                xpj(3),xkl(3),xpk(3),xpl(3)
+    REAL(dp)                                 :: r12, r34, ss(3), xij(3), &
+                                                xkl(3), xpi(3), xpj(3), &
+                                                xpk(3), xpl(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
