@@ -546,7 +546,7 @@ CONTAINS
 
   SUBROUTINE initialize_velocities(simpar,part,para_env,globenv,molecule_kinds,&
                                    print_section,work_section,force_rescaling,&
-                                   work2_section,shell_part, error)
+                                   work2_section, shell_part, core_part, error)
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -559,6 +559,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER, OPTIONAL :: work2_section
     TYPE(particle_type), DIMENSION(:), &
        POINTER, OPTIONAL                     :: shell_part
+    TYPE(particle_type), DIMENSION(:), &
+       POINTER, OPTIONAL                     :: core_part
     LOGICAL, INTENT(IN), OPTIONAL            :: force_rescaling
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -668,13 +670,14 @@ CONTAINS
             mass_tot = mass_tot + mass
             IF(is_shell) THEN
               IF (is_fixed(i)) THEN
-                part ( i ) % v  = -shell%mass_shell/shell%mass_core * &
+                part ( i ) % v  = 0.0_dp 
+                core_part(part( i )%shell_index)%v=-shell%mass_shell/shell%mass_core * &
                                    shell_part(part( i )%shell_index)%v( : )
               ELSE
                 part ( i ) % v  = vel
-                v_sc_com = shell%mass_core * part( i )%v( : ) + &
-                           shell%mass_shell* shell_part(part( i )%shell_index)%v( : )
-                vcom  = vcom + v_sc_com
+                core_part(part( i )%shell_index)%v = (mass * part( i )%v( : ) - &
+                    shell%mass_shell* shell_part(part( i )%shell_index)%v( : ))/shell%mass_core 
+                vcom  = vcom +  mass * part ( i ) % v
                 denom = denom + mass
               END IF
             ELSE
@@ -712,28 +715,20 @@ CONTAINS
               shell_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
               shell_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
               shell_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
+              core_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
+              core_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
+              core_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
             END IF
          END DO
        END IF
        vcom = vcom / denom
        DO i = 1, natoms
           atomic_kind => part ( i ) % atomic_kind
-          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
-               shell_active=is_shell, shell=shell )
+          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
           ! first subtract the COM
           IF (.NOT.is_fixed(i)) THEN
              v = part ( i ) % v ( : ) - vcom ( : )
-             IF(is_shell) THEN
-         CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
-               vshell = shell_part ( part(i)%shell_index ) % v ( : ) - vcom ( : )
-               v_sc_com = shell%mass_core * v( : ) + shell%mass_shell* vshell( : )
-               v_sc_com = v_sc_com/mass
-               ! now compute the temp
-               akin = akin + 0.5_dp * mass * SUM( v_sc_com * v_sc_com )
-             ELSE
-               ! now compute the temp
-               akin = akin + 0.5_dp * mass * SUM( v * v)
-             END IF
+             akin = akin + 0.5_dp * mass * SUM( v * v)
           END IF
        END DO
        temp = 0.0_dp
@@ -752,6 +747,9 @@ CONTAINS
                    shell_part(i)%v(1) = sc *shell_part(i)%v(1)
                    shell_part(i)%v(2) = sc *shell_part(i)%v(2)
                    shell_part(i)%v(3) = sc *shell_part(i)%v(3)
+                   core_part(i)%v(1) = sc *core_part(i)%v(1)
+                   core_part(i)%v(2) = sc *core_part(i)%v(2)
+                   core_part(i)%v(3) = sc *core_part(i)%v(3)
                  END DO 
                END IF
             END IF
@@ -821,11 +819,14 @@ CONTAINS
 
              ! Initialize the shell velocity to the same value, 
              ! so that core-shell the relative velocity is zero
-             IF(is_shell) THEN
+             IF(is_shell .AND. shell_present) THEN
          CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
                 shell_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
                 shell_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
                 shell_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
+                core_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
+                core_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
+                core_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
              END IF
 
              vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
@@ -845,6 +846,7 @@ CONTAINS
        IF(shell_present) THEN
          DO i = 1,nshell
            CALL mp_bcast ( shell_part ( i ) % v, para_env%source, para_env%group )
+           CALL mp_bcast ( core_part ( i ) % v, para_env%source, para_env%group )
          END DO 
        END IF
 #endif

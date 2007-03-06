@@ -134,7 +134,8 @@ CONTAINS
   SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,ff_type,root_section,&
-       qmmm, qmmm_env, mm_section, subsys_section, shell_particle_set, cell, error)
+       qmmm, qmmm_env, mm_section, subsys_section, shell_particle_set,&
+       core_particle_set, cell, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -154,6 +155,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: mm_section, subsys_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: shell_particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: core_particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -174,8 +177,8 @@ CONTAINS
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
     LOGICAL :: allocate_spline_bond_env, failure, fatal, found, found_a, &
       found_b, found_shell, ionode, is_link_atom, is_a_shell, is_b_shell, &
-      my_qmmm, only_qm, shell_present, use_qmmm_ff
-    REAL(KIND=dp)                            :: atmmass, epsilon, epsilon_a, &
+      my_qmmm, null_massfrac, only_qm, shell_adiabatic, shell_present, use_qmmm_ff
+    REAL(KIND=dp)                            :: atmmass, epsilon0, epsilon_a, &
                                                 epsilon_b, qi1, qi2, qi3, &
                                                 qi4, rmin, rmin2_a, rmin2_b, &
                                                 scale_factor
@@ -1385,6 +1388,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nshell_tot = 0
     n = 0
+    null_massfrac =.FALSE.
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1468,12 +1472,19 @@ CONTAINS
             qeff=charge(i))
        CALL set_atomic_kind(atomic_kind=atomic_kind,&
             elp_potential=elp_potential)
-
+!dbg
+! write(*,*) 'size list shell' ,ASSOCIATED(ff_type%inp_info%shell_list), SIZE(ff_type%inp_info%shell_list)
+!dbg
        ! The shell potential can be defined only from input
        IF(ASSOCIATED(ff_type%inp_info%shell_list)) THEN
           DO j=1,SIZE(ff_type%inp_info%shell_list)
              IF (iw>0) WRITE(iw,*)"Shell Checking ::",&
                        TRIM(ff_type%inp_info%shell_list(j)%atm_name),atmname
+!dbg
+!write(*,*)  'shell ', j, ff_type%inp_info%shell_list(j)%atm_name, TRIM(atmname)
+! write(*,*)  'same?', ((ff_type%inp_info%shell_list(j)%atm_name)==atmname)
+!dbg
+
              IF((ff_type%inp_info%shell_list(j)%atm_name)==atmname) THEN
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      shell=shell, mass=atmmass,natom=natom)
@@ -1481,9 +1492,13 @@ CONTAINS
                   CALL shell_create(shell,error)
                 END IF
                 nshell_tot = nshell_tot + natom
+!dbg
+! write(*,*)  'num shell now ', nshell_tot
+!dbg
                 shell%charge_core=ff_type%inp_info%shell_list(j)%shell%charge_core
                 shell%charge_shell=ff_type%inp_info%shell_list(j)%shell%charge_shell
                 shell%massfrac=ff_type%inp_info%shell_list(j)%shell%massfrac
+                IF(shell%massfrac <EPSILON( 1.0_dp )) null_massfrac = .TRUE.
                 shell%k_spring=ff_type%inp_info%shell_list(j)%shell%k_spring
                 shell%max_dist=ff_type%inp_info%shell_list(j)%shell%max_dist
                 shell%shell_cutoff=ff_type%inp_info%shell_list(j)%shell%shell_cutoff
@@ -1505,9 +1520,17 @@ CONTAINS
 
     IF (iw>0) WRITE(iw,*)"Total number of particles with a shell :: ", nshell_tot
     ! If shell-model is present: Create particle_set of shells (coord. vel. force)
-    NULLIFY(shell_particle_set)
+    NULLIFY(shell_particle_set,core_particle_set)
     IF(nshell_tot>0) THEN
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
+      IF(shell_adiabatic .AND. null_massfrac) THEN
+         CALL stop_program(TRIM(routineN),"Shell-model adiabatic: at least one shell_kind has mass=0 Abort..")
+      END IF
+ !dbg
+!  write(*,*) 'adiab?' , shell_adiabatic
+ !dbg
       CALL allocate_particle_set(shell_particle_set,nshell_tot)
+      CALL allocate_particle_set(core_particle_set,nshell_tot)
       counter = 0
       DO i = 1,SIZE(particle_set)
         NULLIFY(atomic_kind,shell)
@@ -1519,13 +1542,26 @@ CONTAINS
           shell_particle_set(counter)%shell_index=counter
           shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
           shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
+          shell_particle_set(counter)%atom_index =   i
+          core_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
+          core_particle_set(counter)%atom_index =   i
         ELSE
           particle_set(i)%shell_index = 0
         END IF
       END DO  ! i atom in particle_set
-      CPPostcondition(counter/=nshell_tot,cp_failure_level,routineP,error,failure)
+!dbg
+!  write(*,*) 'shell counted ', counter
+!dbg
+
+      CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,error,failure)
       ! Initialize the shells coordinates
-      CALL read_shell_coord_input(particle_set,shell_particle_set,cell,root_section, subsys_section,error)
+      IF(shell_adiabatic) THEN
+        CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
+             root_section, subsys_section, core_particle_set, error=error)
+      ELSE
+        CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
+             root_section, subsys_section,error=error)
+      END IF
 
 
       ! Determine the number of shells per molecule kind
@@ -1538,6 +1574,9 @@ CONTAINS
         CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
         ALLOCATE(shell_list_tmp(natom),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ !dbg
+!  write(*,*) 'mol kind ', i, first, last
+! dbg
         counter = 0
         DO j = first, last
           atomic_kind => particle_set(j)%atomic_kind
@@ -1548,6 +1587,9 @@ CONTAINS
             shell_list_tmp(counter) = j - first + 1
           END IF
         END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
+!dbg
+!  write(*,*) 'shell counted ', counter
+! dbg
         IF(counter/=0) THEN
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                shell_list=shell_list)
@@ -1573,6 +1615,9 @@ CONTAINS
         DEALLOCATE(shell_list_tmp,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         n = n + nmol * counter 
+!dbg
+!  write(*,*) 'shell per mol x mols ', n
+! dbg
       END DO  ! i molecule kind
     END IF  ! nshell_tot>0
     CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
@@ -1680,12 +1725,12 @@ CONTAINS
           END IF
           IF(ii/=0 .AND. jj/=0) THEN
              rmin = rmin2_a + rmin2_b
-             epsilon = SQRT(epsilon_a*epsilon_b)
+             epsilon0 = SQRT(epsilon_a*epsilon_b)
              CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
              potparm_bond%pot(i,j)%pot%type       = lj_charmm_type
              potparm_bond%pot(i,j)%pot%at1        = name_atm_a
              potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-             potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
+             potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon0
              potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
              potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
              potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
@@ -1771,11 +1816,12 @@ CONTAINS
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
     NULLIFY(spline_bond_env)
     CALL get_nonbond_storage(spline_bond_env, potparm_bond, atomic_kind_set, &
-          ff_type%ei_scale14,ff_type%vdw_scale14, error=error)
+          ei_scale14=ff_type%ei_scale14, vdw_scale14=ff_type%vdw_scale14, error=error)
     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
-         atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14,&
-         ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4,&
+         atomic_kind_set , ewald_env, ei_scale14=ff_type%ei_scale14, &
+         vdw_scale14=ff_type%vdw_scale14, eps_spline=ff_type%eps_spline, &
+         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
          do_14=.TRUE., scale_cutoff=ff_type%scale_cutoff, error=error)
 
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
@@ -1840,6 +1886,9 @@ CONTAINS
          SIZE ( atomic_kind_set ), &
          error )
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
+!dbg
+!  write(*,*) 'shell present?', shell_present
+!dbg
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local,&
@@ -1905,13 +1954,13 @@ CONTAINS
 
              IF(ii/=0 .AND. jj/=0) THEN
                 rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
-                epsilon = SQRT(chm_info%nonbond_eps(ii)*&
+                epsilon0 = SQRT(chm_info%nonbond_eps(ii)*&
                      chm_info%nonbond_eps(jj))
                 CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
                 potparm_nonbond%pot(i,j)%pot%type       = lj_charmm_type
                 potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon
+                potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon0
                 potparm_nonbond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
                 potparm_nonbond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
                 potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
@@ -2002,13 +2051,26 @@ CONTAINS
     ! create the pair potential spline environment
     !---------------------------------------
     NULLIFY(spline_nonbond_env,spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env)
-    CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
-         error=error)
-    CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
-         atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
-         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
-         scale_cutoff=ff_type%scale_cutoff, error=error)
+    IF(shell_present) THEN
+      CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
+           spline_c_coul_env=spline_c_coul_env, spline_cs_coul_env=spline_cs_coul_env,&
+           spline_sc_coul_env=spline_sc_coul_env, error=error)
+      CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
+           atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
+           max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
+           emax_spline=ff_type%emax_spline, iw=6, iw2=iw3,iw3=iw4,&
+           scale_cutoff=ff_type%scale_cutoff, spline_c_coul=spline_c_coul_env, &
+           spline_cs_coul=spline_cs_coul_env, spline_sc_coul=spline_sc_coul_env, error=error)
+    ELSE
+      CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
+           error=error)
+      NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env) 
+      CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
+           atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
+           max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
+           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
+           scale_cutoff=ff_type%scale_cutoff, error=error)
+    END IF
     !---------------------------------------
     ! create the manybody spline environment
     !---------------------------------------
@@ -2018,18 +2080,6 @@ CONTAINS
          eps_spline=ff_type%eps_spline,max_energy=ff_type%max_energy,&
          rlow_nb=ff_type%rlow_nb,&
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
-    IF(shell_present) THEN
-      !---------------------------------------
-      ! create the spline environments for shell-model
-      !---------------------------------------
-      nkinds = SIZE(atomic_kind_set)
-      CALL spline_env_create(spline_c_coul_env, nkinds, error=error)
-      CALL spline_env_create(spline_cs_coul_env, nkinds, error=error)
-      CALL spline_env_create(spline_sc_coul_env, nkinds, error=error)
-
-    ELSE
-      NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env) 
-    END IF
 
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)

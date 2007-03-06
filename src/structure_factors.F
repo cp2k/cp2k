@@ -43,7 +43,8 @@ SUBROUTINE structure_factor_init(exp_igr)
 
     NULLIFY(exp_igr % ex, exp_igr % ey, exp_igr % ez)
     NULLIFY(exp_igr % shell_ex, exp_igr % shell_ey, exp_igr % shell_ez)
-    NULLIFY(exp_igr % centre, exp_igr % shell_centre)
+    NULLIFY(exp_igr % core_ex, exp_igr % core_ey, exp_igr % core_ez)
+    NULLIFY(exp_igr % centre, exp_igr % shell_centre, exp_igr % core_centre)
 
 END SUBROUTINE structure_factor_init
 
@@ -74,6 +75,14 @@ SUBROUTINE structure_factor_deallocate ( exp_igr )
      DEALLOCATE ( exp_igr % shell_ez, STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'shell_ez')
   END IF
+  IF ( ASSOCIATED ( exp_igr % core_ex ) ) THEN
+     DEALLOCATE ( exp_igr % core_ex, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'core_ex')
+     DEALLOCATE ( exp_igr % core_ey, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'core_ey')
+     DEALLOCATE ( exp_igr % core_ez, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'core_ez')
+  END IF
 
   IF ( ASSOCIATED ( exp_igr % centre ) ) THEN
      DEALLOCATE ( exp_igr % centre, STAT = isos )
@@ -81,6 +90,10 @@ SUBROUTINE structure_factor_deallocate ( exp_igr )
   END IF
   IF ( ASSOCIATED ( exp_igr % shell_centre ) ) THEN
      DEALLOCATE ( exp_igr % shell_centre, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'centre' )
+  END IF
+  IF ( ASSOCIATED ( exp_igr % core_centre ) ) THEN
+     DEALLOCATE ( exp_igr % core_centre, STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ('ewald_polynomial', 'centre' )
   END IF
 
@@ -138,19 +151,34 @@ SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
     ALLOCATE ( exp_igr % shell_ez ( bds ( 1, 3 ):bds ( 2, 3 ) + 1, nshell ), &
        STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ('structure_factor_allocate', 'shell_ez', 0 )
-    NULLIFY ( exp_igr % centre )
+    NULLIFY ( exp_igr % shell_centre )
+
+    ALLOCATE ( exp_igr % core_ex ( bds ( 1, 1 ):bds ( 2, 1 ) + 1, nshell ), &
+       STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'structure_factor_allocate', 'core_ex', 0 )
+    ALLOCATE ( exp_igr % core_ey ( bds ( 1, 2 ):bds ( 2, 2 ) + 1, nshell ), &
+       STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ('structure_factor_allocate', 'core_ey', 0 )
+    ALLOCATE ( exp_igr % core_ez ( bds ( 1, 3 ):bds ( 2, 3 ) + 1, nshell ), &
+       STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ('structure_factor_allocate', 'core_ez', 0 )
+    NULLIFY ( exp_igr % core_centre )
 
     IF ( PRESENT ( allocate_shell_centre ) ) THEN
       IF ( allocate_shell_centre ) THEN
         ALLOCATE ( exp_igr % shell_centre ( 3, nshell ), STAT = isos )
         IF ( isos /= 0 ) &
            CALL stop_memory ( 'structure_factor_allocate', 'shell_centre', 3 * nparts)
+        ALLOCATE ( exp_igr % core_centre ( 3, nshell ), STAT = isos )
+        IF ( isos /= 0 ) &
+           CALL stop_memory ( 'structure_factor_allocate', 'core_centre', 3 * nparts)
       END IF
     END IF
     END IF
   ELSE
     NULLIFY(exp_igr % shell_ex , exp_igr % shell_ey , exp_igr % shell_ez)
-    NULLIFY(exp_igr % shell_centre)
+    NULLIFY(exp_igr % core_ex , exp_igr % core_ey , exp_igr % core_ez)
+    NULLIFY(exp_igr % shell_centre, exp_igr % core_centre)
 
   ENDIF
 

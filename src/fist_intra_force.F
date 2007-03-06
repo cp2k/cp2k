@@ -80,7 +80,8 @@ CONTAINS
 !!******************************************************************************
 
 SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                  particle_set, shell_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                  particle_set, shell_particle_set, core_particle_set, &
+                  pot_bond, pot_bend, pot_urey_bradley, &
                   pot_torsion, pot_imp_torsion, pot_onef, pot_shell, pv_bond, pv_bend,     &
                   pv_urey_bradley, pv_torsion, pv_imp_torsion, pv_onef, pv_shell, &
                   f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef, cell )
@@ -94,6 +95,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(particle_type), POINTER             :: shell_particle_set( : )
+    TYPE(particle_type), POINTER             :: core_particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pot_bond, pot_bend, &
                                                 pot_urey_bradley, &
                                                 pot_torsion, pot_imp_torsion, &
@@ -248,20 +250,20 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                          energy, fscalar)
         pot_shell = pot_shell + energy
         
-        particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1)  -rij(1) * fscalar
-        particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2)  -rij(2) * fscalar
-        particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3)  -rij(3) * fscalar
+        core_particle_set ( index_b )% f(1) = core_particle_set ( index_b ) % f(1)  -rij(1) * fscalar
+        core_particle_set ( index_b )% f(2) = core_particle_set ( index_b ) % f(2)  -rij(2) * fscalar
+        core_particle_set ( index_b )% f(3) = core_particle_set ( index_b ) % f(3)  -rij(3) * fscalar
         shell_particle_set ( index_b )% f(1) = shell_particle_set ( index_b ) % f(1)  +rij(1) * fscalar
         shell_particle_set ( index_b )% f(2) = shell_particle_set ( index_b ) % f(2)  +rij(2) * fscalar
         shell_particle_set ( index_b )% f(3) = shell_particle_set ( index_b ) % f(3)  +rij(3) * fscalar
 
-! computing the pressure tensor
-        k2 =  rij * fscalar
-        k1 = -k2
-        CALL get_pv_bond ( k1, k2, &
-                           particle_set ( index_a ) % r,  &
-                           shell_particle_set ( index_b ) % r,  &
-                           pv_shell )
+!  the force on the COM is zero therefore there is no contribution to the stress tensor
+!        k2 =  rij * fscalar
+!        k1 = -k2
+!        CALL get_pv_bond ( k1, k2, &
+!                           particle_set ( index_a ) % r,  &
+!                           shell_particle_set ( index_b ) % r,  &
+!                           pv_shell )
 
 ! the contribution from the bonds. ONLY FOR DEBUG
 !       IF ( PRESENT ( f_bond ) ) THEN

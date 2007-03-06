@@ -74,7 +74,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
-                             local_particles, virial, igroup, shell_particle_set  ,error)
+                             local_particles, virial, igroup, error)
 
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -84,27 +84,23 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(virial_type), INTENT(INOUT)         :: virial
     INTEGER, INTENT(IN)                      :: igroup
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: shell_particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_evaluate', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
-      nnodes, nparticle_kind, nparticle_local, shell_index
-    LOGICAL                                  :: is_shell
+      nnodes, nparticle_kind, nparticle_local
     REAL(KIND=dp)                            :: mass, mfl
     REAL(KIND=dp)                            :: v_sc_com_i, v_sc_com_j
     REAL(KIND=dp)                            :: vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(shell_kind_type), POINTER           :: shell
 
 !
 !------------------------------------------------------------------------------
 
    IF ( virial % pv_availability ) THEN
-     NULLIFY(atomic_kind,shell)
+     NULLIFY(atomic_kind)
      CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
      mfl = 0.0_dp
      nparticle_kind = SIZE ( atomic_kind_set )
@@ -114,25 +110,14 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
            nnodes = 0
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass, &
-                   shell_active=is_shell, shell=shell)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass )
               nparticle_local = local_particles%n_el(iparticle_kind)
               DO iparticle_local=1,nparticle_local
                 nnodes = nnodes + 1
                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                IF(is_shell) THEN
-                  shell_index = particle_set(iparticle) % shell_index
-                  vc(1:3) = particle_set ( iparticle ) % v(1:3)
-                  vs(1:3) = shell_particle_set ( shell_index ) % v(1:3)
-                  v_sc_com_i = shell%mass_core * vc( i ) + shell%mass_shell* vs( i )
-                  v_sc_com_j = shell%mass_core * vc( j ) + shell%mass_shell* vs( j )
-                  virial % pv_kinetic ( i, j ) = virial % pv_kinetic ( i, j ) + &
-                                    v_sc_com_i* v_sc_com_j
-                ELSE
-                  virial % pv_kinetic ( i, j ) = virial % pv_kinetic ( i, j ) + &
+                virial % pv_kinetic ( i, j ) = virial % pv_kinetic ( i, j ) + &
                                     mass * particle_set ( iparticle ) % v ( i )* &
                                            particle_set ( iparticle ) % v ( j )
-                END IF
               END DO
            END DO
         END DO

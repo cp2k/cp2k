@@ -22,7 +22,8 @@ MODULE fist_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
@@ -129,6 +130,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure, qmmm, use_ref_cell
+    LOGICAL                                  :: shell_present, shell_adiabatic
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -145,10 +147,12 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles,&
-                                                shell_particles
+                                                shell_particles, &
+                                                core_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set,&
-                                                shell_particle_set
+                                                shell_particle_set, &
+                                                core_particle_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 ewald_section, mm_section, &
@@ -161,7 +165,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
   NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, &
-            poisson_section, shell_particle_set, shell_particles)
+            poisson_section, shell_particle_set, shell_particles, &
+            core_particle_set, core_particles)
 
   mm_section => section_vals_get_subs_vals(force_env_section,&
        "MM",error=error)
@@ -212,7 +217,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
                              molecule_kind_set, molecule_set,&
                              ewald_env, fist_nonbond_env, root_section, para_env, globenv, qmmm=qmmm,&
                              qmmm_env=qmmm_env, force_env_section=force_env_section, &
-                             shell_particle_set=shell_particle_set, cell=cell, error=error )
+                             shell_particle_set=shell_particle_set, &
+                             core_particle_set=core_particle_set, cell=cell, error=error )
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   IF(ASSOCIATED(shell_particle_set)) THEN
@@ -220,14 +226,24 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   ELSE
     NULLIFY(shell_particles)
   END IF
+  IF(ASSOCIATED(core_particle_set)) THEN
+    CALL particle_list_create ( core_particles, els_ptr = core_particle_set, error = error )
+  ELSE
+    NULLIFY(core_particles)
+  END IF
+  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+       shell_present=shell_present, shell_adiabatic=shell_adiabatic)
+  CALL set_fist_env(fist_env, shell_model=shell_present, &
+       shell_model_ad=shell_adiabatic, error=error)
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
   CALL mol_new_list_create ( mols, els_ptr = molecule_set, error = error )
   CALL mol_kind_new_list_create ( mol_kinds, els_ptr = molecule_kind_set, error = error )
   CALL cp_subsys_set ( subsystem, particles = particles, atomic_kinds = atomic_kinds, &
        molecules_new = mols, molecule_kinds_new = mol_kinds, &
-       shell_particles=shell_particles, error = error )
+       shell_particles=shell_particles, core_particles=core_particles, error = error )
   CALL particle_list_release ( particles, error = error )
   CALL particle_list_release ( shell_particles, error = error )
+  CALL particle_list_release ( core_particles, error = error )
   CALL atomic_kind_list_release ( atomic_kinds, error = error )
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )

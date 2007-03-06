@@ -189,7 +189,6 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
 
     ns = nstates(1)
     ind => states( : )
-
     ALLOCATE ( evals ( ns ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
                                         "eval", ns )

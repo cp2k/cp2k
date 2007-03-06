@@ -68,7 +68,7 @@ CONTAINS
 
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                           cell, fist_nonbond_env, para_env,output_unit, &
-                          force_env_section, shell_particle_set, error)
+                          force_env_section, shell_particle_set, core_particle_set, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -79,6 +79,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     INTEGER                                  :: output_unit
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), POINTER             :: shell_particle_set( : )
+    TYPE(particle_type), POINTER             :: core_particle_set( : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
@@ -87,6 +88,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       iparticle_local, istat, last_update, nparticle, nparticle_kind, &
       nparticle_local, nshell, num_update
     LOGICAL                                  :: build_from_scratch, &
+                                                shell_adiabatic, &
                                                 shell_present, &
                                                 update_neighbor_lists
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
@@ -97,7 +99,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc, &
-                                                rshell_last_update_pbc
+                                                rshell_last_update_pbc,&
+                                                rcore_last_update_pbc
 
   CALL timeset(routineN,"I"," ",handle )
 
@@ -113,6 +116,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                             r_last_update=r_last_update,&
                             r_last_update_pbc=r_last_update_pbc,&
                             rshell_last_update_pbc=rshell_last_update_pbc,&
+                            rcore_last_update_pbc=rcore_last_update_pbc,&
                             cell_last_update=cell_last_update,&
                             num_update=num_update,&
                             verlet_skin=verlet_skin,&
@@ -121,7 +125,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   nparticle_kind = SIZE(atomic_kind_set)
   nparticle = SIZE(particle_set)
   nshell = 0
-  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,shell_present=shell_present)
+  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+       shell_present=shell_present, shell_adiabatic=shell_adiabatic)
   IF(shell_present) THEN
     nshell = SIZE(shell_particle_set) 
   END IF
@@ -189,6 +194,13 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
              3*nshell*dp_size)
      END IF 
   END IF
+  IF(shell_present .AND. .NOT.ASSOCIATED(rcore_last_update_pbc)) THEN
+    ALLOCATE (rcore_last_update_pbc(nshell),STAT=istat)
+     IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"rshell_last_update_pbc",&
+             3*nshell*dp_size)
+     END IF 
+  END IF
 
   ! update the neighbor lists
   IF (update_neighbor_lists) THEN
@@ -221,6 +233,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                               r_last_update=r_last_update,&
                               r_last_update_pbc=r_last_update_pbc,&
                               rshell_last_update_pbc=rshell_last_update_pbc,&
+                              rcore_last_update_pbc=rcore_last_update_pbc,&
                               nonbonded=nonbonded,&
                               num_update=num_update,&
                               last_update=last_update,&
@@ -260,6 +273,13 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
        dr=shell_particle_set(particle_set(iparticle)%shell_index)%r(:) - &
           particle_set(iparticle)%r(:)
        rshell_last_update_pbc(iparticle )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)   
+       IF(shell_adiabatic) THEN
+         dr=core_particle_set(particle_set(iparticle)%shell_index)%r(:) - &
+            particle_set(iparticle)%r(:)
+         rcore_last_update_pbc(iparticle )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)
+       ELSE
+         rcore_last_update_pbc(iparticle )%r = r_last_update_pbc(iparticle )%r(:)
+       END IF
      END IF
   END DO
 

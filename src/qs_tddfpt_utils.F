@@ -164,7 +164,6 @@ CONTAINS
 ! -------------------------------------------------------------------
 
     n_spins = qs_env%dft_control%nspins
-
     IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
           CALL copy_sm_to_fm(qs_env%matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)

@@ -55,6 +55,7 @@ MODULE fist_nonbond_env_types
     TYPE(cell_type), POINTER :: cell_last_update
     TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update, r_last_update_pbc
     TYPE(pos_type), DIMENSION(:), POINTER :: rshell_last_update_pbc
+    TYPE(pos_type), DIMENSION(:), POINTER :: rcore_last_update_pbc
     REAL (KIND=dp) :: long_range_correction
   END TYPE fist_nonbond_env_type
 
@@ -95,6 +96,7 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
                                  nonbonded, rlist_cutsq, rlist_lowsq, verlet_skin,  &
                                  aup, lup, r_last_update, r_last_update_pbc, &
                                  rshell_last_update_pbc, &
+                                 rcore_last_update_pbc, &
                                  cell_last_update,num_update,  &
                                  last_update, counter, natom_types,    &
                                  long_range_correction, error )
@@ -109,7 +111,8 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
     TYPE(pos_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_last_update, &
                                                 r_last_update_pbc, &
-                                                rshell_last_update_pbc
+                                                rshell_last_update_pbc, &
+                                                rcore_last_update_pbc
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
@@ -127,6 +130,8 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
       r_last_update_pbc => fist_nonbond_env % r_last_update_pbc
   IF ( PRESENT ( rshell_last_update_pbc ) ) &
       rshell_last_update_pbc => fist_nonbond_env % rshell_last_update_pbc
+  IF ( PRESENT ( rcore_last_update_pbc ) ) &
+      rcore_last_update_pbc => fist_nonbond_env % rcore_last_update_pbc
   IF ( PRESENT ( cell_last_update ) ) &
       cell_last_update => fist_nonbond_env % cell_last_update
   IF ( PRESENT ( lup ) ) lup = fist_nonbond_env % lup 
@@ -170,6 +175,7 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
                                   rlist_cutsq, rlist_lowsq, verlet_skin, nonbonded, &
                                   aup, lup, r_last_update, r_last_update_pbc,&
                                   rshell_last_update_pbc,&
+                                  rcore_last_update_pbc,&
                                   cell_last_update, num_update, &
                                   last_update, counter, natom_types, &
                                   long_range_correction, error )
@@ -185,7 +191,8 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
     TYPE(pos_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_last_update, &
                                                 r_last_update_pbc, &
-                                                rshell_last_update_pbc
+                                                rshell_last_update_pbc, &
+                                                rcore_last_update_pbc
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
@@ -205,6 +212,8 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
       fist_nonbond_env % r_last_update_pbc => r_last_update_pbc
   IF ( PRESENT ( rshell_last_update_pbc ) ) &
       fist_nonbond_env % rshell_last_update_pbc => rshell_last_update_pbc
+  IF ( PRESENT ( rcore_last_update_pbc ) ) &
+      fist_nonbond_env % rcore_last_update_pbc => rcore_last_update_pbc
   IF ( PRESENT ( cell_last_update ) ) &
       fist_nonbond_env % cell_last_update => cell_last_update
   IF ( PRESENT ( lup ) ) fist_nonbond_env % lup = lup
@@ -288,6 +297,7 @@ END SUBROUTINE fist_nonbond_env_create
     NULLIFY (fist_nonbond_env%r_last_update)
     NULLIFY (fist_nonbond_env%r_last_update_pbc)
     NULLIFY (fist_nonbond_env%rshell_last_update_pbc)
+    NULLIFY (fist_nonbond_env%rcore_last_update_pbc)
     NULLIFY (fist_nonbond_env%cell_last_update)
     NULLIFY (fist_nonbond_env% rlist_cutsq )
     NULLIFY (fist_nonbond_env% rlist_lowsq )
@@ -436,7 +446,12 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
           DEALLOCATE (fist_nonbond_env % rshell_last_update_pbc,STAT=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
+        IF (ASSOCIATED(fist_nonbond_env % rcore_last_update_pbc)) THEN
+          DEALLOCATE (fist_nonbond_env % rcore_last_update_pbc,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
         NULLIFY (fist_nonbond_env%rshell_last_update_pbc)
+        NULLIFY (fist_nonbond_env%rcore_last_update_pbc)
         IF (ASSOCIATED(fist_nonbond_env % cell_last_update)) THEN
            CALL cell_release(fist_nonbond_env % cell_last_update,error)
         ENDIF

@@ -1205,6 +1205,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
@@ -1222,7 +1223,8 @@ CONTAINS
     CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
     DO isubsys=1,SIZE(subsys)
        CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles, molecules_new=molecules, error=error)       
+            particles=particles, molecules_new=molecules, &
+            shell_particles=shell_particles, error=error)       
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
        scale = .FALSE.
@@ -1239,13 +1241,23 @@ CONTAINS
        !    Coordinates and Velocities
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
-            cell, error)
+            cell, error=error)
        work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
        IF (.NOT.skip_vel_section) THEN
           CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
        ELSE
           CALL section_vals_remove_values(work_section, error)
        END IF
+! write restart input for shell-model
+       IF(ASSOCIATED(shell_particles)) THEN
+         work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
+         CALL section_coord_val_set(work_section, shell_particles, molecules, conv_factor, scale,&
+            cell, shell=.TRUE., error=error)
+         IF (.NOT.skip_vel_section) THEN
+           work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+           CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
+         END IF
+       ENDIF
        !
        ! CELL
        ! 
@@ -1315,24 +1327,26 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor,&
-       scale, cell, error)
+       scale, cell, shell, error)
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_new_list_type), POINTER         :: molecules
     REAL(KIND=dp)                            :: conv_factor
     LOGICAL, INTENT(IN)                      :: scale
     TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN), OPTIONAL            :: shell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2*default_string_length)   :: line
-    CHARACTER(LEN=default_string_length)     :: my_tag, name, rcval
+    CHARACTER(LEN=default_string_length)     :: icval, my_tag, name, rcval
     INTEGER                                  :: ik, imol, irk, k, last_atom, &
                                                 Nlist
     LOGICAL                                  :: failure, ldum, &
-                                                molname_generated
+                                                molname_generated,&
+                                                my_shell
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(molecule_type), POINTER             :: molecule_now
@@ -1341,6 +1355,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
+    my_shell = .FALSE.
+    IF(PRESENT(shell)) my_shell = shell
     CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,error,failure)
     section => coord_section%section
@@ -1361,52 +1377,91 @@ CONTAINS
     last_atom=0
     DO irk=1,particles%n_els
        CALL get_atomic_kind(particles%els(irk)%atomic_kind,name=name)
-       IF(last_atom<irk) THEN
-         imol=imol+1
-         molecule_now => molecules%els(imol)
-         CALL get_molecule(molecule_now,last_atom=last_atom)
-         CALL get_molecule_kind(molecule_now%molecule_kind,molname_generated=molname_generated,&
-              name=my_tag)
-         IF (molname_generated) my_tag=""
-       END IF
-       ldum = qmmm_ff_precond_only_qm(my_tag)
-       ldum = qmmm_ff_precond_only_qm(name)
-       line = TRIM(name)
-       s = particles%els(irk)%r
-       IF (scale) THEN
-          r = s   
-          CALL real_to_scaled(s,r,cell)
+       IF(my_shell) THEN
+         line = TRIM(name)
+         s = particles%els(irk)%r
+         IF (scale) THEN
+            r = s   
+            CALL real_to_scaled(s,r,cell)
+         ELSE
+            s = s/conv_factor
+         END IF
+         DO k = 1, 3
+            WRITE(rcval,"(ES25.16)") s(k)
+            line = TRIM(line)//" "//TRIM(rcval)
+         END DO
+         WRITE(icval,"(I10)") particles%els(irk)%atom_index
+         line = TRIM(line)//" "//TRIM(icval)
+         CALL val_create(my_val,lc_val=line,error=error)
+         IF (Nlist /= 0) THEN
+            IF (irk==1) THEN
+               new_pos => vals
+            ELSE
+               new_pos => new_pos%rest
+            END IF
+            old_val => new_pos%first_el
+            CALL val_release(old_val,error=error)
+            new_pos%first_el => my_val
+         ELSE
+            IF (irk==1) THEN
+               NULLIFY(new_pos)
+               CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+               vals => new_pos
+            ELSE
+               NULLIFY(new_pos%rest)
+               CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+               new_pos => new_pos%rest
+            END IF
+         END IF
+         NULLIFY(my_val)
        ELSE
-          s = s/conv_factor
-       END IF
-       DO k = 1, 3
-          WRITE(rcval,"(ES25.16)") s(k)
-          line = TRIM(line)//" "//TRIM(rcval)
-       END DO
-       line = TRIM(line)//" "//TRIM(my_tag)
-       CALL val_create(my_val,lc_val=line,error=error)
+         IF(last_atom<irk) THEN
+           imol=imol+1
+           molecule_now => molecules%els(imol)
+           CALL get_molecule(molecule_now,last_atom=last_atom)
+           CALL get_molecule_kind(molecule_now%molecule_kind,molname_generated=molname_generated,&
+                name=my_tag)
+           IF (molname_generated) my_tag=""
+         END IF
+         ldum = qmmm_ff_precond_only_qm(my_tag)
+         ldum = qmmm_ff_precond_only_qm(name)
+         line = TRIM(name)
+         s = particles%els(irk)%r
+         IF (scale) THEN
+            r = s   
+            CALL real_to_scaled(s,r,cell)
+         ELSE
+            s = s/conv_factor
+         END IF
+         DO k = 1, 3
+            WRITE(rcval,"(ES25.16)") s(k)
+            line = TRIM(line)//" "//TRIM(rcval)
+         END DO
+         line = TRIM(line)//" "//TRIM(my_tag)
+         CALL val_create(my_val,lc_val=line,error=error)
 
-       IF (Nlist /= 0) THEN
-          IF (irk==1) THEN
-             new_pos => vals
-          ELSE
-             new_pos => new_pos%rest
-          END IF
-          old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
-          new_pos%first_el => my_val
-       ELSE
-          IF (irk==1) THEN
-             NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
-             vals => new_pos
-          ELSE
-             NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
-             new_pos => new_pos%rest
-          END IF
+         IF (Nlist /= 0) THEN
+            IF (irk==1) THEN
+               new_pos => vals
+            ELSE
+               new_pos => new_pos%rest
+            END IF
+            old_val => new_pos%first_el
+            CALL val_release(old_val,error=error)
+            new_pos%first_el => my_val
+         ELSE
+            IF (irk==1) THEN
+               NULLIFY(new_pos)
+               CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+               vals => new_pos
+            ELSE
+               NULLIFY(new_pos%rest)
+               CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+               new_pos => new_pos%rest
+            END IF
+         END IF
+         NULLIFY(my_val)
        END IF
-       NULLIFY(my_val)
     END DO
     coord_section%values(ik,1)%list => vals
   END SUBROUTINE section_coord_val_set

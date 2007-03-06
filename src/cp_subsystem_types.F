@@ -84,7 +84,8 @@ MODULE cp_subsystem_types
 !!     - local_molecules: the molecule structures of the actual subsys
 !!       that are local to this processor
 !!     - para_env: the parallel environment of the actual subsys
-!!     - shell_particles: list with the shell of the actual subsys id shell-model is used
+!!     - shell_particles: list with the shells of the actual subsys if shell-model is used
+!!     - core_particles: list with the shells of the actual subsys if shell-model is used
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -99,6 +100,7 @@ MODULE cp_subsystem_types
      TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
      TYPE (particle_list_type), POINTER :: particles
      TYPE (particle_list_type), POINTER :: shell_particles
+     TYPE (particle_list_type), POINTER :: core_particles
      TYPE (distribution_1d_type), POINTER :: local_particles
      TYPE (cp_para_env_type), POINTER :: para_env
      !new molecules kinds
@@ -217,7 +219,8 @@ SUBROUTINE cp_subsys_create(subsys, para_env, error)
      subsys%ref_count=1
      CALL cp_para_env_retain(para_env,error=error)
      subsys%para_env => para_env
-     NULLIFY(subsys%atomic_kinds, subsys%particles, subsys%shell_particles , &
+     NULLIFY(subsys%atomic_kinds, subsys%particles, &
+          subsys%shell_particles , subsys%core_particles, &
           subsys%local_particles, subsys%molecules_new,&
           subsys%molecule_kinds_new, subsys%local_molecules_new,&
           subsys%gci)
@@ -322,6 +325,7 @@ SUBROUTINE cp_subsys_release(subsys, error)
         CALL atomic_kind_list_release(subsys%atomic_kinds,error=error)
         CALL particle_list_release(subsys%particles, error=error)
         CALL particle_list_release(subsys%shell_particles, error=error)
+        CALL particle_list_release(subsys%core_particles, error=error)
         CALL distribution_1d_release(subsys%local_particles, error=error)
         CALL mol_kind_new_list_release(subsys%molecule_kinds_new, error=error)
         CALL mol_new_list_release(subsys%molecules_new, error=error)
@@ -435,7 +439,7 @@ END SUBROUTINE cp_subsys_release
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
                          molecules_new, molecule_kinds_new, local_molecules_new, &
-                         para_env, colvar_p, shell_particles, gci, error)
+                         para_env, colvar_p, shell_particles, core_particles, gci, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
@@ -455,6 +459,8 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
       OPTIONAL, POINTER                      :: colvar_p
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: shell_particles
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: core_particles
      TYPE(global_constraint_type), POINTER,&
           OPTIONAL                            :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -515,6 +521,13 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
           subsys%shell_particles => shell_particles
         END IF
      END IF
+     IF (PRESENT(core_particles)) THEN
+        IF(ASSOCIATED(core_particles)) THEN
+          CALL particle_list_retain(core_particles, error=error)
+          CALL particle_list_release(subsys%core_particles, error=error)
+          subsys%core_particles => core_particles
+        END IF
+     END IF
      IF (PRESENT(gci)) THEN
         CPPrecondition(.NOT.ASSOCIATED(subsys%gci),cp_failure_level,routineP,error,failure)
         subsys%gci => gci
@@ -569,7 +582,7 @@ END SUBROUTINE cp_subsys_set
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
-     para_env, colvar_p, shell_particles, gci, error)
+     para_env, colvar_p, shell_particles, core_particles, gci, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
@@ -590,6 +603,8 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
       OPTIONAL, POINTER                      :: colvar_p
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: shell_particles
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: core_particles
      TYPE(global_constraint_type), POINTER,&
           OPTIONAL                            :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -615,6 +630,7 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      IF (PRESENT(para_env)) para_env => subsys%para_env
      IF (PRESENT(colvar_p)) colvar_p => subsys%colvar_p
      IF (PRESENT(shell_particles)) shell_particles => subsys%shell_particles
+     IF (PRESENT(core_particles)) core_particles => subsys%core_particles
      IF (PRESENT(gci)) gci => subsys%gci
   END IF
 END SUBROUTINE cp_subsys_get

@@ -47,7 +47,7 @@ MODULE pme_tools
 
 CONTAINS
 
-SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
+SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart, core_center )
 
 
     TYPE(particle_type), DIMENSION(:), &
@@ -57,6 +57,8 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
     INTEGER, INTENT(OUT)                     :: p1
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, INTENT(INOUT)                   :: ipart, jpart
+    INTEGER, DIMENSION(:, :), POINTER, &
+      OPTIONAL                               :: core_center
 
     INTEGER                                  :: dir, lb, ndim, npos, ub
     REAL(KIND=dp)                            :: charge
@@ -90,11 +92,21 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
         END IF
       ELSE
         ! First check if this atom is on my grid
-        IF ( in_slice ( center ( dir, ipart ), lb, ub ) ) THEN
-          jpart = jpart + 1
-          IF ( MOD ( jpart, ndim ) == npos ) THEN
-            p1 = ipart
-            EXIT
+        IF(part(ipart)%shell_index/=0 .AND. PRESENT(core_center))THEN
+          IF ( in_slice ( core_center ( dir, part(ipart)%shell_index ), lb, ub ) ) THEN
+            jpart = jpart + 1
+            IF ( MOD ( jpart, ndim ) == npos ) THEN
+              p1 = ipart
+              EXIT
+            END IF
+          END IF
+        ELSE
+          IF ( in_slice ( center ( dir, ipart ), lb, ub ) ) THEN
+            jpart = jpart + 1
+            IF ( MOD ( jpart, ndim ) == npos ) THEN
+              p1 = ipart
+              EXIT
+            END IF
           END IF
         END IF
       END IF

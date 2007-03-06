@@ -95,7 +95,7 @@ CONTAINS
 
 SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                            fg_coulomb, vg_coulomb, pv_g, force_env_section,&
-                           shell_particle_set, fgshell_coulomb, error )
+                           shell_particle_set, core_particle_set, fgshell_coulomb, fgcore_coulomb, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -111,8 +111,12 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: shell_particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: core_particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fgshell_coulomb
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: fgcore_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
@@ -120,7 +124,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
     INTEGER :: group, handle, i, ierr, ipart, j, jpart, n, ndim( 3 ), npart, &
       nshell, nsmax, o_spline, p1, p1_shell, rs_distributed_id
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, shell_center
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, shell_center
     LOGICAL                                  :: failure, is_core, is_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
@@ -175,10 +179,14 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   CALL get_center ( particle_set, box, center, grid_spme % npts, n )
   IF(PRESENT(shell_particle_set)) THEN
     CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
     nshell=SIZE(shell_particle_set)
     ALLOCATE ( shell_center ( 3, nshell ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center", 3*nshell )
     CALL get_center ( shell_particle_set, box, shell_center, grid_spme % npts, n )
+    ALLOCATE ( core_center ( 3, nshell ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "core_center", 3*nshell )
+    CALL get_center ( core_particle_set, box, core_center, grid_spme % npts, n )
   END IF
 
 !-------------- DENSITY CALCULATION ----------------
@@ -192,9 +200,9 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      IF ( p1 == 0 ) EXIT
 
      is_core  = (particle_set(p1)%shell_index/=0)
+     IF(is_core) CYCLE
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, & 
-                      is_core=is_core )
+     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos)
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch ( rden, rhos, center(:,p1) )
@@ -214,6 +222,21 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos, shell_center(:,p1_shell) )
+
+     END DO
+     ipart = 0
+     jpart = 0
+     DO
+       ! calculate function on small boxes
+       CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
+                       rden, ipart, jpart )
+       IF ( p1_shell == 0 ) EXIT
+
+       CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
+                        p1_shell, rhos, is_core=.TRUE. )
+
+       ! add boxes to real space grid (big box)
+       CALL dg_sum_patch ( rden, rhos, core_center(:,p1_shell) )
 
      END DO
   END IF
@@ -296,9 +319,9 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
      IF ( p1 == 0 ) EXIT
 
      is_core = (particle_set(p1)%shell_index/=0)
+     IF(is_core) CYCLE
      ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, &
-                      rhos, is_core=is_core )
+     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
@@ -308,10 +331,10 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
   END DO
 
-  ipart = 0
-  jpart = 0
   IF(PRESENT(shell_particle_set)) THEN
     IF(PRESENT(fgshell_coulomb)) THEN
+      ipart = 0
+      jpart = 0
       fgshell_coulomb = 0.0_dp
       DO
         ! calculate function on small boxes
@@ -330,6 +353,28 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
       END DO
     END IF
+    IF(PRESENT(fgcore_coulomb)) THEN
+      ipart = 0
+      jpart = 0
+      fgcore_coulomb = 0.0_dp
+      DO
+        ! calculate function on small boxes
+        CALL set_list ( core_particle_set, nshell, core_center, p1_shell,&
+                        rden, ipart, jpart )
+        IF ( p1_shell == 0 ) EXIT
+
+        CALL get_patch ( core_particle_set, box, green, grid_spme % npts, &
+                        p1_shell, rhos, is_core=.TRUE. )
+
+        ! add boxes to real space grid (big box)
+        CALL dg_sum_patch_force_3d ( drpot, rhos, core_center(:,p1_shell), fat )
+        fgcore_coulomb ( 1, p1_shell ) = fgcore_coulomb ( 1, p1_shell ) - fat ( 1 ) * dvols
+        fgcore_coulomb ( 2, p1_shell ) = fgcore_coulomb ( 2, p1_shell ) - fat ( 2 ) * dvols
+        fgcore_coulomb ( 3, p1_shell ) = fgcore_coulomb ( 3, p1_shell ) - fat ( 3 ) * dvols
+
+      END DO
+    END IF
+
    END IF
 
 !--------------END OF FORCE CALCULATION -------------
@@ -345,6 +390,10 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   IF(ALLOCATED(shell_center)) THEN
     DEALLOCATE ( shell_center, STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center" )
+  END IF
+  IF(ALLOCATED(core_center)) THEN
+    DEALLOCATE ( core_center, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "core_center" )
   END IF
 
   CALL timestop ( 0.0_dp, handle )

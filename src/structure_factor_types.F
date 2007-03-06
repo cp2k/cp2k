@@ -30,7 +30,8 @@ MODULE structure_factor_types
   TYPE structure_factor_type
      COMPLEX (KIND=dp), DIMENSION ( :, : ), POINTER :: ex, ey, ez
      COMPLEX (KIND=dp), DIMENSION ( :, : ), POINTER :: shell_ex, shell_ey, shell_ez
-     INTEGER, DIMENSION ( :, : ), POINTER :: centre, shell_centre
+     COMPLEX (KIND=dp), DIMENSION ( :, : ), POINTER :: core_ex, core_ey, core_ez
+     INTEGER, DIMENSION ( :, : ), POINTER :: centre, core_centre, shell_centre
      INTEGER :: lb ( 3 )
   END TYPE structure_factor_type
 

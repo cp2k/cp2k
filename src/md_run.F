@@ -154,6 +154,7 @@ CONTAINS
                                                 iter_level, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: apply_cns0, failure, &
+                                                shell_adiabatic, &
                                                 shell_present, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
@@ -176,6 +177,7 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles
     TYPE(section_vals_type), POINTER :: force_env_section, motion_section, &
       print_section, root_section, subsys_section, work_section, work2_section
     TYPE(simulation_parameters_type), &
@@ -187,7 +189,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
 
     failure=.FALSE.
-    NULLIFY ( particles, shell_particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
+    NULLIFY ( particles, shell_particles, core_particles, local_molecules,&
+              cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,motion_section,gci )
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
          work_section, work2_section, print_section, atomic_kinds, local_particles, t,&
@@ -307,14 +310,15 @@ CONTAINS
                             molecule_kinds_new=molecule_kinds_new,&
                             particles=particles,&
                             shell_particles=shell_particles,&
+                            core_particles=core_particles,&
                             error=error)
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
-              shell_present=shell_present)
+              shell_present=shell_present, shell_adiabatic=shell_adiabatic)
          NULLIFY (work_section,work2_section)
          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
 
-         IF(shell_present) THEN
+         IF(shell_present .AND. shell_adiabatic) THEN
            work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
            CALL initialize_velocities(simpar,particles%els,&
                                       molecule_kinds=molecule_kinds_new,&
@@ -324,6 +328,7 @@ CONTAINS
                                       work_section=work_section,&
                                       work2_section=work2_section,&
                                       shell_part=shell_particles%els,&
+                                      core_part=core_particles%els,&
                                       error=error)
          ELSE
            CALL initialize_velocities(simpar,particles%els,&
@@ -434,16 +439,10 @@ CONTAINS
               particles=particles,&
               error=error)
 
-       IF(shell_present) THEN
-         CALL virial_evaluate(atomic_kinds%els, particles%els, &
+       CALL virial_evaluate(atomic_kinds%els, particles%els, &
               local_particles, force_env_p(ibead)%force_env% virial,&
               force_env_p(ibead)%force_env%para_env%group,&
-              shell_particle_set=shell_particles%els,error=error)
-       ELSE
-         CALL virial_evaluate(atomic_kinds%els, particles%els, &
-              local_particles, force_env_p(ibead)%force_env% virial,&
-              force_env_p(ibead)%force_env%para_env%group,error=error)
-       END IF
+              error=error)
 
     END DO
 

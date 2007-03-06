@@ -82,6 +82,7 @@ MODULE fist_environment_types
     PRIVATE
     INTEGER :: id_nr, ref_count
     LOGICAL                                        :: qmmm
+    LOGICAL                                        :: shell_model, shell_model_ad
     TYPE ( qmmm_env_mm_type ), POINTER             :: qmmm_env
     TYPE ( cell_type ), POINTER                    :: cell
     TYPE ( cell_type ), POINTER                    :: cell_ref
@@ -149,7 +150,8 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
-                           qmmm, qmmm_env, input, shell_particle_set, error )
+                           qmmm, qmmm_env, input, shell_model, shell_model_ad,&
+                           shell_particle_set, core_particle_set, error )
 
 !   Purpose: Get the FIST environment.
 
@@ -182,7 +184,10 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
+    LOGICAL, OPTIONAL                        :: shell_model
+    LOGICAL, OPTIONAL                        :: shell_model_ad
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : )
+    TYPE(particle_type), OPTIONAL, POINTER   :: core_particle_set( : )
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
@@ -194,6 +199,7 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles
 
 !   ---------------------------------------------------------------------------
 
@@ -212,6 +218,8 @@ CONTAINS
     IF ( PRESENT ( para_env ) ) para_env => fist_env % para_env
     IF ( PRESENT ( ewald_pw ) ) ewald_pw => fist_env % ewald_pw
     IF ( PRESENT ( fist_nonbond_env ) ) fist_nonbond_env => fist_env % fist_nonbond_env
+    IF ( PRESENT ( shell_model ) ) shell_model = fist_env % shell_model
+    IF ( PRESENT ( shell_model_ad ) ) shell_model_ad = fist_env % shell_model_ad
     IF (PRESENT(subsys)) subsys => fist_env%subsys
     CALL cp_subsys_get(fist_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -221,12 +229,14 @@ CONTAINS
                       molecule_kinds_new=molecule_kinds_new,&
                       molecules_new=molecules_new,&
                       shell_particles=shell_particles,&
+                      core_particles=core_particles,&
                       error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(shell_particle_set)) shell_particle_set => shell_particles%els
+    IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
 
   END SUBROUTINE get_fist_env
 !
@@ -254,6 +264,8 @@ CONTAINS
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
     fist_env % qmmm = .FALSE.
+    fist_env % shell_model = .FALSE.
+    fist_env % shell_model_ad = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
     CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
@@ -270,7 +282,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           input, error )
+                           input, shell_model, shell_model_ad, error )
 
 !   Purpose: Set the FIST environment.
 
@@ -299,6 +311,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
+    LOGICAL, OPTIONAL                        :: shell_model
+    LOGICAL, OPTIONAL                        :: shell_model_ad
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
@@ -403,6 +417,12 @@ CONTAINS
                         molecules_new=molecules_new,&
                         error=error)
       CALL mol_new_list_release(molecules_new,error=error)
+    END IF
+    IF (PRESENT(shell_model)) THEN
+       fist_env%shell_model = shell_model
+    END IF
+    IF (PRESENT(shell_model_ad)) THEN
+       fist_env%shell_model_ad = shell_model_ad
     END IF
 
 !***************************************************************************

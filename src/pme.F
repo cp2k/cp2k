@@ -107,7 +107,7 @@ CONTAINS
 
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
                             fg_coulomb, pv_g, force_env_section, shell_particle_set, &
-                            fgshell_coulomb, error )
+                            core_particle_set, fgshell_coulomb, fgcore_coulomb, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: box
@@ -119,8 +119,12 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: shell_particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: core_particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fgshell_coulomb
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: fgcore_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
@@ -171,6 +175,7 @@ CONTAINS
 
     IF(PRESENT(shell_particle_set)) THEN
       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
       nshell=SIZE(shell_particle_set)
       CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
            allocate_centre = .TRUE., allocate_shell_e=.TRUE., allocate_shell_centre = .TRUE., nshell=nshell )
@@ -198,6 +203,7 @@ CONTAINS
     END IF
     IF ( PRESENT(shell_particle_set) .AND. rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
          CALL get_center ( shell_particle_set, box, exp_igr % shell_centre, grid_b % npts, 1 )
+         CALL get_center ( core_particle_set, box, exp_igr % core_centre, grid_b % npts, 1 )
     END IF
 
     !-------------- DENSITY CALCULATION ----------------
@@ -206,8 +212,8 @@ CONTAINS
     jpart = 0
     DO
 
-       CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart )
-       CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart )
+       CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart, exp_igr %core_centre)
+       CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart, exp_igr %core_centre)
        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
        is1_core  = (particle_set(p1)%shell_index/=0)
@@ -218,12 +224,30 @@ CONTAINS
        END IF
 
        ! calculate function on small boxes (we use double packing in FFT)
-       CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-            rhos1, rhos2 , is1_core=is1_core, is2_core=is2_core)
+       IF(is1_core .OR. is2_core) THEN
+         CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
+              rhos1, rhos2 , is1_core=is1_core, is2_core=is2_core, &
+              core_particle_set=core_particle_set, error=error )
 
-       ! add boxes to real space grid (big box)
-       CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
-       IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
+         ! add boxes to real space grid (big box)
+         IF(is1_core) THEN
+           CALL dg_sum_patch ( rden, rhos1, exp_igr % core_centre ( :, particle_set(p1)%shell_index ) )
+         ELSE
+           CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
+         END IF
+         IF ( p2 /= 0 .AND. is2_core) THEN
+           CALL dg_sum_patch ( rden, rhos2, exp_igr % core_centre ( :, particle_set(p2)%shell_index ) )
+         ELSE IF(p2 /= 0) THEN
+           CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
+         END IF
+       ELSE
+         CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
+              rhos1, rhos2 ,  error=error )
+         ! add boxes to real space grid (big box)
+         CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
+         IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
+       END IF
+
 
     END DO
     IF(PRESENT(shell_particle_set)) THEN
@@ -235,7 +259,7 @@ CONTAINS
         IF ( p1 == 0 .AND. p2 == 0 ) EXIT
         ! calculate function on small boxes (we use double packing in FFT)
         CALL get_patch ( dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-            rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. )
+            rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE. , error=error)
         ! add boxes to real space grid (big box)
         CALL dg_sum_patch ( rden, rhos1, exp_igr % shell_centre ( :, p1 ) )
         IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % shell_centre ( :, p2 ) )
@@ -303,8 +327,8 @@ CONTAINS
        jpart = 0
        DO
 
-          CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart )
-          CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart )
+          CALL set_list ( particle_set, npart, exp_igr % centre, p1, rden, ipart, jpart, exp_igr % core_centre )
+          CALL set_list ( particle_set, npart, exp_igr % centre, p2, rden, ipart, jpart,exp_igr % core_centre )
           IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
          is1_core  = (particle_set(p1)%shell_index/=0)
@@ -315,15 +339,36 @@ CONTAINS
          END IF
 
          ! calculate function on small boxes (we use double packing in FFT)
+
          CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, &
               is1_core = is1_core, is2_core=is2_core )
 
          ! sum boxes on real space grids (big box)
-         CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
-         fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
-         fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
-         fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
-         IF ( p2 /= 0 ) THEN
+         IF(is1_core ) THEN
+           CALL dg_sum_patch_force_3d ( drpot, rhos1, &
+              exp_igr % core_centre ( :, particle_set(p1)%shell_index ), fat )
+           fgcore_coulomb ( 1, particle_set(p1)%shell_index ) = &
+              fgcore_coulomb ( 1, particle_set(p1)%shell_index ) - fat ( 1 ) * dvols
+           fgcore_coulomb ( 2,particle_set( p1)%shell_index ) = &
+              fgcore_coulomb ( 2, particle_set(p1)%shell_index ) - fat ( 2 ) * dvols
+           fgcore_coulomb ( 3, particle_set(p1)%shell_index ) = &
+              fgcore_coulomb ( 3, particle_set(p1)%shell_index ) - fat ( 3 ) * dvols
+         ELSE
+             CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
+             fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
+             fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
+             fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
+         END IF
+         IF ( p2 /= 0 .AND. is2_core) THEN
+           CALL dg_sum_patch_force_3d ( drpot, rhos1, &
+              exp_igr % core_centre ( :, particle_set(p2)%shell_index ), fat )
+           fgcore_coulomb ( 1, particle_set(p2)%shell_index ) = &
+              fgcore_coulomb ( 1, particle_set(p2)%shell_index ) - fat ( 1 ) * dvols
+           fgcore_coulomb ( 2,particle_set( p2)%shell_index ) = &
+              fgcore_coulomb ( 2, particle_set(p2)%shell_index ) - fat ( 2 ) * dvols
+           fgcore_coulomb ( 3, particle_set(p2)%shell_index ) = &
+              fgcore_coulomb ( 3, particle_set(p2)%shell_index ) - fat ( 3 ) * dvols
+         ELSEIF ( p2 /= 0 ) THEN
              CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
              fg_coulomb ( 1, p2 ) = fg_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
              fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
@@ -395,7 +440,8 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
-           grid_b, grid_s, rhos1, rhos2 , is1_core, is2_core, is1_shell, is2_shell)
+           grid_b, grid_s, rhos1, rhos2 , is1_core, is2_core, is1_shell,&
+           is2_shell,core_particle_set, error)
 
 
     TYPE(dg_type), POINTER                   :: dg
@@ -408,10 +454,16 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     TYPE(coeff_type)                         :: rhos1, rhos2
     LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
                                                 is1_shell, is2_shell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER, OPTIONAL                      :: core_particle_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch', &
+      routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    LOGICAL                                  :: my_is1_core, my_is1_shell, &
+    LOGICAL                                  :: failure, my_is1_core, my_is1_shell, &
                                                 my_is2_core, my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
@@ -422,11 +474,15 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
 
 !------------------------------------------------------------------------------
 
+  failure = .FALSE.
   NULLIFY(shell)
   my_is1_core = .FALSE.
   my_is2_core = .FALSE.
   IF(PRESENT(is1_core)) my_is1_core = is1_core
   IF(PRESENT(is2_core)) my_is2_core = is2_core
+  IF(my_is1_core .OR. my_is2_core) THEN
+    CPPostcondition(PRESENT(core_particle_set),cp_failure_level,routineP,error,failure)
+  END IF
   my_is1_shell = .FALSE.
   my_is2_shell = .FALSE.
   IF(PRESENT(is1_shell)) my_is1_shell = is1_shell
@@ -438,7 +494,11 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
   CALL dg_get ( dg, dg_rho0 = dg_rho0 )
   rho0 => dg_rho0 % density
 
-  r1 = particle_set ( p1 ) % r
+  IF(my_is1_core) THEN
+    r1 = core_particle_set (particle_set(p1)%shell_index ) % r
+  ELSE
+    r1 = particle_set ( p1 ) % r
+  END IF
   atomic_kind => particle_set (p1) % atomic_kind
   IF(my_is1_core) THEN
     CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
@@ -455,6 +515,11 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     ex1 => exp_igr % shell_ex ( :, p1 )
     ey1 => exp_igr % shell_ey ( :, p1 )
     ez1 => exp_igr % shell_ez ( :, p1 )
+  ELSEIF(my_is1_core) THEN
+    center1 => exp_igr % core_centre ( :, particle_set(p1)%shell_index )
+    ex1 => exp_igr % core_ex ( :, particle_set(p1)%shell_index )
+    ey1 => exp_igr % core_ey ( :, particle_set(p1)%shell_index )
+    ez1 => exp_igr % core_ez ( :, particle_set(p1)%shell_index )
   ELSE
     center1 => exp_igr % centre ( :, p1 )
     ex1 => exp_igr % ex ( :, p1 )
@@ -466,7 +531,11 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
        exp_igr % lb, ex1, ey1, ez1 )
 
   IF ( p2 /= 0 ) THEN
-     r2 = particle_set ( p2 ) % r
+     IF(my_is2_core) THEN
+       r2 = core_particle_set ( particle_set(p2)%shell_index ) % r
+     ELSE
+       r2 = particle_set ( p2 ) % r
+     END IF
      atomic_kind => particle_set (p2) % atomic_kind
      IF(my_is2_core) THEN
        CALL get_atomic_kind ( atomic_kind=atomic_kind, shell=shell)
@@ -483,6 +552,11 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
        ex2 => exp_igr % shell_ex ( :, p2 )
        ey2 => exp_igr % shell_ey ( :, p2 )
        ez2 => exp_igr % shell_ez ( :, p2 )
+     ELSEIF(my_is2_core) THEN
+       center2 => exp_igr % core_centre ( :, particle_set(p2)%shell_index )
+       ex2 => exp_igr % core_ex ( :, particle_set(p2)%shell_index )
+       ey2 => exp_igr % core_ey ( :, particle_set(p2)%shell_index )
+       ez2 => exp_igr % core_ez ( :, particle_set(p2)%shell_index )
      ELSE
        center2 => exp_igr % centre ( :, p2 )
        ex2 => exp_igr % ex ( :, p2 )
@@ -504,7 +578,8 @@ END SUBROUTINE get_patch
 
 !******************************************************************************
 
-SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is1_core, is2_core, is1_shell, is2_shell )
+SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is1_core, &
+           is2_core, is1_shell, is2_shell )
 
 
     TYPE(dg_type), POINTER                   :: dg
@@ -515,6 +590,10 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
     TYPE(coeff_type)                         :: rhos1, rhos2
     LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
                                                 is1_shell, is2_shell
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch_again', &
+      routineP = moduleN//':'//routineN
+
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     LOGICAL                                  :: my_is1_core, my_is1_shell, &
@@ -550,7 +629,11 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
   ELSE
     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q1)
   END IF
-  IF (my_is1_shell) THEN
+  IF (my_is1_core) THEN
+    ex1 => exp_igr % core_ex ( :, particle_set (p1)%shell_index )
+    ey1 => exp_igr % core_ey ( :, particle_set (p1)%shell_index )
+    ez1 => exp_igr % core_ez ( :, particle_set (p1)%shell_index )
+  ELSEIF(my_is1_shell)THEN
     ex1 => exp_igr % shell_ex ( :, p1 )
     ey1 => exp_igr % shell_ey ( :, p1 )
     ez1 => exp_igr % shell_ez ( :, p1 )
@@ -571,7 +654,11 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
      ELSE
        CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=q2)
      END IF
-     IF (my_is2_shell) THEN
+     IF (my_is2_core) THEN
+       ex2 => exp_igr % core_ex ( :, particle_set (p2)%shell_index )
+       ey2 => exp_igr % core_ey ( :, particle_set (p2)%shell_index )
+       ez2 => exp_igr % core_ez ( :, particle_set (p2)%shell_index )
+     ELSEIF (my_is2_shell) THEN
        ex2 => exp_igr % shell_ex ( :, p2 )
        ey2 => exp_igr % shell_ey ( :, p2 )
        ez2 => exp_igr % shell_ez ( :, p2 )

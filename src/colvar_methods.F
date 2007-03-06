@@ -27,8 +27,8 @@ MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_create, colvar_setup, colvar_type, &
-       coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
-       plane_distance_colvar_id, rotation_colvar_id, torsion_colvar_id
+       coord_colvar_id, dist_colvar_id, plane_distance_colvar_id, &
+       rotation_colvar_id, ddiff_colvar_id, torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -872,7 +872,8 @@ CONTAINS
     INTEGER                                  :: i, ii, jj, n_atoms_from, &
                                                 n_atoms_to, ndcrd, nncrd
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: dfunc, func, invden, ncoord, &
+    REAL(dp)                                 :: dfunc, func, invden, &
+                                                inv_n_atoms_from, ncoord, &
                                                 num, r12, r_0, rdist, ss(3), &
                                                 xij(3)
     REAL(dp), DIMENSION(3)                   :: xpi, xpj
@@ -898,6 +899,7 @@ CONTAINS
 
     ncoord=0.0_dp
     colvar%dsdr=0.0_dp
+    inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
     DO ii=1,n_atoms_from
        i=colvar%coord_param%i_at_from(ii)
        xpi(:)=my_particles(i)%r(1:3)
@@ -921,7 +923,9 @@ CONTAINS
           colvar%dsdr(:,n_atoms_from+jj)=colvar%dsdr(:,n_atoms_from+jj)-dfunc*xij
        ENDDO
     ENDDO
-    colvar%ss=ncoord
+    colvar%ss=ncoord*inv_n_atoms_from
+    colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
+
 
   END SUBROUTINE coord_colvar
   !***************************************************************************

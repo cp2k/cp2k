@@ -89,7 +89,7 @@ CONTAINS
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,&
        root_section,para_env,globenv, qmmm, qmmm_env, force_env_section,&
-       shell_particle_set, cell, error)
+       shell_particle_set, core_particle_set, cell, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -110,6 +110,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: shell_particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: core_particle_set
     TYPE(cell_type), POINTER                 :: cell
 
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -181,7 +183,8 @@ CONTAINS
          molecule_kind_set,molecule_set,&
          ewald_env,fist_nonbond_env,&
          ff_type,root_section, qmmm, qmmm_env, mm_section, subsys_section, &
-         shell_particle_set=shell_particle_set, cell=cell, error=error)
+         shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
+         cell=cell, error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Output total system charge assigned to qeff

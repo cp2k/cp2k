@@ -281,7 +281,8 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-  SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell, root_section, subsys_section, error )
+  SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell,&
+             root_section, subsys_section, core_particle_set, error )
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -290,6 +291,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER, OPTIONAL                      :: core_particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input', &
@@ -309,7 +312,7 @@ CONTAINS
                                                 is_ok, is_shell, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: unit_of_length
-    REAL(KIND=dp)                            :: dab, rab(3)
+    REAL(KIND=dp)                            :: dab, mass_com, rab(3)
     REAL(KIND=dp), DIMENSION(:,:), &
       ALLOCATABLE                            :: r
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -391,7 +394,7 @@ CONTAINS
       DO ishell=1,nshell
          atomic_kind => particle_set(at_index(ishell))%atomic_kind
          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              name=name_kind,shell_active=is_shell,shell=shell)
+              name=name_kind,shell_active=is_shell,mass=mass_com,shell=shell)
          CALL uppercase(name_kind)
          IF((TRIM(at_name(ishell))==TRIM(name_kind)).AND. is_shell) THEN
            sh_index = particle_set(at_index(ishell))%shell_index
@@ -400,8 +403,21 @@ CONTAINS
            ELSE
              shell_particle_set(sh_index)%r(:) = r(:,ishell)*unit_of_length
            END IF
+           shell_particle_set(sh_index)%atom_index=at_index(ishell)
 
-           rab = pbc(shell_particle_set(sh_index)%r,particle_set(at_index(ishell))%r,cell)
+           IF(PRESENT(core_particle_set)) THEN
+             core_particle_set(sh_index)%r(1) = (mass_com*particle_set(at_index(ishell))%r(1)-&
+                   shell%mass_shell*shell_particle_set(sh_index)%r(1))/shell%mass_core
+             core_particle_set(sh_index)%r(2) = (mass_com*particle_set(at_index(ishell))%r(2)-&
+                   shell%mass_shell*shell_particle_set(sh_index)%r(2))/shell%mass_core
+             core_particle_set(sh_index)%r(3) = (mass_com*particle_set(at_index(ishell))%r(3)-&
+                   shell%mass_shell*shell_particle_set(sh_index)%r(3))/shell%mass_core
+             core_particle_set(sh_index)%atom_index=at_index(ishell)
+             rab = pbc(shell_particle_set(sh_index)%r,core_particle_set(sh_index)%r,cell)
+           ELSE
+             rab = pbc(shell_particle_set(sh_index)%r,particle_set(at_index(ishell))%r,cell)
+           END IF
+
            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
            IF(shell%max_dist>0.0_dp .AND. shell%max_dist<dab ) THEN
              IF(ionode) THEN

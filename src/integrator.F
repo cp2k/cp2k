@@ -398,12 +398,15 @@ CONTAINS
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
       nparticle_kind, nparticle_local, nshell, shell_index
     LOGICAL :: is_shell, shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
+    REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
+                                                fac_massc, fac_masss, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: shell_pos, shell_vel
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: core_pos, core_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -432,17 +435,20 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: shell_particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: core_particle_set
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,gci)
-    NULLIFY (shell,shell_particles,shell_particle_set)
+    NULLIFY (shell,shell_particles,shell_particle_set,core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
@@ -492,20 +498,29 @@ CONTAINS
 
       IF(shell_present) THEN
         CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-             shell_particles=shell_particles, error=error)
+             shell_particles=shell_particles, core_particles=core_particles, error=error)
         shell_particle_set =>  shell_particles%els
         nshell = SIZE(shell_particles%els)
 
         IF(shell_adiabatic) THEN
+           core_particle_set =>  core_particles%els
            !     *** Allocate work storage for positions and velocities ***
            ALLOCATE (shell_pos(3,nshell),STAT=istat)
            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "shellpos",3*nshell*dp_size)
+           ALLOCATE (core_pos(3,nshell),STAT=istat)
+           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "corepos",3*nshell*dp_size)
            ALLOCATE (shell_vel(3,nshell),STAT=istat)
            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "shellvel",3*nshell*dp_size)
+           ALLOCATE (core_vel(3,nshell),STAT=istat)
+           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "corevel",3*nshell*dp_size)
            shell_pos(:,:) = 0.0_dp
            shell_vel(:,:) = 0.0_dp
+           core_pos(:,:) = 0.0_dp
+           core_vel(:,:) = 0.0_dp
         END IF
       ELSE
           shell_adiabatic = .FALSE.
@@ -520,25 +535,35 @@ CONTAINS
           atomic_kind => atomic_kind_set(iparticle_kind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
                shell_active=is_shell,shell=shell)
+          dm = 0.5_dp*dt/mass
           IF(is_shell) THEN
-            dm = 0.5_dp*dt/shell%mass_core
-          ELSE
-            dm = 0.5_dp*dt/mass
+            dms = 0.5_dp*dt/shell%mass_shell
+            dmc = 0.5_dp*dt/shell%mass_core
+            fac_masss = shell%mass_shell/mass 
+            fac_massc = shell%mass_core/mass 
           END IF
           nparticle_local = local_particles%n_el(iparticle_kind)
           DO iparticle_local=1,nparticle_local
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-            vel (:,iparticle) = particle_set(iparticle)%v(:) +&
-                                dm * particle_set(iparticle)%f(:)
-            pos (:,iparticle) = particle_set(iparticle)%r(:) +&
-                                dt * vel ( :, iparticle )
             IF(is_shell) THEN
-              dm = 0.5_dp*dt/shell%mass_shell
               shell_index = particle_set(iparticle)%shell_index
               shell_vel (:,shell_index) = shell_particle_set(shell_index)%v(:) +&
-                                dm * shell_particle_set(shell_index)%f(:)
-              shell_pos (:,shell_index) = particle_set(shell_index)%r(:) +&
+                                dms * shell_particle_set(shell_index)%f(:)
+              shell_pos (:,shell_index) = shell_particle_set(shell_index)%r(:) +&
                                 dt * shell_vel ( :, shell_index )
+              core_vel (:,shell_index) = core_particle_set(shell_index)%v(:) +&
+                                dmc * core_particle_set(shell_index)%f(:)
+              core_pos (:,shell_index) = core_particle_set(shell_index)%r(:) +&
+                                dt * core_vel ( :, shell_index )
+              vel (:,iparticle) = fac_masss*shell_vel (:,shell_index)+&
+                                fac_massc*core_vel (:,shell_index)
+              pos (:,iparticle) = fac_masss*shell_pos (:,shell_index)+&
+                                fac_massc*core_pos (:,shell_index)
+            ELSE
+              vel (:,iparticle) = particle_set(iparticle)%v(:) +&
+                                  dm * particle_set(iparticle)%f(:)
+              pos (:,iparticle) = particle_set(iparticle)%r(:) +&
+                                  dt * vel ( :, iparticle )
             END IF
           END DO
         END DO
@@ -568,11 +593,18 @@ CONTAINS
                                                 local_particles, error )
 
 !     *** Broadcast the new particle positions ***
-
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
-
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
+
+      IF(shell_adiabatic)THEN
+         CALL update_particle_set ( shell_particle_set, para_env % group, pos = shell_pos )
+         CALL update_particle_set ( core_particle_set, para_env % group, pos = core_pos )
+         DEALLOCATE (shell_pos,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_pos")
+         DEALLOCATE (core_pos,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_pos")
+      END IF
 
 !     *** coefficients
 
@@ -613,18 +645,59 @@ CONTAINS
 
 !     *** Velocity Verlet (second part) ***
 
-      DO iparticle_kind=1,nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-        dm = 0.5_dp*dt/mass
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local=1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel ( 1, iparticle) = vel ( 1, iparticle) + dm*particle_set(iparticle)%f(1)
-          vel ( 2, iparticle) = vel ( 2, iparticle) + dm*particle_set(iparticle)%f(2)
-          vel ( 3, iparticle) = vel ( 3, iparticle) + dm*particle_set(iparticle)%f(3)
+      IF(shell_adiabatic) THEN
+        DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
+                 shell_active=is_shell,shell=shell)
+          dm = 0.5_dp*dt/mass
+          IF(is_shell) THEN
+            dms = 0.5_dp*dt/shell%mass_shell
+            dmc = 0.5_dp*dt/shell%mass_core
+            fac_masss = shell%mass_shell/mass 
+            fac_massc = shell%mass_core/mass 
+          END IF
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            IF(is_shell) THEN
+              shell_index = particle_set(iparticle)%shell_index
+              shell_vel (1,shell_index) = shell_vel (1,shell_index) + &
+                        dms*shell_particle_set(shell_index)%f(1)
+              shell_vel (2,shell_index) = shell_vel (2,shell_index) + &
+                        dms*shell_particle_set(shell_index)%f(2)
+              shell_vel (3,shell_index) = shell_vel (3,shell_index) + &
+                        dms*shell_particle_set(shell_index)%f(3)
+              core_vel (1,shell_index) = core_vel (1,shell_index) + &
+                        dmc*core_particle_set(shell_index)%f(1)
+              core_vel (2,shell_index) = core_vel (2,shell_index) + &
+                        dmc*core_particle_set(shell_index)%f(2)
+              core_vel (3,shell_index) = core_vel (3,shell_index) + &
+                        dmc*core_particle_set(shell_index)%f(3)
+              vel ( 1, iparticle) = fac_masss*shell_vel (1,shell_index)+fac_massc*core_vel (1,shell_index)
+              vel ( 2, iparticle) = fac_masss*shell_vel (2,shell_index)+fac_massc*core_vel (2,shell_index)
+              vel ( 3, iparticle) = fac_masss*shell_vel (3,shell_index)+fac_massc*core_vel (3,shell_index)
+            ELSE
+              vel ( 1, iparticle) = vel ( 1, iparticle) + dm*particle_set(iparticle)%f(1)
+              vel ( 2, iparticle) = vel ( 2, iparticle) + dm*particle_set(iparticle)%f(2)
+              vel ( 3, iparticle) = vel ( 3, iparticle) + dm*particle_set(iparticle)%f(3)
+            END IF
+          END DO
         END DO
-      END DO
+      ELSE
+        DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+          dm = 0.5_dp*dt/mass
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            vel ( 1, iparticle) = vel ( 1, iparticle) + dm*particle_set(iparticle)%f(1)
+            vel ( 2, iparticle) = vel ( 2, iparticle) + dm*particle_set(iparticle)%f(2)
+            vel ( 3, iparticle) = vel ( 3, iparticle) + dm*particle_set(iparticle)%f(3)
+          END DO
+        END DO
+      END IF
 
       IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, &
@@ -632,13 +705,29 @@ CONTAINS
                                                  simpar%info_constraint, cell,para_env%group,&
                                                  local_particles, error )
 
-      IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
+      IF (simpar%annealing) THEN
+         vel(:,:)=vel(:,:)*simpar%f_annealing
+         IF (shell_adiabatic) THEN
+            shell_vel(:,:)=shell_vel(:,:)*simpar%f_annealing
+            core_vel(:,:)=core_vel(:,:)*simpar%f_annealing
+         END IF
+       END IF
 
 !     *** Broadcast the new particle velocities ***
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
+      IF (shell_adiabatic) THEN
+        CALL update_particle_set ( shell_particle_set, para_env % group, vel = shell_vel )
+        CALL update_particle_set ( core_particle_set, para_env % group, vel = core_vel )
+      END IF
 
       DEALLOCATE (vel,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
+      IF (shell_adiabatic) THEN
+        DEALLOCATE (shell_vel,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"shell_vel")
+        DEALLOCATE (core_vel,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"core_vel")
+      END IF
 
 !     *** coefficients
 

@@ -62,6 +62,7 @@ MODULE fist_force
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: debye
   USE pme,                             ONLY: pme_evaluate
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE spme,                            ONLY: spme_evaluate
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -129,20 +130,25 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     INTEGER :: ewald_type, handle, i, ii, ikind, iparticle_kind, &
       iparticle_local, iw, j, natoms, nlocal_particles, node, nparticle_kind, &
       nparticle_local, nshell, stat
-    LOGICAL                                  :: failure, shell_present
+    LOGICAL                                  :: failure, shell_model_ad, shell_present
     LOGICAL, SAVE                            :: first_time = .TRUE.
-    REAL(KIND=dp) :: pot_bend, pot_bond, pot_imptors, pot_manybody, &
-      pot_nonbond, pot_onef, pot_shell, pot_torsion, pot_urey_bradley, vg_coulomb, &
+    REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, pot_manybody, &
+      pot_nonbond, pot_onef, pot_shell, pot_torsion, pot_urey_bradley, umass, vg_coulomb, &
       xdum1, xdum2, xdum3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: f_nonbond, f_total, &
-                                                fg_coulomb, fgshell_coulomb,&
+                                                fg_coulomb, &
+                                                fgshell_coulomb,&
+                                                fgcore_coulomb,&
                                                 fshell_nonbond, &
-                                                fshell_total
+                                                fcore_nonbond, &
+                                                fshell_total, &
+                                                fcore_total
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
       pv_imptors, pv_nonbond, pv_onef, pv_shell, pv_torsion, pv_urey_bradley
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -159,16 +165,20 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
       POINTER                                :: particle_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: shell_particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: core_particle_set
     TYPE(section_vals_type), POINTER         :: fist_section, print_section
+    TYPE(shell_kind_type), POINTER           :: shell
 
   CALL timeset(routineN,'I','',handle)
   failure = .FALSE.
   NULLIFY(logger)
   logger => cp_error_get_logger(error)
 
-  NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
-          molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,&
-          fist_section,print_section, shell_particle_set )
+  NULLIFY(atomic_kind,atomic_kind_set,cell,ewald_pw,ewald_env,&
+          fist_nonbond_env,fist_section,local_molecules,local_particles,&
+          molecule_kind_set,molecule_set,particle_set, print_section,&
+          shell, shell_particle_set, core_particle_set, thermo)
   fist_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
 ! associcating local pointers
   iw = cp_print_key_unit_nr(logger,fist_section,"PRINT%DERIVATIVES",&
@@ -179,7 +189,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                       local_molecules = local_molecules, thermo = thermo, &
                       molecule_kind_set = molecule_kind_set,  &
                       fist_nonbond_env = fist_nonbond_env, cell = cell, & 
-                      error=error)
+                      shell_model=shell_present, shell_model_ad=shell_model_ad, error=error)
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type ,error=error)
 
@@ -194,22 +204,25 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   nshell = 0
-  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
   IF(shell_present) THEN
-    CALL get_fist_env ( fist_env, shell_particle_set=shell_particle_set, error=error)
+    CALL get_fist_env ( fist_env, shell_particle_set=shell_particle_set,  &
+                        core_particle_set=core_particle_set, error=error)
     CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,error,failure)
     nshell = SIZE(shell_particle_set)
     ALLOCATE ( fshell_nonbond ( 3, nshell ), STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( fcore_nonbond ( 3, nshell ), STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ELSE
-    NULLIFY(shell_particle_set)
+    NULLIFY(shell_particle_set,core_particle_set)
   END IF
 
 ! first check with list_control to update neighbor lists
   
   CALL list_control ( atomic_kind_set, particle_set, local_particles, &
                       cell, fist_nonbond_env,para_env, iw, force_env_section, &
-                      shell_particle_set, error)
+                      shell_particle_set, core_particle_set, error)
 
 !
 ! initial force, energy and pressure tensor arrays
@@ -228,6 +241,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
       shell_particle_set ( i ) % f ( 3 ) = 0.0_dp
       shell_particle_set ( i ) % rho = 0.0_dp
       shell_particle_set ( i ) % f_embed = 0.0_dp
+      core_particle_set ( i ) % f ( 1 ) = 0.0_dp
+      core_particle_set ( i ) % f ( 2 ) = 0.0_dp
+      core_particle_set ( i ) % f ( 3 ) = 0.0_dp
+      core_particle_set ( i ) % rho = 0.0_dp
+      core_particle_set ( i ) % f_embed = 0.0_dp
     END DO
   ENDIF
 
@@ -270,8 +288,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF(shell_present) THEN
     CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
                          pot_nonbond, f_nonbond, pv_nonbond, &
-                         shell_particle_set=shell_particle_set, &
-                         fshell_nonbond=fshell_nonbond, error=error)
+                         fshell_nonbond=fshell_nonbond, &
+                         fcore_nonbond=fcore_nonbond, &
+                         error=error)
   ELSE
     CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
                          pot_nonbond, f_nonbond, pv_nonbond  ,error=error)
@@ -307,14 +326,20 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
         IF(shell_present) THEN
-         CALL stop_program ( "fist_force_control","pme and shell model NIY" )
-         ALLOCATE ( fgshell_coulomb ( 3, nshell ), STAT=stat )
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         fgshell_coulomb = 0.0_dp 
-         CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
-                            vg_coulomb, fg_coulomb, pv_g , force_env_section, &
-                            shell_particle_set=shell_particle_set,&
-                            fgshell_coulomb=fgshell_coulomb, error=error)
+          ALLOCATE ( fgshell_coulomb ( 3, nshell ), STAT=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( fgcore_coulomb ( 3, nshell ), STAT=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          fgshell_coulomb = 0.0_dp 
+          fgcore_coulomb = 0.0_dp 
+          CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
+                             vg_coulomb, fg_coulomb, pv_g , force_env_section, &
+                             shell_particle_set=shell_particle_set,&
+                             core_particle_set=core_particle_set, &
+                             fgshell_coulomb=fgshell_coulomb, &
+                             fgcore_coulomb=fgcore_coulomb, error=error)
+          CALL mp_sum ( fgshell_coulomb, para_env%group )
+          CALL mp_sum ( fgcore_coulomb, para_env%group )
         ELSE
           CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                             vg_coulomb, fg_coulomb, pv_g , force_env_section, &
@@ -329,12 +354,18 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
         IF(shell_present) THEN
           ALLOCATE ( fgshell_coulomb ( 3, nshell ), STAT=stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( fgcore_coulomb ( 3, nshell ), STAT=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           fgshell_coulomb = 0.0_dp 
+          fgcore_coulomb = 0.0_dp 
           CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                                fg_coulomb, vg_coulomb, pv_g, force_env_section,&
                                shell_particle_set=shell_particle_set, &
-                               fgshell_coulomb=fgshell_coulomb, error=error)
+                               core_particle_set=core_particle_set, &
+                               fgshell_coulomb=fgshell_coulomb, &
+                               fgcore_coulomb=fgcore_coulomb, error=error)
           CALL mp_sum ( fgshell_coulomb, para_env%group )
+          CALL mp_sum ( fgcore_coulomb, para_env%group )
         ELSE
           CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                                fg_coulomb, vg_coulomb, pv_g, force_env_section,&
@@ -349,6 +380,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                                     particle_set, ewald_env, &
                                     thermo % e_bonded, pv_bc ,&
                                     shell_particle_set=shell_particle_set,&
+                                    core_particle_set=core_particle_set,&
                                     error=error)
 
      ELSE
@@ -375,14 +407,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 !
   IF ( PRESENT ( debug ) ) THEN
     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                   particle_set,shell_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                   particle_set, shell_particle_set, core_particle_set,&
+                   pot_bond, pot_bend, pot_urey_bradley, &
                    pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
                    pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell,    &
                    debug % f_bond, debug % f_bend, debug % f_torsion,  &
                    debug % f_ub, debug % f_imptors, debug % f_onef, cell )
   ELSE
     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                   particle_set, shell_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                   particle_set, shell_particle_set, core_particle_set, &
+                   pot_bond, pot_bend, pot_urey_bradley, &
                    pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond, pv_bend, &
                    pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, pv_shell, cell=cell )
   ENDIF
@@ -435,11 +469,17 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF(shell_present) THEN
     ALLOCATE ( fshell_total ( 3,nshell ), STAT=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( fcore_total ( 3,nshell ), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     fshell_total = 0.0_dp
+    fcore_total = 0.0_dp
     DO i = 1, nshell
        fshell_total ( 1, i ) = shell_particle_set ( i ) % f ( 1 ) + fshell_nonbond ( 1, i )
        fshell_total ( 2, i ) = shell_particle_set ( i ) % f ( 2 ) + fshell_nonbond ( 2, i )
        fshell_total ( 3, i ) = shell_particle_set ( i ) % f ( 3 ) + fshell_nonbond ( 3, i )
+       fcore_total ( 1, i ) = core_particle_set ( i ) % f ( 1 ) + fcore_nonbond ( 1, i )
+       fcore_total ( 2, i ) = core_particle_set ( i ) % f ( 2 ) + fcore_nonbond ( 2, i )
+       fcore_total ( 3, i ) = core_particle_set ( i ) % f ( 3 ) + fcore_nonbond ( 3, i )
     END DO
   END IF
 
@@ -512,29 +552,96 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 ! Assign to particle_set
   SELECT CASE ( ewald_type )
   CASE ( do_ewald_spme, do_ewald_pme )
-    DO i = 1, natoms
-      particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) + fg_coulomb ( 1, i )
-      particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) + fg_coulomb ( 2, i )
-      particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) + fg_coulomb ( 3, i )
-    END DO
-    IF(shell_present) THEN
+
+    IF(shell_present .AND. shell_model_ad) THEN
+      DO i = 1, natoms
+        IF(particle_set ( i ) %shell_index/=0) THEN
+          atomic_kind => particle_set ( i ) % atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell, mass=mass)
+          umass = 1.0_dp/mass
+          massc = shell%mass_core*mass
+          masss = shell%mass_shell*mass
+          fshell_total(1,particle_set ( i ) %shell_index) =&
+                  fshell_total(1,particle_set(i)%shell_index) + particle_set(i)%f(1)*masss
+          fshell_total(2,particle_set ( i ) %shell_index) =&
+                  fshell_total(2,particle_set(i)%shell_index) + particle_set(i)%f(2)*masss
+          fshell_total(3,particle_set ( i ) %shell_index) =&
+                  fshell_total(3,particle_set(i)%shell_index) + particle_set(i)%f(3)*masss
+          fcore_total(1,particle_set ( i ) %shell_index) =&
+                  fcore_total(1,particle_set(i)%shell_index) + particle_set(i)%f(1)*massc
+          fcore_total(2,particle_set ( i ) %shell_index) =&
+                  fcore_total(2,particle_set(i)%shell_index) + particle_set(i)%f(2)*massc
+          fcore_total(3,particle_set ( i ) %shell_index) =&
+                  fcore_total(3,particle_set(i)%shell_index) + particle_set(i)%f(3)*massc
+        ELSE
+          particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) + fg_coulomb ( 1, i )
+          particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) + fg_coulomb ( 2, i )
+          particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) + fg_coulomb ( 3, i )
+        END IF
+      END DO
+
       DO i = 1,nshell
         shell_particle_set(i)%f(1) = fshell_total(1,i) + fgshell_coulomb(1,i)
         shell_particle_set(i)%f(2) = fshell_total(2,i) + fgshell_coulomb(2,i)
         shell_particle_set(i)%f(3) = fshell_total(3,i) + fgshell_coulomb(3,i)
+        core_particle_set(i)%f(1) = fcore_total(1,i) + fgcore_coulomb(1,i)
+        core_particle_set(i)%f(2) = fcore_total(2,i) + fgcore_coulomb(2,i)
+        core_particle_set(i)%f(3) = fcore_total(3,i) + fgcore_coulomb(3,i)
+      END DO
+
+    ELSEIF(shell_present .AND. .NOT. shell_model_ad) THEN
+      ! not yet implemented
+      CALL stop_program ( "fist_force_control","non adiabatic shell-model NIY" )
+    ELSE
+      DO i = 1, natoms
+        particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) + fg_coulomb ( 1, i )
+        particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) + fg_coulomb ( 2, i )
+        particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) + fg_coulomb ( 3, i )
       END DO
     END IF
   CASE ( do_ewald_ewald, do_ewald_none )
-    DO i = 1, natoms
-      particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
-      particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
-      particle_set ( i ) % f ( 3 ) = f_total ( 3, i )
-    END DO
-    IF(shell_present) THEN
+    IF(shell_present .AND. shell_model_ad) THEN
+      DO i = 1, natoms
+        IF(particle_set ( i ) %shell_index/=0) THEN
+          atomic_kind => particle_set ( i ) % atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell, mass=mass)
+          umass = 1.0_dp/mass
+          massc = shell%mass_core*mass
+          masss = shell%mass_shell*mass
+          fshell_total(1,particle_set ( i ) %shell_index) =&
+                  fshell_total(1,particle_set(i)%shell_index) + particle_set(i)%f(1)*masss
+          fshell_total(2,particle_set ( i ) %shell_index) =&
+                  fshell_total(2,particle_set(i)%shell_index) + particle_set(i)%f(2)*masss
+          fshell_total(3,particle_set ( i ) %shell_index) =&
+                  fshell_total(3,particle_set(i)%shell_index) + particle_set(i)%f(3)*masss
+          fcore_total(1,particle_set ( i ) %shell_index) =&
+                  fcore_total(1,particle_set(i)%shell_index) + particle_set(i)%f(1)*massc
+          fcore_total(2,particle_set ( i ) %shell_index) =&
+                  fcore_total(2,particle_set(i)%shell_index) + particle_set(i)%f(2)*massc
+          fcore_total(3,particle_set ( i ) %shell_index) =&
+                  fcore_total(3,particle_set(i)%shell_index) + particle_set(i)%f(3)*massc
+        ELSE
+          particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
+          particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
+          particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) 
+        END IF
+      END DO
       DO i = 1,nshell
         shell_particle_set(i)%f(1) = fshell_total(1,i) 
         shell_particle_set(i)%f(2) = fshell_total(2,i) 
         shell_particle_set(i)%f(3) = fshell_total(3,i) 
+        core_particle_set(i)%f(1) = fcore_total(1,i) 
+        core_particle_set(i)%f(2) = fcore_total(2,i) 
+        core_particle_set(i)%f(3) = fcore_total(3,i) 
+      END DO
+    ELSEIF(shell_present .AND. .NOT. shell_model_ad) THEN
+      ! not yet implemented
+      CALL stop_program ( "fist_force_control","non adiabatic shell-model NIY" )
+    ELSE
+      DO i = 1, natoms
+        particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
+        particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
+        particle_set ( i ) % f ( 3 ) = f_total ( 3, i )
       END DO
     END IF
   END SELECT

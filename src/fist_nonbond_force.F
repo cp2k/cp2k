@@ -24,7 +24,8 @@
 MODULE fist_nonbond_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -72,8 +73,8 @@ CONTAINS
   !******************************************************************************
 
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
-       pot_nonbond, f_nonbond, ptens_nonbond, shell_particle_set, &
-       fshell_nonbond , error )
+       pot_nonbond, f_nonbond, ptens_nonbond, &
+       fshell_nonbond, fcore_nonbond,  error )
 
     ! Calculates the force and the potential of the minimum image, and
     ! the pressure tensor
@@ -86,24 +87,25 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: pot_nonbond
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: f_nonbond, ptens_nonbond
-    TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: shell_particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fshell_nonbond
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT), OPTIONAL                  :: fcore_nonbond
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, handle, &
-                                                ikind, ilist, ipair, jkind, &
-                                                nkinds, npairs, shell_a, &
-                                                shell_b, shell_type
+    INTEGER                                  :: ab, atom_a, atom_b, handle, &
+                                                ikind, ilist, inode, ipair, &
+                                                jkind, nkinds, nlist, nnode, &
+                                                npairs, shell_a, shell_b, &
+                                                shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: failure, is_eam
-    REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fscalar, ptens11, &
+    LOGICAL                                  :: failure, is_eam, is_shell, shell_present
+    REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fr_com(3), fscalar, ptens11, &
       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
-      rab(3), rab2, rab2_max
+      rab(3), rab2, rab2_max, rab_com(3), rab_cc(3), rab_cs(3), rab_sc(3), rab_ss(3)
     REAL(KIND=dp), DIMENSION(3)              :: cvi
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -112,6 +114,7 @@ CONTAINS
       POINTER                                :: pot
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc, &
+                                                rcore_last_update_pbc,&
                                                 rshell_last_update_pbc
     TYPE(spline_data_type), POINTER          :: c_spline_data, &
                                                 cs_spline_data, &
@@ -124,11 +127,15 @@ CONTAINS
          potparm = potparm, r_last_update=r_last_update, &
          r_last_update_pbc=r_last_update_pbc,&
          rshell_last_update_pbc=rshell_last_update_pbc,&
+         rcore_last_update_pbc=rcore_last_update_pbc,&
          natom_types = nkinds ,error=error)
     ! initializing the potential energy, pressure tensor and force
     pot_nonbond = 0.0_dp
     f_nonbond = 0.0_dp
     IF(PRESENT(fshell_nonbond)) fshell_nonbond = 0.0_dp
+    IF(PRESENT(fcore_nonbond)) fcore_nonbond = 0.0_dp
+    shell_present = .FALSE.
+    IF(PRESENT(fshell_nonbond)) shell_present = .TRUE.
     ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
     ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
     ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
@@ -168,35 +175,56 @@ CONTAINS
        shell_type=potparm %pot( ikind, jkind ) %pot % shell_type 
        IF(shell_type/=nosh_nosh) THEN
          c_spline_data => potparm % pot( ikind, jkind ) %pot % c_coul_spline_data
-         CPPostcondition(PRESENT(shell_particle_set),cp_failure_level,routineP,error,failure)
+         CPPostcondition(PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
        ELSE
          c_spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
-         CPPostcondition(.NOT.PRESENT(shell_particle_set),cp_failure_level,routineP,error,failure)
+         CPPostcondition(.NOT.PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
        END IF
        IF(shell_type==sh_sh) THEN
          cs_spline_data => potparm % pot( ikind, jkind ) %pot % cs_coul_spline_data
          sc_spline_data => potparm % pot( ikind, jkind ) %pot % sc_coul_spline_data
        END IF
        rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
-       CALL matvec_3x3(cell_v, cell%hmat,cvi)
+       CALL matvec_3x3(cell_v, cell%hmat, cvi)
        DO ipair = 1, npairs
           atom_a = list(1,ipair)
           atom_b = list(2,ipair)
           ! which atom has a shell, if any
-          shell_a=0
-          shell_b=0
           IF(shell_type==sh_sh) THEN
             shell_a = particle_set(atom_a)%shell_index
             shell_b = particle_set(atom_b)%shell_index
+            rab_cc = rcore_last_update_pbc(shell_b)%r - rcore_last_update_pbc(shell_a)%r
+            rab_cs = rshell_last_update_pbc(shell_b)%r - rcore_last_update_pbc(shell_a)%r
+            rab_sc = rcore_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
+            rab_ss = rshell_last_update_pbc(shell_b)%r - rshell_last_update_pbc(shell_a)%r
           ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_a)%shell_index/=0) THEN
             shell_a = particle_set(atom_a)%shell_index
             shell_b = 0
+            rab_cc = r_last_update_pbc(atom_b)%r - rcore_last_update_pbc(shell_a)%r
+            rab_sc = 0.0_dp
+            rab_cs = 0.0_dp
+            rab_ss = r_last_update_pbc(atom_b)%r - rshell_last_update_pbc(shell_a)%r
           ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_b)%shell_index/=0) THEN
             shell_b = particle_set(atom_b)%shell_index
             shell_a = 0
+            rab_cc = rcore_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
+            rab_sc = 0.0_dp
+            rab_cs = 0.0_dp
+            rab_ss = rshell_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
+          ELSE
+            shell_a=0
+            shell_b=0
+            rab_cc = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+            rab_sc = 0.0_dp
+            rab_cs = 0.0_dp
+            rab_ss = 0.0_dp
           END IF
 
-          rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+          fr_com(:) = 0.0_dp
+          rab_com = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+          rab_com = rab_com +cell_v
+
+          rab = rab_cc
           rab = rab+cell_v
           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
           IF (rab2 <= rab2_max) THEN
@@ -217,28 +245,34 @@ CONTAINS
                 fr(3) =  fr(3) - f_eam * rab ( 3 )
              ENDIF
 
-             f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-             f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-             f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+             IF(shell_a /= 0 ) THEN
+               fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
+               fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
+               fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
+             ELSE
+               f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+               f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+               f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+             END IF
 
-             f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-             f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-             f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+             IF(shell_b /= 0 ) THEN
+               fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
+               fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
+               fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
+             ELSE
+               f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+               f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+               f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+             END IF
 
-             ptens11 = ptens11 + rab(1)*fr(1)
-             ptens21 = ptens21 + rab(2)*fr(1)
-             ptens31 = ptens31 + rab(3)*fr(1)
-             ptens12 = ptens12 + rab(1)*fr(2)
-             ptens22 = ptens22 + rab(2)*fr(2)
-             ptens32 = ptens32 + rab(3)*fr(2)
-             ptens13 = ptens13 + rab(1)*fr(3)
-             ptens23 = ptens23 + rab(2)*fr(3)
-             ptens33 = ptens33 + rab(3)*fr(3)
+             fr_com(1) = fr_com(1) + fr(1) 
+             fr_com(2) = fr_com(2) + fr(2) 
+             fr_com(3) = fr_com(3) + fr(3) 
 
              IF(shell_type==sh_sh) THEN
 
                ! shell-shell : VDW + Coulomb
-               rab = rshell_last_update_pbc(shell_a)%r-rshell_last_update_pbc(shell_b)%r
+               rab = rab_ss 
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                energy =  potential_s (spline_data,rab2,fscalar)
@@ -253,18 +287,12 @@ CONTAINS
                fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
                fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
 
-               ptens11 = ptens11 + rab(1)*fr(1)
-               ptens21 = ptens21 + rab(2)*fr(1)
-               ptens31 = ptens31 + rab(3)*fr(1)
-               ptens12 = ptens12 + rab(1)*fr(2)
-               ptens22 = ptens22 + rab(2)*fr(2)
-               ptens32 = ptens32 + rab(3)*fr(2)
-               ptens13 = ptens13 + rab(1)*fr(3)
-               ptens23 = ptens23 + rab(2)*fr(3)
-               ptens33 = ptens33 + rab(3)*fr(3)
+               fr_com(1) = fr_com(1) + fr(1) 
+               fr_com(2) = fr_com(2) + fr(2) 
+               fr_com(3) = fr_com(3) + fr(3) 
 
                ! core-shell : Coulomb only
-               rab = r_last_update_pbc(atom_a)%r-rshell_last_update_pbc(shell_b)%r
+               rab = rab_cs 
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                energy =  potential_s (cs_spline_data,rab2,fscalar)
@@ -272,25 +300,20 @@ CONTAINS
                fr(1) = fscalar*rab(1)
                fr(2) = fscalar*rab(2)
                fr(3) = fscalar*rab(3)
-               f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-               f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-               f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+               fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
+               fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
+               fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
                fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
                fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
                fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
 
-               ptens11 = ptens11 + rab(1)*fr(1)
-               ptens21 = ptens21 + rab(2)*fr(1)
-               ptens31 = ptens31 + rab(3)*fr(1)
-               ptens12 = ptens12 + rab(1)*fr(2)
-               ptens22 = ptens22 + rab(2)*fr(2)
-               ptens32 = ptens32 + rab(3)*fr(2)
-               ptens13 = ptens13 + rab(1)*fr(3)
-               ptens23 = ptens23 + rab(2)*fr(3)
-               ptens33 = ptens33 + rab(3)*fr(3)
+               
+               fr_com(1) = fr_com(1) + fr(1) 
+               fr_com(2) = fr_com(2) + fr(2) 
+               fr_com(3) = fr_com(3) + fr(3) 
 
                ! shell-core : Coulomb only
-               rab = rshell_last_update_pbc(shell_a)%r-r_last_update_pbc(atom_b)%r
+               rab = rab_sc
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                energy =  potential_s (sc_spline_data,rab2,fscalar)
@@ -301,28 +324,18 @@ CONTAINS
                fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
                fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
                fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-               f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-               f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-               f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+               fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
+               fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
+               fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
 
-               ptens11 = ptens11 + rab(1)*fr(1)
-               ptens21 = ptens21 + rab(2)*fr(1)
-               ptens31 = ptens31 + rab(3)*fr(1)
-               ptens12 = ptens12 + rab(1)*fr(2)
-               ptens22 = ptens22 + rab(2)*fr(2)
-               ptens32 = ptens32 + rab(3)*fr(2)
-               ptens13 = ptens13 + rab(1)*fr(3)
-               ptens23 = ptens23 + rab(2)*fr(3)
-               ptens33 = ptens33 + rab(3)*fr(3)
+               fr_com(1) = fr_com(1) + fr(1) 
+               fr_com(2) = fr_com(2) + fr(2) 
+               fr_com(3) = fr_com(3) + fr(3) 
 
              ELSEIF(shell_type==nosh_sh) THEN
 
                ! shell-ion or ion-shell : VDW + Coulomb
-               IF(shell_a/=0) THEN
-                 rab = rshell_last_update_pbc(shell_a)%r-r_last_update_pbc(atom_b)%r
-               ELSE
-                 rab = r_last_update_pbc(atom_a)%r-rshell_last_update_pbc(shell_b)%r
-               END IF
+               rab = rab_ss
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                energy =  potential_s (spline_data,rab2,fscalar)
@@ -346,17 +359,20 @@ CONTAINS
                  fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
                END IF
 
-               ptens11 = ptens11 + rab(1)*fr(1)
-               ptens21 = ptens21 + rab(2)*fr(1)
-               ptens31 = ptens31 + rab(3)*fr(1)
-               ptens12 = ptens12 + rab(1)*fr(2)
-               ptens22 = ptens22 + rab(2)*fr(2)
-               ptens32 = ptens32 + rab(3)*fr(2)
-               ptens13 = ptens13 + rab(1)*fr(3)
-               ptens23 = ptens23 + rab(2)*fr(3)
-               ptens33 = ptens33 + rab(3)*fr(3)
+               fr_com(1) = fr_com(1) + fr(1) 
+               fr_com(2) = fr_com(2) + fr(2) 
+               fr_com(3) = fr_com(3) + fr(3) 
 
              END IF
+              ptens11 = ptens11 + rab_com(1)*fr_com(1)
+              ptens21 = ptens21 + rab_com(2)*fr_com(1)
+              ptens31 = ptens31 + rab_com(3)*fr_com(1)
+              ptens12 = ptens12 + rab_com(1)*fr_com(2)
+              ptens22 = ptens22 + rab_com(2)*fr_com(2)
+              ptens32 = ptens32 + rab_com(3)*fr_com(2)
+              ptens13 = ptens13 + rab_com(1)*fr_com(3)
+              ptens23 = ptens23 + rab_com(2)*fr_com(3)
+              ptens33 = ptens33 + rab_com(3)*fr_com(3)
           END IF
        END DO
     END DO
@@ -594,7 +610,8 @@ CONTAINS
   !******************************************************************************
 
   SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
-       particle_set, ewald_env, v_bonded_corr, pv_bc, shell_particle_set, error )
+             particle_set, ewald_env, v_bonded_corr, pv_bc, shell_particle_set, &
+             core_particle_set, error )
 
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -604,7 +621,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: v_bonded_corr
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_bc
-    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : )
+    TYPE(particle_type), POINTER, OPTIONAL   :: shell_particle_set( : )
+    TYPE(particle_type), POINTER, OPTIONAL   :: core_particle_set( : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian'
@@ -614,12 +632,14 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, iatom, &
                                                 iexl, ikind, j, &
-                                                natoms_per_kind, nkind, &
+                                                natoms_per_kind, nkind,&
                                                 shell_i_index, shell_j_index
-    LOGICAL                                  :: i_is_shell, j_is_shell
-    REAL(KIND=dp) :: alpha, arg, const, dij, e_arg_arg, eps0, errf, flops, &
-      fscalar, idij, ifourpieps0, qci, qcj, qi, qj, qsi, qsj, rijsq, tc
-    REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj, rsi, rsj
+    LOGICAL                                  :: i_is_shell, j_is_shell, shell_adiabatic
+    REAL(KIND=dp)                            :: alpha, arg, const, dij, &
+                                                e_arg_arg, eps0, errf, flops, &
+                                                fscalar, idij, ifourpieps0, &
+                                                qci, qcj, qi, qj, qsi, qsj, rijsq, tc
+    REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, ri, rij, rj, rsi, rsj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell_i, shell_j
 
@@ -640,6 +660,7 @@ CONTAINS
     const = 2.0_dp * alpha / SQRT( pi )
     ifourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
 
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
     nkind = SIZE ( atomic_kind_set )
     DO ikind = 1, nkind
        natoms_per_kind = local_particles % n_el ( ikind )
@@ -653,16 +674,19 @@ CONTAINS
           IF(i_is_shell) THEN
              shell_i_index = particle_set(i)%shell_index
              rsi = shell_particle_set(shell_i_index)%r
+             rci = core_particle_set(shell_i_index)%r
              qci = shell_i%charge_core
              qsi = shell_i%charge_shell
              qi = qci
           ELSE
              qsi = 0.0_dp
              qci = qi
+             rci = ri
           END IF
           DO iexl = 1, SIZE(particle_set(i)%list_exclude_ei)
              j = particle_set(i)%list_exclude_ei(iexl)
              IF ( j==i ) CYCLE
+             fij_com = 0.0_dp
              atomic_kind => particle_set ( j ) % atomic_kind
              rj ( : ) = particle_set ( j ) % r ( : )
              CALL get_atomic_kind ( atomic_kind,qeff = qj,&
@@ -671,18 +695,20 @@ CONTAINS
              IF(j_is_shell) THEN
                shell_j_index = particle_set(j)%shell_index
                rsj = shell_particle_set(shell_j_index)%r
+               rcj = core_particle_set(shell_j_index)%r
                qcj = shell_j%charge_core
                qsj = shell_j%charge_shell
                qj = qcj
              ELSE
                qsj = 0.0_dp
                qcj = qj
+               rcj = rj
              END IF
              ! shell-model: exclude core-core, core-ion, or ion-core interactions
              ! if not shell-model: exclude ion-ion interactions
-             rij(1) = ri(1) - rj(1)
-             rij(2) = ri(2) - rj(2)
-             rij(3) = ri(3) - rj(3)
+             rij(1) = rci(1) - rcj(1)
+             rij(2) = rci(2) - rcj(2)
+             rij(3) = rci(3) - rcj(3)
              rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
              idij = 1.0_dp / SQRT ( rijsq )
              dij = rijsq * idij
@@ -701,19 +727,20 @@ CONTAINS
              fscalar = ifourpieps0 * qci * qcj * idij ** 2 &
                   * ( idij * errf - const * e_arg_arg  )
 
-             particle_set ( i ) % f(1) = particle_set ( i ) % f(1) - fscalar*rij(1)
-             particle_set ( i ) % f(2) = particle_set ( i ) % f(2) - fscalar*rij(2)
-             particle_set ( i ) % f(3) = particle_set ( i ) % f(3) - fscalar*rij(3)
+             IF(i_is_shell) THEN
+               core_particle_set ( shell_i_index ) % f(1) = &
+                    core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
+               core_particle_set ( shell_i_index ) % f(2) = &
+                    core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
+               core_particle_set ( shell_i_index ) % f(3) = &
+                    core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
+             ELSE
+               particle_set ( i ) % f(1) = particle_set ( i ) % f(1) - fscalar*rij(1)
+               particle_set ( i ) % f(2) = particle_set ( i ) % f(2) - fscalar*rij(2)
+               particle_set ( i ) % f(3) = particle_set ( i ) % f(3) - fscalar*rij(3)
+             END IF
 
-             pv_bc(1,1) = pv_bc(1,1) - fscalar * rij(1) * particle_set ( i ) % r(1)
-             pv_bc(1,2) = pv_bc(1,2) - fscalar * rij(1) * particle_set ( i ) % r(2)
-             pv_bc(1,3) = pv_bc(1,3) - fscalar * rij(1) * particle_set ( i ) % r(3)
-             pv_bc(2,1) = pv_bc(2,1) - fscalar * rij(2) * particle_set ( i ) % r(1)
-             pv_bc(2,2) = pv_bc(2,2) - fscalar * rij(2) * particle_set ( i ) % r(2)
-             pv_bc(2,3) = pv_bc(2,3) - fscalar * rij(2) * particle_set ( i ) % r(3)
-             pv_bc(3,1) = pv_bc(3,1) - fscalar * rij(3) * particle_set ( i ) % r(1)
-             pv_bc(3,2) = pv_bc(3,2) - fscalar * rij(3) * particle_set ( i ) % r(2)
-             pv_bc(3,3) = pv_bc(3,3) - fscalar * rij(3) * particle_set ( i ) % r(3)
+             fij_com = fscalar*rij
 
              ! shell-model: exclude shell-shell interactions
              IF(i_is_shell .AND. j_is_shell) THEN
@@ -745,24 +772,9 @@ CONTAINS
                shell_particle_set ( shell_i_index ) % f(3) = &
                             shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
 
-               pv_bc(1,1) = pv_bc(1,1) - fscalar * rij(1) * &
-                            shell_particle_set ( shell_i_index ) % r(1)
-               pv_bc(1,2) = pv_bc(1,2) - fscalar * rij(1) * & 
-                            shell_particle_set ( shell_i_index ) % r(2)
-               pv_bc(1,3) = pv_bc(1,3) - fscalar * rij(1) * &
-                            shell_particle_set ( shell_i_index ) % r(3)
-               pv_bc(2,1) = pv_bc(2,1) - fscalar * rij(2) * &
-                            shell_particle_set ( shell_i_index ) % r(1)
-               pv_bc(2,2) = pv_bc(2,2) - fscalar * rij(2) * &
-                            shell_particle_set ( shell_i_index ) % r(2)
-               pv_bc(2,3) = pv_bc(2,3) - fscalar * rij(2) * &
-                            shell_particle_set ( shell_i_index ) % r(3)
-               pv_bc(3,1) = pv_bc(3,1) - fscalar * rij(3) * &
-                            shell_particle_set ( shell_i_index ) % r(1)
-               pv_bc(3,2) = pv_bc(3,2) - fscalar * rij(3) * &
-                            shell_particle_set ( shell_i_index ) % r(2)
-               pv_bc(3,3) = pv_bc(3,3) - fscalar * rij(3) * &
-                            shell_particle_set ( shell_i_index ) % r(3)
+               IF(shell_adiabatic) THEN
+                 fij_com = fij_com + fscalar*rij
+               END IF
 
              END IF        
              ! shell-model: exclude shell_i-core interactions
@@ -795,24 +807,10 @@ CONTAINS
                shell_particle_set ( shell_i_index ) % f(3) = &
                             shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
 
-               pv_bc(1,1) = pv_bc(1,1) - fscalar * rij(1) * &
-                            shell_particle_set ( shell_i_index ) % r(1)
-               pv_bc(1,2) = pv_bc(1,2) - fscalar * rij(1) * & 
-                            shell_particle_set ( shell_i_index ) % r(2)
-               pv_bc(1,3) = pv_bc(1,3) - fscalar * rij(1) * &
-                            shell_particle_set ( shell_i_index ) % r(3)
-               pv_bc(2,1) = pv_bc(2,1) - fscalar * rij(2) * &
-                            shell_particle_set ( shell_i_index ) % r(1)
-               pv_bc(2,2) = pv_bc(2,2) - fscalar * rij(2) * &
-                            shell_particle_set ( shell_i_index ) % r(2)
-               pv_bc(2,3) = pv_bc(2,3) - fscalar * rij(2) * &
-                            shell_particle_set ( shell_i_index ) % r(3)
-               pv_bc(3,1) = pv_bc(3,1) - fscalar * rij(3) * &
-                            shell_particle_set ( shell_i_index ) % r(1)
-               pv_bc(3,2) = pv_bc(3,2) - fscalar * rij(3) * &
-                            shell_particle_set ( shell_i_index ) % r(2)
-               pv_bc(3,3) = pv_bc(3,3) - fscalar * rij(3) * &
-                            shell_particle_set ( shell_i_index ) % r(3)
+               IF(shell_adiabatic) THEN
+                 fij_com = fij_com + fscalar*rij
+               END IF
+
              END IF
              IF(j_is_shell ) THEN
                rij(1) = ri(1) - rsj(1)
@@ -836,33 +834,36 @@ CONTAINS
                fscalar = ifourpieps0 * qci * qsj * idij ** 2 &
                     * ( idij * errf - const * e_arg_arg  )
 
-               particle_set ( i) % f(1) = &
+               IF(i_is_shell) THEN
+                 core_particle_set ( i) % f(1) = &
+                            core_particle_set ( i ) % f(1) - fscalar*rij(1)
+                 core_particle_set ( i) % f(2) = &
+                            core_particle_set ( i ) % f(2) - fscalar*rij(2)
+                 core_particle_set (i) % f(3) = &
+                            core_particle_set ( i ) % f(3) - fscalar*rij(3)
+               ELSE
+                 particle_set ( i) % f(1) = &
                             particle_set ( i ) % f(1) - fscalar*rij(1)
-               particle_set ( i) % f(2) = &
+                 particle_set ( i) % f(2) = &
                             particle_set ( i ) % f(2) - fscalar*rij(2)
-               particle_set (i) % f(3) = &
+                 particle_set (i) % f(3) = &
                             particle_set ( i ) % f(3) - fscalar*rij(3)
+               END IF
 
-               pv_bc(1,1) = pv_bc(1,1) - fscalar * rij(1) * &
-                            particle_set ( i) % r(1)
-               pv_bc(1,2) = pv_bc(1,2) - fscalar * rij(1) * & 
-                            particle_set ( i ) % r(2)
-               pv_bc(1,3) = pv_bc(1,3) - fscalar * rij(1) * &
-                            particle_set ( i ) % r(3)
-               pv_bc(2,1) = pv_bc(2,1) - fscalar * rij(2) * &
-                            particle_set ( i ) % r(1)
-               pv_bc(2,2) = pv_bc(2,2) - fscalar * rij(2) * &
-                            particle_set ( i ) % r(2)
-               pv_bc(2,3) = pv_bc(2,3) - fscalar * rij(2) * &
-                            particle_set ( i) % r(3)
-               pv_bc(3,1) = pv_bc(3,1) - fscalar * rij(3) * &
-                            particle_set ( i ) % r(1)
-               pv_bc(3,2) = pv_bc(3,2) - fscalar * rij(3) * &
-                            particle_set ( i ) % r(2)
-               pv_bc(3,3) = pv_bc(3,3) - fscalar * rij(3) * &
-                            particle_set ( i ) % r(3)
+               IF(shell_adiabatic) THEN
+                 fij_com = fij_com + fscalar*rij
+               END IF
 
              END IF
+             pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * particle_set ( i ) % r(1)
+             pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * particle_set ( i ) % r(2)
+             pv_bc(1,3) = pv_bc(1,3) - fij_com(1) * particle_set ( i ) % r(3)
+             pv_bc(2,1) = pv_bc(2,1) - fij_com(2) * particle_set ( i ) % r(1)
+             pv_bc(2,2) = pv_bc(2,2) - fij_com(2) * particle_set ( i ) % r(2)
+             pv_bc(2,3) = pv_bc(2,3) - fij_com(2) * particle_set ( i ) % r(3)
+             pv_bc(3,1) = pv_bc(3,1) - fij_com(3) * particle_set ( i ) % r(1)
+             pv_bc(3,2) = pv_bc(3,2) - fij_com(3) * particle_set ( i ) % r(2)
+             pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * particle_set ( i ) % r(3)
              flops = flops + 62.0_dp
           ENDDO
        ENDDO
