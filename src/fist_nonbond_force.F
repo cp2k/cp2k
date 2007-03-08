@@ -394,10 +394,6 @@ CONTAINS
     ptens_nonbond(3,2) = ptens32
     ptens_nonbond(3,3) = ptens33
 
-    DO ikind=1,32
-      WRITE(*,*) "FTFT",ikind,f_nonbond(:,ikind)
-    END DO
-
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
 

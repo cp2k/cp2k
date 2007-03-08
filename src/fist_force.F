@@ -466,7 +466,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      f_total ( 1, i ) = particle_set ( i ) % f ( 1 ) + f_nonbond ( 1, i )
      f_total ( 2, i ) = particle_set ( i ) % f ( 2 ) + f_nonbond ( 2, i )
      f_total ( 3, i ) = particle_set ( i ) % f ( 3 ) + f_nonbond ( 3, i )
-     WRITE(*,*) "PARTICLE F",f_total(:,i)
   END DO
   IF(shell_present) THEN
     ALLOCATE ( fshell_total ( 3,nshell ), STAT=stat )
