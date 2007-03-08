@@ -1008,6 +1008,11 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_Tersoff_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+
     END IF
 
   END SUBROUTINE create_NONBONDED_section
@@ -2011,6 +2016,179 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_Buckmorse_section
+
+
+
+
+
+
+
+
+
+
+
+
+!***************************************************************************
+!!****f* input_cp2k_mm/create_Tersoff_section [1.0] *
+!!
+!!   NAME
+!!     create_Tersoff_section
+!!
+!!   FUNCTION
+!!     This section specifies the input parameters for Tersoff potential type
+!!     (Tersoff, J. PRB 39(8), 5566, 1989)
+!!
+!!   NOTES
+!!
+!!   ARGUMENTS
+!!
+!!   AUTHOR
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_Tersoff_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_Tersoff_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="TERSOFF",&
+            description="This section specifies the input parameters for"//&
+            " Tersoff potential type. (Tersoff, J. PRB 38(14), 9902, 1988).",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kind involved in the nonbond potential",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="A",&
+            description="Defines the A parameter of Tersoff potential",&
+            usage="A {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=1.8308E3_dp,&
+            n_var=1, unit_str="eV", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B",&
+            description="Defines the B parameter of Tersoff potential",&
+            usage="B {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=4.7118E2_dp,&
+            n_var=1, unit_str="eV", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="lambda1",&
+            description="Defines the lambda1 parameter of Tersoff potential",&
+            usage="lambda1 {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=2.4799_dp,&
+            n_var=1, unit_str="angstrom^-1", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="lambda2",&
+            description="Defines the lambda2 parameter of Tersoff potential",&
+            usage="lambda2 {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=1.7322_dp,&
+            n_var=1, unit_str="angstrom^-1", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="alpha",&
+            description="Defines the alpha parameter of Tersoff potential",&
+            usage="alpha {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=0.0_dp,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="beta",&
+            description="Defines the beta parameter of Tersoff potential",&
+            usage="beta {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=1.0999E-6_dp,&
+            n_var=1, unit_str="", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="n",&
+            description="Defines the n parameter of Tersoff potential",&
+            usage="n {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=7.8734E-1_dp,&
+            n_var=1, unit_str="", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="c",&
+            description="Defines the c parameter of Tersoff potential",&
+            usage="c {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=1.0039E5_dp,&
+            n_var=1, unit_str="", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="d",&
+            description="Defines the d parameter of Tersoff potential",&
+            usage="d {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=1.6218E1_dp,&
+            n_var=1, unit_str="", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="h",&
+            description="Defines the h parameter of Tersoff potential",&
+            usage="h {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=-5.9826E-1_dp,&
+            n_var=1, unit_str="", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="lambda3",&
+            description="Defines the lambda3 parameter of Tersoff potential",&
+            usage="lambda3 {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=1.7322_dp,&
+            n_var=1, unit_str="angstrom^-1", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="bigR",&
+            description="Defines the bigR parameter of Tersoff potential",&
+            usage="bigR {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=2.85_dp,&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="bigD",&
+            description="Defines the D parameter of Tersoff potential",&
+            usage="bigD {real}", required=.FALSE., type_of_var=real_t,&
+            default_r_val=0.15_dp,&
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of Tersoff potential",&
+            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=3.0_dp,&
+                                           unit_str="angstrom",error=error),&
+            unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_Tersoff_section
 
 !***************************************************************************
 

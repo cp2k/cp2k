@@ -183,6 +183,7 @@ SUBROUTINE  debug_control ( force_env, error)
    dbg % f_onef             = 0.0_dp
    dbg % f_ub               = 0.0_dp
    dbg % pot_nonbond        = 0.0_dp
+   dbg % pot_manybody       = 0.0_dp
    dbg % pot_g              = 0.0_dp
    dbg % pot_bond           = 0.0_dp
    dbg % pot_bend           = 0.0_dp
@@ -213,7 +214,7 @@ SUBROUTINE  debug_control ( force_env, error)
   IF ( iw > 0  ) THEN
     WRITE ( iw, '( A,A )' ) ' **************************************', &
                             '*****************************************'
-    WRITE ( iw, '( 16x,A )' ) 'NON-BONDED CONTRIBUTIONS'
+    WRITE ( iw, '( 16x,A )' ) 'NON-BONDED + MANYBODY CONTRIBUTIONS'
     WRITE ( iw, '( A,A )' ) ' **************************************', &
                             '*****************************************'
   END IF
@@ -221,14 +222,14 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
 
-  CALL force_nonbond_numer ( atomic_kind_set, particle_set, local_particles, &
+  CALL force_nonbond_numer ( fist_nonbond_env, atomic_kind_set, particle_set, local_particles, &
                              ewald_env, cell, potparm, delta, f_numer, &
                              energy_numer,error=error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 )  THEN
      WRITE ( iw, '( A, T61, G20.12 )' ) &
-          ' E ANA NON-BONDED = ', dbg % pot_nonbond
+          ' E ANA NON-BONDED = ', dbg % pot_nonbond + dbg % pot_manybody
      WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' E DBG NON-BONDED = ', energy_numer
 

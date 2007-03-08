@@ -26,7 +26,7 @@ MODULE fist_nonbond_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,pbc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -42,10 +42,11 @@ MODULE fist_nonbond_force
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE pair_potential_types,            ONLY: ea_type,&
-                                             nosh_nosh,&
-                                             nosh_sh,&
+                                             tersoff_type,&
                                              pair_potential_pp_type,&
                                              pair_potential_single_type,&
+                                             nosh_sh,&
+                                             nosh_nosh,&
                                              sh_sh
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
@@ -102,7 +103,7 @@ CONTAINS
                                                 npairs, shell_a, shell_b, &
                                                 shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: failure, is_eam, is_shell, shell_present
+    LOGICAL                                  :: failure, is_eam, is_shell, shell_present, is_tersoff
     REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fr_com(3), fscalar, ptens11, &
       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
       rab(3), rab2, rab2_max, rab_com(3), rab_cc(3), rab_cs(3), rab_sc(3), rab_ss(3)
@@ -172,6 +173,7 @@ CONTAINS
        cvi   = neighbor_kind_pair%cell_vector
        spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
        is_eam=(potparm %pot( ikind, jkind ) %pot % TYPE == ea_type)
+       is_tersoff=(potparm %pot( ikind, jkind ) %pot % TYPE == tersoff_type)
        shell_type=potparm %pot( ikind, jkind ) %pot % shell_type 
        IF(shell_type/=nosh_nosh) THEN
          c_spline_data => potparm % pot( ikind, jkind ) %pot % c_coul_spline_data
@@ -243,6 +245,12 @@ CONTAINS
                 fr(1) =  fr(1) - f_eam * rab ( 1 )
                 fr(2) =  fr(2) - f_eam * rab ( 2 )
                 fr(3) =  fr(3) - f_eam * rab ( 3 )
+             ENDIF
+             IF (is_tersoff) THEN
+                pot => potparm %pot( ikind, jkind )%pot
+                CALL get_force_tersoff ( pot, particle_set, cell, &
+                                         atom_a, atom_b, f_nonbond )
+                fr = 0.0_dp
              ENDIF
 
              IF(shell_a /= 0 ) THEN
@@ -386,14 +394,16 @@ CONTAINS
     ptens_nonbond(3,2) = ptens32
     ptens_nonbond(3,3) = ptens33
 
+    DO ikind=1,32
+      WRITE(*,*) "FTFT",ikind,f_nonbond(:,ikind)
+    END DO
+
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
 
   !******************************************************************************
 
   SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, para_env, error )
-    ! Computes the density term for manybody empirical potentials (e.g. EAM )
-    !
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: particle_set
@@ -475,7 +485,7 @@ CONTAINS
   END SUBROUTINE density_nonbond
   !******************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-       local_particles, particle_set, pot_manybody, para_env, error )
+       local_particles, particle_set, cell, pot_manybody, para_env, error )
 
     ! computes the embedding contribution to the energy
 
@@ -483,23 +493,31 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(cell_type), POINTER                 :: cell
     REAL(dp), INTENT(INOUT)                  :: pot_manybody
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_para_env_type), POINTER,OPTIONAL :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'energy_manybody'
 
-    INTEGER                                  :: flops, ikind, index, &
+    INTEGER                                  :: ikind, index, index1,index2, &
                                                 iparticle, iparticle_local, &
+                                                jparticle, kparticle, &
                                                 istat, nparticle, &
                                                 nparticle_local
-    REAL(dp)                                 :: embed, qr
+    REAL(dp)                                 :: embed, pot_loc, qr
     REAL(dp), POINTER                        :: fembed( : )
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    flops = 0.0_dp
+
+
+    REAL(KIND=dp)                            :: rij(3),drij
+    REAL(dp)                                 :: a_ij,b_ij
+    REAL(dp)                                 :: f_C, f_R, f_A
+    REAL(dp)                                 :: RpD
+
     CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm ,error=error)
     DO ikind = 1, SIZE ( atomic_kind_set )
        pot => potparm %pot ( ikind, ikind ) % pot
@@ -538,9 +556,408 @@ CONTAINS
           DEALLOCATE ( fembed, STAT = istat )
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                "deallocate fembed")
+
+       CASE ( tersoff_type )
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          RpD = pot%tersoff%bigR + pot%tersoff%bigD
+          nparticle = SIZE ( particle_set )
+          nparticle_local = local_particles%n_el(ikind)
+          DO iparticle_local=1,nparticle_local
+             iparticle = local_particles%list(ikind)%array(iparticle_local)
+             DO jparticle=iparticle+1,nparticle
+                pot_loc = 0.0_dp
+                rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+                drij = SQRT(DOT_PRODUCT(rij,rij))
+                IF(drij>RpD) CYCLE
+                !a_ij   = ter_a_ij(pot,drij)
+                a_ij   = 1.0_dp
+                b_ij   = ter_b_ij(pot,particle_set,cell,iparticle,jparticle)
+                f_C    = ter_f_C(pot,drij)
+                f_A    = ter_f_A(pot,drij)
+                f_R    = ter_f_R(pot,drij)
+                pot_loc = f_C*(a_ij*f_R + b_ij*f_A)
+                pot_manybody = pot_manybody + pot_loc
+             END DO
+          END DO
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        END SELECT
     END DO
   END SUBROUTINE energy_manybody
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  FUNCTION ter_f_C(pot,r)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: ter_f_C
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: bigR,bigD
+    REAL(KIND=dp)                                       :: RpD,RmD
+
+    bigR = pot%tersoff%bigR
+    bigD = pot%tersoff%bigD
+    RmD = pot%tersoff%bigR-pot%tersoff%bigD
+    RpD = pot%tersoff%bigR+pot%tersoff%bigD
+    ter_f_C = 0.0_dp
+    IF(r < RmD) ter_f_C = 1.0_dp
+    IF(r > RpD) ter_f_C = 0.0_dp
+    IF( (r < RpD) .AND. (r > RmD) ) THEN
+      ter_f_C = 0.5_dp *(1.0_dp - SIN(0.5_dp*PI*(r-bigR)/(bigD)))
+    END IF
+  END FUNCTION ter_f_C
+
+  FUNCTION ter_f_C_d(pot,r)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: ter_f_C_d
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: bigR,bigD
+    REAL(KIND=dp)                                       :: RpD,RmD
+
+    bigR = pot%tersoff%bigR
+    bigD = pot%tersoff%bigD
+    RmD = pot%tersoff%bigR-pot%tersoff%bigD
+    RpD = pot%tersoff%bigR+pot%tersoff%bigD
+    ter_f_C_d = 0.0_dp
+    IF(r < RmD) ter_f_C_d = 0.0_dp
+    IF(r > RpD) ter_f_C_d = 0.0_dp
+    IF( (r < RpD) .AND. (r > RmD) ) THEN
+      ter_f_C_d = - (0.25_dp*PI/bigD) * COS(0.5_dp*PI*(r-bigR)/(bigD)) / r
+    END IF
+  END FUNCTION ter_f_C_d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  FUNCTION ter_f_R(pot,r)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: ter_f_R
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+
+    A = pot%tersoff%A
+    lambda1 = pot%tersoff%lambda1
+    ter_f_R = 0.0_dp
+    ter_f_R = A * EXP(-lambda1*r)
+  END FUNCTION ter_f_R
+
+  FUNCTION ter_f_R_d(pot,r)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: ter_f_R_d
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: f_R
+
+    A = pot%tersoff%A
+    lambda1 = pot%tersoff%lambda1
+    f_R = A * EXP(-lambda1*r)
+    ter_f_R_d = 0.0_dp
+    ter_f_R_d = - lambda1 * f_R / r
+  END FUNCTION ter_f_R_d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  FUNCTION ter_f_A(pot,r)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: ter_f_A
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+
+    B = pot%tersoff%B
+    lambda2 = pot%tersoff%lambda2
+    ter_f_A = 0.0_dp
+    ter_f_A = - B * EXP(-lambda2*r)
+  END FUNCTION ter_f_A
+
+  FUNCTION ter_f_A_d(pot,r)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: ter_f_A_d
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+
+    B = pot%tersoff%B
+    lambda2 = pot%tersoff%lambda2
+    ter_f_A_d = 0.0_dp
+    ter_f_A_d = - B *lambda2 * EXP(-lambda2*r) / r
+  END FUNCTION ter_f_A_d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  FUNCTION ter_a_ij(pot,r)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: r
+    REAL(KIND=dp)                                       :: ter_a_ij
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+
+    n = pot%tersoff%n
+    alpha = pot%tersoff%alpha
+    ter_a_ij = 0.0_dp
+    !Note alpha = 0.0_dp for the parameters in the paper so using simplified term
+    !ter_a_ij = (1.0_dp+(alpha*ter_n_ij(pot,iparticle,jparticle,r))**n)**(-0.5_dp/n)
+    ter_a_ij = 1.0_dp
+  END FUNCTION ter_a_ij
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  FUNCTION ter_b_ij(pot,particle_set,cell,iparticle,jparticle)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
+    TYPE(cell_type), POINTER                            :: cell
+    INTEGER, INTENT(IN)                                 :: iparticle, jparticle
+    REAL(KIND=dp)                                       :: ter_b_ij
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: zeta_ij
+
+    n = pot%tersoff%n
+    beta = pot%tersoff%beta
+    ter_b_ij = 0.0_dp
+    zeta_ij = ter_zeta_ij(pot,particle_set,cell,iparticle,jparticle)
+    ter_b_ij = (1.0_dp+(beta*zeta_ij)**n)**(-0.5_dp/n)
+  END FUNCTION ter_b_ij
+
+  FUNCTION ter_b_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
+    TYPE(cell_type), POINTER                            :: cell
+    INTEGER, INTENT(IN)                                 :: iparticle, jparticle
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)       :: f_nonbond
+    REAL(KIND=dp)                                       :: ter_b_ij_d
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: beta_n,zeta_ij
+    REAL(KIND=dp)                                       :: zeta_ij_nm1,zeta_ij_n
+
+    n           = pot%tersoff%n
+    beta        = pot%tersoff%beta
+    beta_n      = beta**n
+    zeta_ij     = ter_zeta_ij(pot,particle_set,cell,iparticle,jparticle)
+    zeta_ij_nm1 = zeta_ij**(n-1.0_dp)
+    zeta_ij_n   = zeta_ij**(n)
+
+    ter_b_ij_d = 0.0_dp
+    ter_b_ij_d = -0.5_dp * beta_n * &
+                   zeta_ij_nm1 * &
+                     (1.0_dp + beta_n * zeta_ij_n)**((-0.5_dp/n) - 1.0_dp) 
+  END FUNCTION ter_b_ij_d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  FUNCTION ter_zeta_ij(pot,particle_set,cell,iparticle,jparticle)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
+    TYPE(cell_type), POINTER                            :: cell
+    INTEGER, INTENT(IN)                                 :: iparticle, jparticle
+    REAL(KIND=dp)                                       :: ter_zeta_ij
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: RpD
+    INTEGER                                             :: kparticle, nparticle
+    REAL(KIND=dp)                                       :: rij(3),rik(3),drij,drik
+    REAL(KIND=dp)                                       :: costheta,sintheta
+    REAL(KIND=dp)                                       :: f_C,gterm,expterm
+
+    ter_zeta_ij = 0.0_dp
+
+    n = pot%tersoff%n
+    lambda3 = pot%tersoff%lambda3
+    RpD = pot%tersoff%bigR + pot%tersoff%bigD
+    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+    drij = SQRT(DOT_PRODUCT(rij,rij))
+    ter_zeta_ij = 0.0_dp
+    nparticle = SIZE ( particle_set )
+    DO kparticle=1,nparticle
+      IF((iparticle==kparticle).OR.(jparticle==kparticle)) CYCLE
+      rik(:) = pbc(particle_set(iparticle)%r(:),particle_set(kparticle)%r(:),cell)
+      drik = SQRT(DOT_PRODUCT(rik,rik))
+      IF(drik>RpD) CYCLE
+      costheta = DOT_PRODUCT(rij,rik) / (drij*drik)
+      IF(costheta<-1.0_dp) costheta=-1.0_dp
+      IF(costheta>+1.0_dp) costheta=+1.0_dp
+      f_C = ter_f_C(pot,drik)
+      gterm = ter_g(pot,costheta)
+      expterm = exp((lambda3*(drij-drik))**3)
+      ter_zeta_ij = ter_zeta_ij + f_C*gterm*expterm
+    END DO
+  END FUNCTION ter_zeta_ij
+
+  FUNCTION ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
+    TYPE(cell_type), POINTER                            :: cell
+    INTEGER, INTENT(IN)                                 :: iparticle, jparticle
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)       :: f_nonbond
+    REAL(KIND=dp)                                       :: ter_zeta_ij_d
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: RpD
+    INTEGER                                             :: kparticle, nparticle
+    REAL(KIND=dp), DIMENSION(3)                         :: rij,rik,rij_hat,rik_hat
+    REAL(KIND=dp)                                       :: costheta,sintheta
+    REAL(KIND=dp)                                       :: drij,drik
+    REAL(KIND=dp), DIMENSION(3)                         :: dri,drj,drk
+    REAL(KIND=dp), DIMENSION(3)                         :: dcosdri,dcosdrj,dcosdrk
+    REAL(KIND=dp)                                       :: f_C,f_C_d
+    REAL(KIND=dp)                                       :: gterm,gterm_d
+    REAL(KIND=dp)                                       :: expterm,expterm_d
+
+    n = pot%tersoff%n
+    lambda3 = pot%tersoff%lambda3
+    RpD = pot%tersoff%bigR + pot%tersoff%bigD
+    ter_zeta_ij_d = 0.0_dp
+    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+    drij = SQRT(DOT_PRODUCT(rij,rij))
+    rij_hat(:) = rij(:) / drij
+    nparticle = SIZE ( particle_set )
+    DO kparticle=1,nparticle
+      IF((iparticle==kparticle).OR.(jparticle==kparticle)) CYCLE
+      rik(:) = pbc(particle_set(iparticle)%r(:),particle_set(kparticle)%r(:),cell)
+      drik = SQRT(DOT_PRODUCT(rik,rik))
+      rik_hat(:) = rik(:) / drik
+      IF(drik>RpD) CYCLE
+      costheta = DOT_PRODUCT(rij,rik) / (drij*drik)
+      IF(costheta<-1.0_dp) costheta=-1.0_dp
+      IF(costheta>+1.0_dp) costheta=+1.0_dp
+
+      sintheta = SQRT(1-costheta**2)
+      IF(sintheta<0.001) sintheta = 0.001
+
+      ter_zeta_ij_d = 0.0_dp
+
+      CALL ter_costheta_d(particle_set,cell,iparticle,jparticle,kparticle,&
+                          dcosdri,dcosdrj,dcosdrk)
+
+      f_C       = ter_f_C(pot,drik)
+      f_C_d     = ter_f_C_d(pot,drik)
+      gterm     = ter_g(pot,costheta)
+      gterm_d   = ter_g_d(pot,costheta)
+      expterm   = exp((lambda3*(drij-drik))**3)
+      expterm_d = (3.0_dp)*(lambda3**3)*((drij-drik)**2)*expterm
+
+      dri = -f_C_d*gterm*expterm*(rik_hat) &
+            +f_C*gterm_d*expterm*(dcosdri) &
+            +f_C*gterm*expterm_d*(rik_hat-rij_hat)
+
+      drj =  f_C*gterm_d*expterm*(dcosdrj) &
+            +f_C*gterm*expterm_d*(rij_hat)
+
+      drk =  f_C_d*gterm*expterm*(rik_hat) &
+            +f_C*gterm_d*expterm*(dcosdrk) &
+            -f_C*gterm*expterm_d*(rik_hat)
+
+      f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + dri(1)
+      f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + dri(2)
+      f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + dri(3)
+  
+      f_nonbond(1,jparticle) = f_nonbond(1,jparticle) + drj(1)
+      f_nonbond(2,jparticle) = f_nonbond(2,jparticle) + drj(2)
+      f_nonbond(3,jparticle) = f_nonbond(3,jparticle) + drj(3)
+
+      f_nonbond(1,kparticle) = f_nonbond(1,kparticle) + drk(1)
+      f_nonbond(2,kparticle) = f_nonbond(2,kparticle) + drk(2)
+      f_nonbond(3,kparticle) = f_nonbond(3,kparticle) + drk(3)
+            
+    END DO
+  END FUNCTION ter_zeta_ij_d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  FUNCTION ter_g(pot,costheta)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: costheta
+    REAL(KIND=dp)                                       :: ter_g
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+
+    c = pot%tersoff%c
+    d = pot%tersoff%d
+    h = pot%tersoff%h
+    ter_g = 0.0_dp
+    ter_g = 1.0_dp + (c/d)**2 - (c**2)/(d**2+(h-costheta)**2)
+  END FUNCTION ter_g
+
+  FUNCTION ter_g_d(pot,costheta)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    REAL(KIND=dp), INTENT(IN)                           :: costheta
+    REAL(KIND=dp)                                       :: ter_g_d
+    REAL(KIND=dp)                                       :: A,B
+    REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
+    REAL(KIND=dp)                                       :: alpha,beta
+    REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: sintheta
+
+    c = pot%tersoff%c
+    d = pot%tersoff%d
+    h = pot%tersoff%h
+    sintheta = SQRT(1.0 - costheta**2)
+    IF(sintheta<0.001) sintheta = 0.001
+    ter_g_d = 0.0_dp
+    ter_g_d = 2.0_dp * c**2 * sintheta * (h - costheta) / &
+              ( d**2 + (h-costheta)**2 )**2
+  END FUNCTION ter_g_d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  SUBROUTINE ter_costheta_d(particle_set,cell,iparticle,jparticle,kparticle,dri,drj,drk)
+    TYPE(pair_potential_single_type), POINTER           :: pot
+    TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
+    TYPE(cell_type), POINTER                            :: cell
+    INTEGER, INTENT(IN)                                 :: iparticle,jparticle,kparticle
+    REAL(KIND=dp), INTENT(OUT)                          :: dri(3),drj(3),drk(3)
+    REAL(KIND=dp)                                       :: rij(3),drij,rij_hat(3)
+    REAL(KIND=dp)                                       :: rik(3),drik,rik_hat(3)
+    REAL(KIND=dp)                                       :: costheta,sintheta
+
+    !Note that the center atom is at atom i not the usual atom j
+
+    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+    drij = SQRT(DOT_PRODUCT(rij,rij))
+    rij_hat(:) = rij(:)/drij
+
+    rik(:) = pbc(particle_set(iparticle)%r(:),particle_set(kparticle)%r(:),cell)
+    drik = SQRT(DOT_PRODUCT(rik,rik))
+    rik_hat(:) = rik(:)/drik
+
+    costheta = DOT_PRODUCT(rij,rik) / (drij*drik)
+    sintheta = SQRT((1.0_dp + costheta**2))
+    IF(sintheta<0.001) sintheta = 0.001
+
+    drj(:) = -(1.0_dp/(sintheta*drij)) * ( rik_hat(:) - costheta*rij_hat(:) )
+    drk(:) = -(1.0_dp/(sintheta*drik)) * ( rij_hat(:) - costheta*rik_hat(:) )
+    dri(:) = - ( drj(:) + drk(:) )
+  END SUBROUTINE ter_costheta_d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
   !******************************************************************************
   SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, rho )
     TYPE(pair_potential_single_type), &
@@ -607,6 +1024,83 @@ CONTAINS
          denspi * particle_set ( atom_b ) % f_embed
     f_eam =  fcp / rab
   END SUBROUTINE get_force_eam
+
+  !******************************************************************************
+
+  SUBROUTINE get_force_tersoff(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
+    TYPE(particle_type), INTENT(IN)          :: particle_set( : )
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: iparticle, jparticle
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: f_nonbond
+    REAL(KIND=dp)                            :: rij(3),drij,rij_hat(3)
+    REAL(KIND=dp)                            :: f_repulsive
+    REAL(KIND=dp)                            :: f_A1, f_A2, f_A3
+    REAL(KIND=dp)                            :: a_ij,b_ij
+    REAL(KIND=dp)                            :: f_A,f_A_d
+    REAL(KIND=dp)                            :: f_C,f_C_d
+    REAL(KIND=dp)                            :: f_R,f_R_d
+
+
+
+    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+    drij = SQRT(DOT_PRODUCT(rij,rij))
+    rij_hat(:) = rij(:) / drij 
+
+    b_ij  = ter_b_ij(pot,particle_set,cell,iparticle,jparticle)
+    f_A   = ter_f_A(pot,drij)
+    f_A_d = ter_f_A_d(pot,drij)
+    f_C   = ter_f_C(pot,drij)
+    f_C_d = ter_f_C_d(pot,drij)
+    f_R   = ter_f_R(pot,drij)
+    f_R_d = ter_f_R_d(pot,drij)
+
+    ! Lets do the easy one first, the repulsive term
+    ! Note a_ij = 1.0_dp so just going to ignore it...
+    f_repulsive = f_C_d * f_R + f_C * f_R_d
+    f_repulsive = -f_repulsive
+
+    f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_repulsive*rij(1)
+    f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_repulsive*rij(2)
+    f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_repulsive*rij(3)
+
+    f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_repulsive*rij(1)
+    f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_repulsive*rij(2)
+    f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_repulsive*rij(3)
+                  
+    ! Lets do the f_A1 piece derivative of F_C
+    f_A1 = f_C_d * b_ij * f_A
+    
+    f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_A1*rij(1)
+    f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_A1*rij(2)
+    f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_A1*rij(3)
+
+    f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_A1*rij(1)
+    f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A1*rij(2)
+    f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A1*rij(3)
+
+    ! Lets do the f_A2 piece derivative of F_A
+    f_A2 = f_C * b_ij * f_A_d
+    
+    f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_A2*rij(1)
+    f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_A2*rij(2)
+    f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_A2*rij(3)
+
+    f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_A2*rij(1)
+    f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A2*rij(2)
+    f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A2*rij(3)
+
+    ! Lets do the f_A3 piece derivative of b_ij
+!   prefactor = f_C * f_A * bij_d    ! Note need to do d(Zeta_ij)/dR
+!   f_A3 = 0.0
+!   f_A3 = ter_f_A(pot,drij) * &
+!             ter_f_C(pot,drij) * &
+!                ter_b_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+
+  END SUBROUTINE get_force_tersoff
+
   !******************************************************************************
 
   SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &

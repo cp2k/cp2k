@@ -38,9 +38,8 @@ MODULE pair_potential
   USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
-       hhcf_type, ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
-       ohcf_type, oocf_type, pair_potential_pp_type, &
-       pair_potential_single_type, wl_type
+       ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
+       pair_potential_pp_type, pair_potential_single_type, tersoff_type,wl_type
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE splines,                         ONLY: init_spline,&
@@ -112,20 +111,6 @@ CONTAINS
        ener_pot=ener_pot - pot % energy_cutoff
     ELSE IF (pot%type==wl_type) THEN
        ener_pot = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
-            - pot%energy_cutoff
-    ELSE IF (pot%type==oocf_type) THEN
-       ener_pot = pot%oocf%a1/(r**pot%oocf%a2) &  
-            - pot%oocf%a3*EXP(-pot%oocf%a4*(r - pot%oocf%a5)**2) &
-            - pot%oocf%a6*EXP(-pot%oocf%a7*(r - pot%oocf%a8)**2) &
-            - pot%energy_cutoff
-    ELSE IF (pot%type==ohcf_type) THEN
-       ener_pot = pot%ohcf%a1/(r**pot%ohcf%a2) &  
-            - pot%ohcf%a3/(1.0_dp+EXP(pot%ohcf%a4*(r - pot%ohcf%a5))) &
-            - pot%ohcf%a6/(1.0_dp+EXP(pot%ohcf%a7*(r - pot%ohcf%a8))) &
-            - pot%energy_cutoff
-    ELSE IF (pot%type==hhcf_type) THEN
-       ener_pot = pot%hhcf%a1/(1.0_dp+EXP(pot%hhcf%a2*(r - pot%hhcf%a3))) &
-            - pot%hhcf%a4*EXP(-pot%hhcf%a5*(r - pot%hhcf%a6)**2) &
             - pot%energy_cutoff
     ELSE IF (pot%type==gw_type) THEN
        scale = EXP(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
@@ -834,14 +819,10 @@ CONTAINS
           nvar = 9 + nvar
        CASE (gp_type)
           nvar = 2 + nvar
+       CASE (tersoff_type)
+          nvar = 12 + nvar
        CASE (nn_type)
           nvar = nvar
-       CASE (oocf_type)
-          nvar = 8 + nvar
-       CASE (ohcf_type)
-          nvar = 8 + nvar
-       CASE (hhcf_type)
-          nvar = 6 + nvar
        CASE DEFAULT
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -908,31 +889,20 @@ CONTAINS
                       pot_par(nk,7)  = potparm%pot(i,j)%pot%buckmo%d
                       pot_par(nk,8)  = potparm%pot(i,j)%pot%buckmo%r0
                       pot_par(nk,9)  = potparm%pot(i,j)%pot%buckmo%beta
-                   CASE (oocf_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%oocf%a1
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%oocf%a2
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%oocf%a3
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%oocf%a4
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%oocf%a5
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%oocf%a6
-                      pot_par(nk,7)  = potparm%pot(i,j)%pot%oocf%a7
-                      pot_par(nk,8)  = potparm%pot(i,j)%pot%oocf%a8
-                   CASE (ohcf_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%ohcf%a1
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%ohcf%a2
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%ohcf%a3
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%ohcf%a4
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%ohcf%a5
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%ohcf%a6
-                      pot_par(nk,7)  = potparm%pot(i,j)%pot%ohcf%a7
-                      pot_par(nk,8)  = potparm%pot(i,j)%pot%ohcf%a8
-                   CASE (hhcf_type)
-                      pot_par(nk,1)  = potparm%pot(i,j)%pot%hhcf%a1
-                      pot_par(nk,2)  = potparm%pot(i,j)%pot%hhcf%a2
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%hhcf%a3
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%hhcf%a4
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%hhcf%a5
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%hhcf%a6
+                   CASE (tersoff_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%tersoff%A
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%tersoff%B
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%tersoff%lambda1
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%tersoff%lambda2
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%tersoff%alpha
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%tersoff%beta
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%tersoff%n
+                      pot_par(nk,7)  = potparm%pot(i,j)%pot%tersoff%c
+                      pot_par(nk,8)  = potparm%pot(i,j)%pot%tersoff%d
+                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%h
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%tersoff%lambda3
+                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%bigR
+                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%bigD
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT

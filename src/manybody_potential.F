@@ -22,6 +22,7 @@ MODULE manybody_potential
 
   USE kinds,                           ONLY: dp
   USE pair_potential_types,            ONLY: ea_type,&
+                                             tersoff_type,&
                                              pair_potential_pp_type,&
                                              pair_potential_single_type
   USE splines,                         ONLY: init_spline,&
@@ -53,6 +54,9 @@ CONTAINS
     IF (pot%type==ea_type) THEN
        ! No splining necessary for EAM.  Zero splines
        manybody_pot = 0._dp
+    ELSEIF (pot%type==tersoff_type) THEN
+       WRITE(*,*) "ERROR: lsdjkfjklsdflkdsfklf"
+       STOP
     ELSE
        CALL stop_program("manybody_potential%ener_pot","Potential type unknown")
     END IF

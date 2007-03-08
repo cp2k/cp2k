@@ -36,6 +36,7 @@ MODULE fist_force_numer
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
+  USE fist_nonbond_force,              ONLY: energy_manybody
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -58,6 +59,7 @@ MODULE fist_force_numer
                                              molecule_type
   USE pair_potential,                  ONLY: potential_f
   USE pair_potential_types,            ONLY: ea_type,&
+                                             tersoff_type,&
                                              pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE pme,                             ONLY: pme_evaluate
@@ -2770,7 +2772,6 @@ END SUBROUTINE potential_imptors
 SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
                                ewald_env, cell, vnb, error )
 
-
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -2837,7 +2838,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 END SUBROUTINE potential_nonbond
 
 ! *****************************************************************************
-  SUBROUTINE force_nonbond_numer (atomic_kind_set,particle_set,&
+  SUBROUTINE force_nonbond_numer (fist_nonbond_env,atomic_kind_set,particle_set,&
                                   local_particles, ewald_env, cell, &
                                   potparm, delta, f_numer,    &
                                   energy_numer, error )
@@ -2848,6 +2849,7 @@ END SUBROUTINE potential_nonbond
 
 !   ***************************************************************************
 
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -2955,7 +2957,8 @@ END SUBROUTINE potential_nonbond
     END DO
 
 !   *** evaluate the forces ***
-    CALL force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
+    CALL force_nonbond_evaluate ( fist_nonbond_env, atomic_kind_set, local_particles, &
+                                  particle_set, atom, ewald_env, cell, &
                                   potparm, energy_numer, f_numer, delta,   &
                                   maxatom_local ,error=error)
 
@@ -2992,7 +2995,8 @@ END SUBROUTINE potential_nonbond
 
 ! *****************************************************************************
 
-  SUBROUTINE force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
+  SUBROUTINE force_nonbond_evaluate ( fist_nonbond_env, atomic_kind_set, local_particles, &
+                                      particle_set, atom, ewald_env, cell, &
                                       potparm, energy_numer, f_numer,    &
                                       numerical_shift, maxatom_local, error )
 
@@ -3002,6 +3006,10 @@ END SUBROUTINE potential_nonbond
 
 !   ***************************************************************************
 
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(local_atoms_type), DIMENSION(:), &
@@ -3136,15 +3144,25 @@ END SUBROUTINE potential_nonbond
                             CASE ( ea_type )
                               CALL stop_program ( "force_nonbond_numer", &
                                 "DEBUG results for EAM are in regtest" )
+                            CASE ( tersoff_type )
+                              !CALL fi_di_ev_many (fist_nonbond_env, &
+                              !                    particle_set, &
+                              !                    local_particles, &
+                              !                    atomic_kind_set, &
+                              !                    cell, &
+                              !                    atom_a,atom_b, &
+                              !                    numerical_shift, &
+                              !                    f_numer, &
+                              !                    error=error)
                             CASE DEFAULT
-                              CALL finite_difference_evaluate ( ewald_env,     &
-                                                              potparm, rab,    &
-                                                              ikind, jkind, &
-                                                              atom_a, atom_b, &
-                                                              qi, qj, &
-                                                              numerical_shift, &
-                                                              f_numer,     &
-                                                              energy_numer ,error=error)
+                              CALL finite_difference_evaluate(ewald_env,     &
+                                                             potparm, rab,    &
+                                                             ikind, jkind, &
+                                                             atom_a, atom_b, &
+                                                             qi, qj, &
+                                                             numerical_shift, &
+                                                             f_numer,     &
+                                                             energy_numer,error=error)
                             END SELECT
                           END IF
                         END IF
@@ -3161,6 +3179,13 @@ END SUBROUTINE potential_nonbond
       END DO
     END DO
 
+    CALL fi_di_ev_many(fist_nonbond_env,particle_set,local_particles, &
+             atomic_kind_set,cell,numerical_shift, &
+             f_numer,error=error)
+
+    CALL energy_manybody(fist_nonbond_env,atomic_kind_set,local_particles,&
+                         particle_set,cell,energy_numer,error=error)
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE force_nonbond_evaluate
@@ -3170,7 +3195,6 @@ END SUBROUTINE potential_nonbond
 SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
                                         ikind, jkind, atom_a, atom_b, qi, qj, &
                                         numerical_shift, f_numer, energy_numer, error )
-
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -3221,6 +3245,69 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
   energy_numer = energy_numer + energy
 
 END SUBROUTINE finite_difference_evaluate
+
+
+
+
+
+SUBROUTINE fi_di_ev_many(fist_nonbond_env,particle_set,local_particles,atomic_kind_set,cell,&
+                         numerical_shift,f_numer,error)
+
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: f_numer
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    REAL(KIND=dp), DIMENSION(3)              :: r_orig(3),r_change(3)
+    INTEGER                                  :: iparticle,nparticle
+    REAL(KIND=dp)                            :: energy_minus, &
+                                                energy_plus
+    REAL(KIND=dp)                            :: dexyz(3)
+    INTEGER                                  :: idim
+
+  nparticle = SIZE(particle_set)
+  DO iparticle=1,nparticle
+   WRITE(*,*) ""
+   WRITE(*,*) "",numerical_shift
+   r_orig(:) = particle_set(iparticle)%r(:)
+   DO idim=1,3
+    energy_plus = 0.0_dp
+    energy_minus = 0.0_dp
+
+    r_change(:) = r_orig(:)
+    r_change(idim) = r_change(idim) + numerical_shift
+    particle_set(iparticle)%r(:) = r_change(:)
+    CALL energy_manybody(fist_nonbond_env,atomic_kind_set,&
+                         local_particles,particle_set,cell,energy_plus,error=error)
+
+    r_change(:) = r_orig(:)
+    r_change(idim) = r_change(idim) - numerical_shift
+    particle_set(iparticle)%r(:) = r_change(:)
+    CALL energy_manybody(fist_nonbond_env,atomic_kind_set,&
+                         local_particles,particle_set,cell,energy_minus,error=error)
+    dexyz(idim) = energy_plus - energy_minus
+
+    WRITE(*,*) "XYZ  ",idim,iparticle,energy_plus,energy_minus
+
+   END DO
+   particle_set(iparticle)%r(:) = r_orig(:)
+   f_numer(1,iparticle) = f_numer(1,iparticle) + dexyz(1)
+   f_numer(2,iparticle) = f_numer(2,iparticle) + dexyz(2)
+   f_numer(3,iparticle) = f_numer(3,iparticle) + dexyz(3)
+  END DO
+
+END SUBROUTINE fi_di_ev_many
+
+
+
+
 
 !!*****
 !******************************************************************************

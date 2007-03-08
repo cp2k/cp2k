@@ -76,6 +76,7 @@ MODULE fist_force
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
   TYPE debug_variables_type
+     REAL (KIND=dp) :: pot_manybody
      REAL (KIND=dp) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
      REAL (KIND=dp) :: pot_imptors, pot_onef, pot_urey_bradley
      REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: &
@@ -282,7 +283,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 
 ! compute embedding function and manybody energy
   CALL energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-                         local_particles, particle_set, pot_manybody, para_env ,error=error)
+                         local_particles, particle_set, cell, pot_manybody, para_env ,error=error)
 
 ! nonbond contribution + manybody forces
   IF(shell_present) THEN
@@ -465,6 +466,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      f_total ( 1, i ) = particle_set ( i ) % f ( 1 ) + f_nonbond ( 1, i )
      f_total ( 2, i ) = particle_set ( i ) % f ( 2 ) + f_nonbond ( 2, i )
      f_total ( 3, i ) = particle_set ( i ) % f ( 3 ) + f_nonbond ( 3, i )
+     WRITE(*,*) "PARTICLE F",f_total(:,i)
   END DO
   IF(shell_present) THEN
     ALLOCATE ( fshell_total ( 3,nshell ), STAT=stat )
@@ -656,6 +658,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 !
 
   IF ( PRESENT ( debug )  ) THEN
+     CALL mp_sum ( pot_manybody, para_env%group )
+     debug % pot_manybody = pot_manybody
      CALL mp_sum ( pot_nonbond, para_env%group )
      debug % pot_nonbond = pot_nonbond
      CALL mp_sum ( pot_bond, para_env%group )

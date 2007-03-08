@@ -74,7 +74,7 @@ MODULE force_fields_util
        nosh_sh, pair_potential_lj_create, &
        pair_potential_pp_create, pair_potential_pp_release, &
        pair_potential_pp_type, pair_potential_single_clean, &
-       pair_potential_single_copy, sh_sh
+       pair_potential_single_copy, sh_sh, tersoff_type
   USE particle_types,                  ONLY: allocate_particle_set, &
                                              particle_type
   USE physcon,                         ONLY: bohr
@@ -1433,8 +1433,8 @@ CONTAINS
                 IF ( atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
                      atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN
                    SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
-                   CASE (ea_type)
-                      ! Charge is zero for EAM type potential
+                   CASE (ea_type,tersoff_type)
+                      ! Charge is zero for EAM and TERSOFF type potential
                       charge(i) = 0.0_dp
                       found     = .TRUE.
                       EXIT

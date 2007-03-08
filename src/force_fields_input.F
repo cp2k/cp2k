@@ -53,13 +53,14 @@ MODULE force_fields_input
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, ea_type, eam_pot_type, ft_type, gp_type, gw_type, &
-       hhcf_type, ip_type, lj_charmm_type, ohcf_type, oocf_type, &
-       pair_potential_p_type, pair_potential_reallocate, &
-       pair_potential_single_type, wl_type
+       ip_type, lj_charmm_type, pair_potential_p_type, &
+       pair_potential_reallocate, pair_potential_single_type, &
+       tersoff_pot_type, tersoff_type, wl_type
   USE physcon,                         ONLY: bohr
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
@@ -116,8 +117,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nhhcf, &
-      nipbv, nlj, nohcf, noocf, nshell, ntors, ntot, nubs, nwl
+    INTEGER                                  :: nb4, nbends, nbm, nbmhft, &
+                                                nbonds, nchg, neam, ngd, ngp, &
+                                                nipbv, nlj, nshell, ntersoff, ntors, ntot, &
+                                                nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -205,38 +208,20 @@ CONTAINS
              CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
 
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"OOCF",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=noocf,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+noocf,oocf=.TRUE.,error=error)
-             CALL read_oocf_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"OHCF",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nohcf,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm+noocf
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nohcf,ohcf=.TRUE.,error=error)
-             CALL read_ohcf_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"HHCF",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nhhcf,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm+noocf+nohcf
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nhhcf,hhcf=.TRUE.,error=error)
-             CALL read_hhcf_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm+noocf+nohcf+nhhcf
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngp,gp=.TRUE.,error=error)
              CALL read_gp_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
-
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"TERSOFF",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ntersoff,error=error)
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm+ngp
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ntersoff,tersoff=.TRUE.,error=error)
+             CALL read_tersoff_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
+          END IF
        END IF
 
        tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
@@ -489,133 +474,6 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE set_BMHFT_ff
-
-!******************************************************************************
-!!****** force_fields/set_oocf_ff [1.0] *
-!!
-!!   NAME
-!!     set_oocf_ff
-!!
-!!   FUNCTION
-!!     Set up of the oocf force fields
-!!
-!!   AUTHOR
-!!     cjm,nir
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE set_oocf_ff(at1, at2, nonbonded )
-    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: nonbonded
-
-    IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
-       nonbonded%oocf% a1 = 26758.2_dp ! kcal/mol/angtrom^8.8591
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%oocf%a1 )
-       ! convert fractional distance units by hand
-       nonbonded%oocf% a2 = 8.8591_dp ! dimensionless
-       nonbonded%oocf%a1=nonbonded%oocf%a1/0.529177**(8.8591_dp)
-       nonbonded%oocf% a3 = 0.25_dp ! kcal/mol
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%oocf%a3)
-       nonbonded%oocf% a4 = 4.0_dp ! 1/angstrom^2
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%oocf%a4, l_power = -2  )
-       nonbonded%oocf% a5 = 3.4_dp ! angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%oocf%a5 )
-       nonbonded%oocf% a6 = 0.25_dp ! kcal/mol
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%oocf%a6)
-       nonbonded%oocf% a7 = 1.5_dp ! 1/angstroms^2
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%oocf%a7, l_power = -2 )
-       nonbonded%oocf% a8 = 4.5_dp ! angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%oocf%a8 )
-    ELSE
-       CALL stop_program ("input_nonbonded","OOCF only for O O")
-    ENDIF
-  END SUBROUTINE set_oocf_ff
-!******************************************************************************
-!!****** force_fields/set_hhcf_ff [1.0] *
-!!
-!!   NAME
-!!     set_hhcf_ff
-!!
-!!   FUNCTION
-!!     Set up of the hhcf force fields
-!!
-!!   AUTHOR
-!!     cjm,nir
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE set_hhcf_ff(at1, at2, nonbonded )
-    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: nonbonded
-
-    IF  ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
-       nonbonded%hhcf% a1 = 18._dp ! kcal/mol
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%hhcf%a1 )
-       nonbonded%hhcf% a2 = 40._dp ! 1/angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%hhcf%a2, l_power = -1 )
-       nonbonded%hhcf% a3 = 2.05_dp ! angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%hhcf%a3 )
-       nonbonded%hhcf% a4 = 17.0_dp ! kcal/mol
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%hhcf%a4 )
-       nonbonded%hhcf% a5 = 7.62177_dp ! 1/anstroms^2
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%hhcf%a5, l_power = -2 )
-       nonbonded%hhcf% a6 = 1.45251_dp ! angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%hhcf%a6 )
-    ELSE
-       CALL stop_program ("input_nonbonded","HHCF only for H H")
-    ENDIF
-  END SUBROUTINE set_hhcf_ff
-!******************************************************************************
-!!****** force_fields/set_ohcf_ff [1.0] *
-!!
-!!   NAME
-!!     set_ohcf_ff
-!!
-!!   FUNCTION
-!!     Set up of the ohcf force fields
-!!
-!!   AUTHOR
-!!     cjm,nir
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE set_ohcf_ff(at1, at2, nonbonded )
-    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: nonbonded
-
-    IF  (( (at1(1:1) == 'O') .AND. (at2 (1:1) == 'H')) .OR. &
-        ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'O' ) ) ) THEN
-       nonbonded%ohcf% a1 = 6.23403_dp ! kcal/mol/angtrom^9.19912
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%ohcf%a1 )
-       ! convert fractional distance units by hand
-       nonbonded%ohcf%a1=nonbonded%ohcf%a1/0.529177**(9.19912_dp)
-       nonbonded%ohcf% a2 = 9.19912_dp ! dimensionless
-       nonbonded%ohcf% a3 = 10.0_dp ! kcal/mol
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%ohcf%a3 )
-       nonbonded%ohcf% a4 = 40.0_dp ! 1/angstrom
-       CALL convert_to_cp2k_units ( "ANGSTROM", length = nonbonded%ohcf%a4, l_power = -1 )
-       nonbonded%ohcf% a5 = 1.05_dp ! angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length = nonbonded%ohcf%a5 )
-       nonbonded%ohcf% a6 = 4.0_dp ! kcal/mol
-       CALL convert_to_cp2k_units ( "KCAL", energy = nonbonded%ohcf%a6 )
-       nonbonded%ohcf% a7 = 5.49305_dp ! 1/angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length = nonbonded%ohcf%a7, l_power = -1 )
-       nonbonded%ohcf% a8 = 2.2_dp ! angstroms
-       CALL convert_to_cp2k_units ( "ANGSTROM", length = nonbonded%ohcf%a8 )
-    ELSE
-       CALL stop_program ("input_nonbonded","OHCF only for O H")
-    ENDIF
-  END SUBROUTINE set_ohcf_ff
-
 
 !******************************************************************************
 !!****** force_fields_input/read_eam_section [1.0] *
@@ -1019,145 +877,6 @@ CONTAINS
     END DO
   END SUBROUTINE read_b4_section
 
-
-!******************************************************************************
-!!****** force_fields/read_oocf_section [1.0] *
-!!
-!!   NAME
-!!     read_oocf_section
-!!
-!!   FUNCTION
-!!     Reads the O-O central force section
-!!
-!!   AUTHOR
-!!     cjm,nir
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE read_oocf_section(nonbonded, section, start, error)
-    TYPE(pair_potential_p_type), POINTER     :: nonbonded
-    TYPE(section_vals_type), POINTER         :: section
-    INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_oocf_section', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
-    REAL(KIND=dp)                            :: rcut
-
-    CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items
-       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-       nonbonded%pot(start+isec)%pot %type = oocf_type
-       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       CALL set_oocf_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
-            nonbonded%pot(start+isec)%pot )
-       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-    END DO
-  END SUBROUTINE read_oocf_section
-
-!******************************************************************************
-!!****** force_fields/read_ohcf_section [1.0] *
-!!
-!!   NAME
-!!     read_ohcf_section
-!!
-!!   FUNCTION
-!!     Reads the O-H central force section
-!!
-!!   AUTHOR
-!!     cjm,nir
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE read_ohcf_section(nonbonded, section, start, error)
-    TYPE(pair_potential_p_type), POINTER     :: nonbonded
-    TYPE(section_vals_type), POINTER         :: section
-    INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_ohcf_section', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
-    REAL(KIND=dp)                            :: rcut
-
-    CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items
-       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-       nonbonded%pot(start+isec)%pot %type = ohcf_type
-       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       CALL set_ohcf_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
-            nonbonded%pot(start+isec)%pot )
-       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-    END DO
-  END SUBROUTINE read_ohcf_section
-!******************************************************************************
-!!****** force_fields/read_hhcf_section [1.0] *
-!!
-!!   NAME
-!!     read_hhcf_section
-!!
-!!   FUNCTION
-!!     Reads the H-H central force section
-!!
-!!   AUTHOR
-!!     cjm,nir
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-  SUBROUTINE read_hhcf_section(nonbonded, section, start, error)
-    TYPE(pair_potential_p_type), POINTER     :: nonbonded
-    TYPE(section_vals_type), POINTER         :: section
-    INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_hhcf_section', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
-    REAL(KIND=dp)                            :: rcut
-
-    CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items
-       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-       nonbonded%pot(start+isec)%pot %type = hhcf_type
-       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       CALL set_hhcf_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
-            nonbonded%pot(start+isec)%pot )
-       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-    END DO
-  END SUBROUTINE read_hhcf_section
-
-
 !******************************************************************************
 !!****** force_fields_input/read_gp_section [1.0] *
 !!
@@ -1248,6 +967,58 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
     END DO
   END SUBROUTINE read_gp_section
+
+
+!******************************************************************************
+!!****** force_fields_input/read_tersoff_section [1.0] *
+!!
+!!   NAME
+!!     read_tersoff_section
+!!
+!!   FUNCTION
+!!     Reads the tersoff section
+!!
+!!   AUTHOR
+!!     ikuo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_tersoff_section(nonbonded, section, start, tersoff_section,error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(section_vals_type), POINTER         :: tersoff_section
+    TYPE(cp_error_type), INTENT(inout)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_tersoff_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: rcut
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = tersoff_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+
+       CALL section_vals_val_get(section,"RCUT",r_val=rcut,error=error)
+       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       WRITE(*,*) "RCUTRCUTRCUT ",rcut
+
+       CALL read_tersoff_data ( nonbonded%pot(start+isec)%pot%tersoff, tersoff_section,error)
+    END DO
+  END SUBROUTINE read_tersoff_section
+
 
 !******************************************************************************
 !!****** force_fields_input/read_bm_section [1.0] *
@@ -2597,6 +2368,90 @@ CALL parser_release(parser,error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_eam_data
+
+!******************************************************************************
+!!****** force_fields/read_tersoff_data [1.0] *
+!!
+!!   NAME
+!!     read_tersoff_data
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     reads Tersoff parameter
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*****************************************************************************
+  SUBROUTINE read_tersoff_data ( tersoff, section, error)
+    TYPE(tersoff_pot_type), POINTER          :: tersoff
+    TYPE(section_vals_type), POINTER         :: section
+    TYPE(cp_error_type), INTENT(INOUT)  &
+                                             :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_tersoff_data', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: title3
+    INTEGER                                  :: handle, i, iw, ntyp, stat, &
+                                                unit_number
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: A,B,lambda1,lambda2,lambda3
+    REAL(KIND=dp)                            :: alpha,beta,n,c,d,h,bigR,bigD
+    REAL(KIND=dp)                            :: rij
+    INTEGER                                  :: npts
+
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,'I','',handle)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+!    iw = cp_print_key_unit_nr(logger,section,"PRINT%FF_INFO",&
+!         extension=".mmLog",error=error)
+    IF (.NOT.failure) THEN
+
+       CALL section_vals_val_get(section,"A",r_val=A,error=error)
+       CALL section_vals_val_get(section,"B",r_val=B,error=error)
+       CALL section_vals_val_get(section,"lambda1",r_val=lambda1,error=error)
+       CALL section_vals_val_get(section,"lambda2",r_val=lambda2,error=error)
+       CALL section_vals_val_get(section,"alpha",r_val=alpha,error=error)
+       CALL section_vals_val_get(section,"beta",r_val=beta,error=error)
+       CALL section_vals_val_get(section,"n",r_val=n,error=error)
+       CALL section_vals_val_get(section,"c",r_val=c,error=error)
+       CALL section_vals_val_get(section,"d",r_val=d,error=error)
+       CALL section_vals_val_get(section,"h",r_val=h,error=error)
+       CALL section_vals_val_get(section,"lambda3",r_val=lambda3,error=error)
+       CALL section_vals_val_get(section,"bigR",r_val=bigR,error=error)
+       CALL section_vals_val_get(section,"bigD",r_val=bigD,error=error)
+
+       tersoff%A       = A
+       tersoff%B       = B
+       tersoff%lambda1 = lambda1
+       tersoff%lambda2 = lambda2
+       tersoff%alpha   = alpha
+       tersoff%beta    = beta
+       tersoff%n       = n
+       tersoff%c       = c
+       tersoff%d       = d
+       tersoff%h       = h
+       tersoff%lambda3 = lambda3
+       tersoff%bigR    = bigR
+       tersoff%bigD    = bigD
+
+       WRITE(*,*) "TERSOFF potential paramters: ",&
+                  A,B,lambda1,lambda2,alpha,beta,n,c,d,h,lambda3,bigR,bigD,npts
+
+    END IF
+!   CALL cp_print_key_finished_output(iw,logger,section,&
+!        "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE read_tersoff_data
 
 END MODULE force_fields_input
 !******************************************************************************
