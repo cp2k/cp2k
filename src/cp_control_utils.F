@@ -69,7 +69,9 @@ MODULE cp_control_utils
             read_qs_section,&
             read_tddfpt_control,&
             write_dft_control,&
-            write_qs_control
+            write_qs_control,&
+            read_ddapc_section,&
+            read_becke_section
 
 !!***
 ! *****************************************************************************
@@ -457,6 +459,7 @@ CONTAINS
     END IF
 
     CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
+
     IF (qs_control%mulliken_restraint) THEN
       CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
       CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
@@ -468,7 +471,7 @@ CONTAINS
       END DO
       qs_control%mulliken_restraint_control%natoms = jj
       IF (qs_control%mulliken_restraint_control%natoms<1) &
-            CALL stop_program(routine, "Need at least 1 atom to use mulliken contraints")
+           CALL stop_program(routine, "Need at least 1 atom to use mulliken contraints")
       ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
       jj = 0
       DO k = 1,n_rep
@@ -476,38 +479,14 @@ CONTAINS
          DO  j = 1,SIZE(tmplist)
            jj = jj+1
            qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j)
-         END DO
-      END DO
-    ENDIF
+        END DO
+     END DO
+  ENDIF
 
     CALL section_vals_get(ddapc_restraint_section,explicit=qs_control%ddapc_restraint,error=error)
+
     IF (qs_control%ddapc_restraint) THEN
-      CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
-                                r_val=qs_control%ddapc_restraint_control%strength,error=error)
-      CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &
-                                r_val=qs_control%ddapc_restraint_control%target,error=error)
-      CALL section_vals_val_get(ddapc_restraint_section,"FUNCTIONAL_FORM", &
-                                i_val=qs_control%ddapc_restraint_control%functional_form,error=error)
-      CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
-                                n_rep_val=n_rep,error=error)
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist)
-           jj = jj+1
-         END DO
-      END DO
-      IF (jj<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
-      qs_control%ddapc_restraint_control%natoms=jj
-      ALLOCATE(qs_control%ddapc_restraint_control%atoms(qs_control%ddapc_restraint_control%natoms))
-      jj = 0
-      DO k = 1,n_rep
-         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-         DO  j = 1,SIZE(tmplist)
-           jj = jj+1
-           qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
-         END DO
-      END DO
+       CALL  read_ddapc_section(qs_control,ddapc_restraint_section,error)
     ENDIF
 
     CALL section_vals_get(s2_restraint_section,explicit=qs_control%s2_restraint,error=error)
@@ -1150,6 +1129,126 @@ FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
      WRITE (res,"('UKN',i6)") xc_functional_routine_id
   END SELECT
 END FUNCTION xc_get_routine_label
+
 !***************************************************************************
+
+!!****f* cp_control_types/read_ddapc_section [1.0] *
+!!
+!!   NAME
+!!    read_ddapc_section
+!!
+!!   FUNCTION
+!!     reads the input parameters needed for ddapc.
+!!
+!!   NOTES
+!!     either reads DFT%QS%DDAPC_RESTRAINT or PROPERTIES%ET_coupling
+!!
+!!   INPUTS
+!!     
+!!   AUTHOR
+!!     fschiff
+!!
+!!*** **********************************************************************
+
+!***************************************************************************
+SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
+
+    TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
+    TYPE(section_vals_type), POINTER         :: ddapc_restraint_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_ddapc_section "
+
+    INTEGER                                  :: j, jj, k, n_rep
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
+    
+      CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
+                                r_val=qs_control%ddapc_restraint_control%strength,error=error)
+      CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &
+                                r_val=qs_control%ddapc_restraint_control%target,error=error)
+      CALL section_vals_val_get(ddapc_restraint_section,"FUNCTIONAL_FORM", &
+                                i_val=qs_control%ddapc_restraint_control%functional_form,error=error)
+      CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
+                                n_rep_val=n_rep,error=error)
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         DO  j = 1,SIZE(tmplist)
+           jj = jj+1
+         END DO
+      END DO
+      IF (jj<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
+      qs_control%ddapc_restraint_control%natoms=jj
+      IF(ASSOCIATED(qs_control%ddapc_restraint_control%atoms))&
+           DEALLOCATE(qs_control%ddapc_restraint_control%atoms)
+      ALLOCATE(qs_control%ddapc_restraint_control%atoms(qs_control%ddapc_restraint_control%natoms))
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         DO  j = 1,SIZE(tmplist)
+           jj = jj+1
+           qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
+         END DO
+      END DO
+
+    END SUBROUTINE read_ddapc_section
+
+!!****f* cp_control_types/read_becke_section [1.0] *
+!!
+!!   NAME
+!!    read_becke_section
+!!
+!!   FUNCTION
+!!     reads the input parameters needed for evaluating a becke weight population constraint
+!!
+!!   NOTES
+!!    
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     fschiff
+!!
+!!*** **********************************************************************
+
+!***************************************************************************
+SUBROUTINE read_becke_section(qs_control,becke_section,error)
+
+    TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
+    TYPE(section_vals_type), POINTER         :: becke_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_becke_section "
+
+    INTEGER                                  :: j, jj, k, n_rep
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
+
+      CALL section_vals_val_get(becke_section,"STRENGTH", &
+                                r_val=qs_control%becke_control%strength,error=error)
+      CALL section_vals_val_get(becke_section,"TARGET", &
+                                r_val=qs_control%becke_control%target,error=error)
+      CALL section_vals_val_get(becke_section,"ATOMS", &
+                                n_rep_val=n_rep,error=error)
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(becke_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         DO  j = 1,SIZE(tmplist)
+           jj = jj+1
+         END DO
+      END DO
+      IF (jj<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
+      qs_control%becke_control%natoms=jj
+      IF(ASSOCIATED(qs_control%becke_control%atoms))DEALLOCATE(qs_control%becke_control%atoms)
+      ALLOCATE(qs_control%becke_control%atoms(qs_control%becke_control%natoms))
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(becke_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         DO  j = 1,SIZE(tmplist)
+           jj = jj+1
+           qs_control%becke_control%atoms (jj) = tmplist(j)
+         END DO
+      END DO
+
+    END SUBROUTINE read_becke_section
 
 END MODULE cp_control_utils

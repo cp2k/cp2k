@@ -25,10 +25,15 @@ MODULE cp_fm_basic_linalg
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_create,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: invert_matrix
   USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -51,7 +56,8 @@ MODULE cp_fm_basic_linalg
             cp_fm_triangular_multiply, &   ! triangular matrix multiply / solve
             cp_fm_symm, &                  ! multiply a symmetric with a non-symmetric matrix
             cp_fm_gemm, &                  ! multiply two matrices
-            cp_fm_lu_decompose             ! computes determinant (and lu decomp)
+            cp_fm_lu_decompose,&           ! computes determinant (and lu decomp)
+            cp_fm_invert                   ! computes the inverse and determinant 
 
 !****************************************************************************
 CONTAINS
@@ -191,6 +197,7 @@ CPSourceFileRef,&
 !!     - the sign of the determinant might be wrong
 !!     - SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
 !!     - one should be able to find out if ipivot is an even or an odd permutation...
+!!       if you need the correct sign, just add correct_sign==.TRUE. (fschiff)
 !!
 !!   INPUTS
 !!
@@ -199,10 +206,12 @@ CPSourceFileRef,&
 !!
 !!   MODIFICATION HISTORY
 !!
+!!     added correct_sign 02.07 (fschiff)
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant)
+  SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant,correct_sign)
     TYPE(cp_fm_type), POINTER                :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
+    LOGICAL,INTENT(IN),OPTIONAL              :: correct_sign
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE cp_fm_lu_decompose"
 
@@ -238,9 +247,19 @@ CPSourceFileRef,&
     lda=SIZE(a,1)
     CALL dgetrf(n,n,a(1,1),lda,ipivot,info)
     determinant=1.0_dp
-    DO i=1,n
-       determinant=determinant*a(i,i)
-    ENDDO
+    IF(correct_sign)THEN
+       DO i=1,n
+          IF(ipivot(i).NE.i)THEN
+             determinant=-determinant*a(i,i)
+          ELSE
+             determinant=determinant*a(i,i)
+          END IF
+       END DO
+    ELSE
+       DO i=1,n
+          determinant=determinant*a(i,i)
+       ENDDO
+    END IF
 #endif
     ! info is allowed to be zero
     ! this does just signal a zero diagonal element
@@ -1156,4 +1175,126 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 #endif
   END SUBROUTINE cp_fm_column_scale
 
+
+!!****f* cp_fm_basic_linalg/cp_fm_column_scale [1.0] *
+!!
+!!   NAME
+!!     cp_fm_invert
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_invert(matrixa, scaling)
+!!       Type(cp_fm_type), Pointer:: matrixa
+!!       Real(KIND = dp), Dimension(:), Intent (IN):: scaling
+!!     End Subroutine cp_fm_column_scale
+!!
+!!   FUNCTION
+!!     scales column i of matrix a with scaling(i)
+!!
+!!   NOTES
+!!     this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
+!!     that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
+!!     this procedure can be up to 20 times faster than calling cp_fm_syrk n times
+!!
+!!   INPUTS
+!!     scaling :: an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!!
+!!   AUTHOR
+!!     Florian Schiffmann(02.2007)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_fm_invert(matrix_a,matrix_inverse,det_a,error)
+  
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    TYPE(cp_fm_type), POINTER                :: matrix_inverse
+    REAL(KIND=dp),INTENT(OUT),OPTIONAL       :: det_a   
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "SUBROUTINE cp_fm_invert",&
+         routineP=moduleN//':'//routineN     
+    TYPE(cp_fm_type), POINTER                :: matrix_B,matrix_lu    
+    REAL(KIND=dp)                            :: alpha,beta,eps1,eps2,determinant
+    LOGICAL                                  :: sign  
+    INTEGER, DIMENSION(9)                    :: desca
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+    INTEGER                                  :: info,lwork,liwork,i,iter,n
+    REAL(KIND=dp), DIMENSION(:),ALLOCATABLE  :: ferr,berr,work
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork,ipivot
+    LOGICAL :: failure
+
+    failure=.FALSE.
+
+    CALL cp_fm_create(matrix=matrix_lu,&
+         matrix_struct=matrix_a%matrix_struct,&
+         name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX",&
+         error=error)
+    CALL cp_fm_to_fm(matrix_a,matrix_lu,error=error)
+
+    CALL cp_fm_create(matrix=matrix_B,&
+         matrix_struct=matrix_a%matrix_struct,&
+         name="B_mat"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX",&
+         error=error)    
+    a => matrix_lu%local_data
+    n = matrix_lu%matrix_struct%nrow_global
+    ALLOCATE(ipivot(n))
+#if defined(__SCALAPACK)
+    ALLOCATE(ferr(n))
+    ALLOCATE(berr(n))
+    ALLOCATE(work(3*n))
+    ALLOCATE(iwork(3*N))	
+    lwork=3*n
+    liwork=3*n
+    desca(:) = matrix_lu%matrix_struct%descriptor(:)
+    CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
+    ALLOCATE(diag(n))
+    diag(:)=0.0_dp
+    DO i=1,n
+       CALL cp_fm_get_element(matrix_lu,i,i,diag(i)) !  not completely optimal in speed i would say
+    ENDDO
+    determinant=1.0_dp
+    DO i=1,n
+       IF(ipivot(i)==i)THEN
+          determinant=determinant*diag(i)
+       ELSE
+          determinant=determinant*diag(i)*(-1.0_dp)
+       END IF
+    ENDDO
+    DEALLOCATE(diag)
+  
+    alpha=0.0_dp
+    beta=1.0_dp
+   CALL cp_fm_set_all(matrix_inverse,alpha,beta,error)
+   CALL pdgetrs('N',n,n,matrix_lu%local_data,1,1,desca,ipivot,matrix_inverse%local_data,1,1,desca,info)
+!   CALL cp_fm_set_all(matrix_B,alpha,beta,error)    
+!    DO iter=1,10 
+!       CALL pdgerfs('N',n,n,matrix_a%local_data,1,1,desca,matrix_lu%local_data,&
+!                      1,1,desca,ipivot,matrix_B%local_data,&
+!                     1,1,desca,matrix_inverse%local_data,1,1,&
+!                      desca,ferr,berr,work,lwork,iwork,liwork,info)
+!       eps1=eps2
+!       eps2=MAXVAL(ferr)
+!       IF (ABS( eps2 - eps1) <= EPSILON(1.0_dp))THEN
+!          EXIT    
+!       END IF
+!    END DO
+    DEALLOCATE(ferr)
+    DEALLOCATE(berr)
+    DEALLOCATE(work)
+    DEALLOCATE(iwork)
+
+#else
+    sign=.TRUE.
+    CALL invert_matrix(matrix_a%local_data,matrix_inverse%local_data,&
+                       error=eps1)
+    CALL cp_fm_lu_decompose(matrix_lu,determinant,correct_sign=sign)
+#endif
+   CALL cp_fm_release(matrix_lu,error=error)
+    CALL cp_fm_release(matrix_B,error=error)
+    DEALLOCATE(ipivot)
+    det_a=determinant
+  END SUBROUTINE cp_fm_invert
+   
 END MODULE cp_fm_basic_linalg

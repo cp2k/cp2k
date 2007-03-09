@@ -38,7 +38,8 @@ MODULE cp_ddapc
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_integral_ab
@@ -311,7 +312,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iw, my_id, stat
     LOGICAL                                  :: apply_restrain, failure, &
-                                                need_f
+                                                need_f, do_et
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dq
@@ -334,6 +335,7 @@ CONTAINS
        NULLIFY(restraint_section, force_env_section, particle_set, charges, &
             radii, dq, cell, density_fit_section, super_cell)
 
+
        CALL get_qs_env(qs_env=qs_env,&
                        input=force_env_section,&
                        particle_set=particle_set,&
@@ -346,6 +348,7 @@ CONTAINS
        iw=cp_print_key_unit_nr(logger,restraint_section,"PROGRAM_RUN_INFO",&
             extension=".fitChargeLog",error=error)
        ! First we evaluate the charges at the corresponding SCF STEP
+
        IF (need_f) THEN
           CALL get_ddapc(qs_env,&
                          need_f,&
@@ -365,7 +368,9 @@ CONTAINS
 
        ! Modify the Hartree potential due to the restrain or the v_spin_ddapc_rest_g
        CALL section_vals_val_get(density_fit_section,"TYPE_OF_DENSITY",i_val=my_id,error=error)
-       IF (my_id==do_spin_density) THEN
+!      
+       
+       IF ((my_id==do_spin_density).OR.qs_env%dft_control%qs_control%et_coupling_calc) THEN
           CALL restraint_functional_potential(v_spin_ddapc_rest_g, density_fit_section,&
                                            particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
                                            qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)

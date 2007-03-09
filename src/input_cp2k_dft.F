@@ -3152,11 +3152,14 @@ CONTAINS
             description="Specifies which kind of outer scf should be employed",&
             usage="TYPE DDAPC_CONSTRAINT ",&
             default_i_val=outer_scf_none,&
-            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "NONE" ),&
+            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT",&
+             "NONE" ),&
             enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
             "Enforce a constraint on the S2, requires the corresponding section", &
+            "Enforce a constraint on the Becke weight population,requires the corresponding section", &
             "Do nothing in the outer loop, useful for resetting the inner loop,"),&
-            enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,outer_scf_none/),&
+            enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,&
+            outer_scf_becke, outer_scf_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3258,7 +3261,11 @@ CONTAINS
        CALL create_linres_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-
+       
+       CALL create_et_coupling_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+       
        CALL create_resp_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -4967,6 +4974,149 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_kg_section
+
+
+  !!****f* input_cp2k_dft/create_et_coupling_section
+  !!
+  !!   NAME
+  !!     create_et_coupling_section
+  !!
+  !!   FUNCTION
+  !!     creates the section for electron transfer coupling
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fschiff
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE create_et_coupling_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"ET_COUPLING",&
+            description="specifies the two constraints/restraints for extracting ET coupling elements",&
+            n_keywords=1, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(subsection)
+       CALL create_restraint_A(subsection,"DDAPC_RESTRAINT_A",error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+       
+       NULLIFY(subsection)
+       CALL create_restraint_A(subsection,"DDAPC_RESTRAINT_B",error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+        
+       NULLIFY(subsection)
+       CALL create_restraint_A(subsection,"BECKE_CONSTRAINT_A",error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
+       CALL create_restraint_A(subsection,"BECKE_CONSTRAINT_B",error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL keyword_create(keyword, name="TYPE_OF_CONSTRAINT",&
+            description="Specifies the type of constraint",&
+            usage="TYPE_OF_CONSTRAINT DDAPC",&
+            enum_c_vals=s2a("NONE","DDAPC","BECKE"),&
+            enum_i_vals=(/ do_no_et, do_et_ddapc, do_et_becke/),&
+            enum_desc=s2a("NONE","ddapc_restraint","Sperical potential"),&
+            default_i_val=do_no_et,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing basic info about the method", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_et_coupling_section 
+
+  SUBROUTINE create_restraint_A(section,section_name,error)
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*),INTENT(in)              :: section_name
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_restraint_A', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    NULLIFY(keyword, print_key)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,TRIM(ADJUSTL(section_name)),&
+            description="Use DDAPC charges in a restraint (check code for details)",&
+            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="STRENGTH",&
+            description="force constant of the restraint",&
+            usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TARGET",&
+            description="target value of the restraint",&
+            usage="TARGET {real} ",default_r_val=1._dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the list of atoms that is summed in the restraint",&
+            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FUNCTIONAL_FORM",&
+            description="Specifies the functional form of the term added",&
+            usage="FUNCTIONAL_FORM RESTRAINT",&
+            enum_c_vals=s2a("RESTRAINT","CONSTRAINT"),&
+            enum_i_vals=(/ do_ddapc_restraint, do_ddapc_constraint/),&
+            enum_desc=s2a("Harmonic potential: s*(q-t)**2","Constraint form: s*(q-t)"),&
+            default_i_val=do_ddapc_restraint, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing basic info about the method", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+
+  END SUBROUTINE create_restraint_A
 
   !***************************************************************************
 

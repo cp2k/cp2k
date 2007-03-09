@@ -66,8 +66,9 @@ MODULE qs_ks_methods
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE four_center_integrals,           ONLY: integrate_four_center,&
-                                             derivatives_four_center
+  USE et_coupling,                     ONLY: becke_constraint
+  USE four_center_integrals,           ONLY: derivatives_four_center,&
+                                             integrate_four_center
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -135,6 +136,7 @@ MODULE qs_ks_methods
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
+                                             replicate_matrix_structure,&
                                              set_matrix,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
@@ -142,7 +144,6 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -319,8 +320,9 @@ CONTAINS
     INTEGER                                  :: dir, handle, ig, ispin, k, &
                                                 k2, my_id, n, nspins, &
                                                 output_unit, stat
-    LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, failure, gapw, gapw_xc, &
-      ionode, my_diis_step, my_kg_gpw, use_virial
+    LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, et_coupling_calc, &
+      explicit_potential, failure, gapw, gapw_xc, ionode, my_diis_step, &
+      my_kg_gpw, use_virial
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p
@@ -328,8 +330,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
-      v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
+    TYPE(coeff_type) :: becke_const, ep_pot_r_coeff, ep_rho_g, ep_rho_r, &
+      rho_tot_gspace, v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, &
+      v_spin_ddapc_rest_r
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
@@ -349,7 +352,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
-                                                matrix_s, my_rho
+                                                matrix_s, my_rho, rest_mat
     TYPE(section_vals_type), POINTER         :: hf_section, input, scf_section
     TYPE(virial_type), POINTER               :: virial
 
@@ -533,11 +536,16 @@ CONTAINS
 
        ! In case decouple periodic images and/or apply restraints to charges
        ddapc_restraint_is_spin=.FALSE.
+       et_coupling_calc=.FALSE.
        IF (qs_env%dft_control%qs_control%ddapc_restraint) THEN
            CALL section_vals_val_get(input,"DFT%DENSITY_FITTING%TYPE_OF_DENSITY",i_val=my_id,error=error)
            IF (my_id==do_spin_density) ddapc_restraint_is_spin=.TRUE.
+           et_coupling_calc= qs_env%dft_control%qs_control%et_coupling_calc
        ENDIF
-       IF (ddapc_restraint_is_spin) THEN
+
+       explicit_potential=ddapc_restraint_is_spin.OR.et_coupling_calc
+       
+       IF (explicit_potential) THEN
          CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
                                  coeff=v_spin_ddapc_rest_g, &
                                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
@@ -556,16 +564,40 @@ CONTAINS
                            calculate_forces=calculate_forces,&
                            error=error)
 
-       IF (.NOT. just_energy) THEN
+       IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
           CALL coeff_transform_space(v_hartree_gspace, ks_env%v_hartree_rspace)
           CALL coeff_scale(ks_env%v_hartree_rspace, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
-          IF (ddapc_restraint_is_spin) THEN
+          IF (explicit_potential) THEN
              CALL coeff_transform_space(v_spin_ddapc_rest_g,v_spin_ddapc_rest_r)
              CALL coeff_scale(v_spin_ddapc_rest_r,v_spin_ddapc_rest_r%pw%pw_grid%dvol)
+             IF(et_coupling_calc)THEN
+                IF(qs_env%et_coupling%keep_matrix)THEN
+                   IF(qs_env%et_coupling%first_run)THEN
+                      NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
+                      CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
+                           TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
+                           target_name="ET_RESTRAINT_MATRIX_B",error=error)
+                      CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
+                           h=qs_env%et_coupling%rest_mat(1),&
+                           qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                      qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%ddapc_restraint_control%ddapc_order_p
+                      qs_env%et_coupling%e1=qs_env%dft_control%qs_control%ddapc_restraint_control%strength
+                      qs_env%et_coupling%keep_matrix=.FALSE.
+                   ELSE
+                      NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
+                      CALL replicate_matrix_structure(source=ks_matrix(1)%matrix,&
+                           TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
+                           target_name="ET_RESTRAINT_MATRIX_B",error=error)
+                      CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
+                           h=qs_env%et_coupling%rest_mat(2),&
+                           qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                   END IF
+                END IF
+             END IF
           ENDIF
        ENDIF
 
-       IF (ddapc_restraint_is_spin) THEN
+       IF (explicit_potential) THEN
             CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_spin_ddapc_rest_g,&
                                          error=error)
        ENDIF
@@ -574,12 +606,46 @@ CONTAINS
             error=error)
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
+       
 
        CALL calc_v_sic_rspace(v_sic_rspace,energy,&
                               qs_env,dft_control,rho,poisson_env,just_energy,&
                               calculate_forces,auxbas_pw_pool,error=error)
 
+       
+
        IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
+
+       !***** Check if becke potential is needed to constrain charges *****
+       IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+          CALL pw_pool_init_coeff(auxbas_pw_pool,coeff=becke_const,use_data=REALDATA3D,&
+               in_space=REALSPACE,error=error) 
+          CALL becke_constraint(qs_env,becke_const,error=error)
+          CALL coeff_scale(becke_const,becke_const%pw%pw_grid%dvol)
+          
+          IF(qs_env%et_coupling%keep_matrix)THEN
+             IF(qs_env%et_coupling%first_run)THEN
+                NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
+                CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
+                     TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
+                     target_name="ET_RESTRAINT_MATRIX_A",error=error)
+                CALL integrate_v_rspace(becke_const,&
+                     h=qs_env%et_coupling%rest_mat(1),&
+                     qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%becke_control%becke_order_p
+                qs_env%et_coupling%e1=qs_env%dft_control%qs_control%becke_control%strength
+                qs_env%et_coupling%keep_matrix=.FALSE.
+             ELSE
+                NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
+                CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
+                        TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
+                        target_name="ET_RESTRAINT_MATRIX_B",error=error)
+                CALL integrate_v_rspace(becke_const,&
+                     h=qs_env%et_coupling%rest_mat(2),&
+                     qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+             END IF
+          END IF
+       END IF
 
        ! *** Add the QM/MM potential ***
        IF (qs_env%qmmm) THEN
@@ -717,23 +783,30 @@ CONTAINS
                      error=error)
 
                END DO  ! ispin
-             ELSE
+            ELSE
                DO ispin=1,nspins
                   v_rspace_new(ispin)%pw%cr3d  =&
                        v_rspace_new(ispin)%pw%pw_grid%dvol * &
                        v_rspace_new(ispin)%pw%cr3d + &
                        ks_env%v_hartree_rspace%pw%cr3d
-
-                  IF (ddapc_restraint_is_spin) THEN
-                     IF (ispin==1) THEN
-                        v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                                                 +v_spin_ddapc_rest_r%pw%cr3d
+                  IF(explicit_potential)THEN
+                     IF (ddapc_restraint_is_spin) THEN
+                        IF (ispin==1) THEN
+                           v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                +v_spin_ddapc_rest_r%pw%cr3d
+                        ELSE
+                           v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                                -v_spin_ddapc_rest_r%pw%cr3d
+                        ENDIF
                      ELSE
                         v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                                                 -v_spin_ddapc_rest_r%pw%cr3d
-                     ENDIF
-                  ENDIF
-
+                             +v_spin_ddapc_rest_r%pw%cr3d
+                     END IF
+                  END IF
+                  IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+                     v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
+                          +becke_const%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
+                  END IF
                   ! the electrostatic sic contribution
                   SELECT CASE (dft_control%sic_method_id)
                   CASE (sic_none)
@@ -772,7 +845,7 @@ CONTAINS
                  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                        error=error)
                END DO
-             END IF
+            END IF
              SELECT CASE (dft_control%sic_method_id)
              CASE (sic_none)
              CASE (sic_mauri_us,sic_mauri_spz, sic_ad )
@@ -839,10 +912,14 @@ CONTAINS
           ENDIF
        END IF  ! .NOT. just energy
 
-       IF (ddapc_restraint_is_spin) THEN
+       IF (explicit_potential) THEN
            CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_spin_ddapc_rest_r,&
                                         error=error)
        ENDIF
+       IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+           CALL pw_pool_give_back_coeff(auxbas_pw_pool,becke_const,&
+                                        error=error)
+       END IF
 
 
        IF(my_kg_gpw) THEN
@@ -964,7 +1041,8 @@ CONTAINS
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
             energy%exc + energy%exc1 + energy%ex + &
             energy%qmmm_el + energy%mulliken + &
-            energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint
+            energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint +&
+            energy%becke
 
        output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)

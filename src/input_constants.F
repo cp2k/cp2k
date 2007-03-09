@@ -48,6 +48,10 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC :: do_full_density=0,&
                                 do_spin_density=1
+
+  INTEGER, PARAMETER, PUBLIC :: do_no_et=0,&
+                                do_et_ddapc=1,&
+                                do_et_becke=2
   ! Method Names
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: method_names=&
        (/"QS        ",&
@@ -482,8 +486,9 @@ MODULE input_constants
 
   ! outer scf types
   INTEGER, PARAMETER, PUBLIC :: outer_scf_ddapc_constraint=123, &
-                                outer_scf_s2_constraint=124, &
-                                outer_scf_none=125
+                                outer_scf_s2_constraint=124,&
+	                        outer_scf_becke=125, &
+                                outer_scf_none=126
 
   ! outer scf optimizers
   INTEGER, PARAMETER, PUBLIC :: outer_scf_optimizer_sd=1001, &

@@ -56,6 +56,7 @@ MODULE qs_scf_post
                                              rs_pool_give_back_rs
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
+  USE et_coupling_types,               ONLY: set_et_coupling_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE input_constants,                 ONLY: do_loc_none,&
@@ -65,7 +66,8 @@ MODULE qs_scf_post
                                              section_get_rval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
@@ -190,7 +192,7 @@ CONTAINS
 
     LOGICAL                                  :: failure, first_time, ionode, &
                                                 my_localized_wfn, p_loc, &
-                                                p_molstates
+                                                p_molstates,do_et
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -240,7 +242,7 @@ CONTAINS
     REAL(KIND = dp)           :: q_max
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
     TYPE(section_vals_type), POINTER :: print_key, input, loc_section,&
-         density_fit_section
+         density_fit_section,et_section
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     CHARACTER(len=default_string_length)     :: iter
@@ -248,7 +250,7 @@ CONTAINS
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(cp_subsystem_type), POINTER :: subsys
     TYPE(cp_para_env_type), POINTER          :: para_env
-
+    TYPE(cp_fm_p_type),DIMENSION(:),POINTER  :: my_mos
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -817,6 +819,32 @@ CONTAINS
        CALL qs_efg_calc(qs_env=qs_env,error=error)
     END IF
 
+    do_et=.FALSE.
+    et_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING",&
+                                                  error=error)
+    CALL section_vals_get(et_section,explicit=do_et,error=error)
+    IF(do_et)THEN
+       IF(qs_env%et_coupling%first_run)THEN
+          NULLIFY(my_mos)
+          ALLOCATE(my_mos(dft_control%nspins),STAT=istat)
+          ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=istat)          
+          DO ispin =1,dft_control%nspins
+             NULLIFY(my_mos(ispin)%matrix)
+             CALL cp_fm_create(matrix=my_mos(ispin)%matrix,&
+                  matrix_struct=qs_env%mos(ispin)%mo_set%mo_coeff%matrix_struct,&
+                  name="FIRST_RUN_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX",&
+                  error=error)
+             CALL cp_fm_to_fm(qs_env%mos(ispin)%mo_set%mo_coeff,&
+                              my_mos(ispin)%matrix,error=error)
+
+                
+          END DO
+          CALL set_et_coupling_type(qs_env%et_coupling,et_mo_coeff=my_mos,error=error)
+          DEALLOCATE(my_mos)
+       ELSE
+       END IF
+    END IF    
+    
     ! Calculation of EPR Hyperfine Coupling Tensors
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR",&

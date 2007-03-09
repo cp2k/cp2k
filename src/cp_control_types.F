@@ -103,6 +103,18 @@ MODULE cp_control_types
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE ddapc_restraint_type
+
+! *** some parameters useful for becke_constraints
+  TYPE becke_constraint_type
+    INTEGER                         :: ref_count
+    REAL(KIND = dp)                 :: strength
+    REAL(KIND = dp)                 :: TARGET
+    REAL(KIND = dp)                 :: becke_order_p
+    INTEGER                         :: functional_form
+    INTEGER                         :: natoms
+    INTEGER, POINTER, DIMENSION(:)  :: atoms
+ END TYPE becke_constraint_type
+
 !------------------------------------------------------------------------------!
 ! some parameters useful for s2_restraints
   TYPE s2_restraint_type
@@ -141,10 +153,13 @@ MODULE cp_control_types
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
     LOGICAL                         :: ddapc_restraint
+    LOGICAL                         :: becke_constraint
+    LOGICAL                         :: et_coupling_calc
     LOGICAL                         :: s2_restraint
     LOGICAL                         :: localized_wfn
     TYPE (mulliken_restraint_type), POINTER :: mulliken_restraint_control
     TYPE (ddapc_restraint_type), POINTER :: ddapc_restraint_control
+    TYPE (becke_constraint_type), POINTER :: becke_control
     TYPE (s2_restraint_type), POINTER :: s2_restraint_control
     TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
 !   TYPE (dftb_control_type)                :: dftb_control
@@ -230,6 +245,7 @@ MODULE cp_control_types
             pw_grid_option,&
             mulliken_restraint_type,&
             ddapc_restraint_type,&
+            becke_constraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type
 
@@ -394,6 +410,87 @@ SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
 
    ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
 END SUBROUTINE ddapc_control_retain
+
+!!****f* cp_control_types/ddapc_control_create/retain/release *
+!!
+!!   NAME
+!!      ddapc_control_create/retain/release
+!!   FUNCTION
+!!      create retain release the becke_constraint_type
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     02.2007 created [Florian Schiffmann]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE becke_control_create(becke_control,error)
+    TYPE(becke_constraint_type), POINTER      :: becke_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+
+   CPPrecondition(.NOT.ASSOCIATED(becke_control),cp_failure_level,routineP,error,failure)
+   ALLOCATE(becke_control,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+   becke_control%ref_count=1
+   becke_control%strength=0.1_dp
+   becke_control%becke_order_p=0.0_dp
+   becke_control%functional_form=-1
+   becke_control%target=1.0_dp
+   becke_control%natoms=0
+   NULLIFY(becke_control%atoms)
+
+ END SUBROUTINE becke_control_create
+
+SUBROUTINE becke_control_release(becke_control,error)
+    TYPE(becke_constraint_type), POINTER      :: becke_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(becke_control),cp_failure_level,routineP,error,failure)
+   CPPrecondition(becke_control%ref_count>0,cp_failure_level,routineP,error,failure)
+   becke_control%ref_count=becke_control%ref_count-1
+   IF (becke_control%ref_count==0) THEN
+      IF (ASSOCIATED(becke_control%atoms)) &
+          DEALLOCATE(becke_control%atoms)
+      becke_control%ref_count=0
+      becke_control%strength=0.0_dp
+      becke_control%target=0.0_dp
+      becke_control%natoms=0
+      DEALLOCATE(becke_control)
+   ENDIF
+END SUBROUTINE becke_control_release
+
+SUBROUTINE becke_control_retain(becke_control,error)
+    TYPE(becke_constraint_type), POINTER      :: becke_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(becke_control),cp_failure_level,routineP,error,failure)
+
+   becke_control%ref_count=becke_control%ref_count+1
+ END SUBROUTINE becke_control_retain
+
 ! *****************************************************************************
 !!****f* cp_control_types/s2_control_create/retain/release *
 !!
@@ -589,9 +686,11 @@ SUBROUTINE qs_control_init(qs_control, error)
   NULLIFY(qs_control%ddapc_restraint_control)
   NULLIFY(qs_control%s2_restraint_control)
   NULLIFY(qs_control%localized_wfn_control)
+  NULLIFY(qs_control%becke_control)  
 
   CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
   CALL ddapc_control_create(qs_control%ddapc_restraint_control,error=error)
+  CALL becke_control_create(qs_control%becke_control,error=error)
   CALL s2_control_create(qs_control%s2_restraint_control,error=error)
 
   CALL localized_wfn_control_create(qs_control%localized_wfn_control, error=error)
@@ -613,6 +712,7 @@ SUBROUTINE qs_control_release(qs_control, error)
     CALL ddapc_control_release(qs_control%ddapc_restraint_control,error=error)
     CALL s2_control_release(qs_control%s2_restraint_control,error=error)
     CALL localized_wfn_control_release(qs_control% localized_wfn_control, error=error)
+    CALL becke_control_release(qs_control%becke_control,error=error)
 
     IF (ASSOCIATED(qs_control%e_cutoff)) THEN
        DEALLOCATE(qs_control%e_cutoff,stat=stat)

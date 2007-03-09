@@ -55,7 +55,9 @@ MODULE qs_environment
                                              read_qs_section,&
                                              read_tddfpt_control,&
                                              write_dft_control,&
-                                             write_qs_control
+                                             write_qs_control,&
+                                             read_ddapc_section,&
+                                             read_becke_section
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
@@ -72,6 +74,7 @@ MODULE qs_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
+  USE et_coupling_types,               ONLY: et_coupling_create
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_create,&
@@ -87,7 +90,9 @@ MODULE qs_environment
                                              general_roks,&
                                              restart_guess,&
                                              state_loc_all,&
-                                             state_loc_none
+                                             state_loc_none,&
+                                             do_et_ddapc,&
+                                             do_et_becke
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -193,7 +198,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: do_hf, harris_flag, my_qmmm, &
-                                                my_qmmm_periodic, use_ref_cell
+                                                my_qmmm_periodic, use_ref_cell,do_et
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -212,7 +217,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 harris_section, hf_section, &
-                                                kind_section
+                                                kind_section,et_coupling_section
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -309,7 +314,11 @@ CONTAINS
     CALL section_vals_get(hf_section,explicit=do_hf,error=error)
     IF (do_hf) CALL x_hf_create(qs_env%x_data,hf_section,error=error)
 
-
+    et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
+                           "PROPERTIES%ET_COUPLING",error=error)
+    CALL section_vals_get(et_coupling_section,explicit=do_et,error=error)
+    IF (do_et) CALL et_coupling_create(qs_env%et_coupling,error=error)
+    
   END SUBROUTINE qs_init
 
 ! *****************************************************************************
@@ -337,11 +346,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'qs_init_subsys'
 
     INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, multiplicity, n_ao, natom, nelectron, output_unit
+      maxlppnl, multiplicity, n_ao, natom, nelectron, output_unit,my_ival
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
-                                                was_present
+                                                was_present,et_ddapc,et_becke
     REAL(dp)                                 :: maxocc, rc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -371,7 +380,8 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, qs_section
+    TYPE(section_vals_type), POINTER         :: dft_section, qs_section,et_coupling_section,&
+                                                et_ddapc_section,et_becke_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -404,8 +414,11 @@ CONTAINS
     NULLIFY (scf_control)
     NULLIFY (localized_wfn_control)
     NULLIFY (dft_section)
+    NULLIFY (et_coupling_section)
     dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
+    et_coupling_section =>  section_vals_get_subs_vals(qs_env%input,&
+                            "PROPERTIES%ET_COUPLING",error=error)
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
     molecule_set => subsystem%molecules_new%els
@@ -421,12 +434,29 @@ CONTAINS
 !   *** Read the input section with the DFT control parameters ***
 
     CALL read_dft_control(dft_control,root_section,dft_section,error=error)
+    
 
     CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, dft_section,error)
 
 !   *** Read the input section with the Quickstep control parameters ***
 
     CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
+    !    *******  check if any kind of electron transfer calculation has to be performed
+
+    CALL  section_vals_val_get(et_coupling_section,"TYPE_OF_CONSTRAINT",i_val=my_ival,error=error)
+    dft_control%qs_control%et_coupling_calc=.FALSE.
+    IF (my_ival==do_et_ddapc)THEN
+       et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,"DDAPC_RESTRAINT_A",error=error)
+       dft_control%qs_control%et_coupling_calc=.TRUE.
+       dft_control%qs_control%ddapc_restraint=.TRUE.
+       CALL  read_ddapc_section(dft_control%qs_control,et_ddapc_section,error)
+    ENDIF
+       dft_control%qs_control%becke_constraint=.FALSE.
+    IF (my_ival==do_et_becke)THEN
+       dft_control%qs_control%becke_constraint=.TRUE.
+       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_CONSTRAINT_A",error=error)      
+       CALL  read_becke_section(dft_control%qs_control,et_becke_section,error)
+    END IF
     CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
 
 !   *** Check basis and fill in missing parts ***

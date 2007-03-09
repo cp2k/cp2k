@@ -21,9 +21,22 @@
 
 MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_utils,                ONLY: read_ddapc_section,&
+                                             read_becke_section
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE et_coupling,                     ONLY: calc_et_coupling
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_lval,&
+                                             section_get_rval,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_get
   USE kinds,                           ONLY: dp
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -75,11 +88,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_energies', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    INTEGER                                  :: handle
-    LOGICAL                                  :: right_iteration_level
+    INTEGER                                  :: handle,ispin,istat
+    LOGICAL                                  :: right_iteration_level,do_et
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_vals_type), POINTER         :: rest_b_section
 
 !   ---------------------------------------------------------------------------
 
@@ -118,6 +132,42 @@ CONTAINS
                                 just_energy=.TRUE.,error=error)
       END IF
     END IF
+    ! **********  Calculate the electron transfer coupling elements********
+    do_et=.FALSE.
+    do_et=qs_env%dft_control%qs_control%et_coupling_calc.OR.qs_env%dft_control%qs_control%becke_constraint
+    IF(do_et)THEN
+       qs_env%et_coupling%energy=qs_env%energy%total
+       qs_env%et_coupling%keep_matrix=.TRUE.
+       qs_env%et_coupling%first_run=.TRUE.
+       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
+                                qs_env=qs_env, &
+                                calculate_forces=.FALSE., &
+                                just_energy=.TRUE.,error=error)
+       qs_env%et_coupling%first_run=.FALSE.
+       IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
+          rest_b_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING%DDAPC_RESTRAINT_B",&
+                                                        error=error)
+          CALL read_ddapc_section(qs_control=dft_control%qs_control,&
+                                  ddapc_restraint_section=rest_b_section,error=error)
+       END IF
+       IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+          rest_b_section => section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING%BECKE_CONSTRAINT_B",&
+                                                       error=error)
+          CALL read_becke_section(qs_control=dft_control%qs_control,&
+                                     becke_section=rest_b_section,error=error)
+       END IF
+       CALL scf(qs_env=qs_env, globenv=globenv, error=error)
+       qs_env%et_coupling%keep_matrix=.TRUE.
+
+       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
+                                qs_env=qs_env, &
+                                calculate_forces=.FALSE., &
+                                just_energy=.TRUE.,error=error) 
+       CALL calc_et_coupling(qs_env,error)
+    END IF
+    
+
+
 
     !Properties
     right_iteration_level = .TRUE.

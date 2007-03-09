@@ -109,6 +109,8 @@ OBJECTS_GENERIC =\
  ep_types.o\
  ep_qs_methods.o\
  ep_qs_types.o\
+ et_coupling_types.o\
+ et_coupling.o\
  ewald_environment_types.o\
  ewald_pw_methods.o\
  ewald_pw_types.o\

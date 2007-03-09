@@ -50,6 +50,7 @@ MODULE qs_energy_types
                 qmmm_nu,&
                 mulliken,&
                 ddapc_restraint,&
+                becke,&
                 s2_restraint,&
                 total
   END TYPE qs_energy_type
@@ -162,6 +163,7 @@ CONTAINS
       qs_energy%kg_gpw_ekin_mol = 0.0_dp
       qs_energy%mulliken = 0.0_dp
       qs_energy%ddapc_restraint = 0.0_dp
+      qs_energy%becke = 0.0_dp
       qs_energy%s2_restraint = 0.0_dp
       qs_energy%total = 0.0_dp
     ELSE
@@ -263,6 +265,7 @@ CONTAINS
       qs_energy_out%kg_gpw_ekin_mol = qs_energy_in%kg_gpw_ekin_mol
       qs_energy_out%mulliken        = qs_energy_in%mulliken
       qs_energy_out%ddapc_restraint = qs_energy_in%ddapc_restraint
+      qs_energy_out%becke        = qs_energy_in%becke
       qs_energy_out%s2_restraint = qs_energy_in%s2_restraint
       qs_energy_out%total           = qs_energy_in%total
     ELSE

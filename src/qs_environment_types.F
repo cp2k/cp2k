@@ -62,6 +62,8 @@ MODULE qs_environment_types
   USE ep_qs_types,                     ONLY: ep_qs_release,&
                                              ep_qs_retain,&
                                              ep_qs_type
+  USE et_coupling_types,               ONLY: et_coupling_type,&
+                                             et_coupling_release
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -329,6 +331,7 @@ MODULE qs_environment_types
     INTEGER                                               :: outer_scf_ihistory
     TYPE(ep_qs_type), POINTER                             :: ep_qs_env
     TYPE(x_hf_type),POINTER                               :: x_data
+    TYPE(et_coupling_type),POINTER                        :: et_coupling   
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -380,7 +383,7 @@ CONTAINS
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
-                        outer_scf_ihistory,ep_qs_env,x_data,error)
+                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -482,6 +485,7 @@ CONTAINS
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
+    TYPE(et_coupling_type),OPTIONAL,POINTER  :: et_coupling
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -604,6 +608,7 @@ CONTAINS
     IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
     IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
     IF (PRESENT(x_data)) x_data => qs_env%x_data
+    IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
 
   END SUBROUTINE get_qs_env
 
@@ -677,7 +682,8 @@ CONTAINS
     NULLIFY (qs_env%outer_scf_history)
     NULLIFY (qs_env%ep_qs_env)
     NULLIFY (qs_env%x_data)
-    
+    NULLIFY (qs_env%et_coupling)
+
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -716,7 +722,7 @@ CONTAINS
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
                         kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
-                        outer_scf_ihistory,ep_qs_env,x_data)
+                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -798,6 +804,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
+    TYPE(et_coupling_type),OPTIONAL,POINTER  :: et_coupling
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
@@ -991,6 +998,8 @@ CONTAINS
        qs_env%ep_qs_env => ep_qs_env
     END IF
     IF (PRESENT(x_data)) qs_env%x_data => x_data
+    IF (PRESENT(et_coupling))qs_env%et_coupling => et_coupling
+
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
@@ -1309,6 +1318,9 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL ep_qs_release(qs_env%ep_qs_env,error=error)
         IF(ASSOCIATED(qs_env%x_data)) THEN
           CALL x_hf_release(qs_env%x_data, error=error)
+        END IF
+        IF(ASSOCIATED(qs_env%et_coupling)) THEN
+          CALL et_coupling_release(qs_env%et_coupling,error)
         END IF
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
