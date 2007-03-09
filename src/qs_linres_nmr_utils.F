@@ -221,7 +221,7 @@ CONTAINS
     DO idir = 1,3
        CALL cp_fm_set_all(psi1_p(1,idir)%matrix,0.0_dp,error=error)
     END DO
-    DO idir = 1,3  !-3
+    DO idir = 1,-3  !3
       IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
 
          IF(output_unit>0) THEN
@@ -246,6 +246,7 @@ CONTAINS
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
+! debug routine
 !         CALL test_func(qs_env,psi1,nmr_env,error)
 
          IF(linres_control%converged) THEN
@@ -289,7 +290,7 @@ CONTAINS
        CALL cp_fm_set_all(psi1_rxp(1,idir)%matrix,0.0_dp,error=error)
     END DO
 
-    DO idir = 1,3
+    DO idir = 1,3 !-3
 
       IF(.NOT. nmr_env%simplenmr_done(idir+3)) THEN
 

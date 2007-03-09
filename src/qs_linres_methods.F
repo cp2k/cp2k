@@ -185,11 +185,11 @@ CONTAINS
 
 !dbg
 ! Set all centers to zero just to try
-    DO ispin = 1,nspins
-    DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
-      localized_wfn_control%centers_set(ispin)%array(1:3,istate) = 15.11_dp
-    END DO
-    END DO
+!    DO ispin = 1,nspins
+!    DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
+!      localized_wfn_control%centers_set(ispin)%array(1:3,istate) = 15.11_dp
+!    END DO
+!    END DO
 !dbg
 
     ! Write Centers and Spreads on std out
