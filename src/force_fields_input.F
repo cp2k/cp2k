@@ -1013,7 +1013,6 @@ CONTAINS
 
        CALL section_vals_val_get(section,"RCUT",r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-       WRITE(*,*) "RCUTRCUTRCUT ",rcut
 
        CALL read_tersoff_data ( nonbonded%pot(start+isec)%pot%tersoff, tersoff_section,error)
     END DO
@@ -2404,15 +2403,14 @@ CALL parser_release(parser,error=error)
     REAL(KIND=dp)                            :: A,B,lambda1,lambda2,lambda3
     REAL(KIND=dp)                            :: alpha,beta,n,c,d,h,bigR,bigD
     REAL(KIND=dp)                            :: rij
-    INTEGER                                  :: npts
 
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-!    iw = cp_print_key_unit_nr(logger,section,"PRINT%FF_INFO",&
-!         extension=".mmLog",error=error)
+    !iw = cp_print_key_unit_nr(logger,section,"PRINT%FF_INFO",&
+    !     extension=".mmLog",error=error)
     IF (.NOT.failure) THEN
 
        CALL section_vals_val_get(section,"A",r_val=A,error=error)
@@ -2443,12 +2441,40 @@ CALL parser_release(parser,error=error)
        tersoff%bigR    = bigR
        tersoff%bigD    = bigD
 
-       WRITE(*,*) "TERSOFF potential paramters: ",&
-                  A,B,lambda1,lambda2,alpha,beta,n,c,d,h,lambda3,bigR,bigD,npts
+       !!hardcode in so we eliminate possible error for units right now
+       !tersoff%A       =  1.8308E+3_dp
+       !tersoff%B       =  4.7118E+2_dp
+       !tersoff%lambda1 =  2.4799_dp
+       !tersoff%lambda2 =  1.7322_dp
+       !tersoff%alpha   =  0.0000_dp
+       !tersoff%beta    =  1.0999E-6_dp
+       !tersoff%n       =  7.8734E-1_dp
+       !tersoff%c       =  1.0039E+5_dp
+       !tersoff%d       =  1.6218E+1_dp
+       !tersoff%h       = -5.9826E-1_dp
+       !tersoff%lambda3 =  1.7322_dp
+       !tersoff%bigR    =  2.85_dp
+       !tersoff%bigD    =  0.15_dp
+       !!hardcode in so we eliminate possible error for units right now
 
+       WRITE(*,*) "TERSOFF potential paramters: "
+       WRITE(*,*) "A        ",tersoff%A
+       WRITE(*,*) "B        ",tersoff%B
+       WRITE(*,*) "lambda1  ",tersoff%lambda1
+       WRITE(*,*) "lambda2  ",tersoff%lambda2
+       WRITE(*,*) "alpha    ",tersoff%alpha
+       WRITE(*,*) "beta     ",tersoff%beta
+       WRITE(*,*) "n        ",tersoff%n
+       WRITE(*,*) "c        ",tersoff%c
+       WRITE(*,*) "d        ",tersoff%d
+       WRITE(*,*) "h        ",tersoff%h
+       WRITE(*,*) "lambda3  ",tersoff%lambda3
+       WRITE(*,*) "R        ",tersoff%bigR
+       WRITE(*,*) "D        ",tersoff%bigD
+   
     END IF
-!   CALL cp_print_key_finished_output(iw,logger,section,&
-!        "PRINT%FF_INFO",error=error)
+    !CALL cp_print_key_finished_output(iw,logger,section,&
+    !     "PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_tersoff_data

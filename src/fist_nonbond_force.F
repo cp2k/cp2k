@@ -132,7 +132,7 @@ CONTAINS
          natom_types = nkinds ,error=error)
     ! initializing the potential energy, pressure tensor and force
     pot_nonbond = 0.0_dp
-    f_nonbond = 0.0_dp
+    f_nonbond(:,:) = 0.0_dp
     IF(PRESENT(fshell_nonbond)) fshell_nonbond = 0.0_dp
     IF(PRESENT(fcore_nonbond)) fcore_nonbond = 0.0_dp
     shell_present = .FALSE.
@@ -395,6 +395,7 @@ CONTAINS
     ptens_nonbond(3,3) = ptens33
 
     CALL timestop ( handle )
+
   END SUBROUTINE force_nonbond
 
   !******************************************************************************
@@ -510,7 +511,7 @@ CONTAINS
 
 
     REAL(KIND=dp)                            :: rij(3),drij
-    REAL(dp)                                 :: a_ij,b_ij
+    REAL(dp)                                 :: a_ij,b_ij,b_ji
     REAL(dp)                                 :: f_C, f_R, f_A
     REAL(dp)                                 :: RpD
 
@@ -564,16 +565,17 @@ CONTAINS
              iparticle = local_particles%list(ikind)%array(iparticle_local)
              DO jparticle=iparticle+1,nparticle
                 pot_loc = 0.0_dp
-                rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+                rij(:) = pbc(particle_set(jparticle)%r(:),particle_set(iparticle)%r(:),cell)
                 drij = SQRT(DOT_PRODUCT(rij,rij))
                 IF(drij>RpD) CYCLE
                 !a_ij   = ter_a_ij(pot,drij)
                 a_ij   = 1.0_dp
-                b_ij   = ter_b_ij(pot,particle_set,cell,iparticle,jparticle)
+                b_ij   = 0.5_dp * ter_b_ij(pot,particle_set,cell,iparticle,jparticle)
+                b_ji   = 0.5_dp * ter_b_ij(pot,particle_set,cell,jparticle,iparticle)
                 f_C    = ter_f_C(pot,drij)
                 f_A    = ter_f_A(pot,drij)
                 f_R    = ter_f_R(pot,drij)
-                pot_loc = f_C*(a_ij*f_R + b_ij*f_A)
+                pot_loc = f_C*(a_ij*f_R + (b_ij+b_ji)*f_A)
                 pot_manybody = pot_manybody + pot_loc
              END DO
           END DO
@@ -629,7 +631,7 @@ CONTAINS
     IF(r < RmD) ter_f_C_d = 0.0_dp
     IF(r > RpD) ter_f_C_d = 0.0_dp
     IF( (r < RpD) .AND. (r > RmD) ) THEN
-      ter_f_C_d = - (0.25_dp*PI/bigD) * COS(0.5_dp*PI*(r-bigR)/(bigD)) / r
+      ter_f_C_d = (0.25_dp*PI/bigD) * COS(0.5_dp*PI*(r-bigR)/(bigD)) / r
     END IF
   END FUNCTION ter_f_C_d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -663,7 +665,7 @@ CONTAINS
     lambda1 = pot%tersoff%lambda1
     f_R = A * EXP(-lambda1*r)
     ter_f_R_d = 0.0_dp
-    ter_f_R_d = - lambda1 * f_R / r
+    ter_f_R_d = lambda1 * f_R / r
   END FUNCTION ter_f_R_d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -735,12 +737,11 @@ CONTAINS
     ter_b_ij = (1.0_dp+(beta*zeta_ij)**n)**(-0.5_dp/n)
   END FUNCTION ter_b_ij
 
-  FUNCTION ter_b_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+  FUNCTION ter_b_ij_d(pot,particle_set,cell,iparticle,jparticle)
     TYPE(pair_potential_single_type), POINTER           :: pot
     TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
     TYPE(cell_type), POINTER                            :: cell
     INTEGER, INTENT(IN)                                 :: iparticle, jparticle
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)       :: f_nonbond
     REAL(KIND=dp)                                       :: ter_b_ij_d
     REAL(KIND=dp)                                       :: A,B
     REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
@@ -757,9 +758,8 @@ CONTAINS
     zeta_ij_n   = zeta_ij**(n)
 
     ter_b_ij_d = 0.0_dp
-    ter_b_ij_d = -0.5_dp * beta_n * &
-                   zeta_ij_nm1 * &
-                     (1.0_dp + beta_n * zeta_ij_n)**((-0.5_dp/n) - 1.0_dp) 
+    ter_b_ij_d = -0.5_dp * beta_n * zeta_ij_nm1 * &
+                   ((1.0_dp + beta_n * zeta_ij_n)**((-0.5_dp/n) - 1.0_dp))
   END FUNCTION ter_b_ij_d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -784,13 +784,13 @@ CONTAINS
     n = pot%tersoff%n
     lambda3 = pot%tersoff%lambda3
     RpD = pot%tersoff%bigR + pot%tersoff%bigD
-    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+    rij(:) = pbc(particle_set(jparticle)%r(:),particle_set(iparticle)%r(:),cell)
     drij = SQRT(DOT_PRODUCT(rij,rij))
     ter_zeta_ij = 0.0_dp
     nparticle = SIZE ( particle_set )
     DO kparticle=1,nparticle
       IF((iparticle==kparticle).OR.(jparticle==kparticle)) CYCLE
-      rik(:) = pbc(particle_set(iparticle)%r(:),particle_set(kparticle)%r(:),cell)
+      rik(:) = pbc(particle_set(kparticle)%r(:),particle_set(iparticle)%r(:),cell)
       drik = SQRT(DOT_PRODUCT(rik,rik))
       IF(drik>RpD) CYCLE
       costheta = DOT_PRODUCT(rij,rik) / (drij*drik)
@@ -803,13 +803,13 @@ CONTAINS
     END DO
   END FUNCTION ter_zeta_ij
 
-  FUNCTION ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+  SUBROUTINE ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond,prefactor)
     TYPE(pair_potential_single_type), POINTER           :: pot
     TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
     TYPE(cell_type), POINTER                            :: cell
     INTEGER, INTENT(IN)                                 :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)       :: f_nonbond
-    REAL(KIND=dp)                                       :: ter_zeta_ij_d
+    REAL(KIND=dp), INTENT(IN)                           :: prefactor
     REAL(KIND=dp)                                       :: A,B
     REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
     REAL(KIND=dp)                                       :: alpha,beta
@@ -817,7 +817,7 @@ CONTAINS
     REAL(KIND=dp)                                       :: RpD
     INTEGER                                             :: kparticle, nparticle
     REAL(KIND=dp), DIMENSION(3)                         :: rij,rik,rij_hat,rik_hat
-    REAL(KIND=dp)                                       :: costheta,sintheta
+    REAL(KIND=dp)                                       :: costheta
     REAL(KIND=dp)                                       :: drij,drik
     REAL(KIND=dp), DIMENSION(3)                         :: dri,drj,drk
     REAL(KIND=dp), DIMENSION(3)                         :: dcosdri,dcosdrj,dcosdrk
@@ -828,25 +828,23 @@ CONTAINS
     n = pot%tersoff%n
     lambda3 = pot%tersoff%lambda3
     RpD = pot%tersoff%bigR + pot%tersoff%bigD
-    ter_zeta_ij_d = 0.0_dp
-    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+
+    rij(:) = pbc(particle_set(jparticle)%r(:),particle_set(iparticle)%r(:),cell)
     drij = SQRT(DOT_PRODUCT(rij,rij))
     rij_hat(:) = rij(:) / drij
+
     nparticle = SIZE ( particle_set )
     DO kparticle=1,nparticle
       IF((iparticle==kparticle).OR.(jparticle==kparticle)) CYCLE
-      rik(:) = pbc(particle_set(iparticle)%r(:),particle_set(kparticle)%r(:),cell)
+      rik(:) = pbc(particle_set(kparticle)%r(:),particle_set(iparticle)%r(:),cell)
       drik = SQRT(DOT_PRODUCT(rik,rik))
       rik_hat(:) = rik(:) / drik
+
       IF(drik>RpD) CYCLE
+
       costheta = DOT_PRODUCT(rij,rik) / (drij*drik)
       IF(costheta<-1.0_dp) costheta=-1.0_dp
       IF(costheta>+1.0_dp) costheta=+1.0_dp
-
-      sintheta = SQRT(1-costheta**2)
-      IF(sintheta<0.001) sintheta = 0.001
-
-      ter_zeta_ij_d = 0.0_dp
 
       CALL ter_costheta_d(particle_set,cell,iparticle,jparticle,kparticle,&
                           dcosdri,dcosdrj,dcosdrk)
@@ -854,35 +852,36 @@ CONTAINS
       f_C       = ter_f_C(pot,drik)
       f_C_d     = ter_f_C_d(pot,drik)
       gterm     = ter_g(pot,costheta)
-      gterm_d   = ter_g_d(pot,costheta)
+      gterm_d   = ter_g_d(pot,costheta) !still need d(costheta)/dR term
       expterm   = exp((lambda3*(drij-drik))**3)
       expterm_d = (3.0_dp)*(lambda3**3)*((drij-drik)**2)*expterm
 
-      dri = -f_C_d*gterm*expterm*(rik_hat) &
-            +f_C*gterm_d*expterm*(dcosdri) &
-            +f_C*gterm*expterm_d*(rik_hat-rij_hat)
+      dri =  f_C_d * gterm   * expterm   * (rik) &
+           + f_C   * gterm_d * expterm   * (dcosdri) &
+           + f_C   * gterm   * expterm_d * (-rij_hat+rik_hat)
 
-      drj =  f_C*gterm_d*expterm*(dcosdrj) &
-            +f_C*gterm*expterm_d*(rij_hat)
+      !No f_C_d component for Rj
+      drj =  f_C   * gterm_d * expterm   * (dcosdrj) &
+           + f_C   * gterm   * expterm_d * (rij_hat)
 
-      drk =  f_C_d*gterm*expterm*(rik_hat) &
-            +f_C*gterm_d*expterm*(dcosdrk) &
-            -f_C*gterm*expterm_d*(rik_hat)
+      drk =  f_C_d * gterm   * expterm   * (-rik) &
+           + f_C   * gterm_d * expterm   * (dcosdrk) &
+           + f_C   * gterm   * expterm_d * (-rik_hat)
 
-      f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + dri(1)
-      f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + dri(2)
-      f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + dri(3)
+      f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + prefactor*dri(1)
+      f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + prefactor*dri(2)
+      f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + prefactor*dri(3)
   
-      f_nonbond(1,jparticle) = f_nonbond(1,jparticle) + drj(1)
-      f_nonbond(2,jparticle) = f_nonbond(2,jparticle) + drj(2)
-      f_nonbond(3,jparticle) = f_nonbond(3,jparticle) + drj(3)
+      f_nonbond(1,jparticle) = f_nonbond(1,jparticle) + prefactor*drj(1)
+      f_nonbond(2,jparticle) = f_nonbond(2,jparticle) + prefactor*drj(2)
+      f_nonbond(3,jparticle) = f_nonbond(3,jparticle) + prefactor*drj(3)
 
-      f_nonbond(1,kparticle) = f_nonbond(1,kparticle) + drk(1)
-      f_nonbond(2,kparticle) = f_nonbond(2,kparticle) + drk(2)
-      f_nonbond(3,kparticle) = f_nonbond(3,kparticle) + drk(3)
+      f_nonbond(1,kparticle) = f_nonbond(1,kparticle) + prefactor*drk(1)
+      f_nonbond(2,kparticle) = f_nonbond(2,kparticle) + prefactor*drk(2)
+      f_nonbond(3,kparticle) = f_nonbond(3,kparticle) + prefactor*drk(3)
             
     END DO
-  END FUNCTION ter_zeta_ij_d
+  END SUBROUTINE ter_zeta_ij_d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   FUNCTION ter_g(pot,costheta)
@@ -893,12 +892,15 @@ CONTAINS
     REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
     REAL(KIND=dp)                                       :: alpha,beta
     REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: c2,d2
 
     c = pot%tersoff%c
     d = pot%tersoff%d
     h = pot%tersoff%h
+    c2 = c*c
+    d2 = d*d
     ter_g = 0.0_dp
-    ter_g = 1.0_dp + (c/d)**2 - (c**2)/(d**2+(h-costheta)**2)
+    ter_g = 1.0_dp + (c2/d2) - (c2)/(d2+(h-costheta)**2)
   END FUNCTION ter_g
 
   FUNCTION ter_g_d(pot,costheta)
@@ -909,16 +911,26 @@ CONTAINS
     REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
     REAL(KIND=dp)                                       :: alpha,beta
     REAL(KIND=dp)                                       :: n,c,d,h
+    REAL(KIND=dp)                                       :: c2,d2,hc
     REAL(KIND=dp)                                       :: sintheta
 
     c = pot%tersoff%c
     d = pot%tersoff%d
     h = pot%tersoff%h
+    c2 = c*c
+    d2 = d*d
+    hc = h-costheta
+
     sintheta = SQRT(1.0 - costheta**2)
-    IF(sintheta<0.001) sintheta = 0.001
+
     ter_g_d = 0.0_dp
-    ter_g_d = 2.0_dp * c**2 * sintheta * (h - costheta) / &
-              ( d**2 + (h-costheta)**2 )**2
+
+    ! Still need d(theta)/dR
+    !ter_g_d = 2.0_dp * c**2 * sintheta * (h - costheta) / &
+    !          ( d**2 + (h-costheta)**2 )**2
+
+    ! Still need d(costheta)/dR
+    ter_g_d = (-2.0_dp * c2 * hc)/(d2 + hc**2)**2
   END FUNCTION ter_g_d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -930,24 +942,24 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)                          :: dri(3),drj(3),drk(3)
     REAL(KIND=dp)                                       :: rij(3),drij,rij_hat(3)
     REAL(KIND=dp)                                       :: rik(3),drik,rik_hat(3)
-    REAL(KIND=dp)                                       :: costheta,sintheta
+    REAL(KIND=dp)                                       :: costheta
 
     !Note that the center atom is at atom i not the usual atom j
 
-    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+    rij(:) = pbc(particle_set(jparticle)%r(:),particle_set(iparticle)%r(:),cell)
     drij = SQRT(DOT_PRODUCT(rij,rij))
     rij_hat(:) = rij(:)/drij
 
-    rik(:) = pbc(particle_set(iparticle)%r(:),particle_set(kparticle)%r(:),cell)
+    rik(:) = pbc(particle_set(kparticle)%r(:),particle_set(iparticle)%r(:),cell)
     drik = SQRT(DOT_PRODUCT(rik,rik))
     rik_hat(:) = rik(:)/drik
 
     costheta = DOT_PRODUCT(rij,rik) / (drij*drik)
-    sintheta = SQRT((1.0_dp + costheta**2))
-    IF(sintheta<0.001) sintheta = 0.001
+    IF(costheta<-1.0_dp) costheta=-1.0_dp
+    IF(costheta>+1.0_dp) costheta=+1.0_dp
 
-    drj(:) = -(1.0_dp/(sintheta*drij)) * ( rik_hat(:) - costheta*rij_hat(:) )
-    drk(:) = -(1.0_dp/(sintheta*drik)) * ( rij_hat(:) - costheta*rik_hat(:) )
+    drj(:) = (1.0_dp/(drij)) * ( rik_hat(:) - costheta*rij_hat(:) )
+    drk(:) = (1.0_dp/(drik)) * ( rij_hat(:) - costheta*rik_hat(:) )
     dri(:) = - ( drj(:) + drk(:) )
   END SUBROUTINE ter_costheta_d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1032,20 +1044,29 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_nonbond
     REAL(KIND=dp)                            :: rij(3),drij,rij_hat(3)
-    REAL(KIND=dp)                            :: f_repulsive
-    REAL(KIND=dp)                            :: f_A1, f_A2, f_A3
-    REAL(KIND=dp)                            :: a_ij,b_ij
+    REAL(KIND=dp)                            :: RpD,RmD
+    REAL(KIND=dp)                            :: f_R1, f_R2
+    REAL(KIND=dp)                            :: f_A1, f_A2
+    REAL(KIND=dp)                            :: b_ij,b_ij_d
+    REAL(KIND=dp)                            :: b_ji,b_ji_d
     REAL(KIND=dp)                            :: f_A,f_A_d
     REAL(KIND=dp)                            :: f_C,f_C_d
     REAL(KIND=dp)                            :: f_R,f_R_d
+    REAL(KIND=dp)                            :: prefactor
 
 
 
-    rij(:) = pbc(particle_set(iparticle)%r(:),particle_set(jparticle)%r(:),cell)
+    rij(:) = pbc(particle_set(jparticle)%r(:),particle_set(iparticle)%r(:),cell)
     drij = SQRT(DOT_PRODUCT(rij,rij))
     rij_hat(:) = rij(:) / drij 
 
-    b_ij  = ter_b_ij(pot,particle_set,cell,iparticle,jparticle)
+    RpD = pot%tersoff%bigR + pot%tersoff%bigD
+    IF(drij>RpD) RETURN
+
+    b_ij  = 0.5_dp * ter_b_ij(pot,particle_set,cell,iparticle,jparticle)
+    b_ij_d= 0.5_dp * ter_b_ij_d(pot,particle_set,cell,iparticle,jparticle)
+    b_ji  = 0.5_dp * ter_b_ij(pot,particle_set,cell,jparticle,iparticle)
+    b_ji_d= 0.5_dp * ter_b_ij_d(pot,particle_set,cell,jparticle,iparticle)
     f_A   = ter_f_A(pot,drij)
     f_A_d = ter_f_A_d(pot,drij)
     f_C   = ter_f_C(pot,drij)
@@ -1055,45 +1076,47 @@ CONTAINS
 
     ! Lets do the easy one first, the repulsive term
     ! Note a_ij = 1.0_dp so just going to ignore it...
-    f_repulsive = f_C_d * f_R + f_C * f_R_d
-    f_repulsive = -f_repulsive
+    f_R1 = f_C_d * f_R
+    f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_R1*rij(1)
+    f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_R1*rij(2)
+    f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_R1*rij(3)
+    f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_R1*rij(1)
+    f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R1*rij(2)
+    f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R1*rij(3)
 
-    f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_repulsive*rij(1)
-    f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_repulsive*rij(2)
-    f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_repulsive*rij(3)
+    f_R2 = f_C * f_R_d
+    f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_R2*rij(1)
+    f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_R2*rij(2)
+    f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_R2*rij(3)
+    f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_R2*rij(1)
+    f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R2*rij(2)
+    f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R2*rij(3)
 
-    f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_repulsive*rij(1)
-    f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_repulsive*rij(2)
-    f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_repulsive*rij(3)
-                  
+
     ! Lets do the f_A1 piece derivative of F_C
-    f_A1 = f_C_d * b_ij * f_A
-    
+    f_A1 = f_C_d * (b_ij+b_ji) * f_A
     f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_A1*rij(1)
     f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_A1*rij(2)
     f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_A1*rij(3)
-
     f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_A1*rij(1)
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A1*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A1*rij(3)
 
+
     ! Lets do the f_A2 piece derivative of F_A
-    f_A2 = f_C * b_ij * f_A_d
-    
+    f_A2 = f_C * (b_ij+b_ji) * f_A_d
     f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_A2*rij(1)
     f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_A2*rij(2)
     f_nonbond(3,iparticle) = f_nonbond(3,iparticle) + f_A2*rij(3)
-
     f_nonbond(1,jparticle) = f_nonbond(1,jparticle) - f_A2*rij(1)
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A2*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A2*rij(3)
 
     ! Lets do the f_A3 piece derivative of b_ij
-!   prefactor = f_C * f_A * bij_d    ! Note need to do d(Zeta_ij)/dR
-!   f_A3 = 0.0
-!   f_A3 = ter_f_A(pot,drij) * &
-!             ter_f_C(pot,drij) * &
-!                ter_b_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+    prefactor = f_C * b_ij_d * f_A    ! Note need to do d(Zeta_ij)/dR
+    CALL ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond,prefactor)
+    prefactor = f_C * b_ji_d * f_A    ! Note need to do d(Zeta_ij)/dR
+    CALL ter_zeta_ij_d(pot,particle_set,cell,jparticle,iparticle,f_nonbond,prefactor)
 
   END SUBROUTINE get_force_tersoff
 

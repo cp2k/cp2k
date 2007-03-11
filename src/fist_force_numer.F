@@ -3298,15 +3298,12 @@ SUBROUTINE fi_di_ev_many(fist_nonbond_env,particle_set,local_particles,atomic_ki
 
    END DO
    particle_set(iparticle)%r(:) = r_orig(:)
-   f_numer(1,iparticle) = f_numer(1,iparticle) + dexyz(1)
-   f_numer(2,iparticle) = f_numer(2,iparticle) + dexyz(2)
-   f_numer(3,iparticle) = f_numer(3,iparticle) + dexyz(3)
+   f_numer(1,iparticle) = f_numer(1,iparticle) - dexyz(1)
+   f_numer(2,iparticle) = f_numer(2,iparticle) - dexyz(2)
+   f_numer(3,iparticle) = f_numer(3,iparticle) - dexyz(3)
   END DO
 
 END SUBROUTINE fi_di_ev_many
-
-
-
 
 
 !!*****

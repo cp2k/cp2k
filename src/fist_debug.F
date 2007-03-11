@@ -205,7 +205,7 @@ SUBROUTINE  debug_control ( force_env, error)
   CALL mp_sum ( dbg % f_ub, group )
 
 ! defining delta
-  delta = 1.0E-5_dp
+  delta = 1.0E-8
   IF ( iw>0 ) &
   WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
 
