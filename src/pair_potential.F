@@ -820,7 +820,7 @@ CONTAINS
        CASE (gp_type)
           nvar = 2 + nvar
        CASE (tersoff_type)
-          nvar = 12 + nvar
+          nvar = 13 + nvar
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
@@ -893,16 +893,16 @@ CONTAINS
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%tersoff%A
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%tersoff%B
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%tersoff%lambda1
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%tersoff%lambda2
-                      pot_par(nk,4)  = potparm%pot(i,j)%pot%tersoff%alpha
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%tersoff%beta
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%tersoff%n
-                      pot_par(nk,7)  = potparm%pot(i,j)%pot%tersoff%c
-                      pot_par(nk,8)  = potparm%pot(i,j)%pot%tersoff%d
-                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%h
-                      pot_par(nk,3)  = potparm%pot(i,j)%pot%tersoff%lambda3
-                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%bigR
-                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%bigD
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%tersoff%lambda2
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%tersoff%alpha
+                      pot_par(nk,6)  = potparm%pot(i,j)%pot%tersoff%beta
+                      pot_par(nk,7)  = potparm%pot(i,j)%pot%tersoff%n
+                      pot_par(nk,8)  = potparm%pot(i,j)%pot%tersoff%c
+                      pot_par(nk,9)  = potparm%pot(i,j)%pot%tersoff%d
+                      pot_par(nk,10) = potparm%pot(i,j)%pot%tersoff%h
+                      pot_par(nk,11) = potparm%pot(i,j)%pot%tersoff%lambda3
+                      pot_par(nk,12) = potparm%pot(i,j)%pot%tersoff%bigR
+                      pot_par(nk,13) = potparm%pot(i,j)%pot%tersoff%bigD
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT
