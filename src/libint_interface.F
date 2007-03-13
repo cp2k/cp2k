@@ -35,10 +35,12 @@ MODULE libint_interface
  
   IMPLICIT NONE
   PRIVATE
-  PUBLIC initialize_libint, evaluate_eri, lib_int, terminate_libint,&
-         initialize_libderiv, lib_deriv, terminate_libderiv, evaluate_deriv_eri
+  PUBLIC initialize_libint, evaluate_eri,lib_int, terminate_libint,&
+         initialize_libderiv, lib_deriv, terminate_libderiv, evaluate_deriv_eri,&
+         evaluate_eri_screen 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_interface'
+
  
 #if defined(__LIBINT)
   INTEGER, PARAMETER :: libint_max_am = 5
@@ -353,22 +355,19 @@ MODULE libint_interface
 !!
 !!****************************************************************************
 
-
   SUBROUTINE evaluate_eri(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
-                          n_a,n_b,n_c,n_d,work_prim,&
-                          work_prim_perm,omega,deriv)
+                          n_a,n_b,n_c,n_d,&
+                          primitives,omega)
     
     TYPE(lib_int)                           :: lib
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
-    REAL(dp), DIMENSION(:), POINTER         :: work_prim, work_prim_perm
-    REAL(dp), DIMENSION(:), POINTER         :: p_work
+    REAL(dp), DIMENSION(:,:,:,:),POINTER    :: primitives
     REAL(dp), INTENT(IN), OPTIONAL          :: omega
-    TYPE(lib_deriv), OPTIONAL               :: deriv
 
 #if defined(__LIBINT)
-    INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,index,p_index,temp
+    INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,p_index,temp
     TYPE(prim_data),TARGET                   :: prim
     INTEGER(KIND=C_INT)                      :: Config(4)
     INTEGER(KIND=C_INT)                      :: m_max
@@ -380,8 +379,10 @@ MODULE libint_interface
    
     PROCEDURE(build), POINTER                :: pbuild
     TYPE(C_PTR)                              :: pc_result 
-   
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
+
     !permutation of configuration
+    
 
     n1 = n_a; n2 = n_b; n3 = n_c; n4 = n_d
     A1 => A; B1 => B; C1 => C; D1 => D;
@@ -449,49 +450,50 @@ MODULE libint_interface
       CALL C_F_PROCPOINTER(build_eri(config(4),config(3),config(2),config(1)),pbuild)
       pc_result = pbuild(lib,1)
       CALL C_F_POINTER(pc_result, p_work, (/mysize/))
-      work_prim(1:mysize) = p_work(1:mysize)
-    ELSE
-      work_prim(1) = prim%F(1)
-    END IF
-    
-    DO l = 1,nco(n_d)
-      DO k = 1,nco(n_c)     
-        DO j = 1,nco(n_b)
-          DO i = 1,nco(n_a)
-            p_l = l
-            p_i = i
-            p_j = j
-            p_k = k 
+      DO l = 1,nco(n_d)
+        DO k = 1,nco(n_c)     
+          DO j = 1,nco(n_b)
+            DO i = 1,nco(n_a)
+              p_l = l
+              p_i = i
+              p_j = j
+              p_k = k 
 
-            IF(n_a<n_b) THEN
-              temp = p_i
-              p_i = p_j
-              p_j = temp
-            END IF
+              IF(n_a<n_b) THEN
+                temp = p_i
+                p_i = p_j
+                p_j = temp
+              END IF
  
-            IF(n_c<n_d) THEN
-              temp = p_k
-              p_k = p_l
-               p_l = temp 
-            END IF
-            IF( n_a+n_b > n_c+n_d) THEN
-              temp = p_i
-              p_i = p_k
-              p_k = temp
-              temp = p_j
-              p_j = p_l
-              p_l = temp
-            END IF
+              IF(n_c<n_d) THEN
+                temp = p_k
+                p_k = p_l
+                p_l = temp 
+              END IF
+              IF( n_a+n_b > n_c+n_d) THEN
+                temp = p_i
+                p_i = p_k
+                p_k = temp
+                temp = p_j
+                p_j = p_l
+                p_l = temp
+              END IF
    
-            index = (((i-1)*nco(n_b)+(j-1))*nco(n_c)+(k-1))*nco(n_d)+(l-1) + 1
-            p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
-            work_prim_perm(index) = work_prim(p_index)
+              p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
+              primitives(i,&
+                         j,&
+                         k,&
+                         l)=p_work(p_index)
+            END DO
           END DO
         END DO
       END DO
-    END DO
+    ELSE
+      primitives(1,1,1,1) = prim%F(1)
+    END IF
 #endif
   END SUBROUTINE evaluate_eri
+
 !***************************************************************************
 
 !!***** libint_interface/build_quartet_data [1.0] *
@@ -500,7 +502,7 @@ MODULE libint_interface
 !!     build_quartet_data
 !!
 !!   FUNCTION
-!!     Fill data structure used in libint and libderiv
+!!     Fill data structure used in libint
 !!
 !!   NOTES
 !!     -
@@ -572,10 +574,10 @@ MODULE libint_interface
     prim%U(:,4) = Q-D                 !Not used in libint
     prim%U(:,5) = W-P
     prim%U(:,6) = W-Q
-    prim%twozeta_a = 2.0_dp*Zeta_A     !0.0_dp                      !Not used in libint
-    prim%twozeta_b = 2.0_dp*Zeta_B     !0.0_dp                      !Not used in libint
-    prim%twozeta_c = 2.0_dp*Zeta_C     !0.0_dp                      !Not used in libint 
-    prim%twozeta_d = 2.0_dp*Zeta_D     !                      !Not used in libint
+    prim%twozeta_a = 0.0_dp                      !Not used in libint
+    prim%twozeta_b = 0.0_dp                      !Not used in libint
+    prim%twozeta_c = 0.0_dp                      !Not used in libint 
+    prim%twozeta_d = 0.0_dp                      !Not used in libint
     prim%oo2z      = 1.0_dp/(2.0_dp*Zeta)
     prim%oo2n      = 1.0_dp/(2.0_dp*Eta)
     prim%oo2zn     = 1.0_dp/(2.0_dp*(Zeta+Eta))
@@ -586,6 +588,101 @@ MODULE libint_interface
 
     build_quartet_data = prim
   END FUNCTION build_quartet_data
+#endif 
+!***************************************************************************
+
+!!***** libint_interface/build_deriv_data [1.0] *
+!!
+!!   NAME
+!!     build_derive_data
+!!
+!!   FUNCTION
+!!     Fill data structure used in libderiv
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     03.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+#if defined(__LIBINT)
+  FUNCTION build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, omega)
+     
+    TYPE(prim_data)                    :: build_deriv_data
+    REAL(KIND=C_DOUBLE), INTENT(IN)    :: A(3), B(3), C(3), D(3)
+    REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
+    INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
+    REAL(KIND=C_DOUBLE), INTENT(IN),&
+                         OPTIONAL      :: omega
+     
+    TYPE(prim_data)                    :: prim
+    REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
+    REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
+    REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
+    REAL(KIND=C_DOUBLE)                :: S12, S34, T, omega_corr
+    REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
+    
+    Zeta = Zeta_A + Zeta_B
+    Eta  = Zeta_C + Zeta_D
+    Rho  = Zeta*Eta/(Zeta+Eta)
+    
+    P = (Zeta_A*A + Zeta_B*B)/Zeta
+    Q = (Zeta_C*C + Zeta_D*D)/Eta
+    W = (Zeta*P + Eta*Q)/(Zeta+Eta)
+    AB = A-B
+    CD = C-D
+    PQ = P-Q
+    AB2 = DOT_PRODUCT(AB,AB)
+    CD2 = DOT_PRODUCT(CD,CD)
+    PQ2 = DOT_PRODUCT(PQ,PQ)
+
+    S12  = EXP(-Zeta_A*Zeta_B/Zeta*AB2)
+    S34  = EXP(-Zeta_C*Zeta_D/Eta*CD2)
+    T = Rho*PQ2
+
+    IF( T == global_T .AND. m_max == global_m) THEN
+      prim%F = global_Fm
+    ELSE 
+      CALL fgamma(m_max,T,prim%F)
+      global_Fm = prim%F
+      global_T = T
+      global_m = m_max
+    END IF
+    IF(PRESENT(omega)) THEN
+      omega_corr = omega**2.0_dp/(omega**2.0_dp+Rho)
+      T = T*omega_corr
+      CALL fgamma(m_max,T,Fm)
+      prim%F = prim%F - 2.0_dp*Pi/Rho*SQRT(omega_corr)*Fm
+    END IF
+    factor = 2.0_dp*Pi/Rho 
+    factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**(3.0_dp))
+
+    CALL dscal(17,factor,prim%F,1)
+    prim%U(:,1) = P-A
+    prim%U(:,2) = P-B
+    prim%U(:,3) = Q-C
+    prim%U(:,4) = Q-D
+    prim%U(:,5) = W-P
+    prim%U(:,6) = W-Q
+    prim%twozeta_a = 2.0_dp*Zeta_A
+    prim%twozeta_b = 2.0_dp*Zeta_B
+    prim%twozeta_c = 2.0_dp*Zeta_C
+    prim%twozeta_d = 2.0_dp*Zeta_D
+    prim%oo2z      = 1.0_dp/(2.0_dp*Zeta)
+    prim%oo2n      = 1.0_dp/(2.0_dp*Eta)
+    prim%oo2zn     = 1.0_dp/(2.0_dp*(Zeta+Eta))
+    prim%poz       = Rho/Zeta
+    prim%pon       = Rho/Eta
+    prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
+    prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
+
+    build_deriv_data = prim
+  END FUNCTION build_deriv_data
 #endif 
 !***************************************************************************
 
@@ -608,20 +705,22 @@ MODULE libint_interface
 !!
 !!****************************************************************************
 
-
   SUBROUTINE evaluate_deriv_eri(deriv,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                 n_a,n_b,n_c,n_d,work_forces,&
-                                work_forces_perm,omega)
+                                primitive_forces,&
+                                offset_a, offset_b, offset_c, offset_d,omega)
     
     TYPE(lib_deriv)                         :: deriv
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
-    REAL(dp), DIMENSION(:,:), POINTER       :: work_forces, work_forces_perm
+    REAL(dp), DIMENSION(:,:), POINTER       :: work_forces
+    REAL(dp), DIMENSION(:,:,:,:,:), POINTER :: primitive_forces
+    INTEGER, INTENT(IN)                     :: offset_a, offset_b, offset_c, offset_d
     REAL(dp), INTENT(IN), OPTIONAL          :: omega
 
 #if defined(__LIBINT)
-    INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,index,p_index,temp
+    INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,p_index,temp
     TYPE(prim_data),TARGET                   :: prim
     INTEGER(KIND=C_INT)                      :: Config(4)
     INTEGER(KIND=C_INT)                      :: m_max
@@ -703,9 +802,9 @@ MODULE libint_interface
 
     m_max = m_max + 1
     IF(PRESENT(omega)) THEN
-      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, omega=omega)
+      prim = build_deriv_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, omega=omega)
     ELSE
-      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max)
+      prim = build_deriv_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max)
     END IF
 
     mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
@@ -716,13 +815,11 @@ MODULE libint_interface
     deriv%CD = C1-D1
     CALL C_F_PROCPOINTER(build_deriv1_eri(config(4),config(3),config(2),config(1)),pbuild_deriv1)
     CALL pbuild_deriv1(deriv,1)
-
     DO k=1,12
+      IF(k==4 .OR. k==5 .OR. k==6) CYCLE
       pc_result = deriv%ABCD(k)
       CALL C_F_POINTER(pc_result, tmp_data ,(/mysize/))
-      IF (TRANSFER(pc_result,0_C_INTPTR_T).NE.0) THEN
-        work_forces(1:mysize,k) = tmp_data
-      ENDIF
+      work_forces(1:mysize,k) = tmp_data
     END DO
 
     DO k=4,6
@@ -730,40 +827,40 @@ MODULE libint_interface
                                           work_forces(1:mysize,k+3) + &
                                           work_forces(1:mysize,k+6) )
     END DO
- 
-    DO l = 1,nco(n_d)
-      DO k = 1,nco(n_c)     
-        DO j = 1,nco(n_b)
-          DO i = 1,nco(n_a)
-            p_l = l
-            p_i = i
-            p_j = j
-            p_k = k 
+
+    DO n=1,4
+      DO l = 1,nco(n_d)
+        DO k = 1,nco(n_c)     
+          DO j = 1,nco(n_b)
+            DO i = 1,nco(n_a)
+              p_l = l
+              p_i = i
+              p_j = j
+              p_k = k 
   
-            IF(n_a<n_b) THEN
-               temp = p_i
-               p_i = p_j
-               p_j = temp
-            END IF
+              IF(n_a<n_b) THEN
+                temp = p_i
+                p_i = p_j
+                p_j = temp
+              END IF
    
-            IF(n_c<n_d) THEN
-              temp = p_k
-              p_k = p_l
-              p_l = temp 
-            END IF
-            IF( n_a+n_b > n_c+n_d) THEN
-              temp = p_i
-              p_i = p_k
-              p_k = temp
-              temp = p_j
-              p_j = p_l
-              p_l = temp
-            END IF
+              IF(n_c<n_d) THEN
+                temp = p_k
+                p_k = p_l
+                p_l = temp 
+              END IF
+              IF( n_a+n_b > n_c+n_d) THEN
+                temp = p_i
+                p_i = p_k
+                p_k = temp
+                temp = p_j
+                p_j = p_l
+                p_l = temp
+              END IF
    
-            index = (((i-1)*nco(n_b)+(j-1))*nco(n_c)+(k-1))*nco(n_d)+(l-1) + 1
-            p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
-            DO n=1,4
-              work_forces_perm(index,(perm(n)-1)*3+1:(perm(n)-1)*3+3) = work_forces(p_index,(n-1)*3+1:(n-1)*3+3)
+              p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
+              primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+ l,(perm(n)-1)*3+1:(perm(n)-1)*3+3)=&
+                                       work_forces(p_index,(n-1)*3+1:(n-1)*3+3)
             END DO
           END DO
         END DO
@@ -772,6 +869,131 @@ MODULE libint_interface
 
 #endif
   END SUBROUTINE evaluate_deriv_eri
+!***************************************************************************
+
+!!***** libint_interface/evaluate_eri_screen [1.0] *
+!!
+!!   NAME
+!!     evaluate_eri_screen
+!!
+!!   FUNCTION
+!!     Evaluates max-abs values of  electron repulsion integrals for a primitive quartet
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     03.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE evaluate_eri_screen(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
+                                 n_a,n_b,n_c,n_d,&
+                                 max_val, omega)
+    
+    TYPE(lib_int)                           :: lib
+    REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
+    REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
+    INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
+    REAL(dp), INTENT(INOUT)                 :: max_val
+    REAL(dp), INTENT(IN), OPTIONAL          :: omega
+
+#if defined(__LIBINT)
+    INTEGER                                  :: i
+    TYPE(prim_data),TARGET                   :: prim
+    INTEGER(KIND=C_INT)                      :: Config(4)
+    INTEGER(KIND=C_INT)                      :: m_max
+    INTEGER(KIND=C_INT)                      :: mysize
+    INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
+   
+    REAL(dp),DIMENSION(:),POINTER            :: A1,B1,C1,D1,X
+    REAL(dp), POINTER                        :: Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, Y
+   
+    PROCEDURE(build), POINTER                :: pbuild
+    TYPE(C_PTR)                              :: pc_result 
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
+
+    !permutation of configuration
+    
+
+    n1 = n_a; n2 = n_b; n3 = n_c; n4 = n_d
+    A1 => A; B1 => B; C1 => C; D1 => D;
+    Zeta_A1 => Zeta_A; Zeta_B1 => Zeta_B; Zeta_C1 => Zeta_C; Zeta_D1 => Zeta_D
+    
+    If(n_a<n_b) THEN
+      n1 = n_b
+      n2 = n_a
+      A1 => B
+      B1 => A
+      Zeta_A1 => Zeta_B
+      Zeta_B1 => Zeta_A
+    END IF
+
+    IF(n_c<n_d) THEN
+      n3 = n_d
+      n4 = n_c
+      C1 => D
+      D1 => C
+      Zeta_C1 => Zeta_D
+      Zeta_D1 => Zeta_C
+    END IF
+ 
+    IF( n_a+n_b > n_c+n_d) THEN
+      n   = n1
+      n1  = n3
+      n3  = n
+      n   = n2
+      n2  = n4
+      n4  = n
+      
+      X => A1
+      A1 => C1
+      C1 => X
+      X => B1
+      B1 => D1
+      D1 => X
+     
+      Y => Zeta_A1
+      Zeta_A1 => Zeta_C1
+      Zeta_C1 => Y
+      y => Zeta_B1
+      Zeta_B1 => Zeta_D1
+      Zeta_D1 => Y  
+    END IF
+   
+    Config = (/n1,n2,n3,n4/)
+    m_max = Config(1) + Config(2) + Config(3) + Config(4)
+
+
+    IF(PRESENT(omega)) THEN
+      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, omega=omega)
+    ELSE
+      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max)
+    END IF
+
+    lib%PrimQuartet = C_LOC(prim)
+
+    lib%AB=A1-B1
+    lib%CD=C1-D1
+  
+    mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
+     
+    max_val = 0.0_dp
+    IF(n_a+ n_b + n_c + n_d  /=0) THEN
+      CALL C_F_PROCPOINTER(build_eri(config(4),config(3),config(2),config(1)),pbuild)
+      pc_result = pbuild(lib,1)
+      CALL C_F_POINTER(pc_result, p_work, (/mysize/))
+      DO i=1,mysize
+        max_val = MAX(max_val, ABS(p_work(i)))
+      END DO
+    ELSE
+      max_val = ABS(prim%F(1))
+    END IF
+#endif
+  END SUBROUTINE evaluate_eri_screen
 !***************************************************************************
 
 END MODULE libint_interface

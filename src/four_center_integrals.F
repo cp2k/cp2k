@@ -40,8 +40,8 @@ MODULE four_center_integrals
                                              lib_deriv,&
                                              initialize_libderiv,&
                                              evaluate_deriv_eri,& 
-                                             terminate_libderiv
-
+                                             terminate_libderiv,&
+                                             evaluate_eri_screen
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum
@@ -116,7 +116,7 @@ MODULE four_center_integrals
                       la_min, la_max, lb_min, lb_max,&
                       lc_min, lc_max, ld_min, ld_max,&
                       npgfa, npgfb, npgfc, npgfd,&
-                      primitive_integrals, work_prim, work_prim_perm, max_val)
+                      primitive_integrals)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
@@ -125,63 +125,39 @@ MODULE four_center_integrals
                                                 ld_min, ld_max, npgfa, npgfb, &
                                                 npgfc, npgfd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: primitive_integrals
-    REAL(dp), DIMENSION(:), POINTER          :: work_prim, work_prim_perm
-    REAL(dp), OPTIONAL                       :: max_val
-
+ 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'coulomb4'
 
-    INTEGER                                  :: i, idx, idx_1, idx_2, idx_3, &
-                                                idxa, idxb, idxc, idxd, ipgf, &
-                                                j, jpgf, k, kpgf, l, la, lb, &
-                                                lc, ld, lpgf, nla, nlb, nlc, &
-                                                nld
-
-    IF(PRESENT(max_val)) max_val = 0.0_dp
+    INTEGER                                  :: ipgf, jpgf, kpgf, lpgf, &
+                                                la, lb, lc, ld
+    INTEGER                                  :: offset_a, offset_b, offset_c, offset_d,&
+                                                offset_a1, offset_b1, offset_c1, offset_d1
 
     DO ipgf = 1,npgfa
+      offset_a1 = (ipgf-1)*ncoset(la_max)
       DO jpgf = 1,npgfb
+       offset_b1 = (jpgf-1)*ncoset(lb_max)
         DO kpgf = 1,npgfc
+          offset_c1 = (kpgf-1)*ncoset(lc_max)
           DO lpgf = 1,npgfd
-        
-            DO la = la_min,la_max
-              nla = nco(la)
-              DO lb = lb_min, lb_max
-                nlb = nco(lb)
-                DO lc = lc_min, lc_max
-                  nlc = nco(lc)
-                  DO ld = ld_min, ld_max
-                    nld = nco(ld)
+          offset_d1 = (lpgf-1)*ncoset(ld_max)
 
+            DO la = la_min,la_max
+              offset_a = offset_a1 + ncoset(la-1)
+              DO lb = lb_min, lb_max
+                offset_b = offset_b1 + ncoset(lb-1)
+                DO lc = lc_min, lc_max
+                  offset_c = offset_c1 + ncoset(lc-1)
+                  DO ld = ld_min, ld_max
+                    offset_d = offset_d1 + ncoset(ld-1)
                     !Build primitives
                     CALL evaluate_eri(lib, ra, rb, rc, rd,&
-                                   zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                   la, lb, lc ,ld,&
-                                   work_prim, work_prim_perm)
-                    
-                    DO i = 1,nla
-                      idxa = (ipgf-1)*ncoset(la_max) + i + ncoset(la-1)
-                      idx = (i-1)*nlb
-                      DO j = 1,nlb
-                        idxb = (jpgf-1)*ncoset(lb_max) + j + ncoset(lb-1)
-                        idx_1 = (idx + (j-1))*nlc
-                        DO k = 1,nlc
-                          idxc = (kpgf-1)*ncoset(lc_max) + k + ncoset(lc-1)
-                          idx_2 = (idx_1 + (k-1))*nld
-                          DO l = 1,nld
-                            idx_3 = idx_2 + l
-                            idxd = (lpgf-1)*ncoset(ld_max) + l + ncoset(ld-1)
-                            primitive_integrals(idxa,&
-                                                idxb,&
-                                                idxc,&
-                                                idxd) = work_prim_perm(idx_3)
-                            IF(PRESENT(max_val)) THEN
-                              IF(ABS(work_prim(idx_3))> max_val) max_val = ABS(work_prim(idx_3))
-                            END IF
-                          END DO !l
-                        END DO !k
-                      END DO !j
-                    END DO !i
- 
+                                      zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                      la, lb, lc ,ld,&
+                                      primitive_integrals(offset_a+1:,&
+                                                          offset_b+1:,&
+                                                          offset_c+1:,&
+                                                          offset_d+1:))
                   END DO !ld
                 END DO !lc
               END DO !lb
@@ -193,6 +169,84 @@ MODULE four_center_integrals
     END DO !ipgf
   
   END SUBROUTINE coulomb4
+!***************************************************************************
+
+!!***** four_center_integrals/screen4 [1.0] *
+!!
+!!   NAME
+!!     screen4
+!!
+!!   FUNCTION
+!!     calculates maxc values of two-electron integrals in a quartet/shell
+!!     using the library lib_int
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - r: position
+!!     - z: zeta
+!!     - l: angular momentum
+!!     - npgf: number of primitive cartesian gaussian in actual shell
+!!     - max_val: schwarz screening value
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!    03.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE screen4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
+                      la_min, la_max, lb_min, lb_max,&
+                      lc_min, lc_max, ld_min, ld_max,&
+                      npgfa, npgfb, npgfc, npgfd,&
+                      max_val)
+  
+    REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
+    INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, &
+                                                lb_max, lc_min, lc_max, &
+                                                ld_min, ld_max, npgfa, npgfb, &
+                                                npgfc, npgfd
+    REAL(dp), INTENT(INOUT)                  :: max_val
+ 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'coulomb4'
+
+    INTEGER                                  :: ipgf, jpgf, kpgf, lpgf, &
+                                                la, lb,lc, ld 
+    REAL(dp)                                 :: max_val_temp
+
+    max_val_temp = max_val
+    DO ipgf = 1,npgfa
+      DO jpgf = 1,npgfb
+        DO kpgf = 1,npgfc
+          DO lpgf = 1,npgfd
+
+            DO la = la_min,la_max
+              DO lb = lb_min, lb_max
+                DO lc = lc_min, lc_max
+                  DO ld = ld_min, ld_max
+                    !Build primitives
+                    CALL evaluate_eri_screen(lib, ra, rb, rc, rd,&
+                                             zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                             la, lb, lc ,ld,&
+                                             max_val_temp)
+                    max_val = MAX(max_val, max_val_temp)
+                  END DO !ld
+                END DO !lc
+              END DO !lb
+            END DO !la
+
+          END DO !lpgf
+        END DO !kpgf
+      END DO !jpgf
+    END DO !ipgf
+  
+  END SUBROUTINE screen4
 !***************************************************************************
 
 
@@ -249,18 +303,16 @@ MODULE four_center_integrals
       stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
-      lc_min, ld_max, ld_min, ncgfa, ncgfb, ncgfc, ncgfd, npgfa, npgfb, &
+      lc_min, ld_max, ld_min, npgfa, npgfb, &
       npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
     LOGICAL                                  :: failure
     REAL(dp) :: ene_x_aa, ene_x_bb, eps_schwarz, fac, hf_fraction, max_val, &
       memory_usage, ra(3), rb(3), rc(3), rd(3)
-    REAL(dp), DIMENSION(:), POINTER          :: work_prim, work_prim_perm
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a, sphi_b, sphi_c, &
                                                 sphi_d, zeta, zetb, zetc, zetd
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: contracted_integrals, &
-                                                primitive_integrals, &
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: primitive_integrals, &
                                                 schwarz_screening, T1
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
                                                 full_density_beta, &
@@ -275,7 +327,8 @@ MODULE four_center_integrals
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
     TYPE(cp_logger_type), POINTER            :: logger
-    
+    REAL(dp)                                 :: tmp1, tmp2, tmp3, tmp11, tmp21, tmp31
+    INTEGER                                  :: pa1, pb1, pc1, pd1, pa2, pb2, pc2, pd2
    
     CALL timeset(routineN,"I",'',handle)
 
@@ -300,10 +353,6 @@ MODULE four_center_integrals
                              maxlgto=max_am)
     
     CALL initialize_libint(lib, max_am, error)
-    ALLOCATE(work_prim(((max_am+1)*(max_am+2)/2)**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(work_prim_perm(((max_am+1)*(max_am+2)/2)**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     nspins = qs_env%dft_control%nspins
  
@@ -354,12 +403,7 @@ MODULE four_center_integrals
                              lmin=lb_min,&
                              npgf=npgfb,&
                              nset=nsetb,&
-                             zet=zetb,&
-                             nsgf_set=nsgfb,&
-                             ncgf_set=ncgfb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf=nsgfb_total)
+                             zet=zetb)
       rb=particle_set(jatom)%r(:)
       DO katom = 1,natom
         atom_kind => particle_set(katom)%atomic_kind
@@ -370,39 +414,27 @@ MODULE four_center_integrals
                                lmin=lc_min,&
                                npgf=npgfc,&
                                nset=nsetc,&
-                               zet=zetc,&
-                               nsgf_set=nsgfc,&
-                               ncgf_set=ncgfc,&
-                               first_sgf=first_sgfc,&
-                               sphi=sphi_c,&
-                               nsgf=nsgfc_total)
+                               zet=zetc)
         rc=particle_set(katom)%r(:)
         DO jset = 1,nsetb
           ncob = npgfb(jset)*ncoset(lb_max(jset)) 
           DO kset = 1,nsetc
             ncoc = npgfc(kset)*ncoset(lc_max(kset))
-
-            ALLOCATE(primitive_integrals(ncob,ncoc,ncob,ncoc),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            primitive_integrals = 0.0_dp
-            CALL coulomb4(rb, rc, rb, rc,&
+            max_val = 0.0_dp
+            CALL screen4(rb, rc, rb, rc,&
                           zetb(:,jset), zetc(:,kset), zetb(:,jset), zetc(:,kset),&
                           lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
                           lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
                           npgfb(jset), npgfc(kset), npgfb(jset), npgfc(kset),&
-                          primitive_integrals, work_prim, work_prim_perm, max_val=max_val)
-
-            schwarz_screening(jatom,katom,jset,kset) = max_val
-            DEALLOCATE(primitive_integrals,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                          max_val)
+            schwarz_screening(jatom,katom,jset,kset) = max_val 
           END DO
         END DO
       END DO
     END DO
-
-    ALLOCATE(T1(maxsgf,maxsgf,maxsgf,maxsgf),STAT=stat)
-    T1 = 0.0_dp
     memory_usage = 0.0_dp
+    ene_x_aa = 0.0_dp
+    ene_x_bb = 0.0_dp
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
 
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
@@ -419,11 +451,11 @@ MODULE four_center_integrals
                              nset=nseta,&
                              zet=zeta,&
                              nsgf_set=nsgfa,&
-                             ncgf_set=ncgfa,&
                              first_sgf=first_sgfa,&
                              sphi=sphi_a,&
                              nsgf=nsgfa_total)
       ra=particle_set(iatom)%r(:)
+      pa1 = last_sgf_global(iatom) - nsgfa_total
 
       DO jatom = 1,natom
 
@@ -437,11 +469,11 @@ MODULE four_center_integrals
                                nset=nsetb,&
                                zet=zetb,&
                                nsgf_set=nsgfb,&
-                               ncgf_set=ncgfb,&
                                first_sgf=first_sgfb,&
                                sphi=sphi_b,&
                                nsgf=nsgfb_total)
         rb=particle_set(jatom)%r(:)
+        pb1 = last_sgf_global(jatom) - nsgfb_total
 
         DO katom = 1,natom
           atom_kind => particle_set(katom)%atomic_kind
@@ -454,11 +486,11 @@ MODULE four_center_integrals
                                  nset=nsetc,&
                                  zet=zetc,&
                                  nsgf_set=nsgfc,&
-                                 ncgf_set=ncgfc,&
                                  first_sgf=first_sgfc,&
                                  sphi=sphi_c,&
                                  nsgf=nsgfc_total)
           rc=particle_set(katom)%r(:)
+          pc1 = last_sgf_global(katom) - nsgfc_total
 
           block_node => first_block_node(ks_matrix(1)%matrix,iatom)
           IF(nspins == 2) block_node_beta => first_block_node(ks_matrix(2)%matrix,iatom)
@@ -486,17 +518,21 @@ MODULE four_center_integrals
                                    nset=nsetd,&
                                    zet=zetd,&
                                    nsgf_set=nsgfd,&
-                                   ncgf_set=ncgfd,&
                                    first_sgf=first_sgfd,&
                                    sphi=sphi_d,&
                                    nsgf=nsgfd_total)
  
             rd=particle_set(latom)%r(:)
+            pd1 = last_sgf_global(latom) - nsgfd_total
+           
+            IF(iatom<latom) THEN
+              tmp3 = 2.0_dp
+              tmp31 = 2.0_dp
+            ELSE
+              tmp3 = 1.0_dp
+              tmp31 = 1.0_dp
+            END IF
 
-            ALLOCATE(contracted_integrals(nsgfa_total,nsgfb_total,nsgfc_total,nsgfd_total),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            contracted_integrals = 0.0_dp
-            
             DO iset = 1, nseta
               ncoa = npgfa(iset)*ncoset(la_max(iset))
               sgfa = first_sgfa(1,iset)
@@ -509,21 +545,26 @@ MODULE four_center_integrals
                   DO lset = 1,nsetd
                     ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                     sgfd = first_sgfd(1,lset)
-                    
+
                     max_val = SQRT(schwarz_screening(iatom,jatom,iset,jset))
                     max_val = max_val * SQRT(schwarz_screening(katom,latom,kset,lset))
                     IF(max_val<eps_schwarz) CYCLE
+                    
                     current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+ 
+                    ALLOCATE(primitive_integrals(ncoa,ncob,ncoc,ncod),STAT=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                    
                     IF(.NOT.geometry_did_change .AND. integral_counter + current_counter &
                                                                  <= number_of_precalc_integrals) THEN
-                      DO md = sgfd,nsgfd(lset)+sgfd-1
-                        DO mc = sgfc,nsgfc(kset)+sgfc-1
-                          DO mb = sgfb,nsgfb(jset)+sgfb-1
-                            DO ma = sgfa,nsgfa(iset)+sgfa-1
-                              contracted_integrals(ma,&
-                                                   mb,&
-                                                   mc,&
-                                                   md)=&
+                      DO md = 1,nsgfd(lset)
+                        DO mc = 1,nsgfc(kset)
+                          DO mb = 1,nsgfb(jset)
+                            DO ma = 1,nsgfa(iset)
+                              primitive_integrals(ma,&
+                                                  mb,&
+                                                  mc,&
+                                                  md)=&
                                qs_env%x_data%x_buffer(integral_counter)
                                integral_counter = integral_counter + 1
                             END DO
@@ -531,75 +572,53 @@ MODULE four_center_integrals
                         END DO
                       END DO
                     END IF
-                    
                     IF(geometry_did_change .OR. integral_counter + current_counter &
-                                                                > number_of_precalc_integrals) THEN
-                   
-                      ALLOCATE(primitive_integrals(ncoa,ncob,ncoc,ncod),STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                                              > number_of_precalc_integrals) THEN
+
+                      !Get primitive array into cache 
                       primitive_integrals = 0.0_dp
+                      ALLOCATE(T1(ncoa,ncob,ncoc,ncod),STAT=stat)
                       CALL coulomb4(ra, rb, rc, rd,&
                                     zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
                                     la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                                     lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
                                     npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                    primitive_integrals, work_prim, work_prim_perm)
-                    
-                       CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
+                                    primitive_integrals)
+                      
+                      CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                  1.0_dp, primitive_integrals(1,1,1,1),ncoa,&
                                  sphi_a(1,sgfa), SIZE(sphi_a,1),&
                                  0.0_dp, T1(1,1,1,1),ncob*ncoc*ncod)
   
-                     
                       CALL dgemm("T","N",ncoa*ncoc*ncod,nsgfb(jset),ncob,&
                                  1.0_dp, T1(1,1,1,1),ncob,&
                                  sphi_b(1,sgfb), SIZE(sphi_b,1),&
                                  0.0_dp, primitive_integrals(1,1,1,1),ncoa*ncoc*ncod)
-  
   
                       CALL dgemm("T","N",ncoa*ncob*ncod,nsgfc(kset),ncoc,&
                                  1.0_dp, primitive_integrals(1,1,1,1),ncoc,&
                                  sphi_c(1,sgfc), SIZE(sphi_c,1),&
                                  0.0_dp, T1(1,1,1,1),ncoa*ncob*ncod)
   
-  
                       CALL dgemm("T","N",ncoa*ncob*ncoc,nsgfd(lset),ncod,&
                                  1.0_dp, T1(1,1,1,1),ncod,&
                                  sphi_d(1,sgfd), SIZE(sphi_d,1),&
                                  0.0_dp, primitive_integrals(1,1,1,1),ncoa*ncob*ncoc)
-
-                      DO md = 1, nsgfd(lset)
-                        DO mc = 1,nsgfc(kset)
-                          DO mb = 1,nsgfb(jset)
-                            DO ma = 1,nsgfa(iset)
-                              contracted_integrals(ma+sgfa-1,&
-                                                   mb+sgfb-1,&
-                                                   mc+sgfc-1,&
-                                                   md+sgfd-1)=&
-                              contracted_integrals(ma+sgfa-1,&
-                                                   mb+sgfb-1,&
-                                                   mc+sgfc-1,&
-                                                   md+sgfd-1)+&
-                              primitive_integrals(ma,mb,mc,md)
-                            END DO
-                          END DO
-                        END DO
-                      END DO
-                    
-                      DEALLOCATE(primitive_integrals,STAT=stat)
+                     
+                      DEALLOCATE(T1,STAT=stat)
                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      
+ 
                       IF(geometry_did_change .AND. integral_counter + current_counter  &
                                                             <= number_of_precalc_integrals) THEN
-                        DO md = sgfd,nsgfd(lset)+sgfd-1
-                          DO mc = sgfc,nsgfc(kset)+sgfc-1
-                            DO mb = sgfb,nsgfb(jset)+sgfb-1
-                              DO ma = sgfa,nsgfa(iset)+sgfa-1
+                        DO md = 1,nsgfd(lset)
+                          DO mc = 1,nsgfc(kset)
+                            DO mb = 1,nsgfb(jset)
+                              DO ma = 1,nsgfa(iset)
                                 qs_env%x_data%x_buffer(integral_counter) = & 
-                                   contracted_integrals(ma,&
-                                                        mb,&
-                                                        mc,&
-                                                        md)
+                                   primitive_integrals(ma,&
+                                                       mb,&
+                                                       mc,&
+                                                       md)
                                 integral_counter = integral_counter + 1
                               END DO
                             END DO
@@ -609,88 +628,47 @@ MODULE four_center_integrals
 
                     END IF !geom
 
+                    
+                    DO mc = 1,nsgfc(kset)
+                      pc2 = mc+sgfc-1
+                      pc = pc1 + pc2
+                      DO mb = 1,nsgfb(jset)
+                        pb2 = mb+sgfb-1
+                        pb = pb1 + pb2
+                        tmp1 = fac*full_density(pb,pc)
+                        IF( nspins == 2 ) tmp11 = fac*full_density_beta(pb,pc)
+                        DO md = 1,nsgfd(lset)
+                          pd2 = md+sgfd-1
+                          pd = pd1 + pd2
+                          DO ma = 1,nsgfa(iset)
+                            pa2 = ma+sgfa-1
+                            pa = pa1 + pa2
+                            sparse_block(pa2,pd2) = sparse_block(pa2,pd2) - &
+                                           tmp1*primitive_integrals(ma,mb,mc,md)
+                            tmp2 = tmp3*tmp1*full_density(pa,pd)*primitive_integrals(ma,mb,mc,md)
+                            ene_x_aa = ene_x_aa - tmp2
+                            IF( nspins == 2 ) THEN
+                              sparse_block_beta(pa2,pd2) = sparse_block_beta(pa2,pd2) - &
+                                           tmp11*primitive_integrals(ma,mb,mc,md)
+                              tmp21 = tmp31*tmp11*full_density_beta(pa,pd)*primitive_integrals(ma,mb,mc,md)
+                              ene_x_bb = ene_x_bb -tmp21
+                            END IF
+                          END DO
+                        END DO
+                      END DO
+                    END DO
+                     
+                    DEALLOCATE(primitive_integrals,STAT=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      
                   END DO !lset
                 END DO !kset
               END DO !jset
-            END DO !iset
-
-
-            !fill ks_matrix
-            ene_x_aa = 0.0_dp
-            ene_x_bb = 0.0_dp
-            DO mb = 1, nsgfb_total!size(sparse_block,2)
-              pb = last_sgf_global(jatom) - nsgfb_total + mb
-              DO mc = 1, nsgfc_total
-                pc = last_sgf_global(katom) - nsgfc_total + mc
-                ene_x_aa = fac*full_density(pb,pc)
-                IF( nspins == 2) ene_x_bb = fac*full_density_beta(pb,pc)
-                DO md = 1,SIZE(sparse_block,2)
-                  DO ma = 1, SIZE(sparse_block,1)
-                    sparse_block(ma,md) = sparse_block(ma,md) - ene_x_aa*contracted_integrals(ma,mb,mc,md)
-                    IF(nspins == 2) THEN
-                      sparse_block_beta(ma,md) = sparse_block_beta(ma,md) - &
-                                                 ene_x_bb*contracted_integrals(ma,mb,mc,md)
-                    END IF
-                  END DO !ma
-                END DO !mb
-              END DO !mc
-            END DO !md
-            DEALLOCATE(contracted_integrals,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+            END DO !set
           END DO !latom
         END DO !katom
       END DO !jatom
     END DO !iatom
-
-    ene_x_aa = 0.0_dp
-    ene_x_bb = 0.0_dp
-    DO iatom=1,ks_matrix(1)%matrix%nblock_row
-      block_node => first_block_node(ks_matrix(1)%matrix,iatom)
-      IF(nspins == 2) block_node_beta => first_block_node(ks_matrix(2)%matrix,iatom)
-      atom_kind => particle_set(iatom)%atomic_kind
-
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                             nsgf=nsgfa_total)
-
-
-      DO WHILE (ASSOCIATED(block_node))
-        CALL get_block_node(block_node=block_node,&
-                            block_col=latom,&
-                            BLOCK=sparse_block)
-        block_node => next_block_node(block_node)
- 
-        IF(nspins == 2) THEN
-          CALL get_block_node(block_node=block_node_beta,&
-                              block_col=latom,&
-                              BLOCK=sparse_block_beta)
-          block_node_beta => next_block_node(block_node_beta)
-        END IF
-
-        atom_kind => particle_set(latom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_d)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_d,&
-                               nsgf=nsgfd_total)
-                       
-        DO md = 1, SIZE(sparse_block,2)
-          pd = last_sgf_global(latom) - nsgfd_total + md
-          DO ma = 1, SIZE(sparse_block,1)
-            pa = last_sgf_global(iatom) - nsgfa_total + ma
-            ene_x_aa = ene_x_aa + full_density(pa,pd)*sparse_block(ma,md)
-            IF(iatom<latom) ene_x_aa = ene_x_aa + full_density(pa,pd)*sparse_block(ma,md)
-  
-            IF(nspins == 2) THEN
-              ene_x_bb = ene_x_bb + full_density_beta(pa,pd)*sparse_block_beta(ma,md)
-              IF(iatom<latom) ene_x_bb = ene_x_bb + full_density_beta(pa,pd)*sparse_block_beta(ma,md)
-            END IF
-          END DO
-        END DO
-      END DO
-    END DO
-
 
     CALL mp_sum(ene_x_aa,para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
@@ -710,11 +688,7 @@ MODULE four_center_integrals
     CALL cp_print_key_finished_output(iw,logger,hf_section,&
                                       "HF_INFO", error=error)
 
-    DEALLOCATE(T1,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(last_sgf_global,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(work_prim,work_prim_perm,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(schwarz_screening,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -769,7 +743,7 @@ MODULE four_center_integrals
                     la_min, la_max, lb_min, lb_max,&
                     lc_min, lc_max, ld_min, ld_max,&
                     npgfa, npgfb, npgfc, npgfd,&
-                    primitive_forces, work_forces, work_forces_perm)
+                    primitive_forces, work_forces )
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
@@ -780,58 +754,40 @@ MODULE four_center_integrals
     REAL(dp), DIMENSION(:,:,:,:,:),&
               POINTER                        :: primitive_forces
     REAL(dp), DIMENSION(:,:), &
-              POINTER                        :: work_forces, work_forces_perm
+              POINTER                        :: work_forces
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4'
 
-    INTEGER                                  :: i, idx, idx_1, idx_2, idx_3, &
-                                                idxa, idxb, idxc, idxd, ipgf, &
-                                                j, jpgf, k, kpgf, l, la, lb, &
-                                                lc, ld, lpgf, nla, nlb, nlc, &
-                                                nld, coord
+    INTEGER                                  :: ipgf, jpgf, kpgf, lpgf, &
+                                                la, lb, lc, ld
+    INTEGER                                  :: offset_a, offset_a1, &
+                                                offset_b, offset_b1, offset_c,&
+                                                offset_c1, offset_d, offset_d1
 
 
     DO ipgf = 1,npgfa
+      offset_a1 = (ipgf-1)*ncoset(la_max)
       DO jpgf = 1,npgfb
+        offset_b1 = (jpgf-1)*ncoset(lb_max)
         DO kpgf = 1,npgfc
+          offset_c1 = (kpgf-1)*ncoset(lc_max)
           DO lpgf = 1,npgfd
-        
+            offset_d1 = (lpgf-1)*ncoset(ld_max)
             DO la = la_min,la_max
-              nla = nco(la)
+              offset_a = offset_a1 + ncoset(la-1)
               DO lb = lb_min, lb_max
-                nlb = nco(lb)
+                offset_b = offset_b1 + ncoset(lb-1)
                 DO lc = lc_min, lc_max
-                  nlc = nco(lc)
+                  offset_c = offset_c1 + ncoset(lc-1)
                   DO ld = ld_min, ld_max
-                    nld = nco(ld)
+                    offset_d = offset_d1 + ncoset(ld-1) 
                     !Build primitives
                     CALL evaluate_deriv_eri(deriv, ra, rb, rc, rd,&
-                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                            la, lb, lc ,ld,&
-                                            work_forces, work_forces_perm)
-                    DO coord = 1,12
-                      DO i = 1,nla
-                        idxa = (ipgf-1)*ncoset(la_max) + i + ncoset(la-1)
-                        idx = (i-1)*nlb
-                        DO j = 1,nlb
-                          idxb = (jpgf-1)*ncoset(lb_max) + j + ncoset(lb-1)
-                          idx_1 = (idx + (j-1))*nlc
-                          DO k = 1,nlc
-                            idxc = (kpgf-1)*ncoset(lc_max) + k + ncoset(lc-1)
-                            idx_2 = (idx_1 + (k-1))*nld
-                            DO l = 1,nld
-                              idx_3 = idx_2 + l
-                              idxd = (lpgf-1)*ncoset(ld_max) + l + ncoset(ld-1)
-                              primitive_forces(idxa,&
-                                               idxb,&
-                                               idxc,&
-                                               idxd,coord) = work_forces_perm(idx_3,coord)
-                            END DO !l
-                          END DO !k
-                        END DO !j
-                      END DO !i
-                    END DO
- 
+                                           zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
+                                           la, lb, lc ,ld,&
+                                           work_forces, primitive_forces,&
+                                           offset_a, offset_b, offset_c, offset_d)
+
                   END DO !ld
                 END DO !lc
               END DO !lb
@@ -874,8 +830,6 @@ MODULE four_center_integrals
 !!
 !!****************************************************************************
 
-
-
   SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
                                      error)
 
@@ -906,11 +860,10 @@ MODULE four_center_integrals
     LOGICAL                                  :: failure
     REAL(dp) ::  eps_schwarz, fac, hf_fraction, max_val, &
                  ra(3), rb(3), rc(3), rd(3)
-    REAL(dp), DIMENSION(:), POINTER          :: work_prim, work_prim_perm
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a, sphi_b, sphi_c, &
                                                 sphi_d, zeta, zetb, zetc, zetd
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: primitive_integrals, &
-                                                T1,schwarz_screening
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: T1, &
+                                                schwarz_screening
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
                                                 full_density_beta, &
                                                 sparse_block
@@ -924,15 +877,15 @@ MODULE four_center_integrals
     TYPE(real_block_node_type), POINTER      :: block_node
 
     REAL(dp), DIMENSION(:,:,:,:,:),&
-                        POINTER              :: primitive_forces, contracted_forces
-    REAL(dp), DIMENSION(:,:), POINTER        :: work_forces, work_forces_perm
+                        POINTER              :: primitive_forces 
+    REAL(dp), DIMENSION(:,:), POINTER        :: work_forces
     INTEGER                                  :: coord, i_atom, j_atom, k_atom, l_atom,&
                                                 ikind, jkind, kkind, lkind
     TYPE(qs_force_type), DIMENSION(:), &
                          POINTER             :: force
     INTEGER, DIMENSION(:), ALLOCATABLE       :: atom_of_kind, kind_of
     REAL(dp)                                 :: temp1, temp2, temp1b
-
+    INTEGER                                  :: pa1, pa2, pb1, pb2, pc1, pc2, pd1, pd2
  
     CALL timeset(routineN,"I",'',handle)
 
@@ -950,17 +903,10 @@ MODULE four_center_integrals
                              maxnset=max_set,&
                              maxlgto=max_am)
     
-    
+   
     CALL initialize_libderiv(deriv, max_am, error)
     
     ALLOCATE(work_forces(((max_am+1)*(max_am+2)/2)**4,12),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(work_forces_perm(((max_am+1)*(max_am+2)/2)**4,12),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(work_prim(((max_am+1)*(max_am+2)/2)**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(work_prim_perm(((max_am+1)*(max_am+2)/2)**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -1003,11 +949,10 @@ MODULE four_center_integrals
       CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
       CALL mp_sum(full_density_beta,para_env%group)
     END IF
-   
+  
     ALLOCATE(schwarz_screening(natom,natom,max_set,max_set),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO jatom=1,natom
-
       atom_kind => particle_set(jatom)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atom_kind,&
                            orb_basis_set=orb_basis_b)
@@ -1016,12 +961,7 @@ MODULE four_center_integrals
                              lmin=lb_min,&
                              npgf=npgfb,&
                              nset=nsetb,&
-                             zet=zetb,&
-                             nsgf_set=nsgfb,&
-                             ncgf_set=ncgfb,&
-                             first_sgf=first_sgfb,&
-                             sphi=sphi_b,&
-                             nsgf=nsgfb_total)
+                             zet=zetb)
       rb=particle_set(jatom)%r(:)
       DO katom = 1,natom
         atom_kind => particle_set(katom)%atomic_kind
@@ -1032,40 +972,24 @@ MODULE four_center_integrals
                                lmin=lc_min,&
                                npgf=npgfc,&
                                nset=nsetc,&
-                               zet=zetc,&
-                               nsgf_set=nsgfc,&
-                               ncgf_set=ncgfc,&
-                               first_sgf=first_sgfc,&
-                               sphi=sphi_c,&
-                               nsgf=nsgfc_total)
+                               zet=zetc)
         rc=particle_set(katom)%r(:)
-
         DO jset = 1,nsetb
           ncob = npgfb(jset)*ncoset(lb_max(jset)) 
           DO kset = 1,nsetc
             ncoc = npgfc(kset)*ncoset(lc_max(kset))
-
-            ALLOCATE(primitive_integrals(ncob,ncoc,ncob,ncoc),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            primitive_integrals = 0.0_dp
-            CALL coulomb4(rb, rc, rb, rc,&
-                         zetb(:,jset), zetc(:,kset), zetb(:,jset), zetc(:,kset),&
-                         lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                         lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                         npgfb(jset), npgfc(kset), npgfb(jset), npgfc(kset),&
-                         primitive_integrals, work_prim, work_prim_perm, max_val=max_val)
-           
-            schwarz_screening(jatom,katom,jset,kset) = max_val
-            DEALLOCATE(primitive_integrals,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            max_val = 0.0_dp
+            CALL screen4(rb, rc, rb, rc,&
+                          zetb(:,jset), zetc(:,kset), zetb(:,jset), zetc(:,kset),&
+                          lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
+                          lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
+                          npgfb(jset), npgfc(kset), npgfb(jset), npgfc(kset),&
+                          max_val)
+            schwarz_screening(jatom,katom,jset,kset) = max_val 
           END DO
         END DO
       END DO
     END DO
-    
-    ALLOCATE(T1(maxsgf,maxsgf,maxsgf,maxsgf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    T1 = 0.0_dp
 
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
@@ -1088,6 +1012,7 @@ MODULE four_center_integrals
       
       i_atom = atom_of_kind(iatom)
       ikind = kind_of(iatom)
+      pa1 = last_sgf_global(iatom) - nsgfa_total
 
       DO jatom = 1,natom
         atom_kind => particle_set(jatom)%atomic_kind
@@ -1108,6 +1033,7 @@ MODULE four_center_integrals
 
         j_atom = atom_of_kind(jatom)
         jkind = kind_of(jatom)
+        pb1 = last_sgf_global(jatom) - nsgfb_total
      
         DO katom = 1,natom
           atom_kind => particle_set(katom)%atomic_kind
@@ -1128,6 +1054,7 @@ MODULE four_center_integrals
           
           k_atom = atom_of_kind(katom)
           kkind = kind_of(katom)
+          pc1 = last_sgf_global(katom) - nsgfc_total
            
           block_node => first_block_node(ks_matrix(1)%matrix,iatom)
           DO WHILE (ASSOCIATED(block_node))
@@ -1158,6 +1085,7 @@ MODULE four_center_integrals
             
             l_atom = atom_of_kind(latom)
             lkind = kind_of(latom)
+            pd1 = last_sgf_global(latom) - nsgfd_total
              
             IF(nspins == 1) THEN
               fac = 0.25_dp * hf_fraction
@@ -1165,9 +1093,6 @@ MODULE four_center_integrals
               fac = 0.5_dp * hf_fraction
             END IF
             IF(iatom<latom) fac = fac * 2.0_dp
-            ALLOCATE(contracted_forces(nsgfa_total,nsgfb_total,nsgfc_total,nsgfd_total,12),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            contracted_forces = 0.0_dp
             DO iset = 1, nseta
               ncoa = npgfa(iset)*ncoset(la_max(iset))
               sgfa = first_sgfa(1,iset)
@@ -1188,14 +1113,17 @@ MODULE four_center_integrals
                     ALLOCATE(primitive_forces(ncoa,ncob,ncoc,ncod,12),STAT=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                     primitive_forces = 0.0_dp
+                    
+                    ALLOCATE(T1(maxsgf,maxsgf,maxsgf,maxsgf),STAT=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                    
                     CALL forces4(ra, rb, rc, rd,&
                                  zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
                                  la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                                  lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
                                  npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                                  primitive_forces,&
-                                 work_forces, work_forces_perm)
-                    
+                                 work_forces)
                     DO coord = 1,12
                       CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                  1.0_dp, primitive_forces(1,1,1,1,coord),ncoa,&
@@ -1219,99 +1147,101 @@ MODULE four_center_integrals
                                  1.0_dp, T1(1,1,1,1),ncod,&
                                  sphi_d(1,sgfd), SIZE(sphi_d,1),&
                                  0.0_dp, primitive_forces(1,1,1,1,coord),ncoa*ncob*ncoc)
+                    END DO              
+                        
 
-                      DO md = 1, nsgfd(lset)
-                        DO mc = 1,nsgfc(kset)
-                          DO mb = 1,nsgfb(jset)
-                            DO ma = 1,nsgfa(iset)
-                              contracted_forces(ma+sgfa-1,&
-                                                mb+sgfb-1,&
-                                                mc+sgfc-1,&
-                                                md+sgfd-1,&
-                                                coord)=&
-                              contracted_forces(ma+sgfa-1,&
-                                                mb+sgfb-1,&
-                                                mc+sgfc-1,&
-                                                md+sgfd-1,&
-                                                coord)+&
-                              primitive_forces(ma,mb,mc,md,coord)
-                            END DO
-                          END DO
-                        END DO
-                      END DO
-                    END DO
-                   
-                    DEALLOCATE(primitive_forces,STAT=stat)
+                    DO mb = 1, nsgfb(jset)
+                      pb2 = mb+sgfb-1
+                      pb = pb1 + pb2
+                      DO mc = 1, nsgfc(kset)
+                        pc2 = mc+sgfc-1
+                        pc = pc1 + pc2
+                        temp1 = full_density(pc,pb) * fac
+                        IF( nspins == 2 ) temp1b = full_density_beta(pc,pb) * fac
+                        DO md = 1,nsgfd(lset)
+                          pd2 = md+sgfd-1
+                          pd = pd1 + pd2
+                          DO ma = 1,nsgfa(iset) 
+                            pa2 = ma+sgfa-1
+                            pa = pa1 + pa2
+                            temp2 = temp1 * full_density(pa,pd)
+                    
+                            force(ikind)%fock_4c(1,i_atom) = force(ikind)%fock_4c(1,i_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,1)
+                            force(ikind)%fock_4c(2,i_atom) = force(ikind)%fock_4c(2,i_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,2) 
+                            force(ikind)%fock_4c(3,i_atom) = force(ikind)%fock_4c(3,i_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,3)
+        
+                            force(jkind)%fock_4c(1,j_atom) = force(jkind)%fock_4c(1,j_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,4) 
+                            force(jkind)%fock_4c(2,j_atom) = force(jkind)%fock_4c(2,j_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,5)
+                            force(jkind)%fock_4c(3,j_atom) = force(jkind)%fock_4c(3,j_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,6)
+
+                            force(kkind)%fock_4c(1,k_atom) = force(kkind)%fock_4c(1,k_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,7)
+                            force(kkind)%fock_4c(2,k_atom) = force(kkind)%fock_4c(2,k_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,8)
+                            force(kkind)%fock_4c(3,k_atom) = force(kkind)%fock_4c(3,k_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,9)
+
+                            force(lkind)%fock_4c(1,l_atom) = force(lkind)%fock_4c(1,l_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,10)
+                            force(lkind)%fock_4c(2,l_atom) = force(lkind)%fock_4c(2,l_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,11)
+                            force(lkind)%fock_4c(3,l_atom) = force(lkind)%fock_4c(3,l_atom) - &
+                                                             temp2 * primitive_forces(ma,mb,mc,md,12)
+                            IF(nspins == 2) THEN
+                              temp2 = temp1b*full_density_beta(pa,pd)
+                              force(ikind)%fock_4c(1,i_atom) = force(ikind)%fock_4c(1,i_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,1)
+                              force(ikind)%fock_4c(2,i_atom) = force(ikind)%fock_4c(2,i_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,2) 
+                              force(ikind)%fock_4c(3,i_atom) = force(ikind)%fock_4c(3,i_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,3)
+
+                              force(jkind)%fock_4c(1,j_atom) = force(jkind)%fock_4c(1,j_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,4) 
+                              force(jkind)%fock_4c(2,j_atom) = force(jkind)%fock_4c(2,j_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,5)
+                              force(jkind)%fock_4c(3,j_atom) = force(jkind)%fock_4c(3,j_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,6)
+
+                              force(kkind)%fock_4c(1,k_atom) = force(kkind)%fock_4c(1,k_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,7)
+                              force(kkind)%fock_4c(2,k_atom) = force(kkind)%fock_4c(2,k_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,8)
+                              force(kkind)%fock_4c(3,k_atom) = force(kkind)%fock_4c(3,k_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,9)
+
+                              force(lkind)%fock_4c(1,l_atom) = force(lkind)%fock_4c(1,l_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,10)
+                              force(lkind)%fock_4c(2,l_atom) = force(lkind)%fock_4c(2,l_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,11)
+                              force(lkind)%fock_4c(3,l_atom) = force(lkind)%fock_4c(3,l_atom) - &
+                                                               temp2 * primitive_forces(ma,mb,mc,md,12)
+                            END IF 
+ 
+                          END DO !ma
+                        END DO !mb
+                      END DO !mc
+                    END DO !md
+
+                    DEALLOCATE(primitive_forces,T1,STAT=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
                   END DO !lset
                 END DO !ksetm
                END DO !jset
             END DO !iset
-            
-
-            DO mb = 1, nsgfb_total
-              pb = last_sgf_global(jatom) - nsgfb_total + mb
-              DO mc = 1, nsgfc_total
-                pc = last_sgf_global(katom) - nsgfc_total + mc
-                temp1 = full_density(pc,pb) * fac
-                IF( nspins == 2 ) temp1b = full_density_beta(pc,pb) * fac
-                DO md = 1,nsgfd_total
-                  pd = last_sgf_global(latom) - nsgfd_total + md
-                  DO ma = 1,nsgfa_total 
-                    pa = last_sgf_global(iatom) - nsgfa_total + ma
-                    temp2 = temp1 * full_density(pa,pd)
-                    
-                    force(ikind)%fock_4c(1,i_atom) = force(ikind)%fock_4c(1,i_atom) - temp2 * contracted_forces(ma,mb,mc,md,1)
-                    force(ikind)%fock_4c(2,i_atom) = force(ikind)%fock_4c(2,i_atom) - temp2 * contracted_forces(ma,mb,mc,md,2) 
-                    force(ikind)%fock_4c(3,i_atom) = force(ikind)%fock_4c(3,i_atom) - temp2 * contracted_forces(ma,mb,mc,md,3)
-
-                    force(jkind)%fock_4c(1,j_atom) = force(jkind)%fock_4c(1,j_atom) - temp2 * contracted_forces(ma,mb,mc,md,4) 
-                    force(jkind)%fock_4c(2,j_atom) = force(jkind)%fock_4c(2,j_atom) - temp2 * contracted_forces(ma,mb,mc,md,5)
-                    force(jkind)%fock_4c(3,j_atom) = force(jkind)%fock_4c(3,j_atom) - temp2 * contracted_forces(ma,mb,mc,md,6)
-
-                    force(kkind)%fock_4c(1,k_atom) = force(kkind)%fock_4c(1,k_atom) - temp2 * contracted_forces(ma,mb,mc,md,7)
-                    force(kkind)%fock_4c(2,k_atom) = force(kkind)%fock_4c(2,k_atom) - temp2 * contracted_forces(ma,mb,mc,md,8)
-                    force(kkind)%fock_4c(3,k_atom) = force(kkind)%fock_4c(3,k_atom) - temp2 * contracted_forces(ma,mb,mc,md,9)
-
-                    force(lkind)%fock_4c(1,l_atom) = force(lkind)%fock_4c(1,l_atom) - temp2 * contracted_forces(ma,mb,mc,md,10)
-                    force(lkind)%fock_4c(2,l_atom) = force(lkind)%fock_4c(2,l_atom) - temp2 * contracted_forces(ma,mb,mc,md,11)
-                    force(lkind)%fock_4c(3,l_atom) = force(lkind)%fock_4c(3,l_atom) - temp2 * contracted_forces(ma,mb,mc,md,12)
-                    IF(nspins == 2) THEN
-                      temp2 = temp1b*full_density_beta(pa,pd)
-                      force(ikind)%fock_4c(1,i_atom) = force(ikind)%fock_4c(1,i_atom) - temp2 * contracted_forces(ma,mb,mc,md,1)
-                      force(ikind)%fock_4c(2,i_atom) = force(ikind)%fock_4c(2,i_atom) - temp2 * contracted_forces(ma,mb,mc,md,2) 
-                      force(ikind)%fock_4c(3,i_atom) = force(ikind)%fock_4c(3,i_atom) - temp2 * contracted_forces(ma,mb,mc,md,3)
-
-                      force(jkind)%fock_4c(1,j_atom) = force(jkind)%fock_4c(1,j_atom) - temp2 * contracted_forces(ma,mb,mc,md,4) 
-                      force(jkind)%fock_4c(2,j_atom) = force(jkind)%fock_4c(2,j_atom) - temp2 * contracted_forces(ma,mb,mc,md,5)
-                      force(jkind)%fock_4c(3,j_atom) = force(jkind)%fock_4c(3,j_atom) - temp2 * contracted_forces(ma,mb,mc,md,6)
-
-                      force(kkind)%fock_4c(1,k_atom) = force(kkind)%fock_4c(1,k_atom) - temp2 * contracted_forces(ma,mb,mc,md,7)
-                      force(kkind)%fock_4c(2,k_atom) = force(kkind)%fock_4c(2,k_atom) - temp2 * contracted_forces(ma,mb,mc,md,8)
-                      force(kkind)%fock_4c(3,k_atom) = force(kkind)%fock_4c(3,k_atom) - temp2 * contracted_forces(ma,mb,mc,md,9)
-
-                      force(lkind)%fock_4c(1,l_atom) = force(lkind)%fock_4c(1,l_atom) - temp2 * contracted_forces(ma,mb,mc,md,10)
-                      force(lkind)%fock_4c(2,l_atom) = force(lkind)%fock_4c(2,l_atom) - temp2 * contracted_forces(ma,mb,mc,md,11)
-                      force(lkind)%fock_4c(3,l_atom) = force(lkind)%fock_4c(3,l_atom) - temp2 * contracted_forces(ma,mb,mc,md,12)
-                    END IF 
- 
-                  END DO !ma
-                END DO !mb
-              END DO !mc
-            END DO !md
-
-            DEALLOCATE(contracted_forces,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          
           END DO !latom
         END DO !katom
       END DO !jatom
     END DO !iatom
 
-    DEALLOCATE(T1,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(last_sgf_global,schwarz_screening, work_prim,work_prim_perm,STAT=stat)
+    DEALLOCATE(last_sgf_global,schwarz_screening, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(full_density,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1319,11 +1249,9 @@ MODULE four_center_integrals
       DEALLOCATE(full_density_beta,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    DEALLOCATE(work_forces, work_forces_perm,atom_of_kind,kind_of,STAT=stat)
+    DEALLOCATE(work_forces, atom_of_kind,kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-
-   
     !
     ! this wraps to free_libint, but currently causes a segfault
     ! as a result, we don't call it, but some memory remains allocated
@@ -1332,5 +1260,6 @@ MODULE four_center_integrals
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE derivatives_four_center
+!***************************************************************************
 
 END MODULE four_center_integrals
