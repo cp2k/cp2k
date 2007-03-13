@@ -1772,13 +1772,14 @@ END SUBROUTINE pv_imptors_numer
 !******************************************************************************
 
 SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
-                              particle_set, cell, pv_test, delta, error )
+                              particle_set, local_particles, cell, pv_test, delta, error )
 
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(INOUT)                          :: pv_test
@@ -1823,8 +1824,8 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         DO i = 1, natoms
            particle_set ( i ) % r ( : ) = MATMUL ( cell_local % hmat, s(:,i) )
         END DO
-        CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
-                                 ewald_env, cell_local, vnb ,error=error)
+        CALL potential_nonbond ( fist_nonbond_env, particle_set, local_particles, &
+                                 atomic_kind_set, ewald_env, cell_local, vnb ,error=error)
         vp = vnb
 
 ! tweak again
@@ -1833,8 +1834,8 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         DO i = 1, natoms
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
         END DO
-        CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
-                                 ewald_env, cell_local, vnb ,error=error)
+        CALL potential_nonbond ( fist_nonbond_env, particle_set, local_particles, &
+                                 atomic_kind_set, ewald_env, cell_local, vnb ,error=error)
         vm = vnb
 
 ! calculate the derivative
@@ -2769,12 +2770,13 @@ END SUBROUTINE potential_imptors
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
-                               ewald_env, cell, vnb, error )
+SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, local_particles, &
+                               atomic_kind_set, ewald_env, cell, vnb, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -2834,6 +2836,8 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
         END IF
      END DO
   END DO
+  CALL energy_manybody(fist_nonbond_env,atomic_kind_set,&
+                       local_particles,particle_set,cell,vnb,error=error)
 
 END SUBROUTINE potential_nonbond
 
@@ -3274,8 +3278,6 @@ SUBROUTINE fi_di_ev_many(fist_nonbond_env,particle_set,local_particles,atomic_ki
 
   nparticle = SIZE(particle_set)
   DO iparticle=1,nparticle
-   WRITE(*,*) ""
-   WRITE(*,*) "",numerical_shift
    r_orig(:) = particle_set(iparticle)%r(:)
    DO idim=1,3
     energy_plus = 0.0_dp
@@ -3293,8 +3295,6 @@ SUBROUTINE fi_di_ev_many(fist_nonbond_env,particle_set,local_particles,atomic_ki
     CALL energy_manybody(fist_nonbond_env,atomic_kind_set,&
                          local_particles,particle_set,cell,energy_minus,error=error)
     dexyz(idim) = energy_plus - energy_minus
-
-    WRITE(*,*) "XYZ  ",idim,iparticle,energy_plus,energy_minus
 
    END DO
    particle_set(iparticle)%r(:) = r_orig(:)

@@ -2441,7 +2441,7 @@ CALL parser_release(parser,error=error)
        tersoff%bigR    = bigR
        tersoff%bigD    = bigD
 
-       !!hardcode in so we eliminate possible error for units right now
+       !hardcode in so we eliminate possible error for units right now
        !tersoff%A       =  1.8308E+3_dp
        !tersoff%B       =  4.7118E+2_dp
        !tersoff%lambda1 =  2.4799_dp
@@ -2455,22 +2455,22 @@ CALL parser_release(parser,error=error)
        !tersoff%lambda3 =  1.7322_dp
        !tersoff%bigR    =  2.85_dp
        !tersoff%bigD    =  0.15_dp
-       !!hardcode in so we eliminate possible error for units right now
+       !hardcode in so we eliminate possible error for units right now
 
-       WRITE(*,*) "TERSOFF potential paramters: "
-       WRITE(*,*) "A        ",tersoff%A
-       WRITE(*,*) "B        ",tersoff%B
-       WRITE(*,*) "lambda1  ",tersoff%lambda1
-       WRITE(*,*) "lambda2  ",tersoff%lambda2
-       WRITE(*,*) "alpha    ",tersoff%alpha
-       WRITE(*,*) "beta     ",tersoff%beta
-       WRITE(*,*) "n        ",tersoff%n
-       WRITE(*,*) "c        ",tersoff%c
-       WRITE(*,*) "d        ",tersoff%d
-       WRITE(*,*) "h        ",tersoff%h
-       WRITE(*,*) "lambda3  ",tersoff%lambda3
-       WRITE(*,*) "R        ",tersoff%bigR
-       WRITE(*,*) "D        ",tersoff%bigD
+       !WRITE(*,*) "TERSOFF potential paramters: "
+       !WRITE(*,*) "A        ",tersoff%A
+       !WRITE(*,*) "B        ",tersoff%B
+       !WRITE(*,*) "lambda1  ",tersoff%lambda1
+       !WRITE(*,*) "lambda2  ",tersoff%lambda2
+       !WRITE(*,*) "alpha    ",tersoff%alpha
+       !WRITE(*,*) "beta     ",tersoff%beta
+       !WRITE(*,*) "n        ",tersoff%n
+       !WRITE(*,*) "c        ",tersoff%c
+       !WRITE(*,*) "d        ",tersoff%d
+       !WRITE(*,*) "h        ",tersoff%h
+       !WRITE(*,*) "lambda3  ",tersoff%lambda3
+       !WRITE(*,*) "R        ",tersoff%bigR
+       !WRITE(*,*) "D        ",tersoff%bigD
    
     END IF
     !CALL cp_print_key_finished_output(iw,logger,section,&

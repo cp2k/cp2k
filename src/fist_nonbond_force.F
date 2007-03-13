@@ -133,6 +133,7 @@ CONTAINS
     ! initializing the potential energy, pressure tensor and force
     pot_nonbond = 0.0_dp
     f_nonbond(:,:) = 0.0_dp
+    ptens_nonbond(:,:) = 0.0_dp
     IF(PRESENT(fshell_nonbond)) fshell_nonbond = 0.0_dp
     IF(PRESENT(fcore_nonbond)) fcore_nonbond = 0.0_dp
     shell_present = .FALSE.
@@ -249,8 +250,7 @@ CONTAINS
              IF (is_tersoff) THEN
                 pot => potparm %pot( ikind, jkind )%pot
                 CALL get_force_tersoff ( pot, particle_set, cell, &
-                                         atom_a, atom_b, f_nonbond )
-                fr = 0.0_dp
+                                         atom_a, atom_b, f_nonbond, ptens_nonbond )
              ENDIF
 
              IF(shell_a /= 0 ) THEN
@@ -384,15 +384,16 @@ CONTAINS
           END IF
        END DO
     END DO
-    ptens_nonbond(1,1) = ptens11
-    ptens_nonbond(1,2) = ptens12
-    ptens_nonbond(1,3) = ptens13
-    ptens_nonbond(2,1) = ptens21
-    ptens_nonbond(2,2) = ptens22
-    ptens_nonbond(2,3) = ptens23
-    ptens_nonbond(3,1) = ptens31
-    ptens_nonbond(3,2) = ptens32
-    ptens_nonbond(3,3) = ptens33
+
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) + ptens12
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) + ptens13
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) + ptens21
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) + ptens22
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) + ptens23
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) + ptens31
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) + ptens32
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) + ptens33
 
     CALL timestop ( handle )
 
@@ -803,12 +804,12 @@ CONTAINS
     END DO
   END FUNCTION ter_zeta_ij
 
-  SUBROUTINE ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond,prefactor)
+  SUBROUTINE ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond,ptens_nonbond,prefactor)
     TYPE(pair_potential_single_type), POINTER           :: pot
     TYPE(particle_type), INTENT(IN)                     :: particle_set( : )
     TYPE(cell_type), POINTER                            :: cell
     INTEGER, INTENT(IN)                                 :: iparticle, jparticle
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)       :: f_nonbond
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)       :: f_nonbond,ptens_nonbond
     REAL(KIND=dp), INTENT(IN)                           :: prefactor
     REAL(KIND=dp)                                       :: A,B
     REAL(KIND=dp)                                       :: lambda1,lambda2,lambda3
@@ -824,6 +825,7 @@ CONTAINS
     REAL(KIND=dp)                                       :: f_C,f_C_d
     REAL(KIND=dp)                                       :: gterm,gterm_d
     REAL(KIND=dp)                                       :: expterm,expterm_d
+    REAL(KIND=dp)                                       :: crapi,crapj,crapk
 
     n = pot%tersoff%n
     lambda3 = pot%tersoff%lambda3
@@ -879,7 +881,19 @@ CONTAINS
       f_nonbond(1,kparticle) = f_nonbond(1,kparticle) + prefactor*drk(1)
       f_nonbond(2,kparticle) = f_nonbond(2,kparticle) + prefactor*drk(2)
       f_nonbond(3,kparticle) = f_nonbond(3,kparticle) + prefactor*drk(3)
-            
+
+      ptens_nonbond(1,1) = ptens_nonbond(1,1) - prefactor*(rij(1)*drj(1) + rik(1)*drk(1))
+      ptens_nonbond(1,2) = ptens_nonbond(1,2) - prefactor*(rij(1)*drj(2) + rik(1)*drk(2))
+      ptens_nonbond(1,3) = ptens_nonbond(1,3) - prefactor*(rij(1)*drj(3) + rik(1)*drk(3))
+
+      ptens_nonbond(2,1) = ptens_nonbond(2,1) - prefactor*(rij(2)*drj(1) + rik(2)*drk(1))
+      ptens_nonbond(2,2) = ptens_nonbond(2,2) - prefactor*(rij(2)*drj(2) + rik(2)*drk(2))
+      ptens_nonbond(2,3) = ptens_nonbond(2,3) - prefactor*(rij(2)*drj(3) + rik(2)*drk(3))
+
+      ptens_nonbond(3,1) = ptens_nonbond(3,1) - prefactor*(rij(3)*drj(1) + rik(3)*drk(1))
+      ptens_nonbond(3,2) = ptens_nonbond(3,2) - prefactor*(rij(3)*drj(2) + rik(3)*drk(2))
+      ptens_nonbond(3,3) = ptens_nonbond(3,3) - prefactor*(rij(3)*drj(3) + rik(3)*drk(3))
+
     END DO
   END SUBROUTINE ter_zeta_ij_d
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1035,14 +1049,15 @@ CONTAINS
 
   !******************************************************************************
 
-  SUBROUTINE get_force_tersoff(pot,particle_set,cell,iparticle,jparticle,f_nonbond)
+  SUBROUTINE get_force_tersoff(pot,particle_set,cell,iparticle,jparticle,f_nonbond,&
+                               ptens_nonbond)
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(particle_type), INTENT(IN)          :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond
+      INTENT(INOUT)                          :: f_nonbond,ptens_nonbond
     REAL(KIND=dp)                            :: rij(3),drij,rij_hat(3)
     REAL(KIND=dp)                            :: RpD,RmD
     REAL(KIND=dp)                            :: f_R1, f_R2
@@ -1084,6 +1099,16 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R1*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R1*rij(3)
 
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_R1*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_R1*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_R1*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_R1*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_R1*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_R1*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_R1*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_R1*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_R1*rij(3)*rij(3)
+
     f_R2 = f_C * f_R_d
     f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_R2*rij(1)
     f_nonbond(2,iparticle) = f_nonbond(2,iparticle) + f_R2*rij(2)
@@ -1092,6 +1117,15 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R2*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R2*rij(3)
 
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_R2*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_R2*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_R2*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_R2*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_R2*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_R2*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_R2*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_R2*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_R2*rij(3)*rij(3)
 
     ! Lets do the f_A1 piece derivative of F_C
     f_A1 = f_C_d * (b_ij+b_ji) * f_A
@@ -1102,6 +1136,15 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A1*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A1*rij(3)
 
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_A1*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_A1*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_A1*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_A1*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_A1*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_A1*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_A1*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_A1*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_A1*rij(3)*rij(3)
 
     ! Lets do the f_A2 piece derivative of F_A
     f_A2 = f_C * (b_ij+b_ji) * f_A_d
@@ -1112,11 +1155,21 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A2*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A2*rij(3)
 
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_A2*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_A2*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_A2*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_A2*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_A2*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_A2*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_A2*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_A2*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_A2*rij(3)*rij(3)
+
     ! Lets do the f_A3 piece derivative of b_ij
     prefactor = f_C * b_ij_d * f_A    ! Note need to do d(Zeta_ij)/dR
-    CALL ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond,prefactor)
+    CALL ter_zeta_ij_d(pot,particle_set,cell,iparticle,jparticle,f_nonbond,ptens_nonbond,prefactor)
     prefactor = f_C * b_ji_d * f_A    ! Note need to do d(Zeta_ij)/dR
-    CALL ter_zeta_ij_d(pot,particle_set,cell,jparticle,iparticle,f_nonbond,prefactor)
+    CALL ter_zeta_ij_d(pot,particle_set,cell,jparticle,iparticle,f_nonbond,ptens_nonbond,prefactor)
 
   END SUBROUTINE get_force_tersoff
 
