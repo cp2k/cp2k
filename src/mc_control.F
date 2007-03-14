@@ -123,7 +123,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
                                                 iparticle, iunit, natom, &
                                                 nmol_types, nmolecule, &
                                                 nunits_tot, unit
-    REAL(KIND=dp)                            :: temp
+    REAL(KIND=dp)                            :: temperature
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(cell_type), POINTER                 :: cell
@@ -140,7 +140,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
   CALL timeset(routineN,'I','',handle)
 
 ! get some data from mc_par
-  CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=temp,&
+  CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temperature=temperature,&
       ensemble=ensemble)
 
 ! open the file and write some simulation parameters
@@ -158,7 +158,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
   nunits_tot=SIZE(particles%els(:))
   IF(SUM(nchains(:)) == 0) nunits_tot=0
   WRITE(unit,*) nnstep
-  WRITE(unit,*) temp,nunits_tot
+  WRITE(unit,*) temperature,nunits_tot
   WRITE(unit,*) ensemble
   WRITE(unit,*) nchains(:)
   WRITE(unit,'(3(F10.6,3X))') abc(1:3)*angstrom  ! in angstroms
@@ -237,7 +237,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
                                                 print_level, source, unit
     INTEGER, DIMENSION(:), POINTER           :: nchains, nunits
     LOGICAL                                  :: ionode
-    REAL(KIND=dp)                            :: mc_temp, rand, temp
+    REAL(KIND=dp)                            :: mc_temp, rand, temperature
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, box_length
@@ -255,7 +255,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
       CALL timeset(routineN,'I','',handle)
 
 ! get some stuff from the mc_par
-      CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=mc_temp,&
+      CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temperature=mc_temp,&
          ensemble=mc_ensemble,mc_molecule_info=mc_molecule_info,&
          ionode=ionode,dat_file=dat_file,&
          group=group,source=source,mc_input_file=mc_input_file)
@@ -275,22 +275,22 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
             file_action='READ',file_status='OLD')
 
          READ(unit,*) nstart
-         READ(unit,*) temp,nunits_tot
+         READ(unit,*) temperature,nunits_tot
          READ(unit,*) ensemble
          READ(unit,*) nchains(1:nmol_types)
       ENDIF
       CALL mp_bcast(nstart,source,group)
-      CALL mp_bcast(temp,source,group)
+      CALL mp_bcast(temperature,source,group)
       CALL mp_bcast(nunits_tot,source,group)
       CALL mp_bcast(ensemble,source,group)
 
 ! do some checking
-      IF(ABS(temp - mc_temp) .GT. 0.01E0_dp) THEN
+      IF(ABS(temperature - mc_temp) .GT. 0.01E0_dp) THEN
          IF(ionode) THEN
             WRITE(iw,*) 'The temperature in the restart file is ',&
                'not the same as the input file.'
-            WRITE(iw,*) 'Input file temp =',mc_temp
-            WRITE(iw,*) 'Restart file temp =',temp
+            WRITE(iw,*) 'Input file temperature =',mc_temp
+            WRITE(iw,*) 'Restart file temperature =',temperature
          ENDIF
          CALL stop_program(routineN,moduleN,__LINE__,&
             "Temperature difference between restart and input")

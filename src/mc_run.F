@@ -63,7 +63,8 @@ MODULE mc_run
   USE kinds,                           ONLY: dp
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart
-  USE mc_ensembles,                    ONLY: mc_run_ensemble
+  USE mc_ensembles,                    ONLY: mc_run_ensemble,&
+                                             mc_compute_virial
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_env_create,&
                                              mc_env_release,&
@@ -190,7 +191,7 @@ CONTAINS
 
 ! now we read in the second force_env, if we have another box
       SELECT CASE(ensemble)
-      CASE("TRADITIONAL")
+      CASE("TRADITIONAL","VIRIAL")
          nboxes=1
       CASE("GEMC_NVT","GEMC_NPT")
          nboxes=2
@@ -206,7 +207,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "force_env",nboxes)
       SELECT CASE(ensemble)
-      CASE("TRADITIONAL")
+      CASE("TRADITIONAL","VIRIAL")
          force_env(1)%force_env => force_env_1
       CASE("GEMC_NVT","GEMC_NPT")
          force_env(1)%force_env => force_env_1
@@ -343,8 +344,16 @@ CONTAINS
             force_env=force_env(ibox)%force_env)
 
       ENDDO
-      CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,error,&
-           rng_stream)
+
+! if we're computing the second virial coefficient, do that instead
+! of running a simulation
+      SELECT CASE(ensemble)
+      CASE("VIRIAL")
+         CALL mc_compute_virial(mc_env,error,rng_stream)
+      CASE DEFAULT
+         CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,error,&
+              rng_stream)
+      END SELECT
 
 ! get rid of all the MC molecule information
       CALL get_mc_env( mc_env(1)%mc_env, mc_par = mc_par(1)%mc_par)
@@ -425,7 +434,7 @@ CONTAINS
     LOGICAL                                  :: lbias, lrestart, lstop
     REAL(dp)                                 :: BETA, pmswap, pmtraion, &
                                                 pmtrans, pmvolume, pressure, &
-                                                rcut, temp
+                                                rcut, temperature
     REAL(dp), DIMENSION(:), POINTER :: avbmc_rmax, avbmc_rmin, pbias, &
       pmavbmc_mol, pmrot_mol, pmswap_mol, pmtraion_mol, pmtrans_mol
 
@@ -435,7 +444,7 @@ CONTAINS
          WRITE(iw,'( A,A )' ) 'Ignoring some input for box 2, and ',&
               'using the values for box 1 for the following variables:'
          WRITE(iw,'( A,A )' ) 'nstep,iupvolume,iuptrans,nmoves,',&
-              'nswapmoves,iprint,lbias,lstop,temp,pressure'
+              'nswapmoves,iprint,lbias,lstop,temperature,pressure'
          WRITE(iw,'( A,A )' ) 'pmvolume,pmtraion,pmtrans,BETA,rcut,',&
               'lrestart'
          WRITE(iw,'( A,A )' ) 'pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,',&
@@ -445,7 +454,7 @@ CONTAINS
       
       CALL get_mc_par(mc_par(1)%mc_par,nstep=nstep,iupvolume=iupvolume,&
            iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
-           iprint=iprint,lbias=lbias,lstop=lstop,temp=temp,&
+           iprint=iprint,lbias=lbias,lstop=lstop,temperature=temperature,&
            pressure=pressure,pmswap=pmswap,pmvolume=pmvolume,&
            pmtraion=pmtraion,pmtrans=pmtrans,BETA=BETA,rcut=rcut,&
            lrestart=lrestart,pmtraion_mol=pmtraion_mol,pmtrans_mol=pmtrans_mol,&
@@ -454,7 +463,7 @@ CONTAINS
            pbias=pbias,ensemble=ensemble)
       CALL set_mc_par(mc_par(2)%mc_par,nstep=nstep,iupvolume=iupvolume,&
            iuptrans=iuptrans,nmoves=nmoves,nswapmoves=nswapmoves,&
-           iprint=iprint,lbias=lbias,lstop=lstop,temp=temp,&
+           iprint=iprint,lbias=lbias,lstop=lstop,temperature=temperature,&
            pressure=pressure,pmswap=pmswap,pmvolume=pmvolume,&
            pmtraion=pmtraion,pmtrans=pmtrans,BETA=BETA,rcut=rcut,&
            lrestart=lrestart,pmtraion_mol=pmtraion_mol,pmtrans_mol=pmtrans_mol,&

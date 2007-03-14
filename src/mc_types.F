@@ -97,6 +97,7 @@ MODULE mc_types
       INTEGER :: nstep
       INTEGER :: iupvolume
       INTEGER :: iuptrans
+      INTEGER :: nvirial
       INTEGER :: nbox
       INTEGER :: nmoves
       INTEGER :: nswapmoves
@@ -130,7 +131,7 @@ MODULE mc_types
       REAL ( dp ) :: discrete_step
       REAL ( dp ) :: rmvolume
       REAL ( dp ),DIMENSION(:),POINTER :: rmbond,rmangle,rmdihedral,rmrot,rmtrans
-      REAL ( dp ) :: temp
+      REAL ( dp ) :: temperature
       REAL ( dp ) :: pressure
       REAL ( dp ) :: pmavbmc
       REAL ( dp ) :: pmswap
@@ -280,10 +281,10 @@ CONTAINS
    
  END SUBROUTINE GET_MC_INPUT_FILE
 !******************************************************************************
- SUBROUTINE get_mc_par ( mc_par, nstep, iuptrans, iupvolume, &
+ SUBROUTINE get_mc_par ( mc_par, nstep, nvirial, iuptrans, iupvolume, &
        nmoves,nswapmoves,rm,cl,diff,nstart,&
        source,group,lbias,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
-       rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
+       rmrot,rmtrans,temperature,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,PROGRAM,restart_file_name,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        fft_lib,iprint,rcut,ldiscrete,discrete_step,&
@@ -314,13 +315,14 @@ CONTAINS
       POINTER                                :: mc_par
     INTEGER, INTENT(OUT), OPTIONAL           :: nstep, iuptrans, iupvolume, &
                                                 nmoves, nswapmoves, rm, cl, &
-                                                diff, nstart, source, group
+                                                diff, nstart, source, group,&
+                                                nvirial
     LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rmvolume
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rmbond, rmangle, rmrot, &
                                                 rmtrans
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temp, pressure, BETA, pmswap, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: temperature, pressure, BETA, pmswap, &
                                                 pmvolume, pmtraion, pmtrans
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
       restart_file_name, molecules_file, moves_file, coords_file, &
@@ -355,6 +357,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( nstep ) ) nstep = mc_par % nstep
+    IF ( PRESENT ( nvirial ) ) nvirial = mc_par % nvirial
     IF ( PRESENT ( iuptrans ) ) iuptrans = mc_par % iuptrans
     IF ( PRESENT ( iupvolume ) ) iupvolume = mc_par % iupvolume
     IF ( PRESENT ( nmoves ) ) nmoves = mc_par % nmoves
@@ -379,7 +382,7 @@ CONTAINS
     IF ( PRESENT ( rcut ) ) rcut = mc_par % rcut
     IF ( PRESENT ( discrete_step ) ) discrete_step = mc_par % discrete_step
     IF ( PRESENT ( rmvolume ) ) rmvolume = mc_par % rmvolume
-    IF ( PRESENT ( temp ) ) temp = mc_par % temp
+    IF ( PRESENT ( temperature ) ) temperature = mc_par % temperature
     IF ( PRESENT ( pressure ) ) pressure = mc_par % pressure
     IF ( PRESENT ( BETA ) ) BETA = mc_par % BETA
     IF ( PRESENT ( pmswap ) ) pmswap = mc_par % pmswap
@@ -491,7 +494,7 @@ CONTAINS
 
 SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       diff,nstart,rmvolume,rmbond,rmangle,rmdihedral,rmrot,rmtrans,PROGRAM,&
-      nmoves,nswapmoves,lstop,temp,pressure,iuptrans,iupvolume,&
+      nmoves,nswapmoves,lstop,temperature,pressure,iuptrans,iupvolume,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
       lrestart,ldiscrete,discrete_step,pmavbmc,mc_molecule_info,&
       pmavbmc_mol,pmtrans_mol,pmrot_mol,pmtraion_mol,pmswap_mol,&
@@ -527,7 +530,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM
     INTEGER, INTENT(IN), OPTIONAL            :: nmoves, nswapmoves
     LOGICAL, INTENT(IN), OPTIONAL            :: lstop
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temp, pressure
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temperature, pressure
     INTEGER, INTENT(IN), OPTIONAL            :: iuptrans, iupvolume
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmswap, pmvolume, pmtraion, &
                                                 pmtrans, BETA, rcut
@@ -577,7 +580,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF ( PRESENT ( lrestart ) ) mc_par % lrestart = lrestart
 
     IF ( PRESENT ( BETA ) ) mc_par % BETA = BETA
-    IF ( PRESENT ( temp ) ) mc_par % temp = temp
+    IF ( PRESENT ( temperature ) ) mc_par % temperature = temperature
     IF ( PRESENT ( rcut ) ) mc_par % rcut = rcut
     IF ( PRESENT ( pressure ) ) mc_par % pressure = pressure
     IF ( PRESENT ( pmvolume ) ) mc_par % pmvolume = pmvolume
@@ -1305,6 +1308,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"NMOVES",i_val=mc_par%nmoves,error=error)
       CALL section_vals_val_get(mc_section,"NSWAPMOVES",i_val=mc_par%nswapmoves,error=error)
       CALL section_vals_val_get(mc_section,"IUPVOLUME",i_val=mc_par%iupvolume,error=error)
+      CALL section_vals_val_get(mc_section,"NVIRIAL",i_val=mc_par%nvirial,error=error)
       CALL section_vals_val_get(mc_section,"IUPTRANS",i_val=mc_par%iuptrans,error=error)
       CALL section_vals_val_get(mc_section,"IPRINT",i_val=mc_par%iprint,error=error)
 ! now an integer array
@@ -1315,7 +1319,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
 ! now the real values
       CALL section_vals_val_get(mc_section,"PRESSURE",r_val=mc_par%pressure,error=error)
-      CALL section_vals_val_get(mc_section,"TEMP",r_val=mc_par%temp,error=error)
+      CALL section_vals_val_get(mc_section,"TEMPERATURE",r_val=mc_par%temperature,error=error)
       CALL section_vals_val_get(mc_section,"PMVOLUME",r_val=mc_par%pmvolume,error=error)
       CALL section_vals_val_get(mc_section,"PMVOL_BOX",r_val=mc_par%pmvol_box,error=error)
       CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
@@ -1440,6 +1444,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
             mc_par % pmrot_mol
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| iupvolume ', &
             mc_par % iupvolume
+         WRITE ( iw, '( A,T71,I10 )' ) ' MC| nvirial ', &
+            mc_par % nvirial
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| iuptrans ', &
             mc_par % iuptrans
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| iprint ', &
@@ -1489,7 +1495,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          WRITE ( iw, format_string ) ' MC| rmrot [degrees]', &
             mc_par % rmrot
          WRITE ( iw, '( A,T71,F10.2 )' ) ' MC| Temperature [K] ', &
-            mc_par % temp
+            mc_par % temperature
          WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| Pressure [bar] ', &
             mc_par % pressure
          WRITE ( iw, format_string_int ) ' MC| AVBMC target atom ', &
@@ -1524,7 +1530,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       END IF
 
 ! figure out what beta (1/kT) is in atomic units (1/Hartree)
-      mc_par % BETA = 1 / mc_par%temp / boltzmann * joule
+      mc_par % BETA = 1 / mc_par%temperature / boltzmann * joule
 
 ! convert from bar to a.u.
       CALL convert_to_cp2k_units(pressure=mc_par%pressure)
@@ -1987,16 +1993,16 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_parameters_check'
 
-    INTEGER                                  :: imol_type, nboxes, nmol_types
+    INTEGER                                  :: imol_type, nboxes, nmol_types,&
+                                                nchain_total
     INTEGER, DIMENSION(:), POINTER           :: nunits
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
-
 !******************************************************************************
 
     CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info)
 
     CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
-         nboxes=nboxes,nunits=nunits)
+         nboxes=nboxes,nunits=nunits,nchain_total=nchain_total)
 
 ! the final value of these arrays needs to be 1.0, otherwise there is
 ! a chance we won't select a molecule type for a move
@@ -2038,6 +2044,10 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
        IF(mc_par%pmswap .GT. 0.0E0_dp)&
             CALL stop_program(routineN,moduleN,__LINE__,&
             'You cannot do swap moves in a system with only one box')
+    CASE("VIRIAL")
+       IF(nchain_total .NE. 2)&
+            CALL stop_program(routineN,moduleN,__LINE__,&
+            'You need exactly two molecules in the box to compute the second virial.')
     END SELECT
 
 ! can't choose an AVBMC target atom number higher than the number

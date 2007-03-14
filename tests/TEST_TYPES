@@ -1,4 +1,4 @@
-11
+12
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -10,6 +10,7 @@ VIB|Frequency !3
 EffPot = !6
 BAND TOTAL ENERGY \[au\] !6
 ENERGY| Total FORCE_EVAL!9
+B2(T) =!4
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value

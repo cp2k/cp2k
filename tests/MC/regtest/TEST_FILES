@@ -30,3 +30,5 @@ canonical.inp 6
 # bias_template.inp)...performs a series of moves with the biasing
 # potential before correcting with the "real" potential
 canonical_bias.inp 6
+# computes the second virial coefficient of SCP/E water at 300.0 K
+virial.inp 12

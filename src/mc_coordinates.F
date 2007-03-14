@@ -48,7 +48,8 @@ MODULE mc_coordinates
             get_center_of_mass,mc_coordinate_fold,&
             find_mc_test_molecule,&
             create_discrete_array,&
-            check_for_overlap
+            check_for_overlap,&
+            rotate_molecule
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_coordinates'
 

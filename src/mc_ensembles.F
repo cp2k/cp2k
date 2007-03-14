@@ -40,12 +40,15 @@ MODULE mc_ensembles
                                              dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
+  USE mathconstants,                   ONLY: pi
   USE mc_control,                      ONLY: mc_create_bias_force_env,&
                                              write_mc_restart
   USE mc_coordinates,                  ONLY: check_for_overlap,&
                                              create_discrete_array,&
                                              find_mc_test_molecule,&
-                                             mc_coordinate_fold
+                                             mc_coordinate_fold,&
+                                             get_center_of_mass,&
+                                             rotate_molecule
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_environment_p_type,&
                                              set_mc_env
@@ -78,7 +81,8 @@ MODULE mc_ensembles
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
-  USE physcon,                         ONLY: angstrom
+  USE physcon,                         ONLY: angstrom,&
+                                             n_avogadro
   USE termination,                     ONLY: external_control,&
                                              stop_memory,&
                                              stop_program
@@ -94,7 +98,7 @@ MODULE mc_ensembles
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_ensembles'
 
-  PUBLIC :: mc_run_ensemble
+  PUBLIC :: mc_run_ensemble,mc_compute_virial
 
 !!***
 ! *****************************************************************************
@@ -328,7 +332,7 @@ CONTAINS
                potential_energy=old_energy(ibox),&
                error=error)
          ELSE
-            old_energy(ibox)=0.0d0
+            old_energy(ibox)=0.0E0_dp
          ENDIF
          initial_energy(ibox)=old_energy(ibox)
 
@@ -384,7 +388,7 @@ CONTAINS
                   potential_energy=last_bias_energy(ibox),error=error)
 
             ELSE
-               last_bias_energy(ibox)=0.0d0
+               last_bias_energy(ibox)=0.0E0_dp
             ENDIF
             bias_energy(ibox)=last_bias_energy(ibox)
             DEALLOCATE(atom_names_box,STAT=istat)
@@ -572,7 +576,7 @@ CONTAINS
                           potential_energy=last_bias_energy(ibox),&
                           error=error)
                   ELSE
-                     last_bias_energy(ibox)=0.0d0
+                     last_bias_energy(ibox)=0.0E0_dp
                   ENDIF
                   bias_energy(ibox)=last_bias_energy(ibox)
                   DEALLOCATE(atom_names_box,STAT=istat)
@@ -1029,7 +1033,7 @@ CONTAINS
                potential_energy=test_energy,&
                error=error)
             ELSE
-               test_energy=0.0d0
+               test_energy=0.0E0_dp
             ENDIF
 
             IF(ABS(initial_energy(ibox)+energy_check(ibox)-&
@@ -1063,7 +1067,7 @@ CONTAINS
                potential_energy=final_energy(ibox),&
                error=error)
          ELSE
-            final_energy(ibox)=0.0d0
+            final_energy(ibox)=0.0E0_dp
          ENDIF
          IF (lbias) THEN
             CALL section_vals_release(bias_env(ibox)%force_env%root_section,error=error)
@@ -1172,6 +1176,326 @@ CONTAINS
 
   END SUBROUTINE mc_run_ensemble
 
+! *****************************************************************************
+!!****s* mc_ensembles.F/mc_compute_virial
+!!
+!!   NAME
+!!     mc_compute_virial
+!!
+!!   FUNCTION
+!!     Computes the second virial coefficient of a molecule by using the integral form
+!!     of the second virial coefficient found in McQuarrie "Statistical Thermodynamics", 
+!!     B2(T) = -2Pi Int 0toInf [ Exp[-beta*u(r)] -1] r^2 dr     Eq. 15-25
+!!     I use trapazoidal integration with various step sizes
+!!     (the integral is broken up into three parts, currently, but that's easily
+!!     changed by the first variables found below).  It generates nvirial configurations,
+!!     doing the integration for each one, and then averages all the B2(T) to produce
+!!     the final answer.
+!!
+!!   ARGUMENTS
+!!     - mc_env: a pointer that contains all mc_env for all the simulation
+!!         boxes
+!!     - globenv: the global environment for the simulation
+!!     - error: the error type
+!!     - rng_stream: the stream we pull random numbers from
+!!
+!!   Suitable for parallel.
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!**************************************************************************
+  SUBROUTINE mc_compute_virial ( mc_env, error, rng_stream)
+
+!   ***************************************************************************
+
+    TYPE(mc_environment_p_type), &
+      DIMENSION(:), POINTER                  :: mc_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+
+! *** local
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_compute_virial'
+
+    INTEGER, DIMENSION(:, :), POINTER        :: nchains
+    INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
+    INTEGER                                  :: group, nintegral_divisions,&
+                                                iparticle, istat, iunit, &
+                                                ivirial, iw, nchain_total, &
+                                                idivision, current_division, &
+                                                nmol_types, source, &
+                                                start_atom, end_atom, nvirial
+    LOGICAL                                  :: ionode, loverlap
+    REAL(dp), DIMENSION(:), POINTER          :: virial_cutoffs,virial_stepsize
+    REAL(dp), DIMENSION(:, :), POINTER       :: mass,r_old
+    REAL(KIND=dp)                            :: ave_virial,&
+                                                previous_exponential,distance,&
+                                                current_exponential,BETA,&
+                                                exponent,trial_energy,&
+                                                integral,previous_value,&
+                                                current_value,square_value,&
+                                                triangle_value,temperature
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc,center_of_mass
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
+    TYPE(cp_subsystem_pp_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
+    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+    TYPE(mc_simulation_parameters_p_type), &
+      DIMENSION(:), POINTER                  :: mc_par
+    TYPE(particle_list_p_type), &
+      DIMENSION(:), POINTER                  :: particles
+
+!***********************************************************************
+
+! these are current magic numbers for how we compute the virial...
+! we break it up into three parts to integrate the function so provide
+! better statistics
+    nintegral_divisions=3
+    ALLOCATE (virial_cutoffs(1:nintegral_divisions),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "virial_cutoffs",dp_size*nintegral_divisions)
+    ALLOCATE (virial_stepsize(1:nintegral_divisions),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "virial_stepsize",dp_size*nintegral_divisions)
+    virial_cutoffs(1)=8.0 ! first distance, in bohr
+    virial_cutoffs(2)=13.0 ! second distance, in bohr
+    virial_cutoffs(3)=22.0 ! maximum distance, in bohr
+    virial_stepsize(1)=0.04 ! stepsize from 0 to virial_cutoffs(1)
+    virial_stepsize(2)=0.1
+    virial_stepsize(3)=0.2
+
+! figure out what the default write unit is
+    iw = cp_logger_get_default_unit_nr()
+
+    IF (ionode) THEN
+       WRITE(iw,*)
+       WRITE(iw,*)
+       WRITE(iw,*) 'Beginning the calculation of the second virial coefficient'
+       WRITE(iw,*)
+       WRITE(iw,*)
+    ENDIF
+
+
+! allocate a whole bunch of stuff based on how many boxes we have
+      ALLOCATE (force_env(1:1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "force_env",1*dp_size*1)
+      ALLOCATE (cell(1:1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "cell",1*dp_size*1)
+      ALLOCATE (particles(1:1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "particles",1*dp_size*1)
+      ALLOCATE (subsys(1:1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "subsys",1*dp_size*1)
+      ALLOCATE (mc_par(1:1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par",1*dp_size*1)
+
+      CALL get_mc_env ( mc_env(1)%mc_env, &
+           mc_par = mc_par(1)%mc_par,&
+           force_env=force_env(1)%force_env)
+
+! get some data out of mc_par
+      CALL get_mc_par(mc_par(1)%mc_par,nvirial=nvirial,&
+         ionode=ionode,source=source,group=group,BETA=BETA,&
+         mc_molecule_info=mc_molecule_info,temperature=temperature)
+
+      IF (ionode) THEN
+         WRITE(iw,*)
+         WRITE(iw,*)
+         WRITE(iw,*) 'Beginning the calculation of the second virial coefficient'
+         WRITE(iw,*)
+         WRITE(iw,*)
+      ENDIF
+
+! get some data from the molecule types
+      CALL get_mc_molecule_info(mc_molecule_info,&
+           nchains=nchains,nmol_types=nmol_types,nunits_tot=nunits_tot,&
+           mol_type=mol_type,nchain_total=nchain_total,nunits=nunits,&
+           mass=mass)
+
+! get the subsystems and the cell information
+      CALL force_env_get(force_env(1)%force_env,&
+           subsys=subsys(1)%subsys,cell=cell(1)%cell,&
+           error=error)
+      CALL get_cell(cell(1)%cell,abc=abc(:))
+      CALL cp_subsys_get(subsys(1)%subsys(1)%subsys, &
+           particles=particles(1)%list, error=error)
+
+! check and make sure the box is big enough
+      IF(abc(1) .NE. abc(2) .OR. abc(2) .NE. abc(3)) THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'The box needs to be cubic for a virial calculation (it is easiest).')
+      END IF
+      IF(virial_cutoffs(nintegral_divisions) .GT. abc(1)/2.0E0_dp) THEN
+         WRITE(iw,*) "Box length ",abc(1)*angstrom," virial cutoff ",virial_cutoffs(nintegral_divisions)*angstrom
+         CALL stop_program(routineN,moduleN,__LINE__,&
+              'You need a bigger box to deal with this virial cutoff (see above).')
+      END IF
+
+! store the coordinates of the molecules in an array so we can work with it
+      ALLOCATE (r_old(1:3,1:nunits_tot(1)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par",3*dp_size*nunits_tot(1))
+      DO iparticle=1,nunits_tot(1)
+         r_old(1:3,iparticle)=&
+              particles(1)%list%els(iparticle)%r(1:3)
+      ENDDO
+
+! move the center of mass of molecule 1 to the origin
+      start_atom=1
+      end_atom=nunits(mol_type(1))
+      CALL get_center_of_mass(r_old(:,start_atom:end_atom),nunits(mol_type(1)),&
+           center_of_mass(:),mass(1:nunits(mol_type(1)),mol_type(1)))
+      DO iunit=start_atom,end_atom
+         r_old(:,iunit)=r_old(:,iunit)-center_of_mass(:)
+      ENDDO
+! set them in the force_env, so the first molecule is ready for the energy calc
+      DO iparticle=start_atom,end_atom
+         particles(1)%list%els(iparticle)%r(1:3)=r_old(1:3,iparticle)
+      ENDDO
+
+! loop over all nvirial random configurations
+      ave_virial=0.0E0_dp
+      DO ivirial=1,nvirial
+
+! move molecule two back to the origin
+         start_atom=nunits(mol_type(1))+1
+         end_atom=nunits_tot(1)
+         CALL get_center_of_mass(r_old(:,start_atom:end_atom),nunits(mol_type(2)),&
+              center_of_mass(:),mass(1:nunits(mol_type(2)),mol_type(2)))
+         DO iunit=start_atom,end_atom
+            r_old(:,iunit)=r_old(:,iunit)-center_of_mass(:)
+         ENDDO
+
+! now we need a random orientation for molecule 2...this routine is
+! only done in serial since it calls a random number
+         IF(ionode) THEN
+            CALL rotate_molecule(r_old(:,start_atom:end_atom),&
+                 mass(1:nunits(mol_type(2)),mol_type(2)),&
+                 nunits(mol_type(2)),rng_stream,error=error)
+         ENDIF
+         CALL mp_bcast(r_old(:,:),source,group)
+
+         previous_exponential=0.0E0_dp
+         distance=0.0E0_dp
+         integral=0.0E0_dp
+         DO
+! find out what our stepsize is
+            current_division=0
+            DO idivision=1,nintegral_divisions
+               IF(distance .LT. virial_cutoffs(idivision)-virial_stepsize(idivision)/2.0E0_dp) THEN
+                  current_division=idivision
+                  EXIT
+               ENDIF
+            ENDDO
+            IF(current_division == 0) EXIT
+            distance=distance+virial_stepsize(current_division)
+
+! move the second molecule only along the x direction
+            DO iparticle=start_atom,end_atom
+               particles(1)%list%els(iparticle)%r(1)=r_old(1,iparticle)+distance
+               particles(1)%list%els(iparticle)%r(2)=r_old(2,iparticle)
+               particles(1)%list%els(iparticle)%r(3)=r_old(3,iparticle)
+            ENDDO
+
+! check for overlaps
+            CALL check_for_overlap (force_env(1)%force_env,nchains(:,1),nunits,loverlap,mol_type)
+
+! compute the energy if there is no overlap
+            IF(loverlap) THEN
+               current_exponential=0.0E0_dp
+            ELSE
+               CALL force_env_calc_energy_force(force_env(1)%force_env,&
+                    calc_force=.FALSE.,error=error)
+               CALL force_env_get(force_env(1)%force_env,&
+                    potential_energy=trial_energy,error=error)
+               exponent=-BETA*trial_energy
+#if defined (__SGL)
+               IF(exponent .GT. 88.0_dp) THEN
+                  current_exponential=1.6E38_dp
+               ELSEIF(exponent .LT. -103.0_dp) THEN
+                  current_exponential=0.0_dp
+               ELSE
+                  current_exponential=EXP(exponent)
+               ENDIF
+#else
+               IF(exponent .GT. 500.0_dp) THEN
+                  current_exponential=1.4E217_dp
+               ELSEIF(exponent .LT. -500.0_dp) THEN
+                  current_exponential=0.0_dp
+               ELSE
+                  current_exponential=EXP(exponent)
+               ENDIF
+#endif
+            ENDIF
+
+! now we need to integrate, using the trapazoidal method
+! first, find the value of the square
+            previous_value=(previous_exponential-1.0E0_dp)*(distance-virial_stepsize(current_division))**2
+            current_value=(current_exponential-1.0E0_dp)*distance**2
+            square_value=previous_value*virial_stepsize(current_division)
+! now the triangle that sits on top of it, which is half the size of this square...
+! notice this is negative if the current value is less than the previous value
+            triangle_value=0.5E0_dp*((current_value-previous_value)*virial_stepsize(current_division))
+
+            integral=integral+square_value+triangle_value
+            previous_exponential=current_exponential
+         ENDDO
+
+! now that the integration is done, average the second virial that results
+         ave_virial=ave_virial-2.0E0_dp*pi*integral
+
+! write out some info that keeps track of where we are
+         IF(ionode) WRITE(iw,'(A,I6,A,I6)') ' Done with config ',ivirial,' out of ',nvirial
+      ENDDO
+
+! compute the average coefficient, and print it out to the screen
+      ave_virial=ave_virial/REAL(nvirial,dp)
+! convert from CP2K units to something else
+      ave_virial=ave_virial*n_avogadro*angstrom**3/1.0E8_dp**3
+      
+      IF(ionode) THEN
+         WRITE(iw,*)
+         WRITE(iw,*) '*********************************************************************'
+         WRITE(iw,'(A,F12.6,A)') ' ***                Temperature = ',temperature,'                     ***'
+         WRITE(iw,*) '***                                                               ***'
+         WRITE(iw,'(A,E12.6,A)') ' ***                  B2(T) = ',ave_virial,' cm**3/mol               ***'
+         WRITE(iw,*) '*********************************************************************'
+         WRITE(iw,*)
+      ENDIF
+
+! deallocate some stuff
+      DEALLOCATE(mc_par,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "mc_par")
+      DEALLOCATE(subsys,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "subsys")
+      DEALLOCATE(force_env,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "force_env")
+      DEALLOCATE(particles,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "particles")
+      DEALLOCATE(cell,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "cell")
+      DEALLOCATE(virial_cutoffs,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "virial_cutoffs")
+      DEALLOCATE(virial_stepsize,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "virial_stepsize")
+      DEALLOCATE(r_old,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "r_old")
+
+  END SUBROUTINE mc_compute_virial
 END MODULE mc_ensembles
 
 !**********************************************************************

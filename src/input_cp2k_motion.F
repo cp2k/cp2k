@@ -1211,11 +1211,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
+       CALL keyword_create(keyword, name="NVIRIAL",&
+            description="Use this many random orientations to compute the second virial coefficient (ENSEMBLE=VIRIAL)",&
+            usage="NVIRIAL {integer}",&
+            default_i_val=1000,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
        CALL keyword_create(keyword, name="ENSEMBLE",&
             description="Specify the type of simulation",&
-            usage="PROGRAM (TRADITIONAL|GEMC_NVT|GEMC_NPT)",&
-            enum_c_vals=s2a( "TRADITIONAL","GEMC_NVT","GEMC_NPT"),&
-            enum_i_vals=(/do_mc_traditional,do_mc_gemc_nvt,do_mc_gemc_npt/),&
+            usage="PROGRAM (TRADITIONAL|GEMC_NVT|GEMC_NPT|VIRIAL)",&
+            enum_c_vals=s2a( "TRADITIONAL","GEMC_NVT","GEMC_NPT","VIRIAL"),&
+            enum_i_vals=(/do_mc_traditional,do_mc_gemc_nvt,do_mc_gemc_npt,do_mc_virial/),&
             default_i_val=do_mc_traditional,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
@@ -1290,9 +1297,9 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="TEMP",&
+       CALL keyword_create(keyword, name="TEMPERATURE",&
             description="The temperature of the simulation, in Kelvin.",&
-            usage="TEMP {real}",&
+            usage="TEMPERATURE {real}",&
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
