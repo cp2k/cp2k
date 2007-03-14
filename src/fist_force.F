@@ -456,9 +456,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      END IF
   END IF
 
-!dbg
-!   stop 'f intra'
-!dbg
 !
 ! add up all the potential energies
 !
@@ -485,7 +482,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
 !dbg
 !  write(*,*) 'thermo%pot terms ES ', thermo % e_self , thermo % e_neut/cell % deth, vg_coulomb , thermo % e_bonded
-!   write(*,*) 'thermo%pot (2)', thermo % pot
 !dbg
 
   END IF

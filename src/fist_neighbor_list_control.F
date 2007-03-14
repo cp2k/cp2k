@@ -269,9 +269,6 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         rab(3) = + cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
      END IF
      r_last_update_pbc(iparticle )%r=particle_set(iparticle)%r+rab
-!dbg 
-!  write(*,*) 'ipart ', iparticle, r_last_update_pbc(iparticle )%r
-!dbg 
      ishell = particle_set(iparticle)%shell_index
      IF(ishell/=0) THEN
        dr=shell_particle_set(ishell)%r(:) - particle_set(iparticle)%r(:)
@@ -282,10 +279,6 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
        ELSE
          rcore_last_update_pbc(ishell )%r = r_last_update_pbc(iparticle )%r(:)
        END IF
-!dbg 
-!  write(*,*) 'core ',ishell, rcore_last_update_pbc(ishell )%r
-!  write(*,*) 'shell ',ishell, rshell_last_update_pbc(ishell )%r
-!dbg 
      END IF
   END DO
 
