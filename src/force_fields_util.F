@@ -1472,18 +1472,12 @@ CONTAINS
             qeff=charge(i))
        CALL set_atomic_kind(atomic_kind=atomic_kind,&
             elp_potential=elp_potential)
-!dbg
-! write(*,*) 'size list shell' ,ASSOCIATED(ff_type%inp_info%shell_list), SIZE(ff_type%inp_info%shell_list)
-!dbg
+
        ! The shell potential can be defined only from input
        IF(ASSOCIATED(ff_type%inp_info%shell_list)) THEN
           DO j=1,SIZE(ff_type%inp_info%shell_list)
              IF (iw>0) WRITE(iw,*)"Shell Checking ::",&
                        TRIM(ff_type%inp_info%shell_list(j)%atm_name),atmname
-!dbg
-!write(*,*)  'shell ', j, ff_type%inp_info%shell_list(j)%atm_name, TRIM(atmname)
-! write(*,*)  'same?', ((ff_type%inp_info%shell_list(j)%atm_name)==atmname)
-!dbg
 
              IF((ff_type%inp_info%shell_list(j)%atm_name)==atmname) THEN
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1492,9 +1486,6 @@ CONTAINS
                   CALL shell_create(shell,error)
                 END IF
                 nshell_tot = nshell_tot + natom
-!dbg
-! write(*,*)  'num shell now ', nshell_tot
-!dbg
                 shell%charge_core=ff_type%inp_info%shell_list(j)%shell%charge_core
                 shell%charge_shell=ff_type%inp_info%shell_list(j)%shell%charge_shell
                 shell%massfrac=ff_type%inp_info%shell_list(j)%shell%massfrac
@@ -1526,9 +1517,6 @@ CONTAINS
       IF(shell_adiabatic .AND. null_massfrac) THEN
          CALL stop_program(TRIM(routineN),"Shell-model adiabatic: at least one shell_kind has mass=0 Abort..")
       END IF
- !dbg
-!  write(*,*) 'adiab?' , shell_adiabatic
- !dbg
       CALL allocate_particle_set(shell_particle_set,nshell_tot)
       CALL allocate_particle_set(core_particle_set,nshell_tot)
       counter = 0
@@ -1550,9 +1538,6 @@ CONTAINS
           particle_set(i)%shell_index = 0
         END IF
       END DO  ! i atom in particle_set
-!dbg
-!  write(*,*) 'shell counted ', counter
-!dbg
 
       CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,error,failure)
       ! Initialize the shells coordinates
@@ -1575,9 +1560,6 @@ CONTAINS
         CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
         ALLOCATE(shell_list_tmp(natom),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
- !dbg
-!  write(*,*) 'mol kind ', i, first, last
-! dbg
         counter = 0
         DO j = first, last
           atomic_kind => particle_set(j)%atomic_kind
@@ -1588,9 +1570,6 @@ CONTAINS
             shell_list_tmp(counter) = j - first + 1
           END IF
         END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
-!dbg
-!  write(*,*) 'shell counted ', counter
-! dbg
         IF(counter/=0) THEN
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                shell_list=shell_list)
@@ -1616,9 +1595,6 @@ CONTAINS
         DEALLOCATE(shell_list_tmp,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         n = n + nmol * counter 
-!dbg
-!  write(*,*) 'shell per mol x mols ', n
-! dbg
       END DO  ! i molecule kind
     END IF  ! nshell_tot>0
     CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
@@ -1887,9 +1863,6 @@ CONTAINS
          SIZE ( atomic_kind_set ), &
          error )
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
-!dbg
-!  write(*,*) 'shell present?', shell_present
-!dbg
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local,&

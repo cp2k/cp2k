@@ -306,9 +306,6 @@ CONTAINS
           IF (iw3>0 .AND. iw<=0) THEN
              IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
           ENDIF
-!dbg
-! write(*,*) 'kind ', i, j, ' potparm undef ' , potparm%pot(i,j)%pot%undef
-!dbg
           IF (.NOT.potparm%pot(i,j)%pot%undef) CYCLE
           CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
           ncount = ncount + 1
@@ -492,7 +489,6 @@ CONTAINS
               qcj=qsj
             END IF
 
-!    write(*,*) ' charges ', qci, qsi, qcj, qsj
             IF((is_i_shell .OR. is_j_shell)) THEN
 !  core-core
               CPPostcondition(PRESENT(spline_c_coul),cp_failure_level,routineP,error,failure) 
