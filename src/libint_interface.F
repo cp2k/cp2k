@@ -363,7 +363,7 @@ MODULE libint_interface
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
-    REAL(dp), DIMENSION(:,:,:,:),POINTER    :: primitives
+    REAL(dp), DIMENSION(:,:,:,:)            :: primitives
     REAL(dp), INTENT(IN), OPTIONAL          :: omega
 
 #if defined(__LIBINT)
