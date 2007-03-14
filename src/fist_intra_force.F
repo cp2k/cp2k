@@ -239,7 +239,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      SHELL: DO ishell = 1, nshell
         index_a = shell_list ( ishell ) % a + first_atom - 1
         index_b = particle_set ( index_a ) % shell_index
-        rij = particle_set ( index_a ) % r - shell_particle_set ( index_b ) % r
+        rij = core_particle_set ( index_b ) % r - shell_particle_set ( index_b ) % r
         rij = pbc(rij,cell)
         type_func="HARMONIC"
         k1 = 0.0_dp
@@ -256,6 +256,9 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         shell_particle_set ( index_b )% f(1) = shell_particle_set ( index_b ) % f(1)  +rij(1) * fscalar
         shell_particle_set ( index_b )% f(2) = shell_particle_set ( index_b ) % f(2)  +rij(2) * fscalar
         shell_particle_set ( index_b )% f(3) = shell_particle_set ( index_b ) % f(3)  +rij(3) * fscalar
+
+!      THIS TERM SHOULD NOT GIVE ANY CONTRIBUTION TO THE STRESS TENSOR
+!      BECAUSE THE EFFECTIVE FORCE ON THE COM (between shell and core) IS ZERO
 
 !  the force on the COM is zero therefore there is no contribution to the stress tensor
 !        k2 =  rij * fscalar
@@ -276,7 +279,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 !        END IF
 
      END DO SHELL
-
 
      UREY_BRADLEY: DO ibend = 1, nub
         index_a = ub_list ( ibend ) % a + first_atom - 1

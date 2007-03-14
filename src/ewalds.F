@@ -328,8 +328,11 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
         nparticle_local = local_particles%n_el(iparticle_kind)
         IF(is_shell) THEN
           CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell, error=error)
-          q_self = q_self + qcore*qcore*nparticle_local + &
-                   qshell*qshell*nparticle_local
+! MI: I think it should be considered as a single particle, otherwise e_self is larger than
+!     the fixed-charges model. But anyway this is a constant, should not make a big difference
+!          q_self = q_self + qcore*qcore*nparticle_local + &
+!                   qshell*qshell*nparticle_local
+          q_self = q_self + (qcore+qshell)*(qcore+qshell)*nparticle_local
           q_sum = q_sum + qcore*nparticle_local + qshell*nparticle_local
         ELSE
           q_self = q_self + q*q*nparticle_local

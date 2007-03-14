@@ -249,7 +249,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
       core_particle_set ( i ) % f_embed = 0.0_dp
     END DO
   ENDIF
-
+ 
   pv_bc = 0.0_dp
   pv_bond = 0.0_dp
   pv_bend = 0.0_dp
@@ -269,6 +269,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   pot_shell = 0.0_dp
   vg_coulomb = 0.0_dp
   thermo % pot = 0.0_dp
+  thermo % harm_shell = 0.0_dp
   virial % pv_virial = 0.0_dp
 !
 ! get real-space non-bonded forces:
@@ -300,8 +301,13 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: NONBOND + R-SPACE ELECTROSTATIC FORCES ..."
      WRITE(iw,'(3f15.9)')f_nonbond
+     IF(shell_present .AND. shell_model_ad) THEN
+       WRITE(iw,'(A)')" FIST:: SHELL NONBOND + R-SPACE ELECTROSTATIC FORCES ..."
+       WRITE(iw,'(3f15.9)')fshell_nonbond
+       WRITE(iw,'(A)')" FIST:: CORE NONBOND + R-SPACE ELECTROSTATIC FORCES ..."
+       WRITE(iw,'(3f15.9)')fcore_nonbond
+     END IF
   END IF
-
 !
 ! get g-space non-bonded forces:
 !
@@ -401,6 +407,12 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
         WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
         WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(fg_coulomb,2))
      END IF
+     IF(shell_present .AND. shell_model_ad .AND. ALLOCATED(fgshell_coulomb)) THEN
+        WRITE(iw,'(A)')" FIST:: SHELL NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
+        WRITE(iw,'(3f15.9)')((fgshell_coulomb(j,i) ,j=1,3),i = 1, SIZE(fg_coulomb,2))
+        WRITE(iw,'(A)')" FIST:: CORE NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
+        WRITE(iw,'(3f15.9)')((fgcore_coulomb(j,i) ,j=1,3),i = 1, SIZE(fg_coulomb,2))
+     END IF
   END IF
 
 !
@@ -433,17 +445,37 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      WRITE(iw,'(1x,"1-4 VDW + 1-4 EEL (SHORT RANGE)  = ",f13.4,2x,'//&
           '"UBRAD      = ",f13.4)')xdum1,&
                                    xdum2
+    
      WRITE(iw,'(A)')" FIST:: CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
+     IF(shell_present .AND. shell_model_ad) THEN
+       WRITE(iw,'(A)')" FIST:: SHELL CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
+       WRITE(iw,'(3f15.9)')((shell_particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(shell_particle_set))
+       WRITE(iw,'(A)')" FIST:: CORE CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
+       WRITE(iw,'(3f15.9)')((core_particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(core_particle_set))
+     END IF
   END IF
 
+!dbg
+!   stop 'f intra'
+!dbg
 !
 ! add up all the potential energies
 !
   thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
                  pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
   CALL mp_sum ( thermo % pot, para_env%group )
+  IF(shell_present) THEN
+    thermo % harm_shell = pot_shell
+    CALL mp_sum ( thermo % harm_shell, para_env%group )
+  END IF
 !
+!dbg
+!  write(*,*) 'thermo%pot terms ', pot_nonbond , pot_bond , pot_bend , pot_torsion , pot_onef , &
+!                 pot_imptors , pot_urey_bradley , pot_manybody , pot_shell
+!   write(*,*) 'thermo%pot (1)', thermo % pot
+!dbg
+
 ! add g-space contributions if needed
   IF ( ewald_type /= do_ewald_none ) THEN
 ! e_self, e_neut, and ebonded are already summed over all processors
@@ -451,6 +483,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      thermo % e_gspace = vg_coulomb
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
      thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
+!dbg
+!  write(*,*) 'thermo%pot terms ES ', thermo % e_self , thermo % e_neut/cell % deth, vg_coulomb , thermo % e_bonded
+!   write(*,*) 'thermo%pot (2)', thermo % pot
+!dbg
+
   END IF
 !
 ! add up all the forces
@@ -487,6 +524,12 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (1) INTERNAL + ELECTROSTATIC BONDED + NONBONDED"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
+     IF(shell_present .AND. shell_model_ad) THEN
+       WRITE(iw,'(A)')" FIST:: (1) SHELL INTERNAL + ELECTROSTATIC BONDED + NONBONDED"
+       WRITE(iw,'(3f15.9)')((fshell_total ( j, i ),j=1,3), i = 1, nshell)
+       WRITE(iw,'(A)')" FIST:: (1) CORE INTERNAL + ELECTROSTATIC BONDED + NONBONDED"
+       WRITE(iw,'(3f15.9)')((fcore_total ( j, i ),j=1,3), i = 1, nshell)
+     END IF
   END IF
 
 ! Adding in the reciprocal forces: EWALD is a special
@@ -505,9 +548,14 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
           f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, node )
           IF(shell_present) THEN
             j = particle_set(ii) % shell_index
-            shell_particle_set(j)%f(1) = fshell_total(1,j) ! missing term 
-            shell_particle_set(j)%f(2) = fshell_total(2,j)  ! missing term 
-            shell_particle_set(j)%f(3) = fshell_total(3,j)  ! missing term 
+            IF(j/=0) THEN
+              shell_particle_set(j)%f(1) = fshell_total(1,j) ! missing term 
+              shell_particle_set(j)%f(2) = fshell_total(2,j)  ! missing term 
+              shell_particle_set(j)%f(3) = fshell_total(3,j)  ! missing term 
+              core_particle_set(j)%f(1) = fcore_total(1,j) ! missing term 
+              core_particle_set(j)%f(2) = fcore_total(2,j)  ! missing term 
+              core_particle_set(j)%f(3) = fcore_total(3,j)  ! missing term 
+            END IF
           END IF
           IF ( PRESENT ( debug )  ) THEN
             debug % f_g ( 1, ii ) =  debug % f_g ( 1, ii ) + fg_coulomb ( 1, node )
@@ -519,9 +567,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   END SELECT
 
 
-  IF (iw>0) THEN
+ IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
+     IF(shell_present .AND. shell_model_ad) THEN
+       WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES "
+       WRITE(iw,'(3f15.9)')((fshell_total ( j, i ),j=1,3), i = 1, nshell)
+       WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
+       WRITE(iw,'(3f15.9)')((fcore_total ( j, i ),j=1,3), i = 1, nshell)
+     END IF
   END IF
 
 !
@@ -649,6 +703,12 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)
+     IF(shell_present .AND. shell_model_ad) THEN
+       WRITE(iw,'(A)')" FIST:: (3) SHELL TOTAL FORCES - THE END..."
+       WRITE(iw,'(3f15.9)')((shell_particle_set ( i )% f ( j ),j=1,3), i = 1, nshell)
+       WRITE(iw,'(A)')" FIST:: (3) CORE TOTAL FORCES - THE END..."
+       WRITE(iw,'(3f15.9)')((core_particle_set ( i )% f ( j ),j=1,3), i = 1, nshell)
+     END IF
      WRITE(iw,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
   END IF
 

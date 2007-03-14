@@ -181,7 +181,6 @@ CONTAINS
          CPPostcondition(PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
        ELSE
          c_spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
-         CPPostcondition(.NOT.PRESENT(fshell_nonbond),cp_failure_level,routineP,error,failure)
        END IF
        IF(shell_type==sh_sh) THEN
          cs_spline_data => potparm % pot( ikind, jkind ) %pot % cs_coul_spline_data
@@ -189,6 +188,7 @@ CONTAINS
        END IF
        rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
        CALL matvec_3x3(cell_v, cell%hmat, cvi)
+
        DO ipair = 1, npairs
           atom_a = list(1,ipair)
           atom_b = list(2,ipair)
@@ -238,6 +238,7 @@ CONTAINS
              fr(1) = fscalar*rab(1)
              fr(2) = fscalar*rab(2)
              fr(3) = fscalar*rab(3)
+
 
              IF (is_eam) THEN
                 pot => potparm %pot( ikind, jkind )%pot
@@ -384,7 +385,6 @@ CONTAINS
           END IF
        END DO
     END DO
-
     ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11
     ptens_nonbond(1,2) = ptens_nonbond(1,2) + ptens12
     ptens_nonbond(1,3) = ptens_nonbond(1,3) + ptens13
@@ -1345,9 +1345,9 @@ CONTAINS
              END IF        
              ! shell-model: exclude shell_i-core interactions
              IF(i_is_shell ) THEN
-               rij(1) = rsi(1) - rj(1)
-               rij(2) = rsi(2) - rj(2)
-               rij(3) = rsi(3) - rj(3)
+               rij(1) = rsi(1) - rcj(1)
+               rij(2) = rsi(2) - rcj(2)
+               rij(3) = rsi(3) - rcj(3)
                rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
                idij = 1.0_dp / SQRT ( rijsq )
                dij = rijsq * idij
@@ -1379,9 +1379,9 @@ CONTAINS
 
              END IF
              IF(j_is_shell ) THEN
-               rij(1) = ri(1) - rsj(1)
-               rij(2) = ri(2) - rsj(2)
-               rij(3) = ri(3) - rsj(3)
+               rij(1) = rci(1) - rsj(1)
+               rij(2) = rci(2) - rsj(2)
+               rij(3) = rci(3) - rsj(3)
                rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
                idij = 1.0_dp / SQRT ( rijsq )
                dij = rijsq * idij
@@ -1401,12 +1401,12 @@ CONTAINS
                     * ( idij * errf - const * e_arg_arg  )
 
                IF(i_is_shell) THEN
-                 core_particle_set ( i) % f(1) = &
-                            core_particle_set ( i ) % f(1) - fscalar*rij(1)
+                 core_particle_set ( shell_i_index) % f(1) = &
+                            core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
                  core_particle_set ( i) % f(2) = &
-                            core_particle_set ( i ) % f(2) - fscalar*rij(2)
+                            core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
                  core_particle_set (i) % f(3) = &
-                            core_particle_set ( i ) % f(3) - fscalar*rij(3)
+                            core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
                ELSE
                  particle_set ( i) % f(1) = &
                             particle_set ( i ) % f(1) - fscalar*rij(1)
@@ -1432,6 +1432,50 @@ CONTAINS
              pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * particle_set ( i ) % r(3)
              flops = flops + 62.0_dp
           ENDDO
+
+! Exclusion of shell-core interaction  (???????????)
+          IF(i_is_shell .AND. .FALSE.) THEN
+             rij(1) = rci(1) - rsi(1)
+             rij(2) = rci(2) - rsi(2)
+             rij(3) = rci(3) - rsi(3)
+             rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+             IF(rijsq > EPSILON(1.0_dp)) THEN
+               idij = 1.0_dp / SQRT ( rijsq )
+               dij = rijsq * idij
+               arg = alpha * dij
+               e_arg_arg = EXP ( -arg ** 2 )
+               tc = 1.0_dp / ( 1.0_dp + pc * arg )
+
+               ! defining errf=1-erfc
+               errf = 1.0_dp &
+                  - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+
+               ! getting the potential
+               v_bonded_corr = v_bonded_corr - qci*qsi*idij*errf
+
+               ! subtracting the force from the total force
+               fscalar = ifourpieps0 * qci * qsi * idij ** 2 &
+                    * ( idij * errf - const * e_arg_arg  )
+
+               core_particle_set ( shell_i_index) % f(1) = &
+                            core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
+               core_particle_set ( shell_i_index) % f(2) = &
+                            core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
+               core_particle_set (shell_i_index) % f(3) = &
+                            core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
+
+               shell_particle_set (shell_i_index) % f(1) = &
+                            shell_particle_set ( shell_i_index ) % f(1) + fscalar*rij(1)
+               shell_particle_set ( shell_i_index) % f(2) = &
+                            shell_particle_set ( shell_i_index ) % f(2) + fscalar*rij(2)
+               shell_particle_set (shell_i_index) % f(3) = &
+                            shell_particle_set ( shell_i_index ) % f(3) + fscalar*rij(3)
+!dbg
+!  write(*,*) 'shell corr ', shell_i_index, rijsq, - qci*qsi*idij*errf, fscalar
+!dbg
+            END IF
+
+          END IF
        ENDDO
     ENDDO
 

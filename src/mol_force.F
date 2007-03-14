@@ -83,8 +83,13 @@ SUBROUTINE force_bonds ( TYPE, rij, r0, k, energy, fscalar )
   CASE ( "HARMONIC","CHARMM","G87" )
     dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
     disp = dij - r0
-    energy = f12*k(1)*disp*disp
-    fscalar = k(1)*disp / dij
+    IF(ABS(disp) < EPSILON(1.0_dp)) THEN
+      energy = 0.0_dp
+      fscalar = 0.0_dp
+    ELSE
+      energy = f12*k(1)*disp*disp
+      fscalar = k(1)*disp / dij
+    END IF
   CASE DEFAULT
     CALL stop_program ("mol_force.F","unmatched bond kind")
   END SELECT

@@ -95,7 +95,8 @@ CONTAINS
 
 SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                            fg_coulomb, vg_coulomb, pv_g, force_env_section,&
-                           shell_particle_set, core_particle_set, fgshell_coulomb, fgcore_coulomb, error )
+                           shell_particle_set, core_particle_set, &
+                           fgshell_coulomb, fgcore_coulomb, error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env

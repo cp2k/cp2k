@@ -425,6 +425,7 @@ CONTAINS
 
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.,error=error)
+ 
        IF (simpar%do_respa)THEN
           CALL force_env_calc_energy_force ( &
             force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&

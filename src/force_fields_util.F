@@ -1543,6 +1543,7 @@ CONTAINS
           shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
           shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
           shell_particle_set(counter)%atom_index =   i
+          core_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
           core_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
           core_particle_set(counter)%atom_index =   i
         ELSE
@@ -2161,6 +2162,11 @@ CONTAINS
     CALL spline_env_release (spline_manybody_env,error)
     CALL spline_env_release (spline_nonbond_env,error)
     CALL spline_env_release (spline_bond_env,error)
+    IF(shell_present) THEN
+      CALL spline_env_release (spline_c_coul_env,error)
+      CALL spline_env_release (spline_cs_coul_env,error)
+      CALL spline_env_release (spline_sc_coul_env,error)
+    END IF
 
     CALL cp_print_key_finished_output(iw4,logger,mm_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)

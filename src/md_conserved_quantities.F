@@ -23,7 +23,8 @@ MODULE md_conserved_quantities
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -51,6 +52,7 @@ MODULE md_conserved_quantities
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -65,6 +67,7 @@ MODULE md_conserved_quantities
      REAL(KIND=dp) :: temp_baro
      REAL(KIND=dp) :: ekin_coefs
      REAL(KIND=dp) :: temp_coefs
+     REAL(KIND=dp) :: ekin_shell, temp_shell
   END TYPE md_ener_type
 
 
@@ -104,22 +107,24 @@ CONTAINS
   !!
   !!*** *************************************************************************
   SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
-       temp_part, ekin_qm, temp_qm, temp_baro, ekin_coefs, temp_coefs, qmmm,&
-       error )
+       temp_part, ekin_qm, temp_qm, temp_baro, ekin_coefs, temp_coefs,  &
+       ekin_shell, temp_shell, qmmm, shell_adiabatic, error )
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(IN)                :: epot
     REAL(KIND=dp), INTENT(OUT)               :: cons
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cons_rel, ekin, temp_part, &
                                                 ekin_qm, temp_qm, temp_baro, &
-                                                ekin_coefs, temp_coefs
+                                                ekin_coefs, temp_coefs, &
+                                                ekin_shell, temp_shell
     LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm
+    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_adiabatic
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity'
 
-    INTEGER                                  :: int_grp, nfree_qm
+    INTEGER                                  :: int_grp, nfree_qm, nfree_shell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: myqmmm
+    LOGICAL                                  :: myqmmm, my_shell_adiabatic
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), POINTER          :: force_env_p(:)
@@ -127,14 +132,16 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    md_ener%epot        = 0.0_dp
     md_ener%temp_part   = 0.0_dp
     md_ener%temp_baro   = 0.0_dp
     md_ener%ekin_coefs  = 0.0_dp
     md_ener%temp_coefs  = 0.0_dp
     md_ener%temp_qm     = 0.0_dp
+    md_ener%ekin_shell  = 0.0_dp
+    md_ener%temp_shell  = 0.0_dp
     md_ener%epot=epot
-    myqmmm=.FALSE.
+    myqmmm = .FALSE.
+    my_shell_adiabatic =.FALSE.
 
     CALL get_md_env (md_env=md_env,&
          constant=constant,&
@@ -145,8 +152,8 @@ CONTAINS
 
     int_grp =  para_env % group
 
-    CALL get_part_ke ( md_env, md_ener%ekin, md_ener%ekin_qm, nfree_qm,&
-         simpar%nfree, int_grp , error=error)
+    CALL get_part_ke ( md_env, md_ener%ekin, md_ener%ekin_qm, md_ener%ekin_shell,&
+         nfree_qm, nfree_shell, simpar%nfree, int_grp , error=error)
 
     IF (simpar%nfree /= 0) &
          md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
@@ -155,6 +162,12 @@ CONTAINS
        myqmmm = .TRUE.
        md_ener % temp_qm   = 2.0_dp * md_ener % ekin_qm / REAL ( nfree_qm,KIND=dp)
     END IF
+
+    IF ( nfree_shell > 0) THEN
+       my_shell_adiabatic = .TRUE.
+       md_ener % temp_shell   = 2.0_dp * md_ener % ekin_shell / REAL ( nfree_shell,KIND=dp)
+    END IF
+
 
     SELECT CASE ( simpar % ensemble  )
     CASE DEFAULT
@@ -194,6 +207,9 @@ CONTAINS
     IF (PRESENT(ekin_coefs))  ekin_coefs = md_ener%ekin_coefs
     IF (PRESENT(temp_coefs))  temp_coefs = md_ener%temp_coefs
     IF (PRESENT(qmmm))        qmmm       = myqmmm
+    IF (PRESENT(ekin_shell))  ekin_shell    = md_ener%ekin_shell
+    IF (PRESENT(temp_shell))  temp_shell    = md_ener%temp_shell
+    IF (PRESENT(shell_adiabatic)) shell_adiabatic    = my_shell_adiabatic
 
   END SUBROUTINE compute_conserved_quantity
 
@@ -233,7 +249,7 @@ CONTAINS
 
     CALL get_md_env (md_env, force_env_p=force_env_p, nhc_coef=nhc_coef)
 
-    cons = md_ener % ekin + md_ener % epot
+    cons = md_ener % ekin + md_ener % epot + md_ener % ekin_shell
 
     DO iforce_env = 1, SIZE(force_env_p)
 
@@ -504,18 +520,23 @@ CONTAINS
   !!     none
   !!
   !!*** *************************************************************************
-  SUBROUTINE get_part_ke ( md_env, ekin, ekin_qm, nfree_qm, nfree, int_grp, error )
+  SUBROUTINE get_part_ke ( md_env, ekin, ekin_qm, ekin_shell, nfree_qm, &
+             nfree_shell, nfree, int_grp, error )
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(OUT)               :: ekin, ekin_qm
+    REAL(KIND=dp), INTENT(OUT)               :: ekin_shell
     INTEGER, INTENT(OUT)                     :: nfree_qm
+    INTEGER, INTENT(OUT)                     :: nfree_shell
     INTEGER, INTENT(IN)                      :: nfree, int_grp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, iparticle, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_kind, &
-                                                nparticle_local
-    REAL(KIND=dp)                            :: mass
+                                                nparticle_local,&
+                                                shell_index
+    LOGICAL                                  :: shell_adiabatic
+    REAL(KIND=dp)                            :: ekin_c, ekin_com, ekin_s, mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -526,13 +547,26 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: shell_particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: core_particle_set
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(shell_kind_type), POINTER           :: shell
 
     nfree_qm = -HUGE(0)
     ekin     = zero
     ekin_qm  = zero
+    ekin_shell  = zero
+    ekin_s  = zero
+    ekin_c  = zero
+    ekin_com  = zero
+    nfree_shell = -HUGE(0)
+
     NULLIFY(qmmm_env)
     CALL get_md_env ( md_env, force_env_p = force_env_p )
     CALL force_env_get ( force_env = force_env_p(1)%force_env,&
@@ -542,25 +576,62 @@ CONTAINS
     CALL cp_subsys_get(subsys=subsys(1)%subsys,&
          atomic_kinds=atomic_kinds,&
          local_particles=local_particles,&
-         particles=particles,error=error)
+         particles=particles,shell_particles=shell_particles,&
+         core_particles=core_particles,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
 
-    particle_set => particles%els
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                             shell_adiabatic=shell_adiabatic)
 
-    DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-       nparticle_local = local_particles%n_el(iparticle_kind)
-       DO iparticle_local=1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          ekin = ekin +  0.5_dp * mass *  &
-               ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
-               + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
-               + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
-       END DO
-    END DO
+    particle_set => particles%els
+    IF(shell_adiabatic) THEN
+      shell_particle_set => shell_particles%els
+      core_particle_set => core_particles%els
+      nfree_shell = 3*SIZE(shell_particle_set)
+      DO iparticle_kind=1,nparticle_kind
+         atomic_kind => atomic_kind_set(iparticle_kind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass, shell=shell)
+         nparticle_local = local_particles%n_el(iparticle_kind)
+         DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            ekin_com =  0.5_dp * mass *  &
+                 ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                 + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                 + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
+            ekin = ekin +  ekin_com
+            shell_index = particle_set(iparticle)%shell_index
+            IF (shell_index/=0) THEN
+              ekin_c =  0.5_dp * shell%mass_core *  &
+                 ( core_particle_set(shell_index)%v(1)* core_particle_set(shell_index)%v(1) &
+                 + core_particle_set(shell_index)%v(2)* core_particle_set(shell_index)%v(2) &
+                 + core_particle_set(shell_index)%v(3)* core_particle_set(shell_index)%v(3) )
+              ekin_s =  0.5_dp * shell%mass_shell *  &
+                 ( shell_particle_set(shell_index)%v(1)* shell_particle_set(shell_index)%v(1) &
+                 + shell_particle_set(shell_index)%v(2)* shell_particle_set(shell_index)%v(2) &
+                 + shell_particle_set(shell_index)%v(3)* shell_particle_set(shell_index)%v(3) )
+              ekin_shell = ekin_shell + ekin_c + ekin_s - ekin_com
+            END IF
+         END DO
+      END DO
+      ! sum all contributions to energy over calculated parts on all processors
+      CALL mp_sum ( ekin_shell, int_grp )
+    ELSE
+      DO iparticle_kind=1,nparticle_kind
+         atomic_kind => atomic_kind_set(iparticle_kind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+         nparticle_local = local_particles%n_el(iparticle_kind)
+         DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            ekin = ekin +  0.5_dp * mass *  &
+                 ( particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                 + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                 + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
+         END DO
+      END DO
+    END IF
+
     ! sum all contributions to energy over calculated parts on all processors
     CALL mp_sum ( ekin, int_grp )
     !

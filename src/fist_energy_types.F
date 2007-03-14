@@ -31,6 +31,7 @@ MODULE fist_energy_types
 
   TYPE fist_energy_type
      REAL ( kind = dp ) :: kin, pot, e_gspace, e_self, e_neut, e_bonded
+     REAL ( kind = dp ) :: kin_shell, harm_shell
   END TYPE fist_energy_type
 
 ! *** Public data types ***
@@ -129,6 +130,8 @@ CONTAINS
       fist_energy%e_self = 0.0_dp
       fist_energy%e_neut = 0.0_dp
       fist_energy%e_bonded = 0.0_dp
+      fist_energy%kin_shell = 0.0_dp
+      fist_energy%harm_shell = 0.0_dp
     ELSE
       CALL stop_program(routine,"The fist_energy pointer is not associated "//&
                                 "and cannot be initialised")

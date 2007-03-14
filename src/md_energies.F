@@ -115,15 +115,15 @@ CONTAINS
                                                 title
     INTEGER                                  :: box, crd, delta_t, ene, &
                                                 ener_mix, frc, handle, i, &
-                                                iskip, isubsys, iw, nat, str, &
+                                                iskip, isubsys, iw, nat, shad, str, &
                                                 vel
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: init, init_force, init_traj, &
-                                                init_vel, is_mixed, qmmm
+                                                init_vel, is_mixed, qmmm, shell_adiabatic
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
-    REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, epot, &
-      hugoniot, temp, temp_baro, temp_coefs, temp_qm
+    REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, ekin_shell, epot, &
+      harm_shell, hugoniot, temp, temp_baro, temp_coefs, temp_qm, temp_shell
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
     TYPE(average_quantities_type), SAVE      :: averages
@@ -150,6 +150,7 @@ CONTAINS
 
     ! Zeroing
     hugoniot = 0._dp
+    shell_adiabatic = .FALSE.
     NULLIFY(dyn_coeff_set,motion_section)
     CALL get_md_env(md_env=md_env,&
          itimes=itimes,&
@@ -232,10 +233,14 @@ CONTAINS
             temp_qm=temp_qm,&
             qmmm=qmmm,&
             temp_baro=temp_baro,&
+            ekin_shell=ekin_shell,&
+            temp_shell=temp_shell,&
+            shell_adiabatic=shell_adiabatic,&
             error=error)
        temp      = temp*kelvin
        temp_qm   = temp_qm*kelvin
        temp_baro = temp_baro*kelvin
+       temp_shell = temp_shell*kelvin
     END IF
 
     CALL get_cell ( cell, abc = abc,  &
@@ -530,6 +535,13 @@ CONTAINS
        ELSE
          str = 0
        END IF
+       IF(shell_adiabatic) THEN
+         CALL force_env_get(force_env_p(1)%force_env,harmonic_shell=harm_shell,error=error)
+         shad=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
+            extension=".shener",file_position=my_pos, file_action=my_act,error=error)
+       ELSE
+         shad = 0
+       END IF
        !------------------
        ! Print Coordinates
        !------------------
@@ -690,6 +702,18 @@ CONTAINS
           CALL m_flush(ene)
        END IF
 
+       !------------------
+       ! Print Shell Energy
+       !------------------
+       IF (shad>0) THEN
+          ! "Step Nr.    Time[fs]  Shell Kin.[a.u.]    Shell Temp[K]  Shell Pot.[a.u.] 
+          !
+          WRITE (shad,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9 )")&
+               itimes,t*femtoseconds,ekin_shell,temp_shell,harm_shell
+          CALL m_flush(shad)
+       END IF
+
+
        CALL cp_print_key_finished_output(ene,logger,motion_section,&
             "MD%PRINT%ENERGY", error=error)
        CALL cp_print_key_finished_output(crd,logger,motion_section,&
@@ -713,6 +737,10 @@ CONTAINS
        IF( virial % pv_availability ) THEN
          CALL cp_print_key_finished_output(str,logger,motion_section,&
               "PRINT%STRESS", error=error)
+       END IF
+       IF(shell_adiabatic) THEN
+         CALL cp_print_key_finished_output(shad,logger,motion_section,&
+            "MD%PRINT%SHELL_ENERGY", error=error)
        END IF
     END IF
     init = .FALSE.

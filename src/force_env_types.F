@@ -382,7 +382,8 @@ END SUBROUTINE force_env_release
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
-     potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env, &
+     potential_energy, kinetic_energy, harmonic_shell, kinetic_shell,&
+     cell, cell_ref, sub_force_env, qmmm_env, &
      eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
      method_name_id, root_section, mixed_env, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -403,6 +404,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       POINTER                                :: para_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
                                                 kinetic_energy
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: harmonic_shell, &
+                                                kinetic_shell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
@@ -485,6 +488,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         IF (PRESENT(potential_energy)) potential_energy = thermo%pot
         IF (PRESENT(kinetic_energy)) kinetic_energy = thermo%kin
         IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
+        IF (PRESENT(kinetic_shell)) kinetic_shell = thermo%kin_shell
+        IF (PRESENT(harmonic_shell)) harmonic_shell = thermo%harm_shell
      CASE (use_eip_force)
         CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP, error, failure)
         CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)

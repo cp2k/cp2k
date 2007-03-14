@@ -2381,6 +2381,13 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
               
+       CALL cp_print_key_section_create(print_key,"SHELL_ENERGY",&
+            description="controls the output the shell ener file (only if shell-model)",&
+            print_level=medium_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
             description="Controls the printing of coefficients during an MD run.", &
             print_level=medium_print_level,common_iter_levels=1,&

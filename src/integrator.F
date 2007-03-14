@@ -583,7 +583,6 @@ CONTAINS
         END DO
       END IF
 
-
       IF (simpar%constraint) CALL shake_control(gci,local_molecules, molecule_set,   &
                                                 molecule_kind_set, particle_set, &
                                                 pos, vel, simpar%dt,&

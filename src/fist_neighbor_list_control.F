@@ -85,7 +85,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
 
     INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
-      iparticle_local, istat, last_update, nparticle, nparticle_kind, &
+      iparticle_local, ishell, istat, last_update, nparticle, nparticle_kind, &
       nparticle_local, nshell, num_update
     LOGICAL                                  :: build_from_scratch, &
                                                 shell_adiabatic, &
@@ -269,17 +269,23 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         rab(3) = + cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
      END IF
      r_last_update_pbc(iparticle )%r=particle_set(iparticle)%r+rab
-     IF(particle_set(iparticle)%shell_index/=0) THEN
-       dr=shell_particle_set(particle_set(iparticle)%shell_index)%r(:) - &
-          particle_set(iparticle)%r(:)
-       rshell_last_update_pbc(iparticle )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)   
+!dbg 
+!  write(*,*) 'ipart ', iparticle, r_last_update_pbc(iparticle )%r
+!dbg 
+     ishell = particle_set(iparticle)%shell_index
+     IF(ishell/=0) THEN
+       dr=shell_particle_set(ishell)%r(:) - particle_set(iparticle)%r(:)
+       rshell_last_update_pbc(ishell )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)   
        IF(shell_adiabatic) THEN
-         dr=core_particle_set(particle_set(iparticle)%shell_index)%r(:) - &
-            particle_set(iparticle)%r(:)
-         rcore_last_update_pbc(iparticle )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)
+         dr=core_particle_set(ishell)%r(:) - particle_set(iparticle)%r(:)
+         rcore_last_update_pbc(ishell )%r = r_last_update_pbc(iparticle )%r(:) + dr(:)
        ELSE
-         rcore_last_update_pbc(iparticle )%r = r_last_update_pbc(iparticle )%r(:)
+         rcore_last_update_pbc(ishell )%r = r_last_update_pbc(iparticle )%r(:)
        END IF
+!dbg 
+!  write(*,*) 'core ',ishell, rcore_last_update_pbc(ishell )%r
+!  write(*,*) 'shell ',ishell, rshell_last_update_pbc(ishell )%r
+!dbg 
      END IF
   END DO
 

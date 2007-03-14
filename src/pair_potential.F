@@ -328,10 +328,7 @@ CONTAINS
 
           potparm%pot(i,j)%pot %energy_cutoff = 0.0_dp
           potparm%pot(i,j)%pot %e_cutoff_coul = 0.0_dp
-!dbg
-!write(*,*) 'type ',potparm%pot(i,j)%pot%type, ' spltab ', n, 'size ', &
-!         SIZE( spline_env % spline_data_p), ' scale cutoff  ' , scale_cutoff
-!dbg
+
           IF (scale_cutoff) THEN
              potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,hicut,my_vdw_scale14)
              IF((is_i_shell .OR. is_j_shell) .AND. .NOT. my_do_14) THEN
