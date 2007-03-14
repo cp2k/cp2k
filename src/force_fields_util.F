@@ -2059,7 +2059,7 @@ CONTAINS
       CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
            atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
            max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-           emax_spline=ff_type%emax_spline, iw=6, iw2=iw3,iw3=iw4,&
+           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
            scale_cutoff=ff_type%scale_cutoff, spline_c_coul=spline_c_coul_env, &
            spline_cs_coul=spline_cs_coul_env, spline_sc_coul=spline_sc_coul_env, error=error)
     ELSE

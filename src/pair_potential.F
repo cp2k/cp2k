@@ -492,7 +492,7 @@ CONTAINS
               qcj=qsj
             END IF
 
-    write(*,*) ' charges ', qci, qsi, qcj, qsj
+!    write(*,*) ' charges ', qci, qsi, qcj, qsj
             IF((is_i_shell .OR. is_j_shell)) THEN
 !  core-core
               CPPostcondition(PRESENT(spline_c_coul),cp_failure_level,routineP,error,failure) 
