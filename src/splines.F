@@ -640,6 +640,9 @@ CONTAINS
     h26 = spl%h26
     invh = spl%invh
     i = (xx-spl%x1)*invh + 1
+!dbg
+  IF(i==0) write(*,*)xxi, xx, invh, spl%x1, i
+!dbg
 
     a = (spl%x1-xx)*invh + REAL(i,kind=dp)
     b = 1.0_dp - a

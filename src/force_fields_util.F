@@ -1501,7 +1501,7 @@ CONTAINS
                      " overwriting!",root_section,error)
                 found_shell = .TRUE.
                 CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                     shell=shell, shell_active=.TRUE.)
+                     shell=shell, shell_active=.TRUE.,error=error)
                 CALL shell_release(shell, error)
              END IF
           END DO  ! j shell kind

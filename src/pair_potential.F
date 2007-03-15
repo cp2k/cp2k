@@ -493,6 +493,33 @@ CONTAINS
 !  core-core
               CPPostcondition(PRESENT(spline_c_coul),cp_failure_level,routineP,error,failure) 
 
+!dbg
+!              n = spline_env % spltab(i,j)
+!              locut = rlow_nb
+!              hicut = SQRT ( potparm %pot ( i, j ) %pot % rcutsq )
+!              IF (ABS(hicut) <= 1.0E-15_dp) hicut = 1.0E3_dp
+!
+!              dx2 = (hicut-locut)
+!              x   = hicut
+!              locut_found = locut
+!              found_locut = .FALSE.
+!
+!
+!              DO ilevel=1,2
+!                 dx2 = dx2 / 100.0_dp
+!                 DO jx = 1, 100
+!                    e = ener_coul ( 0.0_dp, qci, qcj, x, ewald_type,alpha,eps0, 1.0_dp, .FALSE. )  
+!                    IF (ABS(e) > emax_spline) THEN
+!                       locut_found = x
+!                       found_locut = .TRUE.
+!                       EXIT
+!                    END IF
+!                    x = x - dx2
+!                 END DO
+!                 x= x + dx2
+!              ENDDO
+!!dbg
+
               npoints = 20
               IF (.NOT. found_locut) npoints = 2  ! Zero spline
 

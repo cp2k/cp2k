@@ -599,6 +599,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 
 ! Sum total forces
   CALL mp_sum ( f_total, para_env%group )
+  IF(shell_present .AND. shell_model_ad) THEN
+    CALL mp_sum ( fshell_total, para_env%group )
+    CALL mp_sum ( fcore_total, para_env%group )
+  END IF
 
 ! Assign to particle_set
   SELECT CASE ( ewald_type )

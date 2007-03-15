@@ -485,7 +485,6 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
            shell_present=shell_present,shell_adiabatic=shell_adiabatic)
 
-
 !     *** Allocate work storage for positions and velocities ***
       ALLOCATE (pos(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

@@ -106,7 +106,7 @@ CONTAINS
     LOGICAL                                  :: failure, is_eam, is_shell, shell_present, is_tersoff
     REAL(KIND=dp) :: cell_v(3), energy, f_eam, fr(3), fr_com(3), fscalar, ptens11, &
       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
-      rab(3), rab2, rab2_max, rab_com(3), rab_cc(3), rab_cs(3), rab_sc(3), rab_ss(3)
+      rab(3), rab2, rab2_com, rab2_max, rab_com(3), rab_cc(3), rab_cs(3), rab_sc(3), rab_ss(3)
     REAL(KIND=dp), DIMENSION(3)              :: cvi
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -226,11 +226,14 @@ CONTAINS
           fr_com(:) = 0.0_dp
           rab_com = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
           rab_com = rab_com +cell_v
+          rab2_com =  rab_com(1)*rab_com(1) + rab_com(2)*rab_com(2) + rab_com(3)*rab_com(3)
 
-          rab = rab_cc
-          rab = rab+cell_v
-          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-          IF (rab2 <= rab2_max) THEN
+          IF (rab2_com <= rab2_max) THEN
+            fr = 0.0_dp
+            rab = rab_cc
+            rab = rab+cell_v
+            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+            IF (rab2 <= rab2_max) THEN
              ! if shell-model core-core or core-ion/ion-core: Coulomb only
              ! else ion-ion : VDW + Coulomb
              energy =  potential_s (c_spline_data,rab2,fscalar)
@@ -238,6 +241,7 @@ CONTAINS
              fr(1) = fscalar*rab(1)
              fr(2) = fscalar*rab(2)
              fr(3) = fscalar*rab(3)
+            END IF 
 
 
              IF (is_eam) THEN
@@ -284,6 +288,7 @@ CONTAINS
                rab = rab_ss 
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+             IF (rab2 <= rab2_max) THEN
                energy =  potential_s (spline_data,rab2,fscalar)
                pot_nonbond = pot_nonbond + energy
                fr(1) = fscalar*rab(1)
@@ -299,11 +304,13 @@ CONTAINS
                fr_com(1) = fr_com(1) + fr(1) 
                fr_com(2) = fr_com(2) + fr(2) 
                fr_com(3) = fr_com(3) + fr(3) 
+              END IF
 
                ! core-shell : Coulomb only
                rab = rab_cs 
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+             IF (rab2 <= rab2_max) THEN
                energy =  potential_s (cs_spline_data,rab2,fscalar)
                pot_nonbond = pot_nonbond + energy
                fr(1) = fscalar*rab(1)
@@ -320,11 +327,13 @@ CONTAINS
                fr_com(1) = fr_com(1) + fr(1) 
                fr_com(2) = fr_com(2) + fr(2) 
                fr_com(3) = fr_com(3) + fr(3) 
+              END IF
 
                ! shell-core : Coulomb only
                rab = rab_sc
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+             IF (rab2 <= rab2_max) THEN
                energy =  potential_s (sc_spline_data,rab2,fscalar)
                pot_nonbond = pot_nonbond + energy
                fr(1) = fscalar*rab(1)
@@ -340,6 +349,7 @@ CONTAINS
                fr_com(1) = fr_com(1) + fr(1) 
                fr_com(2) = fr_com(2) + fr(2) 
                fr_com(3) = fr_com(3) + fr(3) 
+              END IF
 
              ELSEIF(shell_type==nosh_sh) THEN
 
@@ -347,6 +357,7 @@ CONTAINS
                rab = rab_ss
                rab = rab+cell_v
                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+             IF (rab2 <= rab2_max) THEN
                energy =  potential_s (spline_data,rab2,fscalar)
                pot_nonbond = pot_nonbond + energy
                fr(1) = fscalar*rab(1)
@@ -371,6 +382,7 @@ CONTAINS
                fr_com(1) = fr_com(1) + fr(1) 
                fr_com(2) = fr_com(2) + fr(2) 
                fr_com(3) = fr_com(3) + fr(3) 
+              END IF
 
              END IF
               ptens11 = ptens11 + rab_com(1)*fr_com(1)
@@ -1470,9 +1482,6 @@ CONTAINS
                             shell_particle_set ( shell_i_index ) % f(2) + fscalar*rij(2)
                shell_particle_set (shell_i_index) % f(3) = &
                             shell_particle_set ( shell_i_index ) % f(3) + fscalar*rij(3)
-!dbg
-!  write(*,*) 'shell corr ', shell_i_index, rijsq, - qci*qsi*idij*errf, fscalar
-!dbg
             END IF
 
           END IF
