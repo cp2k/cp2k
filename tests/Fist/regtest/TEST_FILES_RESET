@@ -261,3 +261,6 @@ water_3_dist_3.inp
 water_3_dist.inp
 water_3_dist_inter2.inp
 water_3_g3x3.inp
+# bug fix
+uo2_shell_nve.inp
+uo2_shell_nve_r.inp
