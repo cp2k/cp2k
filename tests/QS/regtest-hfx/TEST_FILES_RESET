@@ -6,3 +6,8 @@ H2O-hfx-1.inp
 H2O-hfx-2.inp
 H2O-hfx-3.inp
 H2-hfx-md.inp
+#Reset due to improved screening
+H2O-hfx-1.inp
+H2O-hfx-2.inp
+H2O-hfx-3.inp
+CH-hfx-md.inp

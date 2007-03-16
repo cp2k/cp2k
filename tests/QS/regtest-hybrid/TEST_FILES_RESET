@@ -12,4 +12,13 @@ CH3-hybrid-b3lyp-lsd-g03.inp
 CH3-hybrid-handh-lsd.inp   
 CH3-hybrid-handhlyp-lsd.inp 
 CH3-hybrid-pbe0-lsd.inp    
-
+#Resets due to improved screening
+H2O-hybrid-bhandh.inp
+H2O-hybrid-bhandhlyp.inp
+H2O-hybrid-pbe0.inp
+H2O-hybrid-b3lyp.inp
+H2O-hybrid-b3lyp-g03.inp
+CH3-hybrid-b3lyp-lsd-g03.inp
+CH3-hybrid-handh-lsd.inp
+CH3-hybrid-handhlyp-lsd.inp
+CH3-hybrid-pbe0-lsd.inp
