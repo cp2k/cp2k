@@ -124,7 +124,7 @@ MODULE four_center_integrals
                                                 ld_min, ld_max, npgfa, npgfb, &
                                                 npgfc, npgfd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: primitive_integrals
-    REAL(dp), DIMENSION(:,:), POINTER         :: screenij, screenkl
+    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: screenij, screenkl
     REAL(dp),INTENT(IN)                      :: eps_schwarz
     
     INTEGER                                  :: ipgf, jpgf, kpgf, lpgf, &
@@ -402,7 +402,7 @@ MODULE four_center_integrals
     INTEGER                                  :: na, nb, nc, nd, &
                                                 cgfa_first,cgfa_last, cgfb_first, cgfb_last, &
                                                 cgfc_first, cgfc_last,cgfd_first,cgfd_last,&
-                                                pna, pnb, pnc, pnd
+                                                pna, pnb, pnc, pnd, max_pgf
     REAL(dp)                                 :: sa, sb, sc, sd, prim
     LOGICAL                                  :: mem_flag
 
@@ -469,8 +469,20 @@ MODULE four_center_integrals
 
     ALLOCATE(schwarz_screening(natom,natom,max_set,max_set),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    ALLOCATE(screening2(natom,natom,max_set,max_set,10, 10),STAT=stat)
+    max_pgf = 0
+    DO iatom=1,natom
+
+      atom_kind => particle_set(iatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_a)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
+                             npgf=npgfa,&
+                             nset=nseta)
+      DO iset=1,nseta
+        max_pgf = MAX(max_pgf,npgfa(iset))
+      END DO
+    END DO
+    ALLOCATE(screening2(natom,natom,max_set,max_set,max_pgf, max_pgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO jatom=1,natom
