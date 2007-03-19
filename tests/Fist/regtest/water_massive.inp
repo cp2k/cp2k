@@ -58,7 +58,7 @@
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/ipbv_flex.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME ipbv.pdb
+      COORD_FILE_NAME ../sample_pdb/ipbv.pdb
       COORDINATE pdb
       NHCOPT MASSIVE
     &END TOPOLOGY

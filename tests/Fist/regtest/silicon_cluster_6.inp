@@ -67,7 +67,7 @@
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/silicon_cluster.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME silicon_cluster.pdb
+      COORD_FILE_NAME ../sample_pdb/silicon_cluster.pdb
       COORDINATE PDB
     &END TOPOLOGY
   &END SUBSYS

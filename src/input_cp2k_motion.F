@@ -501,8 +501,14 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL cp_print_key_section_create(print_key,"constraint_info",&
-            description="",&
+            description="Prints information about iterative constraints solutions",&
             print_level=high_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"lagrange_multipliers",&
+            description="Prints out the lagrange multipliers of the specified constraints during an MD.",&
+            print_level=medium_print_level, filename="",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

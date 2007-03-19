@@ -27,7 +27,7 @@ MODULE integrator
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind, &
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              get_hinv
@@ -304,8 +304,8 @@ CONTAINS
       IF (simpar%constraint) THEN
         CALL shake_control(gci,local_molecules,molecule_set,molecule_kind_set,&
                            particle_set,pos,vel,simpar%dt,simpar%shake_tol,&
-                           simpar%info_constraint,cell,para_env%group,&
-                           local_particles, error)
+                           simpar%info_constraint,simpar%lagrange_multipliers,&
+                           simpar%dump_lm,cell,para_env%group,local_particles, error)
       END IF
 
       ! Broadcast the new particle positions
@@ -343,8 +343,8 @@ CONTAINS
       IF (simpar%constraint) THEN
         CALL rattle_control(gci,local_molecules,molecule_set,molecule_kind_set,&
                             particle_set,vel,simpar%dt,simpar%shake_tol,&
-                            simpar%info_constraint,cell,para_env%group,&
-                            local_particles, error)
+                            simpar%info_constraint,simpar%lagrange_multipliers,&
+                            simpar%dump_lm,cell,para_env%group,local_particles, error)
       END IF
 
       ! Broadcast the new particle velocities
@@ -397,16 +397,14 @@ CONTAINS
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
       nparticle_kind, nparticle_local, nshell, shell_index
-    LOGICAL :: is_shell, shell_adiabatic, shell_present
+    LOGICAL                                  :: is_shell, shell_adiabatic, &
+                                                shell_present
     REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
-                                                fac_massc, fac_masss, global_mass, &
-                                                mass
+                                                fac_massc, fac_masss, &
+                                                global_mass, mass
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pos, vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: shell_pos, shell_vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: core_pos, core_vel
+      DIMENSION(:, :)                        :: core_pos, core_vel, pos, &
+                                                shell_pos, shell_vel, vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -433,15 +431,12 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
-    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -587,6 +582,8 @@ CONTAINS
                                                 pos, vel, simpar%dt,&
                                                 simpar%shake_tol, &
                                                 simpar%info_constraint,&
+                                                simpar%lagrange_multipliers,&
+                                                simpar%dump_lm,&
                                                 cell,para_env%group,&
                                                 local_particles, error )
 
@@ -700,7 +697,10 @@ CONTAINS
       IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, &
                                                  vel, simpar%dt,simpar%shake_tol,&
-                                                 simpar%info_constraint, cell,para_env%group,&
+                                                 simpar%info_constraint,&
+                                                 simpar%lagrange_multipliers,&
+                                                 simpar%dump_lm,&
+                                                 cell,para_env%group,&
                                                  local_particles, error )
 
       IF (simpar%annealing) THEN
@@ -1097,7 +1097,10 @@ CONTAINS
       IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
                                                  molecule_kind_set, particle_set, &
                                                  pos, vel, simpar%dt,simpar%shake_tol,&
-                                                 simpar%info_constraint, cell, para_env%group,&
+                                                 simpar%info_constraint,&
+                                                 simpar%lagrange_multipliers,&
+                                                 simpar%dump_lm,&
+                                                 cell, para_env%group,&
                                                  local_particles,error )
 
 !     *** Broadcast the new particle positions ***
@@ -1161,7 +1164,10 @@ CONTAINS
       IF (simpar%constraint) CALL rattle_control( gci, local_molecules, molecule_set, &
                                                   molecule_kind_set, particle_set, &
                                                   vel, simpar%dt,simpar%shake_tol,&
-                                                  simpar%info_constraint,cell,para_env%group,&
+                                                  simpar%info_constraint,&
+                                                  simpar%lagrange_multipliers,&
+                                                  simpar%dump_lm,&
+                                                  cell,para_env%group,&
                                                   local_particles, error )
 
 ! perform Nose'-Hoover chain dynamimcs
@@ -3483,6 +3489,8 @@ END SUBROUTINE update_veps
           IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
                molecule_kind_set, particle_set, &
                pos, vel, simpar%dt, simpar%shake_tol, simpar%info_constraint,&
+               simpar%lagrange_multipliers,&
+               simpar%dump_lm,&
                cell, para_env%group, local_particles, error )
 
 !     *** Broadcast the new particle positions ***
@@ -3547,7 +3555,9 @@ END SUBROUTINE update_veps
 
           IF (simpar%constraint) CALL rattle_control( gci,local_molecules, molecule_set, &
                molecule_kind_set, particle_set, vel, simpar%dt,simpar%shake_tol,&
-               simpar%info_constraint, cell, para_env%group,local_particles, error )
+               simpar%info_constraint, simpar%lagrange_multipliers,&
+               simpar%dump_lm,&
+               cell, para_env%group,local_particles, error )
 
           IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 

@@ -56,7 +56,7 @@
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/ipbv.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME ipbv.pdb
+      COORD_FILE_NAME ../sample_pdb/ipbv.pdb
       COORDINATE pdb
       NHCOPT MOLECULE
     &END TOPOLOGY

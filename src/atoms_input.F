@@ -27,10 +27,11 @@
 
 MODULE atoms_input
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
-                                             get_cell, pbc, &
+                                             get_cell,&
+                                             pbc,&
                                              scaled_to_real
   USE checkpoint_handler,              ONLY: Pwarning
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
@@ -285,14 +286,12 @@ CONTAINS
              root_section, subsys_section, core_particle_set, error )
 
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
+      POINTER                                :: particle_set, &
+                                                shell_particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: root_section, subsys_section
     TYPE(particle_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: core_particle_set
+      OPTIONAL, POINTER                      :: core_particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input', &
@@ -300,26 +299,25 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(len=2*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: my_default_index
     CHARACTER(len=default_string_length)     :: name_kind
     CHARACTER(len=default_string_length), &
-      DIMENSION(:), ALLOCATABLE              :: at_name
-    INTEGER                                  :: end_c, handle, ishell, ILEN, &
-                                                istat, j, nshell, output_unit, &
-                                                start_c, sh_index, wrd
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: at_index
+      ALLOCATABLE, DIMENSION(:)              :: at_name
+    INTEGER                                  :: end_c, handle, ishell, istat, &
+                                                j, nshell, output_unit, &
+                                                sh_index, start_c, wrd
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index
     LOGICAL                                  :: explicit, failure, ionode, &
                                                 is_ok, is_shell, &
                                                 scaled_coordinates
-    REAL(KIND=dp)                            :: unit_of_length
-    REAL(KIND=dp)                            :: dab, mass_com, rab(3)
-    REAL(KIND=dp), DIMENSION(:,:), &
-      ALLOCATABLE                            :: r
+    REAL(KIND=dp)                            :: dab, mass_com, rab(3), &
+                                                unit_of_length
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(section_vals_type), POINTER         :: shell_coord_section
-    TYPE(shell_kind_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(val_type), POINTER                  :: val
 
     failure=.FALSE.
@@ -354,9 +352,6 @@ CONTAINS
          ! we use only the first default_string_length characters of each line
          is_ok=cp_sll_val_next(list,val,error=error)
          CALL val_get(val,c_val=line_att,error=error)
-         !CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
-         !     i_rep_val=iatom,c_val=line_att,error=error)
-         ! *** Read name and atomic coordinates ***
          start_c=1
          DO wrd=1,5
             DO j=start_c,LEN(line_att)
@@ -387,7 +382,6 @@ CONTAINS
             start_c=end_c
          END DO
       END DO
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 3. Check corrispondence and convert coordinates into internal cp2k coordinates
       !-----------------------------------------------------------------------------

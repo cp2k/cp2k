@@ -68,9 +68,9 @@
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE uo2_2x2x2.psf
+      CONN_FILE ../sample_psf/uo2_2x2x2.psf
       CONNECTIVITY UPSF
-      COORD_FILE uo2_displ.xyz
+      COORD_FILE ../sample_xyz/uo2_displ.xyz
       COORDINATE XYZ
     &END TOPOLOGY
     &KIND U

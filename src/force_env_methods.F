@@ -25,10 +25,10 @@
 MODULE force_env_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cell_types,                      ONLY: cell_type
-  USE constraint_util,                 ONLY: getold
   USE constraint,                      ONLY: rattle_control,&
                                              shake_control
   USE constraint_fxd,                  ONLY: fix_atom_control
+  USE constraint_util,                 ONLY: getold
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
@@ -91,9 +91,9 @@ MODULE force_env_methods
   USE mixed_environment_types,         ONLY: get_mixed_env,&
                                              mixed_env_retain,&
                                              mixed_environment_type
-  USE molecule_types_new,              ONLY: global_constraint_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE molecule_types_new,              ONLY: global_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set,&
@@ -1110,12 +1110,13 @@ END SUBROUTINE mixed_energy_forces
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
-     reset,error)
+SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
+     pos,vel,compold,reset,error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), INTENT(IN), OPTIONAL      :: dt
     REAL(kind=dp), INTENT(IN)                :: shake_tol
-    INTEGER, INTENT(in), OPTIONAL            :: log_unit
+    INTEGER, INTENT(in), OPTIONAL            :: log_unit, lagrange_mult
+    LOGICAL, INTENT(IN), OPTIONAL            :: dump_lm
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL, TARGET        :: pos, vel
     LOGICAL, INTENT(IN), OPTIONAL            :: compold, reset
@@ -1125,8 +1126,9 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, isub, &
-      j, my_log_unit, nparticle_kind, nparticle_local, stat
-    LOGICAL                                  :: failure, has_pos, has_vel
+      j, my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local, stat
+    LOGICAL                                  :: failure, has_pos, has_vel, &
+                                                my_dump_lm
     REAL(KIND=dp)                            :: mydt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_pos, my_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1135,10 +1137,10 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(global_constraint_type), POINTER    :: gci
 
   failure=.FALSE.
 
@@ -1148,6 +1150,10 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
   IF (.NOT.failure) THEN
      my_log_unit=-1
      IF (PRESENT(log_unit)) my_log_unit=log_unit
+     my_lagrange_mult=-1
+     IF (PRESENT(lagrange_mult)) my_lagrange_mult=lagrange_mult
+     my_dump_lm = .FALSE.
+     IF (PRESENT(dump_lm)) my_dump_lm = dump_lm
      NULLIFY(subsys,cell,molecules,molecule_kinds,local_molecules,particles,&
           my_pos,my_vel,gci)
      IF (PRESENT(pos)) my_pos => pos
@@ -1204,9 +1210,9 @@ SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,compold,&
         CALL shake_control( gci=gci, local_molecules=local_molecules,&
              molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
              particle_set=particles%els, pos=my_pos, vel=my_vel, dt=mydt,&
-             shake_tol=shake_tol, log_unit=my_log_unit, cell=cell,&
-             group=force_env%para_env%group, local_particles=local_particles, &
-             error=error )
+             shake_tol=shake_tol, log_unit=my_log_unit, lagrange_mult=my_lagrange_mult,&
+             dump_lm= my_dump_lm, cell=cell,group=force_env%para_env%group,&
+             local_particles=local_particles, error=error )
 
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN
@@ -1265,11 +1271,13 @@ END SUBROUTINE force_env_shake
 !!     tlaino
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
+SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
+     vel,reset,error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), INTENT(in), OPTIONAL      :: dt
     REAL(kind=dp), INTENT(in)                :: shake_tol
-    INTEGER, INTENT(in), OPTIONAL            :: log_unit
+    INTEGER, INTENT(in), OPTIONAL            :: log_unit, lagrange_mult
+    LOGICAL, INTENT(IN), OPTIONAL            :: dump_lm
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL, TARGET        :: vel
     LOGICAL, INTENT(IN), OPTIONAL            :: reset
@@ -1279,8 +1287,8 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, isub, &
-      j, my_log_unit, nparticle_kind, nparticle_local, stat
-    LOGICAL                                  :: failure, has_vel
+      j, my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local, stat
+    LOGICAL                                  :: failure, has_vel, my_dump_lm
     REAL(KIND=dp)                            :: mydt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1289,10 +1297,10 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(global_constraint_type), POINTER    :: gci
 
   failure=.FALSE.
 
@@ -1302,6 +1310,10 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
   IF (.NOT.failure) THEN
      my_log_unit=-1
      IF (PRESENT(log_unit)) my_log_unit=log_unit
+     my_lagrange_mult=-1
+     IF (PRESENT(lagrange_mult)) my_lagrange_mult=lagrange_mult
+     my_dump_lm = .FALSE.
+     IF (PRESENT(dump_lm)) my_dump_lm = dump_lm
      NULLIFY(subsys,cell,molecules,molecule_kinds,local_molecules,particles,&
           my_vel)
      IF (PRESENT(vel)) my_vel => vel
@@ -1337,9 +1349,9 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,vel,reset,error)
         CALL rattle_control( gci=gci, local_molecules=local_molecules,&
              molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
              particle_set=particles%els, vel=my_vel, dt=mydt,&
-             rattle_tol=shake_tol, log_unit=my_log_unit, cell=cell,&
-             group=force_env%para_env%group, local_particles=local_particles, &
-             error=error )
+             rattle_tol=shake_tol, log_unit=my_log_unit, lagrange_mult=my_lagrange_mult,&
+             dump_lm=my_dump_lm, cell=cell, group=force_env%para_env%group,&
+             local_particles=local_particles, error=error )
 
         ! Possibly reset the lagrange multipliers
         IF (PRESENT(reset)) THEN

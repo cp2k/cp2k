@@ -27,7 +27,9 @@ MODULE md_run
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
+                                             cp_p_file,&
                                              cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -175,11 +177,10 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
-    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(section_vals_type), POINTER :: force_env_section, motion_section, &
-      print_section, root_section, subsys_section, work_section, work2_section
+      print_section, root_section, subsys_section, work2_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
@@ -217,6 +218,11 @@ CONTAINS
     simpar%info_constraint = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
          extension=".shakeLog",log_filename=.FALSE.,error=error)
+    simpar%lagrange_multipliers = cp_print_key_unit_nr(logger,root_section,&
+         "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",&
+         extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
+    simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
+         "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
 
     CALL extended_type_init(extended_type)
     ALLOCATE (extended_type%nhc_part(nbeads),STAT=istat)
@@ -385,17 +391,21 @@ CONTAINS
           CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
                calc_force=.TRUE.,error=error)          
           CALL force_env_shake(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
-               log_unit=simpar%info_constraint,compold=.TRUE.,error=error)
+               log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
+               dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
           CALL force_env_rattle(force_env_p(ibead)%force_env,shake_tol=simpar%shake_tol,&
-               log_unit=simpar%info_constraint,reset=.TRUE.,error=error)
+               log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
+               dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)
           IF (simpar%do_respa)THEN
              CALL force_env_calc_energy_force ( &
                   force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
                   calc_force=.TRUE.,error=error)
              CALL force_env_shake(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,compold=.TRUE.,error=error)
+                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
+                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,compold=.TRUE.,error=error)
              CALL force_env_rattle(force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,reset=.TRUE.,error=error)          
+                  shake_tol=simpar%shake_tol,log_unit=simpar%info_constraint,&
+                  lagrange_mult=simpar%lagrange_multipliers,dump_lm=simpar%dump_lm,reset=.TRUE.,error=error)          
           END IF
           ! Reinitialize velocities rescaling properly after rattle
           CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
@@ -451,11 +461,31 @@ CONTAINS
     CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
     CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
 
+    CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
+         root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+    CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
+         root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
+
     DO istep=1,simpar%nsteps
       itimes = itimes + 1
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
            iter_nr=itimes,error=error)
+      ! Open possible Shake output units
+      simpar%info_constraint = cp_print_key_unit_nr(&
+           logger,root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",&
+           extension=".shakeLog",log_filename=.FALSE.,error=error)
+      simpar%lagrange_multipliers = cp_print_key_unit_nr(&
+           logger,root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",&
+           extension=".LagrangeMultLog",log_filename=.FALSE.,error=error)
+      simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
+           "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)      
+      ! Velocity Verlet Integrator
       CALL velocity_verlet(md_env,error)
+      ! Close Shake output if requested...
+      CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
+           root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+      CALL cp_print_key_finished_output(simpar%lagrange_multipliers, logger,&
+           root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
       ! Free Energy calculation
       CALL free_energy_evaluate(md_env,should_stop,motion_section,error)
       IF (should_stop) EXIT
@@ -474,12 +504,10 @@ CONTAINS
       time_iter_start=time_iter_stop
 
       CALL md_output(md_env,force_env_section,motion_section,root_section,error)
-
     END DO
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)
-
     CALL md_env_release ( md_env, error )
 
     ! just deallocate this stuff ??
@@ -488,8 +516,7 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_baro)
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
-    CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
-         root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

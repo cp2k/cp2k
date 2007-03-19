@@ -44,7 +44,7 @@
        BONDPARM_FACTOR 1.31
       &END
       MOL_CHECK
-      COORD_FILE_NAME acn.pdb
+      COORD_FILE_NAME ../sample_pdb/acn.pdb
       COORDINATE      pdb
     &END TOPOLOGY
   &END SUBSYS
@@ -96,7 +96,7 @@
       &DUMP_PSF
       &END
       MOL_CHECK
-      COORD_FILE_NAME acn.pdb
+      COORD_FILE_NAME ../sample_pdb/acn.pdb
       COORDINATE      pdb
     &END TOPOLOGY
   &END SUBSYS

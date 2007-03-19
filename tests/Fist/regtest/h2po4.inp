@@ -23,7 +23,7 @@
     &TOPOLOGY
       CONN_FILE_NAME ../sample_psf/h2po4.psf
       CONNECTIVITY UPSF
-      COORD_FILE_NAME h2po4.pdb
+      COORD_FILE_NAME ../sample_pdb/h2po4.pdb
       COORDINATE pdb
     &END TOPOLOGY
   &END SUBSYS

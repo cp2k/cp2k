@@ -23,7 +23,7 @@
 MODULE pair_potential
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind, &
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -39,7 +39,8 @@ MODULE pair_potential
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
        ip_type, list_pot, lj_charmm_type, lj_type, nn_type, &
-       pair_potential_pp_type, pair_potential_single_type, tersoff_type,wl_type
+       pair_potential_pp_type, pair_potential_single_type, tersoff_type, &
+       wl_type
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE splines,                         ONLY: init_spline,&
@@ -243,9 +244,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
     LOGICAL, INTENT(IN), OPTIONAL            :: do_14
     LOGICAL, INTENT(IN)                      :: scale_cutoff
-    TYPE(spline_environment_type), POINTER, OPTIONAL   :: spline_c_coul
-    TYPE(spline_environment_type), POINTER, OPTIONAL   :: spline_cs_coul
-    TYPE(spline_environment_type), POINTER, OPTIONAL   :: spline_sc_coul
+    TYPE(spline_environment_type), &
+      OPTIONAL, POINTER                      :: spline_c_coul, &
+                                                spline_cs_coul, spline_sc_coul
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
@@ -254,11 +255,12 @@ CONTAINS
     INTEGER                                  :: ewald_type, handle, i, &
                                                 ilevel, j, jx, n, ncount, &
                                                 ngp, npoints, ntype
-    LOGICAL                                  :: failure, found_locut, is_i_shell, &
-                                                is_j_shell, my_do_14
-    REAL(KIND=dp) :: alpha, diffmax, dx2, e, e_cutoff_tmp, eps0, hicut, locut, locut_found, &
-      my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qci, qcj, qi, qj, qsi, qsj, x, x2, xdum, &
-      xdum1, xsav
+    LOGICAL                                  :: failure, found_locut, &
+                                                is_i_shell, is_j_shell, &
+                                                my_do_14
+    REAL(KIND=dp) :: alpha, diffmax, dx2, e, e_cutoff_tmp, eps0, hicut, &
+      locut, locut_found, my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qci, &
+      qcj, qi, qj, qsi, qsj, x, x2, xdum, xdum1, xsav
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell_i, shell_j
 
@@ -492,34 +494,6 @@ CONTAINS
             IF((is_i_shell .OR. is_j_shell)) THEN
 !  core-core
               CPPostcondition(PRESENT(spline_c_coul),cp_failure_level,routineP,error,failure) 
-
-!dbg
-!              n = spline_env % spltab(i,j)
-!              locut = rlow_nb
-!              hicut = SQRT ( potparm %pot ( i, j ) %pot % rcutsq )
-!              IF (ABS(hicut) <= 1.0E-15_dp) hicut = 1.0E3_dp
-!
-!              dx2 = (hicut-locut)
-!              x   = hicut
-!              locut_found = locut
-!              found_locut = .FALSE.
-!
-!
-!              DO ilevel=1,2
-!                 dx2 = dx2 / 100.0_dp
-!                 DO jx = 1, 100
-!                    e = ener_coul ( 0.0_dp, qci, qcj, x, ewald_type,alpha,eps0, 1.0_dp, .FALSE. )  
-!                    IF (ABS(e) > emax_spline) THEN
-!                       locut_found = x
-!                       found_locut = .TRUE.
-!                       EXIT
-!                    END IF
-!                    x = x - dx2
-!                 END DO
-!                 x= x + dx2
-!              ENDDO
-!!dbg
-
               npoints = 20
               IF (.NOT. found_locut) npoints = 2  ! Zero spline
 
@@ -756,9 +730,10 @@ CONTAINS
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(spline_environment_type), POINTER, OPTIONAL   :: spline_c_coul_env
-    TYPE(spline_environment_type), POINTER, OPTIONAL   :: spline_cs_coul_env
-    TYPE(spline_environment_type), POINTER, OPTIONAL   :: spline_sc_coul_env
+    TYPE(spline_environment_type), &
+      OPTIONAL, POINTER                      :: spline_c_coul_env, &
+                                                spline_cs_coul_env, &
+                                                spline_sc_coul_env
     REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -133,11 +133,13 @@ MODULE md
      LOGICAL :: annealing
      LOGICAL :: pv_numerical
      LOGICAL :: pv_availability
+     LOGICAL :: dump_lm 
      INTEGER :: nfree
      INTEGER :: nc
      INTEGER :: nyosh
      INTEGER :: nhclen
      INTEGER :: info_constraint
+     INTEGER :: lagrange_multipliers
      REAL (KIND=dp) :: tau_nhc
      REAL (KIND=dp) :: tau_cell
      REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh
@@ -556,12 +558,11 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: print_section, work_section
-    TYPE(section_vals_type), POINTER, OPTIONAL :: work2_section
-    TYPE(particle_type), DIMENSION(:), &
-       POINTER, OPTIONAL                     :: shell_part
-    TYPE(particle_type), DIMENSION(:), &
-       POINTER, OPTIONAL                     :: core_part
     LOGICAL, INTENT(IN), OPTIONAL            :: force_rescaling
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: work2_section
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: shell_part, core_part
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities', &
@@ -575,7 +576,7 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     REAL(KIND=dp)                            :: akin, denom, mass, mass_tot, &
                                                 sc, temp
-    REAL(KIND=dp), DIMENSION(3)              :: v, v_sc_com, vcom, vcom_new, vshell
+    REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger

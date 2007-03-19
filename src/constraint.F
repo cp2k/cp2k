@@ -54,9 +54,13 @@ MODULE constraint
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: npt_f_ensemble,&
                                              npt_i_ensemble
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE md,                              ONLY: simulation_parameters_type
+  USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             get_molecule_kind_set,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
@@ -94,8 +98,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_control( gci, local_molecules, molecule_set, molecule_kind_set, &
-       particle_set, pos, vel, dt, shake_tol, log_unit, cell, group, local_particles,&
-       error )
+       particle_set, pos, vel, dt, shake_tol, log_unit, lagrange_mult, dump_lm, &
+       cell, group, local_particles,error )
 
     
     TYPE(global_constraint_type), POINTER    :: gci
@@ -105,7 +109,8 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
-    INTEGER, INTENT(in)                      :: log_unit
+    INTEGER, INTENT(in)                      :: log_unit, lagrange_mult
+    LOGICAL, INTENT(IN)                      :: dump_lm
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(in)                      :: group
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -189,6 +194,8 @@ CONTAINS
        END IF
     END DO Shake_Inter_Loop
     CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
+    CALL dump_lagrange_mult(dump_lm, lagrange_mult,local_molecules,molecule_set,gci,&
+         molecule_kind_set,group,"S",error)
     CALL timestop ( 0.0_dp, handle )
   END SUBROUTINE shake_control
 
@@ -207,8 +214,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_control( gci, local_molecules, molecule_set, molecule_kind_set,  &
-       particle_set, vel, dt, rattle_tol, log_unit, cell, group, local_particles, &
-       error )
+       particle_set, vel, dt, rattle_tol, log_unit, lagrange_mult, dump_lm, cell, group,&
+       local_particles, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -217,7 +224,8 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt, rattle_tol
-    INTEGER, INTENT(in)                      :: log_unit
+    INTEGER, INTENT(in)                      :: log_unit, lagrange_mult
+    LOGICAL, INTENT(IN)                      :: dump_lm
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(in)                      :: group
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -297,6 +305,8 @@ CONTAINS
        END IF
     END DO Rattle_Inter_Loop
     CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
+    CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
+         molecule_kind_set,group,"R",error)
     CALL timestop ( 0.0_dp, handle )
 
   END SUBROUTINE rattle_control
@@ -340,9 +350,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_roll_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, log_unit, &
-      n3x3con, n4x6con, nkind, nmol_per_kind
-    LOGICAL                                  :: do_ext_constraint
+    INTEGER :: handle, i, ikind, imol, ishake_ext, ishake_int, k, &
+      lagrange_mult, log_unit, n3x3con, n4x6con, nkind, nmol_per_kind
+    LOGICAL                                  :: do_ext_constraint, dump_lm
     REAL(KIND=dp)                            :: dt, int_max_sigma, mass, &
                                                 max_sigma, shake_tol
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
@@ -357,6 +367,8 @@ CONTAINS
     shake_tol = simpar%shake_tol
     dt = simpar%dt
     log_unit = simpar%info_constraint
+    lagrange_mult = simpar%lagrange_multipliers
+    dump_lm = simpar%dump_lm
     ! setting up for roll
     IF ( simpar % ensemble == npt_i_ensemble ) THEN
        CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v )
@@ -424,6 +436,8 @@ CONTAINS
        END IF
     END DO Shake_Inter_Loop
     CALL shake_ext_info(log_unit,ishake_ext,max_sigma,error)
+    CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
+         molecule_kind_set,group,"S",error)
     CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
     CALL timestop ( 0.0_dp, handle )
 
@@ -473,9 +487,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_roll_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, ikind, imol, irattle_ext, irattle_int, k, log_unit, &
-      n3x3con, n4x6con, nkind, nmol_per_kind
-    LOGICAL                                  :: do_ext_constraint
+    INTEGER :: handle, i, ikind, imol, irattle_ext, irattle_int, k, &
+      lagrange_mult, log_unit, n3x3con, n4x6con, nkind, nmol_per_kind
+    LOGICAL                                  :: do_ext_constraint, dump_lm
     REAL(KIND=dp)                            :: amass, dt, int_max_sigma, &
                                                 max_sigma, rattle_tol
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
@@ -491,6 +505,8 @@ CONTAINS
     rattle_tol = simpar%shake_tol
     dt         = simpar%dt
     log_unit   = simpar%info_constraint
+    lagrange_mult = simpar%lagrange_multipliers
+    dump_lm = simpar%dump_lm
     ! setting up for roll
     IF ( simpar % ensemble == npt_i_ensemble ) THEN
        CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector )
@@ -558,9 +574,136 @@ CONTAINS
        END IF
     END DO Rattle_Inter_Loop
     CALL rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
+    CALL dump_lagrange_mult(dump_lm,lagrange_mult,local_molecules,molecule_set,gci,&
+         molecule_kind_set,para_env%group,"R",error)
     CALL check_tol ( roll_tol, iroll, 'RATTLE', veps = veps )
     CALL timestop ( 0.0_dp, handle )
   END SUBROUTINE rattle_roll_control
+
+!!****** constraint/dump_lagrange_mult [1.0] *
+!!
+!!   NAME
+!!     dump_lagrange_mult
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     Teodoro Laino [tlaino] 2007 - Dumps lagrange multipliers
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE dump_lagrange_mult(dump_lm,log_unit,local_molecules,molecule_set,gci,&
+       molecule_kind_set, group, id_type, error)
+    LOGICAL, INTENT(IN)                      :: dump_lm
+    INTEGER, INTENT(IN)                      :: log_unit
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    INTEGER, INTENT(IN)                      :: group
+    CHARACTER(LEN=1), INTENT(IN)             :: id_type
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_lagrange_mult', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: label
+    INTEGER                                  :: handle, i, ikind, imol, j, &
+                                                my_index, n3x3con, n4x6con, &
+                                                nconstraint, nkind, &
+                                                nmol_per_kind, stat
+    LOGICAL                                  :: do_ext_constraint, &
+                                                do_int_constraint, failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: lagr
+    TYPE(colvar_counters)                    :: ncolv
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
+    failure = .FALSE.
+    CALL timeset ( routineN, 'I', ' ', handle )
+    ! Total number of intramolecular constraints (distributed)
+    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
+         nconstraint=nconstraint)
+    do_int_constraint = (nconstraint>0)
+    do_ext_constraint = (gci%ntot>0)
+    IF (dump_lm.AND.(do_int_constraint.OR.do_ext_constraint)) THEN
+       nkind = SIZE (  molecule_kind_set )
+       ALLOCATE(lagr(nconstraint),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       lagr = 0.0_dp
+       ! Dump lagrange multipliers for Intramolecular Constraints
+       my_index = 0
+       IF (do_int_constraint) THEN
+          MOL:  DO ikind = 1, nkind
+             molecule_kind => molecule_kind_set(ikind)
+             nmol_per_kind = local_molecules % n_el ( ikind )
+             CALL get_molecule_kind ( molecule_kind,&
+                                      ncolv = ncolv,&
+                                      ng3x3 = n3x3con,&
+                                      ng4x6 = n4x6con )
+             DO imol = 1, molecule_kind%nmolecule
+                i = molecule_kind%molecule_list(imol)
+                IF (ANY(local_molecules % list ( ikind ) % array == i)) THEN
+                   molecule => molecule_set ( i ) 
+                   ! Collective Variables
+                   DO j = 1, ncolv%ntot
+                      lagr(my_index+1) = molecule%lci%lcolv(j)%lambda
+                      my_index = my_index + 1
+                   END DO
+                   ! 3x3
+                   DO j = 1, n3x3con
+                      lagr(my_index+1:my_index+3) = molecule%lci%lg3x3(j)%lambda(:)
+                      my_index = my_index + 3
+                   END DO
+                   ! 4x6
+                   DO j = 1, n4x6con
+                      lagr(my_index+1:my_index+6) = molecule%lci%lg4x6(j)%lambda(:)
+                      my_index = my_index + 6
+                   END DO
+                ELSE
+                   my_index = my_index + ncolv%ntot + 3*n3x3con + 6*n4x6con
+                END IF
+             END DO
+          END DO MOL
+          CALL mp_sum(lagr,group)
+       END IF
+       ! Intermolecular constraints
+       IF (do_ext_constraint) THEN
+          CALL reallocate(lagr,1,SIZE(lagr)+gci%ntot)
+          ! Collective Variables
+          DO j = 1, gci%ncolv%ntot
+             lagr(my_index+1) = gci%lcolv(j)%lambda
+             my_index = my_index + 1
+          END DO
+          ! 3x3
+          DO j = 1, gci%ng3x3
+             lagr(my_index+1:my_index+3) = gci%lg3x3(j)%lambda(:)
+             my_index = my_index + 3
+          END DO
+          ! 4x6
+          DO j = 1, gci%ng4x6
+             lagr(my_index+1:my_index+6) = gci%lg4x6(j)%lambda(:)
+             my_index = my_index + 6
+          END DO
+       END IF
+       IF (log_unit>0) THEN
+          IF (id_type=="S") THEN
+             label = "Shake  Lagrangian Multipliers:"
+          ELSEIF (id_type=="R") THEN
+             label = "Rattle Lagrangian Multipliers:"
+          ELSE
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END IF
+          WRITE(log_unit,'(A,1X,'//cp_to_string(SIZE(lagr))//'F15.9)')TRIM(label),lagr
+       END IF
+       DEALLOCATE(lagr,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL timestop ( 0.0_dp, handle )
+
+  END SUBROUTINE dump_lagrange_mult
 
 !!****** constraint/shake_int_info [1.0] *
 !!

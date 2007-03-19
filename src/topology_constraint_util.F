@@ -518,7 +518,7 @@ CONTAINS
           gci%ng3x3     = ng3x3
           gci%ng3x3_restraint     = ng3x3_restraint
           ! Total number of Intermolecular constraints
-          gci%ntot = gci%ng3x3 + gci%ntot
+          gci%ntot = 3*gci%ng3x3 + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
@@ -575,7 +575,7 @@ CONTAINS
           gci%ng4x6     = ng4x6
           gci%ng4x6_restraint     = ng4x6_restraint
           ! Total number of Intermolecular constraints
-          gci%ntot = gci%ng4x6 + gci%ntot
+          gci%ntot = 6*gci%ng4x6 + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
        END IF
