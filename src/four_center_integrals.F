@@ -788,7 +788,7 @@ MODULE four_center_integrals
                                     DO na = cgfa_first,cgfa_last
                                       pna = na - offset_a1
                                       prim = T(pna,pnb,pnc,pnd)
-                                      IF(prim<eps_schwarz ) CYCLE
+                                      IF(ABS(prim)<eps_schwarz ) CYCLE
                                       DO mc = sgfc,nsgfc(kset)+sgfc-1
                                         sc = prim*sphi_c(nc,mc)
                                         pc2=mc+pc1
