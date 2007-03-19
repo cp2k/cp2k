@@ -188,8 +188,8 @@ H2O-32_PME_distr.inp      2
 # Central Force Water test (Nir)
 cf_genpot.inp             2
 # Tersoff potential test
-Si_tersoff.inp
-Si_tersoff_2.inp
+Si_tersoff.inp            2
+Si_tersoff_2.inp          2
 # Shell model NVE
 uo2_shell_nve.inp         2
 uo2_shell_nve_r.inp       2
