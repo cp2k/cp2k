@@ -1348,7 +1348,7 @@ MODULE four_center_integrals
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                     primitive_forces = 0.0_dp
                     
-                    ALLOCATE(T1(maxsgf,maxsgf,maxsgf,maxsgf),STAT=stat)
+                    ALLOCATE(T1(ncoa,ncob,ncoc,ncod),STAT=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                     
                     CALL forces4(ra, rb, rc, rd,&

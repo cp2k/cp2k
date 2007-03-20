@@ -735,10 +735,10 @@ MODULE libint_interface
     PROCEDURE(build_deriv1), POINTER         :: pbuild_deriv1
     REAL(C_DOUBLE), DIMENSION(:), POINTER    :: tmp_data
    
-    INTEGER                                  :: perm(4)
+    INTEGER                                  :: full_perm(12)
     !permutation of configuration
 
-    perm=(/1,2,3,4/)
+    full_perm=(/1,2,3,4,5,6,7,8,9,10,11,12/)
     n1 = n_a; n2 = n_b; n3 = n_c; n4 = n_d
     A1 => A; B1 => B; C1 => C; D1 => D;
     Zeta_A1 => Zeta_A; Zeta_B1 => Zeta_B; Zeta_C1 => Zeta_C; Zeta_D1 => Zeta_D
@@ -750,8 +750,12 @@ MODULE libint_interface
       B1 => A
       Zeta_A1 => Zeta_B
       Zeta_B1 => Zeta_A
-      perm(1) = 2
-      perm(2) = 1
+      full_perm(1) = 4
+      full_perm(2) = 5
+      full_perm(3) = 6
+      full_perm(4) = 1
+      full_perm(5) = 2
+      full_perm(6) = 3
     END IF
 
     IF(n_c<n_d) THEN
@@ -761,8 +765,13 @@ MODULE libint_interface
       D1 => C
       Zeta_C1 => Zeta_D
       Zeta_D1 => Zeta_C
-      perm(3)=4
-      perm(4)=3
+      full_perm(7) = 10
+      full_perm(8) = 11
+      full_perm(9) = 12
+      full_perm(10) = 7
+      full_perm(11) = 8
+      full_perm(12) = 9
+
     END IF
  
     IF( n_a+n_b > n_c+n_d) THEN
@@ -786,14 +795,25 @@ MODULE libint_interface
       y => Zeta_B1
       Zeta_B1 => Zeta_D1
       Zeta_D1 => Y  
-      n = perm(1)
-      perm(1) = perm(3)
-      perm(3) = n
 
-      n = perm(2)
-      perm(2) = perm(4)
-      perm(4) = n
-
+      n = full_perm(1)
+      full_perm(1) = full_perm(7)
+      full_perm(7) = n
+      n = full_perm(2)
+      full_perm(2) = full_perm(8)
+      full_perm(8) = n
+      n = full_perm(3)
+      full_perm(3) = full_perm(9)
+      full_perm(9) = n
+      n = full_perm(4)
+      full_perm(4) = full_perm(10)
+      full_perm(10) = n
+      n = full_perm(5)
+      full_perm(5) = full_perm(11)
+      full_perm(11) = n
+      n = full_perm(6)
+      full_perm(6) = full_perm(12)
+      full_perm(12) = n
     END IF
 
    
@@ -828,7 +848,7 @@ MODULE libint_interface
                                           work_forces(1:mysize,k+6) )
     END DO
 
-    DO n=1,4
+    DO n=1,12
       DO l = 1,nco(n_d)
         DO k = 1,nco(n_c)     
           DO j = 1,nco(n_b)
@@ -859,8 +879,8 @@ MODULE libint_interface
               END IF
    
               p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
-              primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+ l,(perm(n)-1)*3+1:(perm(n)-1)*3+3)=&
-                                       work_forces(p_index,(n-1)*3+1:(n-1)*3+3)
+              primitive_forces(offset_a+i,offset_b+j,offset_c+k,offset_d+ l,full_perm(n))=&
+                                       work_forces(p_index,n)
             END DO
           END DO
         END DO
