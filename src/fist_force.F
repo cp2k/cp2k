@@ -45,8 +45,6 @@ MODULE fist_force
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
-                                             density_nonbond,&
-                                             energy_manybody,&
                                              force_nonbond
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
@@ -55,6 +53,9 @@ MODULE fist_force
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE manybody_potential,              ONLY: density_nonbond,&
+                                             energy_manybody,&
+                                             force_nonbond_manybody
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -295,6 +296,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
                          error=error)
   ELSE
     CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
+                         pot_nonbond, f_nonbond, pv_nonbond  ,error=error)
+    CALL force_nonbond_manybody ( fist_nonbond_env, particle_set, cell, &
                          pot_nonbond, f_nonbond, pv_nonbond  ,error=error)
   END IF
 

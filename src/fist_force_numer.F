@@ -36,11 +36,11 @@ MODULE fist_force_numer
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
-  USE fist_nonbond_force,              ONLY: energy_manybody
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
+  USE manybody_potential,              ONLY: energy_manybody
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE mol_force,                       ONLY: force_bends,&
