@@ -308,7 +308,7 @@ CONTAINS
     CALL get_md_env (md_env, force_env_p=force_env_p, nhc_part=nhc_part,&
          nhc_coef=nhc_coef)
     CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
-    cons = md_ener% ekin + md_ener%epot + nhc_part_kin + nhc_part_pot
+    cons = md_ener% ekin + md_ener%epot +  md_ener % ekin_shell + nhc_part_kin + nhc_part_pot
     DO iforce_env = 1, SIZE(force_env_p)
        CALL force_env_get (force_env=force_env_p(iforce_env)%force_env, &
             dyn_coeff_set=dyn_coeff_set,error=error)

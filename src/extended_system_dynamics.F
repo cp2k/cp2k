@@ -37,13 +37,14 @@ MODULE extended_system_dynamics
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: lnhc
+  PUBLIC :: lnhc, shell_scale_comv
 
   INTERFACE lnhc
      MODULE PROCEDURE lnhc_particles, lnhc_particle_set, lnhc_barostat, lnhc_coefs, lnhc_pw
@@ -500,8 +501,7 @@ END SUBROUTINE lnhc_barostat
 !******************************************************************************
 SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
                                atomic_kind_set, particle_set, local_molecules, &
-                               group )
-
+                               group, shell_adiabatic, shell_particle_set, core_particle_set)
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
@@ -511,18 +511,26 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     INTEGER, INTENT(IN)                      :: group
+    LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
+    TYPE(particle_type), POINTER, OPTIONAL   :: shell_particle_set( : )
+    TYPE(particle_type), POINTER, OPTIONAL   :: core_particle_set( : )
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
-      ipart, iyosh, last_atom, n, nmol_local, npart_local, nx1, nx2
-    REAL(KIND=dp)                            :: flops, mass, scale
+      ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, shell_index
+    LOGICAL                                  :: my_shell_adiabatic
+    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, mass, scale
+    REAL(KIND=dp)                            :: vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(shell_kind_type), POINTER           :: shell
 
 !    TYPE(distribution_1d_type), POINTER      :: particles
 !------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0.0_dp
+  my_shell_adiabatic = .FALSE.
+  IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
 
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
@@ -638,25 +646,70 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
 
 ! now scale the particle velocities
   ii = 0
-  DO ikind = 1, SIZE ( molecule_kind_set )
-    nmol_local = local_molecules % n_el ( ikind )
-    DO imol_local = 1, nmol_local
-      imol = local_molecules % list ( ikind ) % array ( imol_local )
-      molecule => molecule_set ( imol )
-      CALL get_molecule ( molecule, first_atom = first_atom, &
+  jj = 0
+  IF(my_shell_adiabatic) THEN
+    DO ikind = 1, SIZE ( molecule_kind_set )
+      nmol_local = local_molecules % n_el ( ikind )
+      DO imol_local = 1, nmol_local
+        imol = local_molecules % list ( ikind ) % array ( imol_local )
+        molecule => molecule_set ( imol )
+        CALL get_molecule ( molecule, first_atom = first_atom, &
                           last_atom = last_atom ) 
-      DO ipart = first_atom, last_atom
-        ii = ii + 1
-        particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * &
-                                            nhc % p_scale ( 1, ii ) % point
-        particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * &
+        DO ipart = first_atom, last_atom
+          ii = ii + 1
+          jj = jj + 1
+          particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * &
+                                              nhc % p_scale ( 1, ii ) % point
+          particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * &
+                                              nhc % p_scale ( 2, ii ) % point
+          particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * &
+                                              nhc % p_scale ( 3, ii ) % point
+          shell_index=particle_set ( ipart ) %shell_index
+          IF(shell_index/=0) THEN
+             atomic_kind => particle_set ( ipart ) % atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell=shell)
+             fac_masss = shell%mass_shell/mass 
+             fac_massc = shell%mass_core/mass
+             vs(1:3) = shell_particle_set(shell_index)%v(1:3)
+             vc(1:3) = core_particle_set(shell_index)%v(1:3)
+             jj = jj + 4
+             shell_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) +&
+                   fac_massc*(vs(1)-vc(1))
+             shell_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) +&
+                   fac_massc*(vs(2)-vc(2))
+             shell_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) +&
+                   fac_massc*(vs(3)-vc(3))
+             core_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) +&
+                   fac_masss*(vc(1)-vs(1))
+             core_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) +&
+                   fac_masss*(vc(2)-vs(2))
+             core_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) +&
+                   fac_masss*(vc(3)-vs(3))
+          END IF
+        END DO  ! ipart
+      END DO  ! imol_local
+    END DO  ! ikind
+  ELSE
+    DO ikind = 1, SIZE ( molecule_kind_set )
+      nmol_local = local_molecules % n_el ( ikind )
+      DO imol_local = 1, nmol_local
+        imol = local_molecules % list ( ikind ) % array ( imol_local )
+        molecule => molecule_set ( imol )
+        CALL get_molecule ( molecule, first_atom = first_atom, &
+                            last_atom = last_atom ) 
+        DO ipart = first_atom, last_atom
+           ii = ii + 1
+           particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * &
+                                              nhc % p_scale ( 1, ii ) % point
+           particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * &
                                             nhc % p_scale ( 2, ii ) % point
-        particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * &
+           particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * &
                                             nhc % p_scale ( 3, ii ) % point
-      END DO
-    END DO
-  END DO
-  flops = flops + REAL ( npart_local*3,KIND=dp)
+        END DO  ! ipart
+      END DO  ! imol_local
+    END DO  ! ikind
+    flops = flops + REAL ( npart_local*3,KIND=dp)
+  END IF  ! my_shell_adiabatic
 
   flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)
@@ -682,7 +735,7 @@ END SUBROUTINE lnhc_particle_set
 !******************************************************************************
 SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
                                atomic_kind_set, particle_set, local_molecules, &
-                               vel, group )
+                               vel, group,  shell_adiabatic, shell_vel, core_vel)
 
 
     TYPE(lnhc_parameters_type), &
@@ -694,17 +747,25 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     INTEGER, INTENT(IN)                      :: group
+    LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:)
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: core_vel(:,:)
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
-      ipart, iyosh, last_atom, n, nmol_local, npart_local, nx1, nx2
-    REAL(KIND=dp)                            :: flops, mass, scale
+      ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, shell_index
+    LOGICAL                                  :: my_shell_adiabatic
+    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, mass, scale
+    REAL(KIND=dp)                            :: vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(shell_kind_type), POINTER           :: shell
 
 !------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0.0_dp
+  my_shell_adiabatic = .FALSE.
+  IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
 
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
@@ -817,30 +878,111 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 
 ! now scale the particle velocities
   ii = 0
-  DO ikind = 1, SIZE ( molecule_kind_set )
-    nmol_local = local_molecules % n_el ( ikind )
-    DO imol_local = 1, nmol_local
-      imol = local_molecules % list ( ikind ) % array ( imol_local )
-      molecule => molecule_set ( imol )
-      CALL get_molecule ( molecule, first_atom = first_atom, &
-                          last_atom = last_atom ) 
-      DO ipart = first_atom, last_atom
-        ii = ii + 1
-        vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
-        vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
-        vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
-      END DO
-    END DO
-  END DO
-  flops = flops + REAL ( npart_local*3,KIND=dp)
+  jj = 0
+  IF(my_shell_adiabatic) THEN
+    DO ikind = 1, SIZE ( molecule_kind_set )
+      nmol_local = local_molecules % n_el ( ikind )
+      DO imol_local = 1, nmol_local
+        imol = local_molecules % list ( ikind ) % array ( imol_local )
+        molecule => molecule_set ( imol )
+        CALL get_molecule ( molecule, first_atom = first_atom, &
+                            last_atom = last_atom ) 
+        DO ipart = first_atom, last_atom
+          ii = ii + 1
+          jj = jj + 1
+          vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
+          vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
+          vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
+          shell_index = particle_set(ipart)%shell_index
+          IF(shell_index/=0) THEN
+             atomic_kind => particle_set ( ipart ) % atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,shell=shell)
+             fac_masss = shell%mass_shell/mass 
+             fac_massc = shell%mass_core/mass
+             vs(1:3) = shell_vel( 1:3,shell_index )
+             vc(1:3) = core_vel( 1:3,shell_index )
+             jj = jj + 6
+             shell_vel( 1,shell_index ) = vel( 1, ipart ) + fac_massc*(vs(1)-vc(1))
+             shell_vel( 2,shell_index ) = vel( 2, ipart ) + fac_massc*(vs(2)-vc(2))
+             shell_vel( 3,shell_index ) = vel( 3, ipart ) + fac_massc*(vs(3)-vc(3))
+             core_vel( 1,shell_index ) = vel( 1, ipart ) + fac_masss*(vc(1)-vs(1))
+             core_vel( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
+             core_vel( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
+          END IF
+        END DO  ! ipart
+      END DO  ! imol_local
+    END DO  ! ikind
+    flops = flops + REAL ( jj*3,KIND=dp)
+  ELSE
+    DO ikind = 1, SIZE ( molecule_kind_set )
+      nmol_local = local_molecules % n_el ( ikind )
+      DO imol_local = 1, nmol_local
+        imol = local_molecules % list ( ikind ) % array ( imol_local )
+        molecule => molecule_set ( imol )
+        CALL get_molecule ( molecule, first_atom = first_atom, &
+                            last_atom = last_atom ) 
+        DO ipart = first_atom, last_atom
+          ii = ii + 1
+          vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
+          vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
+          vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
+        END DO  ! ipart
+      END DO  ! imol_local
+    END DO  ! ikind
+    flops = flops + REAL ( npart_local*3,KIND=dp)
+  END IF
 
   flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)
 
 END SUBROUTINE lnhc_particles
 
+!******************************************************************************
+  SUBROUTINE shell_scale_comv(atomic_kind_set, local_particles, particle_set,&
+                              com_vel, shell_vel, core_vel)
 
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(IN)                :: com_vel( :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: shell_vel( :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: core_vel( :, : )
 
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
+               nparticle_local, shell_index
+    LOGICAL                                  :: is_shell
+    REAL(KIND=dp)                            :: fac_massc, fac_masss, mass
+    REAL(KIND=dp)                            :: vc(3), vs(3)
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_kind_type), POINTER           :: shell
+
+    nparticle_kind = SIZE(atomic_kind_set)
+
+    DO iparticle_kind=1,nparticle_kind
+      atomic_kind => atomic_kind_set(iparticle_kind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
+           shell_active=is_shell,shell=shell)
+      IF(is_shell) THEN
+        fac_masss = shell%mass_shell/mass 
+        fac_massc = shell%mass_core/mass 
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          shell_index = particle_set(iparticle)%shell_index
+          vs(1:3) = shell_vel( 1:3,shell_index )
+          vc(1:3) = core_vel( 1:3,shell_index )
+          shell_vel( 1,shell_index ) = com_vel( 1, iparticle ) + fac_massc*(vs(1)-vc(1))
+          shell_vel( 2,shell_index ) = com_vel( 2, iparticle ) + fac_massc*(vs(2)-vc(2))
+          shell_vel( 3,shell_index ) = com_vel( 3, iparticle ) + fac_massc*(vs(3)-vc(3))
+          core_vel( 1,shell_index ) = com_vel( 1, iparticle ) + fac_masss*(vc(1)-vs(1))
+          core_vel( 2,shell_index ) = com_vel( 2, iparticle ) + fac_masss*(vc(2)-vs(2))
+          core_vel( 3,shell_index ) = com_vel( 3, iparticle ) + fac_masss*(vc(3)-vs(3))
+        END DO 
+      END IF  ! is_shell
+
+    END DO  ! iparticle_kind
+    
+  END SUBROUTINE shell_scale_comv
 !******************************************************************************
 
 END MODULE extended_system_dynamics

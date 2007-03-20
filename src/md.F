@@ -139,7 +139,7 @@ MODULE md
      INTEGER :: nyosh
      INTEGER :: nhclen
      INTEGER :: info_constraint
-     INTEGER :: lagrange_multipliers
+       INTEGER :: lagrange_multipliers
      REAL (KIND=dp) :: tau_nhc
      REAL (KIND=dp) :: tau_cell
      REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh

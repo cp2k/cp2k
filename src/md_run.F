@@ -79,6 +79,7 @@ MODULE md_run
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_types_new,              ONLY: global_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE physcon,                         ONLY: kelvin
   USE termination,                     ONLY: external_control,&
                                              stop_memory
@@ -584,18 +585,21 @@ END SUBROUTINE md_output
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
-                                                isubsys, iw, natom
+                                                isubsys, iw, natom, shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: e_kinetic, mass, scale, &
+    LOGICAL                                  :: failure, is_shell, shell_adiabatic
+    REAL(KIND=dp)                            :: e_kinetic, fac_massc, fac_masss, mass, scale, &
                                                 temperature, total_mass, v2
-    REAL(KIND=dp), DIMENSION(3)              :: v, vcom
+    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(shell_kind_type), POINTER           :: shell
 
 ! -------------------------------------------------------------------------
 
@@ -667,20 +671,58 @@ END SUBROUTINE md_output
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
                              atomic_kinds=atomic_kinds,&
                              particles=particles,&
+                             shell_particles=shell_particles,&
+                             core_particles=core_particles,&
                              error=error)
 
-          DO ikind=1,atomic_kinds%n_els
-            atomic_kind => atomic_kinds%els(ikind)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 atom_list=atom_list,&
-                                 mass=mass,&
-                                 natom=natom)
-            v2 = 0.0_dp
-            DO iatom=1,natom
-              atom = atom_list(iatom)
-              particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
+               shell_adiabatic=shell_adiabatic)
+
+          IF(shell_adiabatic) THEN
+            DO ikind=1,atomic_kinds%n_els
+              atomic_kind => atomic_kinds%els(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                   atom_list=atom_list,&
+                                   mass=mass,&
+                                   natom=natom,&
+                                   shell_active=is_shell,shell=shell)
+              IF(is_shell) THEN
+                fac_masss = shell%mass_shell/mass 
+                fac_massc = shell%mass_core/mass 
+                DO iatom=1,natom
+                  atom = atom_list(iatom)
+                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+                  shell_index = particles%els(atom)%shell_index
+                  vs(1:3) = shell_particles%els(atom)%v(1:3)
+                  vc(1:3) = core_particles%els(atom)%v(1:3)
+                  shell_particles%els(atom)%v(1) = particles%els(atom)%v(1) + fac_massc*(vs(1)-vc(1))
+                  shell_particles%els(atom)%v(2) = particles%els(atom)%v(2) + fac_massc*(vs(2)-vc(2))
+                  shell_particles%els(atom)%v(3) = particles%els(atom)%v(3) + fac_massc*(vs(3)-vc(3))
+                  core_particles%els(atom)%v(1) = particles%els(atom)%v(1) + fac_masss*(vc(1)-vs(1))
+                  core_particles%els(atom)%v(2) = particles%els(atom)%v(2) + fac_masss*(vc(2)-vs(2))
+                  core_particles%els(atom)%v(3) = particles%els(atom)%v(3) + fac_masss*(vc(3)-vs(3))
+                END DO  ! iatom
+              ELSE
+                DO iatom=1,natom
+                  atom = atom_list(iatom)
+                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+                END DO  ! iatom
+              END IF
+            END DO  ! ikind
+          ELSE
+            DO ikind=1,atomic_kinds%n_els
+              atomic_kind => atomic_kinds%els(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                   atom_list=atom_list,&
+                                   mass=mass,&
+                                   natom=natom)
+              v2 = 0.0_dp
+              DO iatom=1,natom
+                atom = atom_list(iatom)
+                particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+              END DO
             END DO
-          END DO
+          END IF
 
         END DO
 

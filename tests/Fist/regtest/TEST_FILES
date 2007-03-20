@@ -193,3 +193,5 @@ Si_tersoff_2.inp          2
 # Shell model NVE
 uo2_shell_nve.inp         2
 uo2_shell_nve_r.inp       2
+# Shell model NVT
+uo2_shell_nvt.inp         2
