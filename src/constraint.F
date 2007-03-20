@@ -696,7 +696,10 @@ CONTAINS
           ELSE
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
-          WRITE(log_unit,'(A,1X,'//cp_to_string(SIZE(lagr))//'F15.9)')TRIM(label),lagr
+          WRITE(log_unit,FMT='(A,T40,4F15.9)')TRIM(label),lagr(1:MIN(4,SIZE(lagr)))
+          DO j = 5, SIZE(lagr), 4
+             WRITE(log_unit,FMT='(T40,4F15.9)')lagr(j:MIN(j+3,SIZE(lagr)))
+          END DO
        END IF
        DEALLOCATE(lagr,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
