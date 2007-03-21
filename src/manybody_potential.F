@@ -565,7 +565,8 @@ CONTAINS
     END IF
 
   END SUBROUTINE destroy_newlist
-
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   FUNCTION ter_f_C(pot,r)
     TYPE(pair_potential_single_type), POINTER           :: pot
     REAL(KIND=dp), INTENT(IN)                           :: r
@@ -826,10 +827,11 @@ CONTAINS
     rij(:) = pbc(particle_set(jparticle)%r(:),particle_set(iparticle)%r(:),cell)
     drij = SQRT(DOT_PRODUCT(rij,rij))
     ter_zeta_ij = 0.0_dp
-    !nparticle = SIZE ( particle_set )
-    npair = nl(iparticle)
-    DO ipair=1,npair
-      kparticle = newlist(ipair,iparticle)
+    !npair = nl(iparticle)
+    !DO ipair=1,npair
+    !  kparticle = newlist(ipair,iparticle)
+    nparticle = SIZE ( particle_set )
+    DO kparticle=1,nparticle
       IF((iparticle==kparticle).OR.(jparticle==kparticle)) CYCLE
       rik(:) = pbc(particle_set(kparticle)%r(:),particle_set(iparticle)%r(:),cell)
       drik = SQRT(DOT_PRODUCT(rik,rik))
@@ -883,9 +885,11 @@ CONTAINS
     drij = SQRT(DOT_PRODUCT(rij,rij))
     rij_hat(:) = rij(:) / drij
 
-    npair = nl(iparticle)
-    DO ipair=1,npair
-      kparticle = newlist(ipair,iparticle)
+    !npair = nl(iparticle)
+    !DO ipair=1,npair
+    !  kparticle = newlist(ipair,iparticle)
+    nparticle = SIZE ( particle_set )
+    DO kparticle=1,nparticle
       IF((iparticle==kparticle).OR.(jparticle==kparticle)) CYCLE
       rik(:) = pbc(particle_set(kparticle)%r(:),particle_set(iparticle)%r(:),cell)
       drik = SQRT(DOT_PRODUCT(rik,rik))

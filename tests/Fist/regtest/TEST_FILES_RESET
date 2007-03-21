@@ -269,3 +269,5 @@ nh3_4x6_ext.inp
 nh3_r4x6_ext.inp
 water_3_g3x3_ext.inp
 water_3_rg3x3_ext.inp
+# bug fix reset incorrect answer for parallel case
+C_tersoff.inp
