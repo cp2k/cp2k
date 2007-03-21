@@ -592,13 +592,13 @@ END SUBROUTINE clone_particle
           WRITE(iunit) z4
        CASE ("VEL")
           IF (PRESENT(array)) THEN
-             x4(:) = arr(1,:)*angstrom*femtoseconds
-             y4(:) = arr(2,:)*angstrom*femtoseconds
-             z4(:) = arr(3,:)*angstrom*femtoseconds
+             x4(:) = arr(1,:)*angstrom/femtoseconds
+             y4(:) = arr(2,:)*angstrom/femtoseconds
+             z4(:) = arr(3,:)*angstrom/femtoseconds
           ELSE
-             x4(:) = particle_set(:)%v(1)*angstrom*femtoseconds
-             y4(:) = particle_set(:)%v(2)*angstrom*femtoseconds
-             z4(:) = particle_set(:)%v(3)*angstrom*femtoseconds
+             x4(:) = particle_set(:)%v(1)*angstrom/femtoseconds
+             y4(:) = particle_set(:)%v(2)*angstrom/femtoseconds
+             z4(:) = particle_set(:)%v(3)*angstrom/femtoseconds
           END IF
           WRITE(iunit) x4
           WRITE(iunit) y4

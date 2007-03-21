@@ -1340,52 +1340,53 @@ CONTAINS
           atom_a = list(1,ipair)
           atom_b = list(2,ipair)
 
-          rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-          rab = rab+cell_v
-          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+          !set this outside the potential type in case need multiple potentials
+          fr(:) = 0.0_dp
 
-          IF (rab2 <= rab2_max) THEN
-             energy =  potential_s (spline_data,rab2,fscalar)
-             pot_nonbond = pot_nonbond + energy
-             fr(1) = fscalar*rab(1)
-             fr(2) = fscalar*rab(2)
-             fr(3) = fscalar*rab(3)
+          !Do everything necessary for EAM here
+          IF (is_eam) THEN
+            rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+            rab = rab+cell_v
+            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
-             IF (is_eam) THEN
-                pot => potparm %pot( ikind, jkind )%pot
-                CALL get_force_eam ( rab2, pot, particle_set, atom_a, atom_b, &
-                     f_eam )
-                fr(1) =  fr(1) - f_eam * rab ( 1 )
-                fr(2) =  fr(2) - f_eam * rab ( 2 )
-                fr(3) =  fr(3) - f_eam * rab ( 3 )
-             ENDIF
-             IF (is_tersoff) THEN
-                pot => potparm %pot( ikind, jkind )%pot
-                CALL get_force_tersoff ( pot, particle_set, cell, &
-                                         atom_a, atom_b, f_nonbond, ptens_nonbond, &
-                                         newlist,nl )
-             ENDIF
+            IF (rab2 <= rab2_max) THEN
+              energy =  potential_s (spline_data,rab2,fscalar)
+              pot_nonbond = pot_nonbond + energy
+              fr(1) = fscalar*rab(1)
+              fr(2) = fscalar*rab(2)
+              fr(3) = fscalar*rab(3)
 
-             f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-             f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-             f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+              pot => potparm %pot( ikind, jkind )%pot
+              CALL get_force_eam ( rab2, pot, particle_set, atom_a, atom_b, f_eam )
+              fr(1) =  fr(1) - f_eam * rab ( 1 )
+              fr(2) =  fr(2) - f_eam * rab ( 2 )
+              fr(3) =  fr(3) - f_eam * rab ( 3 )
 
-             f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-             f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-             f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+              f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+              f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+              f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
 
-             ptens11 = ptens11 + rab(1)*fr(1)
-             ptens21 = ptens21 + rab(2)*fr(1)
-             ptens31 = ptens31 + rab(3)*fr(1)
-             ptens12 = ptens12 + rab(1)*fr(2)
-             ptens22 = ptens22 + rab(2)*fr(2)
-             ptens32 = ptens32 + rab(3)*fr(2)
-             ptens13 = ptens13 + rab(1)*fr(3)
-             ptens23 = ptens23 + rab(2)*fr(3)
-             ptens33 = ptens33 + rab(3)*fr(3)
-
+              f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+              f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+              f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+              ptens11 = ptens11 + rab(1)*fr(1)
+              ptens21 = ptens21 + rab(2)*fr(1)
+              ptens31 = ptens31 + rab(3)*fr(1)
+              ptens12 = ptens12 + rab(1)*fr(2)
+              ptens22 = ptens22 + rab(2)*fr(2)
+              ptens32 = ptens32 + rab(3)*fr(2)
+              ptens13 = ptens13 + rab(1)*fr(3)
+              ptens23 = ptens23 + rab(2)*fr(3)
+              ptens33 = ptens33 + rab(3)*fr(3)
+            ENDIF
           END IF
-
+          !Do everything necessary for Tersoff here
+          IF (is_tersoff) THEN
+            pot => potparm %pot( ikind, jkind )%pot
+            CALL get_force_tersoff ( pot, particle_set, cell, &
+                                     atom_a, atom_b, f_nonbond, ptens_nonbond, &
+                                     newlist,nl )
+          ENDIF
        END DO
     END DO
     ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11
