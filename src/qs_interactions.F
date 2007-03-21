@@ -984,13 +984,27 @@ CONTAINS
          "SUBSYS%PRINT%RADII/GAPW_PRJ_RADII",error=error)
   END SUBROUTINE write_paw_radii
 
-! *****************************************************************************
 
-! provides a radius that is keeping into account all the angular momentum
-! components given the product of the two gaussians, and their original
-! centers
-!******
-  FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
+!!****f* qs_interactions/exp_radius_very_extended *
+!!
+!!   NAME
+!!     exp_radius_very_extended
+!!
+!!   FUNCTION
+!!     computes the radius of the Gaussian outside of which it is smaller
+!!     than eps
+!!
+!!   NOTES
+!!     can optionally screen by the maximum element of the pab block
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2007 new version that assumes that the Gaussians origante from spherical
+!!             Gaussians
+!!
+!!*** **********************************************************************
+ FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
                           zetp,eps,prefactor,cutoff) RESULT(radius)
 
     INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, lb_max
@@ -999,71 +1013,77 @@ CONTAINS
     INTEGER, OPTIONAL                        :: o1, o2
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rb(3), rp(3), zetp, &
                                                 eps, prefactor, cutoff
-    REAL(KIND=dp)                            :: radius
+    REAL(KIND=dp)                            :: radius, rad_a, rad_b
 
     INTEGER                                  :: d, i, ico, j, jco, k, la(3), &
                                                 lb(3), lxa, lxb, lya, lyb, &
                                                 lza, lzb
-    REAL(KIND=dp)                            :: bini, binj, coef(0:20,3), &
+    REAL(KIND=dp)                            :: bini, binj, coef(0:20), &
                                                 polycoef(0:60), &
                                                 prefactor_local, s1, s2
 
-    radius=0.0_dp
-    polycoef(0:3*(la_max+lb_max))=0.0_dp
+
+    ! get the local prefactor, we'll now use the largest density matrix element of the block to screen
+    IF (PRESENT(pab)) THEN
+       prefactor_local=cutoff
+       DO lxa=0,la_max
+       DO lxb=0,lb_max
+          DO lya=0,la_max-lxa
+          DO lyb=0,lb_max-lxb
+             DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+             DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+                la=(/lxa,lya,lza/)
+                lb=(/lxb,lyb,lzb/)
+                ico=coset(lxa,lya,lza)
+                jco=coset(lxb,lyb,lzb)
+                prefactor_local=MAX(ABS(pab(o1+ico,o2+jco)),prefactor_local)
+       ENDDO
+       ENDDO
+       ENDDO
+       ENDDO
+       ENDDO
+       ENDDO
+       prefactor_local=prefactor*prefactor_local
+    ELSE
+       prefactor_local=prefactor*MAX(1.0_dp,cutoff)
+    ENDIF
+
+    !
+    ! assumes that we can compute the radius for the case where
+    ! the Gaussians a and b are both on the z - axis, but at the same
+    ! distance as the original a and b
+    !
+    rad_a=SQRT(SUM((ra-rp)**2))
+    rad_b=SQRT(SUM((rb-rp)**2))
+
+    polycoef(0:la_max+lb_max)=0.0_dp
     DO lxa=0,la_max
     DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-             la=(/lxa,lya,lza/)
-             lb=(/lxb,lyb,lzb/)
-             ico=coset(lxa,lya,lza)
-             jco=coset(lxb,lyb,lzb)
-             IF (PRESENT(pab)) THEN
-               prefactor_local=prefactor*MAX(ABS(pab(o1+ico,o2+jco)),cutoff)
-             ELSE
-               prefactor_local=prefactor*MAX(1.0_dp,cutoff)
-             ENDIF
-             coef(0:la_max+lb_max,1:3)=0.0_dp
-             DO d=1,3
-               bini=1.0_dp
-               s1=1.0_dp
-               DO i=0,la(d)
-                  binj=1.0_dp
-                  s2=1.0_dp
-                  DO j=0,lb(d)
-                    coef(la(d)+lb(d)-i-j,d)=coef(la(d)+lb(d)-i-j,d) +&
-                                            bini*binj*s1*s2
-                    binj=(binj*(lb(d)-j))/(j+1)
-                    s2=s2*(rb(d)-rp(d))
-                  ENDDO
-                  bini=(bini*(la(d)-i))/(i+1)
-                  s1=s1*(ra(d)-rp(d))
-                ENDDO
-             ENDDO
-             DO i=0,la(1)+lb(1)
-             DO j=0,la(2)+lb(2)
-             DO k=0,la(3)+lb(3)
-                polycoef(i+j+k)=MAX(polycoef(i+j+k),&
-                                    ABS(prefactor_local*&
-                                        coef(i,1)*coef(j,2)*coef(k,3)))
-             ENDDO
-             ENDDO
-             ENDDO
-  
+       coef(0:la_max+lb_max)=0.0_dp
+       bini=1.0_dp
+       s1=1.0_dp
+       DO i=0,lxa
+          binj=1.0_dp
+          s2=1.0_dp
+          DO j=0,lxb
+             coef(lxa+lxb-i-j)=coef(lxa+lxb-i-j) + bini*binj*s1*s2
+             binj=(binj*(lxb-j))/(j+1)
+             s2=s2*(rad_b)
           ENDDO
-          ENDDO
+          bini=(bini*(lxa-i))/(i+1)
+          s1=s1*(rad_a)
        ENDDO
+       DO i=0,lxa+lxb
+          polycoef(i)=MAX(polycoef(i),coef(i))
        ENDDO
     ENDDO
     ENDDO
+
+    polycoef(0:la_max+lb_max)=polycoef(0:la_max+lb_max)*prefactor_local
+    radius=0.0_dp
     DO i=0,la_max+lb_max
           radius=MAX(radius,exp_radius(i,zetp,eps,polycoef(i),1.0E-2_dp) )
     ENDDO
 
   END FUNCTION exp_radius_very_extended
-
-! *****************************************************************************
-
 END MODULE qs_interactions
