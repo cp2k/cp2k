@@ -326,6 +326,9 @@ CONTAINS
          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
 
          IF(shell_present .AND. shell_adiabatic) THEN
+!!  shell-model with constraint NYI
+           CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
+!!
            work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
            CALL initialize_velocities(simpar,particles%els,&
                                       molecule_kinds=molecule_kinds_new,&

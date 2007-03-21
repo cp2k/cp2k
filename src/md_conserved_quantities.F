@@ -365,7 +365,7 @@ CONTAINS
     nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
     md_ener % temp_baro = 2.0_dp * baro_kin / nfree
 
-    cons = md_ener%ekin + md_ener%epot +  nhc_part_kin + nhc_part_pot  &
+    cons = md_ener%ekin + md_ener%epot + md_ener % ekin_shell + nhc_part_kin + nhc_part_pot  &
          + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
   END SUBROUTINE get_econs_npt
 

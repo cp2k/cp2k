@@ -581,8 +581,8 @@ CONTAINS
        ! Print Simulation Cell (only if constant pressure)
        !------------------
        IF ( box > 0 ) THEN
-          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",epot
+          WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")&
+                  " i =",itimes,", E =",epot, ",  Time (fs)=",t*femtoseconds
           WRITE(UNIT=box,FMT="(A)") title
           WRITE(UNIT=box,FMT="(4X,3F20.10)") cell%hmat(1,1)*angstrom,&
                        cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom
@@ -596,7 +596,7 @@ CONTAINS
        ! Print the Stress tensor
        !------------------
        IF ( str > 0 ) THEN
-          WRITE(UNIT=str,FMT="(I10,9F20.10)") itimes, virial%pv_total(1,1)/cell%deth*unit%bar, &
+          WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,t*femtoseconds, virial%pv_total(1,1)/cell%deth*unit%bar, &
                         virial%pv_total(1,2)/cell%deth*unit%bar, &
                         virial%pv_total(1,3)/cell%deth*unit%bar,&
                         virial%pv_total(2,1)/cell%deth*unit%bar, &
