@@ -14,3 +14,5 @@ MC_QS.inp
 MC_Fist_box1.inp
 # fixed a bug that read in the volume move percentage incorrectly
 MC_Fist_box1.inp
+#  
+MC_QS.inp

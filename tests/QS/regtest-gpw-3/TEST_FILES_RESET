@@ -79,3 +79,31 @@ dynamics.inp
 # numerics by reording in xc functionals
 dynamics.inp
 
+#  
+H2O-bloechl-restraint.inp
+#  
+rsgrid-dist-1.inp
+#  
+3H2O_bsse.inp
+#  
+H2O-langevin-1.inp
+#  
+H2O-langevin-2.inp
+#  
+H2O-ref-1.inp
+#  
+H2O-ref-2.inp
+#  
+H2O-ata.inp
+#  
+H-ROKS.inp
+#  
+N-ROKS.inp
+#  
+O2-ROKS.inp
+#  
+H2O-solv.inp
+#  
+H2O-xc_none.inp
+#  
+dynamics.inp
