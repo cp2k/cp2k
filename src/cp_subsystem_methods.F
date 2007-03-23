@@ -116,6 +116,7 @@ CONTAINS
        ENDDO
     ENDIF
   END SUBROUTINE cp_subsys_read_colvar
+
 !!****f* cp_subsystem_methods/create_small_subsystem [1.0] *
 !!
 !!   NAME

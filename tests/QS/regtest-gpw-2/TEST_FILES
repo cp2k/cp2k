@@ -49,3 +49,5 @@ test-pdb.inp       1
 H2O+SC.inp         0
 # spin restraint
 spin_restraint.inp 1
+#New grouping colvar
+H2O-meta_g.inp     1

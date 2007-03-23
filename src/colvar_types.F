@@ -24,8 +24,16 @@
 !!   SOURCE
 !****************************************************************************
 MODULE colvar_types
+  USE input_constants,                 ONLY: do_clv_fix_point,&
+                                             do_clv_geo_center
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory
+  USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -48,7 +56,11 @@ MODULE colvar_types
             angle_colvar_type,&
             plane_distance_colvar_type,&
             rotation_colvar_type,&
-            ddiff_colvar_type
+            ddiff_colvar_type,&
+            point_type,&
+            colvar_check_points,&
+            eval_point_der,&
+            eval_point_pos
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id              =-2,&
                                 dist_colvar_id            = 1,&
@@ -108,10 +120,10 @@ MODULE colvar_types
   END TYPE angle_colvar_type
 
   TYPE rotation_colvar_type
-     INTEGER, DIMENSION(:),POINTER :: i_at1_bond1,&
-                                      i_at2_bond1,&
-                                      i_at1_bond2,&
-                                      i_at2_bond2
+     INTEGER :: i_at1_bond1,&
+                i_at2_bond1,&
+                i_at1_bond2,&
+                i_at2_bond2
   END TYPE rotation_colvar_type
 
   TYPE ddiff_colvar_type
@@ -138,6 +150,7 @@ MODULE colvar_types
   !***************************************************************************
   TYPE colvar_type
      INTEGER :: type_id
+     LOGICAL :: use_points
      REAL(kind=dp)                            :: ss               ! Value of the colvar
      REAL(kind=dp), DIMENSION (:,:), POINTER  :: dsdr             ! Derivative of colvar (3,:)
      INTEGER, DIMENSION (:), POINTER          :: i_atom           ! Mapping of dsdr
@@ -149,7 +162,14 @@ MODULE colvar_types
      TYPE(plane_distance_colvar_type),POINTER :: plane_distance_param
      TYPE(rotation_colvar_type), POINTER      :: rotation_param
      TYPE(ddiff_colvar_type), POINTER         :: ddiff_param
+     TYPE(point_type), DIMENSION(:), POINTER  :: points
   END TYPE colvar_type
+
+  TYPE point_type
+     INTEGER :: type_id
+     INTEGER, DIMENSION (:), POINTER          :: atoms
+     REAL(KIND=dp), DIMENSION(3)              :: r
+  END TYPE point_type
 
   TYPE colvar_p_type
      TYPE(colvar_type), POINTER :: colvar
@@ -217,8 +237,10 @@ CONTAINS
     NULLIFY(colvar%coord_param)
     NULLIFY(colvar%i_atom)
     NULLIFY(colvar%dsdr)
+    NULLIFY(colvar%points)
     IF (.NOT.failure) THEN
-       colvar%type_id=colvar_id
+       colvar%type_id    = colvar_id
+       colvar%use_points = .FALSE.
        SELECT CASE (colvar_id)
        CASE(dist_colvar_id)
           ALLOCATE(colvar%dist_param, stat=stat)
@@ -251,6 +273,76 @@ CONTAINS
   END SUBROUTINE colvar_create
   !***************************************************************************
   
+  !!****f* colvar_types/colvar_check_points *
+  !!
+  !!   NAME
+  !!     colvar_check_points
+  !!
+  !!   FUNCTION
+  !!     Check and setup about the use of geometrical points instead of atoms
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - colvar: the colvat to initialize
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino, [teo] 03.2007
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE  colvar_check_points(colvar, section, error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(section_vals_type), POINTER         :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_check_points', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, natoms, npoints, nrep, stat
+    INTEGER, DIMENSION(:), POINTER           :: atoms
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r
+    TYPE(section_vals_type), POINTER         :: point_sections
+
+    failure=.FALSE.
+    NULLIFY(point_sections)
+    CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
+    point_sections => section_vals_get_subs_vals(section,"POINT",error=error)
+    CALL section_vals_get(point_sections, explicit=explicit, error=error)
+    IF (explicit) THEN
+       colvar%use_points = .TRUE.
+       CALL section_vals_get(point_sections,n_repetition=npoints,error=error)
+       ALLOCATE(colvar%points(npoints),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Read points definition
+       DO i = 1, npoints
+          NULLIFY(colvar%points(i)%atoms)
+          CALL section_vals_val_get(point_sections,"TYPE",i_rep_section=i,i_val=colvar%points(i)%type_id,error=error)
+          CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,n_rep_val=nrep,error=error)
+          natoms = 0
+          IF (nrep==1) THEN
+             CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_vals=atoms,error=error)
+             natoms = SIZE(atoms)
+             ALLOCATE(colvar%points(i)%atoms(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             colvar%points(i)%atoms = atoms
+          END IF
+          CALL section_vals_val_get(point_sections,"XYZ",i_rep_section=i,n_rep_val=nrep,error=error)
+          IF (nrep==1) THEN
+             CALL section_vals_val_get(point_sections,"XYZ",i_rep_section=i,r_vals=r,error=error)
+             colvar%points(i)%r = r
+             IF (natoms /=0 ) THEN
+                CALL stop_program(routineP,"COLVAR section: Specify only ATOMS or XYZ. Not allowed to specify both!")
+             END IF
+          END IF
+       END DO
+    END IF
+    
+  END SUBROUTINE colvar_check_points
+
   !!****f* colvar_types/colvar_setup *
   !!
   !!   NAME
@@ -278,89 +370,214 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idum, ii, stat
+    INTEGER                                  :: i, idum, iend, ii, istart, j, &
+                                                np, stat
+    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure
 
     CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
     failure=.FALSE.
     IF (.NOT.failure) THEN
-
        SELECT CASE(colvar%type_id)
        CASE(dist_colvar_id)
-          colvar%n_atom_s=2
+          np = 2
+          i = colvar%dist_param%i_at
+          j = colvar%dist_param%j_at
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=COLV_SIZE(colvar,i)+&
+                          COLV_SIZE(colvar,j)
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          list(1) = colvar%dist_param%i_at
+          list(2) = colvar%dist_param%j_at
        CASE(coord_colvar_id)
-          colvar%n_atom_s=colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to
+          np = colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=0
+          DO ii=1,colvar%coord_param%n_atoms_from
+             i = colvar%coord_param%i_at_from(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          DO ii=1,colvar%coord_param%n_atoms_to
+             i = colvar%coord_param%i_at_to(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1,colvar%coord_param%n_atoms_from
+             idum = idum + 1
+             i = colvar%coord_param%i_at_from(ii)
+             list(idum) = i
+          ENDDO
+          DO ii=1,colvar%coord_param%n_atoms_to
+             idum = idum + 1
+             i = colvar%coord_param%i_at_to(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(angle_colvar_id)
-          colvar%n_atom_s=3
+          np = 3
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          DO ii=1,3
+             i = colvar%angle_param%i_at_angle(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1, 3
+             idum = idum + 1
+             i = colvar%angle_param%i_at_angle(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(torsion_colvar_id)
-          colvar%n_atom_s=4
+          np = 4
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          DO ii=1,4
+             i = colvar%torsion_param%i_at_tors(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1, 4
+             idum = idum + 1
+             i = colvar%torsion_param%i_at_tors(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(plane_distance_colvar_id)
-          colvar%n_atom_s=4
+          np = 4
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          DO ii=1,3
+             i = colvar%plane_distance_param%plane(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          i = colvar%plane_distance_param%point
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1, 3
+             idum = idum + 1
+             i = colvar%plane_distance_param%plane(ii)
+             list(idum) = i
+          ENDDO
+          i = colvar%plane_distance_param%point
+          list(4) = i
+          idum = idum + 1
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)            
        CASE(ddiff_colvar_id)
-          colvar%n_atom_s=4
+          np = 4
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          DO ii=1,4
+             i = colvar%ddiff_param%i_at_ddiff(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1, 4
+             idum = idum + 1
+             i = colvar%ddiff_param%i_at_ddiff(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        CASE(rotation_colvar_id)
-          colvar%n_atom_s=SIZE(colvar%rotation_param%i_at1_bond1)+&
-                          SIZE(colvar%rotation_param%i_at2_bond1)+&
-                          SIZE(colvar%rotation_param%i_at1_bond2)+&
-                          SIZE(colvar%rotation_param%i_at2_bond2)
+          np = 4
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          i = colvar%rotation_param%i_at1_bond1
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          i = colvar%rotation_param%i_at2_bond1
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          i = colvar%rotation_param%i_at1_bond2
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          i = colvar%rotation_param%i_at2_bond2
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          i = colvar%rotation_param%i_at1_bond1
+          list(1) = i
+          i = colvar%rotation_param%i_at2_bond1
+          list(2) = i
+          i = colvar%rotation_param%i_at1_bond2
+          list(3) = i
+          i = colvar%rotation_param%i_at2_bond2
+          list(4) = i
        END SELECT
-
+       
        ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ! And now map real atoms
+       istart = 0
+       iend   = 0
+       DO i = 1, SIZE(list)
+          IF (.NOT.colvar%use_points) THEN
+             ! No point centers
+             colvar%i_atom(i) = list(i)
+             iend = iend + 1
+          ELSE
+             IF (ASSOCIATED(colvar%points(list(i))%atoms)) THEN
+                iend = istart + SIZE(colvar%points(list(i))%atoms)
+                colvar%i_atom(istart+1:iend) = colvar%points(list(i))%atoms
+                istart = iend
+             END IF
+          END IF
+       END DO
+       CPPostcondition(iend==colvar%n_atom_s,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(list, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
 
-       SELECT CASE(colvar%type_id)
-       CASE(dist_colvar_id)
-          colvar%i_atom(1)=colvar%dist_param%i_at
-          colvar%i_atom(2)=colvar%dist_param%j_at
-       CASE(coord_colvar_id)
-          DO ii=1,colvar%coord_param%n_atoms_from
-             colvar%i_atom(ii)=colvar%coord_param%i_at_from(ii)
-          ENDDO
-          DO ii=1,colvar%coord_param%n_atoms_to
-             colvar%i_atom(colvar%coord_param%n_atoms_from+ii)=colvar%coord_param%i_at_to(ii)
-          ENDDO
-       CASE(angle_colvar_id)
-          DO ii=1,3
-             colvar%i_atom(ii)=colvar%angle_param%i_at_angle(ii)
-          ENDDO
-       CASE(torsion_colvar_id)
-          DO ii=1,4
-             colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
-          ENDDO
-       CASE(ddiff_colvar_id)
-          DO ii=1,4
-             colvar%i_atom(ii)=colvar%ddiff_param%i_at_ddiff(ii)
-          ENDDO
-       CASE(plane_distance_colvar_id)
-          DO ii=1,3
-             colvar%i_atom(ii)=colvar%plane_distance_param%plane(ii)
-          ENDDO
-          colvar%i_atom(4)=colvar%plane_distance_param%point
-       CASE(rotation_colvar_id)
-          idum = 0
-          DO ii=1, SIZE(colvar%rotation_param%i_at1_bond1)
-             idum = idum+1
-             colvar%i_atom(idum) = colvar%rotation_param%i_at1_bond1(ii)
-          END DO
-          DO ii=1, SIZE(colvar%rotation_param%i_at2_bond1)
-             idum = idum+1
-             colvar%i_atom(idum) = colvar%rotation_param%i_at2_bond1(ii)
-          END DO
-          DO ii=1, SIZE(colvar%rotation_param%i_at1_bond2)
-             idum = idum+1
-             colvar%i_atom(idum) = colvar%rotation_param%i_at1_bond2(ii)
-          END DO
-          DO ii=1, SIZE(colvar%rotation_param%i_at2_bond2)
-             idum = idum+1
-             colvar%i_atom(idum) = colvar%rotation_param%i_at2_bond2(ii)
-          END DO
-          CPPostcondition(idum==colvar%n_atom_s,cp_failure_level,routinep,error,failure)
-       END SELECT
-       
     END IF    
   END SUBROUTINE colvar_setup
+
+  !!****f* colvar_types/colv_size *
+  !!
+  !!   NAME
+  !!     colv_size
+  !!
+  !!   FUNCTION
+  !!     Gives back the size of an array of integer. If not associated gives back 1
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino - 03.2007
+  !!
+  !!*** **********************************************************************
+  FUNCTION colv_size(colvar,i) RESULT(my_size)
+    TYPE(colvar_type), POINTER               :: colvar
+    INTEGER                                  :: i, my_size
+
+    my_size = 1
+    IF (ASSOCIATED(colvar%points)) THEN
+       IF (ASSOCIATED(colvar%points(i)%atoms)) THEN
+          my_size = SIZE(colvar%points(i)%atoms)
+       ELSE
+          my_size = 0
+       END IF
+    END IF
+  END FUNCTION colv_size
+
   !!****f* colvar_types/colvar_release *
   !!
   !!   NAME
@@ -388,7 +605,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -398,10 +615,19 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     END IF
     IF (ASSOCIATED(colvar%i_atom)) THEN
-       DEALLOCATE(colvar%i_atom, stat=stat)
+        DEALLOCATE(colvar%i_atom, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     END IF
-
+    IF (ASSOCIATED(colvar%points)) THEN
+       DO i = 1, SIZE(colvar%points)
+          IF (ASSOCIATED(colvar%points(i)%atoms)) THEN
+             DEALLOCATE(colvar%points(i)%atoms, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          END IF
+       END DO
+       DEALLOCATE(colvar%points, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    END IF
     SELECT CASE(colvar%type_id)
     CASE (dist_colvar_id)
        DEALLOCATE(colvar%dist_param, stat=stat)
@@ -426,14 +652,6 @@ CONTAINS
        DEALLOCATE(colvar%ddiff_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (rotation_colvar_id)
-       DEALLOCATE(colvar%rotation_param%i_at1_bond1, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DEALLOCATE(colvar%rotation_param%i_at2_bond1, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DEALLOCATE(colvar%rotation_param%i_at1_bond2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DEALLOCATE(colvar%rotation_param%i_at2_bond2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(colvar%rotation_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
@@ -483,6 +701,8 @@ CONTAINS
     CPPostcondition(.NOT.ASSOCIATED(colvar_out),cp_warning_level,routineP,error,failure)
     IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
     CALL colvar_create(colvar_out, colvar_in%type_id, error)
+    CALL colvar_clone_points(colvar_out, colvar_in, my_offset, error)
+    IF (colvar_in%use_points) my_offset = 0
     SELECT CASE(colvar_out%type_id)
     CASE(dist_colvar_id)
        colvar_out%dist_param%i_at = colvar_in%dist_param%i_at + my_offset
@@ -510,27 +730,71 @@ CONTAINS
        colvar_out%plane_distance_param%plane = colvar_in%plane_distance_param%plane + my_offset
        colvar_out%plane_distance_param%point = colvar_in%plane_distance_param%point + my_offset
     CASE(rotation_colvar_id)
-       ndim = SIZE(colvar_out%rotation_param%i_at1_bond1)
-       ALLOCATE(colvar_out%rotation_param%i_at1_bond1(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       ndim = SIZE(colvar_out%rotation_param%i_at2_bond1)
-       ALLOCATE(colvar_out%rotation_param%i_at2_bond1(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       ndim = SIZE(colvar_out%rotation_param%i_at1_bond2)
-       ALLOCATE(colvar_out%rotation_param%i_at1_bond2(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       ndim = SIZE(colvar_out%rotation_param%i_at2_bond2)
-       ALLOCATE(colvar_out%rotation_param%i_at2_bond2(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%rotation_param%i_at1_bond1  = colvar_in%rotation_param%i_at1_bond1 + my_offset
        colvar_out%rotation_param%i_at2_bond1  = colvar_in%rotation_param%i_at2_bond1 + my_offset
        colvar_out%rotation_param%i_at1_bond2  = colvar_in%rotation_param%i_at1_bond2 + my_offset
        colvar_out%rotation_param%i_at2_bond2  = colvar_in%rotation_param%i_at2_bond2 + my_offset
     CASE(ddiff_colvar_id)
        colvar_out%ddiff_param%i_at_ddiff   = colvar_in%ddiff_param%i_at_ddiff + my_offset
-    END SELECT    
+    END SELECT
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone
+
+  !!****f* colvar_types/colvar_clone_points *
+  !!
+  !!   NAME
+  !!     colvar_clone_points
+  !!
+  !!   FUNCTION
+  !!     Clone points type of a colvar type
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - colvar: the colvar to deallocate
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] 03.2007
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset, error)
+    TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
+    INTEGER, INTENT(IN)                      :: offset
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone_points', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, natoms, npoints, stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    colvar_out%use_points = colvar_in%use_points
+    IF (colvar_in%use_points) THEN
+       CPPostcondition(ASSOCIATED(colvar_in%points),cp_failure_level,routineP,error,failure)
+       npoints = SIZE(colvar_in%points)
+       ALLOCATE(colvar_out%points(npoints),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, npoints
+          IF (ASSOCIATED(colvar_in%points(i)%atoms)) THEN
+             natoms = SIZE(colvar_in%points(i)%atoms)
+             ALLOCATE(colvar_out%points(i)%atoms(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             colvar_out%points(i)%atoms = colvar_in%points(i)%atoms+offset
+          ELSE
+             NULLIFY(colvar_out%points(i)%atoms)
+          END IF
+          colvar_out%points(i)%type_id = colvar_in%points(i)%type_id
+          colvar_out%points(i)%r       = colvar_in%points(i)%r
+       END DO
+    ELSE
+       NULLIFY(colvar_out%points)
+    END IF
+    
+  END SUBROUTINE colvar_clone_points
 
   !!****f* colvar_types/colvar_p_reallocate *
   !!
@@ -611,5 +875,87 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE colvar_p_reallocate
+
+  !!****f* colvar_types/eval_point_pos *
+  !!
+  !!   NAME
+  !!     eval_point_pos
+  !!
+  !!   FUNCTION
+  !!     Evaluate the position of the geometrical point
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino - 03.2007
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE eval_point_pos(point, particles, r)
+    TYPE(point_type)                         :: point
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: r
+
+    INTEGER                                  :: i
+
+    SELECT CASE(point%type_id)
+    CASE(do_clv_geo_center)
+       r = 0.0_dp
+       DO i = 1,SIZE(point%atoms)
+          r = r + particles(point%atoms(i))%r
+       END DO
+       r = r/REAL(SIZE(point%atoms),KIND=dp)
+    CASE(do_clv_fix_point )
+       r = point%r
+    END SELECT
+
+  END SUBROUTINE eval_point_pos
+
+  !!****f* colvar_types/eval_point_pos *
+  !!
+  !!   NAME
+  !!     eval_point_pos
+  !!
+  !!   FUNCTION
+  !!     Evaluate the position of the geometrical point
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino - 03.2007
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE eval_point_der(points, i, dsdr, f)
+    TYPE(point_type), DIMENSION(:), POINTER  :: points
+    INTEGER, INTENT(IN)                      :: i
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsdr
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f
+
+    INTEGER                                  :: ind, j
+    REAL(KIND=dp)                            :: fac
+
+    SELECT CASE(points(i)%type_id)
+    CASE(do_clv_geo_center)
+       fac = REAL(SIZE(points(i)%atoms),KIND=dp)
+       ind = 0
+       DO j = 1, i-1
+          IF (ASSOCIATED(points(j)%atoms)) THEN
+             ind = ind + SIZE(points(j)%atoms)
+          END IF
+       END DO
+       DO j = 1,SIZE(points(i)%atoms)
+          dsdr(:,ind+j) = dsdr(:,ind+j) + f / fac 
+       END DO
+    CASE(do_clv_fix_point )
+       ! Do nothing if it's a fixed point in space
+    END SELECT
+
+  END SUBROUTINE eval_point_der
 
 END MODULE colvar_types

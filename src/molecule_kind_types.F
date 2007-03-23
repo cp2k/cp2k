@@ -29,8 +29,8 @@ MODULE molecule_kind_types
   USE colvar_types,                    ONLY: angle_colvar_id,&
                                              colvar_counters,&
                                              coord_colvar_id,&
-                                             dist_colvar_id,&
                                              ddiff_colvar_id,&
+                                             dist_colvar_id,&
                                              plane_distance_colvar_id,&
                                              rotation_colvar_id,&
                                              torsion_colvar_id
@@ -114,6 +114,7 @@ MODULE molecule_kind_types
 
   TYPE colvar_constraint_type
      INTEGER                        :: type_id
+     LOGICAL                        :: use_points
      REAL(KIND = dp)                :: expected_value
      INTEGER, POINTER, DIMENSION(:) :: i_atoms
      TYPE(restraint_type)           :: restraint
@@ -562,10 +563,10 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
-    TYPE(shell_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: shell_list
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
+    TYPE(shell_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: shell_list
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
     INTEGER, INTENT(OUT), OPTIONAL           :: nhcopt
@@ -576,7 +577,8 @@ CONTAINS
     TYPE(colvar_counters), INTENT(out), &
       OPTIONAL                               :: ncolv
     INTEGER, INTENT(OUT), OPTIONAL :: ng3x3, ng4x6, nfixd_restraint, &
-      ng3x3_restraint, ng4x6_restraint, nmolecule, nsgf, nshell, ntorsion, nrestraints
+      ng3x3_restraint, ng4x6_restraint, nrestraints, nmolecule, nsgf, nshell, &
+      ntorsion
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -674,7 +676,8 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nbond, nbend, &
                                                 nub, ntorsion, nimpr, nonfo, &
-                                                nconstraint, nmolecule, nrestraints
+                                                nconstraint, nmolecule, &
+                                                nrestraints
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_molecule_kind_set'
 
@@ -874,12 +877,11 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ng4x6, nfixd
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
-    INTEGER, INTENT(IN), OPTIONAL            :: nshell
-    TYPE(shell_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: shell_list
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3_restraint, &
                                                 ng4x6_restraint, &
-                                                nfixd_restraint
+                                                nfixd_restraint, nshell
+    TYPE(shell_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: shell_list
     TYPE(bond_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_kind_set
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -1067,7 +1069,8 @@ CONTAINS
 
     INTEGER                                  :: imolecule_kind, nbend, nbond, &
                                                 nimpr, nmolecule_kind, nonfo, &
-                                                ntors, nub, ntotal, output_unit
+                                                ntors, ntotal, nub, &
+                                                output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind

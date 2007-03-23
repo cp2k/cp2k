@@ -33,8 +33,10 @@ MODULE input_cp2k_colvar
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: integer_t
+  USE input_val_types,                 ONLY: integer_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -204,6 +206,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -214,21 +217,28 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
         
-       NULLIFY(keyword)
+       NULLIFY(subsection, keyword)
 
        CALL keyword_create(keyword, name="ATOMS_FROM",&
-            description="Specify indexes of atoms building the coordination variable. ",&
+            variants=(/"POINTS_FROM"/),&
+            description="Specify indexes of atoms/points building the coordination variable. ",&
             usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ATOMS_TO",&
-            description="Specify indexes of atoms building the coordination variable. ",&
+            variants=(/"POINTS_TO"/),&
+            description="Specify indexes of atoms/points building the coordination variable. ",&
             usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL keyword_create(keyword, name="R0",&
             variants=(/"R_0"/),&
@@ -284,12 +294,12 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_colvar_ddiff_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_ddiff_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -300,15 +310,21 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
         
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
-            description="Specifies the atom indexes for the two bonds d1=(1-2) d2=(3-4)."//&
+            variants=(/"POINTS"/),&
+            description="Specifies the indexes of atoms/points for the two bonds d1=(1-2) d2=(3-4)."//&
             " The difference is defined as d1-d2",&
             usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
             n_var=4, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 
@@ -344,6 +360,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -354,14 +371,20 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
         
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
-            description="Specifies the atom indexes defining the torsion.",&
+            variants=(/"POINTS"/),&
+            description="Specifies the indexes of atoms/points defining the torsion.",&
             usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
             n_var=4, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 
@@ -397,6 +420,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -408,39 +432,44 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
         
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="P1_BOND1",&
-            description="Specifies the atom indexes defining the first point"//&
+            description="Specifies the index of atom/point defining the first point"//&
             "of the first bond/line.",&
-            usage="P1_BOND1 {integer} .. {integer}",required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
+            usage="P1_BOND1 {integer}",required=.TRUE.,&
+            n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="P2_BOND1",&
-            description="Specifies the atom indexes defining the second point"//&
+            description="Specifies the index of atom/point defining the second point"//&
             "of the first bond/line.",&
-            usage="P2_BOND1 {integer} .. {integer}",required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
+            usage="P2_BOND1 {integer}",required=.TRUE.,&
+            n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="P1_BOND2",&
-            description="Specifies the atom indexes defining the first point"//&
+            description="Specifies the index of atom/point defining the first point"//&
             "of the second bond/line.",&
-            usage="P1_BOND2 {integer} .. {integer}",required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
+            usage="P1_BOND2 {integer}",required=.TRUE.,&
+            n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="P2_BOND2",&
-            description="Specifies the atom indexes defining the second point"//&
+            description="Specifies the index of atom/point defining the second point"//&
             "of the second bond/line.",&
-            usage="P2_BOND2 {integer} .. {integer}",required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
+            usage="P2_BOND2 {integer}",required=.TRUE.,&
+            n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+        ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 
@@ -476,6 +505,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -493,14 +523,20 @@ CONTAINS
                error=error)
        END IF
 
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
-            description="Specifies the atom indexes defining the angle.",&
+            variants=(/"POINTS"/),&
+            description="Specifies the indexes of atoms/points defining the angle.",&
             usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
             n_var=3, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 
@@ -538,6 +574,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -555,14 +592,20 @@ CONTAINS
                error=error)
        END IF
 
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
-            description="Specifies the atom indexes defining the distance.",&
+            variants=(/"POINTS"/),&
+            description="Specifies the indexes of atoms/points defining the distance.",&
             usage="ATOMS {integer} {integer}",required=.TRUE.,&
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 
@@ -599,6 +642,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -617,24 +661,103 @@ CONTAINS
                error=error)
        END IF
 
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS_PLANE",&
-            description="Specifies the atom indexes defining the plane.",&
-            usage="ATOMS <INTEGER> <INTEGER> <INTEGER>",required=.TRUE.,&
+            variants=(/"POINTS_PLANE"/),&
+            description="Specifies the indexes of atoms/points defining the plane.",&
+            usage="ATOMS_PLANE <INTEGER> <INTEGER> <INTEGER>",required=.TRUE.,&
             n_var=3, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ATOM_POINT",&
-            description="Specifies the atom index defining the point.",&
-            usage="ATOMS <INTEGER>",required=.TRUE.,&
+            variants=(/"POINT_POINT"/),&
+            description="Specifies the atom/point index defining the point.",&
+            usage="ATOM_POINT <INTEGER>",required=.TRUE.,&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_colvar_d_pl_section
+
+
+!!****f* input_cp2k/create_point_section *
+!!
+!!   NAME
+!!     create_point_section
+!!
+!!   FUNCTION
+!!     create a geometrical point as a function of several atom coordinates
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_point_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_point_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="POINT",&
+            description="Enables the possibility to use geometrical centers instead of single atoms"//&
+            " to define colvars",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+      CALL keyword_create(keyword, name="TYPE",&
+            description="Chooses the type of geometrical point",&
+            usage="type (GEO_CENTER|FIX_POINT)",&
+            enum_c_vals=s2a( "GEO_CENTER","FIX_POINT"),&
+            enum_desc=s2a("Conmputes the geometrical center of the listed atoms",&
+                          "Defines a fixed point in space"),&
+            enum_i_vals=(/ do_clv_geo_center, do_clv_fix_point /),&
+            default_i_val=do_clv_geo_center, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the indexes of atoms defining the geometrical center",&
+            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="XYZ",&
+            description="Specifies the xyz of the fixed point (if the case)",&
+            usage="XYZ {real} {real} {real}",required=.TRUE.,&
+            n_var=3, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+   
+    END IF
+
+  END SUBROUTINE create_point_section
 
 END MODULE input_cp2k_colvar

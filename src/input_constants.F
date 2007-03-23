@@ -447,6 +447,9 @@ MODULE input_constants
                                 use_perd_xyz=6,&
                                 use_perd_none=7
 
+  INTEGER, PARAMETER, PUBLIC :: do_clv_geo_center=0,&
+                                do_clv_fix_point =1
+
   INTEGER, PARAMETER, PUBLIC :: xc_pot_energy_none=0, &
                                 xc_pot_energy_xc_functional=1, &
                                 xc_pot_energy_sum_eigenvalues=2
@@ -490,7 +493,7 @@ MODULE input_constants
   ! outer scf types
   INTEGER, PARAMETER, PUBLIC :: outer_scf_ddapc_constraint=123, &
                                 outer_scf_s2_constraint=124,&
-	                        outer_scf_becke=125, &
+                                outer_scf_becke=125, &
                                 outer_scf_none=126
 
   ! outer scf optimizers

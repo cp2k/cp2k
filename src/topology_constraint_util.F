@@ -129,15 +129,14 @@ CONTAINS
       DIMENSION(:), POINTER                  :: atom_typeh, cnds
     INTEGER :: first, first_atom, gind, handle, i, ii, iw, j, k, k1loc, &
       k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, ncolv_glob, &
-      ncolv_mol, nfixd_restraint, nfixed_atoms, ng3x3, ng3x3_restraint, &
-      ng4x6, ng4x6_restraint, nhdist, nmolecule, nrep, offset, output_unit, &
-      stat, nfixd_list_gci
+      ncolv_mol, nfixd_list_gci, nfixd_restraint, nfixed_atoms, ng3x3, &
+      ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, nmolecule, nrep, &
+      offset, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
-    LOGICAL :: failure, fix_atom_mm, fix_atom_molname, fix_atom_qm, &
-      fix_atom_qmmm, fix_fixed_atom, ionode, ishbond, ldummy, &
-      restart_restraint_clv, restart_restraint_pos, is_qm,&
-      exclude_qm, exclude_mm
+    LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
+      fix_atom_molname, fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, ionode, &
+      is_qm, ishbond, ldummy, restart_restraint_clv, restart_restraint_pos
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
@@ -823,6 +822,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(j)%colvar%type_id
        colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(j)%colvar%i_atom
+       colv_list(ncolv_mol)%use_points     = cons_info%colvar_set(j)%colvar%use_points
        ! Restraint
        colv_list(ncolv_mol)%restraint%active = cons_info%colv_restraint(j)
        colv_list(ncolv_mol)%restraint%k0     = cons_info%colv_k0(j)
@@ -1014,6 +1014,7 @@ END SUBROUTINE setup_g4x6_list
        ! Colvar
        CALL colvar_clone(lcolv(ncolv_mol)%colvar, cons_info%colvar_set(k)%colvar,&
             i_atom_offset=first_atom-1,error=error)
+
        ! Colvar_old
        CALL colvar_clone(lcolv(ncolv_mol)%colvar_old,lcolv(ncolv_mol)%colvar,error=error)
        ! Check for consistency in the constraint definition

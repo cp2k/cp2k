@@ -70,19 +70,19 @@ MODULE force_fields_util
   USE pair_potential,                  ONLY: get_nonbond_storage,&
                                              spline_nonbond_control
   USE pair_potential_types,            ONLY: &
-       ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh,&
-       nosh_sh, pair_potential_lj_create, &
-       pair_potential_pp_create, pair_potential_pp_release, &
-       pair_potential_pp_type, pair_potential_single_clean, &
-       pair_potential_single_copy, sh_sh, tersoff_type
-  USE particle_types,                  ONLY: allocate_particle_set, &
+       ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh, nosh_sh, &
+       pair_potential_lj_create, pair_potential_pp_create, &
+       pair_potential_pp_release, pair_potential_pp_type, &
+       pair_potential_single_clean, pair_potential_single_copy, sh_sh, &
+       tersoff_type
+  USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE shell_potential_types,           ONLY: shell_create, &
-                                             shell_release, &
-                                             shell_kind_type
+  USE shell_potential_types,           ONLY: shell_create,&
+                                             shell_kind_type,&
+                                             shell_release
   USE splines,                         ONLY: spline_data_release,&
                                              spline_data_retain,&
                                              spline_data_type,&
@@ -154,9 +154,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: mm_section, subsys_section
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: shell_particle_set, &
+                                                core_particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -172,12 +171,14 @@ CONTAINS
       i, ii, ikind, ilink, imul, itype, iw, iw2, iw3, iw4, j, jj, jkind, k, &
       last, match_names, n, natom, nbend, nbond, nimpr, nkinds, nmol, nonfo, &
       nshell_tot, ntorsion, nub, output_unit, stat
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list, shell_list_tmp
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list, &
+                                                shell_list_tmp
     INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
     LOGICAL :: allocate_spline_bond_env, failure, fatal, found, found_a, &
-      found_b, found_shell, ionode, is_link_atom, is_a_shell, is_b_shell, &
-      my_qmmm, null_massfrac, only_qm, shell_adiabatic, shell_present, use_qmmm_ff
+      found_b, found_shell, ionode, is_a_shell, is_b_shell, is_link_atom, &
+      my_qmmm, null_massfrac, only_qm, shell_adiabatic, shell_present, &
+      use_qmmm_ff
     REAL(KIND=dp)                            :: atmmass, epsilon0, epsilon_a, &
                                                 epsilon_b, qi1, qi2, qi3, &
                                                 qi4, rmin, rmin2_a, rmin2_b, &
@@ -207,12 +208,9 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(spline_environment_type), POINTER   :: spline_bond_env, &
-                                                spline_manybody_env, &
-                                                spline_nonbond_env,&
-                                                spline_c_coul_env,&
-                                                spline_cs_coul_env,&
-                                                spline_sc_coul_env
+    TYPE(spline_environment_type), POINTER :: spline_bond_env, &
+      spline_c_coul_env, spline_cs_coul_env, spline_manybody_env, &
+      spline_nonbond_env, spline_sc_coul_env
     TYPE(torsion_kind_type), DIMENSION(:), &
       POINTER                                :: torsion_kind_set
     TYPE(torsion_type), DIMENSION(:), &
@@ -2550,7 +2548,8 @@ CONTAINS
             bond_list=bond_list)
        IF (ASSOCIATED(colv_list)) THEN
           DO icolv=1,SIZE(colv_list)
-             IF (colv_list(icolv)%type_id == dist_colvar_id) THEN
+             IF ((colv_list(icolv)%type_id == dist_colvar_id).AND.&
+                  ((.NOT.colv_list(icolv)%use_points).OR.(SIZE(colv_list(icolv)%i_atoms)==2))) THEN
                 atm_a = colv_list(icolv)%i_atoms(1)
                 atm_b = colv_list(icolv)%i_atoms(2)
                 DO ibond=1,nbond
@@ -2585,7 +2584,8 @@ CONTAINS
              atm_c = bend_list(ibend)%c
              central = 0
              DO icolv=1,SIZE(colv_list)
-                IF (colv_list(icolv)%type_id == dist_colvar_id) THEN
+                IF ((colv_list(icolv)%type_id == dist_colvar_id).AND.&
+                     ((.NOT.colv_list(icolv)%use_points).OR.(SIZE(colv_list(icolv)%i_atoms)==2))) THEN
                    atm2_a = colv_list(icolv)%i_atoms(1)
                    atm2_b = colv_list(icolv)%i_atoms(2)
                    ! Check to see if we have a central bend atom in dist list

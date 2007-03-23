@@ -153,3 +153,5 @@ H2O-debug-3.inp
 C2H4-meta.inp
 #  
 test-pdb.inp
+# bug in colvar
+C2H4-meta.inp
