@@ -1,0 +1,14 @@
+H2O-32_ewald.inp          2
+H2O-32_PME.inp            2
+H2O-32_SPME.inp           2
+H2O-32_SPME_res_1.inp     2
+H2O-32_SPME_res_2.inp     2
+H2O-32_SPME_res_3.inp     2
+H2O-32_SPME_res_4.inp     2
+H2O-32_NPT.inp            2
+H2O-32_NPT_res_1.inp      2
+H2O-32_NPT_res_2.inp      2
+H2O-32_NPT_res_3.inp      2
+H2O-32_NPT_res_4.inp      2
+water_IPBV.inp            2
+water_IPBV_flex.inp       2

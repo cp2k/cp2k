@@ -1,0 +1,61 @@
+#JAC 
+JAC.inp                   2
+#vibrational analysis
+wat_freq.inp              8
+wat_freq_norot.inp        8
+wat_freq_freeze.inp       8
+#new linear scaling/fastest/more robust topology generator
+JAC_gen.inp               2
+arginine.inp              2
+arginine0.inp             2
+arginine_crossC.inp       2
+#new reordering algorithm
+water_reord.inp           2
+phenobenz.inp             2
+liquid.inp                2
+#PSF EXT CHARMM
+wat125.inp                2
+#General potential 
+argon_GENPOT.inp          2
+H2O-1-GENPOT.inp          2
+H2O-1-GENPOT-2.inp        2
+# mixing
+H2OFe-5_75.inp            2
+# test energy_force runtime
+acn-2.inp                 0
+H2OFe-5_75-2.inp          0
+# molname constraints
+water_3_dist_2.inp        2
+water_3_dist_3.inp        2
+water32_hbonds_3.inp      2
+water32_hbonds_4.inp      2
+water_massive.inp         2
+# applying constraint to the 0 step of MD
+water_3_dist_startC.inp   2
+# just keep echo_input alive
+acn-3.inp                 0
+# Restart of restraints
+H2O-fixd-rest.inp         2
+H2O-fixd-rest-2.inp       2
+H2O-restraint_1.inp       2
+H2O-restraint_2.inp       2
+# Constrained FIXED_ATOMS + other kinds of contraints
+ethene_colv3.inp          2
+nh3_4x6_fixd.inp          2
+water_3_g3x3_fxd.inp      2
+#bug fix for nonbonded14
+test_pair.inp            11
+test_ub1.inp             11
+test_ub2.inp             11
+mfi.inp                   2
+# Intermolecular constraints
+water_3_dist_inter.inp    2
+water_3_dist_inter2.inp   2
+water_3_dist_mix.inp      2
+# Intermolecular restraints
+H2O-constr_1_ext.inp      2
+H2O-restraint_1_ext.inp   2
+nh3_4x6_ext.inp           2
+nh3_r4x6_ext.inp          2
+water_3_g3x3_ext.inp      2
+water_3_rg3x3_ext.inp     2

@@ -1,0 +1,30 @@
+#free energy calculation
+NaCl_fe.inp               2
+# new constraints distance_difference
+water_3_ddist.inp         2
+# distributed grid for spme/pme
+JAC_distr.inp             2
+H2O-32_PME_distr.inp      2
+# Central Force Water test (Nir)
+cf_genpot.inp             2
+# Tersoff potential test
+Si_tersoff.inp            2
+Si_tersoff_2.inp          2
+C_tersoff.inp             2
+# Shell model NVE
+uo2_shell_nve.inp         2
+uo2_shell_nve_r.inp       2
+# Shell model NVT
+uo2_shell_nvt.inp         2
+# Shell model NPT
+uo2_shell_npti_b.inp      2
+uo2_shell_npti.inp        2
+uo2_shell_npt300.inp      2
+# New grouping colvar
+ethene_colv1_g.inp        2
+ethene_colv2_g.inp        2
+nh3-meta-1_g.inp          2
+water_3_ddist_g.inp       2
+water_3_dist_g.inp        2
+water_3_dist_centers.inp  2
+water_3_dist_centers2.inp 2
