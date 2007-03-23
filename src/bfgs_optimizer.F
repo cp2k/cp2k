@@ -520,7 +520,8 @@ CONTAINS
        eigval(indf) = eigval(indf) - ln
      END DO
      EXIT
-400  END DO
+     END DO
+400  CONTINUE
 
      CALL timestop(handle)
 
