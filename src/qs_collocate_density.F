@@ -36,6 +36,7 @@
 !!     - introduced realspace multigridding (Joost 02.04)
 !!     - introduced map_consistent (Joost 02.04)
 !!     - Addition of the subroutine calculate_atomic_charge_density (TdK, 08.05)
+!!     - rewrite of the collocate/integrate kernels (Joost VandeVondele, 03.07)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -77,9 +78,6 @@ MODULE qs_collocate_density
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE l_utils,                         ONLY: finish_l_info,&
-                                             l_info_type,&
-                                             return_l_info
   USE mathconstants,                   ONLY: pi,&
                                              twopi
   USE memory_utilities,                ONLY: reallocate
@@ -238,7 +236,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -279,7 +276,6 @@ CONTAINS
 
     !cube_info => pw_env%cube_info(1)
     cube_info => pw_env%cube_info
-    l_info = pw_env%l_info
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
     ithread = 0
@@ -350,7 +346,7 @@ CONTAINS
                                               ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
                                               scale=1.0_dp, pab=pab, o1=na1, o2=0,&
                                               rsgrid=rs_rho(igrid_level)%rs_grid,&
-                                              cube_info=cube_info(igrid_level),l_info=l_info,&
+                                              cube_info=cube_info(igrid_level),&
                                               eps_rho_rspace=eps_rho_rspace,&
                                               ga_gb_function=FUNC_AB, ithread=ithread, &
                                               map_consistent=map_consistent,error=error)
@@ -465,7 +461,6 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -490,7 +485,6 @@ CONTAINS
     CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
-    l_info=pw_env%l_info
     ! be careful in parallel nsmax is choosen with multigrid in mind!
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
@@ -548,7 +542,7 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(j,iatom,atom_a,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_rho) &
-!$OMP shared(cube_info,l_info,eps_rho_rspace,alpha,error)
+!$OMP shared(cube_info,eps_rho_rspace,alpha,error)
       DO j=1,npme
 
         iatom = tasks(1,j)
@@ -558,7 +552,7 @@ CONTAINS
 !$      ithread=omp_get_thread_num()
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
              (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-             cube_info,l_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+             cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
              ithread=ithread,error=error)
 
       END DO
@@ -658,7 +652,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(l_info_type)                        :: l_info
     TYPE(lgrid_type)                         :: lgrid
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -724,7 +717,6 @@ CONTAINS
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-    l_info=pw_env%l_info
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
@@ -1060,7 +1052,7 @@ CONTAINS
 !$OMP shared(maxco,maxsgf_set,natom_pairs,atasks,asets,ival,particle_set,cell) &
 !$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
-!$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
+!$OMP shared(rs_rho,igrid_level,cube_info,eps_rho_rspace,lgrid,nthread) &
 !$OMP shared(workt,pabt,ga_gb_function,map_consistent,error)
           ithread = 0
 !$        ithread = omp_get_thread_num()
@@ -1138,7 +1130,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       lgrid=lgrid,ithread=ithread, &
                       map_consistent=map_consistent,error=error)
@@ -1148,7 +1140,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       lgrid=lgrid,ithread=ithread, &
                       map_consistent=map_consistent,error=error)
@@ -1160,7 +1152,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       map_consistent=map_consistent,error=error)
                   ELSE
@@ -1169,7 +1161,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       map_consistent=map_consistent,error=error)
                   END IF
@@ -1297,7 +1289,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(l_info_type)                        :: l_info
     TYPE(lgrid_type)                         :: lgrid
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -1364,7 +1355,6 @@ CONTAINS
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-    l_info=pw_env%l_info
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
@@ -1701,7 +1691,7 @@ CONTAINS
 !$OMP shared(maxco,maxsgf_set,natom_pairs,atasks,asets,ival,particle_set,cell) &
 !$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
-!$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
+!$OMP shared(rs_rho,igrid_level,cube_info,eps_rho_rspace,lgrid,nthread) &
 !$OMP shared(workt,pabt,ga_gb_function,map_consistent,error,idir)
           ithread = 0
 !$        ithread = omp_get_thread_num()
@@ -1779,7 +1769,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       idir=idir,& !R
                       lgrid=lgrid,ithread=ithread, &
@@ -1790,7 +1780,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function,&
                       idir=idir,& !R
                       lgrid=lgrid,ithread=ithread, &
@@ -1803,7 +1793,7 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       idir=idir,& !R
                       map_consistent=map_consistent,error=error)
@@ -1813,7 +1803,7 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,&
+                      eps_rho_rspace,&
                       ga_gb_function=ga_gb_function, &
                       idir=idir,& !R
                       map_consistent=map_consistent,error=error)
@@ -1949,7 +1939,6 @@ CONTAINS
       POINTER                                :: cube_info
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(l_info_type), POINTER               :: l_info
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(REALSPACE_GRID_P_TYPE), &
@@ -1982,7 +1971,7 @@ CONTAINS
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, &
-                            l_info=l_info,cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
+                            cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
     ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
              stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
@@ -2062,7 +2051,7 @@ CONTAINS
                         0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                        l_info,eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
+                        eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
          END DO
 
          offset=offset+nsgfa(iset)
@@ -2210,7 +2199,7 @@ CONTAINS
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
-                                          rsgrid,cube_info,l_info,&
+                                          rsgrid,cube_info,&
                                           eps_rho_rspace,ga_gb_function,&
                                           lgrid,ithread,&
                                           map_consistent,&
@@ -2228,7 +2217,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: o1, o2
     TYPE(realspace_grid_type), POINTER       :: rsgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
     INTEGER, INTENT(IN)                      :: ga_gb_function
     TYPE(lgrid_type), OPTIONAL               :: lgrid
@@ -2241,14 +2229,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
+    INTEGER :: cmax, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
       jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
       length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, lya, lyb, &
       lza, lzb, o1_local, o2_local, offset, start
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                 ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
-    INTEGER, DIMENSION(:, :), POINTER        :: map
     LOGICAL                                  :: failure, my_collocate_rho0, &
                                                 my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
@@ -2257,9 +2244,21 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab_local
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
-    REAL(KIND=dp), POINTER                   :: alpha(:,:), dpy(:,:), &
-                                                dpz(:,:), polx(:,:), &
-                                                poly(:,:), polz(:,:), pzyx(:)
+
+    INTEGER :: lxp,lyp,lzp,lp,lxpm,lypm,iaxis
+    INTEGER, ALLOCATABLE, DIMENSION(:,:) :: map
+    REAL(kind=dp) :: p_ele,ax,ay,az
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
+
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
+    REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
+
+
 
 !   ---------------------------------------------------------------------------
 
@@ -2457,10 +2456,8 @@ CONTAINS
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-    coef_max=la_max_local+lb_max_local+1
-
     IF ( .NOT. rsgrid%orthorhombic ) THEN
-       CALL stop_program(routineN,"only orthorhombic grids allowd")
+       CALL stop_program(routineN,"only orthorhombic grids allowed")
     END IF
 
 !   *** properties of the grid ***
@@ -2477,12 +2474,7 @@ CONTAINS
     gridbounds(2,3)=UBOUND(GRID,3)
 
 !   *** get the sub grid properties for the given radius ***
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-
-!   *** get the l_info logic and arrays ***
-    CALL return_l_info(l_info,la_min_local,la_max_local,lb_min_local,lb_max_local,&
-                       ithread_l,lx_max, lxy_max,lxyz_max,ly_max,lz_max, &
-                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax,error=error)
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
 
 !   *** position of the gaussian product
 !
@@ -2492,6 +2484,7 @@ CONTAINS
 !   hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid ((1,1,1) on grid)
 !
 
+    ALLOCATE(map(-cmax:cmax,3))
     cubecenter(:) = FLOOR(rp(:)/dr(:))
     roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
 !   *** a mapping so that the ig corresponds to the right grid point
@@ -2517,134 +2510,92 @@ CONTAINS
       END IF
     ENDDO
 
-!   *** initialise the p terms and loop logic
-    lxyz=0
-    DO lxa=0,la_max_local
-    DO lxb=0,lb_max_local
-       DO lya=0,la_max_local-lxa
-       DO lyb=0,lb_max_local-lxb
-          DO lza=MAX(la_min_local-lxa-lya,0),la_max_local-lxa-lya
-          DO lzb=MAX(lb_min_local-lxb-lyb,0),lb_max_local-lxb-lyb
-             lxyz=lxyz+1
-             ico=coset(lxa,lya,lza)
-             jco=coset(lxb,lyb,lzb)
-             pzyx(lxyz)=prefactor*pab_local(o1_local+ico,o2_local+jco)
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-    ENDDO
-    ENDDO
+#include "prep.f90"
 
-!   *** initialise the pol x,y,z terms
-    DO ig=lb_cube(3),ub_cube(3)
-      lxyz=0
-      rpg = REAL(ig,dp)*dr(3) - roffset(3)
-      zap = EXP(-zetp*rpg**2)
-      za  = rpg + rap(3)
-      zb  = za  - rab(3)
-      DO lza=0,la_max_local
-       zbp=1.0_dp
+
+    ALLOCATE(coef_xyt(((lp+1)*(lp+2))/2))
+    ALLOCATE(coef_xtt(0:lp))
+
+
+!
+!   compute P_{lxp,lyp,lzp} given P_{lxa,lya,lza,lxb,lyb,lzb} and alpha(ls,lxa,lxb,1)
+!   use a three step procedure
+!   we don't store zeros, so counting is done using lxyz,lxy in order to have contiguous memory access in collocate_fast.F
+!
+       lxyz=0
+       DO lzp=0,lp
+       DO lyp=0,lp-lzp
+       DO lxp=0,lp-lzp-lyp
+           lxyz=lxyz+1
+           coef_xyz(lxyz)=0.0_dp
+       ENDDO
+       ENDDO
+       ENDDO
        DO lzb=0,lb_max_local
-          dpz(lzb,lza)=zap*zbp
-          zbp=zbp*zb
-       ENDDO
-       zap=zap*za
-      ENDDO
-      DO lxa=0,la_max_local
-      DO lxb=0,lb_max_local
-       DO lya=0,la_max_local-lxa
-       DO lyb=0,lb_max_local-lxb
-          DO lza=MAX(la_min_local-lxa-lya,0),la_max_local-lxa-lya
-          DO lzb=MAX(lb_min_local-lxb-lyb,0),lb_max_local-lxb-lyb
-             lxyz=lxyz+1
-             polz(lxyz,ig)=dpz(lzb,lza)
+       DO lza=0,la_max_local
+          lxy=0
+          DO lyp=0,lp-lza-lzb
+             DO lxp=0,lp-lza-lzb-lyp
+                lxy=lxy+1
+                coef_xyt(lxy)=0.0_dp
+             ENDDO
+             lxy=lxy+lza+lzb
+          ENDDO
+          DO lyb=0,lb_max_local-lzb
+          DO lya=0,la_max_local-lza
+             lxpm=(lb_max_local-lzb-lyb)+(la_max_local-lza-lya) 
+             coef_xtt(0:lxpm)=0.0_dp
+             DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
+             DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
+                ico=coset(lxa,lya,lza)
+                jco=coset(lxb,lyb,lzb)
+                p_ele=prefactor*pab_local(o1_local+ico,o2_local+jco)
+                DO lxp=0,lxa+lxb
+                   coef_xtt(lxp)=coef_xtt(lxp)+p_ele*alpha(lxp,lxa,lxb,1)
+                ENDDO
+             ENDDO
+             ENDDO
+             lxy=0
+             DO lyp=0,lya+lyb
+                DO lxp=0,lp-lza-lzb-lya-lyb
+                  lxy=lxy+1
+                  coef_xyt(lxy)=coef_xyt(lxy)+alpha(lyp,lya,lyb,2)*coef_xtt(lxp)
+                ENDDO
+                lxy=lxy+lza+lzb+lya+lyb-lyp
+             ENDDO
           ENDDO
           ENDDO
+          lxyz=0
+          DO lzp=0,lza+lzb
+             lxy=0
+             DO lyp=0,lp-lza-lzb
+                DO lxp=0,lp-lza-lzb-lyp
+                       lxy=lxy+1 ; lxyz=lxyz+1
+                       coef_xyz(lxyz)=coef_xyz(lxyz)+alpha(lzp,lza,lzb,3)*coef_xyt(lxy)
+                ENDDO
+                lxy=lxy+lza+lzb ; lxyz=lxyz+lza+lzb-lzp
+             ENDDO
+             DO lyp=lp-lza-lzb+1,lp-lzp
+                DO lxp=0,lp-lyp-lzp
+                   lxyz=lxyz+1
+                ENDDO
+             ENDDO
+          ENDDO
        ENDDO
        ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
-    DO ig=lb_cube(2),ub_cube(2)
-      rpg = REAL(ig,dp)*dr(2) - roffset(2)
-      yap = EXP(-zetp*rpg**2)
-      ya  = rpg + rap(2)
-      yb  = ya  - rab(2)
-      DO lya=0,la_max_local
-       ybp=1.0_dp
-       DO lyb=0,lb_max_local
-          dpy(lyb,lya)=yap*ybp
-          ybp=ybp*yb
-       ENDDO
-       yap=yap*ya
-      ENDDO
-
-      lxy=0
-      DO lxa=0,la_max_local
-      DO lxb=0,lb_max_local
-       DO lya=0,la_max_local-lxa
-       DO lyb=0,lb_max_local-lxb
-             lxy=lxy+1
-             poly(lxy,ig)=dpy(lyb,lya)
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
-!   *** make the alpha matrix ***
-    alpha(:,:)=0.0_dp
-    lx=0
-    DO lxa=0,la_max_local
-    DO lxb=0,lb_max_local
-       lx=lx+1
-       binomial_k_lxa=1.0_dp
-       a=1.0_dp
-       DO k=0,lxa
-        binomial_l_lxb=1.0_dp
-        b=1.0_dp
-        DO l=0,lxb
-           alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
-                             binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
-           b=b*(rp(1)-(ra(1)+rab(1)))
-        ENDDO
-        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
-        a=a*(-ra(1)+rp(1))
-       ENDDO
-    ENDDO
-    ENDDO
-
-    DO ig=lb_cube(1),ub_cube(1)
-      rpg = REAL(ig,dp)*dr(1) - roffset(1)
-      pg  = EXP(-zetp*rpg**2)
-      DO icoef=1,coef_max
-         polx(icoef,ig)=pg
-         pg=pg*(rpg)
-      ENDDO
-    ENDDO
 
     IF ( PRESENT ( lgrid ) ) THEN
-      ig = lgrid%ldim * ithread_l + 1
-      CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
-              polz(1,-cmax),lgrid%r(ig),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
+     STOP " - OMP CURRENTLY NOT SUPPORTED IN THIS ROUTINE - "
+     !  ig = lgrid%ldim * ithread_l + 1
+     !  CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
+     !          polz(1,-cmax),lgrid%r(ig),alpha(1,1),lx_max,lxy_max,&
+     !          lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
+     !          gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
     ELSE
-!   *** do the loop over the grid
-!   notice this is not the same as critical or so, since we may have
-!   several different rsgrids that all use the same function
-!   I guess we need a flush (of the grid) to guarantee that we are working
-!   on an uptodate copy of the grid
-      CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
-              polz(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-    END IF
 
-    CALL finish_l_info(polx,poly,polz,pzyx,error=error)
+#include "call_collocate.f90"
+
+    END IF
 
     IF (ga_gb_function /= FUNC_AB) THEN
        DEALLOCATE(pab_local)

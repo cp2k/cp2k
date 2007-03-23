@@ -46,7 +46,6 @@ MODULE kg_gpw_collocate_den
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_type
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -178,7 +177,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
-    TYPE(l_info_type)                        :: l_info
     TYPE(lgrid_type)                         :: lgrid
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
@@ -215,7 +213,6 @@ CONTAINS
     NULLIFY(gridlevel_info,cube_info,interp_section)
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-    l_info=pw_env%l_info
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
@@ -465,7 +462,7 @@ CONTAINS
 !$OMP shared(maxco,maxsgf_set,ival,num_tasks) &
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,la_min,lb_min,zeta,zetb) &
-!$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
+!$OMP shared(rs_rho,igrid_level,cube_info,eps_rho_rspace,lgrid,nthread) &
 !$OMP shared(workt,pabt,ga_gb_function,map_consistent,error)
             ithread = 0
 !$          ithread = omp_get_thread_num()
@@ -523,7 +520,7 @@ CONTAINS
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        lgrid=lgrid,ithread=ithread, &
                        map_consistent=map_consistent,error=error)
@@ -533,7 +530,7 @@ CONTAINS
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        lgrid=lgrid,ithread=ithread, &
                        map_consistent=map_consistent,error=error)
@@ -545,7 +542,7 @@ CONTAINS
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        map_consistent=map_consistent,error=error)
                 ELSE
@@ -554,7 +551,7 @@ CONTAINS
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=ga_gb_function,&
                        map_consistent=map_consistent,error=error)
                 END IF
@@ -692,7 +689,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
-    TYPE(l_info_type)                        :: l_info
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
@@ -734,7 +730,6 @@ CONTAINS
     NULLIFY(gridlevel_info,cube_info)
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-    l_info=pw_env%l_info
 
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
@@ -963,7 +958,7 @@ CONTAINS
 !$OMP shared(maxco,maxsgf_set,ival,num_tasks,atasks,calculate_forces) &
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,la_min,lb_min,eps_gvg_rspace,zeta,zetb) &
-!$OMP shared(rs_v,igrid_level,cube_info,l_info,nthread,nset_pairs) &
+!$OMP shared(rs_v,igrid_level,cube_info,nthread,nset_pairs) &
 !$OMP shared(workt,habt,pabt,my_compute_tau,map_consistent,forces_mol,iat,jat,error)
             ithread = 0
 !$          ithread = omp_get_thread_num()
@@ -1024,7 +1019,7 @@ CONTAINS
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
+                          cube_info(igrid_level),&
                           hab,pab=pab,o1=na1-1,o2=nb1-1, &
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.TRUE.,&
@@ -1035,7 +1030,7 @@ CONTAINS
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
+                          cube_info(igrid_level),&
                           hab,pab=pab,o1=nb1-1,o2=na1-1, &
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.TRUE.,&
@@ -1048,7 +1043,7 @@ CONTAINS
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
+                          cube_info(igrid_level),&
                           hab,o1=na1-1,o2=nb1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.FALSE.,&
@@ -1059,7 +1054,7 @@ CONTAINS
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
+                          cube_info(igrid_level),&
                           hab,o1=nb1-1,o2=na1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=.FALSE.,&

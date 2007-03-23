@@ -28,8 +28,6 @@ MODULE kg_rspw_types
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: destroy_l_info,&
-                                             l_info_type
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -51,7 +49,6 @@ MODULE kg_rspw_types
      INTEGER :: auxbas_grid
      INTEGER :: ref_count
      TYPE(gridlevel_info_type),POINTER              :: gridlevel_info
-     TYPE(l_info_type),        POINTER              :: l_info
      TYPE(cube_info_type), DIMENSION(:), POINTER    :: cube_info
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER    :: pw_pools
      TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
@@ -64,11 +61,10 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 !!***
 !******************************************************************************
-SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
+SUBROUTINE kg_rspw_get(kg_rspw, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_grid,rs_pools,pw_pools,auxbas_rs_pool,&
      poisson_env,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
-    TYPE(l_info_type), OPTIONAL, POINTER     :: l_info
     TYPE(cube_info_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cube_info
     TYPE(gridlevel_info_type), OPTIONAL, &
@@ -96,7 +92,6 @@ SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
   IF (.NOT. failure) THEN
      IF (PRESENT(pw_pools)) pw_pools => kg_rspw%pw_pools
      IF (PRESENT(rs_pools)) rs_pools => kg_rspw%rs_pools
-     IF (PRESENT(l_info)) l_info =>  kg_rspw%l_info
      IF (PRESENT(cube_info)) cube_info => kg_rspw%cube_info
      IF (PRESENT(gridlevel_info)) gridlevel_info => kg_rspw%gridlevel_info
      IF (PRESENT(auxbas_pw_pool)) THEN
@@ -163,11 +158,6 @@ END SUBROUTINE kg_rspw_retain
        IF (ASSOCIATED(kg_rspw%gridlevel_info)) THEN
          CALL destroy_gaussian_gridlevel(kg_rspw%gridlevel_info,error=error)
          DEALLOCATE(kg_rspw%gridlevel_info,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF (ASSOCIATED(kg_rspw%l_info)) THEN
-         CALL destroy_l_info(kg_rspw%l_info,error=error)
-         DEALLOCATE(kg_rspw%l_info, stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
        IF (ASSOCIATED(kg_rspw%cube_info)) THEN

@@ -38,7 +38,6 @@ MODULE qs_rho0_ggrid
   USE cube_utils,                      ONLY: cube_info_type
   USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_type
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi
   USE memory_utilities,                ONLY: reallocate
@@ -136,7 +135,6 @@ MODULE qs_rho0_ggrid
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -162,7 +160,6 @@ MODULE qs_rho0_ggrid
     NULLIFY(pools,pw_pools)
     CALL pw_env_get(pw_env=pw_env,rs_pools=pools,pw_pools=pw_pools,error=error)
     cube_info => pw_env%cube_info
-    l_info=pw_env%l_info_rho0
     auxbas_grid=pw_env%auxbas_grid
 
     NULLIFY(rho0_s_gs,rho0_s_rs)
@@ -249,7 +246,7 @@ MODULE qs_rho0_ggrid
 ! !$OMP default(none) &
 ! !$OMP private(j,iat,iatom,ra,ithread) &
 ! !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid,r_V0) &
-! !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik) &
+! !$OMP shared(cube_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik) &
 ! !$OMP shared(l0_ikind,igrid,rpgf0_s,error)
       DO j=1,npme
 
@@ -266,7 +263,7 @@ MODULE qs_rho0_ggrid
         CALL collocate_pgf_product_rspace(&
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
-           rs_grid, cube_info(igrid),l_info,eps_rho_rspace,ga_gb_function=401,&
+           rs_grid, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
            ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,error=error)
 
       END DO  !  j
@@ -432,7 +429,6 @@ MODULE qs_rho0_ggrid
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -495,7 +491,6 @@ MODULE qs_rho0_ggrid
     ! *** assign from pw_env
     auxbas_grid=pw_env%auxbas_grid
     cube_info => pw_env%cube_info
-    l_info=pw_env%l_info_rho0
 
     ! *** Get the potential on the right grid
     NULLIFY(rs_v,rs_pool,pw_pool,pw_aux,coeff_rspace,coeff_gspace)
@@ -649,7 +644,7 @@ MODULE qs_rho0_ggrid
 ! !$OMP private(force_tmp,rho_atom,int_local_h,int_local_s,icg,ispin)&
 ! !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
 ! !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
-! !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
+! !$OMP shared(cube_info,eps_rho_rspace,zet0_s,l0_ikind) &
 ! !$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set)&
 ! !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
 ! !$OMP shared(rho0_mpole,r_V0,nspins,rpgf0_s,igrid,error)
@@ -675,7 +670,7 @@ MODULE qs_rho0_ggrid
         CALL integrate_pgf_product_rspace(&
              l0_ikind,zet0_s,0,0,0.0_dp,0,&
              ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,&
-             cube_info(igrid),l_info,hab,pab,o1=0,o2=0,&
+             cube_info(igrid),hab,pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=ithread,&

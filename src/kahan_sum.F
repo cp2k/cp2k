@@ -204,8 +204,8 @@ MODULE kahan_sum
     ks = szero ; t = szero ; y = szero ; c = szero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2               )) THEN
            y  = array(i1,i2               ) - c
            t  = ks + y
@@ -215,8 +215,8 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2               ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -239,8 +239,8 @@ MODULE kahan_sum
     ks = dzero ; t = dzero ; y = dzero ; c = dzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2               )) THEN
            y  = array(i1,i2               ) - c
            t  = ks + y
@@ -250,8 +250,8 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2               ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -274,8 +274,8 @@ MODULE kahan_sum
     ks = czero ; t = czero ; y = czero ; c = czero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2               )) THEN
            y  = array(i1,i2               ) - c
            t  = ks + y
@@ -285,8 +285,8 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2               ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -309,8 +309,8 @@ MODULE kahan_sum
     ks = zzero ; t = zzero ; y = zzero ; c = zzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2               )) THEN
            y  = array(i1,i2               ) - c
            t  = ks + y
@@ -320,8 +320,8 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
       DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2               ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -344,9 +344,9 @@ MODULE kahan_sum
     ks = szero ; t = szero ; y = szero ; c = szero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3            )) THEN
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
@@ -357,9 +357,9 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -383,9 +383,9 @@ MODULE kahan_sum
     ks = dzero ; t = dzero ; y = dzero ; c = dzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3            )) THEN
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
@@ -396,9 +396,9 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -422,9 +422,9 @@ MODULE kahan_sum
     ks = czero ; t = czero ; y = czero ; c = czero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3            )) THEN
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
@@ -435,9 +435,9 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -461,9 +461,9 @@ MODULE kahan_sum
     ks = zzero ; t = zzero ; y = zzero ; c = zzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3            )) THEN
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
@@ -474,9 +474,9 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
       DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3            ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -500,10 +500,10 @@ MODULE kahan_sum
     ks = szero ; t = szero ; y = szero ; c = szero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4         )) THEN
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
@@ -515,10 +515,10 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -543,10 +543,10 @@ MODULE kahan_sum
     ks = dzero ; t = dzero ; y = dzero ; c = dzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4         )) THEN
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
@@ -558,10 +558,10 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -586,10 +586,10 @@ MODULE kahan_sum
     ks = czero ; t = czero ; y = czero ; c = czero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4         )) THEN
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
@@ -601,10 +601,10 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -629,10 +629,10 @@ MODULE kahan_sum
     ks = zzero ; t = zzero ; y = zzero ; c = zzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4         )) THEN
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
@@ -644,10 +644,10 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
       DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4         ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -672,11 +672,11 @@ MODULE kahan_sum
     ks = szero ; t = szero ; y = szero ; c = szero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5      )) THEN
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
@@ -689,11 +689,11 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -719,11 +719,11 @@ MODULE kahan_sum
     ks = dzero ; t = dzero ; y = dzero ; c = dzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5      )) THEN
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
@@ -736,11 +736,11 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -766,11 +766,11 @@ MODULE kahan_sum
     ks = czero ; t = czero ; y = czero ; c = czero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5      )) THEN
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
@@ -783,11 +783,11 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -813,11 +813,11 @@ MODULE kahan_sum
     ks = zzero ; t = zzero ; y = zzero ; c = zzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5      )) THEN
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
@@ -830,11 +830,11 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
       DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5      ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -861,12 +861,12 @@ MODULE kahan_sum
     ks = szero ; t = szero ; y = szero ; c = szero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6   )) THEN
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
@@ -880,12 +880,12 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -913,12 +913,12 @@ MODULE kahan_sum
     ks = dzero ; t = dzero ; y = dzero ; c = dzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6   )) THEN
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
@@ -932,12 +932,12 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -965,12 +965,12 @@ MODULE kahan_sum
     ks = czero ; t = czero ; y = czero ; c = czero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6   )) THEN
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
@@ -984,12 +984,12 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -1017,12 +1017,12 @@ MODULE kahan_sum
     ks = zzero ; t = zzero ; y = zzero ; c = zzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6   )) THEN
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
@@ -1036,12 +1036,12 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
       DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6   ) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -1070,13 +1070,13 @@ MODULE kahan_sum
     ks = szero ; t = szero ; y = szero ; c = szero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6,i7)) THEN
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
@@ -1091,13 +1091,13 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -1127,13 +1127,13 @@ MODULE kahan_sum
     ks = dzero ; t = dzero ; y = dzero ; c = dzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6,i7)) THEN
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
@@ -1148,13 +1148,13 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -1184,13 +1184,13 @@ MODULE kahan_sum
     ks = czero ; t = czero ; y = czero ; c = czero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6,i7)) THEN
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
@@ -1205,13 +1205,13 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
            c  = (t - ks) - y
@@ -1241,13 +1241,13 @@ MODULE kahan_sum
     ks = zzero ; t = zzero ; y = zzero ; c = zzero
 
     IF (PRESENT(mask)) THEN
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
          IF (mask(i1,i2,i3,i4,i5,i6,i7)) THEN
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
@@ -1262,13 +1262,13 @@ MODULE kahan_sum
       ENDDO
       ENDDO
     ELSE
-      DO i1=1,SIZE(array,1)
-      DO i2=1,SIZE(array,2)
-      DO i3=1,SIZE(array,3)
-      DO i4=1,SIZE(array,4)
-      DO i5=1,SIZE(array,5)
-      DO i6=1,SIZE(array,6)
       DO i7=1,SIZE(array,7)
+      DO i6=1,SIZE(array,6)
+      DO i5=1,SIZE(array,5)
+      DO i4=1,SIZE(array,4)
+      DO i3=1,SIZE(array,3)
+      DO i2=1,SIZE(array,2)
+      DO i1=1,SIZE(array,1)
            y  = array(i1,i2,i3,i4,i5,i6,i7) - c
            t  = ks + y
            c  = (t - ks) - y

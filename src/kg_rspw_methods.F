@@ -42,8 +42,6 @@ MODULE kg_rspw_methods
                                              kg_environment_type
   USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_release
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
@@ -94,7 +92,7 @@ SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      NULLIFY( kg_rspw%gridlevel_info, kg_rspw%pw_pools,kg_rspw%rs_pools,&
-          kg_rspw%l_info, kg_rspw%cube_info, kg_rspw%poisson_env)
+          kg_rspw%cube_info, kg_rspw%poisson_env)
      kg_rspw%auxbas_grid=-1
      kg_rspw%ref_count=1
      IF (PRESENT(kg_env)) CALL kg_rspw_rebuild(kg_rspw,kg_env=kg_env,error=error)
@@ -188,12 +186,6 @@ END SUBROUTINE kg_rspw_create
           CALL destroy_gaussian_gridlevel(kg_rspw%gridlevel_info, error=error)
        ELSE
           ALLOCATE(kg_rspw%gridlevel_info,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(kg_rspw%l_info)) THEN
-          CALL l_info_release(kg_rspw%l_info,error=error)
-       ELSE
-          ALLOCATE(kg_rspw%l_info,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(kg_rspw%cube_info)) THEN
@@ -421,18 +413,6 @@ END SUBROUTINE kg_rspw_create
                maxradius,cmaxl)
          cmax = MAX(cmax,cmaxl)
       END DO
-!
-!
-!  l_info set up here, requires cmaxl
-!
-!
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
-
-! maxl+1 to allow for the forces
-      CALL init_l_info(kg_rspw%l_info,maxlgto+1,cmax,error=error)
-
-
 
    END IF
 

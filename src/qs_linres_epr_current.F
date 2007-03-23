@@ -77,9 +77,6 @@ MODULE qs_linres_epr_current
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_type,&
-                                             finish_l_info,&
-                                             return_l_info
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
@@ -776,7 +773,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(l_info_type)                        :: l_info
     TYPE(lgrid_type)                         :: lgrid
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -829,7 +825,6 @@ CONTAINS
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-    l_info=pw_env%l_info
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
@@ -1204,7 +1199,7 @@ CONTAINS
 !$OMP shared(ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,atomic_kind)&
 !$OMP shared(la_min,lb_min,zeta,zetb,ikind,jkind) &
-!$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
+!$OMP shared(rs_rho,igrid_level,cube_info,eps_rho_rspace,lgrid,nthread) &
 !$OMP shared(workt,jpabt,jpabt_ii,jpabt_iii,map_consistent,idir,error)
           ithread = 0
 !$        ithread = omp_get_thread_num()
@@ -1296,7 +1291,7 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=FUNC_ADBmDAB,&
                        lgrid=lgrid,ithread=ithread, &
                        idir=idir,&
@@ -1306,7 +1301,7 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=FUNC_ADBmDAB,&
                        idir=idir,&
                        map_consistent=map_consistent,error=error)
@@ -1319,7 +1314,7 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        lgrid=lgrid,ithread=ithread, &
                        idir=idir,ir=iiiB,&
@@ -1329,7 +1324,7 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        idir=idir,ir=iiiB,&
                        map_consistent=map_consistent,error=error)
@@ -1343,7 +1338,7 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        lgrid=lgrid,ithread=ithread, &
                        idir=idir,ir=iiB,&
@@ -1353,7 +1348,7 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,&
+                       eps_rho_rspace,&
                        ga_gb_function=FUNC_ARDBmDARB,&
                        idir=idir,ir=iiB,&
                        map_consistent=map_consistent,error=error)
@@ -1371,7 +1366,7 @@ CONTAINS
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,&
+                          eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           lgrid=lgrid,ithread=ithread, &
                           map_consistent=map_consistent,error=error)
@@ -1380,7 +1375,7 @@ CONTAINS
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,&
+                          eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           map_consistent=map_consistent,error=error)
                   END IF
@@ -1394,7 +1389,7 @@ CONTAINS
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,&
+                          eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           lgrid=lgrid,ithread=ithread, &
                           map_consistent=map_consistent,error=error)
@@ -1403,7 +1398,7 @@ CONTAINS
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,&
+                          eps_rho_rspace,&
                           ga_gb_function=FUNC_AB,&
                           map_consistent=map_consistent,error=error)
                   END IF
@@ -1463,366 +1458,6 @@ CONTAINS
   END SUBROUTINE calculate_jrho_resp
 
 
-! *****************************************************************************
-
-  SUBROUTINE collocate_pgf_resp_curr_wrong(la_max,zeta,la_min,&
-                                            lb_max,zetb,lb_min,&
-                                            ra,rab,rab2,scale,ii,iii,&
-                                            pab,pab_ii,pab_iii,&
-                                            o1,o2,rsgrid,cube_info,l_info,&
-                                            eps_rho_rspace,lgrid,ithread,&
-                                            map_consistent,error)
-
-    INTEGER, INTENT(IN)                      :: la_max
-    REAL(KIND=dp), INTENT(IN)                :: zeta
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
-    REAL(KIND=dp), INTENT(IN)                :: zetb
-    INTEGER, INTENT(IN)                      :: lb_min
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
-    REAL(KIND=dp), INTENT(IN)                :: rab2, scale
-    INTEGER, INTENT(IN)                      :: ii, iii
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, pab_ii, pab_iii
-    INTEGER                                  :: o1, o2
-    TYPE(realspace_grid_type), POINTER       :: rsgrid
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
-    REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
-    TYPE(lgrid_type), OPTIONAL               :: lgrid
-    INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'collocate_pgf_resp_curr_wrong', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, istat, ithread_l, &
-      jco, k, l, length, len1, len2, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, &
-      lya, lyb, lza, lzb, offset, start
-    INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
-                                                ub_cube
-    INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
-    INTEGER, DIMENSION(:, :), POINTER        :: map
-    LOGICAL                                  :: failure,my_map_consistent
-    REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
-      prefactor, radius, rpg, xrrb, ya, yap, yb, ybp, yrrb, za, zap, zb, zbp, &
-      zetp, zrrb
-    REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rboffset, rbp, &
-                                                roffset, rp
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: grid
-    REAL(KIND=dp), POINTER :: alpha(:,:), dpy(:,:), dpz(:,:), polx(:,:), &
-      poly(:,:), polz(:,:), pzyx(:)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx_ii, pzyx_iii
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: polx_ii, polx_iii,&
-                                                poly_ii, poly_iii,polz_ii, polz_iii
-
-!   ---------------------------------------------------------------------------
-
-    failure = .FALSE.
-    IF (PRESENT(ithread)) THEN
-       ithread_l=ithread
-    ELSE
-       ithread_l=0
-    ENDIF
-
-    ! use identical radii for integrate and collocate ?
-    IF (PRESENT(map_consistent)) THEN
-       my_map_consistent=map_consistent
-    ELSE
-       my_map_consistent=.FALSE.
-    ENDIF
-
-    NULLIFY(alpha,dpy,dpz,polx,polx_ii,polx_iii,poly,poly_ii,poly_iii)
-    NULLIFY(polz,polz_ii,polz_iii,pzyx,pzyx_ii,pzyx_iii,grid,map)
-    NULLIFY(ly_max,lz_max,sphere_bounds)
-
-    zetp      = zeta + zetb
-    f         = zetb/zetp
-    rap(:)    = f*rab(:)
-    rbp(:)    = rap(:) - rab(:)
-    rp(:)     = ra(:) + rap(:)
-    rb(:)     = ra(:)+rab(:)
-
-   IF (my_map_consistent) THEN
-       cutoff    = 1.0_dp
-       prefactor = EXP(-zeta*f*rab2)
-       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
-                     zetp=zetp,eps=eps_rho_rspace,prefactor=prefactor,cutoff=cutoff)
-       prefactor = scale*EXP(-zeta*f*rab2)
-    ELSE
-       cutoff    = 0.0_dp
-       prefactor = scale*EXP(-zeta*f*rab2)
-       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
-                                       zetp,eps_rho_rspace,prefactor,cutoff)
-    ENDIF
-
-    IF (radius .EQ. 0.0_dp ) THEN
-      RETURN
-    END IF
-
-    coef_max=la_max+lb_max+1
-!   *** properties of the grid ***
-    dr(:) = rsgrid%dr(:)
-    ng(:) = rsgrid%npts(:)
-
-    grid => rsgrid%r(:,:,:)
-    gridbounds(1,1)=LBOUND(GRID,1)
-    gridbounds(2,1)=UBOUND(GRID,1)
-    gridbounds(1,2)=LBOUND(GRID,2)
-    gridbounds(2,2)=UBOUND(GRID,2)
-    gridbounds(1,3)=LBOUND(GRID,3)
-    gridbounds(2,3)=UBOUND(GRID,3)
-
-!   *** get the sub grid properties for the given radius ***
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-
-!   *** get the l_info logic and arrays ***
-    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,ithread_l,lx_max, &
-                       lxy_max,lxyz_max,ly_max,lz_max, &
-                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax,error=error)
-
-!   *** Alocate some additional arrays  ***
-    len1 = SIZE(polx,1)
-    len2 = SIZE(polx,2)
-    ALLOCATE(polx_ii(len1,len2),polx_iii(len1,len2),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-    len1 = SIZE(poly,1)
-    len2 = SIZE(poly,2)
-    ALLOCATE(poly_ii(len1,len2),poly_iii(len1,len2),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-    len1 = SIZE(polz,1)
-    len2 = SIZE(polz,2)
-    ALLOCATE(polz_ii(len1,len2),polz_iii(len1,len2),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-    len1 = SIZE(pzyx,1)
-    ALLOCATE(pzyx_ii(len1),pzyx_iii(len1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-
-!   *** position of the gaussian product
-!
-!   this is the actual definition of the position on the grid
-!   i.e. a point rp(:) gets here grid coordinates
-!   MODULO(rp(:)/dr(:),ng(:))+1
-!   hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid ((1,1,1) on grid)
-
-    cubecenter(:) = FLOOR(rp(:)/dr(:))
-    roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
-
-    rboffset(:) = rb(:) - REAL(cubecenter(:),dp)*dr(:)
-
-!   *** a mapping so that the ig corresponds to the right grid point
-    DO i=1,3
-      IF ( rsgrid % perd ( i ) == 1 ) THEN
-        start=lb_cube(i)
-        DO
-         offset=MODULO(cubecenter(i)+start,ng(i))+1-start
-         length=MIN(ub_cube(i),ng(i)-offset)-start
-         DO ig=start,start+length
-            map(ig,i) = ig+offset
-         END DO
-         IF (start+length.GE.ub_cube(i)) EXIT
-         start=start+length+1
-        END DO
-      ELSE
-        ! this takes partial grid + border regions into account
-        offset=MODULO(cubecenter(i),ng(i))+rsgrid%lb(i)
-        offset=offset-rsgrid%lb_local(i)+1
-        DO ig=lb_cube(i),ub_cube(i)
-           map(ig,i) = ig+offset
-        END DO
-      END IF
-    ENDDO
-
-!   *** initialise the p terms and loop logic
-    lxyz=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-             lxyz=lxyz+1
-             ico=coset(lxa,lya,lza)
-             jco=coset(lxb,lyb,lzb)
-             pzyx(lxyz)=prefactor*pab(o1+ico,o2+jco)
-             pzyx_ii(lxyz)=-prefactor*pab_ii(o1+ico,o2+jco)
-             pzyx_iii(lxyz)=prefactor*pab_iii(o1+ico,o2+jco)
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-    ENDDO
-    ENDDO
-
-!   *** initialise the pol x,y,z terms
-    DO ig=lb_cube(3),ub_cube(3)
-      lxyz=0
-      rpg = REAL(ig,dp)*dr(3) - roffset(3)
-      zap = EXP(-zetp*rpg**2)
-      za  = rpg + rap(3)
-      zb  = za  - rab(3)
-      zrrb = REAL(ig,dp)*dr(3) - rboffset(3)
-      DO lza=0,la_max
-       zbp=1.0_dp
-       DO lzb=0,lb_max
-          dpz(lzb,lza)=zap*zbp
-          zbp=zbp*zb
-       ENDDO
-       zap=zap*za
-      ENDDO
-      DO lxa=0,la_max
-      DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-             lxyz=lxyz+1
-             polz(lxyz,ig)=dpz(lzb,lza)
-             IF(ii==3) THEN
-               polz_ii(lxyz,ig)=dpz(lzb,lza)*zrrb
-             ELSE
-               polz_ii(lxyz,ig)=dpz(lzb,lza)
-             END IF
-             IF(iii==3) THEN
-               polz_iii(lxyz,ig)=dpz(lzb,lza)*zrrb
-             ELSE
-               polz_iii(lxyz,ig)=dpz(lzb,lza)
-             END IF
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
-    DO ig=lb_cube(2),ub_cube(2)
-      rpg = REAL(ig,dp)*dr(2) - roffset(2)
-      yap = EXP(-zetp*rpg**2)
-      ya  = rpg + rap(2)
-      yb  = ya  - rab(2)
-      yrrb =  REAL(ig,dp)*dr(2) - rboffset(2)
-      DO lya=0,la_max
-       ybp=1.0_dp
-       DO lyb=0,lb_max
-          dpy(lyb,lya)=yap*ybp
-          ybp=ybp*yb
-       ENDDO
-       yap=yap*ya
-      ENDDO
-
-      lxy=0
-      DO lxa=0,la_max
-      DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          lxy=lxy+1
-          poly(lxy,ig)=dpy(lyb,lya)
-          IF(ii==2) THEN
-            poly_ii(lxy,ig)=dpy(lyb,lya)*yrrb
-          ELSE
-            poly_ii(lxy,ig)=dpy(lyb,lya)
-          END IF
-          IF(iii==2) THEN
-            poly_iii(lxy,ig)=dpy(lyb,lya)*yrrb
-          ELSE
-            poly_iii(lxy,ig)=dpy(lyb,lya)
-          END IF
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
-!   *** make the alpha matrix ***
-    alpha(:,:)=0.0_dp
-    lx=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
-       lx=lx+1
-       binomial_k_lxa=1.0_dp
-       a=1.0_dp
-       DO k=0,lxa
-        binomial_l_lxb=1.0_dp
-        b=1.0_dp
-        DO l=0,lxb
-           alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
-                             binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
-           b=b*(rp(1)-(ra(1)+rab(1)))
-        ENDDO
-        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
-        a=a*(-ra(1)+rp(1))
-       ENDDO
-    ENDDO
-    ENDDO
-
-    DO ig=lb_cube(1),ub_cube(1)
-      rpg = REAL(ig,dp)*dr(1) - roffset(1)
-      pg  = EXP(-zetp*rpg**2)
-      xrrb = REAL(ig,dp)*dr(1) - rboffset(1)
-      DO icoef=1,coef_max
-         polx(icoef,ig)=pg
-         IF(ii==1) THEN
-           polx_ii(icoef,ig)=pg*xrrb
-         ELSE
-           polx_ii(icoef,ig)=pg
-         END IF
-         IF(iii==1) THEN
-           polx_iii(icoef,ig)=pg*xrrb
-         ELSE
-           polx_iii(icoef,ig)=pg
-         END IF
-         pg=pg*(rpg)
-      ENDDO
-    ENDDO
-
-    IF ( PRESENT ( lgrid ) ) THEN
-      ig = lgrid%ldim * ithread_l + 1
-      CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
-              polz(1,-cmax),lgrid%r(ig),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-      CALL collocate_core(pzyx_ii(1),polx_ii(1,-cmax),poly_ii(1,-cmax),&
-              polz_ii(1,-cmax),lgrid%r(ig),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-      CALL collocate_core(pzyx_iii(1),polx_iii(1,-cmax),poly_iii(1,-cmax),&
-              polz_iii(1,-cmax),lgrid%r(ig),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-    ELSE
-!   *** do the loop over the grid
-!   notice this is not the same as critical or so, since we may have
-!   several different rsgrids that all use the same function
-!   I guess we need a flush (of the grid) to guarantee that we are working
-!   on an uptodate copy of the grid
-      CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
-              polz(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-      CALL collocate_core(pzyx_ii(1),polx_ii(1,-cmax),poly_ii(1,-cmax),&
-              polz_ii(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-      CALL collocate_core(pzyx_iii(1),polx_iii(1,-cmax),poly_iii(1,-cmax),&
-              polz_iii(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
-              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
-              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
-    END IF
-
-    CALL finish_l_info(polx,poly,polz,pzyx,error=error)
-
-!   Deallocate temporary arrays
-    DEALLOCATE(polx_ii,polx_iii,poly_ii,poly_iii,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-    DEALLOCATE(polz_ii,polz_iii,pzyx_ii,pzyx_iii,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-
-  END SUBROUTINE  collocate_pgf_resp_curr_wrong
-
 !  *****************************************************************************************
 !dbg
   SUBROUTINE test_func(qs_env,psi1,epr_env,error)
@@ -1861,7 +1496,6 @@ CONTAINS
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(l_info_type), POINTER               :: l_info
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1903,7 +1537,7 @@ CONTAINS
    ! *** set up the pw multi-grids
      CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
      CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, &
-          l_info=l_info,cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
+          cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
      CPPrecondition((gridlevel_info%ngrid_levels==1),cp_failure_level,routineN,error,failure)
 
      ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&

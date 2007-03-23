@@ -34,8 +34,6 @@ MODULE pw_env_types
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_release
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_release,&
-                                             l_info_type
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -76,7 +74,6 @@ MODULE pw_env_types
 !!     - xc_pw_pool: the pool used for xc calculation on grid (might be the
 !!       same as the finest, or finer still).
 !!     - gridlevel_info: gaussian gridlevel info
-!!     - l_info: informations for l calc
 !!     - cube_info: info on cube and max sphere size for multigrids
 !!     - aux_bas: which multigrid is the auxiliar basis
 !!
@@ -100,8 +97,6 @@ MODULE pw_env_types
      TYPE(pw_pool_type), POINTER :: xc_pw_pool
      TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
-     TYPE(l_info_type), POINTER :: l_info ! right place for it?
-     TYPE(l_info_type), POINTER :: l_info_rho0 ! right place for it?
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
      TYPE(pw_poisson_type), POINTER :: poisson_env
@@ -117,12 +112,11 @@ CONTAINS
 !!     pw_env_get
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_env_get(pw_env, pw_pools, l_info, cube_info,&
+!!     Subroutine pw_env_get(pw_env, pw_pools, cube_info,&
 !!         gridlevel_info, auxbas_pw_pool, auxbas_cube_info, auxbas_grid,&
 !!         rs_pools, auxbas_rs_pool, error)
 !!       Type(pw_env_type), Pointer:: pw_env
 !!       Type(pw_pool_p_type), Dimension(:), Pointer, Optional:: pw_pools
-!!       Type(l_info_type), Pointer, Optional:: l_info
 !!       Type(cube_info_type), Dimension(:), Pointer, Optional:: cube_info
 !!       Type(gridlevel_info_type), Pointer, Optional:: gridlevel_info
 !!       Type(pw_pool_type), Pointer, Optional:: auxbas_pw_pool
@@ -153,13 +147,12 @@ CONTAINS
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_info,&
+SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
      xc_pw_pool, poisson_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
-    TYPE(l_info_type), OPTIONAL, POINTER     :: l_info, l_info_rho0
     TYPE(cube_info_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cube_info
     TYPE(gridlevel_info_type), OPTIONAL, &
@@ -186,8 +179,6 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
   IF (.NOT. failure) THEN
      IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
      IF (PRESENT(rs_pools)) rs_pools => pw_env%rs_pools
-     IF (PRESENT(l_info)) l_info => pw_env%l_info
-     IF (PRESENT(l_info_rho0)) l_info_rho0 => pw_env%l_info_rho0
      IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
      IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
      IF (PRESENT(auxbas_pw_pool)) THEN
@@ -312,20 +303,6 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
            END IF
            DEALLOCATE(pw_env%gridlevel_info,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(pw_env%l_info)) THEN
-           CALL l_info_release(pw_env%l_info,error=error)
-           IF(pw_env%l_info%ref_count == 0) THEN
-              DEALLOCATE(pw_env%l_info, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-        END IF
-        IF (ASSOCIATED(pw_env%l_info_rho0)) THEN
-           CALL l_info_release(pw_env%l_info_rho0,error=error)
-           IF(pw_env%l_info_rho0%ref_count == 0) THEN
-              DEALLOCATE(pw_env%l_info_rho0, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
         END IF
         IF (ASSOCIATED(pw_env%cube_info)) THEN
            DO igrid_level=1,SIZE(pw_env%cube_info)

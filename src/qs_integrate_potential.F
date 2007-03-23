@@ -30,6 +30,7 @@
 !!          1) modified to compute tau
 !!     Joost removed incremental build feature
 !!     Joost introduced map consistent
+!!     Rewrote grid integration/collocation routines, [Joost VandeVondele,03.2007]
 !!
 !!   SOURCE
 !***********************************************************************
@@ -65,9 +66,6 @@ MODULE qs_integrate_potential
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE l_utils,                         ONLY: finish_l_info,&
-                                             l_info_type,&
-                                             return_l_info
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
                                              mp_shift
@@ -261,7 +259,7 @@ CONTAINS
 
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
              0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
-             rs_v,pw_env%cube_info(1),pw_env%l_info,hab,pab=pab,o1=0,o2=0,&
+             rs_v,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
              force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
@@ -377,7 +375,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(l_info_type)                        :: l_info
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
@@ -434,7 +431,6 @@ CONTAINS
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-    l_info=pw_env%l_info
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
@@ -808,7 +804,7 @@ CONTAINS
 !$OMP shared(natom_pairs,nthread,asets,atasks,particle_set,cell,dh,p,hdabt,hadbt,ddv,dv_block) &
 !$OMP shared(deltap,calculate_forces,atom_of_kind,ival,npgfa,npgfb,la_max,lb_max) &
 !$OMP shared(first_sgfa,first_sgfb,sphi_a,sphi_b,maxco,maxsgf_set,dab_local) &
-!$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,l_info,eps_gvg_rspace) &
+!$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,eps_gvg_rspace) &
 !$OMP shared(force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau,map_consistent,use_virial,virial,error,has_dv)
           ithread = 0
 !$        ithread = omp_get_thread_num()
@@ -939,7 +935,7 @@ CONTAINS
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                              ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                             cube_info(igrid_level),l_info,&
+                             cube_info(igrid_level),&
                              hab,pab=pab,o1=na1-1,o2=nb1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
                              calculate_forces=calculate_forces,hdab=hdab,hadb=hadb,&
@@ -952,7 +948,7 @@ CONTAINS
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
                              rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                             cube_info(igrid_level),l_info,&
+                             cube_info(igrid_level),&
                              hab,pab=pab,o1=nb1-1,o2=na1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
                              calculate_forces=calculate_forces,hdab=hadb,hadb=hdab,&
@@ -968,7 +964,7 @@ CONTAINS
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                              ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                             cube_info(igrid_level),l_info,&
+                             cube_info(igrid_level),&
                              hab,pab=pab,o1=na1-1,o2=nb1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
                              calculate_forces=calculate_forces,&
@@ -981,7 +977,7 @@ CONTAINS
                              lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                              la_max(iset),zeta(ipgf,iset),la_min(iset),&
                              rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                             cube_info(igrid_level),l_info,&
+                             cube_info(igrid_level),&
                              hab,pab=pab,o1=nb1-1,o2=na1-1, &
                              eps_gvg_rspace=eps_gvg_rspace,&
                              calculate_forces=calculate_forces,&
@@ -997,7 +993,7 @@ CONTAINS
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
+                          cube_info(igrid_level),&
                           hab,o1=na1-1,o2=nb1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
@@ -1009,7 +1005,7 @@ CONTAINS
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           la_max(iset),zeta(ipgf,iset),la_min(iset),&
                           rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
+                          cube_info(igrid_level),&
                           hab,o1=nb1-1,o2=na1-1,&
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
@@ -1298,7 +1294,7 @@ CONTAINS
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,&
-                                            cube_info,l_info,hab,pab,o1,o2,&
+                                            cube_info,hab,pab,o1,o2,&
                                             eps_gvg_rspace,&
                                             calculate_forces,hdab,hadb,force_a,force_b,&
                                             ithread,mytimings,compute_tau,map_consistent,&
@@ -1314,7 +1310,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rab2
     TYPE(realspace_grid_type), POINTER       :: rsgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pab
@@ -1338,14 +1333,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
-      ico, icoef, ig, ithread_l, jco, k, l, la, la_max_l, la_min_l, lb, &
-      lb_cube_min, lb_max_l, lb_min_l, length, lx, lx_max, lxa, lxb, lxy, &
+      ico, icoef, ig, ithread_l, jco, k, l, la, la_max_local, la_min_local, lb, &
+      lb_cube_min, lb_max_local, lb_min_local, length, lx, lx_max, lxa, lxb, lxy, &
       lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start, ub_cube_max
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
-                                                ub_cube
+                                                ub_cube 
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
-    INTEGER, DIMENSION(:, :), POINTER        :: map
-    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
     LOGICAL                                  :: my_collocate_rho0, &
                                                 my_compute_tau, &
                                                 my_map_consistent, &
@@ -1356,9 +1349,22 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
-    REAL(KIND=dp), POINTER                   :: alpha(:,:), dpy(:,:), &
-                                                dpz(:,:), polx(:,:), &
-                                                poly(:,:), polz(:,:), pzyx(:)
+
+    INTEGER :: lxp,lyp,lzp,lp,iaxis
+    INTEGER,       ALLOCATABLE, DIMENSION(:,:) :: map
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: coef_ttz
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: coef_tyz
+
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
+    REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
+
 
 !   ---------------------------------------------------------------------------
 
@@ -1397,29 +1403,29 @@ CONTAINS
     !IF (ithread_l.eq.0) t_a_1=m_walltime()
 
     IF (calculate_forces) THEN
-      la_max_l=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
-      la_min_l=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
-      lb_min_l=MAX(lb_min-1,0)
-      lb_max_l=lb_max
+      la_max_local=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
+      la_min_local=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
+      lb_min_local=MAX(lb_min-1,0)
+      lb_max_local=lb_max
       IF (my_use_virial) THEN
-         la_max_l=la_max_l+1
-         lb_max_l=lb_max_l+1
+         la_max_local=la_max_local+1
+         lb_max_local=lb_max_local+1
       ENDIF
     ELSE
-      la_max_l=la_max
-      la_min_l=la_min
-      lb_min_l=lb_min
-      lb_max_l=lb_max
+      la_max_local=la_max
+      la_min_local=la_min
+      lb_min_local=lb_min
+      lb_max_local=lb_max
     END IF
 
     IF (my_compute_tau) THEN
-      la_max_l=la_max_l+1
-      lb_max_l=lb_max_l+1
-      la_min_l=MAX(la_min_l-1,0)
-      lb_min_l=MAX(lb_min_l-1,0)
+      la_max_local=la_max_local+1
+      lb_max_local=lb_max_local+1
+      la_min_local=MAX(la_min_local-1,0)
+      lb_min_local=MAX(lb_min_local-1,0)
     ENDIF
 
-    coef_max=la_max_l+lb_max_l+1
+    coef_max=la_max_local+lb_max_local+1
     zetp = zeta + zetb
     f = zetb/zetp
     prefactor = EXP(-zeta*f*rab2)
@@ -1456,10 +1462,7 @@ CONTAINS
        RETURN
     ENDIF
 
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max_l, &
-                       ithread_l,lx_max,lxy_max,lxyz_max,ly_max,lz_max,&
-                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax,ipzyx,error=error)
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
 
 !   *** properties of the grid ***
     !IF (ithread_l.eq.0) t_c_1=m_walltime()
@@ -1491,6 +1494,7 @@ CONTAINS
     ub_cube_max = MAXVAL(ub_cube(:))
 
 !   *** a mapping so that the ig corresponds to the right grid point, also with pbc
+    ALLOCATE(map(-cmax:cmax,3))
     DO i=1,3
       IF ( rsgrid % perd ( i ) == 1 ) THEN
         start=lb_cube(i)
@@ -1513,141 +1517,68 @@ CONTAINS
       END IF
     ENDDO
 
-!   *** initialise the pol x,y,z terms
-!  new trick to avoid to many exps (reuse the result from the previous gridpoint):
-!  exp( -a*(x+d)**2)=exp(-a*x**2)*(-2*a*x*d)*exp(-a*d**2)
-!  exp(-2*a*(x+d)*d)=exp(-2*a*x*d)*exp(-2*a*d**2)
+#include "prep.f90"
 
-    rpg=REAL(lb_cube(3)-1,dp)*dr(3)-roffset(3)
-    exp_x2=EXP(-zetp*rpg**2)
-    exp_x1=EXP(-2*zetp*rpg*dr(3))
-    exp_x0=EXP(-zetp*dr(3)**2)
+#include "call_integrate.f90"
 
-    DO ig=lb_cube(3),ub_cube(3)
-      lxyz=0
-      rpg = rpg + dr(3)
-      ! zap = EXP(-zetp*rpg**2)
-      exp_x1 = exp_x1 * exp_x0
-      exp_x2 = exp_x2 * exp_x1
-      exp_x1 = exp_x1 * exp_x0
-      zap = exp_x2
-      za  = rpg + rap(3)
-      zb  = za  - rab(3)
-      DO lza=0,la_max_l
-       zbp=1.0_dp
-       DO lzb=0,lb_max_l
-          dpz(lzb,lza)=zap*zbp
-          zbp=zbp*zb
-       ENDDO
-       zap=zap*za
-      ENDDO
-      DO lxa=0,la_max_l
-      DO lxb=0,lb_max_l
-       DO lya=0,la_max_l-lxa
-       DO lyb=0,lb_max_l-lxb
-          DO lza=MAX(la_min_l-lxa-lya,0),la_max_l-lxa-lya
-          DO lzb=MAX(lb_min_l-lxb-lyb,0),lb_max_l-lxb-lyb
-             lxyz=lxyz+1
-             polz(lxyz,ig)=dpz(lzb,lza)
+    coef_xyz=coef_xyz*prefactor
+
+    !
+    !   compute v_{lxa,lya,lza,lxb,lyb,lzb} given v_{lxp,lyp,lzp} and alpha(ls,lxa,lxb,1)
+    !   use a three step procedure
+    !
+
+    ALLOCATE(vab(ncoset(la_max_local),ncoset(lb_max_local)))
+    ALLOCATE(coef_ttz(0:la_max_local,0:lb_max_local))
+    ALLOCATE(coef_tyz(0:la_max_local,0:lb_max_local,0:la_max_local,0:lb_max_local))
+       vab=0.0_dp
+       lxyz=0
+       DO lzp=0,lp
+          coef_tyz=0.0_dp
+          DO lyp=0,lp-lzp
+             coef_ttz=0.0_dp
+             DO lxp=0,lp-lzp-lyp
+                lxyz=lxyz+1
+                DO lxb=0,lb_max_local
+                DO lxa=0,la_max_local
+                   coef_ttz(lxa,lxb)=coef_ttz(lxa,lxb)+coef_xyz(lxyz)*alpha(lxp,lxa,lxb,1)
+                ENDDO
+                ENDDO
+
+             ENDDO
+
+             DO lyb=0,lb_max_local
+             DO lya=0,la_max_local
+                DO lxb=0,lb_max_local-lyb
+                DO lxa=0,la_max_local-lya
+                   coef_tyz(lxa,lxb,lya,lyb)=coef_tyz(lxa,lxb,lya,lyb)+coef_ttz(lxa,lxb)*alpha(lyp,lya,lyb,2)
+                ENDDO
+                ENDDO
+             ENDDO
+             ENDDO
+
+          ENDDO
+
+          DO lzb=0,lb_max_local
+          DO lza=0,la_max_local
+             DO lyb=0,lb_max_local-lzb
+             DO lya=0,la_max_local-lza
+                DO lxb=MAX(lb_min_local-lzb-lyb,0),lb_max_local-lzb-lyb
+                jco=coset(lxb,lyb,lzb)
+                DO lxa=MAX(la_min_local-lza-lya,0),la_max_local-lza-lya
+                   ico=coset(lxa,lya,lza)
+                   vab(ico,jco)=vab(ico,jco)+coef_tyz(lxa,lxb,lya,lyb)*alpha(lzp,lza,lzb,3)
+                ENDDO
+                ENDDO
+             ENDDO
+             ENDDO
           ENDDO
           ENDDO
+
        ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
-
-    rpg=REAL(lb_cube(2)-1,dp)*dr(2)-roffset(2)
-    exp_x2=EXP(-zetp*rpg**2)
-    exp_x1=EXP(-2*zetp*rpg*dr(2))
-    exp_x0=EXP(-zetp*dr(2)**2)
-    DO ig=lb_cube(2),ub_cube(2)
-      rpg = rpg + dr(2)
-      ! yap = EXP(-zetp*rpg**2)
-      exp_x1 = exp_x1 * exp_x0
-      exp_x2 = exp_x2 * exp_x1
-      exp_x1 = exp_x1 * exp_x0
-      yap = exp_x2
-      ya  = rpg + rap(2)
-      yb  = ya  - rab(2)
-      DO lya=0,la_max_l
-       ybp=1.0_dp
-       DO lyb=0,lb_max_l
-          dpy(lyb,lya)=yap*ybp
-          ybp=ybp*yb
-       ENDDO
-       yap=yap*ya
-      ENDDO
-
-      lxy=0
-      DO lxa=0,la_max_l
-      DO lxb=0,lb_max_l
-       DO lya=0,la_max_l-lxa
-       DO lyb=0,lb_max_l-lxb
-             lxy=lxy+1
-             poly(lxy,ig)=dpy(lyb,lya)
-       ENDDO
-       ENDDO
-      ENDDO
-      ENDDO
-    ENDDO
 
 
-!   *** make the alpha matrix ***
-
-    alpha(:,:)=0.0_dp
-    lx=0
-    DO lxa=0,la_max_l
-    DO lxb=0,lb_max_l
-       lx=lx+1
-       binomial_k_lxa=1.0_dp
-       a=1.0_dp
-       DO k=0,lxa
-        binomial_l_lxb=1.0_dp
-        b=1.0_dp
-        DO l=0,lxb
-           alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
-                             binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
-           b=b*(rp(1)-(ra(1)+rab(1)))
-        ENDDO
-        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
-        a=a*(rp(1)-ra(1))
-       ENDDO
-    ENDDO
-    ENDDO
-
-    rpg=REAL(lb_cube(1)-1,dp)*dr(1)-roffset(1)
-    exp_x2=EXP(-zetp*rpg**2)
-    exp_x1=EXP(-2*zetp*rpg*dr(1))
-    exp_x0=EXP(-zetp*dr(1)**2)
-    DO ig=lb_cube(1),ub_cube(1)
-      rpg = rpg + dr(1)
-      ! pg  = EXP(-zetp*rpg**2)
-      exp_x1 = exp_x1 * exp_x0
-      exp_x2 = exp_x2 * exp_x1
-      exp_x1 = exp_x1 * exp_x0
-      pg = exp_x2
-      DO icoef=1,coef_max
-         polx(icoef,ig)=pg
-         pg=pg*(rpg)
-      ENDDO
-    ENDDO
-
-!   *** do the loop over the grid
-
-    !IF (ithread_l.EQ.0)t_b_1=m_walltime()
-    CALL integrate_core(polx(1,-cmax),poly(1,-cmax),polz(1,-cmax),grid(1,1,1),alpha(1,1), &
-                        lx_max,lxy_max,lxyz_max,coef_max,cmax, &
-                        ly_max(1),lz_max(1),gridbounds(1,1),map(-cmax,1),pzyx(1), &
-                        la_min_l,la_max_l,lb_min_l,lb_max_l,sphere_bounds(1))
-    !IF (ithread_l.EQ.0)t_b_2=m_walltime()
-
-    DO i=1,lxyz_max
-       pzyx(i)=pzyx(i)*prefactor
-    ENDDO
-
-!   *** pzyx contains all the information needed to find the elements of hab
+!   *** vab contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements
 
     ftza = 2.0_dp*zeta
@@ -1664,60 +1595,60 @@ CONTAINS
                 bz = lb - bx - by
                 jco=coset(bx,by,bz)
                 IF (my_compute_tau) THEN
-                    axpm0 =  0.5_dp * ( ax * bx * pzyx(ipzyx(MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz)) +  &
-                                        ay * by * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,MAX(by-1,0),bz)) +  &
-                                        az * bz * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,MAX(bz-1,0)))  &
-                                        - ftza * bx * pzyx(ipzyx(ax+1,ay,az,MAX(bx-1,0),by,bz))  &
-                                        - ftza * by * pzyx(ipzyx(ax,ay+1,az,bx,MAX(by-1,0),bz))  &
-                                        - ftza * bz * pzyx(ipzyx(ax,ay,az+1,bx,by,MAX(bz-1,0)))  &
-                                        - ax * ftzb * pzyx(ipzyx(MAX(ax-1,0),ay,az,bx+1,by,bz))  &
-                                        - ay * ftzb * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,by+1,bz))  &
-                                        - az * ftzb * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,bz+1)) +  &
-                                        ftza * ftzb * pzyx(ipzyx(ax+1,ay,az,bx+1,by,bz)) + &
-                                        ftza * ftzb * pzyx(ipzyx(ax,ay+1,az,bx,by+1,bz)) + &
-                                        ftza * ftzb * pzyx(ipzyx(ax,ay,az+1,bx,by,bz+1)) )
+                    axpm0 =  0.5_dp * ( ax * bx * vab(coset(MAX(ax-1,0),ay,az),coset(MAX(bx-1,0),by,bz)) +  &
+                                        ay * by * vab(coset(ax,MAX(ay-1,0),az),coset(bx,MAX(by-1,0),bz)) +  &
+                                        az * bz * vab(coset(ax,ay,MAX(az-1,0)),coset(bx,by,MAX(bz-1,0)))  &
+                                        - ftza * bx * vab(coset(ax+1,ay,az),coset(MAX(bx-1,0),by,bz))  &
+                                        - ftza * by * vab(coset(ax,ay+1,az),coset(bx,MAX(by-1,0),bz))  &
+                                        - ftza * bz * vab(coset(ax,ay,az+1),coset(bx,by,MAX(bz-1,0)))  &
+                                        - ax * ftzb * vab(coset(MAX(ax-1,0),ay,az),coset(bx+1,by,bz))  &
+                                        - ay * ftzb * vab(coset(ax,MAX(ay-1,0),az),coset(bx,by+1,bz))  &
+                                        - az * ftzb * vab(coset(ax,ay,MAX(az-1,0)),coset(bx,by,bz+1)) +  &
+                                        ftza * ftzb * vab(coset(ax+1,ay,az),coset(bx+1,by,bz)) + &
+                                        ftza * ftzb * vab(coset(ax,ay+1,az),coset(bx,by+1,bz)) + &
+                                        ftza * ftzb * vab(coset(ax,ay,az+1),coset(bx,by,bz+1)) )
                 ELSE
-                    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
+                    axpm0 = vab(coset(ax,ay,az),coset(bx,by,bz))
                 ENDIF
                 hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + axpm0
                 IF (calculate_forces .AND. PRESENT(force_a)) THEN
                   IF (my_compute_tau) THEN
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*ax * bx
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*ay * by
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,MAX(ay-1,0),az,bx,MAX(by-1,0),bz,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,MAX(ay-1,0),az,bx,MAX(by-1,0),bz,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*az * bz
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,MAX(az-1,0),bx,by,MAX(bz-1,0),pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,MAX(az-1,0),bx,by,MAX(bz-1,0),vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ftza * bx )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax+1,ay,az,MAX(bx-1,0),by,bz ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax+1,ay,az,MAX(bx-1,0),by,bz ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ftza * by )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay+1,az,bx,MAX(by-1,0),bz ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay+1,az,bx,MAX(by-1,0),bz ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ftza * bz  )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az+1,bx,by,MAX(bz-1,0) ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az+1,bx,by,MAX(bz-1,0) ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ax * ftzb )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,MAX(ax-1,0),ay,az,bx+1,by,bz ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,MAX(ax-1,0),ay,az,bx+1,by,bz ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ay * ftzb )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,MAX(ay-1,0),az,bx,by+1,bz ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,MAX(ay-1,0),az,bx,by+1,bz ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(- az * ftzb )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,MAX(az-1,0),bx,by,bz+1 ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,MAX(az-1,0),bx,by,bz+1 ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(ftza * ftzb )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax+1,ay,az,bx+1,by,bz ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax+1,ay,az,bx+1,by,bz ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(ftza * ftzb )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay+1,az,bx,by+1,bz ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay+1,az,bx,by+1,bz ,vab)
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*(ftza * ftzb )
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az+1,bx,by,bz+1 ,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az+1,bx,by,bz+1 ,vab)
                   ELSE
                      pabval=pab(o1+ico,o2+jco)
-                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
                      IF (my_use_virial) THEN
-                       CALL virial_update(my_virial_a,my_virial_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+                       CALL virial_update(my_virial_a,my_virial_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
                      ENDIF
                   ENDIF
                 END IF
                 IF (calculate_forces .AND. PRESENT(hdab)) THEN
                   der_a(1:3) = 0.0_dp
                   der_b(1:3) = 0.0_dp
-                  CALL hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+                  CALL hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
                   hdab(1:3,o1+ico,o2+jco) = der_a(1:3)
                   hadb(1:3,o1+ico,o2+jco) = der_b(1:3)
                 END IF
@@ -1727,14 +1658,6 @@ CONTAINS
         END DO
       END DO
     END DO
-
-    CALL finish_l_info(polx,poly,polz,pzyx,ipzyx,error=error)
-
-    !IF (ithread_l.eq.0) t_c_2=m_walltime()
-    !IF (ithread_l.EQ.0) t_a_2=m_walltime()
-    !IF (ithread_l.EQ.0) mytimings(1)=mytimings(1)+(t_a_2-t_a_1)
-    !IF (ithread_l.EQ.0) mytimings(2)=mytimings(2)+(t_b_2-t_b_1)
-    !IF (ithread_l.EQ.0) mytimings(3)=mytimings(3)+(t_c_2-t_c_1)
 
   END SUBROUTINE integrate_pgf_product_rspace
 
@@ -1753,14 +1676,13 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+  SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: pab, ftza, ftzb
     INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
-    REAL(KIND=dp), POINTER                   :: pzyx(:)
-    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
+    REAL(KIND=dp)                            :: vab(:,:)
 
     REAL(kind=dp)                            :: axm1p1, axp1, axp2, axpm0, &
                                                 aym1p1, ayp1, ayp2, azm1p1, &
@@ -1769,24 +1691,24 @@ CONTAINS
 
 !, bxp2,byp2,bzp2
 
-    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
-    axp1=pzyx(ipzyx(ax+1,ay,az,bx,by,bz))
-    axp2=pzyx(ipzyx(ax+2,ay,az,bx,by,bz))
-    axm1p1=pzyx(ipzyx(MAX(0,ax-1)+1,ay,az,bx,by,bz))
-    ayp1=pzyx(ipzyx(ax,ay+1,az,bx,by,bz))
-    ayp2=pzyx(ipzyx(ax,ay+2,az,bx,by,bz))
-    aym1p1=pzyx(ipzyx(ax,MAX(0,ay-1)+1,az,bx,by,bz))
-    azp1=pzyx(ipzyx(ax,ay,az+1,bx,by,bz))
-    azp2=pzyx(ipzyx(ax,ay,az+2,bx,by,bz))
-    azm1p1=pzyx(ipzyx(ax,ay,MAX(0,az-1)+1,bx,by,bz))
+    axpm0 = vab(coset(ax,ay,az),coset(bx,by,bz))
+    axp1=vab(coset(ax+1,ay,az),coset(bx,by,bz))
+    axp2=vab(coset(ax+2,ay,az),coset(bx,by,bz))
+    axm1p1=vab(coset(MAX(0,ax-1)+1,ay,az),coset(bx,by,bz))
+    ayp1=vab(coset(ax,ay+1,az),coset(bx,by,bz))
+    ayp2=vab(coset(ax,ay+2,az),coset(bx,by,bz))
+    aym1p1=vab(coset(ax,MAX(0,ay-1)+1,az),coset(bx,by,bz))
+    azp1=vab(coset(ax,ay,az+1),coset(bx,by,bz))
+    azp2=vab(coset(ax,ay,az+2),coset(bx,by,bz))
+    azm1p1=vab(coset(ax,ay,MAX(0,az-1)+1),coset(bx,by,bz))
 
 
-    bxm1p1=pzyx(ipzyx(ax,ay,az,MAX(0,bx-1)+1,by,bz))
-    bym1p1=pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1)+1,bz))
-    bzm1p1=pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)+1))
-!   bxp2=pzyx(ipzyx(ax,ay,az,bx+2,by,bz))
-!   byp2=pzyx(ipzyx(ax,ay,az,bx,by+2,bz))
-!   bzp2=pzyx(ipzyx(ax,ay,az,bx,by,bz+2))
+    bxm1p1=vab(coset(ax,ay,az),coset(MAX(0,bx-1)+1,by,bz))
+    bym1p1=vab(coset(ax,ay,az),coset(bx,MAX(0,by-1)+1,bz))
+    bzm1p1=vab(coset(ax,ay,az),coset(bx,by,MAX(0,bz-1)+1))
+!   bxp2=vab(coset(ax,ay,az),coset(bx+2,by,bz))
+!   byp2=vab(coset(ax,ay,az),coset(bx,by+2,bz))
+!   bzp2=vab(coset(ax,ay,az),coset(bx,by,bz+2))
 
     my_virial_a(1) = my_virial_a(1) + pab*(ftza*axp2 - REAL(ax,dp)* axm1p1)
     my_virial_a(2) = my_virial_a(2) + pab*(ftza*ayp2 - REAL(ay,dp)* aym1p1)
@@ -1821,29 +1743,28 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+  SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force_a, force_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: pab, ftza, ftzb
     INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
-    REAL(KIND=dp), POINTER                   :: pzyx(:)
-    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
+    REAL(KIND=dp)                            :: vab(:,:)
 
     REAL(kind=dp)                            :: axm1, axp1, axpm0, aym1, &
                                                 ayp1, azm1, azp1, bxm1, bym1, &
                                                 bzm1
 
-    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
-    axp1=pzyx(ipzyx(ax+1,ay,az,bx,by,bz))
-    axm1=pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
-    ayp1=pzyx(ipzyx(ax,ay+1,az,bx,by,bz))
-    aym1=pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
-    azp1=pzyx(ipzyx(ax,ay,az+1,bx,by,bz))
-    azm1=pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
-    bxm1=pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
-    bym1=pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
-    bzm1=pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
+    axpm0 = vab(coset(ax,ay,az),coset(bx,by,bz))
+    axp1=vab(coset(ax+1,ay,az),coset(bx,by,bz))
+    axm1=vab(coset(MAX(0,ax-1),ay,az),coset(bx,by,bz))
+    ayp1=vab(coset(ax,ay+1,az),coset(bx,by,bz))
+    aym1=vab(coset(ax,MAX(0,ay-1),az),coset(bx,by,bz))
+    azp1=vab(coset(ax,ay,az+1),coset(bx,by,bz))
+    azm1=vab(coset(ax,ay,MAX(0,az-1)),coset(bx,by,bz))
+    bxm1=vab(coset(ax,ay,az),coset(MAX(0,bx-1),by,bz))
+    bym1=vab(coset(ax,ay,az),coset(bx,MAX(0,by-1),bz))
+    bzm1=vab(coset(ax,ay,az),coset(bx,by,MAX(0,bz-1)))
     force_a(1) = force_a(1) + pab*(ftza*axp1 - REAL(ax,dp)* axm1)
     force_a(2) = force_a(2) + pab*(ftza*ayp1 - REAL(ay,dp)* aym1)
     force_a(3) = force_a(3) + pab*(ftza*azp1 - REAL(az,dp)* azm1)
@@ -1868,29 +1789,28 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+  SUBROUTINE hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: der_a, der_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: ftza, ftzb
     INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
-    REAL(KIND=dp), POINTER                   :: pzyx(:)
-    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
+    REAL(KIND=dp)                            :: vab(:,:)
 
     REAL(kind=dp)                            :: axm1, axp1, axpm0, aym1, &
                                                 ayp1, azm1, azp1, bxm1, bym1, &
                                                 bzm1
 
-    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
-    axp1=pzyx(ipzyx(ax+1,ay,az,bx,by,bz))
-    axm1=pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
-    ayp1=pzyx(ipzyx(ax,ay+1,az,bx,by,bz))
-    aym1=pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
-    azp1=pzyx(ipzyx(ax,ay,az+1,bx,by,bz))
-    azm1=pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
-    bxm1=pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
-    bym1=pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
-    bzm1=pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
+    axpm0 = vab(coset(ax,ay,az),coset(bx,by,bz))
+    axp1=vab(coset(ax+1,ay,az),coset(bx,by,bz))
+    axm1=vab(coset(MAX(0,ax-1),ay,az),coset(bx,by,bz))
+    ayp1=vab(coset(ax,ay+1,az),coset(bx,by,bz))
+    aym1=vab(coset(ax,MAX(0,ay-1),az),coset(bx,by,bz))
+    azp1=vab(coset(ax,ay,az+1),coset(bx,by,bz))
+    azm1=vab(coset(ax,ay,MAX(0,az-1)),coset(bx,by,bz))
+    bxm1=vab(coset(ax,ay,az),coset(MAX(0,bx-1),by,bz))
+    bym1=vab(coset(ax,ay,az),coset(bx,MAX(0,by-1),bz))
+    bzm1=vab(coset(ax,ay,az),coset(bx,by,MAX(0,bz-1)))
     der_a(1) =  (ftza*axp1 - REAL(ax,dp)* axm1)
     der_a(2) =  (ftza*ayp1 - REAL(ay,dp)* aym1)
     der_a(3) =  (ftza*azp1 - REAL(az,dp)* azm1)

@@ -67,9 +67,6 @@ MODULE kg_gpw_pw_env_methods
                                              set_molbox_env,&
                                              set_rho_mol_block
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_release,&
-                                             l_info_type
   USE message_passing,                 ONLY: MPI_COMM_SELF
   USE particle_types,                  ONLY: particle_type
   USE pw_env_methods,                  ONLY: pw_env_create
@@ -395,7 +392,6 @@ CONTAINS
       POINTER                                :: rs_pools_mol
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info_g
-    TYPE(l_info_type), POINTER               :: l_info_g
     TYPE(pw_grid_type), POINTER              :: pw_grid_g, pw_grid_mol, &
                                                 ref_pw_grid_mol
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -405,7 +401,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(cube_info_g,l_info_g,pw_pools_mol,rs_pools_mol)
+    NULLIFY(cube_info_g,pw_pools_mol,rs_pools_mol)
     NULLIFY(pw_pool_g,pw_grid_mol,ref_pw_grid_mol)
 
     CPPrecondition(ASSOCIATED(pw_mol),cp_failure_level,routineP,error,failure)
@@ -423,12 +419,6 @@ CONTAINS
         ALLOCATE(pw_mol%gridlevel_info, STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
-      IF (ASSOCIATED(pw_mol%l_info)) THEN
-        CALL l_info_release(pw_mol%l_info,error)
-      ELSE
-        ALLOCATE(pw_mol%l_info,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
       IF(dft_control%qs_control%gapw) THEN
         CALL stop_program(routineP,"KG_GPW + GAPW not a valid option")
       ELSEIF(dft_control%qs_control%semi_empirical) THEN
@@ -436,7 +426,6 @@ CONTAINS
       ELSEIF(dft_control%qs_control%dftb) THEN
         CALL stop_program(routineP,"KG_GPW + DFTB not a valid option")
       ELSE
-        NULLIFY(pw_mol%l_info_rho0)
       END IF
 
       IF (ASSOCIATED(pw_mol%cube_info)) THEN
@@ -479,7 +468,7 @@ CONTAINS
           my_ncommensurate = ncommensurate
       ENDIF
 
-      CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
+      CALL pw_env_get(pw_env=pw_global,cube_info=cube_info_g,&
                       auxbas_pw_pool=pw_pool_g,auxbas_grid=auxbas_grid,error=error)
       IF(auxbas_grid/=1) CALL stop_program ( "pw_env_mol_rebuild", &
                           "the grid with the largest cutoff is not the first" )
@@ -861,6 +850,7 @@ CONTAINS
       pw_mol%cube_info(1)%sphere_bounds_count => cube_info_g(1)%sphere_bounds_count
       nsmax = SIZE(cube_info_g(1)%sphere_bounds,1)
       pw_mol%cube_info(1)%sphere_bounds =>  cube_info_g(1)%sphere_bounds
+      pw_mol%cube_info(1)%cmax =  cube_info_g(1)%cmax
       cmax=MAXVAL(cube_info_g(1)%ub_cube)
 
       DO igrid_level = 2,ngrid_level
@@ -877,10 +867,6 @@ CONTAINS
 
       END DO
 
-
-      maxlgto = l_info_g%lmax
-
-      CALL init_l_info(pw_mol%l_info,maxlgto,cmax,error=error)
 
     END IF  ! failure
 

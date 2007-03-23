@@ -155,3 +155,21 @@ C2H4-meta.inp
 test-pdb.inp
 # bug in colvar
 C2H4-meta.inp
+#  
+H2-geo-4.inp
+#  
+spin_restraint.inp
+#  
+spin_restraint.inp
+#  
+H2O-meta_res3.inp
+#  
+H2-geo-4.inp
+#  
+spin_restraint.inp
+#  
+H2-geo-4.inp
+#  
+spin_restraint.inp
+#  
+spin_restraint.inp

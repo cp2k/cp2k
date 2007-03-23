@@ -144,3 +144,11 @@ K2.inp
 H2O-geoopt.inp
 #  
 H2O-fixed.inp
+#  
+H2O-Harris-Debug-SCF.inp
+#  
+H2O-Harris-Debug-NoSCF.inp
+#  
+H2O-Harris-Debug-SCF.inp
+#  
+K2.inp

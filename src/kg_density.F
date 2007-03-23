@@ -56,7 +56,6 @@ MODULE kg_density
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE l_utils,                         ONLY: l_info_type
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
@@ -141,7 +140,6 @@ CONTAINS
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -169,7 +167,6 @@ CONTAINS
     ! *** assign from kg_rspw
     gridlevel_info=>rspw%gridlevel_info
     cube_info=>rspw%cube_info
-    l_info=rspw%l_info
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
@@ -265,7 +262,7 @@ CONTAINS
                            0,0.0_dp,0,&
                            ra,rab,rab2,scale,pab,na1-1,0,&
                            rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                           l_info,eps_rho_rspace,ga_gb_function=401,error=error)
+                           eps_rho_rspace,ga_gb_function=401,error=error)
             END DO
 
          END DO
@@ -388,7 +385,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(l_info_type), POINTER               :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -399,7 +395,7 @@ CONTAINS
     CALL timeset("calculate_epc_density","I","",handle)
 
     NULLIFY(atomic_kind,atomic_kind_set,cell,cube_info,dft_control,&
-            l_info,local_particles,rspw,rs_rho,&
+            local_particles,rspw,rs_rho,&
             auxbas_rs_pool, auxbas_pw_pool,&
             pab,particle_set)
 
@@ -416,7 +412,7 @@ CONTAINS
     CALL kg_rspw_get(kg_rspw=rspw,&
                     auxbas_rs_pool=auxbas_rs_pool,&
                     auxbas_pw_pool=auxbas_pw_pool,&
-                    l_info=l_info,error=error)
+                    error=error)
     cube_info=>rspw%cube_info(1)
 
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho,error=error)
@@ -441,7 +437,7 @@ CONTAINS
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
                                           (/0.0_dp,0.0_dp,0.0_dp/),&
                                           0.0_dp,scale,pab,0,0,rs_rho,&
-                                          cube_info,l_info,eps_rho_rspace,&
+                                          cube_info,eps_rho_rspace,&
                                           ga_gb_function=401,error=error)
 
       END DO
@@ -506,7 +502,6 @@ CONTAINS
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -536,7 +531,6 @@ CONTAINS
     ! *** assign from kg_rspw
     gridlevel_info=>rspw%gridlevel_info
     cube_info=>rspw%cube_info
-    l_info=rspw%l_info
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
@@ -642,7 +636,7 @@ CONTAINS
                         0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                        l_info,eps_rho_rspace,ga_gb_function=401,error=error)
+                        eps_rho_rspace,ga_gb_function=401,error=error)
             END DO
 
             offset=offset+nsgfa(iset)
@@ -790,7 +784,7 @@ CONTAINS
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
                                           0,0.0_dp,0,&
                                           ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
-                                          rs_v,rspw%cube_info(1),rspw%l_info,&
+                                          rs_v,rspw%cube_info(1),&
                                           hab,pab,0,0,&
                                           eps_gvg_rspace=eps_rho_rspace,&
                                           calculate_forces=.TRUE.,&
@@ -856,7 +850,6 @@ CONTAINS
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -898,7 +891,6 @@ CONTAINS
     auxbas_grid=rspw%auxbas_grid
     gridlevel_info=>rspw%gridlevel_info
     cube_info=>rspw%cube_info
-    l_info=rspw%l_info
 
 !   *** Get the potential on the subgrids in real space, via fft ***
     ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
@@ -1039,7 +1031,7 @@ CONTAINS
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dp,0,&
                         ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                        cube_info(igrid_level),l_info,&
+                        cube_info(igrid_level),&
                         hab,pab=pab,o1=na1-1,o2=0,&
                         eps_gvg_rspace=eps_gvg_rspace,&
                         calculate_forces=calculate_forces,&
@@ -1133,7 +1125,6 @@ CONTAINS
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1177,7 +1168,6 @@ CONTAINS
     auxbas_grid=rspw%auxbas_grid
     gridlevel_info=>rspw%gridlevel_info
     cube_info=>rspw%cube_info
-    l_info=rspw%l_info
 
 !   *** Get the potential on the subgrids in real space, via fft ***
     ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
@@ -1328,7 +1318,7 @@ CONTAINS
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dp,0,&
                         ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                        cube_info(igrid_level),l_info,&
+                        cube_info(igrid_level),&
                         hab,pab,na1-1,0,&
                         eps_gvg_rspace=eps_gvg_rspace,&
                         calculate_forces=calculate_forces,&

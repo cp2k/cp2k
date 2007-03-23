@@ -46,7 +46,7 @@ MODULE cube_utils
   END TYPE cube_ptr
 
   TYPE :: cube_info_type
-     INTEGER                      :: max_radius
+     INTEGER                      :: max_radius, cmax
      REAL(KIND = dp)              :: dr(3),drmin,drsafe
      REAL(KIND = dp)              :: dh(3,3)
      LOGICAL                      :: orthorhombic
@@ -62,11 +62,12 @@ MODULE cube_utils
 CONTAINS
 
 !------------------------------------------------------------------------------
-  SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
+  SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds,cmax)
     TYPE(cube_info_type)                     :: info
     REAL(KIND=dp)                            :: radius
     INTEGER                                  :: lb_cube(3), ub_cube(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
+    INTEGER                                  :: cmax
 
     INTEGER                                  :: imr
 
@@ -78,6 +79,7 @@ CONTAINS
     lb_cube(:)       = info%lb_cube(:,imr)
     ub_cube(:)       = info%ub_cube(:,imr)
     sphere_bounds => info%sphere_bounds(imr)%p
+    cmax             = info%cmax
 
   RETURN
   END SUBROUTINE return_cube
@@ -113,7 +115,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dr(3), dh(3,3)
     LOGICAL                                  :: ortho
     REAL(KIND=dp)                            :: max_radius
-    INTEGER                                  :: cmax
+    INTEGER, INTENT(OUT)                     :: cmax
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
@@ -148,7 +150,6 @@ CONTAINS
             info%sphere_bounds_count,info%sphere_bounds)
     ALLOCATE(info%lb_cube(3,imr),info%ub_cube(3,imr), &
              info%sphere_bounds_count(imr),info%sphere_bounds(imr))
-    cmax=0
     check_1=0
     check_2=0
 !   count and allocate
@@ -203,7 +204,8 @@ CONTAINS
       ENDDO
       info%ub_cube(:,i)=1-info%lb_cube(:,i)
     ENDDO
-    cmax=MAXVAL(info%ub_cube)
+    info%cmax=MAXVAL(info%ub_cube)
+    cmax = info%cmax
     IF (check_1.NE.check_2) THEN 
         CALL stop_program("init_cube_info",&
                           " :-/ irreproducible fp math caused memory corruption")

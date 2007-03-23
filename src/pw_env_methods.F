@@ -48,9 +48,6 @@ MODULE pw_env_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_release,&
-                                             l_info_retain
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
@@ -133,7 +130,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
   END IF
   IF (.NOT. failure) THEN
      NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
-          pw_env%l_info, pw_env%l_info_rho0, pw_env%cube_info, pw_env%rs_pools,&
+          pw_env%cube_info, pw_env%rs_pools,&
           pw_env%xc_pw_pool)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
@@ -234,26 +231,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ALLOCATE(pw_env%gridlevel_info,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
-     IF (ASSOCIATED(pw_env%l_info)) THEN
-        CALL l_info_release(pw_env%l_info,error)
-     ELSE
-        ALLOCATE(pw_env%l_info,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-
      IF(qs_env%dft_control%qs_control%gapw) THEN
-        IF (ASSOCIATED(pw_env%l_info_rho0)) THEN
-           CALL l_info_release(pw_env%l_info_rho0,error)
-        ELSE
-           ALLOCATE(pw_env%l_info_rho0,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
         CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
         CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
                          zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
      ELSE
-        NULLIFY(pw_env%l_info_rho0)
      END IF
 
      IF (ASSOCIATED(pw_env%cube_info)) THEN
@@ -560,30 +543,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
              pw_pools(igrid_level)%pool%pw_grid%orthorhombic,&
              radius(igrid_level),cmaxl(igrid_level))
      END DO
-
-!
-!
-!  l_info set up here, requires cmaxl
-!
-!
-
-     cmax=MAXVAL(cmaxl)
-     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-          maxlgto=maxlgto)
-     CALL init_l_info(pw_env%l_info,maxlgto+2,cmax,error=error)
-
-     IF( dft_control%qs_control%gapw) THEN
-        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-             lmax_rho0 = lmax_rho0)
-        IF (lmax_rho0+1 <= maxlgto+2) THEN
-           DEALLOCATE(pw_env%l_info_rho0,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           pw_env%l_info_rho0 => pw_env%l_info
-           CALL l_info_retain(pw_env%l_info,error)
-        ELSE
-           CALL init_l_info(pw_env%l_info_rho0,lmax_rho0+1,cmax,lrho0=.TRUE.,error=error)
-        END IF
-     END IF
 
 !
 !
