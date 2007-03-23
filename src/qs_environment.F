@@ -47,6 +47,7 @@ MODULE qs_environment
                                              write_cell
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
+                                             dftb_control_type,&
                                              gapw_control_type,&
                                              qs_control_type,&
                                              semi_empirical_control_type
@@ -75,6 +76,10 @@ MODULE qs_environment
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE et_coupling_types,               ONLY: et_coupling_create
+  USE ewald_environment_types,         ONLY: ewald_env_create,&
+                                             ewald_env_retain,&
+                                             ewald_env_release,&
+                                             read_ewald_section
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_create,&
@@ -84,9 +89,16 @@ MODULE qs_environment
                                              harris_env_type
   USE harris_force_types,              ONLY: harris_force_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
-  USE header,                          ONLY: qs_header
+  USE header,                          ONLY: qs_header,&
+                                             se_header,&
+                                             dftb_header
   USE input_constants,                 ONLY: do_method_gapw,&
                                              do_method_gapw_xc,&
+                                             do_method_am1,&
+                                             do_method_mndo,&
+                                             do_method_pdg,&
+                                             do_method_pm3,&
+                                             do_method_dftb,&
                                              general_roks,&
                                              restart_guess,&
                                              state_loc_all,&
@@ -126,6 +138,7 @@ MODULE qs_environment
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii,&
                                              init_se_nlradius
@@ -346,7 +359,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'qs_init_subsys'
 
     INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, multiplicity, n_ao, natom, nelectron, output_unit,my_ival
+      maxlppnl, multiplicity, n_ao, natom, nelectron, output_unit, method_id, my_ival
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
@@ -380,8 +393,10 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(section_vals_type), POINTER         :: dft_section, qs_section,et_coupling_section,&
-                                                et_ddapc_section,et_becke_section
+                                                et_ddapc_section,et_becke_section,&
+                                                poisson_section,ewald_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -424,40 +439,66 @@ CONTAINS
     molecule_set => subsystem%molecules_new%els
     molecule_kind_set => subsystem%molecule_kinds_new%els
 
-!   *** Print the Quickstep program banner (copyright and version number) ***
-    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
-         extension=".Log",error=error)
-    CALL qs_header(iw, iw>0)
-    CALL cp_print_key_finished_output(iw,logger,dft_section,&
-         "PRINT%PROGRAM_BANNER",error=error)
-
 !   *** Read the input section with the DFT control parameters ***
 
     CALL read_dft_control(dft_control,root_section,dft_section,error=error)
-    
 
-    CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, dft_section,error)
+    CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, &
+                             dft_section,error)
+
+!   *** Print the Quickstep program banner (copyright and version number) ***
+    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
+         extension=".Log",error=error)
+    CALL section_vals_val_get(qs_section,"METHOD",i_val=method_id,error=error)
+    SELECT CASE (method_id)
+      CASE DEFAULT
+        CALL qs_header(iw, iw>0)
+      CASE ( do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3 )
+        CALL se_header(iw, iw>0)
+      CASE ( do_method_dftb )
+        CALL dftb_header(iw, iw>0)
+    END SELECT
+
+    CALL cp_print_key_finished_output(iw,logger,dft_section,&
+         "PRINT%PROGRAM_BANNER",error=error)
 
 !   *** Read the input section with the Quickstep control parameters ***
 
     CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
+
     !    *******  check if any kind of electron transfer calculation has to be performed
 
     CALL  section_vals_val_get(et_coupling_section,"TYPE_OF_CONSTRAINT",i_val=my_ival,error=error)
     dft_control%qs_control%et_coupling_calc=.FALSE.
     IF (my_ival==do_et_ddapc)THEN
-       et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,"DDAPC_RESTRAINT_A",error=error)
+       et_ddapc_section =>  section_vals_get_subs_vals(et_coupling_section,&
+            "DDAPC_RESTRAINT_A",error=error)
        dft_control%qs_control%et_coupling_calc=.TRUE.
        dft_control%qs_control%ddapc_restraint=.TRUE.
        CALL  read_ddapc_section(dft_control%qs_control,et_ddapc_section,error)
     ENDIF
-       dft_control%qs_control%becke_constraint=.FALSE.
+    dft_control%qs_control%becke_constraint=.FALSE.
     IF (my_ival==do_et_becke)THEN
        dft_control%qs_control%becke_constraint=.TRUE.
-       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_CONSTRAINT_A",error=error)      
+       et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,&
+            "BECKE_CONSTRAINT_A",error=error)      
        CALL  read_becke_section(dft_control%qs_control,et_becke_section,error)
     END IF
     CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
+
+!   *** Read DFTB parameter files ***
+    IF ( dft_control%qs_control%method == "DFTB" ) THEN
+      dftb_control => dft_control%qs_control%dftb_control
+      CALL qs_dftb_param_init (atomic_kind_set,dftb_control,&
+           force_env_section=qs_env%input,para_env=para_env,error=error)
+      ! check for Ewald
+      IF ( dftb_control%do_ewald ) THEN
+        CALL ewald_env_create(dftb_control%ewald_env,para_env,error=error)
+        poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
+        ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+        CALL read_ewald_section(dftb_control%ewald_env,ewald_section,error=error)
+      END IF
+    END IF
 
 !   *** Check basis and fill in missing parts ***
 
@@ -468,10 +509,12 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             all_potential_present=all_potential_present)
-    IF(all_potential_present .AND. .NOT.(dft_control%qs_control%semi_empirical)) THEN
-      IF (.NOT.(dft_control%qs_control%method == "GAPW"))&
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                        "all-el calculations with GPW and GAPW_XC are not implemented ")
+    IF ( (dft_control%qs_control%method == "GPW") .OR. &
+         (dft_control%qs_control%method == "GAPW_XC") ) THEN
+      IF( all_potential_present ) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                "all-el calculations with GPW and GAPW_XC are not implemented ")
+      END IF
     END IF
 
 !   *** Initialize the spherical harmonics and ***
@@ -943,7 +986,8 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "TOTAL NUMBERS AND MAXIMUM NUMBERS"
 
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
+       IF ( nset+npgf+ncgf > 0 ) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
             "Total number of",&
             "- Atomic kinds:                  ",nkind,&
             "- Atoms:                         ",natom,&
@@ -952,6 +996,19 @@ CONTAINS
             "- Primitive Cartesian functions: ",npgf,&
             "- Cartesian basis functions:     ",ncgf,&
             "- Spherical basis functions:     ",nsgf
+       ELSE IF ( nshell+nsgf > 0 ) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
+            "Total number of",&
+            "- Atomic kinds:                  ",nkind,&
+            "- Atoms:                         ",natom,&
+            "- Shells:                        ",nshell,&
+            "- Spherical basis functions:     ",nsgf
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
+            "Total number of",&
+            "- Atomic kinds:                  ",nkind,&
+            "- Atoms:                         ",natom
+       END IF
 
        IF ((maxlppl > -1).OR.(maxlppnl > -1)) THEN
           WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T75,I6))")&

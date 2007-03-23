@@ -662,14 +662,16 @@ CONTAINS
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              orb_basis_set=orb_basis_set)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               l=l)
-        nset_max = MAX(nset_max,nset)
-        DO iset=1,nset
-          nshell_max = MAX(nshell_max,nshell(iset))
-        END DO
+        IF (ASSOCIATED(orb_basis_set)) THEN
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                 nset=nset,&
+                                 nshell=nshell,&
+                                 l=l)
+          nset_max = MAX(nset_max,nset)
+          DO iset=1,nset
+            nshell_max = MAX(nshell_max,nshell(iset))
+          END DO
+        END IF
       END DO
 
       ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
@@ -689,18 +691,23 @@ CONTAINS
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              orb_basis_set=orb_basis_set)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               l=l)
-        nset_info(iatom) = nset
-        DO iset=1,nset
-          nshell_info(iset,iatom)=nshell(iset)
-          DO ishell=1,nshell(iset)
-            lshell = l(ishell,iset)
-            nso_info(ishell,iset,iatom) = nso(lshell)
+        IF (ASSOCIATED(orb_basis_set)) THEN
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                 nset=nset,&
+                                 nshell=nshell,&
+                                 l=l)
+          nset_info(iatom) = nset
+          DO iset=1,nset
+            nshell_info(iset,iatom)=nshell(iset)
+            DO ishell=1,nshell(iset)
+              lshell = l(ishell,iset)
+              nso_info(ishell,iset,iatom) = nso(lshell)
+            END DO
           END DO
-        END DO
+        ELSE
+          nshell_info(:,iatom) = 0
+          nso_info(:,:,iatom) = 0
+        END IF
       END DO
 
       WRITE (restart_unit) natom,nspin,nao,nset_max,nshell_max

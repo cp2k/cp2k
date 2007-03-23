@@ -57,6 +57,9 @@ MODULE qs_neighbor_lists
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
+  USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
+                                             qs_dftb_pairpot_type
+  USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -149,7 +152,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, istat, iw, &
       maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
-      output_unit
+      output_unit, jkind
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
     LOGICAL :: all_pairs_list, all_potential_present, cls, &
@@ -161,11 +164,15 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, c_radius, oce_radius, &
       orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius, &
       V0hmv0s_radius
+    REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: ab_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
+    TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), &
+      POINTER                                :: dftb_potential
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
@@ -238,10 +245,6 @@ CONTAINS
     ELSE
        all_pairs_list = .FALSE.
     END IF
-
-!dbg
-!    WRITE(*,*) qs_env%para_env%mepos, all_pairs_list
-!dbg
 
     ! This sets the id number of the qs neighbor lists, new lists, means new version
     ! new version implies new sparsity of the matrices
@@ -418,6 +421,19 @@ CONTAINS
                                kind_radius=orb_radius(ikind),&
                                short_kind_radius=short_orb_radius(ikind))
 
+      ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
+        ! Set the interaction radius for the neighbor lists (DFTB case)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
+        CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
+                                 cutoff=orb_radius(ikind),&
+                                 defined=orb_present(ikind),error=error)
+      ELSE
+
+        orb_present(ikind) = .FALSE.
+
+      END IF
+
+      IF ( orb_present(ikind) ) THEN
         ! Block rows
 
         IF (natom_local_a > 0) THEN
@@ -576,9 +592,13 @@ CONTAINS
     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
       ! we need strict minimum image convention for the interaction lists
       mic = .TRUE.
+    ELSE IF (qs_env%dft_control%qs_control%dftb) THEN
+      ! we need strict minimum image convention for the interaction lists
+      mic = .TRUE.
     ELSE
       mic = .FALSE.
     END IF
+
 
     IF (molecule_only) THEN
       CALL build_restricted_neighbor_lists(sab_orb,atom,cell,r_skin,&
@@ -856,6 +876,57 @@ CONTAINS
       DEALLOCATE (c_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "c_radius")
+
+    ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
+
+      ! Build the neighbor lists for the DFTB repulsive pair-potential
+      dftb_potential => qs_env%dft_control%qs_control%dftb_control%dftb_potential
+      ALLOCATE(ab_radius(nkind,nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
+      DO ikind=1,nkind
+        DO jkind=1,ikind
+          IF ( dftb_potential(ikind,jkind)%n_urpoly > 0 .OR. &
+               dftb_potential(ikind,jkind)%spdim > 0 ) THEN
+            ab_radius(ikind,jkind) = dftb_potential(ikind,jkind)%urep_cut
+            ab_radius(jkind,ikind) = dftb_potential(ikind,jkind)%urep_cut
+          ELSE
+            ab_radius(ikind,jkind) = 0._dp
+            ab_radius(jkind,ikind) = 0._dp
+          END IF
+        END DO
+      END DO
+      mic=.TRUE.
+      CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                                .FALSE.,output_unit,orb_present,orb_present,&
+                                orb_radius,orb_radius,pair_radius=ab_radius,&
+                                mic=mic,&
+                                name="DFTB REPULSIVE PAIR POTENTIAL")
+      ! Put the generated neighbor lists into the QS environment
+      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c,error=error)
+      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+                 print_key_path,error=error),cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger=logger,&
+                                  basis_section=force_env_section,&
+                                  print_key_path=print_key_path,&
+                                  extension=".out",&
+                                  middle_name="sab_2c",&
+                                  local=.TRUE.,&
+                                  log_filename=.FALSE.,&
+                                  file_position="REWIND",&
+                                  error=error)
+        CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,iw,&
+                                  "DFTB REPULSIVE PAIR POTENTIAL",error)
+        CALL cp_print_key_finished_output(unit_nr=iw,&
+                                          logger=logger,&
+                                          basis_section=force_env_section,&
+                                          print_key_path=print_key_path,&
+                                          local=.TRUE.,&
+                                          error=error)
+      END IF
+      DEALLOCATE(ab_radius,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
+
     END IF
 
     IF (rho0_present) THEN
@@ -1119,6 +1190,7 @@ CONTAINS
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
                                   print_subcell_grid,output_unit,&
                                   present_a,present_b,radius_a,radius_b,&
+                                  pair_radius,&
                                   name,l3c_oce,l3c_rho0,mic,symmetric)
 
     ! Purpose: Build simple pair neighbor lists.
@@ -1138,6 +1210,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
+    REAL(dp), DIMENSION(:,:), INTENT(IN), &
+      OPTIONAL                               :: pair_radius
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic, &
                                                 symmetric
@@ -1236,7 +1310,12 @@ CONTAINS
 
         ! Calculate the square of the maximum interaction distance
 
-        rab_max = radius_a(ikind) + radius_b(jkind) + r_skin
+        IF ( PRESENT(pair_radius) ) THEN
+          IF ( pair_radius(ikind,jkind) <= 0._dp ) CYCLE
+          rab_max = pair_radius(ikind,jkind) + r_skin
+        ELSE
+          rab_max = radius_a(ikind) + radius_b(jkind) + r_skin
+        END IF
         rab2_max = rab_max*rab_max
 
         sab_max(1) = rab_max/plane_distance(1,0,0,cell)

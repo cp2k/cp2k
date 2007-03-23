@@ -49,9 +49,14 @@ MODULE mulliken
 
   PUBLIC :: mulliken_charges, mulliken_restraint
 
+  INTERFACE mulliken_charges
+     MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b
+  END INTERFACE
+
 ! *****************************************************************************
 
 CONTAINS
+
 !!****f* mulliken/mulliken_restraint *
 !!
 !!   NAME
@@ -390,8 +395,8 @@ END SUBROUTINE rf_deriv_check
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE mulliken_charges(p_matrix,s_matrix,para_env,particle_set, &
-                              scr,title)
+  SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
+                                scr,title)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -404,8 +409,6 @@ END SUBROUTINE rf_deriv_check
 
     INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
-
-! GO
 
     CALL timeset("mulliken_charges","I","",handle)
 
@@ -422,6 +425,24 @@ END SUBROUTINE rf_deriv_check
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE
+  END SUBROUTINE mulliken_charges_a
+
+  SUBROUTINE mulliken_charges_b(p_matrix,s_matrix,para_env,mcharge)
+
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
+    TYPE(real_matrix_type), POINTER          :: s_matrix
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge
+
+    INTEGER                                  :: handle
+
+    CALL timeset("mulliken_charges","I","",handle)
+
+    CALL compute_charges(p_matrix,s_matrix,mcharge,para_env)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE mulliken_charges_b
 
 END MODULE mulliken

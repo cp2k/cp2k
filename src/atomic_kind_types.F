@@ -48,6 +48,7 @@ MODULE atomic_kind_types
                                              do_method_mndo,&
                                              do_method_pdg,&
                                              do_method_pm3,&
+                                             do_method_dftb,&
                                              do_qs
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -66,6 +67,9 @@ MODULE atomic_kind_types
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: bohr,&
                                              massunit
+  USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
+  USE qs_dftb_utils,                   ONLY: deallocate_dftb_atom_param,&
+                                             get_dftb_atom_param
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              deallocate_grid_atom,&
                                              grid_atom_type
@@ -104,6 +108,7 @@ MODULE atomic_kind_types
     TYPE(elp_potential_type), POINTER      :: elp_potential
     TYPE(gth_potential_type), POINTER      :: gth_potential
     TYPE(semi_empirical_type), POINTER     :: se_parameter
+    TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter
     TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
     TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
@@ -200,6 +205,7 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%elp_potential)
       NULLIFY (atomic_kind_set(ikind)%gth_potential)
       NULLIFY (atomic_kind_set(ikind)%se_parameter)
+      NULLIFY (atomic_kind_set(ikind)%dftb_parameter)
       NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
       NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
       NULLIFY (atomic_kind_set(ikind)%atom_list)
@@ -268,6 +274,9 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind_set(ikind)%se_parameter)) THEN
           CALL deallocate_se_param(atomic_kind_set(ikind)%se_parameter)
         END IF
+        IF (ASSOCIATED(atomic_kind_set(ikind)%dftb_parameter)) THEN
+          CALL deallocate_dftb_atom_param(atomic_kind_set(ikind)%dftb_parameter,error)
+        END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set)
         END IF
@@ -322,7 +331,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
-                             gth_potential,se_parameter,&
+                             gth_potential,se_parameter,dftb_parameter,&
                              aux_basis_set,orb_basis_set,&
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
@@ -351,6 +360,8 @@ CONTAINS
       POINTER                                :: gth_potential
     TYPE(semi_empirical_type), OPTIONAL, &
       POINTER                                :: se_parameter
+    TYPE(qs_dftb_atom_type), OPTIONAL, &
+      POINTER                                :: dftb_parameter
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: aux_basis_set, orb_basis_set
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
@@ -401,6 +412,7 @@ CONTAINS
       IF (PRESENT(elp_potential)) elp_potential => atomic_kind%elp_potential
       IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
       IF (PRESENT(se_parameter))  se_parameter  => atomic_kind%se_parameter
+      IF (PRESENT(dftb_parameter))  dftb_parameter  => atomic_kind%dftb_parameter
       IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
       IF (PRESENT(orb_basis_set)) THEN
         IF(softb_local) THEN
@@ -484,6 +496,8 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
                                  nsgf=nsgf)
+        ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+          nsgf = atomic_kind%dftb_parameter%natorb
         ELSE
           nsgf = 0
         END IF
@@ -608,7 +622,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
                                                 soft_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
-    TYPE(shell_kind_type), POINTER                :: shell
+    TYPE(shell_kind_type), POINTER           :: shell
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
 
 !   ---------------------------------------------------------------------------
@@ -665,6 +680,7 @@ CONTAINS
                              aux_basis_set=aux_basis_set,&
                              orb_basis_set=orb_basis_set,&
                              soft_basis_set=soft_basis_set,&
+                             dftb_parameter=dftb_parameter,&
                              ngrid_rad=ngrid_rad,&
                              max_s_harm=max_s_harm, &
                              max_iso_not0=max_iso_not0,&
@@ -752,6 +768,10 @@ CONTAINS
           END IF
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
+            maxlgto = MAX(maxlgto,imax)
+          END IF
+          IF (ASSOCIATED(dftb_parameter)) THEN
+            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
             maxlgto = MAX(maxlgto,imax)
           END IF
         END IF
@@ -851,11 +871,19 @@ CONTAINS
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=n)
             nsgf = nsgf + n*atomic_kind_set(ikind)%natom
           END IF
+          IF (ASSOCIATED(dftb_parameter)) THEN
+            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,natorb=n)
+            nsgf = nsgf + n*atomic_kind_set(ikind)%natom
+          END IF
         END IF
         IF (PRESENT(nshell)) THEN
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nshell_sum=n)
             nshell = nshell + n*atomic_kind_set(ikind)%natom
+          END IF
+          IF (ASSOCIATED(dftb_parameter)) THEN
+            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=n)
+            nshell = nshell + (n+1)*atomic_kind_set(ikind)%natom
           END IF
         END IF
         IF (PRESENT(all_potential_present)) THEN
@@ -1500,7 +1528,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     no_fail = .FALSE.
-    ! between all methods only SE does not need a KIND section.
+    ! between all methods only SE and DFTB do not need a KIND section.
     ! At this stage we still don't know if we are in a SE run or not..
     ! We've to figure it out now!
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method,error=error)
@@ -1509,6 +1537,8 @@ CONTAINS
             error=error)
        SELECT CASE (qs_method)
        CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+          no_fail = .TRUE.
+       CASE (do_method_dftb)
           no_fail = .TRUE.
        END SELECT
     END IF
@@ -1543,13 +1573,14 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: method_name_id, z
-    LOGICAL                                  :: defined, ghost
+    LOGICAL                                  :: defined, ghost, failure
     REAL(dp)                                 :: mass
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
@@ -1564,21 +1595,7 @@ CONTAINS
         CALL stop_program(routineN,moduleN,__LINE__,&
                      "No valid element is assign to the atomic kind ",para_env)
       END IF
-      IF (.NOT.dft_control%qs_control%semi_empirical) THEN
-        IF ((.NOT.ASSOCIATED(gth_potential)).AND.&
-            (.NOT.ASSOCIATED(all_potential)).AND.&
-            (.NOT.ASSOCIATED(elp_potential)).AND.&
-            (.NOT.ghost)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                      "No potential type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
-        END IF
-        IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                      "No basis set type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
-        END IF
-      ELSE
+      IF (dft_control%qs_control%semi_empirical) THEN
         CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
         IF (.NOT.ASSOCIATED(se_parameter)) THEN
           CALL allocate_se_param(atomic_kind%se_parameter)
@@ -1597,6 +1614,25 @@ CONTAINS
           CALL init_potential ( all_potential, itype="BARE", &
              zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction)
         END IF
+      ELSEIF (dft_control%qs_control%dftb) THEN
+        CALL get_atomic_kind(atomic_kind,dftb_parameter=dftb_parameter)
+        CPPostcondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
+        CALL get_dftb_atom_param(dftb_parameter,defined=defined,error=error)
+        CPPostcondition(defined,cp_failure_level,routineP,error,failure)
+      ELSE
+        IF ((.NOT.ASSOCIATED(gth_potential)).AND.&
+            (.NOT.ASSOCIATED(all_potential)).AND.&
+            (.NOT.ASSOCIATED(elp_potential)).AND.&
+            (.NOT.ghost)) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                      "No potential type was defined for the "//&
+                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
+        END IF
+        IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                      "No basis set type was defined for the "//&
+                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
+        END IF
       END IF
     ELSE IF (method_name_id == do_kg) THEN
       !no checks programmed yet
@@ -1606,7 +1642,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,para_env,force_env_section,error)
+  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
+                                   force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

@@ -871,8 +871,9 @@ END SUBROUTINE kg_calculate_forces
     END DO
 
     IF((dft_control%qs_control%method=="GAPW") .OR. &
-        dft_control%qs_control%semi_empirical) CALL stop_program(routineP,&
-         "KG_GPW is not implemented with GAPW or with semiempirical method" )
+        dft_control%qs_control%semi_empirical .OR. &
+        dft_control%qs_control%dftb) CALL stop_program(routineP,&
+         "KG_GPW is not implemented with GAPW, DFTB or semiempirical methods" )
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -46,6 +46,7 @@ MODULE qs_force
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -185,6 +186,9 @@ CONTAINS
     IF(dft_control%qs_control%semi_empirical .AND. &
        dft_control%qs_control%se_control%orthogonal_basis) THEN
        obasis = .TRUE.
+    ELSEIF(dft_control%qs_control%dftb .AND. &
+       dft_control%qs_control%dftb_control%orthogonal_basis) THEN
+       obasis = .TRUE.
     ELSE
        obasis = .FALSE.
     END IF
@@ -291,12 +295,14 @@ CONTAINS
     ENDIF
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
-
     IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly
       !*** compute core forces (also overwrites matrix_w) ***
       IF (dft_control%qs_control%semi_empirical) THEN
         CALL build_se_core_matrix(qs_env=qs_env,para_env=para_env,&
                                   calculate_forces=.TRUE.,error=error)
+      ELSEIF (dft_control%qs_control%dftb) THEN
+        CALL build_dftb_matrices(qs_env=qs_env,para_env=para_env,&
+                                 calculate_forces=.TRUE.,error=error)
       ELSE
         CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                            globenv=globenv,&
@@ -379,6 +385,9 @@ CONTAINS
       print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
       IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
         CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit,&
+             print_section=print_section,error=error)
+      ELSEIF(dft_control%qs_control%dftb .AND. .NOT. obasis) THEN
+        CALL write_forces(force,atomic_kind_set,4,output_unit=output_unit,&
              print_section=print_section,error=error)
       ELSEIF(gapw) THEN
         CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit,&
@@ -579,9 +588,21 @@ CONTAINS
                   iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"kg_gpw_ekin_mol",qs_force(ikind)%kg_gpw_ekin_mol(1:3,i),&
-                  iatom,ikind,"   kg_gpw_pauli",qs_force(ikind)%kg_gpw_pauli(1:3,i),&
                   iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"        fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
+                  iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
+             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+          END DO
+       CASE (4)
+          DO iatom=1,natom
+             ikind = kind_of(iatom)
+             i = atom_of_kind(iatom)
+             WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+                  iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
+                  iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO

@@ -1067,7 +1067,7 @@ CONTAINS
 
     INTEGER                                  :: imolecule_kind, nbend, nbond, &
                                                 nimpr, nmolecule_kind, nonfo, &
-                                                ntors, nub, output_unit
+                                                ntors, nub, ntotal, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -1088,7 +1088,6 @@ CONTAINS
           CALL write_molecule_kind(molecule_kind,output_unit,error)
         END DO
 
-
         CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
                                    nbond=nbond,&
                                    nbend=nbend,&
@@ -1096,19 +1095,22 @@ CONTAINS
                                    ntorsion=ntors,&
                                    nimpr=nimpr,&
                                    nonfo=nonfo)
-        WRITE(UNIT=output_unit,FMT="(/,/,T2,A,T45,A30,I6)") &
-          "MOLECULE KIND SET INFORMATION", &
-          "Total Number of bonds:       ",nbond
-        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
-          "Total Number of bends:       ",nbend
-        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
-          "Total Number of Urey-Bradley:",nub
-        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
-          "Total Number of torsions:    ",ntors
-        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
-          "Total Number of improper:    ",nimpr
-        WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
-          "Total Number of one-four:    ",nonfo
+        ntotal = nbond+nbend+nub+ntors+nimpr+nonfo
+        IF ( ntotal > 0 ) THEN
+           WRITE(UNIT=output_unit,FMT="(/,/,T2,A,T45,A30,I6)") &
+             "MOLECULE KIND SET INFORMATION", &
+             "Total Number of bonds:       ",nbond
+           WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
+             "Total Number of bends:       ",nbend
+           WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
+             "Total Number of Urey-Bradley:",nub
+           WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
+             "Total Number of torsions:    ",ntors
+           WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
+             "Total Number of improper:    ",nimpr
+           WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
+             "Total Number of one-four:    ",nonfo
+        END IF
       ELSE
          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
       END IF

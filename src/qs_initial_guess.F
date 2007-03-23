@@ -54,6 +54,7 @@ MODULE qs_initial_guess
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_collocate_density,            ONLY: collocate_atomic_charge_density
+  USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
@@ -131,6 +132,7 @@ CONTAINS
                                                 ortho_basis
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 total_rho, trps1, trps2
+    REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -181,6 +183,10 @@ CONTAINS
     ortho_basis = .FALSE.
     IF ( dft_control%qs_control%semi_empirical ) THEN
        IF ( dft_control%qs_control%se_control%orthogonal_basis ) &
+          ortho_basis = .TRUE.
+    END IF
+    IF ( dft_control%qs_control%dftb ) THEN
+       IF ( dft_control%qs_control%dftb_control%orthogonal_basis ) &
           ortho_basis = .TRUE.
     END IF
 
@@ -439,53 +445,97 @@ CONTAINS
                                  gth_potential=gth_potential,&
                                  orb_basis_set=orb_basis_set)
 
-            IF (ASSOCIATED(all_potential)) THEN
+            IF ( dft_control%qs_control%dftb ) THEN
+              CALL get_dftb_atom_param(dftb_parameter=atomic_kind%dftb_parameter,&
+                                       lmax=maxll,occupation=edftb)
+              maxll = MIN(maxll,maxl)
+              econf(0:maxl)=edftb(0:maxl)
+            ELSEIF (ASSOCIATED(all_potential)) THEN
               CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf)
+              maxll = MIN(SIZE(elec_conf) - 1,maxl)
+              econf(:) = 0.0_dp
+              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
             ELSE IF (ASSOCIATED(gth_potential)) THEN
               CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf)
+              maxll = MIN(SIZE(elec_conf) - 1,maxl)
+              econf(:) = 0.0_dp
+              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
             ELSE
               CYCLE
             END IF
 
-            maxll = MIN(SIZE(elec_conf) - 1,maxl)
-            econf(:) = 0.0_dp
-            econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+            IF ( dft_control%qs_control%dftb ) THEN
 
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                   nset=nset,&
-                                   nshell=nshell,&
-                                   l=l,&
-                                   first_sgf=first_sgfa,&
-                                   last_sgf=last_sgfa)
+               DO iatom=1,natom
+                 atom_a = atom_list(iatom)
+                 isgfa=first_sgf(atom_a)
+                 DO la=0,maxll
+                   SELECT CASE (la)
+                     CASE (0)
+                       pdiag(isgfa) = econf(0)
+                     CASE (1)
+                       pdiag(isgfa+1) = econf(1)/3._dp
+                       pdiag(isgfa+2) = econf(1)/3._dp
+                       pdiag(isgfa+3) = econf(1)/3._dp
+                     CASE (2)
+                       pdiag(isgfa+4) = econf(2)/5._dp
+                       pdiag(isgfa+5) = econf(2)/5._dp
+                       pdiag(isgfa+6) = econf(2)/5._dp
+                       pdiag(isgfa+7) = econf(2)/5._dp
+                       pdiag(isgfa+8) = econf(2)/5._dp
+                     CASE (3)
+                       pdiag(isgfa+ 9) = econf(3)/7._dp
+                       pdiag(isgfa+10) = econf(3)/7._dp
+                       pdiag(isgfa+11) = econf(3)/7._dp
+                       pdiag(isgfa+12) = econf(3)/7._dp
+                       pdiag(isgfa+13) = econf(3)/7._dp
+                       pdiag(isgfa+14) = econf(3)/7._dp
+                       pdiag(isgfa+15) = econf(3)/7._dp
+                     CASE DEFAULT
+                       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                   END SELECT
+                 END DO
+               END DO
 
-            DO iset=1,nset
-              DO ishell=1,nshell(iset)
-                la = l(ishell,iset)
-                nelec = maxocc*REAL(2*la + 1,dp)
-                IF (econf(la) > 0.0_dp) THEN
-                  IF (econf(la) >= nelec) THEN
-                    paa = maxocc
-                    econf(la) = econf(la) - nelec
-                  ELSE
-                    paa = maxocc*econf(la)/nelec
-                    econf(la) = 0.0_dp
-                    ncount = ncount + NINT(nelec/maxocc)
-                  END IF
-                  DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
-                    DO iatom=1,natom
-                      atom_a = atom_list(iatom)
-                      isgf = first_sgf(atom_a) + isgfa - 1
-                      pdiag(isgf) = paa
-                      IF (paa == maxocc) THEN
-                        trps1 = trps1 + paa*sdiag(isgf)
-                      ELSE
-                        trps2 = trps2 + paa*sdiag(isgf)
-                      END IF
+            ELSE
+
+              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                     nset=nset,&
+                                     nshell=nshell,&
+                                     l=l,&
+                                     first_sgf=first_sgfa,&
+                                     last_sgf=last_sgfa)
+  
+              DO iset=1,nset
+                DO ishell=1,nshell(iset)
+                  la = l(ishell,iset)
+                  nelec = maxocc*REAL(2*la + 1,dp)
+                  IF (econf(la) > 0.0_dp) THEN
+                    IF (econf(la) >= nelec) THEN
+                      paa = maxocc
+                      econf(la) = econf(la) - nelec
+                    ELSE
+                      paa = maxocc*econf(la)/nelec
+                      econf(la) = 0.0_dp
+                      ncount = ncount + NINT(nelec/maxocc)
+                    END IF
+                    DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
+                      DO iatom=1,natom
+                        atom_a = atom_list(iatom)
+                        isgf = first_sgf(atom_a) + isgfa - 1
+                        pdiag(isgf) = paa
+                        IF (paa == maxocc) THEN
+                          trps1 = trps1 + paa*sdiag(isgf)
+                        ELSE
+                          trps2 = trps2 + paa*sdiag(isgf)
+                        END IF
+                      END DO
                     END DO
-                  END DO
-                END IF
-              END DO ! ishell
-            END DO ! iset
+                  END IF
+                END DO ! ishell
+              END DO ! iset
+
+            END IF
 
           END DO ! ikind
 

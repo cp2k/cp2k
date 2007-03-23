@@ -430,9 +430,11 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
       IF(dft_control%qs_control%gapw) THEN
-        CALL stop_program(routineP,"KG_GPW + GAPW not valid option")
+        CALL stop_program(routineP,"KG_GPW + GAPW not a valid option")
       ELSEIF(dft_control%qs_control%semi_empirical) THEN
-        CALL stop_program(routineP,"KG_GPW + Semi-Empirical not valid option")
+        CALL stop_program(routineP,"KG_GPW + Semi-Empirical not a valid option")
+      ELSEIF(dft_control%qs_control%dftb) THEN
+        CALL stop_program(routineP,"KG_GPW + DFTB not a valid option")
       ELSE
         NULLIFY(pw_mol%l_info_rho0)
       END IF

@@ -338,6 +338,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
       ! get tmp grids
       IF(dft_control%qs_control%semi_empirical) THEN
         !
+      ELSEIF(dft_control%qs_control%dftb) THEN
+        !
       ELSE
         DO ispin=1,nspins
            CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&

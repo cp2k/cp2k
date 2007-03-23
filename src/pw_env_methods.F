@@ -455,7 +455,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
 
-          IF (qs_env%dft_control%qs_control%semi_empirical) CYCLE
+          IF (qs_env%dft_control%qs_control%semi_empirical .OR. &
+              qs_env%dft_control%qs_control%dftb) CYCLE
 
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                orb_basis_set=orb_basis_set,&

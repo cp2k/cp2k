@@ -204,7 +204,11 @@ CONTAINS
        scf_env%method=general_diag_method_nr ! default with diagonalisation
        IF (dft_control%qs_control%semi_empirical) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-               "KG_GPW with semi_empirical not implemented")
+               "KG_GPW with semi_empirical methods not implemented")
+       END IF
+       IF (dft_control%qs_control%dftb) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "KG_GPW with DFTB not implemented")
        END IF
        IF (scf_control%use_ot) scf_env%method=ot_method_nr
 

@@ -328,6 +328,11 @@ OBJECTS_GENERIC =\
  qs_core_energies.o\
  qs_core_hamiltonian.o\
  qs_debug.o\
+ qs_dftb_coulomb.o\
+ qs_dftb_matrices.o\
+ qs_dftb_parameters.o\
+ qs_dftb_types.o\
+ qs_dftb_utils.o\
  qs_diis.o\
  qs_diis_types.o\
  qs_electric_field_gradient.o\

@@ -1411,6 +1411,10 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
        IF (qs_env%dft_control%qs_control%se_control%orthogonal_basis) &
           ortho_basis = .TRUE.
      END IF
+     IF (qs_env%dft_control%qs_control%dftb) THEN
+       IF (qs_env%dft_control%qs_control%dftb_control%orthogonal_basis) &
+          ortho_basis = .TRUE.
+     END IF
 
      IF (ortho_basis) THEN
         CALL make_basis_simple(v_matrix,my_n_col,error=error)

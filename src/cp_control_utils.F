@@ -23,15 +23,15 @@ MODULE cp_control_utils
   USE input_constants,                 ONLY: &
        bsse_run, do_band, do_ddapc_constraint, do_ddapc_restraint, &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_none, &
-       do_method_am1, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-       do_method_kg_pol, do_method_mndo, do_method_pdg, do_method_pm3, &
-       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
-       do_s2_constraint, do_s2_restraint, electronic_spectra_run, &
-       elstr_method_name, energy_force_run, energy_run, geo_opt_run, &
-       linear_response_run, mol_dyn_run, mon_car_run, op_loc_berry, &
-       op_loc_boys, pint_run, qs_debug_run, quadrature_name, sic_ad, &
-       sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
-       state_loc_fromitoj, state_loc_list, state_loc_upton, &
+       do_method_dftb, do_method_am1, do_method_gapw, do_method_gapw_xc, &
+       do_method_gpw, do_method_kg_pol, do_method_mndo, do_method_pdg, &
+       do_method_pm3, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
+       do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
+       electronic_spectra_run, elstr_method_name, energy_force_run, &
+       energy_run, geo_opt_run, linear_response_run, mol_dyn_run, &
+       mon_car_run, op_loc_berry, op_loc_boys, pint_run, qs_debug_run, &
+       quadrature_name, sic_ad, sic_mauri_spz, sic_mauri_us, sic_none, &
+       state_loc_all, state_loc_fromitoj, state_loc_list, state_loc_upton, &
        tddfpt_excitations, vib_anal, xc_debug_new_routine, xc_deriv_fd, &
        xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
@@ -102,12 +102,13 @@ CONTAINS
     was_present = .FALSE.
     NULLIFY(tmp_section,xc_fun_section,xc_section)
     CALL dft_control_create(dft_control, error=error)
-    ! Let's determine wheather this is a SE run (no XC section needs to be provided)
+    ! determine wheather this is a semiempirical or DFTB run 
+    ! --> (no XC section needs to be provided)
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-    CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
-       not_SE = .FALSE.
+      CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
+         not_SE = .FALSE.
     END SELECT
     ! Check for XC section and XC_FUNCTIONAL section
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
@@ -233,7 +234,7 @@ CONTAINS
 
     CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
     CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
-    IF ( qs_control%semi_empirical ) THEN
+    IF ( qs_control%semi_empirical .OR. qs_control%dftb ) THEN
        ngrid_level = 1
        multigrid_set = .FALSE.
     END IF
@@ -252,7 +253,7 @@ CONTAINS
     CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",&
                  r_val=qs_control%relative_cutoff,error=error)
 
-    IF ( qs_control%semi_empirical ) THEN
+    IF ( qs_control%semi_empirical .OR. qs_control%dftb ) THEN
       qs_control%cutoff = 1._dp
     END IF
 
@@ -316,24 +317,28 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_qs_section "
 
-    INTEGER                                  :: j, jj, k, n_rep
+    INTEGER                                  :: j, jj, k, n_rep, n_var, istat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), POINTER                  :: clist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
     TYPE(section_vals_type), POINTER :: ddapc_restraint_section, loc_section, &
-      mull_section, s2_restraint_section, se_section
+      mull_section, s2_restraint_section, se_section, dftb_section, dftb_parameter
 
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(loc_section,mull_section,se_section)
+    NULLIFY(loc_section,mull_section,se_section,dftb_section)
 
     loc_section => section_vals_get_subs_vals(qs_section,"LOCALIZE",error=error)
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
     s2_restraint_section => section_vals_get_subs_vals(qs_section,"S2_RESTRAINT", error=error)
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
+    dftb_section => section_vals_get_subs_vals(qs_section,"DFTB", error=error)
+    dftb_parameter => section_vals_get_subs_vals(dftb_section,"PARAMETER", error=error)
 
     ! Setup all defaults values and overwrite input parameters
     CALL section_vals_val_get(qs_section,"EPS_DEFAULT",r_val=value,error=error)
@@ -440,6 +445,7 @@ CONTAINS
     qs_control%gpw = .FALSE.
     qs_control%pao = .FALSE.
     qs_control%polarization = .FALSE.
+    qs_control%dftb = .FALSE.
     qs_control%semi_empirical = .FALSE.
     SELECT CASE (qs_control%method_id)
       CASE (do_method_gapw)
@@ -448,6 +454,8 @@ CONTAINS
         qs_control%gapw_xc = .TRUE.
       CASE (do_method_gpw)
         qs_control%gpw = .TRUE.
+      CASE (do_method_dftb)
+        qs_control%dftb = .TRUE.
       CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
         qs_control%semi_empirical = .TRUE.
     END SELECT
@@ -500,7 +508,7 @@ CONTAINS
     ENDIF
 
 
-!   CALL read_se_control_section()
+    ! Semi-empirical code
     CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
                  l_val=qs_control%se_control%orthogonal_basis,error=error)
     CALL section_vals_val_get(se_section,"DELTA",&
@@ -517,6 +525,25 @@ CONTAINS
        qs_control %method_id == do_method_pm3) THEN
          qs_control%se_control%orthogonal_basis=.TRUE.
     END IF
+
+    ! DFTB code
+    CALL section_vals_val_get(dftb_section,"ORTHOGONAL_BASIS",&
+                 l_val=qs_control%dftb_control%orthogonal_basis,error=error)
+    CALL section_vals_val_get(dftb_section,"SELF_CONSISTENT",&
+                 l_val=qs_control%dftb_control%self_consistent,error=error)
+    CALL section_vals_val_get(dftb_section,"DO_EWALD",&
+                 l_val=qs_control%dftb_control%do_ewald,error=error)
+    CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_PATH",&
+                 c_val=qs_control%dftb_control%sk_file_path,error=error)
+    CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var,&
+                 error=error)
+    ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"qs_control%dftb_control%sk_pair_list",3*n_var)
+    DO k = 1, n_var
+      CALL section_vals_val_get(dftb_parameter,"SK_FILE",i_rep_val=k,&
+           c_vals=clist,error=error)
+      qs_control%dftb_control%sk_pair_list(1:3,k) = clist(1:3)
+    END DO
 
   END SUBROUTINE read_qs_section
 
@@ -613,6 +640,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (dft_control%qs_control%semi_empirical) RETURN
+    IF (dft_control%qs_control%dftb) RETURN
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
@@ -771,6 +799,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (qs_control%semi_empirical) RETURN
+    IF (qs_control%dftb) RETURN
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 

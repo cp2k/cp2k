@@ -78,7 +78,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,force_env_section,error)
+  SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,&
+                                    force_env_section,error)
 
 !   Purpose: Initialize all the atomic kind radii for a given threshold value.
 
@@ -210,7 +211,6 @@ CONTAINS
                                kg_gpw_kind_radius=kg_radius)
 
       END IF
-
 
       IF (ASSOCIATED(all_potential)) THEN
 

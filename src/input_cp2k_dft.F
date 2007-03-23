@@ -1587,20 +1587,27 @@ CONTAINS
             description="Specifies the electronic structure method that should be employed",&
             usage="METHOD GAPW",&
             enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW",&
-            "MNDO","AM1","PM3","PDG"),&
+            "MNDO","AM1","PM3","PDG","DFTB"),&
             enum_desc=s2a("Gaussian and augmented plane waves method",&
             "Gaussian and augmented plane waves method only for XC",&
             "Gaussian and plane waves method",&
             "Polarisable Kim-Gordon method",&
             "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
             "MNDO semiempirical","AM1 semiempirical",&
-            "PM3 semiempirical","PDG semiempirical"),&
-            enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_kg_pol,&
-            do_method_kg_nopol, do_method_kg_gpw, &
-            do_method_mndo, do_method_am1, do_method_pm3, do_method_pdg/),&
+            "PM3 semiempirical","PDG semiempirical",&
+            "DFTB: Density Functional based Tight-Binding"),&
+            enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+            do_method_kg_pol, do_method_kg_nopol, do_method_kg_gpw, &
+            do_method_mndo, do_method_am1, do_method_pm3, do_method_pdg, &
+            do_method_dftb/),&
             default_i_val=do_method_gpw, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL create_dftb_control_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
        CALL create_se_control_section(subsection,error)
@@ -1631,6 +1638,93 @@ CONTAINS
 
   END SUBROUTINE create_qs_section
 
+  SUBROUTINE create_dftb_control_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dftb_control_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"DFTB",&
+            description="Parameters needed to set up the DFTB methods",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(subsection)
+       CALL create_dftb_parameter_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="self_consistent",&
+            description="Use self_consistent method",&
+            usage="SELF_CONSISTENT",default_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="orthogonal_basis",&
+            description="Assume orthogonal basis set",&
+            usage="ORTHOGONAL_BASIS",default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="do_ewald",&
+            description="Use Ewald type method instead of direct sum for Coulomb interaction",&
+            usage="DO_EWALD",default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_dftb_control_section
+
+  SUBROUTINE create_dftb_parameter_section(section, error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dftb_parameter_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="PARAMETER",&
+            description="Information on where to find DFTB parameters",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword,name="SK_FILE",&
+            description="Define parameter file for atom pair",&
+            usage="SK_FILE a1 a2 filename",&
+            n_var=3,type_of_var=char_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="PARAM_FILE_PATH",&
+            description="Specify the directory with the DFTB parameter files",&
+            usage="PARAM_FILE_PATH pathname",&
+            n_var=1,type_of_var=char_t,default_c_val="./",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_dftb_parameter_section
+
   SUBROUTINE create_se_control_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1653,7 +1747,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="orthogonal_basis",&
             description="Assume orthogonal basis set",&
-            usage="ORTHOGONAL_BASIS ",default_l_val=.FALSE., error=error)
+            usage="ORTHOGONAL_BASIS",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

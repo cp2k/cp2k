@@ -152,7 +152,7 @@ CONTAINS
        iw=cp_print_key_unit_nr(logger,density_fit_section,&
             "PROGRAM_RUN_INFO",".FitCharge",error=error)
        IF (iw>0) THEN
-          WRITE(iw,'(T3,A,F15.9)')" Initializing the DDAPC Environment"
+          WRITE(iw,'(/,A)')" Initializing the DDAPC Environment"
        END IF
        CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pool,error=error)
        CALL pw_pool_create_pw(auxbas_pool,rho_tot_g, in_space=RECIPROCALSPACE,&

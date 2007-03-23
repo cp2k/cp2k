@@ -361,71 +361,72 @@ MODULE qs_all_potential
     rab2 = 0.0_dp
 
     DO ikind = 1,nkind
+      orb_rad(ikind) = 0.0_dp
+      set_rad(:,ikind) = 0.0_dp
       NULLIFY(atom_kind,orb_basis,la_max,la_min,npgfa,rpgfa,zeta)
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             pgf_radius=rpgfa,&
-                             sphi=sphi_a,&
-                             zet=zeta)
+      IF ( ASSOCIATED(orb_basis) ) THEN
+        CALL get_gto_basis_set(gto_basis_set=orb_basis,&
+                               lmax=la_max,&
+                               lmin=la_min,&
+                               npgf=npgfa,&
+                               nset=nseta,&
+                               pgf_radius=rpgfa,&
+                               sphi=sphi_a,&
+                               zet=zeta)
 
-      orb_rad(ikind) = 0.0_dp
-      set_rad(:,ikind) = 0.0_dp
-      ALLOCATE(r_cut_set(nseta),STAT=istat)
+        ALLOCATE(r_cut_set(nseta),STAT=istat)
 
+        DO iset = 1,nseta
 
-      DO iset = 1,nseta
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          r_cut_set = 0.0_dp
 
-        ncoa = npgfa(iset)*ncoset(la_max(iset))
-        r_cut_set = 0.0_dp
+          ALLOCATE(int_tmp(ncoa,ncoa),STAT=istat)        
 
-        ALLOCATE(int_tmp(ncoa,ncoa),STAT=istat)        
+          DO i = 10,60 
+            rac(1:3) = r(1:3,i)
+            rac2 = r2(i)
+            int_tmp = 0.0_dp
+            intmax0 = 0.0_dp
+            CALL verfc(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                       la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                       zetc,rpgfc,zc,cerf,&
+                       rab,rab2,rac,rac2,rac,rac2,int_tmp,vverf,vvnuc,ff(0:))
 
-        DO i = 10,60 
-          rac(1:3) = r(1:3,i)
-          rac2 = r2(i)
-          int_tmp = 0.0_dp
-          intmax0 = 0.0_dp
-          CALL verfc(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                     la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                     zetc,rpgfc,zc,cerf,&
-                     rab,rab2,rac,rac2,rac,rac2,int_tmp,vverf,vvnuc,ff(0:))
+            DO ipgf = 1,npgfa(iset)
+               n=(ipgf-1)*ncoset(la_max(iset))
+               DO ico = 1,ncoset(la_max(iset))
 
-          DO ipgf = 1,npgfa(iset)
-             n=(ipgf-1)*ncoset(la_max(iset))
-             DO ico = 1,ncoset(la_max(iset))
+                 icoa = ico + n          
 
-               icoa = ico + n          
+                 intmax0 = MAX(intmax0,ABS(int_tmp(icoa,icoa)))
+               END DO
+            END DO
 
-               intmax0 = MAX(intmax0,ABS(int_tmp(icoa,icoa)))
-             END DO
-          END DO
-
-          IF( intmax0 < eps_core ) THEN
-            r_cut_set(iset) = r(1,i)
-            EXIT
-          END IF
+            IF( intmax0 < eps_core ) THEN
+              r_cut_set(iset) = r(1,i)
+              EXIT
+            END IF
   
-        END DO  ! i
+          END DO  ! i
 
-        orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) ) 
-        set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
+          orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) ) 
+          set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
 
-        DEALLOCATE(int_tmp,STAT=istat)
+          DEALLOCATE(int_tmp,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "int_tmp")
+
+        END DO  ! iset
+
+        DEALLOCATE(r_cut_set,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "int_tmp")
+                                       "r_cut_set")
 
-      END DO  ! iset
+      END IF
 
-      DEALLOCATE(r_cut_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "r_cut_set")
-
-!  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
     END DO  ! ikind
 
     DEALLOCATE(vverf,vvnuc,ff,STAT=istat)

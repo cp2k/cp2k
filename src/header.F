@@ -23,7 +23,7 @@ MODULE header
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: fist_header, tbmd_header, qs_header, tddfpt_header
+  PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
   PUBLIC :: kg_header, qmmm_header
 
   !!*****
@@ -118,7 +118,7 @@ CONTAINS
 
   END SUBROUTINE fist_header
 
-  SUBROUTINE tbmd_header ( iw, ionode )
+  SUBROUTINE dftb_header ( iw, ionode )
     INTEGER, INTENT(in)                      :: iw
     LOGICAL, INTENT(in)                      :: ionode
 
@@ -126,22 +126,42 @@ CONTAINS
 
     WRITE ( iw, '( / )' )
     WRITE ( iw, '( 14(12x,a,/) )' ) &
-         '  **********************   *************   ********    ', &
-         ' ************************ *************** **********   ', &
-         '  ***************     *** *************** ***********  ', &
-         '     ****    ****    **** ****       **** ***     **** ', &
-         '    ****     ***********  ****       **** ***     **** ', &
-         '    ****     ****     *** ****       **** ***********  ', &
-         '    ****     ***********  ****       **** **********   ', &
-         '     ****     *********    ****      ****  *******     ', &
-         '                                                       ', &
-         '                 University of Zurich                  ', &
-         '                        2000                           ', &
+         '  #####   #####        # ######  ####### ####### ######   ',&
+         ' #     # #     #      #  #     # #          #    #     #  ',&
+         ' #     # #           #   #     # #          #    #     #  ',&
+         ' #     #  #####     #    #     # #####      #    ######   ',&
+         ' #   # #       #   #     #     # #          #    #     #  ',&
+         ' #    #  #     #  #      #     # #          #    #     #  ',&
+         '  #### #  #####  #       ######  #          #    ######   ',&
          '                                                       ', &
          '                     Version 0.0                       ', &
          '                                                       '
 
-  END SUBROUTINE tbmd_header
+  END SUBROUTINE dftb_header
+
+  SUBROUTINE se_header ( iw, ionode )
+    INTEGER, INTENT(in)                      :: iw
+    LOGICAL, INTENT(in)                      :: ionode
+
+    IF (.NOT.ionode) RETURN
+
+    WRITE ( iw, '( / )' )
+    WRITE ( iw, '( 14(12x,a,/) )' ) &
+         '  #####   #####        # #     # ######  ######  ####### ', &
+         ' #     # #     #      #  ##    # #     # #     # #     # ', &
+         ' #     # #           #   # #   # #     # #     # #     # ', &
+         ' #     #  #####     #    #  #  # #     # #     # #     # ', &
+         ' #   # #       #   #     #   # # #     # #     # #     # ', &
+         ' #    #  #     #  #      #    ## #     # #     # #     # ', &
+         '  #### #  #####  #       #     # ######  ######  ####### ', &
+         '                                                         ', &
+         '                   University of Zurich                  ', &
+         '                       2005 -- 2007                      ', &
+         '                                                         ', &
+         '                       Version 0.0                       ', &
+         '                                                         '
+
+  END SUBROUTINE se_header
 
   SUBROUTINE qs_header(output_unit, ionode)
 

@@ -257,7 +257,7 @@ CONTAINS
                                            extension=".scfLog",error=error)
       END IF
       IF (output_unit > 0) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+        WRITE (UNIT=output_unit,FMT="(/,T9,A)")&
           "DIIS | The SCF DIIS buffer was allocated and initialized"
       END IF
       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
@@ -480,23 +480,23 @@ CONTAINS
                                          extension=".scfLog",error=error)
     END IF
     IF (output_unit > 0) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,I4,/,(T3,A,ES12.3))")&
+       WRITE (UNIT=output_unit,FMT="(/,T9,A,I4,/,(T9,A,ES12.3))")&
          "DIIS | Current SCF DIIS buffer size:         ",nb,&
          "DIIS | Maximum SCF DIIS error vector element:",error_max,&
          "DIIS | Current SCF convergence:              ",delta,&
          "DIIS | Threshold value for a DIIS step:      ",eps_diis
       IF (error_max < eps_diis) THEN
-        WRITE (UNIT=output_unit,FMT="(T3,A)")&
+        WRITE (UNIT=output_unit,FMT="(T9,A)")&
           "DIIS | => The SCF DIIS buffer will be updated"
       ELSE
-        WRITE (UNIT=output_unit,FMT="(T3,A)")&
+        WRITE (UNIT=output_unit,FMT="(T9,A)")&
           "DIIS | => No update of the SCF DIIS buffer"
       END IF
       IF (diis_step.AND.(error_max < eps_diis)) THEN
-        WRITE (UNIT=output_unit,FMT="(T3,A,/)")&
+        WRITE (UNIT=output_unit,FMT="(T9,A,/)")&
           "DIIS | => A SCF DIIS step will be performed"
       ELSE
-        WRITE (UNIT=output_unit,FMT="(T3,A,/)")&
+        WRITE (UNIT=output_unit,FMT="(T9,A,/)")&
           "DIIS | => No SCF DIIS step will be performed"
       END IF
     END IF
@@ -560,14 +560,14 @@ CONTAINS
         IF (ABS(ev(jb)) < eigenvalue_threshold) THEN
           IF (output_unit > 0) THEN
             IF (.NOT.eigenvectors_discarded) THEN
-              WRITE (UNIT=output_unit,FMT="(T3,A)")&
+              WRITE (UNIT=output_unit,FMT="(T9,A)")&
                 "DIIS | Checking eigenvalues of the DIIS error matrix"
             END IF
-            WRITE (UNIT=message,FMT="(A,I6,A,ES10.1,A,ES10.1)")&
+            WRITE (UNIT=message,FMT="(T9,A,I6,A,ES10.1,A,ES10.1)")&
               "DIIS | Eigenvalue ",jb," = ",ev(jb)," is smaller than "//&
-              "the requested threshold ",eigenvalue_threshold
+              "threshold ",eigenvalue_threshold
             CALL compress(message)
-            WRITE (UNIT=output_unit,FMT="(T3,A)") TRIM(message)
+            WRITE (UNIT=output_unit,FMT="(T9,A)") TRIM(message)
             eigenvectors_discarded = .TRUE.
           END IF
           a(1:nb1,jb) = 0.0_dp
@@ -577,7 +577,7 @@ CONTAINS
       END DO
 
       IF ((output_unit > 0).AND.eigenvectors_discarded) THEN
-        WRITE (UNIT=output_unit,FMT="(T3,A,/)")&
+        WRITE (UNIT=output_unit,FMT="(T9,A,/)")&
           "DIIS | The corresponding eigenvectors were discarded"
       END IF
 

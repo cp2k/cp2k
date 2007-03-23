@@ -114,6 +114,7 @@ MODULE qs_ks_methods
   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore
+  USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -1454,10 +1455,15 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
                                para_env=para_env)
           energy%core=energy%core+ecore
         END DO
-        ! the ks matrix we be rebuild so this is fine now
+        ! the ks matrix will be rebuilt so this is fine now
         ks_env%potential_changed=.FALSE.
         IF ( dft_control%qs_control%semi_empirical ) THEN
           CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
+               ks_matrix=matrix_ks,rho=rho,energy=energy,&
+               calculate_forces=c_forces,just_energy=energy_only,&
+               error=error)
+        ELSEIF ( dft_control%qs_control%dftb ) THEN
+          CALL build_dftb_ks_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks,rho=rho,energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
                error=error)

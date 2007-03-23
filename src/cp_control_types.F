@@ -19,10 +19,18 @@
 MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE kinds,                           ONLY: dp
+  USE ewald_environment_types,         ONLY: ewald_environment_type,&
+                                             ewald_env_release
+  USE kinds,                           ONLY: dp,&
+                                             default_path_length,&
+                                             default_string_length
+  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type,&
+                                             qs_dftb_pairpot_release
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             deallocate_matrix_set
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
@@ -38,6 +46,21 @@ MODULE cp_control_types
      LOGICAL :: spherical
      LOGICAL :: fullspace
   END TYPE pw_grid_option
+!------------------------------------------------------------------------------!
+! Control parameters for DFTB calculations
+  TYPE dftb_control_type
+     LOGICAL                              :: self_consistent
+     LOGICAL                              :: orthogonal_basis
+     LOGICAL                              :: do_ewald
+     CHARACTER(LEN=default_path_length)   :: sk_file_path
+     CHARACTER(LEN=default_string_length),&
+       DIMENSION(:,:), POINTER            :: sk_pair_list
+     TYPE (qs_dftb_pairpot_type), &
+       DIMENSION(:,:), POINTER            :: dftb_potential
+     TYPE (real_matrix_p_type),&
+       DIMENSION(:), POINTER              :: gamma_matrix
+     TYPE (ewald_environment_type),POINTER:: ewald_env
+  END TYPE dftb_control_type
 !------------------------------------------------------------------------------!
 ! Control parameters for semi empirical calculations
   TYPE semi_empirical_control_type
@@ -157,13 +180,13 @@ MODULE cp_control_types
     LOGICAL                         :: et_coupling_calc
     LOGICAL                         :: s2_restraint
     LOGICAL                         :: localized_wfn
-    TYPE (mulliken_restraint_type), POINTER :: mulliken_restraint_control
-    TYPE (ddapc_restraint_type), POINTER :: ddapc_restraint_control
-    TYPE (becke_constraint_type), POINTER :: becke_control
-    TYPE (s2_restraint_type), POINTER :: s2_restraint_control
-    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-!   TYPE (dftb_control_type)                :: dftb_control
-    TYPE (semi_empirical_control_type)      :: se_control
+    TYPE (mulliken_restraint_type), POINTER       :: mulliken_restraint_control
+    TYPE (ddapc_restraint_type), POINTER          :: ddapc_restraint_control
+    TYPE (becke_constraint_type), POINTER         :: becke_control
+    TYPE (s2_restraint_type), POINTER             :: s2_restraint_control
+    TYPE (localized_wfn_control_type), POINTER    :: localized_wfn_control
+    TYPE (dftb_control_type),POINTER              :: dftb_control
+    TYPE (semi_empirical_control_type),POINTER    :: se_control
     REAL(KIND = dp)                         :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER  :: e_cutoff
     TYPE (gapw_control_type), POINTER       :: gapw_control
@@ -239,12 +262,13 @@ MODULE cp_control_types
 
   PUBLIC :: dft_control_type,&
             qs_control_type,&
-            tddfpt_control_type,&
             gapw_control_type,&
+            tddfpt_control_type,&
             finite_field_type,&
             pw_grid_option,&
             mulliken_restraint_type,&
             ddapc_restraint_type,&
+            dftb_control_type,&
             becke_constraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type
@@ -686,16 +710,18 @@ SUBROUTINE qs_control_init(qs_control, error)
   NULLIFY(qs_control%ddapc_restraint_control)
   NULLIFY(qs_control%s2_restraint_control)
   NULLIFY(qs_control%localized_wfn_control)
+  NULLIFY(qs_control%se_control)
+  NULLIFY(qs_control%dftb_control)
   NULLIFY(qs_control%becke_control)  
 
   CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
   CALL ddapc_control_create(qs_control%ddapc_restraint_control,error=error)
   CALL becke_control_create(qs_control%becke_control,error=error)
   CALL s2_control_create(qs_control%s2_restraint_control,error=error)
-
   CALL localized_wfn_control_create(qs_control%localized_wfn_control, error=error)
-
   CALL gapw_control_create(qs_control%gapw_control, error=error)
+  CALL se_control_create(qs_control%se_control,error=error)
+  CALL dftb_control_create(qs_control%dftb_control,error=error)
 
 END SUBROUTINE qs_control_init
 !------------------------------------------------------------------------------!
@@ -712,6 +738,8 @@ SUBROUTINE qs_control_release(qs_control, error)
     CALL ddapc_control_release(qs_control%ddapc_restraint_control,error=error)
     CALL s2_control_release(qs_control%s2_restraint_control,error=error)
     CALL localized_wfn_control_release(qs_control% localized_wfn_control, error=error)
+    CALL se_control_release(qs_control%se_control,error=error)
+    CALL dftb_control_release(qs_control%dftb_control,error=error)
     CALL becke_control_release(qs_control%becke_control,error=error)
 
     IF (ASSOCIATED(qs_control%e_cutoff)) THEN
@@ -762,6 +790,102 @@ SUBROUTINE tddfpt_control_release(tddfpt_control, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE tddfpt_control_release
+
+!***************************************************************************
+
+SUBROUTINE dftb_control_create(dftb_control,error)
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_create', &
+      routineP = moduleN//':'//routineN
+    
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+   
+   failure=.FALSE.
+   
+   CPPrecondition(.NOT.ASSOCIATED(dftb_control),cp_failure_level,routineP,error,failure)
+   ALLOCATE(dftb_control,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+   NULLIFY(dftb_control%sk_pair_list)
+   NULLIFY(dftb_control%dftb_potential)
+   NULLIFY(dftb_control%gamma_matrix)
+   NULLIFY(dftb_control%ewald_env)
+
+END SUBROUTINE dftb_control_create
+!------------------------------------------------------------------------------!
+SUBROUTINE dftb_control_release(dftb_control,error)
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+  
+    CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_release', &
+      routineP = moduleN//':'//routineN
+    
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+     
+   failure=.FALSE.
+     
+   IF (ASSOCIATED(dftb_control)) THEN
+     IF (ASSOCIATED(dftb_control%sk_pair_list)) THEN
+       DEALLOCATE(dftb_control%sk_pair_list,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(dftb_control%dftb_potential)) THEN
+        call qs_dftb_pairpot_release(dftb_control%dftb_potential,error)
+     END IF
+     IF (ASSOCIATED(dftb_control%gamma_matrix)) THEN
+       CALL deallocate_matrix_set(dftb_control%gamma_matrix,error)
+     END IF
+     IF (ASSOCIATED(dftb_control%ewald_env)) THEN
+       CALL ewald_env_release(dftb_control%ewald_env,error)
+     END IF
+     DEALLOCATE(dftb_control,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+     
+END SUBROUTINE dftb_control_release
+
+!***************************************************************************
+
+SUBROUTINE se_control_create(se_control,error)
+    TYPE(semi_empirical_control_type), POINTER         :: se_control
+    TYPE(cp_error_type), INTENT(inout)                 :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_control_create', &
+      routineP = moduleN//':'//routineN
+    
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+   
+   failure=.FALSE.
+   
+   CPPrecondition(.NOT.ASSOCIATED(se_control),cp_failure_level,routineP,error,failure)
+   ALLOCATE(se_control,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+END SUBROUTINE se_control_create
+!------------------------------------------------------------------------------!
+SUBROUTINE se_control_release(se_control,error)
+    TYPE(semi_empirical_control_type), POINTER         :: se_control
+    TYPE(cp_error_type), INTENT(inout)                 :: error
+  
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_control_release', &
+      routineP = moduleN//':'//routineN
+    
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+     
+   failure=.FALSE.
+     
+   IF (ASSOCIATED(se_control)) THEN
+     DEALLOCATE(se_control,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+     
+END SUBROUTINE se_control_release
 
 !***************************************************************************
 

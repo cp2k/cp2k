@@ -274,6 +274,10 @@ CONTAINS
             IF (dft_control%qs_control%se_control%orthogonal_basis) &
               scf_env%method=special_diag_method_nr
           END IF
+          IF (dft_control%qs_control%dftb) THEN
+            IF (dft_control%qs_control%dftb_control%orthogonal_basis) &
+              scf_env%method=special_diag_method_nr
+          END IF
           IF (scf_control%use_ot) scf_env%method=ot_method_nr
 
           SELECT CASE(scf_env%method)
@@ -311,7 +315,8 @@ CONTAINS
        END IF
 
        ! *** compute properties that depend on the converged wavefunction
-       IF ( .NOT. ( should_stop .OR. dft_control%qs_control%semi_empirical ) ) THEN
+       IF ( .NOT. ( should_stop .OR. dft_control%qs_control%semi_empirical .OR. &
+                    dft_control%qs_control%dftb ) ) THEN
               CALL scf_post_calculation(dft_section, scf_env, qs_env, error)
        END IF
 
@@ -450,6 +455,8 @@ CONTAINS
     has_unit_metric=.FALSE.
     IF (dft_control%qs_control%semi_empirical) &
        has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
+    IF (dft_control%qs_control%dftb) &
+       has_unit_metric=dft_control%qs_control%dftb_control%orthogonal_basis
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -1036,6 +1043,13 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
             "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
             "Electronic energy [eV]:                        ",&
                                               (energy%core+0.5_dp*energy%hartree)*evolt
+       ELSEIF (dft_control%qs_control%dftb) THEN
+!deb     WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+!deb        "Core-core repulsion energy [eV]:               ",energy%core_overlap*evolt,&
+!deb        "Core Hamiltonian energy [eV]:                  ",energy%core*evolt,&
+!deb        "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
+!deb        "Electronic energy [eV]:                        ",&
+!deb                                          (energy%core+0.5_dp*energy%hartree)*evolt
        ELSE
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
@@ -1282,6 +1296,11 @@ END SUBROUTINE qs_scf_print_summary
        has_unit_metric=.FALSE.
        IF (dft_control%qs_control%semi_empirical) THEN
           IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
+                has_unit_metric=.TRUE.
+          ENDIF
+       END IF
+       IF (dft_control%qs_control%dftb) THEN
+          IF (dft_control%qs_control%dftb_control%orthogonal_basis) THEN
                 has_unit_metric=.TRUE.
           ENDIF
        END IF
@@ -1555,7 +1574,8 @@ END SUBROUTINE qs_scf_print_summary
        IF (scf_control%use_cholesky) THEN
          CALL cp_fm_cholesky_decompose(scf_env%ortho,error=error)
        ELSE
-         CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,scf_control%eps_eigval,ndep,error=error)
+         CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,&
+                          scf_control%eps_eigval,ndep,error=error)
        END IF
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN

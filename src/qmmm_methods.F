@@ -197,8 +197,12 @@ CONTAINS
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
- CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+    ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="QM/MM forces not yet implemented for DFTB.", &
+               error=error, error_level=cp_failure_level)
     ELSE
        CALL pw_env_get(pw_env=pw_env,&
                        pw_pools=pw_pools,&

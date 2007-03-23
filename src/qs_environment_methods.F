@@ -298,6 +298,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       ENDIF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       !??
+    ELSE IF(dft_control%qs_control%dftb) THEN
+      !??
     ELSE
       ! *** updates rho core ***
       CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
@@ -402,6 +404,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
     ELSE IF (dft_control%qs_control%semi_empirical) THEN
+    ELSE IF (dft_control%qs_control%dftb) THEN
     ELSE
       IF (ASSOCIATED(rho_core)) THEN
          CALL coeff_deallocate(rho_core,error=error)

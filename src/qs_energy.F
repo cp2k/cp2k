@@ -41,6 +41,7 @@ MODULE qs_energy
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -111,6 +112,10 @@ CONTAINS
     IF ( dft_control%qs_control%semi_empirical ) THEN
        CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
                                  calculate_forces=.FALSE.,error=error)
+       CALL qs_env_update_s_mstruct(qs_env,error=error)
+    ELSEIF ( dft_control%qs_control%dftb ) THEN
+       CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
+                              calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
     ELSE
        CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
