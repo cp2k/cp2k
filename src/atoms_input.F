@@ -336,6 +336,15 @@ CONTAINS
     IF (.NOT.explicit) RETURN
 
     CALL timeset(routineN,handle)
+
+    CALL get_cell(cell=cell,&
+       scaled_coordinates=scaled_coordinates,&
+       unit_of_length=unit_of_length)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 2. Read in the coordinates from &SHELL_COORD  section in the input file
+    !-----------------------------------------------------------------------------
+
     CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
          n_rep_val=nshell,error=error)
 

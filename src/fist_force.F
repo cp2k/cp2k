@@ -470,11 +470,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     CALL mp_sum ( thermo % harm_shell, para_env%group )
   END IF
 !
-!dbg
-!  write(*,*) 'thermo%pot terms ', pot_nonbond , pot_bond , pot_bend , pot_torsion , pot_onef , &
-!                 pot_imptors , pot_urey_bradley , pot_manybody , pot_shell
-!   write(*,*) 'thermo%pot (1)', thermo % pot
-!dbg
 
 ! add g-space contributions if needed
   IF ( ewald_type /= do_ewald_none ) THEN
@@ -483,9 +478,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      thermo % e_gspace = vg_coulomb
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
      thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
-!dbg
-!  write(*,*) 'thermo%pot terms ES ', thermo % e_self , thermo % e_neut/cell % deth, vg_coulomb , thermo % e_bonded
-!dbg
 
   END IF
 !
@@ -598,7 +590,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      virial % pv_virial = virial % pv_virial + &
                           ident * thermo % e_neut / cell % deth
      virial % pv_virial = virial % pv_virial + pv_g
+
   END IF
+
 
 ! Sum total forces
   CALL mp_sum ( f_total, para_env%group )
@@ -617,8 +611,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
           atomic_kind => particle_set ( i ) % atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell, mass=mass)
           umass = 1.0_dp/mass
-          massc = shell%mass_core*mass
-          masss = shell%mass_shell*mass
+          massc = shell%mass_core*umass
+          masss = shell%mass_shell*umass
           fshell_total(1,particle_set ( i ) %shell_index) =&
                   fshell_total(1,particle_set(i)%shell_index) + particle_set(i)%f(1)*masss
           fshell_total(2,particle_set ( i ) %shell_index) =&
@@ -664,8 +658,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
           atomic_kind => particle_set ( i ) % atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell, mass=mass)
           umass = 1.0_dp/mass
-          massc = shell%mass_core*mass
-          masss = shell%mass_shell*mass
+          massc = shell%mass_core*umass
+          masss = shell%mass_shell*umass
           fshell_total(1,particle_set ( i ) %shell_index) =&
                   fshell_total(1,particle_set(i)%shell_index) + particle_set(i)%f(1)*masss
           fshell_total(2,particle_set ( i ) %shell_index) =&
@@ -703,6 +697,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
       END DO
     END IF
   END SELECT
+
+
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)
