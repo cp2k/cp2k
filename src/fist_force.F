@@ -23,8 +23,7 @@
 
 MODULE fist_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -132,20 +131,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     INTEGER :: ewald_type, handle, i, ii, ikind, iparticle_kind, &
       iparticle_local, iw, j, natoms, nlocal_particles, node, nparticle_kind, &
       nparticle_local, nshell, stat
-    LOGICAL                                  :: failure, shell_model_ad, shell_present
+    LOGICAL                                  :: failure, shell_model_ad, &
+                                                shell_present
     LOGICAL, SAVE                            :: first_time = .TRUE.
-    REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, pot_manybody, &
-      pot_nonbond, pot_onef, pot_shell, pot_torsion, pot_urey_bradley, umass, vg_coulomb, &
-      xdum1, xdum2, xdum3
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: f_nonbond, f_total, &
-                                                fg_coulomb, &
-                                                fgshell_coulomb,&
-                                                fgcore_coulomb,&
-                                                fshell_nonbond, &
-                                                fcore_nonbond, &
-                                                fshell_total, &
-                                                fcore_total
+    REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
+      pot_manybody, pot_nonbond, pot_onef, pot_shell, pot_torsion, &
+      pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f_nonbond, f_total, &
+      fcore_nonbond, fcore_total, fg_coulomb, fgcore_coulomb, &
+      fgshell_coulomb, fshell_nonbond, fshell_total
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
       pv_imptors, pv_nonbond, pv_onef, pv_shell, pv_torsion, pv_urey_bradley
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -164,11 +158,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
     TYPE(section_vals_type), POINTER         :: fist_section, print_section
     TYPE(shell_kind_type), POINTER           :: shell
 
@@ -470,7 +462,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
     CALL mp_sum ( thermo % harm_shell, para_env%group )
   END IF
 !
-
 ! add g-space contributions if needed
   IF ( ewald_type /= do_ewald_none ) THEN
 ! e_self, e_neut, and ebonded are already summed over all processors
@@ -478,7 +469,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      thermo % e_gspace = vg_coulomb
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
      thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
-
   END IF
 !
 ! add up all the forces
@@ -590,9 +580,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      virial % pv_virial = virial % pv_virial + &
                           ident * thermo % e_neut / cell % deth
      virial % pv_virial = virial % pv_virial + pv_g
-
   END IF
-
 
 ! Sum total forces
   CALL mp_sum ( f_total, para_env%group )
@@ -697,8 +685,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
       END DO
     END IF
   END SELECT
-
-
   IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)
