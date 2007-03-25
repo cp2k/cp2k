@@ -53,14 +53,13 @@ MODULE force_fields_input
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, ea_type, eam_pot_type, ft_type, gp_type, gw_type, &
        ip_type, lj_charmm_type, pair_potential_p_type, &
-       pair_potential_reallocate, pair_potential_single_type, &
-       tersoff_pot_type, tersoff_type, wl_type
+       pair_potential_reallocate, pair_potential_single_type, tersoff_type, &
+       wl_type
   USE physcon,                         ONLY: bohr
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
@@ -117,10 +116,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nb4, nbends, nbm, nbmhft, &
-                                                nbonds, nchg, neam, ngd, ngp, &
-                                                nipbv, nlj, nshell, ntersoff, ntors, ntot, &
-                                                nubs, nwl
+    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nipbv, &
+      nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -990,8 +987,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(section_vals_type), POINTER         :: tersoff_section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_tersoff_section', &
       routineP = moduleN//':'//routineN
@@ -999,7 +995,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items
-    REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
@@ -1011,13 +1006,24 @@ CONTAINS
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
 
-       CALL section_vals_val_get(section,"RCUT",r_val=rcut,error=error)
-       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       CALL section_vals_val_get(tersoff_section,"A",r_val=nonbonded%pot(start+isec)%pot%tersoff%A,error=error)
+       CALL section_vals_val_get(tersoff_section,"B",r_val=nonbonded%pot(start+isec)%pot%tersoff%B,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda1",r_val=nonbonded%pot(start+isec)%pot%tersoff%lambda1,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda2",r_val=nonbonded%pot(start+isec)%pot%tersoff%lambda2,error=error)
+       CALL section_vals_val_get(tersoff_section,"alpha",r_val=nonbonded%pot(start+isec)%pot%tersoff%alpha,error=error)
+       CALL section_vals_val_get(tersoff_section,"beta",r_val=nonbonded%pot(start+isec)%pot%tersoff%beta,error=error)
+       CALL section_vals_val_get(tersoff_section,"n",r_val=nonbonded%pot(start+isec)%pot%tersoff%n,error=error)
+       CALL section_vals_val_get(tersoff_section,"c",r_val=nonbonded%pot(start+isec)%pot%tersoff%c,error=error)
+       CALL section_vals_val_get(tersoff_section,"d",r_val=nonbonded%pot(start+isec)%pot%tersoff%d,error=error)
+       CALL section_vals_val_get(tersoff_section,"h",r_val=nonbonded%pot(start+isec)%pot%tersoff%h,error=error)
+       CALL section_vals_val_get(tersoff_section,"lambda3",r_val=nonbonded%pot(start+isec)%pot%tersoff%lambda3,error=error)
+       CALL section_vals_val_get(tersoff_section,"bigR",r_val=nonbonded%pot(start+isec)%pot%tersoff%bigR,error=error)
+       CALL section_vals_val_get(tersoff_section,"bigD",r_val=nonbonded%pot(start+isec)%pot%tersoff%bigD,error=error)
 
-       CALL read_tersoff_data ( nonbonded%pot(start+isec)%pot%tersoff, tersoff_section,error)
+       nonbonded%pot(start+isec)%pot %rcutsq = (nonbonded%pot(start+isec)%pot%tersoff%bigR+&
+                                                nonbonded%pot(start+isec)%pot%tersoff%bigD)**2
     END DO
   END SUBROUTINE read_tersoff_section
-
 
 !******************************************************************************
 !!****** force_fields_input/read_bm_section [1.0] *
@@ -2367,117 +2373,6 @@ CALL parser_release(parser,error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_eam_data
-
-!******************************************************************************
-!!****** force_fields/read_tersoff_data [1.0] *
-!!
-!!   NAME
-!!     read_tersoff_data
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     reads Tersoff parameter
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-  SUBROUTINE read_tersoff_data ( tersoff, section, error)
-    TYPE(tersoff_pot_type), POINTER          :: tersoff
-    TYPE(section_vals_type), POINTER         :: section
-    TYPE(cp_error_type), INTENT(INOUT)  &
-                                             :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_tersoff_data', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=default_string_length)     :: title3
-    INTEGER                                  :: handle, i, iw, ntyp, stat, &
-                                                unit_number
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: A,B,lambda1,lambda2,lambda3
-    REAL(KIND=dp)                            :: alpha,beta,n,c,d,h,bigR,bigD
-    REAL(KIND=dp)                            :: rij
-
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,'I','',handle)
-    failure = .FALSE.
-    logger => cp_error_get_logger(error)
-    !iw = cp_print_key_unit_nr(logger,section,"PRINT%FF_INFO",&
-    !     extension=".mmLog",error=error)
-    IF (.NOT.failure) THEN
-
-       CALL section_vals_val_get(section,"A",r_val=A,error=error)
-       CALL section_vals_val_get(section,"B",r_val=B,error=error)
-       CALL section_vals_val_get(section,"lambda1",r_val=lambda1,error=error)
-       CALL section_vals_val_get(section,"lambda2",r_val=lambda2,error=error)
-       CALL section_vals_val_get(section,"alpha",r_val=alpha,error=error)
-       CALL section_vals_val_get(section,"beta",r_val=beta,error=error)
-       CALL section_vals_val_get(section,"n",r_val=n,error=error)
-       CALL section_vals_val_get(section,"c",r_val=c,error=error)
-       CALL section_vals_val_get(section,"d",r_val=d,error=error)
-       CALL section_vals_val_get(section,"h",r_val=h,error=error)
-       CALL section_vals_val_get(section,"lambda3",r_val=lambda3,error=error)
-       CALL section_vals_val_get(section,"bigR",r_val=bigR,error=error)
-       CALL section_vals_val_get(section,"bigD",r_val=bigD,error=error)
-
-       tersoff%A       = A
-       tersoff%B       = B
-       tersoff%lambda1 = lambda1
-       tersoff%lambda2 = lambda2
-       tersoff%alpha   = alpha
-       tersoff%beta    = beta
-       tersoff%n       = n
-       tersoff%c       = c
-       tersoff%d       = d
-       tersoff%h       = h
-       tersoff%lambda3 = lambda3
-       tersoff%bigR    = bigR
-       tersoff%bigD    = bigD
-
-       !hardcode in so we eliminate possible error for units right now
-       !tersoff%A       =  1.8308E+3_dp
-       !tersoff%B       =  4.7118E+2_dp
-       !tersoff%lambda1 =  2.4799_dp
-       !tersoff%lambda2 =  1.7322_dp
-       !tersoff%alpha   =  0.0000_dp
-       !tersoff%beta    =  1.0999E-6_dp
-       !tersoff%n       =  7.8734E-1_dp
-       !tersoff%c       =  1.0039E+5_dp
-       !tersoff%d       =  1.6218E+1_dp
-       !tersoff%h       = -5.9826E-1_dp
-       !tersoff%lambda3 =  1.7322_dp
-       !tersoff%bigR    =  2.85_dp
-       !tersoff%bigD    =  0.15_dp
-       !hardcode in so we eliminate possible error for units right now
-
-       !WRITE(*,*) "TERSOFF potential paramters: "
-       !WRITE(*,*) "A        ",tersoff%A
-       !WRITE(*,*) "B        ",tersoff%B
-       !WRITE(*,*) "lambda1  ",tersoff%lambda1
-       !WRITE(*,*) "lambda2  ",tersoff%lambda2
-       !WRITE(*,*) "alpha    ",tersoff%alpha
-       !WRITE(*,*) "beta     ",tersoff%beta
-       !WRITE(*,*) "n        ",tersoff%n
-       !WRITE(*,*) "c        ",tersoff%c
-       !WRITE(*,*) "d        ",tersoff%d
-       !WRITE(*,*) "h        ",tersoff%h
-       !WRITE(*,*) "lambda3  ",tersoff%lambda3
-       !WRITE(*,*) "R        ",tersoff%bigR
-       !WRITE(*,*) "D        ",tersoff%bigD
-   
-    END IF
-    !CALL cp_print_key_finished_output(iw,logger,section,&
-    !     "PRINT%FF_INFO",error=error)
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE read_tersoff_data
 
 END MODULE force_fields_input
 !******************************************************************************

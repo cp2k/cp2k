@@ -51,6 +51,7 @@ MODULE fist_neighbor_lists
                                              dp,&
                                              int_size
   USE mathlib,                         ONLY: matvec_3x3
+  USE pair_potential_types,            ONLY: tersoff_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
@@ -103,7 +104,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
        local_particles,cell,r_max, r_minsq, nonbonded,para_env,&
-       build_from_scratch,force_env_section,error)
+       build_from_scratch,force_env_section,pot_type,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -117,6 +118,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: pot_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists', &
@@ -125,6 +128,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: kind_name, print_key_path
     INTEGER :: atom_a, handle, iatom_local, ikind, istat, iw, maxatom, &
       maxatom_local, natom_local_a, nkind, output_unit
+    INTEGER, DIMENSION(:, :), POINTER        :: my_pot_type
     LOGICAL                                  :: present_local_particles, &
                                                 print_subcell_grid
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
@@ -156,6 +160,15 @@ CONTAINS
     ALLOCATE (skip_kind(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "skip_kind",nkind*int_size)
+    ! Pot_type
+    IF (PRESENT(pot_type)) THEN
+       my_pot_type => pot_type
+    ELSE
+       ALLOCATE(my_pot_type(nkind,nkind),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "skip_kind",nkind*nkind*int_size)
+       my_pot_type = -HUGE(0)
+    END IF
     ! Initialize the local data structures
     maxatom_local = 0
     DO ikind=1,nkind
@@ -195,7 +208,7 @@ CONTAINS
 
     CALL build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
          print_subcell_grid,output_unit,r_max,r_minsq,&
-         build_from_scratch,"NONBONDED",skip_kind,error)
+         build_from_scratch,"NONBONDED",skip_kind,my_pot_type,error)
 
     print_key_path = "MM%PRINT%NEIGHBOR_LISTS"
 
@@ -230,7 +243,13 @@ CONTAINS
                "atom(ikind)%list_local_a_index")
        END IF
     END DO
-
+    IF (PRESENT(pot_type)) THEN
+       NULLIFY(my_pot_type)
+    ELSE
+       DEALLOCATE(my_pot_type,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "skip_kind",nkind*nkind*int_size)
+    END IF
     DEALLOCATE (atom,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "atom")
@@ -272,7 +291,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
        print_subcell_grid,output_unit,r_max,r_minsq,&
-       build_from_scratch,name,skip_kind,error)
+       build_from_scratch,name,skip_kind,pot_type,error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
@@ -287,6 +306,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
+    INTEGER, DIMENSION(:, :), POINTER        :: pot_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists', &
@@ -303,7 +323,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
                                                 periodic
-    LOGICAL                                  :: added, failure, subcell000
+    LOGICAL                                  :: added, any_tersoff_pot, &
+                                                atom_order, failure, &
+                                                is_tersoff_pot, subcell000
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
                                                 rab_max, unit_of_length
@@ -327,6 +349,7 @@ CONTAINS
     nsubcell = 1
     isubcell = 0
     ncell    = 0
+    any_tersoff_pot = ANY(pot_type==tersoff_type)
     CALL get_cell(cell=cell,&
                   abc=abc,&
                   periodic=periodic,&
@@ -513,6 +536,7 @@ CONTAINS
     g0_j  = ncell(2)*nsubcell(2)
     g0_k  = ncell(3)*nsubcell(3)
     g00   = (g0_i)*dim2p +(g0_j)*dim1p + g0_i
+    is_tersoff_pot = .FALSE.
     ! Loop over first subcell
     loop_a_k: DO a_k=1,nsubcell(3)
     loop_a_j: DO a_j=1,nsubcell(2)
@@ -563,7 +587,7 @@ CONTAINS
           g_k = g0_k+bg_k
           pre_glob_ind = (g_k-1)*dim2p +(g_j-1)*dim1p + g_i
           glob_b_index = pre_glob_ind-g00+1
-          IF (glob_a_index > glob_b_index) CYCLE 
+          IF ((glob_a_index > glob_b_index).AND.(.NOT.any_tersoff_pot)) CYCLE 
           ! Find the replica vector
           icellmap = cellmap(b_pi,b_pj,b_pk)
           cell_v = 0.0_dp
@@ -581,10 +605,21 @@ CONTAINS
              rb(3) = coord(3,atom_b)+cell_v(3)
              DO iatom_local = 1, subcell_a(a_i,a_j,a_k)%natom
                 atom_a = subcell_a(a_i,a_j,a_k)%atom_list(iatom_local)
-                ! Screen interaction to avoid double counting
-                IF (subcell000.AND.atom_a<=atom_b) CYCLE
                 ikind  = particle_set(atom_a)%atomic_kind%kind_number
                 IF (skip_kind(ikind).AND.skip_kind(jkind)) CYCLE
+                ! Screen interaction to avoid double counting
+                atom_order = (atom_a<=atom_b)
+                ! Special case for tersoff neighbor lists
+                IF (any_tersoff_pot) THEN
+                   is_tersoff_pot = (pot_type(ikind,jkind)==tersoff_type)
+                   IF (is_tersoff_pot) THEN
+                      atom_order = (atom_a==atom_b)
+                   ELSE
+                      ! Unique order for all other cases..
+                      IF (glob_a_index > glob_b_index) CYCLE
+                   END IF
+                END IF
+                IF (subcell000.AND.atom_order) CYCLE
                 rab(1) = rb(1) - coord(1,atom_a)
                 rab(2) = rb(2) - coord(2,atom_a)
                 rab(3) = rb(3) - coord(3,atom_a)
@@ -601,7 +636,8 @@ CONTAINS
                    ! Store the pair
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b,&
                         exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
-                        particle_set=particle_set, rab=rab, added=added, error=error)
+                        particle_set=particle_set, rab=rab, added=added,&
+                        is_tersoff_pot=is_tersoff_pot,error=error)
                    ! Check for too close hits
                    IF (added) THEN
                       rab2_min = r_minsq(ikind,jkind)

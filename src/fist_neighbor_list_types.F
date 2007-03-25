@@ -202,7 +202,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list,&
-       particle_set, rab, added, error)
+       particle_set, rab, added, is_tersoff_pot, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     INTEGER, DIMENSION(:), POINTER           :: exclusion_list
@@ -210,6 +210,7 @@ CONTAINS
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: added
+    LOGICAL, INTENT(IN)                      :: is_tersoff_pot
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
@@ -221,7 +222,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
-    IF (ANY(exclusion_list==atom_b)) THEN
+    IF (ANY(exclusion_list==atom_b).AND.(.NOT.is_tersoff_pot)) THEN
        ! Only atoms really connected (not the periodic images) need to be excluded..
        rabc  = particle_set(atom_b)%r - particle_set(atom_a)%r 
        IF (ALL(ABS(rab-rabc)<eps_default)) THEN

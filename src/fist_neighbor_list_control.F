@@ -40,6 +40,7 @@ MODULE fist_neighbor_list_control
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE message_passing,                 ONLY: mp_max
+  USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -78,15 +79,16 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(particle_type), POINTER             :: shell_particle_set( : )
-    TYPE(particle_type), POINTER             :: core_particle_set( : )
+    TYPE(particle_type), POINTER             :: shell_particle_set( : ), &
+                                                core_particle_set( : )
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
 
-    INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
-      iparticle_local, ishell, istat, last_update, nparticle, nparticle_kind, &
-      nparticle_local, nshell, num_update
+    INTEGER :: counter, handle, i, ikind, iparticle, iparticle_kind, &
+      iparticle_local, ishell, istat, jkind, last_update, nparticle, &
+      nparticle_kind, nparticle_local, nshell, num_update
+    INTEGER, DIMENSION(:, :), POINTER        :: pot_type
     LOGICAL                                  :: build_from_scratch, &
                                                 shell_adiabatic, &
                                                 shell_present, &
@@ -97,10 +99,11 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
     TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc, &
-                                                rshell_last_update_pbc,&
-                                                rcore_last_update_pbc
+                                                rcore_last_update_pbc, &
+                                                rshell_last_update_pbc
 
   CALL timeset(routineN,"I"," ",handle )
 
@@ -120,6 +123,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                             cell_last_update=cell_last_update,&
                             num_update=num_update,&
                             verlet_skin=verlet_skin,&
+                            potparm=potparm,&
                             last_update=last_update,error=error)
 
   nparticle_kind = SIZE(atomic_kind_set)
@@ -204,48 +208,62 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
   ! update the neighbor lists
   IF (update_neighbor_lists) THEN
+     ALLOCATE(pot_type(nparticle_kind,nparticle_kind),stat=istat)
+     IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"pot_type",nparticle_kind**2)
+     END IF
+     DO ikind = 1, nparticle_kind
+        DO jkind = ikind, nparticle_kind
+           pot_type(ikind, jkind) = potparm%pot(ikind, jkind)%pot%type
+           pot_type(jkind, ikind) = pot_type(ikind, jkind)
+        END DO
+     END DO
+     CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
+                                    local_particles,cell,rlist_cutsq,rlist_lowsq,&
+                                    nonbonded,para_env,&
+                                    build_from_scratch=build_from_scratch,&
+                                    force_env_section=force_env_section,&
+                                    pot_type=pot_type,&
+                                    error=error)
+     
+     CALL cell_release(cell_last_update,error=error)
+     CALL cell_create(cell_last_update,error=error)
+     CALL cell_clone(cell,cell_last_update,error)
+     
+     IF ( counter > 0 ) THEN
+        num_update = num_update + 1
+        lup = counter + 1 - last_update
+        last_update = counter + 1
+        aup = aup + (lup - aup)/REAL(num_update,KIND=dp)
+     ELSE
+        num_update = 0
+        lup = 0
+        last_update = 1
+        aup = 0.0_dp
+     END IF
+     
+     CALL fist_nonbond_env_set(fist_nonbond_env,&
+                               lup=lup,&
+                               aup=aup,&
+                               r_last_update=r_last_update,&
+                               r_last_update_pbc=r_last_update_pbc,&
+                               rshell_last_update_pbc=rshell_last_update_pbc,&
+                               rcore_last_update_pbc=rcore_last_update_pbc,&
+                               nonbonded=nonbonded,&
+                               num_update=num_update,&
+                               last_update=last_update,&
+                               cell_last_update=cell_last_update,error=error)
 
-    CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-                                   local_particles,cell,rlist_cutsq,rlist_lowsq,&
-                                   nonbonded,para_env,&
-                                   build_from_scratch=build_from_scratch,&
-                                   force_env_section=force_env_section,error=error)
-
-    CALL cell_release(cell_last_update,error=error)
-    CALL cell_create(cell_last_update,error=error)
-    CALL cell_clone(cell,cell_last_update,error)
-
-    IF ( counter > 0 ) THEN
-      num_update = num_update + 1
-      lup = counter + 1 - last_update
-      last_update = counter + 1
-      aup = aup + (lup - aup)/REAL(num_update,KIND=dp)
-    ELSE
-      num_update = 0
-      lup = 0
-      last_update = 1
-      aup = 0.0_dp
-    END IF
-
-    CALL fist_nonbond_env_set(fist_nonbond_env,&
-                              lup=lup,&
-                              aup=aup,&
-                              r_last_update=r_last_update,&
-                              r_last_update_pbc=r_last_update_pbc,&
-                              rshell_last_update_pbc=rshell_last_update_pbc,&
-                              rcore_last_update_pbc=rcore_last_update_pbc,&
-                              nonbonded=nonbonded,&
-                              num_update=num_update,&
-                              last_update=last_update,&
-                              cell_last_update=cell_last_update,error=error)
-
-    IF (output_unit>0) THEN
-      WRITE (UNIT=output_unit,&
+     IF (output_unit>0) THEN
+        WRITE (UNIT=output_unit,&
              FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
-        REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
-        " LIST UPDATES[steps]","= ",lup,aup,REPEAT("*",79)
-    END IF
-
+             REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
+             " LIST UPDATES[steps]","= ",lup,aup,REPEAT("*",79)
+     END IF
+     DEALLOCATE(pot_type,stat=istat)
+     IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"pot_type",nparticle_kind**2)
+     END IF
   END IF
 
   DO iparticle=1,nparticle

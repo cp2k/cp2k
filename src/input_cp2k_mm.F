@@ -964,18 +964,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_OOCF_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_OHCF_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_HHCF_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
        CALL create_Williams_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -1428,195 +1416,6 @@ CONTAINS
   END SUBROUTINE create_Goodwin_section
 
 !***************************************************************************
-!!****f* input_cp2k_mm/create_hhcf_section [1.0] *
-!!
-!!   NAME
-!!     create_hhcf_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for HHCF potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Nir Goldman
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_hhcf_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_hhcf_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-    
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="hhcf",&
-            description="This section specifies the input parameters for HHCF potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       NULLIFY(keyword)
-       
-       CALL keyword_create(keyword, name="ATOMS",&
-            description="Defines the atomic kind involved in the HHCF nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
-            n_var=2, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-
-       CALL keyword_create(keyword, name="RCUT",&
-            description="Defines the cutoff parameter of the HHCF potential",&
-            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
-                                           unit_str="angstrom",&
-                                           error=error),&
-            unit_str="angstrom", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-    END IF
-  END SUBROUTINE create_hhcf_section
-
-!***************************************************************************
-!!****f* input_cp2k_mm/create_ohcf_section [1.0] *
-!!
-!!   NAME
-!!     create_ohcf_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for OHCF potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Nir Goldman
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_ohcf_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_ohcf_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-    
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="ohcf",&
-            description="This section specifies the input parameters for OHCF potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       NULLIFY(keyword)
-       
-       CALL keyword_create(keyword, name="ATOMS",&
-            description="Defines the atomic kind involved in the OHCF nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
-            n_var=2, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-
-       CALL keyword_create(keyword, name="RCUT",&
-            description="Defines the cutoff parameter of the OHCF potential",&
-            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
-                                           unit_str="angstrom",&
-                                           error=error),&
-            unit_str="angstrom", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-    END IF
-  END SUBROUTINE create_ohcf_section
-
-!***************************************************************************
-!!****f* input_cp2k_mm/create_oocf_section [1.0] *
-!!
-!!   NAME
-!!     create_oocf_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for OOCF potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Nir Goldman
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_oocf_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_oocf_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-    
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="oocf",&
-            description="This section specifies the input parameters for OOCF potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       NULLIFY(keyword)
-       
-       CALL keyword_create(keyword, name="ATOMS",&
-            description="Defines the atomic kind involved in the OOCF nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
-            n_var=2, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-
-       CALL keyword_create(keyword, name="RCUT",&
-            description="Defines the cutoff parameter of the OOCF potential",&
-            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
-                                           unit_str="angstrom",&
-                                           error=error),&
-            unit_str="angstrom", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-    END IF
-  END SUBROUTINE create_oocf_section
-
-!***************************************************************************
 !!****f* input_cp2k_mm/create_ipbv_section [1.0] *
 !!
 !!   NAME
@@ -2017,17 +1816,6 @@ CONTAINS
     END IF
   END SUBROUTINE create_Buckmorse_section
 
-
-
-
-
-
-
-
-
-
-
-
 !***************************************************************************
 !!****f* input_cp2k_mm/create_Tersoff_section [1.0] *
 !!
@@ -2047,8 +1835,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_Tersoff_section(section,error)
     TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_Tersoff_section', &
       routineP = moduleN//':'//routineN
@@ -2176,14 +1963,6 @@ CONTAINS
             usage="bigD {real}", required=.FALSE., type_of_var=real_t,&
             default_r_val=0.15_dp,&
             n_var=1, unit_str="angstrom", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="RCUT",&
-            description="Defines the cutoff parameter of Tersoff potential",&
-            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=3.0_dp,&
-                                           unit_str="angstrom",error=error),&
-            unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

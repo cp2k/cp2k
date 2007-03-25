@@ -69,7 +69,6 @@
           lambda3  0.0000
           bigR     1.95
           bigD     0.15
-          RCUT     2.1
         &END TERSOFF
       &END NONBONDED
     &END FORCEFIELD
