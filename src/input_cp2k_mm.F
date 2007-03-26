@@ -1865,7 +1865,9 @@ CONTAINS
        CALL keyword_create(keyword, name="A",&
             description="Defines the A parameter of Tersoff potential",&
             usage="A {real}", required=.FALSE., type_of_var=real_t,&
-            default_r_val=1.8308E3_dp,&
+            default_r_val=cp_unit_to_cp2k(value=1.8308E3_dp,&
+                                           unit_str="eV",&
+                                           error=error),&
             n_var=1, unit_str="eV", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1873,7 +1875,9 @@ CONTAINS
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of Tersoff potential",&
             usage="B {real}", required=.FALSE., type_of_var=real_t,&
-            default_r_val=4.7118E2_dp,&
+            default_r_val=cp_unit_to_cp2k(value=4.7118E2_dp,&
+                                           unit_str="eV",&
+                                           error=error),&
             n_var=1, unit_str="eV", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1881,7 +1885,9 @@ CONTAINS
        CALL keyword_create(keyword, name="lambda1",&
             description="Defines the lambda1 parameter of Tersoff potential",&
             usage="lambda1 {real}", required=.FALSE., type_of_var=real_t,&
-            default_r_val=2.4799_dp,&
+            default_r_val=cp_unit_to_cp2k(value=2.4799_dp,&
+                                          unit_str="angstrom^-1",&
+                                          error=error),&
             n_var=1, unit_str="angstrom^-1", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1889,7 +1895,9 @@ CONTAINS
        CALL keyword_create(keyword, name="lambda2",&
             description="Defines the lambda2 parameter of Tersoff potential",&
             usage="lambda2 {real}", required=.FALSE., type_of_var=real_t,&
-            default_r_val=1.7322_dp,&
+            default_r_val=cp_unit_to_cp2k(value=1.7322_dp,&
+                                          unit_str="angstrom^-1",&
+                                          error=error),&
             n_var=1, unit_str="angstrom^-1", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1945,7 +1953,9 @@ CONTAINS
        CALL keyword_create(keyword, name="lambda3",&
             description="Defines the lambda3 parameter of Tersoff potential",&
             usage="lambda3 {real}", required=.FALSE., type_of_var=real_t,&
-            default_r_val=1.7322_dp,&
+            default_r_val=cp_unit_to_cp2k(value=1.7322_dp,&
+                                          unit_str="angstrom^-1",&
+                                          error=error),&
             n_var=1, unit_str="angstrom^-1", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1953,7 +1963,9 @@ CONTAINS
        CALL keyword_create(keyword, name="bigR",&
             description="Defines the bigR parameter of Tersoff potential",&
             usage="bigR {real}", required=.FALSE., type_of_var=real_t,&
-            default_r_val=2.85_dp,&
+            default_r_val=cp_unit_to_cp2k(value=2.85_dp,&
+                                          unit_str="angstrom",&
+                                          error=error),&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1961,7 +1973,9 @@ CONTAINS
        CALL keyword_create(keyword, name="bigD",&
             description="Defines the D parameter of Tersoff potential",&
             usage="bigD {real}", required=.FALSE., type_of_var=real_t,&
-            default_r_val=0.15_dp,&
+            default_r_val=cp_unit_to_cp2k(value=0.15_dp,&
+                                          unit_str="angstrom",&
+                                          error=error),&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

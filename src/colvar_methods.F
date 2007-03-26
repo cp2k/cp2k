@@ -524,7 +524,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), &
       fi(3), fj(3), fk(3), fl(3), r12, ri(3), rj(3), rk(3), rl(3), xpij(3), &
-      xpkj(3), xpl(3), xpn(3)
+      xpkj(3), xpl(3), xpn(3), ss(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -550,9 +550,19 @@ CONTAINS
     CALL get_coordinates(colvar, j, rj, my_particles)
     CALL get_coordinates(colvar, k, rk, my_particles)
     CALL get_coordinates(colvar, l, rl, my_particles)
-    xpij=ri-rj
-    xpkj=rk-rj
-    xpl =rl-(ri+rj+rk)/3.0_dp
+    ! xpij
+    ss=MATMUL(cell%h_inv,ri-rj)
+    ss=ss-NINT(ss)
+    xpij=MATMUL(cell%hmat,ss)
+    ! xpkj
+    ss=MATMUL(cell%h_inv,rk-rj)
+    ss=ss-NINT(ss)
+    xpkj=MATMUL(cell%hmat,ss)
+    ! xpl
+    ss=MATMUL(cell%h_inv,rl-(ri+rj+rk)/3.0_dp)
+    ss=ss-NINT(ss)
+    xpl=MATMUL(cell%hmat,ss)
+    ! xpn
     xpn(1)  = xpij(2)*xpkj(3)-xpij(3)*xpkj(2)
     xpn(2)  = xpij(3)*xpkj(1)-xpij(1)*xpkj(3)
     xpn(3)  = xpij(1)*xpkj(2)-xpij(2)*xpkj(1)
@@ -638,7 +648,7 @@ CONTAINS
                                                 xdum(3), xij(3), xkj(3)
     REAL(KIND=dp)                            :: dp1b1(3), dp1b2(3), dp2b1(3), &
                                                 dp2b2(3), xp1b1(3), xp1b2(3), &
-                                                xp2b1(3), xp2b2(3)
+                                                xp2b1(3), xp2b2(3), ss(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -664,9 +674,15 @@ CONTAINS
     CALL get_coordinates(colvar, i, xp1b2, my_particles)
     i = colvar%rotation_param%i_at2_bond2
     CALL get_coordinates(colvar, i, xp2b2, my_particles)
-
-    xij=xp1b1-xp2b1
-    xkj=xp1b2-xp2b2
+    ! xij
+    ss=MATMUL(cell%h_inv,xp1b1-xp2b1)
+    ss=ss-NINT(ss)
+    xij=MATMUL(cell%hmat,ss)
+    ! xkj
+    ss=MATMUL(cell%h_inv,xp1b2-xp2b2)
+    ss=ss-NINT(ss)
+    xkj=MATMUL(cell%hmat,ss)
+    ! evaluation of the angle..
     a = SQRT(DOT_PRODUCT(xij,xij))
     b = SQRT(DOT_PRODUCT(xkj,xkj))
     t0 = 1.0_dp/(a*b)
@@ -808,7 +824,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fi(3), fj(3), fk(3), &
                                                 fmod, ri(3), rj(3), rk(3), &
-                                                t0, t1, t2, t3, xij(3), xkj(3)
+                                                t0, t1, t2, t3, xij(3), xkj(3), ss(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -831,8 +847,15 @@ CONTAINS
     CALL get_coordinates(colvar, i, ri, my_particles)
     CALL get_coordinates(colvar, j, rj, my_particles)
     CALL get_coordinates(colvar, k, rk, my_particles)
-    xij=ri-rj
-    xkj=rk-rj
+    ! xij
+    ss=MATMUL(cell%h_inv,ri-rj)
+    ss=ss-NINT(ss)
+    xij=MATMUL(cell%hmat,ss)
+    ! xkj
+    ss=MATMUL(cell%h_inv,rk-rj)
+    ss=ss-NINT(ss)
+    xkj=MATMUL(cell%hmat,ss)
+    ! Evaluation of the angle..
     a = SQRT(DOT_PRODUCT(xij,xij))
     b = SQRT(DOT_PRODUCT(xkj,xkj))
     t0 = 1.0_dp/(a*b)
@@ -994,7 +1017,6 @@ CONTAINS
           func=num*invden
           dfunc= (- nncrd*rdist **(nncrd-1) *invden  &
                + num*(invden)**2 * ndcrd *rdist **(ndcrd-1))/(r12*r_0)
-
           ncoord=ncoord+func
           ftmp = dfunc*xij
           CALL put_derivative(colvar, ii, ftmp)
@@ -1042,7 +1064,7 @@ CONTAINS
       dedzic, dedzid, dedzt, dedzu, dt, e, ftmp(3), o0, rcb, rt2, rtmp(3), &
       rtru, ru2, sine, xba, xca, xcb, xdb, xdc, xia, xib, xic, xid, xt, xtu, &
       xu, yba, yca, ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, &
-      zcb, zdb, zdc, zia, zib, zic, zid, zt, ztu, zu
+      zcb, zdb, zdc, zia, zib, zic, zid, zt, ztu, zu, ss(3)
     REAL(dp), DIMENSION(3, 4)                :: rr
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
@@ -1065,28 +1087,28 @@ CONTAINS
        rr(:,ii)=rtmp(1:3)
     ENDDO
     o0 = colvar%torsion_param%o0
-    ! temporary: from tinker improper torsion routines
-    xia = rr(1,1)
-    yia = rr(2,1)
-    zia = rr(3,1)
-    xib = rr(1,2)
-    yib = rr(2,2)
-    zib = rr(3,2)
-    xic = rr(1,3)
-    yic = rr(2,3)
-    zic = rr(3,3)
-    xid = rr(1,4)
-    yid = rr(2,4)
-    zid = rr(3,4)
-    xba = xib - xia
-    yba = yib - yia
-    zba = zib - zia
-    xcb = xic - xib
-    ycb = yic - yib
-    zcb = zic - zib
-    xdc = xid - xic
-    ydc = yid - yic
-    zdc = zid - zic
+    ! ba
+    ss=MATMUL(cell%h_inv,rr(:,2)-rr(:,1))
+    ss=ss-NINT(ss)
+    ss=MATMUL(cell%hmat,ss)
+    xba = ss(1)
+    yba = ss(2)
+    zba = ss(3)
+    ! cb
+    ss=MATMUL(cell%h_inv,rr(:,3)-rr(:,2))
+    ss=ss-NINT(ss)
+    ss=MATMUL(cell%hmat,ss)
+    xcb = ss(1)
+    ycb = ss(2)
+    zcb = ss(3)
+    ! dc
+    ss=MATMUL(cell%h_inv,rr(:,4)-rr(:,3))
+    ss=ss-NINT(ss)
+    ss=MATMUL(cell%hmat,ss)    
+    xdc = ss(1)
+    ydc = ss(2)
+    zdc = ss(3)
+    !
     xt = yba*zcb - ycb*zba
     yt = zba*xcb - zcb*xba
     zt = xba*ycb - xcb*yba
@@ -1120,15 +1142,24 @@ CONTAINS
        !
        !     chain rule terms for first derivative components
        !
-       xca = xic - xia
-       yca = yic - yia
-       zca = zic - zia
-       xdb = xid - xib
-       ydb = yid - yib
-       zdb = zid - zib
-       dedxt = dedphi * (yt*zcb - ycb*zt) / (rt2*rcb)
-       dedyt = dedphi * (zt*xcb - zcb*xt) / (rt2*rcb)
-       dedzt = dedphi * (xt*ycb - xcb*yt) / (rt2*rcb)
+       ! ca
+       ss=MATMUL(cell%h_inv,rr(:,3)-rr(:,1))
+       ss=ss-NINT(ss)
+       ss=MATMUL(cell%hmat,ss)
+       xca = ss(1)
+       yca = ss(2)
+       zca = ss(3)   
+       ! db
+       ss=MATMUL(cell%h_inv,rr(:,4)-rr(:,2))
+       ss=ss-NINT(ss)
+       ss=MATMUL(cell%hmat,ss)
+       xdb = ss(1)
+       ydb = ss(2)
+       zdb = ss(3)
+       !
+       dedxt =  dedphi * (yt*zcb - ycb*zt) / (rt2*rcb)
+       dedyt =  dedphi * (zt*xcb - zcb*xt) / (rt2*rcb)
+       dedzt =  dedphi * (xt*ycb - xcb*yt) / (rt2*rcb)
        dedxu = -dedphi * (yu*zcb - ycb*zu) / (ru2*rcb)
        dedyu = -dedphi * (zu*xcb - zcb*xu) / (ru2*rcb)
        dedzu = -dedphi * (xu*ycb - xcb*yu) / (ru2*rcb)

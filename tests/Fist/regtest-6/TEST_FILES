@@ -10,6 +10,7 @@ cf_genpot.inp             2
 # Tersoff potential test
 Si_tersoff.inp            2
 Si_tersoff_2.inp          2
+Si_tersoff_3.inp          2
 C_tersoff.inp             2
 # Shell model NVE
 uo2_shell_nve.inp         2
