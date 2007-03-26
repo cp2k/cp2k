@@ -185,7 +185,7 @@ CONTAINS
 
   END SUBROUTINE qs_ks_qmmm_create
 !***************************************************************************
-!!****f* qmmm_methods/qmmm_calculate_energy [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_calculate_energy [1.0] *
 !!
 !!   NAME
 !!     qmmm_calculate_energy
@@ -245,7 +245,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_calculate_energy
 
-!!****f* qmmm_methods/qmmm_modify_hartree_pot [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_modify_hartree_pot [1.0] *
 !!
 !!   NAME
 !!     qmmm_modify_hartree_pot

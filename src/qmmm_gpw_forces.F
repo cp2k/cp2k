@@ -4,10 +4,10 @@
 !-----------------------------------------------------------------------------!
 
 
-!!****h* cp2k/qmmm_methods [1.0] *
+!!****h* cp2k/qmmm_gpw_forces [1.0] *
 !!
 !!   NAME
-!!     qmmm_methods
+!!     qmmm_gpw_forces
 !!
 !!   FUNCTION
 !!     Routines to compute energy and forces in a QM/MM calculation
@@ -25,7 +25,7 @@
 !!   SOURCE
 !****************************************************************************
 
-MODULE qmmm_methods
+MODULE qmmm_gpw_forces
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_type,&
@@ -68,12 +68,12 @@ MODULE qmmm_methods
   USE pw_types,                        ONLY: &
        REALDATA3D, REALSPACE, pw_integral_ab, pw_p_type, pw_restrict_l_NoPBC, &
        pw_sumup, pw_transfer, pw_type, pw_zero
-  USE qmmm_electrostatic_methods,      ONLY: qmmm_elec_with_gaussian,&
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
+                                             qmmm_gaussian_type
+  USE qmmm_gpw_energy,                 ONLY: qmmm_elec_with_gaussian,&
                                              qmmm_elec_with_gaussian_LG,&
                                              qmmm_elec_with_gaussian_LR,&
                                              qmmm_electrostatic_on_grid
-  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
-                                             qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_per_pot_p_type,&
                                              qmmm_per_pot_type,&
@@ -94,12 +94,12 @@ MODULE qmmm_methods
   LOGICAL,       PARAMETER, PRIVATE   :: debug_this_module=.FALSE.
   REAL(KIND=dp), PARAMETER, PRIVATE   :: Dx = 0.01_dp    ! Debug Variables
   REAL(KIND=dp), PARAMETER, PRIVATE   :: MaxErr = 10.0_dp ! Debug Variables
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_forces'
   PUBLIC :: qmmm_forces
 
 CONTAINS
 
-!!****f* qmmm_methods/qmmm_forces [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_forces [1.0] *
 !!
 !!   NAME
 !!     qmmm_forces
@@ -341,7 +341,7 @@ CONTAINS
 
   END SUBROUTINE qmmm_forces
 
-!!****f* qmmm_methods/qmmm_forces_on_grid [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_forces_on_grid [1.0] *
 !!
 !!   NAME
 !!     qmmm_forces_on_grid
@@ -418,7 +418,7 @@ CONTAINS
 
   END SUBROUTINE qmmm_forces_on_grid
 
-!!****f* qmmm_methods/qmmm_forces_on_grid_low [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_forces_on_grid_low [1.0] *
 !!
 !!   NAME
 !!     qmmm_forces_on_grid_low
@@ -555,7 +555,7 @@ CONTAINS
     END DO MainLoopPot
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_on_grid_low
-!!****f* qmmm_methods/qmmm_forces_with_gaussian [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_forces_with_gaussian [1.0] *
 !!
 !!   NAME
 !!     qmmm_forces_with_gaussian
@@ -746,7 +746,7 @@ CONTAINS
 
   END SUBROUTINE qmmm_forces_with_gaussian
 
-!!****f* qmmm_methods/qmmm_force_with_gaussian_low [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_force_with_gaussian_low [1.0] *
 !!
 !!   NAME
 !!     qmmm_force_with_gaussian_low
@@ -942,7 +942,7 @@ CONTAINS
   END SUBROUTINE qmmm_force_with_gaussian_low
 
 
-!!****f* qmmm_methods/qmmm_forces_with_gaussian_LG [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_forces_with_gaussian_LG [1.0] *
 !!
 !!   NAME
 !!     qmmm_forces_with_gaussian_LG
@@ -1349,7 +1349,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LG
 
-!!****f* qmmm_methods/qmmm_forces_with_gaussian_LR [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_forces_with_gaussian_LR [1.0] *
 !!
 !!   NAME
 !!     qmmm_forces_with_gaussian_LR
@@ -1529,7 +1529,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LR
 
-!!****f* qmmm_methods/qmmm_debug_forces [1.0] *
+!!****f* qmmm_gpw_forces/qmmm_debug_forces [1.0] *
 !!
 !!   NAME
 !!     qmmm_debug_forces
@@ -1688,7 +1688,7 @@ CONTAINS
   END SUBROUTINE qmmm_debug_forces
 
 
-!!****f* qmmm_methods/debug_integrate_gf_rspace_NoPBC [1.0] *
+!!****f* qmmm_gpw_forces/debug_integrate_gf_rspace_NoPBC [1.0] *
 !!
 !!   NAME
 !!     debug_integrate_gf_rspace_NoPBC
@@ -1816,7 +1816,7 @@ CONTAINS
 100 FORMAT("Collocation   : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_integrate_gf_rspace_NoPBC
 
-!!****f* qmmm_methods/debug_qmmm_forces_with_gauss_LG [1.0] *
+!!****f* qmmm_gpw_forces/debug_qmmm_forces_with_gauss_LG [1.0] *
 !!
 !!   NAME
 !!     debug_qmmm_forces_with_gauss_LG
@@ -1941,7 +1941,7 @@ CONTAINS
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_qmmm_forces_with_gauss_LG
 
-!!****f* qmmm_methods/debug_qmmm_forces_with_gauss_LR [1.0] *
+!!****f* qmmm_gpw_forces/debug_qmmm_forces_with_gauss_LR [1.0] *
 !!
 !!   NAME
 !!     debug_qmmm_forces_with_gauss_LR
@@ -2067,4 +2067,4 @@ CONTAINS
   END SUBROUTINE debug_qmmm_forces_with_gauss_LR
 
 
-END MODULE qmmm_methods
+END MODULE qmmm_gpw_forces

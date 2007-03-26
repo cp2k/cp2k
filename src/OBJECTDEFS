@@ -306,16 +306,16 @@ OBJECTS_GENERIC =\
  pw_pool_types.o\
  pw_spline_utils.o\
  pw_types.o\
- qmmm_electrostatic_methods.o\
  qmmm_elpot.o\
  qmmm_ff_fist.o\
  qmmm_gaussian_data.o\
  qmmm_gaussian_init.o\
  qmmm_gaussian_input.o\
  qmmm_gaussian_types.o\
+ qmmm_gpw_energy.o\
+ qmmm_gpw_forces.o\
  qmmm_init.o\
  qmmm_links_methods.o\
- qmmm_methods.o\
  qmmm_per_elpot.o\
  qmmm_pw_grid.o\
  qmmm_topology_util.o\

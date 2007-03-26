@@ -99,13 +99,13 @@ MODULE force_env_methods
                                              update_particle_set,&
                                              write_particle_coordinates,&
                                              write_qs_particle_coordinates
-  USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
   USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
+  USE qmmm_gpw_energy,                 ONLY: qmmm_el_coupling
+  USE qmmm_gpw_forces,                 ONLY: qmmm_forces
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
                                              qmmm_added_chrg_forces,&
                                              qmmm_link_Imomm_coord,&
                                              qmmm_link_Imomm_forces
-  USE qmmm_methods,                    ONLY: qmmm_forces
   USE qmmm_types,                      ONLY: qmmm_env_qm_retain,&
                                              qmmm_env_qm_type,&
                                              qmmm_links_type

@@ -3,10 +3,10 @@
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qmmm_electrostatic_methods [1.0] *
+!!****h* cp2k/qmmm_gpw_energy [1.0] *
 !!
 !!   NAME MODULE
-!!     qmmm_electrostatic_methods
+!!     qmmm_gpw_energy
 !!
 !!   FUNCTION
 !!     A collection of methods to treat the QM/MM electrostatic coupling
@@ -22,7 +22,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE qmmm_electrostatic_methods
+MODULE qmmm_gpw_energy
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_type,&
@@ -80,7 +80,7 @@ MODULE qmmm_electrostatic_methods
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_electrostatic_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_energy'
 
   PUBLIC :: qmmm_el_coupling
   PUBLIC :: qmmm_electrostatic_on_grid
@@ -89,7 +89,7 @@ MODULE qmmm_electrostatic_methods
 !***
 !****************************************************************************
 CONTAINS
-!!****f* qmmm_electrostatic_methods/qmmm_el_coupling [1.0] *
+!!****f* qmmm_gpw_energy/qmmm_el_coupling [1.0] *
 !!
 !!   NAME
 !!     qmmm_el_coupling
@@ -228,7 +228,7 @@ CONTAINS
     END IF
   END SUBROUTINE qmmm_el_coupling
 
-!!****f* qmmm_electrostatic_methods/qmmm_electrostatic_on_grid [1.0] *
+!!****f* qmmm_gpw_energy/qmmm_electrostatic_on_grid [1.0] *
 !!
 !!   NAME
 !!     qmmm_electrostatic_on_grid
@@ -297,7 +297,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_electrostatic_on_grid
 
-!!****f* qmmm_electrostatic_methods/qmmm_electrostatic_on_grid_low [1.0] *
+!!****f* qmmm_gpw_energy/qmmm_electrostatic_on_grid_low [1.0] *
 !!
 !!   NAME
 !!     qmmm_electrostatic_on_grid_low
@@ -424,7 +424,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_electrostatic_on_grid_low
 
-!!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian [1.0] *
+!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian [1.0] *
 !!
 !!   NAME
 !!     qmmm_electrostatic_with gaussian
@@ -553,7 +553,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian
 
-!!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_low [1.0] *
+!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian_low [1.0] *
 !!
 !!   NAME
 !!     qmmm_electrostatic_with gaussian_low
@@ -723,7 +723,7 @@ CONTAINS
 
   END SUBROUTINE qmmm_elec_with_gaussian_low
 
-!!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_LG [1.0] *
+!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian_LG [1.0] *
 !!
 !!   NAME
 !!     qmmm_elec_with gaussian_LG
@@ -1000,7 +1000,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LG
 
-!!****f* qmmm_electrostatic_methods/qmmm_elec_with_gaussian_LR [1.0] *
+!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian_LR [1.0] *
 !!
 !!   NAME
 !!     qmmm_elec_with gaussian_LR
@@ -1124,4 +1124,4 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LR
 
-END MODULE qmmm_electrostatic_methods
+END MODULE qmmm_gpw_energy
