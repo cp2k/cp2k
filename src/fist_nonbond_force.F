@@ -468,10 +468,11 @@ CONTAINS
                                                 iexl, ikind, j, &
                                                 natoms_per_kind, nkind, &
                                                 shell_i_index, shell_j_index
-    LOGICAL                                  :: i_is_shell, j_is_shell, &
-                                                shell_adiabatic
-    REAL(KIND=dp) :: alpha, arg, const, dij, e_arg_arg, eps0, errf, flops, &
-      fscalar, idij, ifourpieps0, qci, qcj, qi, qj, qsi, qsj, rijsq, tc
+    LOGICAL                                  :: do_shell, i_is_shell, &
+                                                j_is_shell, shell_adiabatic
+    REAL(KIND=dp) :: alpha, arg, const, dij, e_arg_arg, efac, eps0, errf, &
+      ffac, flops, fscalar, idij, ifourpieps0, qci, qcj, qi, qj, qsi, qsj, &
+      rijsq, tc, tc2
     REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, ri, rij, &
                                                 rj, rsi, rsj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -488,8 +489,6 @@ CONTAINS
     pv_bc = 0.0_dp
     v_bonded_corr = 0.0_dp
 
-    !
-    !
     CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group ,error=error)
     const = 2.0_dp * alpha / SQRT( pi )
     ifourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
@@ -538,6 +537,8 @@ CONTAINS
                qcj = qj
                rcj = rj
              END IF
+             do_shell = .FALSE.
+             IF (i_is_shell.OR.j_is_shell) do_shell = .TRUE.
              ! shell-model: exclude core-core, core-ion, or ion-core interactions
              ! if not shell-model: exclude ion-ion interactions
              rij(1) = rci(1) - rcj(1)
@@ -575,119 +576,120 @@ CONTAINS
              END IF
 
              fij_com = fscalar*rij
-
              ! shell-model: exclude shell-shell interactions
-             IF(i_is_shell .AND. j_is_shell) THEN
-               rij(1) = rsi(1) - rsj(1)
-               rij(2) = rsi(2) - rsj(2)
-               rij(3) = rsi(3) - rsj(3)
-               rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-               idij = 1.0_dp / SQRT ( rijsq )
-               dij = rijsq * idij
-               arg = alpha * dij
-               e_arg_arg = EXP ( -arg ** 2 )
-               tc = 1.0_dp / ( 1.0_dp + pc * arg )
-
-               ! defining errf=1-erfc
-               errf = 1.0_dp &
-                  - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-
-               ! getting the potential
-               v_bonded_corr = v_bonded_corr - qsi*qsj*idij*errf
-
-               ! subtracting the force from the total force
-               fscalar = ifourpieps0 * qsi * qsj * idij ** 2 &
-                    * ( idij * errf - const * e_arg_arg  )
-
-               shell_particle_set ( shell_i_index) % f(1) = &
-                            shell_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-               shell_particle_set ( shell_i_index ) % f(2) = &
-                            shell_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-               shell_particle_set ( shell_i_index ) % f(3) = &
-                            shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
-
-               IF(shell_adiabatic) THEN
-                 fij_com = fij_com + fscalar*rij
-               END IF
-
-             END IF        
-             ! shell-model: exclude shell_i-core interactions
-             IF(i_is_shell ) THEN
-               rij(1) = rsi(1) - rcj(1)
-               rij(2) = rsi(2) - rcj(2)
-               rij(3) = rsi(3) - rcj(3)
-               rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-               idij = 1.0_dp / SQRT ( rijsq )
-               dij = rijsq * idij
-               arg = alpha * dij
-               e_arg_arg = EXP ( -arg ** 2 )
-               tc = 1.0_dp / ( 1.0_dp + pc * arg )
-
-               ! defining errf=1-erfc
-               errf = 1.0_dp &
-                  - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-
-               ! getting the potential
-               v_bonded_corr = v_bonded_corr - qsi*qcj*idij*errf
-
-               ! subtracting the force from the total force
-               fscalar = ifourpieps0 * qsi * qcj * idij ** 2 &
-                    * ( idij * errf - const * e_arg_arg  )
-
-               shell_particle_set ( shell_i_index) % f(1) = &
-                            shell_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-               shell_particle_set ( shell_i_index ) % f(2) = &
-                            shell_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-               shell_particle_set ( shell_i_index ) % f(3) = &
-                            shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
-
-               IF(shell_adiabatic) THEN
-                 fij_com = fij_com + fscalar*rij
-               END IF
-
-             END IF
-             IF(j_is_shell ) THEN
-               rij(1) = rci(1) - rsj(1)
-               rij(2) = rci(2) - rsj(2)
-               rij(3) = rci(3) - rsj(3)
-               rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-               idij = 1.0_dp / SQRT ( rijsq )
-               dij = rijsq * idij
-               arg = alpha * dij
-               e_arg_arg = EXP ( -arg ** 2 )
-               tc = 1.0_dp / ( 1.0_dp + pc * arg )
-
-               ! defining errf=1-erfc
-               errf = 1.0_dp &
-                  - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-
-               ! getting the potential
-               v_bonded_corr = v_bonded_corr - qci*qsj*idij*errf
-
-               ! subtracting the force from the total force
-               fscalar = ifourpieps0 * qci * qsj * idij ** 2 &
-                    * ( idij * errf - const * e_arg_arg  )
-
-               IF(i_is_shell) THEN
-                 core_particle_set ( shell_i_index) % f(1) = &
-                            core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-                 core_particle_set ( i) % f(2) = &
-                            core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-                 core_particle_set (i) % f(3) = &
-                            core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
-               ELSE
-                 particle_set ( i) % f(1) = &
-                            particle_set ( i ) % f(1) - fscalar*rij(1)
-                 particle_set ( i) % f(2) = &
-                            particle_set ( i ) % f(2) - fscalar*rij(2)
-                 particle_set (i) % f(3) = &
-                            particle_set ( i ) % f(3) - fscalar*rij(3)
-               END IF
-
-               IF(shell_adiabatic) THEN
-                 fij_com = fij_com + fscalar*rij
-               END IF
-
+             IF (do_shell) THEN
+                IF(i_is_shell .AND. j_is_shell) THEN
+                   rij(1) = rsi(1) - rsj(1)
+                   rij(2) = rsi(2) - rsj(2)
+                   rij(3) = rsi(3) - rsj(3)
+                   rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+                   idij = 1.0_dp / SQRT ( rijsq )
+                   dij = rijsq * idij
+                   arg = alpha * dij
+                   e_arg_arg = EXP ( -arg ** 2 )
+                   tc = 1.0_dp / ( 1.0_dp + pc * arg )
+                   
+                   ! defining errf=1-erfc
+                   errf = 1.0_dp &
+                        - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+                   
+                   ! getting the potential
+                   v_bonded_corr = v_bonded_corr - qsi*qsj*idij*errf
+                   
+                   ! subtracting the force from the total force
+                   fscalar = ifourpieps0 * qsi * qsj * idij ** 2 &
+                        * ( idij * errf - const * e_arg_arg  )
+                   
+                   shell_particle_set ( shell_i_index) % f(1) = &
+                        shell_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
+                   shell_particle_set ( shell_i_index ) % f(2) = &
+                        shell_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
+                   shell_particle_set ( shell_i_index ) % f(3) = &
+                        shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
+                   
+                   IF(shell_adiabatic) THEN
+                      fij_com = fij_com + fscalar*rij
+                   END IF
+                   
+                END IF
+                ! shell-model: exclude shell_i-core interactions
+                IF(i_is_shell ) THEN
+                   rij(1) = rsi(1) - rcj(1)
+                   rij(2) = rsi(2) - rcj(2)
+                   rij(3) = rsi(3) - rcj(3)
+                   rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+                   idij = 1.0_dp / SQRT ( rijsq )
+                   dij = rijsq * idij
+                   arg = alpha * dij
+                   e_arg_arg = EXP ( -arg ** 2 )
+                   tc = 1.0_dp / ( 1.0_dp + pc * arg )
+                   
+                   ! defining errf=1-erfc
+                   errf = 1.0_dp &
+                        - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+                   
+                   ! getting the potential
+                   v_bonded_corr = v_bonded_corr - qsi*qcj*idij*errf
+                   
+                   ! subtracting the force from the total force
+                   fscalar = ifourpieps0 * qsi * qcj * idij ** 2 &
+                        * ( idij * errf - const * e_arg_arg  )
+                   
+                   shell_particle_set ( shell_i_index) % f(1) = &
+                        shell_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
+                   shell_particle_set ( shell_i_index ) % f(2) = &
+                        shell_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
+                   shell_particle_set ( shell_i_index ) % f(3) = &
+                        shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
+                   
+                   IF(shell_adiabatic) THEN
+                      fij_com = fij_com + fscalar*rij
+                   END IF
+                   
+                END IF
+                IF(j_is_shell ) THEN
+                   rij(1) = rci(1) - rsj(1)
+                   rij(2) = rci(2) - rsj(2)
+                   rij(3) = rci(3) - rsj(3)
+                   rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+                   idij = 1.0_dp / SQRT ( rijsq )
+                   dij = rijsq * idij
+                   arg = alpha * dij
+                   e_arg_arg = EXP ( -arg ** 2 )
+                   tc = 1.0_dp / ( 1.0_dp + pc * arg )
+                   
+                   ! defining errf=1-erfc
+                   errf = 1.0_dp &
+                        - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+                   
+                   ! getting the potential
+                   v_bonded_corr = v_bonded_corr - qci*qsj*idij*errf
+                   
+                   ! subtracting the force from the total force
+                   fscalar = ifourpieps0 * qci * qsj * idij ** 2 &
+                        * ( idij * errf - const * e_arg_arg  )
+                   
+                   IF(i_is_shell) THEN
+                      core_particle_set ( shell_i_index) % f(1) = &
+                           core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
+                      core_particle_set ( i) % f(2) = &
+                           core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
+                      core_particle_set (i) % f(3) = &
+                           core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
+                   ELSE
+                      particle_set ( i) % f(1) = &
+                           particle_set ( i ) % f(1) - fscalar*rij(1)
+                      particle_set ( i) % f(2) = &
+                           particle_set ( i ) % f(2) - fscalar*rij(2)
+                      particle_set (i) % f(3) = &
+                           particle_set ( i ) % f(3) - fscalar*rij(3)
+                   END IF
+                   
+                   IF(shell_adiabatic) THEN
+                      fij_com = fij_com + fscalar*rij
+                   END IF
+                   
+                END IF
              END IF
              pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * particle_set ( i ) % r(1)
              pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * particle_set ( i ) % r(2)
@@ -701,49 +703,57 @@ CONTAINS
              flops = flops + 62.0_dp
           ENDDO
 
-! Exclusion of shell-core interaction  (???????????)
+          ! Exclusion of shell-core interaction
           IF(i_is_shell .AND. .FALSE.) THEN
              rij(1) = rci(1) - rsi(1)
              rij(2) = rci(2) - rsi(2)
              rij(3) = rci(3) - rsi(3)
              rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-             IF(rijsq > EPSILON(1.0_dp)) THEN
-               idij = 1.0_dp / SQRT ( rijsq )
-               dij = rijsq * idij
-               arg = alpha * dij
-               e_arg_arg = EXP ( -arg ** 2 )
-               tc = 1.0_dp / ( 1.0_dp + pc * arg )
+             dij = SQRT(rijsq)
+             ! Two possible limiting cases according the value of dij
+             arg = alpha * dij
+             ! and this is a magic number.. it is related to the order expansion
+             ! and to the value of the polynomial coefficients
+             IF(arg > 0.355_dp) THEN
+                idij = 1.0_dp / dij
+                e_arg_arg = EXP ( -arg ** 2 )
+                tc = 1.0_dp / ( 1.0_dp + pc * arg )
+                ! defining errf=1-erfc
+                errf = 1.0_dp &
+                     - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+                efac = idij*errf
+                ffac = idij**2 * (idij*errf - const*e_arg_arg)
+             ELSE
+                tc  = arg*arg
+                tc2 = tc*tc
+                efac = 1.0_dp - tc/3.0_dp + tc2/10.0_dp - tc*tc2/42.0_dp + tc2*tc2/216.0_dp
+                efac = efac * const
+                ffac = - 2.0_dp/3.0_dp + 2.0_dp/5.0_dp*tc - 1.0_dp/7.0_dp*tc2 + 1.0_dp/27.0_dp*tc2*tc
+                ffac = const*alpha**2*ffac
+             ENDIF
+             ! getting the potential
+             v_bonded_corr = v_bonded_corr - qci*qsi*efac
 
-               ! defining errf=1-erfc
-               errf = 1.0_dp &
-                  - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+             ! subtracting the force from the total force
+             fscalar = ifourpieps0 * qci * qsi * ffac
 
-               ! getting the potential
-               v_bonded_corr = v_bonded_corr - qci*qsi*idij*errf
+             core_particle_set ( shell_i_index) % f(1) = &
+                          core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
+             core_particle_set ( shell_i_index) % f(2) = &
+                          core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
+             core_particle_set (shell_i_index) % f(3) = &
+                          core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
 
-               ! subtracting the force from the total force
-               fscalar = ifourpieps0 * qci * qsi * idij ** 2 &
-                    * ( idij * errf - const * e_arg_arg  )
-
-               core_particle_set ( shell_i_index) % f(1) = &
-                            core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-               core_particle_set ( shell_i_index) % f(2) = &
-                            core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-               core_particle_set (shell_i_index) % f(3) = &
-                            core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
-
-               shell_particle_set (shell_i_index) % f(1) = &
-                            shell_particle_set ( shell_i_index ) % f(1) + fscalar*rij(1)
-               shell_particle_set ( shell_i_index) % f(2) = &
-                            shell_particle_set ( shell_i_index ) % f(2) + fscalar*rij(2)
-               shell_particle_set (shell_i_index) % f(3) = &
-                            shell_particle_set ( shell_i_index ) % f(3) + fscalar*rij(3)
-            END IF
-
+             shell_particle_set (shell_i_index) % f(1) = &
+                          shell_particle_set ( shell_i_index ) % f(1) + fscalar*rij(1)
+             shell_particle_set ( shell_i_index) % f(2) = &
+                          shell_particle_set ( shell_i_index ) % f(2) + fscalar*rij(2)
+             shell_particle_set (shell_i_index) % f(3) = &
+                          shell_particle_set ( shell_i_index ) % f(3) + fscalar*rij(3)
           END IF
-       ENDDO
-    ENDDO
 
+       END DO
+    ENDDO
     ! the factor of 1/2 comes from double counting in the exclusion list
     v_bonded_corr = v_bonded_corr * ifourpieps0 * 0.5_dp
     CALL mp_sum ( v_bonded_corr, group )
