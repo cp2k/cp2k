@@ -89,7 +89,7 @@ CONTAINS
        CALL section_create(section,name="RESP",&
             description="Requests a RESP fit of charges. The Hartree potential should match "//&
                         "the one of an isolated system in those points of space that are used for fitting "//&
-                        "(i.e. isolated poisson solver, and big cells)",&
+                        "(i.e. isolated poisson solver, and big cells). All restraints are harmonic!",&
             n_keywords=2, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -108,6 +108,20 @@ CONTAINS
             default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_TO_ZERO",&
+            description="Restrain non-hydrogen atoms to zero.",&
+            usage="RESTRAIN_HEAVIES_TO_ZERO FALSE",&
+            default_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_STRENGTH",&
+            description="The strenght of the restraint on the heavy atoms",&
+            usage="RESTRAIN_HEAVIES_STRENGTH 0.0001 ",&
+            default_r_val=0.00005_dp ,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMIN",&
             description="specifies the minimum distance a fit point is away from an atom. ",&

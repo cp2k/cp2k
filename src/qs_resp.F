@@ -22,6 +22,7 @@
 
 MODULE qs_resp
   USE atomic_charges,                  ONLY: print_atomic_charges
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -65,7 +66,7 @@ CONTAINS
 
     INTEGER :: bo(2,3), gbo(2,3), handle, i, info, jx, jy, jz, k, m, natom, &
       ncons, ncons_i, ncons_sec, ncons_v, np(3), npoints, nres, nrest_sec, &
-      nvar, output_unit, stride
+      nvar, output_unit, stride, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: explicit, failure, has_resp, &
@@ -87,6 +88,8 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: v_hartree_pw
     TYPE(section_vals_type), POINTER         :: cons_section, input, &
                                                 resp_section, rest_section
+    LOGICAL :: rheavies
+    REAL(KIND=dp) :: rheavies_strength
 
     CALL timeset(routineN,handle)
 
@@ -129,6 +132,11 @@ CONTAINS
        IF (itc) ncons=ncons+1
 
 
+       CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_TO_ZERO",l_val=rheavies,error=error)
+       IF (rheavies) THEN
+          CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_STRENGTH",r_val=rheavies_strength,error=error)
+       ENDIF
+
        CALL section_vals_val_get(resp_section,"RMIN",r_val=rmin,error=error) 
        CALL section_vals_val_get(resp_section,"RMAX",r_val=rmax,error=error) 
        CALL section_vals_val_get(resp_section,"STRIDE",i_val=stride,error=error) 
@@ -138,6 +146,10 @@ CONTAINS
           WRITE(output_unit,'(2X,A,I0)')     "Number of explicit constraints: ",ncons_sec
           WRITE(output_unit,'(2X,A,I0)')     "Number of explicit restraints: ",nrest_sec
           WRITE(output_unit,'(2X,A,A)')      "Constrain total charge ",MERGE("T","F",itc) 
+          WRITE(output_unit,'(2X,A,A)')      "Restrain heavy atoms ",MERGE("T","F",rheavies) 
+          IF (rheavies) THEN
+             WRITE(output_unit,'(2X,A,F10.5)') "Heavy atom restraint strength: ",rheavies_strength
+          ENDIF
           WRITE(output_unit,'(2X,A,F10.5)')  "Rmin [a.u.]: ",rmin
           WRITE(output_unit,'(2X,A,F10.5)')  "Rmax [a.u.]: ",rmax
           WRITE(output_unit,'(2X,A,I0)')     "Stride: ",stride
@@ -229,6 +241,16 @@ CONTAINS
              rhs(atom_list(m))=rhs(atom_list(m))+2.0_dp*TARGET*strength*atom_coef(m)
           ENDDO
        ENDDO
+
+       ! if heavies are restrained to zero, add these as well
+       IF (rheavies) THEN
+          DO i=1,natom
+             CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind,z=z)
+             IF (z.NE.1) THEN
+                matrix(i,i)=matrix(i,i)+2.0_dp*rheavies_strength
+             ENDIF
+          ENDDO
+       ENDIF
 
        ! add the constraints
        ncons_i=0
