@@ -115,7 +115,10 @@ END SUBROUTINE m_datum
 ! *****************************************************************************
   FUNCTION m_memory()
     INTEGER(KIND=int_8) m_memory
-    m_memory=0
+    INTEGER(KIND=int_8) total_free, largest_free, total_used
+    INTEGER             fragments, i, heap_info
+    i = heap_info(fragments, total_free, largest_free, total_used)
+    m_memory=total_used
   END FUNCTION m_memory
 
 ! *****************************************************************************
