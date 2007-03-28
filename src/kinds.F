@@ -55,6 +55,7 @@ MODULE kinds
 
   ! this int holds more than the normal 4byte ints
   ! on standard machines it ought to be an 8byte int but this is not guaranteed
+  ! this should also be different from the default integer size (which we require to be 4 bytes)
   INTEGER, PARAMETER :: int_8 = SELECTED_INT_KIND(10)
 
   INTEGER, PARAMETER :: default_string_length=80

@@ -36,7 +36,7 @@ MODULE message_passing
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size,&
-                                             sp
+                                             sp, int_8
   USE machine,                         ONLY: m_abort,&
                                              m_walltime
   USE parallel_include
@@ -117,7 +117,7 @@ MODULE message_passing
      MODULE PROCEDURE mp_sum_i1, mp_sum_r1, mp_sum_c1, mp_sum_iv, &
           mp_sum_rv, mp_sum_cv, mp_sum_im, mp_sum_rm, mp_sum_cm, &
           mp_sum_im3, mp_sum_rm3, mp_sum_cm3, mp_sum_root_rv, &
-          mp_sum_root_rm, mp_sum_root_rm3
+          mp_sum_root_rm, mp_sum_root_rm3, mp_sum_8i1, mp_sum_8iv
   END INTERFACE
 
   INTERFACE mp_max
@@ -1786,6 +1786,34 @@ SUBROUTINE mp_sum_i1(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_i1
+
+SUBROUTINE mp_sum_8i1(msg,gid)
+    INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg
+    INTEGER, INTENT(IN)                      :: gid
+
+    INTEGER                                  :: ierr, msglen, res
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_8i1', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+
+  msglen = 1
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
+  msg = res
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8i1" )
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_sum_8i1
+
+
 SUBROUTINE mp_sum_iv(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( : )
@@ -1814,6 +1842,37 @@ SUBROUTINE mp_sum_iv(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_iv
+
+SUBROUTINE mp_sum_8iv(msg,gid)
+  IMPLICIT NONE
+  INTEGER(KIND=int_8), INTENT ( INOUT ) :: msg ( : )
+  INTEGER, INTENT ( IN ) :: gid
+  INTEGER :: msglen, ierr
+  INTEGER(KIND=int_8), ALLOCATABLE :: res ( : )
+    INTEGER :: handle
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_8iv', &
+      routineP = moduleN//':'//routineN
+#if defined(__mp_timeset__)
+    CALL timeset(routineN,handle)
+#endif
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  msglen = SIZE(msg)
+  ALLOCATE (res(1:msglen),STAT=ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_iv" )
+  CALL mpi_allreduce(msg,res,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
+  msg = res
+  DEALLOCATE (res)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_8iv" )
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*intlen)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop(handle)
+#endif
+END SUBROUTINE mp_sum_8iv
+
+
 SUBROUTINE mp_sum_im(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( :, : )

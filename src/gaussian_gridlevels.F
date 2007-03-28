@@ -24,7 +24,7 @@ MODULE gaussian_gridlevels
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, int_8
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
@@ -34,8 +34,8 @@ MODULE gaussian_gridlevels
   TYPE gridlevel_info_type
        INTEGER                         :: ngrid_levels
        REAL(KIND = dp), POINTER, DIMENSION(:) :: cutoff
-       INTEGER , POINTER, DIMENSION(:) :: count
-       INTEGER                         :: total_count
+       INTEGER(KIND=int_8) , POINTER, DIMENSION(:) :: count
+       INTEGER(KIND=int_8)                         :: total_count
        REAL(KIND = dp)                  :: rel_cutoff
        TYPE(section_vals_type), POINTER :: print_section
   END TYPE
