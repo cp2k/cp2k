@@ -2,3 +2,10 @@
 # just add file names for which the reference needs to be reset below, with some comment
 #
 uo2_shell_nve_r.inp
+# exclusion + fix
+uo2_shell_nve.inp         
+uo2_shell_nve_r.inp      
+uo2_shell_nvt.inp         
+uo2_shell_npti_b.inp     
+uo2_shell_npti.inp      
+uo2_shell_npt300.inp   
