@@ -25,7 +25,7 @@ MODULE gaussian_gridlevels
                                              section_vals_retain,&
                                              section_vals_type
   USE kinds,                           ONLY: dp, int_8
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum_i8
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
@@ -92,8 +92,8 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
   output_unit = cp_print_key_unit_nr(logger,gridlevel_info%print_section, &
                    "", extension=".Log",error=error)
 
-  CALL mp_sum(gridlevel_info%total_count,group)
-  CALL mp_sum(gridlevel_info%count,group)
+  CALL mp_sum_i8(gridlevel_info%total_count,group)
+  CALL mp_sum_i8(gridlevel_info%count,group)
   IF (output_unit>0) THEN
     WRITE(output_unit,'(/,T2,A,A)') "----------------------------------------",&
                                     "---------------------------------------"

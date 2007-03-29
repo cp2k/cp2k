@@ -81,6 +81,7 @@ MODULE message_passing
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
   PUBLIC :: mp_gatherv
+  PUBLIC :: mp_sum_i8
 
   ! currently not used
   ! PUBLIC :: mp_group
@@ -113,11 +114,16 @@ MODULE message_passing
           mp_bcast_cm, mp_bcast_im, mp_bcast_rm3
   END INTERFACE
 
+  ! needed in case default integer and int_8 are the same
+  INTERFACE mp_sum_i8
+     MODULE PROCEDURE mp_sum_8i1, mp_sum_8iv
+  END INTERFACE
+
   INTERFACE mp_sum
      MODULE PROCEDURE mp_sum_i1, mp_sum_r1, mp_sum_c1, mp_sum_iv, &
           mp_sum_rv, mp_sum_cv, mp_sum_im, mp_sum_rm, mp_sum_cm, &
           mp_sum_im3, mp_sum_rm3, mp_sum_cm3, mp_sum_root_rv, &
-          mp_sum_root_rm, mp_sum_root_rm3, mp_sum_8i1, mp_sum_8iv
+          mp_sum_root_rm, mp_sum_root_rm3
   END INTERFACE
 
   INTERFACE mp_max
