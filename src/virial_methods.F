@@ -128,7 +128,6 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
 
 ! total virial
      virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint
-
      CALL timestop ( mfl, handle )
    ENDIF
 

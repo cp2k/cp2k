@@ -113,13 +113,19 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
                                                 my_pos, remark1, remark2, &
                                                 title
-    INTEGER                                  :: box, crd, delta_t, ene, &
+    INTEGER                                  :: box, crd, cocrd, cofrc, covel, &
+                                                delta_t, ene, &
                                                 ener_mix, frc, handle, i, &
-                                                iskip, isubsys, iw, nat, shad, str, &
+                                                iskip, isubsys, iw, nat, nshell, &
+                                                shcrd, shene, shfrc, shvel, str, &
                                                 vel
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: init, init_force, init_traj, &
-                                                init_vel, is_mixed, qmmm, shell_adiabatic
+    LOGICAL                                  :: init, init_coforce, init_cotraj, &
+                                                init_covel, init_force, init_traj, &
+                                                init_vel, init_shtraj, &
+                                                init_shforce, init_shvel, &
+                                                is_mixed, qmmm, &
+                                                shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, ekin_shell, epot, &
@@ -135,6 +141,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: shell_particles
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 motion_section, root_section
     TYPE(simulation_parameters_type), &
@@ -151,6 +159,7 @@ CONTAINS
     ! Zeroing
     hugoniot = 0._dp
     shell_adiabatic = .FALSE.
+    shell_present = .FALSE.
     NULLIFY(dyn_coeff_set,motion_section)
     CALL get_md_env(md_env=md_env,&
          itimes=itimes,&
@@ -160,6 +169,12 @@ CONTAINS
          simpar=simpar,         &
          force_env_p=force_env_p, &
          init=init, init_vel=init_vel, init_traj=init_traj, init_force=init_force )
+    init_shtraj = init_traj
+    init_cotraj = init_traj
+    init_shvel = init_vel
+    init_covel = init_vel
+    init_shforce = init_force
+    init_coforce = init_force
 
     root_section=>force_env_p(1)%force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -236,6 +251,7 @@ CONTAINS
             ekin_shell=ekin_shell,&
             temp_shell=temp_shell,&
             shell_adiabatic=shell_adiabatic,&
+            shell_present=shell_present,&
             error=error)
        temp      = temp*kelvin
        temp_qm   = temp_qm*kelvin
@@ -256,6 +272,12 @@ CONTAINS
        init_traj  = .TRUE.
        init_vel   = .TRUE.
        init_force = .TRUE. 
+       init_shtraj  = .TRUE.
+       init_shvel   = .TRUE.
+       init_shforce = .TRUE. 
+       init_cotraj  = .TRUE.
+       init_covel   = .TRUE.
+       init_coforce = .TRUE. 
     END IF
     my_form = "FORMATTED"
     my_ext  = ".xyz"
@@ -535,12 +557,53 @@ CONTAINS
        ELSE
          str = 0
        END IF
-       IF(shell_adiabatic) THEN
+       IF(shell_present) THEN
          CALL force_env_get(force_env_p(1)%force_env,harmonic_shell=harm_shell,error=error)
-         shad=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
+         shene=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
             extension=".shener",file_position=my_pos, file_action=my_act,error=error)
+
+         shcrd =  cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_TRAJECTORY",&
+            extension=my_ext, file_position=my_pos, file_action=my_act,&
+            file_form=my_form, middle_name="shpos", error=error)
+
+         nshell=0
+         DO isubsys=1,SIZE(subsys)
+           CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                shell_particles=shell_particles,&
+               error=error)
+           nshell=nshell+shell_particles%n_els
+         END DO
        ELSE
-         shad = 0
+         shene = 0
+         shcrd = 0
+       END IF
+       IF(shell_adiabatic) THEN
+         cocrd = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_TRAJECTORY",&
+            extension=my_ext, file_position=my_pos, file_action=my_act,&
+            file_form=my_form, middle_name="copos", error=error)
+
+         shvel = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_VELOCITIES",&
+            extension=my_ext, file_position=my_pos, file_action=my_act,&
+            file_form=my_form, middle_name="shvel", error=error)
+         
+         covel = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_VELOCITIES",&
+            extension=my_ext, file_position=my_pos, file_action=my_act,&
+            file_form=my_form, middle_name="covel", error=error)
+
+         shfrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_FORCES",&
+            extension=my_ext, file_position=my_pos, file_action=my_act,&
+            file_form=my_form, middle_name="shfrc", error=error)
+
+         cofrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_FORCES",&
+            extension=my_ext, file_position=my_pos, file_action=my_act,&
+            file_form=my_form, middle_name="cofrc", error=error)
+
+       ELSE
+         cocrd = 0 
+         shvel = 0 
+         covel = 0
+         shfrc = 0 
+         cofrc = 0
        END IF
        !------------------
        ! Print Coordinates
@@ -705,13 +768,221 @@ CONTAINS
        !------------------
        ! Print Shell Energy
        !------------------
-       IF (shad>0) THEN
+       IF (shene>0) THEN
           ! "Step Nr.    Time[fs]  Shell Kin.[a.u.]    Shell Temp[K]  Shell Pot.[a.u.] 
           !
-          WRITE (shad,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9 )")&
+          WRITE (shene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9 )")&
                itimes,t*femtoseconds,ekin_shell,temp_shell,harm_shell
-          CALL m_flush(shad)
+          CALL m_flush(shene)
        END IF
+
+!###########################################################################
+!       Some additional printing for the shell-model
+!        (can be displaced in another routine)
+       !------------------
+       ! Print Shell Coordinates
+       !------------------
+       IF ( shcrd > 0 ) THEN
+          IF(simpar%output_format==dump_dcd) THEN
+             IF ( init_shtraj ) THEN
+                !Lets write the header for the coordinate dcd
+                iskip = section_get_ival(motion_section,"PRINT%SHELL_TRAJECTORY%EACH",error=error)
+                WRITE(shcrd) "CORD",0,itimes,iskip,&
+                     0,0,0,0,0,0,&
+                     REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
+                remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
+                remark2= "REMARK Support new DCD format with cell information"
+                WRITE(shcrd) 2,remark1,remark2
+                WRITE(shcrd) nshell
+                CALL m_flush(shcrd)
+                init_shtraj = .FALSE.
+             ENDIF
+          ELSEIF(simpar%output_format==dump_xmol) THEN
+             !         *** This information can be digested by Molden ***
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                  " i =",itimes,", E =",epot
+          ELSE
+             title = ""
+          END IF
+          DO isubsys=1,SIZE(subsys)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  shell_particles=shell_particles,&
+                  error=error)
+             CALL write_particle_coordinates(shell_particles%els,shcrd,&
+                  simpar%output_format,"POS",title,cell)
+          END DO
+          CALL m_flush(shcrd)
+       END IF
+       !------------------
+       ! Print Shell Velocities
+       !------------------
+       IF ( shvel > 0 ) THEN
+          IF(simpar%output_format==dump_dcd) THEN
+             IF ( init_shvel ) THEN
+                iskip = section_get_ival(motion_section,"PRINT%SHELL_VELOCITIES%EACH",error=error)
+                WRITE(vel) "VEL ",0,itimes,iskip,&
+                     0,0,0,0,0,0,&
+                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
+                remark1= "REMARK FILETYPE VEL  DCD GENERATED BY CP2K"
+                remark2= "REMARK Support new DCD format with cell information"
+                WRITE(shvel) 2,remark1,remark2
+                WRITE(shvel) nshell
+                CALL m_flush(shvel)
+                init_shvel = .FALSE.
+             END IF
+          ELSEIF(simpar%output_format==dump_xmol) THEN
+             !         *** This information can be digested by Molden ***
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                  " i =",itimes,", E =",epot
+          ELSE
+             title = ""
+          END IF
+          DO isubsys=1,SIZE(subsys)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  shell_particles=shell_particles,&
+                  error=error)
+             CALL write_particle_coordinates(shell_particles%els,shvel,&
+                  simpar%output_format,"VEL",title,cell)
+          END DO
+          CALL m_flush(shvel)
+       END IF
+       !------------------
+       ! Print Shell Force
+       !------------------
+       IF ( shfrc > 0 ) THEN
+          IF(simpar%output_format==dump_dcd) THEN
+             IF ( init_shforce ) THEN
+                iskip = section_get_ival(motion_section,"PRINT%SHELL_FORCES%EACH",error=error)
+                WRITE(shfrc) "FRC ",0,itimes,iskip,&
+                     0,0,0,0,0,0,&
+                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
+                remark1= "REMARK FILETYPE FRC  DCD GENERATED BY CP2K"
+                remark2= "REMARK Support new DCD format with cell information"
+                WRITE(shfrc) 2,remark1,remark2
+                WRITE(shfrc) nshell
+                CALL m_flush(shfrc)
+                init_shforce = .FALSE.
+             END IF
+          ELSEIF(simpar%output_format==dump_xmol) THEN
+             !         *** This information can be digested by Molden ***
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                  " i =",itimes,", E =",epot
+          ELSE
+             title = ""
+          END IF
+          DO isubsys=1,SIZE(subsys)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  shell_particles=shell_particles,&
+                  error=error)
+             CALL write_particle_coordinates(shell_particles%els,shfrc,&
+                  simpar%output_format,"FORCE",title,cell)
+          END DO
+          CALL m_flush(shfrc)
+       END IF
+
+
+       !------------------
+       ! Print Core Coordinates
+       !------------------
+       IF ( cocrd > 0 ) THEN
+          IF(simpar%output_format==dump_dcd) THEN
+             IF ( init_cotraj ) THEN
+                !Lets write the header for the coordinate dcd
+                iskip = section_get_ival(motion_section,"PRINT%CORE_TRAJECTORY%EACH",error=error)
+                WRITE(cocrd) "CORD",0,itimes,iskip,&
+                     0,0,0,0,0,0,&
+                     REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
+                remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
+                remark2= "REMARK Support new DCD format with cell information"
+                WRITE(cocrd) 2,remark1,remark2
+                WRITE(cocrd) nshell
+                CALL m_flush(cocrd)
+                init_cotraj = .FALSE.
+             ENDIF
+          ELSEIF(simpar%output_format==dump_xmol) THEN
+             !         *** This information can be digested by Molden ***
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                  " i =",itimes,", E =",epot
+          ELSE
+             title = ""
+          END IF
+          DO isubsys=1,SIZE(subsys)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  core_particles=core_particles,&
+                  error=error)
+             CALL write_particle_coordinates(core_particles%els,cocrd,&
+                  simpar%output_format,"POS",title,cell)
+          END DO
+          CALL m_flush(cocrd)
+       END IF
+       !------------------
+       ! Print core Velocities
+       !------------------
+       IF ( covel > 0 ) THEN
+          IF(simpar%output_format==dump_dcd) THEN
+             IF ( init_covel ) THEN
+                iskip = section_get_ival(motion_section,"PRINT%CORE_VELOCITIES%EACH",error=error)
+                WRITE(vel) "VEL ",0,itimes,iskip,&
+                     0,0,0,0,0,0,&
+                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
+                remark1= "REMARK FILETYPE VEL  DCD GENERATED BY CP2K"
+                remark2= "REMARK Support new DCD format with cell information"
+                WRITE(covel) 2,remark1,remark2
+                WRITE(covel) nshell
+                CALL m_flush(covel)
+                init_covel = .FALSE.
+             END IF
+          ELSEIF(simpar%output_format==dump_xmol) THEN
+             !         *** This information can be digested by Molden ***
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                  " i =",itimes,", E =",epot
+          ELSE
+             title = ""
+          END IF
+          DO isubsys=1,SIZE(subsys)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  core_particles=core_particles,&
+                  error=error)
+             CALL write_particle_coordinates(core_particles%els,covel,&
+                  simpar%output_format,"VEL",title,cell)
+          END DO
+          CALL m_flush(covel)
+       END IF
+       !------------------
+       ! Print core Force
+       !------------------
+       IF ( cofrc > 0 ) THEN
+          IF(simpar%output_format==dump_dcd) THEN
+             IF ( init_coforce ) THEN
+                iskip = section_get_ival(motion_section,"PRINT%CORE_FORCES%EACH",error=error)
+                WRITE(cofrc) "FRC ",0,itimes,iskip,&
+                     0,0,0,0,0,0,&
+                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
+                remark1= "REMARK FILETYPE FRC  DCD GENERATED BY CP2K"
+                remark2= "REMARK Support new DCD format with cell information"
+                WRITE(cofrc) 2,remark1,remark2
+                WRITE(cofrc) nshell
+                CALL m_flush(cofrc)
+                init_coforce = .FALSE.
+             END IF
+          ELSEIF(simpar%output_format==dump_xmol) THEN
+             !         *** This information can be digested by Molden ***
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+                  " i =",itimes,", E =",epot
+          ELSE
+             title = ""
+          END IF
+          DO isubsys=1,SIZE(subsys)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  core_particles=core_particles,&
+                  error=error)
+             CALL write_particle_coordinates(core_particles%els,cofrc,&
+                  simpar%output_format,"FORCE",title,cell)
+          END DO
+          CALL m_flush(cofrc)
+       END IF
+
+!###########################################################################
 
 
        CALL cp_print_key_finished_output(ene,logger,motion_section,&
@@ -738,9 +1009,24 @@ CONTAINS
          CALL cp_print_key_finished_output(str,logger,motion_section,&
               "PRINT%STRESS", error=error)
        END IF
-       IF(shell_adiabatic) THEN
-         CALL cp_print_key_finished_output(shad,logger,motion_section,&
+       IF(shell_present) THEN
+         CALL cp_print_key_finished_output(shene,logger,motion_section,&
             "MD%PRINT%SHELL_ENERGY", error=error)
+         CALL cp_print_key_finished_output(shcrd,logger,motion_section,&
+            "PRINT%SHELL_TRAJECTORY", error=error)
+       END IF
+       IF(shell_adiabatic) THEN
+         CALL cp_print_key_finished_output(cocrd,logger,motion_section,&
+            "PRINT%CORE_TRAJECTORY", error=error)
+         CALL cp_print_key_finished_output(shvel,logger,motion_section,&
+            "PRINT%SHELL_VELOCITIES", error=error)
+         CALL cp_print_key_finished_output(covel,logger,motion_section,&
+            "PRINT%CORE_VELOCITIES", error=error)
+         CALL cp_print_key_finished_output(shfrc,logger,motion_section,&
+            "PRINT%SHELL_FORCES", error=error)
+         CALL cp_print_key_finished_output(cofrc,logger,motion_section,&
+            "PRINT%CORE_FORCES", error=error)
+
        END IF
     END IF
     init = .FALSE.

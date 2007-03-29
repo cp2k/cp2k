@@ -696,6 +696,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
      END IF
      WRITE(iw,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
   END IF
+!dbg
+!
+!  write(*,*) pot_nonbond , pot_shell, vg_coulomb , thermo%e_bonded,thermo%e_self,thermo%e_neut/cell%deth
+!     WRITE(*,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
+!dbg
 
 !
 ! if we are doing debugging, check if variables are present and assign

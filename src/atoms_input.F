@@ -439,7 +439,6 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     
     END IF
-
     CALL timestop(handle)
 
   END SUBROUTINE read_shell_coord_input

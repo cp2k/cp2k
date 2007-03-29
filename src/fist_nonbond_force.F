@@ -704,7 +704,7 @@ CONTAINS
           ENDDO
 
           ! Exclusion of shell-core interaction
-          IF(i_is_shell .AND. .FALSE.) THEN
+          IF(i_is_shell ) THEN
              rij(1) = rci(1) - rsi(1)
              rij(2) = rci(2) - rsi(2)
              rij(3) = rci(3) - rsi(3)
@@ -732,7 +732,9 @@ CONTAINS
                 ffac = const*alpha**2*ffac
              ENDIF
              ! getting the potential
-             v_bonded_corr = v_bonded_corr - qci*qsi*efac
+             ! th factor 2 comes to compensate for the factor 0.5 
+             ! introduced later to avoid double counting
+             v_bonded_corr = v_bonded_corr - 2.0_dp * qci*qsi*efac
 
              ! subtracting the force from the total force
              fscalar = ifourpieps0 * qci * qsi * ffac

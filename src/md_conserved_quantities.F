@@ -108,7 +108,7 @@ CONTAINS
   !!*** *************************************************************************
   SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
        temp_part, ekin_qm, temp_qm, temp_baro, ekin_coefs, temp_coefs,  &
-       ekin_shell, temp_shell, qmmm, shell_adiabatic, error )
+       ekin_shell, temp_shell, qmmm, shell_adiabatic, shell_present, error )
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(IN)                :: epot
     REAL(KIND=dp), INTENT(OUT)               :: cons
@@ -117,6 +117,7 @@ CONTAINS
                                                 ekin_coefs, temp_coefs, &
                                                 ekin_shell, temp_shell
     LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm
+    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_present
     LOGICAL, INTENT(OUT), OPTIONAL           :: shell_adiabatic
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -124,7 +125,8 @@ CONTAINS
 
     INTEGER                                  :: int_grp, nfree_qm, nfree_shell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: myqmmm, my_shell_adiabatic
+    LOGICAL                                  :: myqmmm, my_shell_adiabatic, &
+                                                my_shell_present
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), POINTER          :: force_env_p(:)
@@ -142,6 +144,7 @@ CONTAINS
     md_ener%epot=epot
     myqmmm = .FALSE.
     my_shell_adiabatic =.FALSE.
+    my_shell_present = .FALSE.
 
     CALL get_md_env (md_env=md_env,&
          constant=constant,&
@@ -153,7 +156,7 @@ CONTAINS
     int_grp =  para_env % group
 
     CALL get_part_ke ( md_env, md_ener%ekin, md_ener%ekin_qm, md_ener%ekin_shell,&
-         nfree_qm, nfree_shell, simpar%nfree, int_grp , error=error)
+         nfree_qm, nfree_shell, simpar%nfree, int_grp , my_shell_present, error=error)
 
     IF (simpar%nfree /= 0) &
          md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
@@ -166,6 +169,8 @@ CONTAINS
     IF ( nfree_shell > 0) THEN
        my_shell_adiabatic = .TRUE.
        md_ener % temp_shell   = 2.0_dp * md_ener % ekin_shell / REAL ( nfree_shell,KIND=dp)
+    ELSEIF(my_shell_present) THEN
+        md_ener % temp_shell  = 0.0_dp
     END IF
 
 
@@ -210,6 +215,7 @@ CONTAINS
     IF (PRESENT(ekin_shell))  ekin_shell    = md_ener%ekin_shell
     IF (PRESENT(temp_shell))  temp_shell    = md_ener%temp_shell
     IF (PRESENT(shell_adiabatic)) shell_adiabatic    = my_shell_adiabatic
+    IF (PRESENT(shell_present)) shell_present    = my_shell_present
 
   END SUBROUTINE compute_conserved_quantity
 
@@ -521,13 +527,14 @@ CONTAINS
   !!
   !!*** *************************************************************************
   SUBROUTINE get_part_ke ( md_env, ekin, ekin_qm, ekin_shell, nfree_qm, &
-             nfree_shell, nfree, int_grp, error )
+             nfree_shell, nfree, int_grp, shell_present, error )
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(OUT)               :: ekin, ekin_qm
     REAL(KIND=dp), INTENT(OUT)               :: ekin_shell
     INTEGER, INTENT(OUT)                     :: nfree_qm
     INTEGER, INTENT(OUT)                     :: nfree_shell
     INTEGER, INTENT(IN)                      :: nfree, int_grp
+    LOGICAL, INTENT(OUT)                     :: shell_present
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, iparticle, iparticle_kind, &
@@ -583,6 +590,7 @@ CONTAINS
     atomic_kind_set => atomic_kinds%els
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                             shell_present=shell_present, &
                              shell_adiabatic=shell_adiabatic)
 
     particle_set => particles%els

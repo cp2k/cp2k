@@ -570,13 +570,13 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, istat, iw, &
-                                                natoms, nfixd, nshell
+                                                natoms, nfixd, nshell, shell_index
     LOGICAL                                  :: explicit, explicit2, failure, &
                                                 is_ok, is_shell, shell_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    REAL(KIND=dp)                            :: akin, denom, mass, mass_tot, &
-                                                sc, temp
-    REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
+    REAL(KIND=dp)                            :: akin, denom, fac_massc, fac_masss, &
+                                                mass, mass_tot, sc, temp
+    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
@@ -680,6 +680,7 @@ CONTAINS
                     shell%mass_shell* shell_part(part( i )%shell_index)%v( : ))/shell%mass_core 
                 vcom  = vcom +  mass * part ( i ) % v
                 denom = denom + mass
+
               END IF
             ELSE
               IF (is_fixed(i)) THEN
@@ -712,7 +713,7 @@ CONTAINS
                denom = denom + mass
             END IF
             IF(is_shell) THEN
-         CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
+              CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,error,failure)
               shell_part( part ( i ) % shell_index)%v(1) =  part(i)%v(1)
               shell_part( part ( i ) % shell_index)%v(2) =  part(i)%v(2)
               shell_part( part ( i ) % shell_index)%v(3) =  part(i)%v(3)
@@ -742,17 +743,24 @@ CONTAINS
                   part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
                   part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
                   part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
-               END DO
-               IF(nshell/=0) THEN
-                 DO i = 1,nshell
-                   shell_part(i)%v(1) = sc *shell_part(i)%v(1)
-                   shell_part(i)%v(2) = sc *shell_part(i)%v(2)
-                   shell_part(i)%v(3) = sc *shell_part(i)%v(3)
-                   core_part(i)%v(1) = sc *core_part(i)%v(1)
-                   core_part(i)%v(2) = sc *core_part(i)%v(2)
-                   core_part(i)%v(3) = sc *core_part(i)%v(3)
-                 END DO 
-               END IF
+                  shell_index = part ( i ) %shell_index
+                  IF(shell_index/=0) THEN
+                   atomic_kind => part ( i ) %atomic_kind
+                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                        mass=mass, shell=shell)
+                   fac_masss = shell%mass_shell/mass 
+                   fac_massc = shell%mass_core/mass
+                   vs(1:3) = shell_part(shell_index)%v(1:3)
+                   vc(1:3) = core_part(shell_index)%v(1:3)
+                   
+                   shell_part(shell_index)%v(1)=part(i)%v(1) + fac_massc*(vs(1)-vc(1))
+                   shell_part(shell_index)%v(2)=part(i)%v(2) + fac_massc*(vs(2)-vc(2))
+                   shell_part(shell_index)%v(3)=part(i)%v(3) + fac_massc*(vs(3)-vc(3))
+                   core_part(shell_index)%v(1)=part(i)%v(1) + fac_masss*(vc(1)-vs(1))
+                   core_part(shell_index)%v(2)=part(i)%v(2) + fac_masss*(vc(2)-vs(2))
+                   core_part(shell_index)%v(3)=part(i)%v(3) + fac_masss*(vc(3)-vs(3))
+                  ENDIF
+               END DO  ! i
             END IF
           END IF
        END IF

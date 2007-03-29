@@ -319,6 +319,21 @@ CONTAINS
                             shell_particles=shell_particles,&
                             core_particles=core_particles,&
                             error=error)
+!dbg
+! write(*,*) 'part'
+!  do i = 1,12
+!     write(*,*) i, particles%els(i)%r(1:3)/cell%unit_of_length
+!  enddo
+! write(*,*) 'shell'
+!  do i = 1,12
+!     write(*,*) i, shell_particles%els(i)%r(1:3)/cell%unit_of_length
+!  enddo
+! write(*,*) 'core'
+!  do i = 1,12
+!     write(*,*) i, core_particles%els(i)%r(1:3)/cell%unit_of_length
+!  enddo
+!
+!dbg
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
               shell_present=shell_present, shell_adiabatic=shell_adiabatic)
          NULLIFY (work_section,work2_section)
