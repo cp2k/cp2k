@@ -119,7 +119,7 @@ CONTAINS
        CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_STRENGTH",&
             description="The strenght of the restraint on the heavy atoms",&
             usage="RESTRAIN_HEAVIES_STRENGTH 0.0001 ",&
-            default_r_val=0.00005_dp ,error=error)
+            default_r_val=1.0E-6_dp ,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
