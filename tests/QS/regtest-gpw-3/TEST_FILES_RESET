@@ -169,3 +169,6 @@ H2O-bloechl-Spl.inp
 H2O-ata.inp
 #
 He2H-.inp
+### reset DFTB update
+H2O-bloechl-restraint.inp
+dynamics.inp

@@ -54,3 +54,5 @@ crys_per_qmmm_spln.inp
 acn-conn-1.inp
 #  
 acn-conn-1.inp
+#DFTB update
+acn-conn-1.inp
