@@ -71,7 +71,7 @@ MODULE qs_linres_epr_ownutils
   USE qs_rho_types,                    ONLY: qs_rho_type,&
                                              qs_rho_p_type
   USE qs_vxc_atom,                     ONLY: calc_rho_angular
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
                                              real_matrix_p_type,&
@@ -327,7 +327,7 @@ CONTAINS
           ! 1) j_glob x nabla_vks_glob
           temp_so_soft = 0.0_dp
           DO ispin=1,nspins
-            temp_so_soft = temp_so_soft + (-1.0_dp)**(1.0_dp+REAL(ispin,dp)) * ( &
+            temp_so_soft = temp_so_soft + (-1.0_dp)**(1+ispin) * ( &
                                 pw_integral_ab ( jrho1_set(idir2,iB)%rho%rho_r(ispin)%pw, &
                                 nablavks_set(idir3,ispin)%rho%rho_r(1)%pw ) - &
                                 pw_integral_ab ( jrho1_set(idir3,iB)%rho%rho_r(ispin)%pw, &
@@ -386,7 +386,7 @@ CONTAINS
                          DO ir = 1,nr
                             IF (grid_atom%rad(ir) <= hard_radius) THEN
                                ! 2) sum_i j_loc_s_i x ( nabla_vks_loc_h_i - nabla_vks_loc_s_i )
-                               temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + (-1.0_dp)**(1.0_dp+REAL(ispin,dp)) * ( &
+                               temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + (-1.0_dp)**(1+ispin) * ( &
                                                    ( &
                                                    jrho1_atom%jrho_vec_rad_s(idir2,iB,ispin)%r_coef(ir,ia)*&
                                                    (nablavks_atom%nablavks_vec_rad_h(idir3,ispin)%r_coef(ir,ia)-&
@@ -397,7 +397,7 @@ CONTAINS
                                                    ) *grid_atom%weight(ia,ir)&
                                                    )
                                ! 3) sum_i ( j_loc_h_i - j_loc_s_i ) nabla_vks_loc_s_i
-                               temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + (-1.0_dp)**(1.0_dp+REAL(ispin,dp)) * ( &
+                               temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + (-1.0_dp)**(1+ispin) * ( &
                                                    ( &
                                                    (jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia)-&
                                                    jrho1_atom%jrho_vec_rad_s(idir2,iB,ispin)%r_coef(ir,ia))*&
@@ -408,7 +408,7 @@ CONTAINS
                                                    ) *grid_atom%weight(ia,ir)&
                                                    )
                                ! 4) sum_i ( j_loc_h_i - j_loc_s_i ) ( nabla_vks_loc_h_i - nabla_vks_loc_s_i )
-                               temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + (-1.0_dp)**(1.0_dp+REAL(ispin,dp)) * ( &
+                               temp_so_gapw(iB,idir1) = temp_so_gapw(iB,idir1) + (-1.0_dp)**(1+ispin) * ( &
                                                    ( &
                                                    (jrho1_atom%jrho_vec_rad_h(idir2,iB,ispin)%r_coef(ir,ia)-&
                                                    jrho1_atom%jrho_vec_rad_s(idir2,iB,ispin)%r_coef(ir,ia))*&
@@ -769,7 +769,7 @@ CONTAINS
     DO iB=1,3
        DO idir1=1,3
           DO ispin=1,dft_control%nspins
-             g_soo(iB,idir1) = g_soo(iB,idir1) + (-1.0_dp)**(1.0_dp+REAL(ispin,dp)) * ( &
+             g_soo(iB,idir1) = g_soo(iB,idir1) + (-1.0_dp)**(1+ispin) * ( &
                                pw_integral_ab ( bind_set(idir1,iB)%rho%rho_r(1)%pw, &
                                rho%rho_r(ispin)%pw ) &
                                )
