@@ -124,8 +124,8 @@ MODULE qs_scf_post
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_pw_to_cube 
+  USE realspace_grid_types,            ONLY: realspace_grid_type
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube 
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix

@@ -92,7 +92,7 @@ MODULE qs_dftb_matrices
   ! screening for gamma function
   REAL(dp), PARAMETER                    :: tol_gamma = 1.e-4_dp
   ! small real number
-  REAL(dp), PARAMETER                    :: rtiny = TINY(1._dp)
+  REAL(dp), PARAMETER                    :: rtiny = 1.e-10_dp
 
   PRIVATE
 
@@ -118,21 +118,21 @@ CONTAINS
 
     INTEGER                                  :: handle, nkind, ikind, jkind, &
       natom, natorb_a, natorb_b, iab, nlist, ilist, iatom, jatom, nnode, nmat, &
-      inode, iw, istat, ik, jk, ngrd, ngrdcut, llm, last_jatom, i, icol, irow, &
+      inode, iw, istat, ngrd, ngrdcut, llm, last_jatom, i, icol, irow, &
       lmaxi, lmaxj, l1, l2, m, la, lb, nrow, ncol, neighbor_list_id, n_urpoly, &
       spdim, atom_a, atom_b, n1, n2
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem
     LOGICAL                                  :: defined, failure, new_atom_b
     REAL(KIND=dp)                            :: dr, dgrd, ga, gb, urep_cut, s_cut,&
-                                                erep, ddr, drp, drm
+                                                erep, ddr, drp, drm, dgam
     REAL(KIND=dp), DIMENSION(0:3)            :: skself, eta_a, eta_b
     REAL(KIND=dp), DIMENSION(2)              :: surr
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_w,rij, srep
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_w, force_rr, rij, srep
     REAL(KIND=dp), DIMENSION(10)             :: urep
-    REAL(KIND=dp), DIMENSION(20)             :: skab
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fmat, smat, pblock, wblock,&
-                                                sblock, fblock, gblock, dgblock, dsblock, &
-                                                dfblock, dsblock_i, spxr, scoeff
+    REAL(KIND=dp), DIMENSION(20)             :: skabij, skabji
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fmatij, fmatji, smatij, smatji,&
+      pblock, wblock,sblock, fblock, gblock, dgblock, dsblock, dfblock, dsblock_i,&
+      spxr, scoeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -150,11 +150,12 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind_a, dftb_kind_b
-    TYPE(qs_dftb_pairpot_type), POINTER      :: dftb_param_ij
+    TYPE(qs_dftb_pairpot_type), POINTER      :: dftb_param_ij, dftb_param_ji
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s,&
                                                 matrix_w, gamma_matrix
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(qs_energy_type), POINTER            :: energy
 
 !   ----------------------------------------------------------------------------
 
@@ -185,6 +186,7 @@ CONTAINS
     NULLIFY (matrix_h,matrix_s,matrix_p,atomic_kind_set,sab_orb)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
                     matrix_h=matrix_h,matrix_s=matrix_s,&
                     dft_control=dft_control,error=error)
@@ -227,15 +229,15 @@ CONTAINS
         CALL replicate_matrix_structure(source=gamma_matrix(1)%matrix,&
                                     target=gamma_matrix(i)%matrix,&
                                     target_name="DERIVATIVE GAMMA MATRIX",&
-                                    target_symmetry="symmetric",error=error)
+                                    target_symmetry="antisymmetric",error=error)
       END DO
-      dftb_control%gamma_matrix => gamma_matrix
+      CALL set_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,error=error)
       DEALLOCATE (felem,lelem,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF(calculate_forces) THEN
-      NULLIFY (rho,rho,force,particle_set,matrix_w)
+      NULLIFY (rho,force,particle_set,matrix_w)
       CALL get_qs_env(qs_env=qs_env,&
                       particle_set=particle_set,&
                       rho=rho,matrix_w=matrix_w,&
@@ -281,16 +283,19 @@ CONTAINS
            IF (.NOT.defined .OR. natorb_b < 1) CYCLE
 
            ! retrieve information on F and S matrix
-           ik = MAX(ikind,jkind)
-           jk = MIN(ikind,jkind)
-           dftb_param_ij => dftb_control%dftb_potential(ik,jk)
+           dftb_param_ij => dftb_control%dftb_potential(ikind,jkind)
+           dftb_param_ji => dftb_control%dftb_potential(jkind,ikind)
+           ! assume table size and type is symmetric
            ngrd = dftb_param_ij%ngrd
            ngrdcut = dftb_param_ij%ngrdcut
            dgrd = dftb_param_ij%dgrd
            ddr = dgrd*0.1_dp
+           CPPrecondition(dftb_param_ij%llm==dftb_param_ji%llm,cp_failure_level,routineP,error,failure)
            llm = dftb_param_ij%llm
-           fmat => dftb_param_ij%fmat
-           smat => dftb_param_ij%smat
+           fmatij => dftb_param_ij%fmat
+           smatij => dftb_param_ij%smat
+           fmatji => dftb_param_ji%fmat
+           smatji => dftb_param_ji%smat
            ! repulsive pair potential
            n_urpoly = dftb_param_ij%n_urpoly
            urep_cut = dftb_param_ij%urep_cut
@@ -370,8 +375,6 @@ CONTAINS
                                          block_col=icol,&
                                          block=wblock)
                      CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
-                     force_ab = 0._dp
-                     force_w  = 0._dp
                      IF ( dftb_control%self_consistent ) THEN
                        DO i=2,4
                          NULLIFY (dsblock)
@@ -398,58 +401,78 @@ CONTAINS
                  ELSE
                    ! off-diagonal block
                    IF ( irow == iatom ) THEN
-                     CALL getskz(smat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(sblock,skab,rij,dr,lmaxi,lmaxj)
-                     CALL getskz(fmat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(fblock,skab,rij,dr,lmaxi,lmaxj)
+                     CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL turnsk(sblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                     CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL turnsk(fblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
                    ELSE
-                     CALL getskz(smat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(sblock,skab,-rij,dr,lmaxj,lmaxi)
-                     CALL getskz(fmat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(fblock,skab,-rij,dr,lmaxj,lmaxi)
+                     CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL turnsk(sblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+                     CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                     CALL turnsk(fblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
                    END IF
                    IF(calculate_forces) THEN
+                     force_ab = 0._dp
+                     force_w  = 0._dp
                      n1 = SIZE(fblock,1)
                      n2 = SIZE(fblock,2)
                      ALLOCATE (dfblock(n1,n2),dsblock(n1,n2),STAT=istat)
                      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                     dfblock=0._dp
-                     dsblock=0._dp
                      DO i=1,3
                        rij(i) = rij(i) + ddr
                        dr = SQRT(SUM(rij(:)**2))
+                       dfblock=0._dp
+                       dsblock=0._dp
                        IF ( irow == iatom ) THEN
-                         CALL getskz(smat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skab,rij,dr,lmaxi,lmaxj)
-                         CALL getskz(fmat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skab,rij,dr,lmaxi,lmaxj)
+                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
                        ELSE
-                         CALL getskz(smat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skab,-rij,dr,lmaxj,lmaxi)
-                         CALL getskz(fmat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skab,-rij,dr,lmaxj,lmaxi)
+                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dsblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dfblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
                        END IF
                        rij(i) = rij(i) - 2._dp*ddr
                        dr = SQRT(SUM(rij(:)**2))
                        dsblock = -dsblock
                        dfblock = -dfblock
                        IF ( irow == iatom ) THEN
-                         CALL getskz(smat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skab,rij,dr,lmaxi,lmaxj)
-                         CALL getskz(fmat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skab,rij,dr,lmaxi,lmaxj)
+                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
                        ELSE
-                         CALL getskz(smat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skab,-rij,dr,lmaxj,lmaxi)
-                         CALL getskz(fmat,skab,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skab,-rij,dr,lmaxj,lmaxi)
+                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dsblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                         CALL turnsk(dfblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
                        END IF
                        rij(i) = rij(i) + ddr
                        dr = SQRT(SUM(rij(:)**2))
-                       dfblock = -0.5_dp*dfblock/ddr
-                       dsblock = -0.5_dp*dsblock/ddr
-                       force_ab(i) = force_ab(i) + SUM(dfblock*pblock)
-                       force_w(i) = force_w(i) - SUM(dsblock*wblock)
+                       dfblock = -dfblock/ddr
+                       dsblock = -dsblock/ddr
+                       IF ( irow == iatom ) THEN
+                         force_ab(i) = force_ab(i) - SUM(dfblock*pblock)
+                         force_w(i) = force_w(i) + SUM(dsblock*wblock)
+                         dsblock = -dsblock
+                       ELSE
+                         force_ab(i) = force_ab(i) + SUM(dfblock*pblock)
+                         force_w(i) = force_w(i) - SUM(dsblock*wblock)
+                       END IF
                        IF ( dftb_control%self_consistent ) THEN
                          NULLIFY (dsblock_i)
                          CALL get_block_node(matrix=matrix_s(1+i)%matrix,&
@@ -486,20 +509,21 @@ CONTAINS
                    gb = eta_b(0)
                    gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb)
                    IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
+                     drp = dr + ddr
+                     drm = dr - ddr
+                     dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb)-gamma_rab_sr(drm,ga,gb))/ddr
                      DO i=1,3
-                       rij(i) = rij(i) + ddr
-                       drp = SQRT(SUM(rij(:)**2))
-                       rij(i) = rij(i) - 2._dp*ddr
-                       drm = SQRT(SUM(rij(:)**2))
-                       rij(i) = rij(i) + ddr
                        NULLIFY (dgblock)
                        CALL get_block_node(matrix=gamma_matrix(1+i)%matrix,&
                                          block_row=irow,&
                                          block_col=icol,&
                                          block=dgblock)
                        CPPrecondition(ASSOCIATED(dgblock),cp_failure_level,routineP,error,failure)
-                       dgblock(1,1)= dgblock(1,1) + &
-                         0.5_dp*(gamma_rab_sr(drp,ga,gb)-gamma_rab_sr(drm,ga,gb))/ddr
+                       IF ( irow == iatom ) THEN
+                         dgblock(1,1)= dgblock(1,1) + dgam*rij(i)/dr
+                       ELSE
+                         dgblock(1,1)= dgblock(1,1) - dgam*rij(i)/dr
+                       END IF
                      END DO
                    END IF
                  END IF
@@ -507,16 +531,16 @@ CONTAINS
                END IF
 
                ! repulsive potential
-               IF (dr <= urep_cut .OR. spdim > 0) THEN
-                  CALL urep_egr(rij,dr,erep,force_ab,&
+               IF ((dr <= urep_cut .OR. spdim > 0) .AND. dr > 0.001_dp) THEN
+                  CALL urep_egr(rij,dr,erep,force_rr,&
                       n_urpoly,urep,spdim,s_cut,srep,spxr,scoeff,surr,calculate_forces)
                   IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
                     atom_a = atom_of_kind(iatom)
                     atom_b = atom_of_kind(jatom)
                     force(ikind)%repulsive(:,atom_a) =&
-                        force(ikind)%repulsive(:,atom_a) - force_ab(:)
+                        force(ikind)%repulsive(:,atom_a) - force_rr(:)
                     force(jkind)%repulsive(:,atom_b) =&
-                        force(jkind)%repulsive(:,atom_b) + force_ab(:)
+                        force(jkind)%repulsive(:,atom_b) + force_rr(:)
                  END IF
                END IF
 
@@ -529,6 +553,10 @@ CONTAINS
         END DO ! jkind
 
      END DO ! ikind
+
+     ! set repulsive energy
+     CALL mp_sum(erep,para_env%group)
+     energy%repulsive = erep
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
@@ -544,7 +572,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
              output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
@@ -638,46 +666,50 @@ CONTAINS
          CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
        END DO
 
-       ! Mulliken charges
-       CALL get_qs_env(qs_env=qs_env,&
-            particle_set=particle_set,&
-            matrix_s=matrix_s,error=error)
-       matrix_p => rho%rho_ao
-       natom=SIZE(particle_set)
-       ALLOCATE(charges(natom,nspins),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       !
-       CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges)
-       !
-       ALLOCATE(mcharge(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       nkind = SIZE(atomic_kind_set)
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             natom=natom,dftb_parameter=dftb_kind)
-          CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
-          DO iatom=1,natom
-            atom_a = atomic_kind%atom_list(iatom)
-            mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
+       IF ( dft_control%qs_control%dftb_control%self_consistent ) THEN
+         ! Mulliken charges
+         CALL get_qs_env(qs_env=qs_env,&
+              particle_set=particle_set,&
+              matrix_s=matrix_s,error=error)
+         matrix_p => rho%rho_ao
+         natom=SIZE(particle_set)
+         ALLOCATE(charges(natom,nspins),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         !
+         CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges)
+         !
+         ALLOCATE(mcharge(natom),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         nkind = SIZE(atomic_kind_set)
+         DO ikind=1,nkind
+            atomic_kind => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               natom=natom,dftb_parameter=dftb_kind)
+            CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
+            DO iatom=1,natom
+              atom_a = atomic_kind%atom_list(iatom)
+              mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
+           END DO
          END DO
-       END DO
-       DEALLOCATE(charges,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(charges,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       CALL build_dftb_coulomb(ks_env,qs_env,ks_matrix,rho,mcharge,energy,&
+         CALL build_dftb_coulomb(ks_env,qs_env,ks_matrix,rho,mcharge,energy,&
                calculate_forces,just_energy,error)
 
-       DEALLOCATE(mcharge,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(mcharge,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       END IF
 
        energy%hartree = energy%hartree + energy%core_overlap + energy%core_self
-       energy%total = energy%core + energy%hartree + energy%qmmm_el 
+       energy%total = energy%core + energy%hartree + energy%qmmm_el + energy%repulsive
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
-            extension=".scfLog",error=error)
+          extension=".scfLog",error=error)
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T9,A,T60,F20.10))")&
+               "Repulsive pair potential energy:               ",energy%repulsive,&
                "Zeroth order Hamiltonian energy:               ",energy%core,&
                "Charge fluctuation energy:                     ",energy%hartree
           IF (qs_env%qmmm) THEN
@@ -695,7 +727,7 @@ CONTAINS
                              occupation_numbers=occupation_numbers )
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                          mo_derivs(ispin)%matrix, ncol_global,error=error)
+                                        mo_derivs(ispin)%matrix, ncol_global,error=error)
              ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
              scaling_factor=2.0_dp*occupation_numbers
              CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
@@ -805,7 +837,7 @@ CONTAINS
         CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                         target=matrix_s(i)%matrix,&
                                         target_name="OVERLAP DERIVATIVE MATRIX",&
-                                        target_symmetry="symmetric",error=error)
+                                        target_symmetry="antisymmetric",error=error)
       END DO
     END IF
 
@@ -871,10 +903,10 @@ CONTAINS
     !
     ! Get grid points for interpolation
     !
-    lgpm = min(clgp+max_inter/2,ngrd) - 1
+    lgpm = min(clgp+max_inter/2,ngrd)
     fgpm = lgpm - max_inter + 1
-    do k = 1,max_inter
-      xa(k) = (fgpm+k)*dgrd
+    do k = 0,max_inter-1
+      xa(k+1) = (fgpm+k)*dgrd
     end do
     !
     ! Interpolate matrix elements for all orbitals
@@ -929,7 +961,7 @@ CONTAINS
     end do
   end subroutine extrapol  
 
-  subroutine turnsk(mat,skab,dxv,dx,lmaxa,lmaxb)
+  subroutine turnsk(mat,skab1,skab2,dxv,dx,lmaxa,lmaxb)
     !
     ! Purpose: Turn matrix element from z-axis to orientation of dxv
     !
@@ -938,7 +970,8 @@ CONTAINS
     implicit none
     !
     real(dp), intent(in)    :: dxv(3),dx    ! distance vector and distance
-    real(dp), intent(in)    :: skab(:)      ! Integrals on z-axis
+    real(dp), intent(in)    :: skab1(:)     ! Integrals on z-axis (ij)
+    real(dp), intent(in)    :: skab2(:)     ! Integrals on z-axis (ji)
     real(dp), intent(inout) :: mat(:,:)     ! final integrals
     integer, intent(in)     :: lmaxa, lmaxb ! max angular momentum
     !
@@ -962,7 +995,7 @@ CONTAINS
     !
     ! s-s interaction
     !
-    call skss(skab,mat)
+    call skss(skab1,mat)
     !
     if (lmaxab.le.0) return
     !
@@ -978,14 +1011,14 @@ CONTAINS
     ! s-p, p-s and p-p interaction
     !
     if (minlmaxab.ge.1) then
-      call skpp(skab,mat,iptr(:,:,:,lmaxa,lmaxb))
-      call sksp(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      call sksp(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
+      call skpp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb))
+      call sksp(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
+      call sksp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
     else
       if (lmaxb.ge.1) then
-        call sksp(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
+        call sksp(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
       else
-        call sksp(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
+        call sksp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
       end if
     end if
     ! 
@@ -999,11 +1032,11 @@ CONTAINS
       !
       ! in case both atoms have d functions
       !
-      call skdd(skab,mat,iptr(:,:,:,lmaxa,lmaxb))
-      call sksd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      call sksd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-      call skpd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      call skpd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
+      call skdd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb))
+      call sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
+      call sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
+      call skpd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
+      call skpd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
     else
       !
       ! One atom has d functions, the other has s or s and p functions
@@ -1012,13 +1045,13 @@ CONTAINS
         !
         ! atom b has d, the atom a only s functions
         !
-        call sksd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
+        call sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
       else if (lmaxa.eq.1) then
         !
         ! atom b has d, the atom a s and p functions
         !
-        call sksd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-        call skpd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
+        call sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
+        call skpd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
       else
         !
         ! atom a has d functions
@@ -1027,13 +1060,13 @@ CONTAINS
           !
           ! atom a has d, atom b has only s functions
           !
-          call sksd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
+          call sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
         else
           !
           ! atom a has d, atom b has s and p functions
           !
-          call sksd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-          call skpd(skab,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
+          call sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
+          call skpd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
         end if
       end if
     end if
@@ -1114,12 +1147,13 @@ CONTAINS
       end do
       !
       do ir = 1,3
-        do is = 1,ir
+        do is = 1,ir-1
           ii = ir - is
           k = 3*ii-(ii*(ii-1))/2+is
           mat(is+1,ir+1) = mat(is+1,ir+1) + matel(k)
           mat(ir+1,is+1) = mat(ir+1,is+1) + matel(k)
         end do
+        mat(ir+1,ir+1) = mat(ir+1,ir+1) + matel(ir)
       end do
     end subroutine skpp
     !
@@ -1303,12 +1337,13 @@ CONTAINS
       end do
       !
       do ir = 1,5
-        do is = 1,ir
+        do is = 1,ir-1
           ii = ir-is
           k = 5*ii-(ii*(ii-1))/2+is
           mat(ir+4,is+4) = mat(ir+4,is+4) + dm(k)
           mat(is+4,ir+4) = mat(is+4,ir+4) + dm(k)
         end do
+        mat(ir+4,ir+4) = mat(ir+4,ir+4) + dm(ir)
       end do
     end subroutine skdd
     !
@@ -1371,7 +1406,7 @@ CONTAINS
     real(dp), intent(inout)           :: derep(3)
     integer, intent(in)               :: n_urpoly,spdim
     real(dp), intent(in)              :: urep(:),s_cut,srep(3),surr(2)
-    real(dp), intent(in)              :: spxr(:,:),scoeff(:,:)
+    real(dp), pointer                 :: spxr(:,:),scoeff(:,:)
     logical, intent(in)               :: dograd
 
     integer     :: ic, nsp, jsp, isp
@@ -1408,7 +1443,7 @@ CONTAINS
       !
       if (r > s_cut) RETURN  ! screening (condition a)
       !
-      if (r < s_cut) then
+      if (r < spxr(1,1)) then
         ! a) short range
         erep = erep + exp(-srep(1)*r + srep(2)) + srep(3)
         if (dograd) de_z = de_z -srep(1)*exp(-srep(1)*r + srep(2))
@@ -1456,7 +1491,7 @@ CONTAINS
     end if
     !
     if (dograd) then
-       if ( r > 0.e-12_dp ) derep(1:3) = (de_z/r)*rv(1:3)
+       if ( r > 1.e-12_dp ) derep(1:3) = (de_z/r)*rv(1:3)
     end if
 
   end subroutine urep_egr

@@ -76,7 +76,8 @@ MODULE qs_environment
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE et_coupling_types,               ONLY: et_coupling_create
-  USE ewald_environment_types,         ONLY: ewald_env_create,&
+  USE ewald_environment_types,         ONLY: ewald_environment_type,&
+                                             ewald_env_create,&
                                              ewald_env_retain,&
                                              ewald_env_release,&
                                              read_ewald_section
@@ -394,6 +395,7 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: dft_section, qs_section,et_coupling_section,&
                                                 et_ddapc_section,et_becke_section,&
                                                 poisson_section,ewald_section
@@ -488,15 +490,17 @@ CONTAINS
 
 !   *** Read DFTB parameter files ***
     IF ( dft_control%qs_control%method == "DFTB" ) THEN
+      NULLIFY (ewald_env)
       dftb_control => dft_control%qs_control%dftb_control
       CALL qs_dftb_param_init (atomic_kind_set,dftb_control,&
            force_env_section=qs_env%input,para_env=para_env,error=error)
       ! check for Ewald
       IF ( dftb_control%do_ewald ) THEN
-        CALL ewald_env_create(dftb_control%ewald_env,para_env,error=error)
+        CALL ewald_env_create(ewald_env,para_env,error=error)
         poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
         ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
-        CALL read_ewald_section(dftb_control%ewald_env,ewald_section,error=error)
+        CALL read_ewald_section(ewald_env,ewald_section,error=error)
+        CALL set_qs_env(qs_env,ewald_env=ewald_env,error=error)
       END IF
     END IF
 

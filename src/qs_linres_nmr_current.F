@@ -126,8 +126,8 @@ MODULE qs_linres_nmr_current
                                              realspace_grid_type,&
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
-                                             rs_grid_zero,&
-                                             rs_pw_to_cube
+                                             rs_grid_zero
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
        deallocate_matrix, deallocate_matrix_set, get_block_node, &

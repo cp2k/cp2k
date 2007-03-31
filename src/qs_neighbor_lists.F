@@ -43,6 +43,8 @@ MODULE qs_neighbor_lists
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
@@ -160,7 +162,7 @@ CONTAINS
       paw_atom_present, print_subcell_grid, rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, oce_present, &
       orb_present, ppl_present, ppnl_present, Qlm_present, semi_present
-    REAL(dp)                                 :: r_skin, rcprj
+    REAL(dp)                                 :: r_skin, rcprj, alpha
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, c_radius, oce_radius, &
       orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius, &
       V0hmv0s_radius
@@ -177,6 +179,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(local_atoms_type), ALLOCATABLE, &
@@ -926,6 +929,22 @@ CONTAINS
       END IF
       DEALLOCATE(ab_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
+
+      IF ( qs_env%dft_control%qs_control%dftb_control%do_ewald ) THEN
+        ALLOCATE (c_radius(nkind),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "c_radius",nkind*dp_size)
+        CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
+        CALL ewald_env_get ( ewald_env, alpha=alpha )
+        c_radius = 0.5_dp*SQRT(-log(3.5_dp*alpha**3*1.e-12_dp))/alpha
+        CALL build_neighbor_lists(sac_3c,atom,cell,r_skin,maxatom_local,&
+                                  .FALSE.,output_unit,orb_present,orb_present,&
+                                  c_radius,c_radius,mic=mic,name="EWALD OVERLAP")
+        ! Put the generated neighbor lists into the QS environment
+        CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,error=error)
+        DEALLOCATE (c_radius,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
+      END IF
 
     END IF
 

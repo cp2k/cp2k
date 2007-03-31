@@ -71,7 +71,7 @@ MODULE qmmm_gpw_energy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

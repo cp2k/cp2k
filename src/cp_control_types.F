@@ -19,8 +19,6 @@
 MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE ewald_environment_types,         ONLY: ewald_environment_type,&
-                                             ewald_env_release
   USE kinds,                           ONLY: dp,&
                                              default_path_length,&
                                              default_string_length
@@ -29,8 +27,6 @@ MODULE cp_control_types
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             deallocate_matrix_set
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
@@ -51,15 +47,14 @@ MODULE cp_control_types
   TYPE dftb_control_type
      LOGICAL                              :: self_consistent
      LOGICAL                              :: orthogonal_basis
+     LOGICAL                              :: dispersion
      LOGICAL                              :: do_ewald
      CHARACTER(LEN=default_path_length)   :: sk_file_path
+     CHARACTER(LEN=default_path_length)   :: sk_file_list
      CHARACTER(LEN=default_string_length),&
        DIMENSION(:,:), POINTER            :: sk_pair_list
      TYPE (qs_dftb_pairpot_type), &
        DIMENSION(:,:), POINTER            :: dftb_potential
-     TYPE (real_matrix_p_type),&
-       DIMENSION(:), POINTER              :: gamma_matrix
-     TYPE (ewald_environment_type),POINTER:: ewald_env
   END TYPE dftb_control_type
 !------------------------------------------------------------------------------!
 ! Control parameters for semi empirical calculations
@@ -811,8 +806,6 @@ SUBROUTINE dftb_control_create(dftb_control,error)
    
    NULLIFY(dftb_control%sk_pair_list)
    NULLIFY(dftb_control%dftb_potential)
-   NULLIFY(dftb_control%gamma_matrix)
-   NULLIFY(dftb_control%ewald_env)
 
 END SUBROUTINE dftb_control_create
 !------------------------------------------------------------------------------!
@@ -835,12 +828,6 @@ SUBROUTINE dftb_control_release(dftb_control,error)
      END IF
      IF (ASSOCIATED(dftb_control%dftb_potential)) THEN
         call qs_dftb_pairpot_release(dftb_control%dftb_potential,error)
-     END IF
-     IF (ASSOCIATED(dftb_control%gamma_matrix)) THEN
-       CALL deallocate_matrix_set(dftb_control%gamma_matrix,error)
-     END IF
-     IF (ASSOCIATED(dftb_control%ewald_env)) THEN
-       CALL ewald_env_release(dftb_control%ewald_env,error)
      END IF
      DEALLOCATE(dftb_control,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

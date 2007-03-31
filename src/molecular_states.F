@@ -55,7 +55,7 @@ MODULE molecular_states
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&

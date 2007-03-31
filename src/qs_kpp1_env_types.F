@@ -35,7 +35,7 @@ MODULE qs_kpp1_env_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE pw_types,                        ONLY: pw_p_type
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
   USE string_utilities,                ONLY: compress

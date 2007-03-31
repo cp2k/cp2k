@@ -134,9 +134,32 @@ CONTAINS
          ' #    #  #     #  #      #     # #          #    #     #  ',&
          '  #### #  #####  #       ######  #          #    ######   ',&
          '                                                       ', &
-         '                     Version 0.0                       ', &
+         '                     Version 0.1                       ', &
+         '                J. Hutter and T. Heine                 ', &
          '                                                       '
-
+    WRITE (UNIT=iw,FMT="(T2,A79)")&
+         "*******************************************************************************",&
+         "** Porezag D., Frauenheim T., Kohler T., Seifert G., Kaschner R.             **",&
+         "** Construction of tight-binding-like potentials on the basis of             **",&
+         "** density-functional theory - Application to carbon                         **",&
+         "** Phys. Rev. B, Vol. 51, Issue 19, 12947-12957 (1995)                       **",&
+         "*******************************************************************************",&
+         "** Seifert G., Porezag D., Frauenheim T.                                     **",&
+         "** Calculations of molecules, clusters, and solids with a simplified         **",&
+         "** LCAO-DFT-LDA scheme                                                       **",&
+         "** Int. J. Quant. Chem., Vol. 58, Issue 2, 185-192 (1996)                    **",&
+         "*******************************************************************************",&
+         "** Elstner M., Porezag D., Jungnickel G., Elsner J., Haugk M.,               **",&
+         "** Frauenheim T., Suhai S., Seifert G.                                       **",&
+         "** Self-consistent-charge density-functional tight-binding method            **",&
+         "** for simulations of complex materials properties                           **",&
+         "** Phys. Rev. B, Vol. 58, Issue 11, 7260-7268 (1998)                         **",&
+         "*******************************************************************************",&
+         "** Zhechkov L., Heine T., Patchkovskii S., Seifert G., Duarte H.A.           **",&
+         "** An efficient a Posteriori treatment for dispersion interaction            **",&
+         "** in density-functional-based tight binding                                 **",&
+         "** J. Chem. Theory Comp. 1, Issue 5, 841-847 (2005)                          **",&
+         "*******************************************************************************"
   END SUBROUTINE dftb_header
 
   SUBROUTINE se_header ( iw, ionode )

@@ -531,10 +531,14 @@ CONTAINS
                  l_val=qs_control%dftb_control%orthogonal_basis,error=error)
     CALL section_vals_val_get(dftb_section,"SELF_CONSISTENT",&
                  l_val=qs_control%dftb_control%self_consistent,error=error)
+    CALL section_vals_val_get(dftb_section,"DISPERSION",&
+                 l_val=qs_control%dftb_control%dispersion,error=error)
     CALL section_vals_val_get(dftb_section,"DO_EWALD",&
                  l_val=qs_control%dftb_control%do_ewald,error=error)
     CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_PATH",&
                  c_val=qs_control%dftb_control%sk_file_path,error=error)
+    CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_NAME",&
+                 c_val=qs_control%dftb_control%sk_file_list,error=error)
     CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var,&
                  error=error)
     ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=istat)

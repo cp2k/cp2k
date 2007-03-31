@@ -64,6 +64,12 @@ MODULE qs_environment_types
                                              ep_qs_type
   USE et_coupling_types,               ONLY: et_coupling_type,&
                                              et_coupling_release
+  USE ewald_environment_types,         ONLY: ewald_environment_type,&
+                                             ewald_env_retain,&
+                                             ewald_env_release
+  USE ewald_pw_types,                  ONLY: ewald_pw_type,&
+                                             ewald_pw_retain,&
+                                             ewald_pw_release
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -218,11 +224,14 @@ MODULE qs_environment_types
 !!       its derivatives wrt. x,y, and z (matrix_s(2:4))
 !!     - kinetic: kinetic part of h
 !!     - matrix_dv: derivatives of the grid potentials in x-y-z direction
+!!     - gamma_matrix: gamma (Coulomb) matrix in DFTB, if needed by the calculation also
+!!       its derivatives wrt. x,y, and z 
 !!     - rho: the (old) density, in various representations (ao+grid)
 !!     - rho_xc: the (old) soft density, used for the GAPW_XC method only
 !!     - scf_control: various parameters relevant to the scf cycle
-!!     - pw_env: various things to create and get info on the grids used
-!!       by qs
+!!     - pw_env: various things to create and get info on the grids used by qs
+!!     - ewald_env: information to perform ewald summation (used by DFTB)
+!!     - ewald_pw: information on pw used to perform ewald summation (used by DFTB)
 !!     - kg_sub_pw_env : it contains the set of pw_env for the different molecule kind
 !!       to be used in the KG_GPW method in order to construct the molecular desities
 !!       on different grids. The grids are built in the small box containing the single molecule.
@@ -300,12 +309,15 @@ MODULE qs_environment_types
                                                              matrix_s,&
                                                              kinetic,&
                                                              matrix_w,&
-                                                             matrix_dv
+                                                             matrix_dv,&
+                                                             gamma_matrix
     TYPE(qs_rho_type), POINTER                            :: rho,&
                                                              rho_buffer,&
                                                              rho_xc
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(pw_env_type), POINTER                            :: pw_env
+    TYPE (ewald_environment_type),POINTER                 :: ewald_env
+    TYPE (ewald_pw_type),POINTER                          :: ewald_pw
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(coeff_type), POINTER                             :: rho_core
@@ -370,9 +382,9 @@ CONTAINS
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
-                        matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,&
-                        rho, rho_buffer, rho_xc, pw_env, mpools,input,&
-                        para_env, blacs_env, scf_control,&
+                        matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,gamma_matrix,&
+                        rho, rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
+                        mpools,input, para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
                         wf_history,scf_env,use_harris,&
                         id_nr,local_particles,local_molecules,&
@@ -415,9 +427,12 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
-                                                matrix_s, matrix_w, matrix_dv
+      matrix_s, matrix_w, matrix_dv, gamma_matrix
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_buffer, rho_xc
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
+    TYPE(ewald_environment_type), &
+      OPTIONAL, POINTER                      :: ewald_env
+    TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
     TYPE(section_vals_type), OPTIONAL, &
@@ -537,10 +552,13 @@ CONTAINS
     IF (PRESENT(matrix_s)) matrix_s => qs_env%matrix_s
     IF (PRESENT(matrix_w)) matrix_w => qs_env%matrix_w
     IF (PRESENT(matrix_dv)) matrix_dv => qs_env%matrix_dv
+    IF (PRESENT(gamma_matrix)) gamma_matrix => qs_env%gamma_matrix
     IF (PRESENT(rho)) rho => qs_env%rho
     IF (PRESENT(rho_buffer)) rho_buffer => qs_env%rho_buffer
     IF (PRESENT(rho_xc)) rho_xc => qs_env%rho_xc
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
+    IF (PRESENT(ewald_env)) ewald_env => qs_env%ewald_env
+    IF (PRESENT(ewald_pw)) ewald_pw => qs_env%ewald_pw
     IF (PRESENT(mpools)) mpools => qs_env%mpools
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
@@ -654,11 +672,14 @@ CONTAINS
     NULLIFY (qs_env%matrix_s)
     NULLIFY (qs_env%matrix_w)
     NULLIFY (qs_env%matrix_dv)
+    NULLIFY (qs_env%gamma_matrix)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
     NULLIFY (qs_env%rho_buffer)
     NULLIFY (qs_env%rho_xc)
     NULLIFY (qs_env%pw_env)
+    NULLIFY (qs_env%ewald_env)
+    NULLIFY (qs_env%ewald_pw)
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
@@ -712,8 +733,8 @@ CONTAINS
                         sab_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         energy,force,harris_env,&
-                        matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,&
-                        pw_env,mpools,rho,rho_buffer,rho_xc,kinetic,&
+                        matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,gamma_matrix,&
+                        pw_env,ewald_env,ewald_pw,mpools,rho,rho_buffer,rho_xc,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,use_harris,&
                         distribution_2d,dft_section,input,&
@@ -747,8 +768,11 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
-                                                matrix_s, matrix_w, matrix_dv
+      matrix_s, matrix_w, matrix_dv, gamma_matrix
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
+    TYPE(ewald_environment_type), &
+      OPTIONAL, POINTER                      :: ewald_env
+    TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_buffer, rho_xc
@@ -861,6 +885,7 @@ CONTAINS
     IF (PRESENT(matrix_s)) qs_env%matrix_s => matrix_s
     IF (PRESENT(matrix_w)) qs_env%matrix_w => matrix_w
     IF (PRESENT(matrix_dv)) qs_env%matrix_dv => matrix_dv
+    IF (PRESENT(gamma_matrix)) qs_env%gamma_matrix => gamma_matrix
     IF (PRESENT(oce)) qs_env%oce => oce
     IF (PRESENT(outer_scf_history)) qs_env%outer_scf_history=>outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory=outer_scf_ihistory
@@ -891,6 +916,16 @@ CONTAINS
       CALL pw_env_retain(pw_env,error=error)
       CALL pw_env_release(qs_env%pw_env,error=error)
       qs_env%pw_env => pw_env
+    END IF
+    IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
+      CALL ewald_env_retain(ewald_env,error=error)
+      CALL ewald_env_release(qs_env%ewald_env,error=error)
+      qs_env%ewald_env => ewald_env
+    END IF
+    IF (PRESENT(ewald_pw)) THEN ! accept also null pointers?
+      CALL ewald_pw_retain(ewald_pw,error=error)
+      CALL ewald_pw_release(qs_env%ewald_pw,error=error)
+      qs_env%ewald_pw => ewald_pw
     END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
        CALL scf_c_retain(scf_control,error=error)
@@ -1260,6 +1295,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s,error)
         IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w,error)
         IF (ASSOCIATED(qs_env%matrix_dv)) CALL deallocate_matrix_set(qs_env%matrix_dv,error)
+        IF (ASSOCIATED(qs_env%gamma_matrix)) CALL deallocate_matrix_set(qs_env%gamma_matrix,error)
         IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce,error)
 
         IF (ASSOCIATED(qs_env%local_rho_set)) THEN
@@ -1296,6 +1332,8 @@ SUBROUTINE qs_env_release(qs_env,error)
           CALL virial_release(qs_env%virial,error=error)
         END IF
         CALL pw_env_release(qs_env%pw_env, error=error)
+        CALL ewald_env_release(qs_env%ewald_env, error=error)
+        CALL ewald_pw_release(qs_env%ewald_pw, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
         IF (ASSOCIATED(qs_env%rho_core)) THEN

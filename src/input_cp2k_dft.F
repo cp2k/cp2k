@@ -1682,6 +1682,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="dispersion",&
+            description="Use dispersion correction",&
+            usage="DISPERSION",default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_dftb_control_section
@@ -1719,6 +1725,13 @@ CONTAINS
             description="Specify the directory with the DFTB parameter files",&
             usage="PARAM_FILE_PATH pathname",&
             n_var=1,type_of_var=char_t,default_c_val="./",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="PARAM_FILE_NAME",&
+            description="Specify file that contains the SK_FILE names",&
+            usage="PARAM_FILE_NAME filename",&
+            n_var=1,type_of_var=char_t,default_c_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

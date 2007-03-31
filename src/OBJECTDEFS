@@ -421,6 +421,7 @@ OBJECTS_GENERIC =\
  qs_wf_history_methods.o\
  qs_wf_history_types.o\
  real_space_test.o\
+ realspace_grid_cube.o\
  realspace_grid_types.o\
  replica_methods.o\
  replica_types.o\

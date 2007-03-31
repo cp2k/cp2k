@@ -158,7 +158,7 @@ MODULE ep_methods
                                              wfi_release,&
                                              wfi_use_prev_wf_method_nr,&
                                              wfs_release
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
                                              rep_env_create,&
                                              rep_env_local_index,&

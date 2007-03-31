@@ -335,6 +335,7 @@ CONTAINS
         CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
         CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
         CALL mp_sum(force(ikind)%fock_4c,para_env%group)
+        CALL mp_sum(force(ikind)%repulsive,para_env%group)
         force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                   force(ikind)%core_overlap(:,:) +&
                                   force(ikind)%gth_ppl(:,:) +&
@@ -348,7 +349,8 @@ CONTAINS
                                   force(ikind)%g0s_Vh_elec(:,:) +&
                                   force(ikind)%hartree_2c(:,:) +&
                                   force(ikind)%hartree_3c(:,:) +&
-                                  force(ikind)%fock_4c(:,:)
+                                  force(ikind)%fock_4c(:,:) +&
+                                  force(ikind)%repulsive(:,:) 
       END DO
 
 
@@ -598,6 +600,7 @@ CONTAINS
              ikind = kind_of(iatom)
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind,"  all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
                   iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&

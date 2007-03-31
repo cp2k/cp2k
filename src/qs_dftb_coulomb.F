@@ -21,6 +21,7 @@ MODULE qs_dftb_coulomb
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
                                              pbc,&
                                              real_to_scaled
   USE cp_control_types,                ONLY: dft_control_type,&
@@ -37,16 +38,22 @@ MODULE qs_dftb_coulomb
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_3d
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE input_constants,                 ONLY: do_rsgrid_distributed
+  USE input_constants,                 ONLY: do_rsgrid_distributed,&
+                                             do_ewald_none,&
+                                             do_ewald_ewald,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: fourpi
+  USE mathconstants,                   ONLY: pi,fourpi,oorootpi
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_types,                  ONLY: get_particle_set,&
@@ -140,9 +147,10 @@ CONTAINS
     LOGICAL                                  :: failure, do_ewald
     INTEGER                                  :: handle, istat, natom, &
       nbrow, nbcol, irow, icol, iatom, jatom, nmat, i, ikind, atom_i, &
-      jkind, atom_j
+      jkind, atom_j, ia, ewald_type
     INTEGER, DIMENSION(:), POINTER           :: kind_of, atom_of_kind
-    REAL(KIND=dp)                            :: dr, gmij, fi
+    REAL(KIND=dp)                            :: dr, gmij, fi, alpha, deth,&
+                                                q_self, q_sum, e_self, e_neut
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mcin, mcout, gmcharge
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: gblock, ksblock, sblock, pblock,&
                                                 dsblock
@@ -152,16 +160,20 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, matrix_p, gamma_matrix
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: n_list
 
 !   ----------------------------------------------------------------------------
 
@@ -180,7 +192,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     gmcharge = 0._dp
 
-    gamma_matrix => qs_env%dft_control%qs_control%dftb_control%gamma_matrix
+    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,error=error)
 
     ALLOCATE(mcin(1,natom),mcout(1,natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -197,25 +209,55 @@ CONTAINS
     do_ewald = qs_env%dft_control%qs_control%dftb_control%do_ewald
     IF (do_ewald) THEN
       ! Ewald sum
-      ewald_env => qs_env%dft_control%qs_control%dftb_control%ewald_env
-!deb
-      write(6,*) "DO EWALD"
-!deb
+      NULLIFY(ewald_env,ewald_pw)
+      CALL get_qs_env(qs_env=qs_env,&
+                      ewald_env=ewald_env,ewald_pw=ewald_pw,&
+                      cell=cell,error=error)
+      CALL get_cell(cell=cell,deth=deth)
+      CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
+      q_sum = SUM(mcharge(:))
+      q_self = SUM(mcharge(:)**2)
+      e_self = -q_self*alpha / SQRT(pi)
+      e_neut = -q_sum**2 * pi / (2.0_dp*alpha**2) / deth
+      energy%core_self = e_self + e_neut
+      energy%core_overlap = 0._dp
+      CALL get_qs_env(qs_env=qs_env,sac_3c=n_list,&
+                      particle_set=particle_set,error=error)
+      CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,error=error)
+      SELECT CASE(ewald_type)
+      CASE DEFAULT
+        CPErrorMessage(cp_failure_level,routineP,"Invalid Ewald type",error)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CASE(do_ewald_none)
+        CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB",error)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CASE(do_ewald_ewald)
+        CPErrorMessage(cp_failure_level,routineP,"Not implemented",error)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CASE(do_ewald_pme)
+        CPErrorMessage(cp_failure_level,routineP,"Not implemented",error)
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CASE(do_ewald_spme)
+        CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,error)
+      END SELECT
     ELSE
       ! direct sum
       CALL get_qs_env(qs_env=qs_env,&
-                      cell=cell,&
+                      cell=cell,local_particles=local_particles,&
                       particle_set=particle_set,error=error)
-      DO iatom=1,SIZE(particle_set)
-        DO jatom=1,iatom-1
-          rij = particle_set(iatom)%r - particle_set(jatom)%r
-          rij = pbc(rij,cell)
-          dr = SQRT(SUM(rij(:)**2))
-          gmcharge(iatom,1)=gmcharge(iatom,1)+mcharge(jatom)/dr
-          gmcharge(jatom,1)=gmcharge(jatom,1)+mcharge(iatom)/dr
-          DO i=2,nmat
-            gmcharge(iatom,i)=gmcharge(iatom,i)-rij(i-1)*mcharge(jatom)/dr**3
-            gmcharge(jatom,i)=gmcharge(jatom,i)+rij(i-1)*mcharge(iatom)/dr**3
+      DO ikind=1,SIZE(local_particles%n_el)
+        DO ia=1,local_particles%n_el(ikind)
+          iatom=local_particles%list(ikind)%array(ia)
+          DO jatom=1,iatom-1
+            rij = particle_set(iatom)%r - particle_set(jatom)%r
+            rij = pbc(rij,cell)
+            dr = SQRT(SUM(rij(:)**2))
+            gmcharge(iatom,1)=gmcharge(iatom,1)+mcharge(jatom)/dr
+            gmcharge(jatom,1)=gmcharge(jatom,1)+mcharge(iatom)/dr
+            DO i=2,nmat
+              gmcharge(iatom,i)=gmcharge(iatom,i)+rij(i-1)*mcharge(jatom)/dr**3
+              gmcharge(jatom,i)=gmcharge(jatom,i)-rij(i-1)*mcharge(iatom)/dr**3
+            END DO
           END DO
         END DO
       END DO
@@ -226,9 +268,9 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     force=force,para_env=para_env,error=error)
-    CALL mp_sum(gmcharge,para_env%group)
+    CALL mp_sum(gmcharge(:,1),para_env%group)
 
-    energy%hartree = energy%hartree + SUM(mcharge(:)*gmcharge(:,1))
+    energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
     IF ( calculate_forces ) THEN
       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -244,11 +286,11 @@ CONTAINS
         ikind  = kind_of(iatom)
         atom_i = atom_of_kind(iatom)
         force(ikind)%rho_elec(1,atom_i) =&
-            force(ikind)%rho_elec(1,atom_i) + gmcharge(iatom,2)
+            force(ikind)%rho_elec(1,atom_i) - gmcharge(iatom,2)
         force(ikind)%rho_elec(2,atom_i) =&
-            force(ikind)%rho_elec(2,atom_i) + gmcharge(iatom,3)
+            force(ikind)%rho_elec(2,atom_i) - gmcharge(iatom,3)
         force(ikind)%rho_elec(3,atom_i) =&
-            force(ikind)%rho_elec(3,atom_i) + gmcharge(iatom,4)
+            force(ikind)%rho_elec(3,atom_i) - gmcharge(iatom,4)
       END DO
     END IF
 
@@ -270,7 +312,7 @@ CONTAINS
           CALL get_block_node(matrix=matrix_s(1)%matrix,block_row=iatom,&
                  block_col=jatom,block=sblock)
           gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
-          ksblock = ksblock + gmij*sblock
+          ksblock = ksblock - gmij*sblock
           IF ( calculate_forces ) THEN
             ikind  = kind_of(iatom)
             atom_i = atom_of_kind(iatom)
@@ -283,7 +325,7 @@ CONTAINS
               NULLIFY(dsblock)
               CALL get_block_node(matrix=matrix_s(1+i)%matrix,block_row=iatom,&
                    block_col=jatom,block=dsblock)
-              fi = gmij*SUM(pblock*dsblock)
+              fi = -gmij*SUM(pblock*dsblock)
               force(ikind)%rho_elec(i,atom_i) =&
                   force(ikind)%rho_elec(i,atom_i) + fi
               force(jkind)%rho_elec(i,atom_j) =&
@@ -313,45 +355,46 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,&
-        fg_coulomb,vg_coulomb,pv_g,error)
+  SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
     TYPE(cell_type), POINTER                 :: box
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: fg_coulomb
-    REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: pv_g
+!   REAL(KIND=dp), DIMENSION(:, :), &
+!     INTENT(OUT)                            :: fg_coulomb
+!   REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
+!   REAL(KIND=dp), DIMENSION(:, :), &
+!     INTENT(OUT)                            :: pv_g
 !   TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, o_spline, rs_distributed_id, group, ierr, n, npart, &
-               nsmax, ipart, jpart, p1, i, j
-    INTEGER, DIMENSION(3)                    :: ndim
+    INTEGER :: handle, o_spline, rs_distributed_id, group
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, eps0, inv_fourpi_eps0,&
-                                                ffa, dvols
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: rhos
-    REAL(KIND=dp), DIMENSION(3)              :: fat
-    REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
+    REAL(KIND=dp)                            :: alpha
+!   INTEGER :: handle, o_spline, rs_distributed_id, group, ierr, n, npart, &
+!              nsmax, ipart, jpart, p1, i, j
+!   INTEGER, DIMENSION(3)                    :: ndim
+!   REAL(KIND=dp)                            :: alpha, eps0, inv_fourpi_eps0,&
+!                                               ffa, dvols
+!   INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
+!   REAL(KIND=dp), ALLOCATABLE, &
+!     DIMENSION(:, :, :)                     :: rhos
+!   REAL(KIND=dp), DIMENSION(3)              :: fat
+!   REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
-    TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
+!   TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: phi_g, rhob_g, rhob_r
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: drpot
-    TYPE(realspace_grid_type), POINTER       :: rden
+!   TYPE(pw_type), POINTER                   :: phi_g, rhob_g, rhob_r
+!   TYPE(realspace_grid_p_type), &
+!     DIMENSION(:), POINTER                  :: drpot
+!   TYPE(realspace_grid_type), POINTER       :: rden
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
@@ -360,7 +403,7 @@ CONTAINS
 
   failure = .FALSE.
 
-  CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
+  CALL ewald_env_get ( ewald_env, alpha=alpha, &
                        o_spline = o_spline, group = group, &
                        rs_distributed_id = rs_distributed_id, error=error)
   NULLIFY(green, poisson_env, pw_pool)
@@ -369,139 +412,138 @@ CONTAINS
   green => poisson_env%green_fft
   grid_spme => pw_pool % pw_grid
 
-  inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
-  npart = SIZE ( particle_set )
+! npart = SIZE ( particle_set )
 
-  n = o_spline
-  ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  ndim = n
-  IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-    nsmax = MAXVAL ( ndim(1:3) )
-  ELSE
-    nsmax = -1
-  END IF
-  CALL rs_grid_create ( rden, grid_spme, nsmax, error=error)
-  rden % r = 0.0_dp
+! n = o_spline
+! ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
+! CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+! ndim = n
+! IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
+!   nsmax = MAXVAL ( ndim(1:3) )
+! ELSE
+!   nsmax = -1
+! END IF
+! CALL rs_grid_create ( rden, grid_spme, nsmax, error=error)
+! rden % r = 0.0_dp
 
-  ALLOCATE ( center ( 3, npart ), STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  CALL get_center ( particle_set, box, center, grid_spme % npts, n )
+! ALLOCATE ( center ( 3, npart ), STAT = ierr )
+! CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+! CALL get_center ( particle_set, box, center, grid_spme % npts, n )
 
 !-------------- DENSITY CALCULATION ----------------
 
-  ipart = 0
-  jpart = 0
+! ipart = 0
+! jpart = 0
 
-  DO
+! DO
 
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
-     IF ( p1 == 0 ) EXIT
+!    CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+!    IF ( p1 == 0 ) EXIT
 
-     ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos)
+!    ! calculate function on small boxes
+!    CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos)
 
-     ! add boxes to real space grid (big box)
-     CALL dg_sum_patch ( rden, rhos, center(:,p1) )
-     
-  END DO     
+!    ! add boxes to real space grid (big box)
+!    CALL dg_sum_patch ( rden, rhos, center(:,p1) )
+!    
+! END DO     
 
-  CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
-                           use_data = REALDATA3D, &
-                           in_space = REALSPACE ,error=error)
+! CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
+!                          use_data = REALDATA3D, &
+!                          in_space = REALSPACE ,error=error)
 
-  CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
+! CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
 
-  ! transform density to G space and add charge function
-  CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
-                           use_data = COMPLEXDATA1D, &
-                           in_space = RECIPROCALSPACE ,error=error)
-  CALL pw_transfer ( rhob_r, rhob_g )
-  ! update charge function
-  rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
+! ! transform density to G space and add charge function
+! CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
+!                          use_data = COMPLEXDATA1D, &
+!                          in_space = RECIPROCALSPACE ,error=error)
+! CALL pw_transfer ( rhob_r, rhob_g )
+! ! update charge function
+! rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
 !-------------- ELECTROSTATIC CALCULATION -----------
 
-  ! allocate intermediate arrays
-  DO i = 1, 3
-     NULLIFY(dphi_g(i)%pw)
-     CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
-                              use_data = COMPLEXDATA1D,   &
-                              in_space = RECIPROCALSPACE ,error=error)
-  END DO
-  CALL pw_pool_create_pw ( pw_pool, phi_g,  &
-                           use_data = COMPLEXDATA1D,   &
-                           in_space = RECIPROCALSPACE ,error=error)
-  CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
-                          h_stress ,error=error)
+! ! allocate intermediate arrays
+! DO i = 1, 3
+!    NULLIFY(dphi_g(i)%pw)
+!    CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
+!                             use_data = COMPLEXDATA1D,   &
+!                             in_space = RECIPROCALSPACE ,error=error)
+! END DO
+! CALL pw_pool_create_pw ( pw_pool, phi_g,  &
+!                          use_data = COMPLEXDATA1D,   &
+!                          in_space = RECIPROCALSPACE ,error=error)
+! CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
+!                         h_stress ,error=error)
 
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
-  vg_coulomb = vg_coulomb * inv_fourpi_eps0
+! CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
+! vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
 !---------- END OF ELECTROSTATIC CALCULATION --------
 
 !------------- STRESS TENSOR CALCULATION ------------
 
-  DO i = 1, 3
-    DO j = i, 3
-       f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw)
-       f_stress(j,i) = f_stress(i,j)
-    END DO
-  END DO
-  ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / alpha ) ** 2
-  f_stress = -ffa * f_stress
-  pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+! DO i = 1, 3
+!   DO j = i, 3
+!      f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw)
+!      f_stress(j,i) = f_stress(i,j)
+!   END DO
+! END DO
+! ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / alpha ) ** 2
+! f_stress = -ffa * f_stress
+! pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
 
 !--------END OF STRESS TENSOR CALCULATION -----------
 
-  ! move derivative of potential to real space grid and
-  ! multiply by charge function in g-space
-  CALL rs_grid_p_create ( drpot, 3, grid_spme, nsmax, error=error)
-  DO i = 1, 3
-     dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
-                              green % p3m_charge % cr
-     CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
-     CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
-     CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
-  END DO
+! ! move derivative of potential to real space grid and
+! ! multiply by charge function in g-space
+! CALL rs_grid_p_create ( drpot, 3, grid_spme, nsmax, error=error)
+! DO i = 1, 3
+!    dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
+!                             green % p3m_charge % cr
+!    CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+!    CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
+!    CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
+! END DO
 
-  CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
-  CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
+! CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
+! CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
 
 !----------------- FORCE CALCULATION ----------------
 
 ! initialize the forces
-  fg_coulomb = 0.0_dp
-  dvols = grid_spme % dvol * inv_fourpi_eps0
+! fg_coulomb = 0.0_dp
+! dvols = grid_spme % dvol * inv_fourpi_eps0
 
-  ipart = 0
-  jpart = 0
-  DO
+! ipart = 0
+! jpart = 0
+! DO
 
-     CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
-     IF ( p1 == 0 ) EXIT
+!    CALL set_list ( particle_set, npart, center, p1, rden, ipart, jpart )
+!    IF ( p1 == 0 ) EXIT
 
-     ! calculate function on small boxes
-     CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
+!    ! calculate function on small boxes
+!    CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos )
 
-     ! add boxes to real space grid (big box)
-     CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
-     fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
-     fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
-     fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
+!    ! add boxes to real space grid (big box)
+!    CALL dg_sum_patch_force_3d ( drpot, rhos, center(:,p1), fat )
+!    fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
+!    fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
+!    fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
 
-  END DO
+! END DO
 
 !--------------END OF FORCE CALCULATION -------------
 
 !------------------CLEANING UP ----------------------
 
-  CALL rs_grid_release ( rden ,error=error)
-  CALL rs_grid_p_release ( drpot ,error=error)
-  DEALLOCATE ( rhos, STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE ( center, STAT = ierr )
-  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+! CALL rs_grid_release ( rden ,error=error)
+! CALL rs_grid_p_release ( drpot ,error=error)
+! DEALLOCATE ( rhos, STAT = ierr )
+! CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+! DEALLOCATE ( center, STAT = ierr )
+! CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
   CALL timestop ( 0.0_dp, handle )
 
@@ -635,6 +677,83 @@ SUBROUTINE get_delta ( box, r, npts, delta, n )
   delta ( : ) = grid_i ( : ) - ca ( : )
 
 END SUBROUTINE get_delta
+
+! *****************************************************************************
+
+  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,error)
+
+    REAL(KIND=dp), DIMENSION(:,:), &
+      INTENT(inout)                          :: gmcharge
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: mcharge
+    REAL(KIND=dp), INTENT(in)                :: alpha
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: n_list
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dftb_ewald_overlap', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, inode, nnode, iab,&
+      iatom, jatom, ilist, nlist, nmat, i
+    REAL(KIND=dp)                            :: rij(3),dr,fr,dfr
+    TYPE(neighbor_list_type), POINTER        :: n_list_ab, n_list_local
+    TYPE(neighbor_node_type), POINTER        :: n_list_node
+
+!   ----------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    nmat = SIZE(gmcharge,2)
+
+    DO iab = 1, SIZE(n_list)
+      IF (.NOT.ASSOCIATED(n_list(iab)%neighbor_list_set)) CYCLE
+      CALL get_neighbor_list_set(neighbor_list_set=&
+                                 n_list(iab)%neighbor_list_set,&
+                                 nlist=nlist)
+      NULLIFY(n_list_ab)
+
+      DO ilist=1,nlist
+        IF ( .NOT. ASSOCIATED(n_list_ab) ) THEN
+          n_list_ab => first_list(n_list(iab)%neighbor_list_set)
+        ELSE
+          n_list_ab => next(n_list_ab)
+        END IF
+        n_list_local => n_list_ab
+        CALL get_neighbor_list(neighbor_list=n_list_local,&
+                               atom=iatom,nnode=nnode)
+
+        n_list_node => first_node(n_list_local)
+
+        DO inode=1,nnode
+          CALL get_neighbor_node(neighbor_node=n_list_node,&
+                                 neighbor=jatom,r=rij)
+
+          dr = SQRT(SUM(rij(:)**2))
+          IF (dr > 1.e-10) THEN
+            fr = erfc(alpha*dr)/dr
+            gmcharge(iatom,1)=gmcharge(iatom,1)+mcharge(jatom)*fr
+            gmcharge(jatom,1)=gmcharge(jatom,1)+mcharge(iatom)*fr
+            IF ( nmat > 1 ) THEN
+              dfr = -2._dp*alpha*exp(-alpha*alpha*dr*dr)*oorootpi/dr-fr/dr
+              dfr = dfr/dr
+              DO i=2,nmat
+                gmcharge(iatom,i)=gmcharge(iatom,i)-rij(i-1)*mcharge(jatom)*dfr
+                gmcharge(jatom,i)=gmcharge(jatom,i)+rij(i-1)*mcharge(iatom)*dfr
+              END DO
+            END IF
+          END IF
+
+          n_list_node => next(n_list_node)
+
+        END DO ! inode => jatom(atom B)
+
+      END DO ! ilist => iatom(atom A)
+
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE dftb_ewald_overlap
 
 ! *****************************************************************************
 

@@ -90,7 +90,7 @@ MODULE qs_loc_methods
                                              mo_set_p_type
 !  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
 !  USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
