@@ -42,7 +42,8 @@ MODULE sparse_matrix_output
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE orbital_pointers,                ONLY: nso
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE sparse_matrix_types,             ONLY: copy_local_sm_to_replicated_fm,&
@@ -179,12 +180,13 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_matrix'
 
+    LOGICAL                                  :: failure
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=25)                        :: fmtstr1
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     INTEGER :: from, group, iatom, icol, irow, iset, isgf, ishell, iso, jcol, &
-      l, left, natom, ncol, ndigits, nset, nsgf, right, to, width
+      l, left, natom, ncol, ndigits, nset, nsgf, right, to, width, istat
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -192,8 +194,11 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
 
 !   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
 
     group = para_env%group
 
@@ -207,6 +212,14 @@ CONTAINS
       natom = SIZE(particle_set)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+
+      ALLOCATE (first_sgf(natom),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+      ALLOCATE (last_sgf(natom),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+      CALL get_particle_set(particle_set=particle_set,&
+                            first_sgf=first_sgf,&
+                            last_sgf=last_sgf)
 
 !     *** Definition of the variable formats ***
 
@@ -243,36 +256,56 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT=fmtstr1) (jcol,jcol=from,to)
         irow = 1
         DO iatom=1,natom
+          NULLIFY(orb_basis_set)
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                element_symbol=element_symbol,&
                                orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 nshell=nshell,&
-                                 l=lshell,&
-                                 sgf_symbol=sgf_symbol)
-          isgf = 1
-          DO iset=1,nset
-            DO ishell=1,nshell(iset)
-              l = lshell(ishell,iset)
-              DO iso=1,nso(l)
-                IF ((irow >= first_row).AND.(irow <= last_row)) THEN
-                  WRITE (UNIT=output_unit,FMT=fmtstr2)&
-                    irow,iatom,element_symbol,sgf_symbol(isgf),&
-                    (matrix(irow,jcol),jcol=from,to)
-                END IF
-                isgf = isgf + 1
-                irow = irow + 1
+          IF ( ASSOCIATED(orb_basis_set) ) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   nshell=nshell,&
+                                   l=lshell,&
+                                   sgf_symbol=sgf_symbol)
+            isgf = 1
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                l = lshell(ishell,iset)
+                DO iso=1,nso(l)
+                  IF ((irow >= first_row).AND.(irow <= last_row)) THEN
+                    WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                      irow,iatom,element_symbol,sgf_symbol(isgf),&
+                      (matrix(irow,jcol),jcol=from,to)
+                  END IF
+                  isgf = isgf + 1
+                  irow = irow + 1
+                END DO
               END DO
             END DO
-          END DO
-          IF ((irow >= first_row).AND.(irow <= last_row)) THEN
-            WRITE (UNIT=output_unit,FMT="(A)")
+            IF ((irow >= first_row).AND.(irow <= last_row)) THEN
+              WRITE (UNIT=output_unit,FMT="(A)")
+            END IF
+          ELSE
+            DO iso=first_sgf(iatom),last_sgf(iatom)
+              IF ((irow >= first_row).AND.(irow <= last_row)) THEN
+                WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  irow,iatom,element_symbol," ",&
+                  (matrix(irow,jcol),jcol=from,to)
+              END IF
+              irow = irow + 1
+            END DO
+            IF ((irow >= first_row).AND.(irow <= last_row)) THEN
+              WRITE (UNIT=output_unit,FMT="(A)")
+            END IF
           END IF
         END DO
       END DO
 
       WRITE (UNIT=output_unit,FMT="(/)")
+
+      DEALLOCATE (first_sgf,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+      DEALLOCATE (last_sgf,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
 
     END IF
 
