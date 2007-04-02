@@ -1051,7 +1051,8 @@ CONTAINS
     beta        = pot%tersoff%beta
     beta_n      = beta**n
     zeta_ij     = ter_zeta_ij(pot,r_last_update_pbc,iparticle,jparticle,full_loc_list, loc_cell_v, cell_v)
-    zeta_ij_nm1 = zeta_ij**(n-1.0_dp)
+    zeta_ij_nm1 = 0.0_dp
+    IF (zeta_ij>0.0_dp) zeta_ij_nm1 = zeta_ij**(n-1.0_dp)
     zeta_ij_n   = zeta_ij**(n)
 
     ter_b_ij_d = 0.0_dp
