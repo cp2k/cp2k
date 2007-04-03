@@ -139,6 +139,7 @@ END SUBROUTINE kg_rspw_create
     REAL(dp)                                 :: alpha, cutilev, drmin, &
                                                 maxradius, my_cut, &
                                                 rel_cutoff, zetp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -296,7 +297,6 @@ END SUBROUTINE kg_rspw_create
 !
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...
 !
-!
         IF ( use_ref_cell ) THEN
            ALLOCATE( my_cutoff ( SIZE ( cutoff ) ),stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -318,22 +318,20 @@ END SUBROUTINE kg_rspw_create
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ENDIF
 !
-!
-!
 !    determine the maximum radii for mapped gaussians, needed to
 !    set up distributed rs grids
 !
-!
-
-
       ALLOCATE (kg_rspw%cube_info(ngrid_level),STAT=stat)
       IF (stat /= 0) CALL stop_memory(routineP,"cube_info",0)
+      ALLOCATE(radius(ngrid_level),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       CALL get_kg_env(kg_env=kg_env, atomic_kind_set=atomic_kind_set,error=error)
       nkind=SIZE(atomic_kind_set)
 
       cmax = 0
       maxradius=0.0_dp
+      radius = 0.0_dp
       DO igrid_level=1,ngrid_level
         IF (.NOT. dft_control%qs_control%map_paa) maxradius=0.0_dp
 
@@ -377,43 +375,37 @@ END SUBROUTINE kg_rspw_create
         ! safety first, not very efficient, nor general
         ! one could possibly decide that this *is* the maximum allowed radius
          maxradius = maxradius * safety_factor
+         radius(igrid_level)=maxradius
       END DO
-!
-!
-!    set up the rs_grids,
-!
-!
+      !
+      !    set up the rs_grids,
+      !
       ALLOCATE(rs_pools(ngrid_level),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
-! init rs_pools
+        ! init rs_pools
         drmin = MINVAL ( pw_grid%dr )
-!!        IF ( dft_control % qs_control % rs_distributed ) THEN
-!!           nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
-!!      ELSE
-            nsmax = -1
-!!        ENDIF
+        nsmax = -1
         NULLIFY(rs_pools(igrid_level)%pool)
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
             el_struct=pw_grid,nsmax=nsmax,error=error)
       ENDDO
       kg_rspw%rs_pools => rs_pools
-
-!
-!
-! set up the cube info and the cmaxl array
-!
-!
+      !
+      ! set up the cube info and the cmaxl array
+      !
       DO igrid_level=1,ngrid_level
          CALL init_cube_info(kg_rspw%cube_info(igrid_level),&
                pw_pools(igrid_level)%pool%pw_grid%dr(:),&
                pw_pools(igrid_level)%pool%pw_grid%dh(:,:),&
                pw_pools(igrid_level)%pool%pw_grid%orthorhombic,&
-               maxradius,cmaxl)
+               radius(igrid_level),cmaxl)
          cmax = MAX(cmax,cmaxl)
       END DO
 
+     DEALLOCATE(radius,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    END IF
 
    CALL timestop(0.0_dp,handle)

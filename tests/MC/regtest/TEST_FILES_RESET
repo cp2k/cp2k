@@ -16,3 +16,5 @@ MC_Fist_box1.inp
 MC_Fist_box1.inp
 #  
 MC_QS.inp
+# bug fix initialization of KG maxradius
+MC_KG.inp
