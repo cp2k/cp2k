@@ -108,7 +108,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, iw2, &
                                                 n_rep_val, num_gauss, stat
-    LOGICAL                                  :: allocate_ddapc_env, failure
+    LOGICAL                                  :: allocate_ddapc_env, failure, unimplemented
     REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
@@ -133,8 +133,17 @@ CONTAINS
     allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation.OR.&
                          qs_env%cp_ddapc_ewald%do_qmmm_periodic.OR.&
                          qs_env%cp_ddapc_ewald%do_decoupling.OR.&
-                         qs_env%cp_ddapc_ewald%do_restraint.OR.&
+                         qs_env%cp_ddapc_ewald%do_restraint
+    unimplemented =      qs_env%dft_control%qs_control%semi_empirical.OR.&
+                         qs_env%dft_control%qs_control%dftb
+    IF (allocate_ddapc_env.AND.unimplemented) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="DDAP charges work only with GPW/GAPW code.", &
+            error=error, error_level=cp_failure_level)
+    END IF
+    allocate_ddapc_env = allocate_ddapc_env .OR.&
                          qs_env%cp_ddapc_ewald%do_property
+    allocate_ddapc_env = allocate_ddapc_env .AND.(.NOT.unimplemented)
     IF (.NOT.failure.AND.allocate_ddapc_env) THEN
        CALL get_qs_env(qs_env=qs_env,&
                        dft_control=dft_control,&
