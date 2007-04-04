@@ -33,44 +33,38 @@ MODULE qs_dftb_matrices
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
+  USE qs_dftb_coulomb,                 ONLY: build_dftb_coulomb
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                              qs_dftb_pairpot_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
-  USE qs_dftb_coulomb,                 ONLY: build_dftb_coulomb
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             set_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix_set,&
                                              allocate_matrix,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix_structure,&
-                                             sparse_times_local,&
+                                             allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
+                                             replicate_matrix_structure,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -116,28 +110,31 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nkind, ikind, jkind, &
-      natom, natorb_a, natorb_b, iab, nlist, ilist, iatom, jatom, nnode, nmat, &
-      inode, iw, istat, ngrd, ngrdcut, llm, last_jatom, i, icol, irow, &
-      lmaxi, lmaxj, l1, l2, m, la, lb, nrow, ncol, neighbor_list_id, n_urpoly, &
-      spdim, atom_a, atom_b, n1, n2
+    INTEGER :: atom_a, atom_b, handle, i, iab, iatom, icol, ikind, ilist, &
+      inode, irow, istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, &
+      lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
+      neighbor_list_id, ngrd, ngrdcut, nkind, nlist, nmat, nnode, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem
     LOGICAL                                  :: defined, failure, new_atom_b
-    REAL(KIND=dp)                            :: dr, dgrd, ga, gb, urep_cut, s_cut,&
-                                                erep, ddr, drp, drm, dgam
-    REAL(KIND=dp), DIMENSION(0:3)            :: skself, eta_a, eta_b
-    REAL(KIND=dp), DIMENSION(2)              :: surr
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_w, force_rr, rij, srep
+    REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
+                                                drp, erep, ga, gb, s_cut, &
+                                                urep_cut
+    REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
+    REAL(KIND=dp), DIMENSION(2)              :: surr
     REAL(KIND=dp), DIMENSION(20)             :: skabij, skabji
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fmatij, fmatji, smatij, smatji,&
-      pblock, wblock,sblock, fblock, gblock, dgblock, dsblock, dfblock, dsblock_i,&
-      spxr, scoeff
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, force_rr, force_w, &
+                                                rij, srep
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: dfblock, dgblock, dsblock, &
+      dsblock_i, fblock, fmatij, fmatji, gblock, pblock, sblock, scoeff, &
+      smatij, smatji, spxr, wblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
@@ -145,17 +142,17 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind_a, dftb_kind_b
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:, :), POINTER               :: dftb_potential
+    TYPE(qs_dftb_pairpot_type), POINTER      :: dftb_param_ij, dftb_param_ji
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(dftb_control_type), POINTER         :: dftb_control
-    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind_a, dftb_kind_b
-    TYPE(qs_dftb_pairpot_type), POINTER      :: dftb_param_ij, dftb_param_ji
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s,&
-                                                matrix_w, gamma_matrix
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(qs_energy_type), POINTER            :: energy
+      POINTER                                :: gamma_matrix, matrix_h, &
+                                                matrix_p, matrix_s, matrix_w
 
 !   ----------------------------------------------------------------------------
 
@@ -193,6 +190,10 @@ CONTAINS
 
     dftb_control => dft_control%qs_control%dftb_control
 
+    NULLIFY (dftb_potential)
+    CALL get_qs_env(qs_env=qs_env,&
+                    dftb_potential=dftb_potential,error=error)
+
     ! gamma matrix allocation
     IF ( dftb_control%self_consistent ) THEN
       IF(calculate_forces) THEN
@@ -227,7 +228,7 @@ CONTAINS
                 distribution_2d=distribution_2d,error=error)
       DO i=2,nmat
         CALL replicate_matrix_structure(source=gamma_matrix(1)%matrix,&
-                                    target=gamma_matrix(i)%matrix,&
+                                    TARGET=gamma_matrix(i)%matrix,&
                                     target_name="DERIVATIVE GAMMA MATRIX",&
                                     target_symmetry="antisymmetric",error=error)
       END DO
@@ -283,8 +284,8 @@ CONTAINS
            IF (.NOT.defined .OR. natorb_b < 1) CYCLE
 
            ! retrieve information on F and S matrix
-           dftb_param_ij => dftb_control%dftb_potential(ikind,jkind)
-           dftb_param_ji => dftb_control%dftb_potential(jkind,ikind)
+           dftb_param_ij => dftb_potential(ikind,jkind)
+           dftb_param_ji => dftb_potential(jkind,ikind)
            ! assume table size and type is symmetric
            ngrd = dftb_param_ij%ngrd
            ngrdcut = dftb_param_ij%ngrdcut
@@ -583,7 +584,8 @@ CONTAINS
           CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
                matrix_p(2)%matrix,-1.0_dp,error=error)
        END IF
-       DEALLOCATE(atom_of_kind)
+       DEALLOCATE(atom_of_kind,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
 
     CALL timestop(0.0_dp,handle)
@@ -607,13 +609,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins,&
-      output_unit, ncol_global, natom, istat, nkind, ikind, iatom, atom_a
+    INTEGER                                  :: atom_a, handle, iatom, ikind, &
+                                                ispin, istat, natom, &
+                                                ncol_global, nkind, nspins, &
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
-                                                scaling_factor, mcharge
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: charges
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers, &
+                                                scaling_factor
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -623,11 +627,11 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -702,8 +706,8 @@ CONTAINS
 
        END IF
 
-       energy%hartree = energy%hartree + energy%core_overlap + energy%core_self
-       energy%total = energy%core + energy%hartree + energy%qmmm_el + energy%repulsive
+       energy%total = energy%core + energy%hartree + energy%qmmm_el + &
+                      energy%repulsive + energy%dispersion
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
           extension=".scfLog",error=error)
@@ -711,7 +715,8 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,(T9,A,T60,F20.10))")&
                "Repulsive pair potential energy:               ",energy%repulsive,&
                "Zeroth order Hamiltonian energy:               ",energy%core,&
-               "Charge fluctuation energy:                     ",energy%hartree
+               "Charge fluctuation energy:                     ",energy%hartree,&
+               "London dispersion energy:                      ",energy%dispersion
           IF (qs_env%qmmm) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                   "QM/MM Electrostatic energy:                    ",energy%qmmm_el
@@ -749,25 +754,26 @@ CONTAINS
     LOGICAL                                  :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'setup_matrices', routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_matrices', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-    INTEGER                                  :: natom, nsgf, neighbor_list_id,&
-      nkind, istat, nmat, i
+    INTEGER                                  :: i, istat, natom, &
+                                                neighbor_list_id, nkind, &
+                                                nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(dftb_control_type), POINTER         :: dftb_control
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_h
+      POINTER                                :: matrix_h, matrix_s
 
 !   ----------------------------------------------------------------------------
 
@@ -829,13 +835,13 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                    target=matrix_h(1)%matrix,&
+                                    TARGET=matrix_h(1)%matrix,&
                                     target_name="CORE HAMILTONIAN MATRIX",&
                                     target_symmetry="symmetric",error=error)
     IF ( nmat > 1 ) THEN
       DO i=2,nmat
         CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                        target=matrix_s(i)%matrix,&
+                                        TARGET=matrix_s(i)%matrix,&
                                         target_name="OVERLAP DERIVATIVE MATRIX",&
                                         target_symmetry="antisymmetric",error=error)
       END DO
@@ -851,153 +857,183 @@ CONTAINS
 !
 ! Creation: 07. Feb. 2004, TH
 !
-  subroutine getskz(slakotab,skpar,dx,ngrd,ngrdcut,dgrd,llm)
+  SUBROUTINE getskz(slakotab,skpar,dx,ngrd,ngrdcut,dgrd,llm)
     !
     ! Gets matrix elements on z axis, as they are stored in the tables
     !
-    integer, intent(in)   :: llm, ngrd, ngrdcut
-    real(dp), intent(out) :: skpar(llm)
-    real(dp), intent(in)  :: dx,dgrd,slakotab(:,:)
-    !
-    integer               :: clgp
-    !
+    REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
+    INTEGER, INTENT(in)                      :: ngrd, ngrdcut
+    REAL(dp), INTENT(in)                     :: dgrd
+    INTEGER, INTENT(in)                      :: llm
+    REAL(dp), INTENT(out)                    :: skpar(llm)
+
+    INTEGER                                  :: clgp
+
+!
+!
+
     skpar = 0._dp
     !
     ! Determine closest grid point
     !
-    clgp = nint(dx/dgrd)
+    clgp = NINT(dx/dgrd)
     !
     ! Screen elements which are too far away
     !
-    if (clgp > ngrdcut) return
+    IF (clgp > ngrdcut) RETURN
     !
     ! The grid point is either contained in the table --> matrix element 
     ! can be interpolated, or it is outside the table --> matrix element 
     ! needs to be extrapolated.
     !
-    if (clgp > ngrd) then
+    IF (clgp > ngrd) THEN
       ! 
       ! Extrapolate external matrix elements if table does not finish with zero
       !
-      call extrapol(slakotab,skpar,dx,ngrd,dgrd,llm)
-    else
+      CALL extrapol(slakotab,skpar,dx,ngrd,dgrd,llm)
+    ELSE
       !
       ! Interpolate tabulated matrix elements
       !
-      call interpol(slakotab,skpar,dx,ngrd,dgrd,llm,clgp)
-    end if
-  end subroutine getskz
+      CALL interpol(slakotab,skpar,dx,ngrd,dgrd,llm,clgp)
+    END IF
+  END SUBROUTINE getskz
 
-  subroutine interpol(slakotab,skpar,dx,ngrd,dgrd,llm,clgp)
-    integer, intent(in)    :: clgp                 ! closest grid point
-    integer, intent(in)    :: ngrd                 ! number of grid points
-    real(dp), intent(in)   :: dgrd                 ! grid spacing
-    integer, intent(in)    :: llm                  ! dimension of skpar
-    real(dp), intent(out)  :: skpar(llm)           ! interpolated Slater-Koster values
-    real(dp), intent(in)   :: slakotab(:,:)        ! Slater-Koster table
-    real(dp), intent(in)   :: dx                   ! diatomic distance
-    !
-    integer                :: l,k !loop variables
-    real(dp)               :: xa(max_inter),ya(max_inter),error
-    integer                :: fgpm,lgpm ! first and last grid points -1
-    !
-    ! Get grid points for interpolation
-    !
-    lgpm = min(clgp+max_inter/2,ngrd)
+  SUBROUTINE interpol(slakotab,skpar,dx,ngrd,dgrd,llm,clgp)
+    REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
+    INTEGER, INTENT(in)                      :: ngrd
+    REAL(dp), INTENT(in)                     :: dgrd
+    INTEGER, INTENT(in)                      :: llm
+    REAL(dp), INTENT(out)                    :: skpar(llm)
+    INTEGER, INTENT(in)                      :: clgp
+
+    INTEGER                                  :: fgpm, k, l, lgpm
+    REAL(dp)                                 :: error, xa(max_inter), &
+                                                ya(max_inter)
+
+! closest grid point
+! number of grid points
+! grid spacing
+! dimension of skpar
+! interpolated Slater-Koster values
+! Slater-Koster table
+! diatomic distance
+!
+!loop variables
+! first and last grid points -1
+!
+! Get grid points for interpolation
+!
+
+    lgpm = MIN(clgp+max_inter/2,ngrd)
     fgpm = lgpm - max_inter + 1
-    do k = 0,max_inter-1
+    DO k = 0,max_inter-1
       xa(k+1) = (fgpm+k)*dgrd
-    end do
+    END DO
     !
     ! Interpolate matrix elements for all orbitals
     !
-    do l = 1, llm
+    DO l = 1, llm
       !
       ! Read SK parameters from table
       !
       ya(1:max_inter) = slakotab(fgpm:lgpm,l)
-      call polint(xa,ya,max_inter,dx,skpar(l),error)
-    end do
-  end subroutine interpol
+      CALL polint(xa,ya,max_inter,dx,skpar(l),error)
+    END DO
+  END SUBROUTINE interpol
 
-  subroutine extrapol(slakotab,skpar,dx,ngrd,dgrd,llm)
-    integer, intent(in)    :: llm ! dimension of Slako vector
-    real(dp), intent(out)  :: skpar(llm) ! extrapolated Slater-Koster value
-    real(dp), intent(in)   :: slakotab(:,:) ! Slater-Koster table
-    integer, intent(in)    :: ngrd ! number of grid points
-    real(dp), intent(in)   :: dgrd ! grid spacing
-    real(dp), intent(in)   :: dx ! diatomic distance
-    !
-    integer               :: l,k !loop variables
-    real(dp)              :: xa(max_extra),ya(max_extra)
-    real(dp)              :: error
-    integer               :: fgp,lgp,nzero,ntable
-    !
-    ! Get the last three grid points of the table
-    !
+  SUBROUTINE extrapol(slakotab,skpar,dx,ngrd,dgrd,llm)
+    REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
+    INTEGER, INTENT(in)                      :: ngrd
+    REAL(dp), INTENT(in)                     :: dgrd
+    INTEGER, INTENT(in)                      :: llm
+    REAL(dp), INTENT(out)                    :: skpar(llm)
+
+    INTEGER                                  :: fgp, k, l, lgp, ntable, nzero
+    REAL(dp)                                 :: error, xa(max_extra), &
+                                                ya(max_extra)
+
+! dimension of Slako vector
+! extrapolated Slater-Koster value
+! Slater-Koster table
+! number of grid points
+! grid spacing
+! diatomic distance
+!
+!loop variables
+!
+! Get the last three grid points of the table
+!
+
     nzero = max_extra/3
     ntable = max_extra-nzero
     !
     ! Get the three last distances from the table
     !
-    do k = 1,ntable
+    DO k = 1,ntable
       xa(k) = (ngrd-(max_extra-3)+k)*dgrd
-    end do
-    do k = 1,nzero
+    END DO
+    DO k = 1,nzero
       xa(ntable+k) = (ngrd+k-1)*dgrd + slako_d0
       ya(ntable+k) = 0.0
-    end do
+    END DO
     !
     ! Extrapolate matrix elements for all orbitals
     !
-    do l = 1,llm
+    DO l = 1,llm
       !
       ! Read SK parameters from table
       !
       fgp = ngrd + 1 - (max_extra-3)
       lgp = ngrd
       ya(1:max_extra-3) = slakotab(fgp:lgp,l)
-      call polint(xa,ya,max_extra,dx,skpar(l),error)
-    end do
-  end subroutine extrapol  
+      CALL polint(xa,ya,max_extra,dx,skpar(l),error)
+    END DO
+  END SUBROUTINE extrapol  
 
-  subroutine turnsk(mat,skab1,skab2,dxv,dx,lmaxa,lmaxb)
+  SUBROUTINE turnsk(mat,skab1,skab2,dxv,dx,lmaxa,lmaxb)
     !
     ! Purpose: Turn matrix element from z-axis to orientation of dxv
     !
     ! History: Creation 13. Jan 2004, TH
     !
-    implicit none
     !
-    real(dp), intent(in)    :: dxv(3),dx    ! distance vector and distance
-    real(dp), intent(in)    :: skab1(:)     ! Integrals on z-axis (ij)
-    real(dp), intent(in)    :: skab2(:)     ! Integrals on z-axis (ji)
-    real(dp), intent(inout) :: mat(:,:)     ! final integrals
-    integer, intent(in)     :: lmaxa, lmaxb ! max angular momentum
-    !
-    ! These routines are taken from an old TB code (unknown to TH). 
-    ! They are highly optimised and taken because they are time critical. 
-    ! They are explicit, so not recursive, and work up to d functions.
-    ! 
-    ! Set variables necessary for rotation of matrix elements
-    !
-    real(dp) :: rr2(6) ! r_i^2/r, replicated in rr2(4:6) for index convenience later
-    real(dp) :: rr(6)  ! r_i/r, direction vector, rr(4:6) are replicated from 1:3 
-    real(dp) :: rinv
-    integer  :: lmaxab ! lmax of A and B
-    integer  :: minlmaxab ! min of lmaxa and lmaxb
-    !
-    ! Determine l quantum limits. 
-    !
-    lmaxab = max(lmaxa,lmaxb)
-    if (lmaxab.gt.2)  stop 'lmax=2'
-    minlmaxab = min(lmaxa,lmaxb)
+    REAL(dp), INTENT(inout)                  :: mat(:,:)
+    REAL(dp), INTENT(in)                     :: skab1(:), skab2(:), dxv(3), dx
+    INTEGER, INTENT(in)                      :: lmaxa, lmaxb
+
+    INTEGER                                  :: lmaxab, minlmaxab
+    REAL(dp)                                 :: rinv, rr(6), rr2(6)
+
+! distance vector and distance
+! Integrals on z-axis (ij)
+! Integrals on z-axis (ji)
+! final integrals
+! max angular momentum
+!
+! These routines are taken from an old TB code (unknown to TH). 
+! They are highly optimised and taken because they are time critical. 
+! They are explicit, so not recursive, and work up to d functions.
+! 
+! Set variables necessary for rotation of matrix elements
+!
+! r_i^2/r, replicated in rr2(4:6) for index convenience later
+! r_i/r, direction vector, rr(4:6) are replicated from 1:3 
+! lmax of A and B
+! min of lmaxa and lmaxb
+!
+! Determine l quantum limits. 
+!
+
+    lmaxab = MAX(lmaxa,lmaxb)
+    IF (lmaxab.gt.2)  STOP 'lmax=2'
+    minlmaxab = MIN(lmaxa,lmaxb)
     !
     ! s-s interaction
     !
-    call skss(skab1,mat)
+    CALL skss(skab1,mat)
     !
-    if (lmaxab.le.0) return
+    IF (lmaxab.le.0) RETURN
     !
     rr2(1:3) = dxv(1:3)**2
     rr(1:3) = dxv(1:3)
@@ -1010,68 +1046,68 @@ CONTAINS
     !
     ! s-p, p-s and p-p interaction
     !
-    if (minlmaxab.ge.1) then
-      call skpp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb))
-      call sksp(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      call sksp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-    else
-      if (lmaxb.ge.1) then
-        call sksp(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      else
-        call sksp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-      end if
-    end if
+    IF (minlmaxab.ge.1) THEN
+      CALL skpp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb))
+      CALL sksp(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.TRUE.)
+      CALL sksp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
+    ELSE
+      IF (lmaxb.ge.1) THEN
+        CALL sksp(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.TRUE.)
+      ELSE
+        CALL sksp(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
+      END IF
+    END IF
     ! 
     ! If there is only s-p interaction we have finished
     !
-    if (lmaxab.le.1) return
+    IF (lmaxab.le.1) RETURN
     !
     ! at least one atom has d functions
     !
-    if (minlmaxab.eq.2) then
+    IF (minlmaxab.eq.2) THEN
       !
       ! in case both atoms have d functions
       !
-      call skdd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb))
-      call sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      call sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-      call skpd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      call skpd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-    else
+      CALL skdd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb))
+      CALL sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.TRUE.)
+      CALL sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
+      CALL skpd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.TRUE.)
+      CALL skpd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
+    ELSE
       !
       ! One atom has d functions, the other has s or s and p functions
       !
-      if (lmaxa.eq.0) then
+      IF (lmaxa.eq.0) THEN
         !
         ! atom b has d, the atom a only s functions
         !
-        call sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      else if (lmaxa.eq.1) then
+        CALL sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.TRUE.)
+      ELSE IF (lmaxa.eq.1) THEN
         !
         ! atom b has d, the atom a s and p functions
         !
-        call sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-        call skpd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.true.)
-      else
+        CALL sksd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.TRUE.)
+        CALL skpd(skab2,mat,iptr(:,:,:,lmaxa,lmaxb),.TRUE.)
+      ELSE
         !
         ! atom a has d functions
         !
-        if (lmaxb.eq.0) then
+        IF (lmaxb.eq.0) THEN
           !
           ! atom a has d, atom b has only s functions
           !
-          call sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-        else
+          CALL sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
+        ELSE
           !
           ! atom a has d, atom b has s and p functions
           !
-          call sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-          call skpd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.false.)
-        end if
-      end if
-    end if
+          CALL sksd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
+          CALL skpd(skab1,mat,iptr(:,:,:,lmaxa,lmaxb),.FALSE.)
+        END IF
+      END IF
+    END IF
     !
-  contains
+  CONTAINS
     !
     ! The subroutines to turn the matrix elements are taken as internal subroutines
     ! as it is beneficial to inline them.
@@ -1079,147 +1115,153 @@ CONTAINS
     ! They are both turning the matrix elements and placing them appropriately 
     ! into the matrix block
     !
-    subroutine skss(skpar,mat)
+    SUBROUTINE skss(skpar,mat)
       !
       ! Purpose: s-s interaction (no rotation necessary)
       !
-      implicit none
+      IMPLICIT NONE
       !
-      real(dp), intent(inout) :: mat(:,:)
-      real(dp), intent(in) :: skpar(:)
+      REAL(dp), INTENT(inout) :: mat(:,:)
+      REAL(dp), INTENT(in) :: skpar(:)
       !
       mat(1,1) = mat(1,1) + skpar(1)
       !
-    end subroutine skss
+    END SUBROUTINE skss
     
-    subroutine sksp(skpar,mat,ind,transposed)
+    SUBROUTINE sksp(skpar,mat,ind,transposed)
       !
       ! s-p interaction (simple rotation)
       !
-      implicit none
       !
-      logical, intent(in)     :: transposed
-      integer, intent(in)     :: ind(0:,0:,0:)
-      real(dp), intent(inout) :: mat(:,:)
-      real(dp), intent(in)    :: skpar(:)
-      !
-      integer                 :: l
-      real(dp)                :: skp
-      !
+    REAL(dp), INTENT(in)                     :: skpar(:)
+    REAL(dp), INTENT(inout)                  :: mat(:,:)
+    INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
+    LOGICAL, INTENT(in)                      :: transposed
+
+    INTEGER                                  :: l
+    REAL(dp)                                 :: skp
+
+!
+!
+
       skp = skpar(ind(1,0,0))
-      if (transposed) then
-        do l = 1,3
+      IF (transposed) THEN
+        DO l = 1,3
           mat(1,l+1) = mat(1,l+1) + rr(l)*skp
-        end do
-      else
-        do l = 1,3
+        END DO
+      ELSE
+        DO l = 1,3
           mat(l+1,1) = mat(l+1,1) - rr(l)*skp
-        end do
-      end if
+        END DO
+      END IF
       !
-    end subroutine sksp
+    END SUBROUTINE sksp
     !
     !
-    subroutine skpp(skpar,mat,ind)
+    SUBROUTINE skpp(skpar,mat,ind)
       !
-      implicit none
       !
-      real(dp), intent(in)    :: skpar(:)
-      real(dp), intent(inout) :: mat(:,:)
-      integer, intent(in)     :: ind(0:,0:,0:)
-      !
-      real(dp)                :: matel(6),epp(6)
-      integer                 :: l,ir,is,ii,k
-      real(dp)                :: skppp,skpps
-      !
+    REAL(dp), INTENT(in)                     :: skpar(:)
+    REAL(dp), INTENT(inout)                  :: mat(:,:)
+    INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
+
+    INTEGER                                  :: ii, ir, is, k, l
+    REAL(dp)                                 :: epp(6), matel(6), skppp, skpps
+
+!
+!
+
       epp(1:3) = rr2(1:3)
-      do l = 1,3
+      DO l = 1,3
         epp(l+3) = rr(l)*rr(l+1)
-      end do
+      END DO
       skppp = skpar(ind(1,1,1))
       skpps = skpar(ind(1,1,0))
       !
-      do l = 1,3
+      DO l = 1,3
         matel(l) = epp(l)*skpps + (1._dp-epp(l))*skppp
-      end do
-      do l = 4,6
+      END DO
+      DO l = 4,6
         matel(l) = epp(l)*(skpps - skppp)
-      end do
+      END DO
       !
-      do ir = 1,3
-        do is = 1,ir-1
+      DO ir = 1,3
+        DO is = 1,ir-1
           ii = ir - is
           k = 3*ii-(ii*(ii-1))/2+is
           mat(is+1,ir+1) = mat(is+1,ir+1) + matel(k)
           mat(ir+1,is+1) = mat(ir+1,is+1) + matel(k)
-        end do
+        END DO
         mat(ir+1,ir+1) = mat(ir+1,ir+1) + matel(ir)
-      end do
-    end subroutine skpp
+      END DO
+    END SUBROUTINE skpp
     !
     !
-    subroutine sksd(skpar,mat,ind,transposed)
+    SUBROUTINE sksd(skpar,mat,ind,transposed)
       !
-      implicit none
       !
-      logical, intent(in)     :: transposed
-      integer, intent(in)     :: ind(0:,0:,0:)
-      real(dp), intent(inout) :: mat(:,:)
-      real(dp), intent(in)    :: skpar(:)
-      !
-      integer                 :: l
-      real(dp)                :: es(5),d4,d5,r3
-      real(dp)                :: sksds
-      !
+    REAL(dp), INTENT(in)                     :: skpar(:)
+    REAL(dp), INTENT(inout)                  :: mat(:,:)
+    INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
+    LOGICAL, INTENT(in)                      :: transposed
+
+    INTEGER                                  :: l
+    REAL(dp)                                 :: d4, d5, es(5), r3, sksds
+
+!
+!
+
       sksds = skpar(ind(2,0,0))
-      r3 = sqrt(3._dp)
+      r3 = SQRT(3._dp)
       d4 = rr2(3) - 0.5_dp*(rr2(1)+rr2(2))
       d5 = rr2(1) - rr2(2)
       !
-      do l = 1,3
+      DO l = 1,3
         es(l) = r3*rr(l)*rr(l+1)
-      end do
+      END DO
       es(4) = 0.5_dp*r3*d5
       es(5) = d4
       !
-      if (transposed) then
-        do l = 1,5
+      IF (transposed) THEN
+        DO l = 1,5
           mat(1,l+4) = mat(1,l+4) + es(l)*sksds
-        end do
-      else
-        do l = 1,5
+        END DO
+      ELSE
+        DO l = 1,5
           mat(l+4,1) = mat(l+4,1) + es(l)*sksds
-        end do
-      end if
-    end subroutine sksd
+        END DO
+      END IF
+    END SUBROUTINE sksd
     !
     !
-    subroutine skpd(skpar,mat,ind,transposed)
+    SUBROUTINE skpd(skpar,mat,ind,transposed)
       !
-      implicit none
       !
-      logical, intent(in)     :: transposed
-      integer, intent(in)     :: ind(0:,0:,0:)
-      real(dp), intent(inout) :: mat(:,:)
-      real(dp), intent(in)    :: skpar(:)
-      !
-      real(dp)                :: epd(13,2),dm(15)
-      real(dp)                :: r3,d3,d4,d5,d6,sktmp
-      integer                 :: l,ir,is,k,m
-      !
-      r3 = sqrt(3.0_dp)
+    REAL(dp), INTENT(in)                     :: skpar(:)
+    REAL(dp), INTENT(inout)                  :: mat(:,:)
+    INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
+    LOGICAL, INTENT(in)                      :: transposed
+
+    INTEGER                                  :: ir, is, k, l, m
+    REAL(dp)                                 :: d3, d4, d5, d6, dm(15), &
+                                                epd(13,2), r3, sktmp
+
+!
+!
+
+      r3 = SQRT(3.0_dp)
       d3 = rr2(1) + rr2(2)
       d4 = rr2(3) - 0.5_dp*d3
       d5 = rr2(1) - rr2(2)
       d6 = rr(1)*rr(2)*rr(3)
-      do l = 1,3
+      DO l = 1,3
         epd(l,1) = r3*rr2(l)*rr(l+1)
         epd(l,2) = rr(l+1)*(1.0_dp-2._dp*rr2(l))
         epd(l+4,1) = r3*rr2(l)*rr(l+2)
         epd(l+4,2) = rr(l+2)*(1.0_dp-2*rr2(l))
         epd(l+7,1) = 0.5_dp*r3*rr(l)*d5
         epd(l+10,1) = rr(l)*d4
-      end do
+      END DO
       !
       epd(4,1) = r3*d6
       epd(4,2) = -2._dp*d6
@@ -1232,7 +1274,7 @@ CONTAINS
       !
       dm(1:15) = 0.0_dp
       !
-      do m = 1,2
+      DO m = 1,2
         sktmp = skpar(ind(2,1,m-1))
         dm(1)=dm(1)+epd(1,m)*sktmp
         dm(2)=dm(2)+epd(6,m)*sktmp
@@ -1241,54 +1283,57 @@ CONTAINS
         dm(6)=dm(6)+epd(7,m)*sktmp
         dm(7)=dm(7)+epd(5,m)*sktmp
         dm(9)=dm(9)+epd(3,m)*sktmp
-        do l = 8,13
+        DO l = 8,13
           dm(l+2) = dm(l+2)+epd(l,m)*sktmp
-        end do
-      end do
+        END DO
+      END DO
       !
       dm(4) = dm(3)
       dm(8) = dm(3)
       !
-      if (transposed) then
-        do ir = 1,5
-          do is = 1,3
+      IF (transposed) THEN
+        DO ir = 1,5
+          DO is = 1,3
             k=3*(ir-1)+is
             mat(is+1,ir+4) = mat(is+1,ir+4) + dm(k)
-          end do
-        end do
-      else
-        do ir = 1,5
-          do is = 1,3
+          END DO
+        END DO
+      ELSE
+        DO ir = 1,5
+          DO is = 1,3
             k=3*(ir-1)+is
             mat(ir+4,is+1) = mat(ir+4,is+1) - dm(k)
-          end do
-        end do
-      end if
+          END DO
+        END DO
+      END IF
       !
-    end subroutine skpd
+    END SUBROUTINE skpd
     !
     !
-    subroutine skdd(skpar,mat,ind)
+    SUBROUTINE skdd(skpar,mat,ind)
       !
-      implicit none
       !
-      integer, intent(in)     :: ind(0:,0:,0:)
-      real(dp), intent(inout) :: mat(:,:)
-      real(dp), intent(in)    :: skpar(:)
-      !
-      real(dp)                :: e(15,3),dm(15),dd(3),r3,d3,d4,d5
-      integer                 :: ii,ir,is,l,m,k
-      !
-      r3 = sqrt(3._dp)
+    REAL(dp), INTENT(in)                     :: skpar(:)
+    REAL(dp), INTENT(inout)                  :: mat(:,:)
+    INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
+
+    INTEGER                                  :: ii, ir, is, k, l, m
+    REAL(dp)                                 :: d3, d4, d5, dd(3), dm(15), &
+                                                e(15,3), r3
+
+!
+!
+
+      r3 = SQRT(3._dp)
       d3 = rr2(1) + rr2(2)
       d4 = rr2(3) - 0.5_dp*d3
       d5 = rr2(1) - rr2(2)
-      do l = 1,3
+      DO l = 1,3
         e(l,1) = rr2(l)*rr2(l+1)
         e(l,2) = rr2(l) + rr2(l+1) - 4._dp*e(l,1)
         e(l,3) = rr2(l+2) + e(l,1)
         e(l,1) = 3._dp*e(l,1)
-      end do
+      END DO
       e(4,1) = d5**2
       e(4,2) = d3 - e(4,1)
       e(4,3) = rr2(3) + 0.25_dp*e(4,1)
@@ -1299,11 +1344,11 @@ CONTAINS
       dd(1) = rr(1)*rr(3)
       dd(2) = rr(2)*rr(1)
       dd(3) = rr(3)*rr(2)
-      do l = 1,2
+      DO l = 1,2
         e(l+5,1) = 3._dp*rr2(l+1)*dd(l)
         e(l+5,2) = dd(l)*(1._dp-4._dp*rr2(l+1))
         e(l+5,3) = dd(l)*(rr2(l+1)-1._dp)
-      end do
+      END DO
       e(8,1) = dd(1)*d5*1.5_dp
       e(8,2) = dd(1)*(1.0_dp-2.0_dp*d5)
       e(8,3) = dd(1)*(0.5_dp*d5-1.0_dp)
@@ -1330,105 +1375,113 @@ CONTAINS
       e(12,3) = -r3*0.5_dp*dd(1)*d3
       !
       dm(1:15) = 0._dp
-      do l = 1,15
-        do m = 1,3
+      DO l = 1,15
+        DO m = 1,3
           dm(l) = dm(l)+e(l,m)*skpar(ind(2,2,m-1))
-        end do
-      end do
+        END DO
+      END DO
       !
-      do ir = 1,5
-        do is = 1,ir-1
+      DO ir = 1,5
+        DO is = 1,ir-1
           ii = ir-is
           k = 5*ii-(ii*(ii-1))/2+is
           mat(ir+4,is+4) = mat(ir+4,is+4) + dm(k)
           mat(is+4,ir+4) = mat(is+4,ir+4) + dm(k)
-        end do
+        END DO
         mat(ir+4,ir+4) = mat(ir+4,ir+4) + dm(ir)
-      end do
-    end subroutine skdd
+      END DO
+    END SUBROUTINE skdd
     !
-  end subroutine turnsk
+  END SUBROUTINE turnsk
 
-  subroutine polint(xa,ya,n,x,y,dy)
-    integer, intent(in)   :: n
-    real(dp), intent(in)  :: xa(n),ya(n),x
-    real(dp), intent(out) :: y,dy
-    !
-    real(dp)              :: c(n),d(n)
-    real(dp)              :: den,dif,dift,ho,hp,w
-    integer               :: i,m,ns
-    !
+  SUBROUTINE polint(xa,ya,n,x,y,dy)
+    INTEGER, INTENT(in)                      :: n
+    REAL(dp), INTENT(in)                     :: ya(n), xa(n), x
+    REAL(dp), INTENT(out)                    :: y, dy
+
+    INTEGER                                  :: i, m, ns
+    REAL(dp)                                 :: c(n), d(n), den, dif, dift, &
+                                                ho, hp, w
+
+!
+!
+
     ns=1
 
-    dif=abs(x-xa(1))
-    do i = 1,n
-      dift=abs(x-xa(i))
-      if (dift.lt.dif) then
+    dif=ABS(x-xa(1))
+    DO i = 1,n
+      dift=ABS(x-xa(i))
+      IF (dift.lt.dif) THEN
         ns=i
         dif=dift
-      endif
+      ENDIF
       c(i)=ya(i)
       d(i)=ya(i)
-    end do
+    END DO
     !
     y=ya(ns)
     ns=ns-1
-    do m = 1,n-1
-      do i = 1,n-m
+    DO m = 1,n-1
+      DO i = 1,n-m
         ho=xa(i)-x
         hp=xa(i+m)-x
         w=c(i+1)-d(i)
         den=ho-hp
-        if(den.eq.0.) stop 'POLINT'
+        IF(den.eq.0.) STOP 'POLINT'
         den=w/den
         d(i)=hp*den
         c(i)=ho*den
-      end do
-      if (2*ns.lt.n-m)then
+      END DO
+      IF (2*ns.lt.n-m)THEN
         dy=c(ns+1)
-      else
+      ELSE
         dy=d(ns)
         ns=ns-1
-      endif
+      ENDIF
       y=y+dy
-    end do
+    END DO
 !
-    return
-  end subroutine polint
+    RETURN
+  END SUBROUTINE polint
 
 ! *****************************************************************************
-  subroutine urep_egr(rv,r,erep,derep,&
+  SUBROUTINE urep_egr(rv,r,erep,derep,&
                       n_urpoly,urep,spdim,s_cut,srep,spxr,scoeff,surr,dograd)
 
-    real(dp), intent(in)              :: rv(3)    ! interatomic distance vector
-    real(dp), intent(in)              :: r        ! interatomic distance
-    real(dp), intent(inout)           :: erep 
-    real(dp), intent(inout)           :: derep(3)
-    integer, intent(in)               :: n_urpoly,spdim
-    real(dp), intent(in)              :: urep(:),s_cut,srep(3),surr(2)
-    real(dp), pointer                 :: spxr(:,:),scoeff(:,:)
-    logical, intent(in)               :: dograd
+    REAL(dp), INTENT(in)                     :: rv(3), r
+    REAL(dp), INTENT(inout)                  :: erep, derep(3)
+    INTEGER, INTENT(in)                      :: n_urpoly
+    REAL(dp), INTENT(in)                     :: urep(:)
+    INTEGER, INTENT(in)                      :: spdim
+    REAL(dp), INTENT(in)                     :: s_cut, srep(3)
+    REAL(dp), POINTER                        :: spxr(:,:), scoeff(:,:)
+    REAL(dp), INTENT(in)                     :: surr(2)
+    LOGICAL, INTENT(in)                      :: dograd
 
-    integer     :: ic, nsp, jsp, isp
-    real(dp)    :: rz,de_z 
-    !
+    INTEGER                                  :: ic, isp, jsp, nsp
+    REAL(dp)                                 :: de_z, rz
+
+! interatomic distance vector
+! interatomic distance
+!
+
     derep=0._dp
     de_z = 0._dp
-    if (n_urpoly > 0) then
+    IF (n_urpoly > 0) THEN
       !
       ! polynomial part
       !
       rz = urep(1) - r
-      if (rz <= rtiny) RETURN
-      do ic = 2,n_urpoly
+      IF (rz <= rtiny) RETURN
+      DO ic = 2,n_urpoly
         erep = erep + urep(ic) * rz**(ic)
-      end do
-      if (dograd) then
-        do ic = 2,n_urpoly
+      END DO
+      IF (dograd) THEN
+        DO ic = 2,n_urpoly
           de_z = de_z - ic*urep(ic) * rz**(ic-1)
-        end do
-      end if
-    else if (spdim > 0) then
+        END DO
+      END IF
+    ELSE IF (spdim > 0) THEN
       !
       ! spline part
       !
@@ -1441,100 +1494,104 @@ CONTAINS
       ! ca) normal range is approximated with a spline
       ! cb) longer range is extrapolated with an higher degree spline
       !
-      if (r > s_cut) RETURN  ! screening (condition a)
+      IF (r > s_cut) RETURN  ! screening (condition a)
       !
-      if (r < spxr(1,1)) then
+      IF (r < spxr(1,1)) THEN
         ! a) short range
-        erep = erep + exp(-srep(1)*r + srep(2)) + srep(3)
-        if (dograd) de_z = de_z -srep(1)*exp(-srep(1)*r + srep(2))
-      else
+        erep = erep + EXP(-srep(1)*r + srep(2)) + srep(3)
+        IF (dograd) de_z = de_z -srep(1)*EXP(-srep(1)*r + srep(2))
+      ELSE
         !
         ! condition c). First determine between which places the spline is located:
         !
-        ispg: do isp = 1,spdim ! condition ca)
-          if (r <  spxr(isp,1)) cycle ispg ! distance is smaller than this spline range
-          if (r >= spxr(isp,2)) cycle ispg ! distance is larger than this spline range
+        ispg: DO isp = 1,spdim ! condition ca)
+          IF (r <  spxr(isp,1)) CYCLE ispg ! distance is smaller than this spline range
+          IF (r >= spxr(isp,2)) CYCLE ispg ! distance is larger than this spline range
           ! at this point we have found the correct spline interval
           rz = r - spxr(isp,1)
-          if (isp /= spdim) then
+          IF (isp /= spdim) THEN
             nsp = 3 ! condition ca
-            do jsp = 0,nsp
+            DO jsp = 0,nsp
               erep = erep + scoeff(isp,jsp+1)*rz**(jsp)
-            end do
-            if (dograd) then
-              do jsp = 1,nsp
+            END DO
+            IF (dograd) THEN
+              DO jsp = 1,nsp
                 de_z = de_z + jsp*scoeff(isp,jsp+1)*rz**(jsp-1)
-              end do
-            end if
-          else
+              END DO
+            END IF
+          ELSE
             nsp = 5 ! condition cb
-            do jsp = 0,nsp
-              if( jsp <= 3 ) then
+            DO jsp = 0,nsp
+              IF( jsp <= 3 ) THEN
                 erep = erep + scoeff(isp,jsp+1)*rz**(jsp)
-              else
+              ELSE
                 erep = erep + surr(jsp-3)*rz**(jsp)
-              endif
-            end do
-            if (dograd) then
-              do jsp = 1,nsp
-                if( jsp <= 3 ) then
+              ENDIF
+            END DO
+            IF (dograd) THEN
+              DO jsp = 1,nsp
+                IF( jsp <= 3 ) THEN
                   de_z = de_z + jsp*scoeff(isp,jsp+1)*rz**(jsp-1)
-                else
+                ELSE
                   de_z = de_z + jsp*surr(jsp-3)*rz**(jsp-1)
-                endif
-              end do
-            end if
-          end if
-          exit ispg
-        end do ispg
-      end if
-    end if
+                ENDIF
+              END DO
+            END IF
+          END IF
+          EXIT ispg
+        END DO ispg
+      END IF
+    END IF
     !
-    if (dograd) then
-       if ( r > 1.e-12_dp ) derep(1:3) = (de_z/r)*rv(1:3)
-    end if
+    IF (dograd) THEN
+       IF ( r > 1.e-12_dp ) derep(1:3) = (de_z/r)*rv(1:3)
+    END IF
 
-  end subroutine urep_egr
+  END SUBROUTINE urep_egr
 
 ! gamma************************************************************************
 
-  function gamma_rab_sr(r,ga,gb) result(gamma)
+  FUNCTION gamma_rab_sr(r,ga,gb) RESULT(gamma)
     !
     ! Purpose: Computes the short-range gamma parameter from exact Coulomb 
     !          interaction of normalized exp(-a*r) charge distribution - 1/r
     !
     !          Documentation refers to the Elstner et al, PRB 58 (1998) 7260 paper
     !
-    real(dp), intent(in)    :: r,ga,gb ! distance and onsite hardness values for elements a and b
-    real(dp) :: gamma
-    real(dp) :: a,b         ! local work parameters based on ga and gb
-    real(dp) :: g_sum,fac
-    !
+    REAL(dp), INTENT(in)                     :: r, ga, gb
+    REAL(dp)                                 :: gamma
+
+    REAL(dp)                                 :: a, b, fac, g_sum
+
+! distance and onsite hardness values for elements a and b
+! local work parameters based on ga and gb
+!
+
     gamma = 0.0_dp
     a = 3.2_dp*ga ! 3.2 = 16/5 in Eq. 18 and ff.
     b = 3.2_dp*gb
     g_sum = a + b
-    if (g_sum.lt.tol_gamma) return ! hardness screening
-    if (r < rtiny) then     ! This is for short distances but non-onsite terms
+    IF (g_sum.lt.tol_gamma) RETURN ! hardness screening
+    IF (r < rtiny) THEN     ! This is for short distances but non-onsite terms
       ! This gives also correct diagonal elements (a=b, r=0)
       gamma = 0.5_dp*(a*b/g_sum + (a*b)**2/g_sum**3) 
-      return
-    end if
+      RETURN
+    END IF
     !
     ! distinguish two cases: Gamma's are very close, e.g. for the same atom type, 
     !                        and Gamma's are different
     !
-    if (abs(a-b) < rtiny) then
+    IF (ABS(a-b) < rtiny) THEN
       fac = 1.6_dp*r*a*b/g_sum*(1.0_dp + a*b/g_sum**2)
-      gamma = -(48.0_dp + 33._dp*fac + (9.0_dp + fac)*fac**2)*exp(-fac)/(48._dp*r)
-    else
-      gamma = -exp(-a*r)*(0.5_dp*a*b**4/(a**2-b**2)**2 - &
+      gamma = -(48.0_dp + 33._dp*fac + (9.0_dp + fac)*fac**2)*EXP(-fac)/(48._dp*r)
+    ELSE
+      gamma = -EXP(-a*r)*(0.5_dp*a*b**4/(a**2-b**2)**2 - &
                 (b**6 - 3._dp*a**2*b**4)/(r*(a**2-b**2)**3)) - & ! a-> b
-               exp(-b*r)*(0.5_dp*b*a**4/(b**2-a**2)**2 - &
+               EXP(-b*r)*(0.5_dp*b*a**4/(b**2-a**2)**2 - &
                 (a**6 - 3._dp*b**2*a**4)/(r*(b**2-a**2)**3)) ! b-> a
-    end if
+    END IF
     !
-  end function gamma_rab_sr
+  END FUNCTION gamma_rab_sr
 
 ! *****************************************************************************
 

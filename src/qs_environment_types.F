@@ -55,6 +55,8 @@ MODULE qs_environment_types
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsystem_type
+  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type,&
+                                             qs_dftb_pairpot_release
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -256,6 +258,7 @@ MODULE qs_environment_types
 !!     - mo_derivs: the actual derivatives of the total energy wrt to MO coeffs
 !!     - neighbor_list_id: the current version of the neighbor_list
 !!     - xas_env: temporary information for xas calculation
+!!     - dftb_potential: pair potentials for use with DFTB
 !!
 !!     compatibility get (things that you should get from the subsys):
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
@@ -344,6 +347,7 @@ MODULE qs_environment_types
     TYPE(ep_qs_type), POINTER                             :: ep_qs_env
     TYPE(x_hf_type),POINTER                               :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling   
+    TYPE (qs_dftb_pairpot_type), DIMENSION(:,:), POINTER  :: dftb_potential
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -395,7 +399,8 @@ CONTAINS
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
-                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling,error)
+                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
+                        dftb_potential,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -501,6 +506,8 @@ CONTAINS
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
     TYPE(et_coupling_type),OPTIONAL,POINTER  :: et_coupling
+    TYPE (qs_dftb_pairpot_type), &
+          DIMENSION(:,:), OPTIONAL, POINTER  :: dftb_potential
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -627,6 +634,7 @@ CONTAINS
     IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
     IF (PRESENT(x_data)) x_data => qs_env%x_data
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
+    IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential    
 
   END SUBROUTINE get_qs_env
 
@@ -704,6 +712,7 @@ CONTAINS
     NULLIFY (qs_env%ep_qs_env)
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
+    NULLIFY (qs_env%dftb_potential)
 
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
@@ -739,11 +748,12 @@ CONTAINS
                         wf_history,scf_env,use_harris,&
                         distribution_2d,dft_section,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
-                        nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
+                        nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,&
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
                         kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
-                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling)
+                        outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
+                        dftb_potential,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -808,7 +818,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: ecoul_1c
     TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: VH_3c_list
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
@@ -829,6 +838,9 @@ CONTAINS
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(x_hf_type), OPTIONAL, POINTER       :: x_data
     TYPE(et_coupling_type),OPTIONAL,POINTER  :: et_coupling
+    TYPE (qs_dftb_pairpot_type), &
+          DIMENSION(:,:), OPTIONAL, POINTER  :: dftb_potential
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
@@ -1034,6 +1046,7 @@ CONTAINS
     END IF
     IF (PRESENT(x_data)) qs_env%x_data => x_data
     IF (PRESENT(et_coupling))qs_env%et_coupling => et_coupling
+    IF (PRESENT(dftb_potential))qs_env%dftb_potential => dftb_potential
 
   END SUBROUTINE set_qs_env
 
@@ -1360,8 +1373,14 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF(ASSOCIATED(qs_env%et_coupling)) THEN
           CALL et_coupling_release(qs_env%et_coupling,error)
         END IF
+        IF (ASSOCIATED(qs_env%dftb_potential)) THEN
+          call qs_dftb_pairpot_release(qs_env%dftb_potential,error)
+        END IF
+
+        ! no we are ready to deallocate the full structure
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
      END IF
   END IF
   NULLIFY(qs_env)

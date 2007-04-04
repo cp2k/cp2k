@@ -883,7 +883,8 @@ CONTAINS
     ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
 
       ! Build the neighbor lists for the DFTB repulsive pair-potential
-      dftb_potential => qs_env%dft_control%qs_control%dftb_control%dftb_potential
+      CALL get_qs_env(qs_env=qs_env,&
+                    dftb_potential=dftb_potential,error=error)
       ALLOCATE(ab_radius(nkind,nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
       DO ikind=1,nkind
@@ -930,6 +931,7 @@ CONTAINS
       DEALLOCATE(ab_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab_radius")
 
+      ! Build the neighbor lists for the DFTB Ewald methods
       IF ( qs_env%dft_control%qs_control%dftb_control%do_ewald ) THEN
         ALLOCATE (c_radius(nkind),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -942,6 +944,28 @@ CONTAINS
                                   c_radius,c_radius,mic=mic,name="EWALD OVERLAP")
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,error=error)
+        DEALLOCATE (c_radius,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
+      END IF
+
+      ! Build the neighbor lists for the DFTB vdW pair potential
+      IF ( qs_env%dft_control%qs_control%dftb_control%dispersion ) THEN
+        ALLOCATE (c_radius(nkind),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "c_radius",nkind*dp_size)
+        DO ikind = 1, nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_atom)
+          CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
+            rcdisp=c_radius(ikind),error=error)
+        END DO
+
+        CALL build_neighbor_lists(sac_ppl,atom,cell,r_skin,maxatom_local,&
+                                  .FALSE.,output_unit,orb_present,orb_present,&
+                                  c_radius,c_radius,name="DISPERSION")
+
+        ! Put the generated neighbor lists into the QS environment
+        CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
         DEALLOCATE (c_radius,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
       END IF

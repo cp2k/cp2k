@@ -36,7 +36,8 @@ MODULE qs_energy_types
     REAL(KIND = dp) :: core,&
                 core_overlap,&
                 core_self,&
-                repulsive,& !DFTB repulsive pair potential
+                repulsive,&
+                dispersion,& 
                 ex,&
                 exc,&
                 exc1,&
@@ -152,6 +153,7 @@ CONTAINS
       qs_energy%core_overlap = 0.0_dp
       qs_energy%core_self = 0.0_dp
       qs_energy%repulsive = 0.0_dp
+      qs_energy%dispersion = 0.0_dp
       qs_energy%qmmm_el = 0.0_dp
       qs_energy%qmmm_nu = 0.0_dp
       qs_energy%ex = 0.0_dp
@@ -256,6 +258,7 @@ CONTAINS
       qs_energy_out%core_overlap    = qs_energy_in%core_overlap
       qs_energy_out%core_self       = qs_energy_in%core_self
       qs_energy_out%repulsive       = qs_energy_in%repulsive
+      qs_energy_out%dispersion      = qs_energy_in%dispersion
       qs_energy_out%qmmm_el         = qs_energy_in%qmmm_el
       qs_energy_out%qmmm_nu         = qs_energy_in%qmmm_nu
       qs_energy_out%ex              = qs_energy_in%ex

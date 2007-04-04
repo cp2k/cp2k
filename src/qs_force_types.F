@@ -46,6 +46,7 @@ MODULE qs_force_types
                                          hartree_3c,&
                                          kg_gpw_ekin_mol,&
                                          repulsive,&
+                                         dispersion,&
                                          other,&
                                          ch_pulay,&
                                          fock_4c,&
@@ -155,6 +156,10 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%repulsive(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%repulsive",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%dispersion(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%dispersion",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%other(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -305,6 +310,13 @@ CONTAINS
         END IF
       END IF
 
+      IF (ASSOCIATED(qs_force(ikind)%dispersion)) THEN
+        DEALLOCATE (qs_force(ikind)%dispersion,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"qs_force%dispersion")
+        END IF
+      END IF
+
       IF (ASSOCIATED(qs_force(ikind)%other)) THEN
         DEALLOCATE (qs_force(ikind)%other,STAT=istat)
         IF (istat /= 0) THEN
@@ -381,6 +393,7 @@ CONTAINS
       qs_force(ikind)%hartree_3c(:,:) = 0.0_dp
       qs_force(ikind)%kg_gpw_ekin_mol(:,:) = 0.0_dp
       qs_force(ikind)%repulsive(:,:) = 0.0_dp
+      qs_force(ikind)%dispersion(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%fock_4c(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
@@ -470,6 +483,8 @@ CONTAINS
            qs_force_input(ikind)%kg_gpw_ekin_mol(:,:)
         qs_force_output(ikind)%repulsive(:,:) = &
            qs_force_input(ikind)%repulsive(:,:)
+        qs_force_output(ikind)%dispersion(:,:) = &
+           qs_force_input(ikind)%dispersion(:,:)
         qs_force_output(ikind)%other(:,:) = qs_force_input(ikind)%other(:,:)
         qs_force_output(ikind)%fock_4c(:,:) = qs_force_input(ikind)%fock_4c(:,:)
         qs_force_output(ikind)%total(:,:) = qs_force_input(ikind)%total(:,:)

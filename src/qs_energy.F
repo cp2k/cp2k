@@ -42,6 +42,7 @@ MODULE qs_energy
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
+  USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -115,6 +116,8 @@ CONTAINS
        CALL qs_env_update_s_mstruct(qs_env,error=error)
     ELSEIF ( dft_control%qs_control%dftb ) THEN
        CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
+                              calculate_forces=.FALSE.,error=error)
+       CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env,&
                               calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
     ELSE

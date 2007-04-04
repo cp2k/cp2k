@@ -1688,6 +1688,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="eps_disp",&
+            description="Define accuracy of dispersion interaction",&
+            usage="EPS_DISP",default_r_val=0.0001_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_dftb_control_section
@@ -1731,6 +1737,13 @@ CONTAINS
        CALL keyword_create(keyword,name="PARAM_FILE_NAME",&
             description="Specify file that contains the SK_FILE names",&
             usage="PARAM_FILE_NAME filename",&
+            n_var=1,type_of_var=char_t,default_c_val="",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="UFF_FORCE_FIELD",&
+            description="Name of file with UFF parameters",&
+            usage="UFF_FORCE_FIELD filename",required=.FALSE.,&
             n_var=1,type_of_var=char_t,default_c_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -125,11 +125,11 @@ END SUBROUTINE ewald_pw_retain
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, force_env_section, error )
+SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, print_section, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_create', &
@@ -152,7 +152,7 @@ SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, force_env_sect
      ewald_pw%ref_count=1
      last_ewald_pw_id_nr=last_ewald_pw_id_nr+1
      ewald_pw%id_nr=last_ewald_pw_id_nr
-     CALL ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, force_env_section,&
+     CALL ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section,&
           error=error )
   END IF
 END SUBROUTINE ewald_pw_create

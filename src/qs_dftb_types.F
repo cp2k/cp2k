@@ -22,7 +22,6 @@ MODULE qs_dftb_types
 
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -47,6 +46,8 @@ MODULE qs_dftb_types
     REAL(KIND=dp), DIMENSION(0:3)          :: eta        !orbital hardness
     REAL(KIND=dp)                          :: energy     !free atom energy
     REAL(KIND=dp)                          :: cutoff     !cutoff radius for f matrix
+    REAL(KIND=dp)                          :: xi,di      !London parameter
+    REAL(KIND=dp)                          :: rcdisp     !cutoff radius for vdW
   END TYPE qs_dftb_atom_type
 
   TYPE qs_dftb_pairpot_type
@@ -67,6 +68,10 @@ MODULE qs_dftb_types
     REAL(KIND=dp), DIMENSION(2)            :: surr       ! coefficients for last point
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: fmat       ! Slater-Koster table (Hamiltonian)
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: smat       ! Slater-Koster table (overlap)
+    ! van der Waals parameter
+    REAL(KIND=dp)                          :: xij, dij   ! standard LJ parameters
+    REAL(KIND=dp)                          :: x0ij       ! Evdw(x0) = 0
+    REAL(KIND=dp)                          :: a, b, c    ! Short range polynomial coeffs
   END TYPE qs_dftb_pairpot_type
 
 ! *** Public data types ***
@@ -81,13 +86,14 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE qs_dftb_pairpot_init(pairpot,error)
-    TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER :: pairpot
-    TYPE(cp_error_type), INTENT(inout)                  :: error
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:, :), POINTER               :: pairpot
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER  :: i,j
+    INTEGER                                  :: i, j
 
     IF (ASSOCIATED(pairpot)) THEN
       DO i=1,SIZE(pairpot,1)
@@ -101,16 +107,14 @@ CONTAINS
   END SUBROUTINE qs_dftb_pairpot_init
 
   SUBROUTINE qs_dftb_pairpot_create(pairpot,ngrd,llm,spdim,error)
-    TYPE(qs_dftb_pairpot_type)                          :: pairpot
-    INTEGER, INTENT(IN)                                 :: ngrd
-    INTEGER, INTENT(IN)                                 :: llm
-    INTEGER, INTENT(IN)                                 :: spdim
-    TYPE(cp_error_type), INTENT(inout)                  :: error
+    TYPE(qs_dftb_pairpot_type)               :: pairpot
+    INTEGER, INTENT(IN)                      :: ngrd, llm, spdim
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                             :: stat
+    INTEGER                                  :: stat
 
     pairpot%ngrd = ngrd
     pairpot%spdim = spdim
@@ -133,14 +137,15 @@ CONTAINS
   END SUBROUTINE qs_dftb_pairpot_create
 
   SUBROUTINE qs_dftb_pairpot_release(pairpot,error)
-    TYPE(qs_dftb_pairpot_type), DIMENSION(:,:),POINTER  :: pairpot
-    TYPE(cp_error_type), INTENT(inout)                  :: error
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:, :), POINTER               :: pairpot
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_pairpot_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                             :: stat, i, j, n1, n2
-    LOGICAL                                             :: failure
+    INTEGER                                  :: i, j, n1, n2, stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 

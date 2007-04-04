@@ -22,8 +22,6 @@ MODULE cp_control_types
   USE kinds,                           ONLY: dp,&
                                              default_path_length,&
                                              default_string_length
-  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type,&
-                                             qs_dftb_pairpot_release
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type
@@ -48,13 +46,13 @@ MODULE cp_control_types
      LOGICAL                              :: self_consistent
      LOGICAL                              :: orthogonal_basis
      LOGICAL                              :: dispersion
+     REAL(KIND = dp)                      :: eps_disp
      LOGICAL                              :: do_ewald
      CHARACTER(LEN=default_path_length)   :: sk_file_path
      CHARACTER(LEN=default_path_length)   :: sk_file_list
      CHARACTER(LEN=default_string_length),&
        DIMENSION(:,:), POINTER            :: sk_pair_list
-     TYPE (qs_dftb_pairpot_type), &
-       DIMENSION(:,:), POINTER            :: dftb_potential
+     CHARACTER(LEN=default_path_length)   :: uff_force_field
   END TYPE dftb_control_type
 !------------------------------------------------------------------------------!
 ! Control parameters for semi empirical calculations
@@ -805,7 +803,6 @@ SUBROUTINE dftb_control_create(dftb_control,error)
    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    
    NULLIFY(dftb_control%sk_pair_list)
-   NULLIFY(dftb_control%dftb_potential)
 
 END SUBROUTINE dftb_control_create
 !------------------------------------------------------------------------------!
@@ -825,9 +822,6 @@ SUBROUTINE dftb_control_release(dftb_control,error)
      IF (ASSOCIATED(dftb_control%sk_pair_list)) THEN
        DEALLOCATE(dftb_control%sk_pair_list,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-     IF (ASSOCIATED(dftb_control%dftb_potential)) THEN
-        call qs_dftb_pairpot_release(dftb_control%dftb_potential,error)
      END IF
      DEALLOCATE(dftb_control,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -27,10 +27,7 @@ MODULE qs_dftb_utils
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE periodic_table,                  ONLY: ptable,&
-                                             nelem
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
-                                             
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -60,8 +57,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
@@ -82,6 +79,9 @@ CONTAINS
     dftb_parameter % occupation = 0.0_dp
     dftb_parameter % eta = 0.0_dp
     dftb_parameter % energy = 0.0_dp
+    dftb_parameter % xi = 0.0_dp
+    dftb_parameter % di = 0.0_dp
+    dftb_parameter % rcdisp = 0.0_dp
 
   END SUBROUTINE allocate_dftb_atom_param
 
@@ -95,7 +95,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
@@ -107,7 +106,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
-    lmax,skself,occupation,eta,energy,cutoff,error)
+    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,error)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     CHARACTER(LEN=default_string_length), &
@@ -115,15 +114,11 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: defined
     INTEGER, INTENT(OUT), OPTIONAL           :: z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff
-    INTEGER, INTENT(OUT), OPTIONAL           :: natorb
-    INTEGER, INTENT(OUT), OPTIONAL           :: lmax
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: occupation
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: eta
-    REAL(KIND=dp), OPTIONAL                  :: energy
-    REAL(KIND=dp), OPTIONAL                  :: cutoff
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL       :: error
-
+    INTEGER, INTENT(OUT), OPTIONAL           :: natorb, lmax
+    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself, occupation, eta
+    REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, rcdisp
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dftb_atom_param', &
       routineP = moduleN//':'//routineN
@@ -146,13 +141,16 @@ CONTAINS
     IF (PRESENT(energy)) energy = dftb_parameter%energy
     IF (PRESENT(cutoff)) cutoff = dftb_parameter%cutoff
     IF (PRESENT(occupation)) occupation = dftb_parameter%occupation
+    IF (PRESENT(xi)) xi = dftb_parameter%xi
+    IF (PRESENT(di)) di = dftb_parameter%di
+    IF (PRESENT(rcdisp)) rcdisp = dftb_parameter%rcdisp
 
   END SUBROUTINE get_dftb_atom_param
 
 ! *****************************************************************************
 
   SUBROUTINE set_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
-    lmax,skself,occupation,eta,energy,cutoff,error)
+    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,error)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     CHARACTER(LEN=default_string_length), &
@@ -160,13 +158,9 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: defined
     INTEGER, INTENT(IN), OPTIONAL            :: z
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
-    INTEGER, INTENT(IN), OPTIONAL            :: natorb
-    INTEGER, INTENT(IN), OPTIONAL            :: lmax
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: occupation
-    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: eta
-    REAL(KIND=dp), OPTIONAL                  :: energy
-    REAL(KIND=dp), OPTIONAL                  :: cutoff
+    INTEGER, INTENT(IN), OPTIONAL            :: natorb, lmax
+    REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself, occupation, eta
+    REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, rcdisp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dftb_atom_param', &
@@ -190,6 +184,9 @@ CONTAINS
     IF (PRESENT(occupation)) dftb_parameter%occupation = occupation
     IF (PRESENT(energy)) dftb_parameter%energy = energy
     IF (PRESENT(cutoff)) dftb_parameter%cutoff = cutoff
+    IF (PRESENT(xi)) dftb_parameter%xi = xi
+    IF (PRESENT(di)) dftb_parameter%di = di
+    IF (PRESENT(rcdisp)) dftb_parameter%rcdisp = rcdisp
 
   END SUBROUTINE set_dftb_atom_param
 
@@ -205,8 +202,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name, typ
-    INTEGER                                  :: natorb, output_unit, z, lmax
-    LOGICAL                                  :: defined, failure
+    INTEGER                                  :: lmax, natorb, output_unit, z
+    LOGICAL                                  :: defined
     REAL(dp)                                 :: zeff
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -216,7 +213,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     IF (ASSOCIATED(dftb_parameter).AND.&
         BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         "SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
+         "SUBSYS%PRINT%KINDS/POTENTIAL",error=error),cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%KINDS",&
             extension=".Log",error=error)

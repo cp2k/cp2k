@@ -47,6 +47,7 @@ MODULE qs_force
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
+  USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -303,6 +304,8 @@ CONTAINS
       ELSEIF (dft_control%qs_control%dftb) THEN
         CALL build_dftb_matrices(qs_env=qs_env,para_env=para_env,&
                                  calculate_forces=.TRUE.,error=error)
+       CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
+                              calculate_forces=.TRUE.,error=error)
       ELSE
         CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                            globenv=globenv,&
@@ -336,6 +339,7 @@ CONTAINS
         CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
         CALL mp_sum(force(ikind)%fock_4c,para_env%group)
         CALL mp_sum(force(ikind)%repulsive,para_env%group)
+        CALL mp_sum(force(ikind)%dispersion,para_env%group)
         force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                   force(ikind)%core_overlap(:,:) +&
                                   force(ikind)%gth_ppl(:,:) +&
@@ -350,7 +354,8 @@ CONTAINS
                                   force(ikind)%hartree_2c(:,:) +&
                                   force(ikind)%hartree_3c(:,:) +&
                                   force(ikind)%fock_4c(:,:) +&
-                                  force(ikind)%repulsive(:,:) 
+                                  force(ikind)%repulsive(:,:)  +&
+                                  force(ikind)%dispersion(:,:) 
       END DO
 
 
@@ -602,10 +607,9 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"  all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
-                  iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
+                  iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO

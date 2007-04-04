@@ -78,9 +78,10 @@ MODULE qs_environment
   USE et_coupling_types,               ONLY: et_coupling_create
   USE ewald_environment_types,         ONLY: ewald_environment_type,&
                                              ewald_env_create,&
-                                             ewald_env_retain,&
-                                             ewald_env_release,&
+                                             ewald_env_set,&
                                              read_ewald_section
+  USE ewald_pw_types,                  ONLY: ewald_pw_type,&
+                                             ewald_pw_create
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_create,&
@@ -139,6 +140,7 @@ MODULE qs_environment
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii,&
@@ -395,10 +397,13 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:,:), POINTER                :: dftb_potential
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(section_vals_type), POINTER         :: dft_section, qs_section,et_coupling_section,&
                                                 et_ddapc_section,et_becke_section,&
-                                                poisson_section,ewald_section
+                                                poisson_section,ewald_section,print_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -490,17 +495,25 @@ CONTAINS
 
 !   *** Read DFTB parameter files ***
     IF ( dft_control%qs_control%method == "DFTB" ) THEN
-      NULLIFY (ewald_env)
+      NULLIFY (ewald_env,ewald_pw,dftb_potential)
       dftb_control => dft_control%qs_control%dftb_control
-      CALL qs_dftb_param_init (atomic_kind_set,dftb_control,&
+      CALL qs_dftb_param_init (atomic_kind_set,dftb_control,dftb_potential,&
            force_env_section=qs_env%input,para_env=para_env,error=error)
+      CALL set_qs_env(qs_env,dftb_potential=dftb_potential,error=error)
+!deb  CALL write_dftb_atom_param(dftb_parameter,force_env_section,error)
       ! check for Ewald
       IF ( dftb_control%do_ewald ) THEN
         CALL ewald_env_create(ewald_env,para_env,error=error)
         poisson_section => section_vals_get_subs_vals(dft_section,"POISSON",error=error)
+        CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
         ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+        print_section => section_vals_get_subs_vals(qs_env%input,&
+            "PRINT%GRID_INFORMATION",error=error)
         CALL read_ewald_section(ewald_env,ewald_section,error=error)
         CALL set_qs_env(qs_env,ewald_env=ewald_env,error=error)
+        CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
+             print_section=print_section,error=error)
+        CALL set_qs_env(qs_env,ewald_pw=ewald_pw,error=error)
       END IF
     END IF
 

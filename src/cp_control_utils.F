@@ -533,6 +533,8 @@ CONTAINS
                  l_val=qs_control%dftb_control%self_consistent,error=error)
     CALL section_vals_val_get(dftb_section,"DISPERSION",&
                  l_val=qs_control%dftb_control%dispersion,error=error)
+    CALL section_vals_val_get(dftb_section,"EPS_DISP",&
+                 r_val=qs_control%dftb_control%eps_disp,error=error)
     CALL section_vals_val_get(dftb_section,"DO_EWALD",&
                  l_val=qs_control%dftb_control%do_ewald,error=error)
     CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_PATH",&
@@ -548,6 +550,8 @@ CONTAINS
            c_vals=clist,error=error)
       qs_control%dftb_control%sk_pair_list(1:3,k) = clist(1:3)
     END DO
+    CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
+                 c_val=qs_control%dftb_control%uff_force_field,error=error)
 
   END SUBROUTINE read_qs_section
 

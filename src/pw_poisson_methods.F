@@ -362,10 +362,6 @@ CONTAINS
 
        ! do we need to calculate the derivative of the potential?
        IF ( PRESENT ( h_stress ) .OR. PRESENT ( dvhartree ) ) THEN
-          IF ( poisson_env%green_fft % method /= PERIODIC3D ) THEN
-             CALL cp_unimplemented_error(routineP,&
-                  "Pressure calculation works ONLY for fully priodic systems",error)
-          END IF
           DO i = 1, 3
              NULLIFY(dvg(i)%pw)
              CALL pw_pool_create_pw (pw_pool, dvg ( i )%pw, use_data=COMPLEXDATA1D,&
@@ -385,6 +381,10 @@ CONTAINS
           ! this is only the contribution from the Greens function
           ! and the volume factor of the plane waves
           IF ( PRESENT ( h_stress ) ) THEN
+            IF ( poisson_env%green_fft % method /= PERIODIC3D ) THEN
+               CALL cp_unimplemented_error(routineP,&
+                  "Pressure calculation works ONLY for fully priodic systems",error)
+            END IF
 
              ffa = -1.0_dp / fourpi
              h_stress = 0.0_dp
