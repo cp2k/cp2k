@@ -113,6 +113,10 @@ MODULE realspace_grid_types
      MODULE PROCEDURE rs_grid_setup_1, rs_grid_setup_n
   END INTERFACE
 
+  !keep track of grid types output
+  INTEGER, PARAMETER        :: nomax=100
+  INTEGER                   :: noc=0
+  INTEGER, DIMENSION(nomax) :: printed
 !-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -275,7 +279,7 @@ CONTAINS
     INTEGER                                  :: dir, i, iounit, ip, lb( 2 ), &
                                                 n_slices, ngmax, nmin, nn, &
                                                 pos( 2 )
-    LOGICAL                                  :: failure, should_output
+    LOGICAL                                  :: failure, should_output, isnew
     REAL(KIND=dp)                            :: pp( 3 )
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -371,7 +375,8 @@ CONTAINS
           ! the new cartesian group
           CALL mp_cart_create ( pw_grid % para % group, 2, &
                rs % group_dim, pos, rs % group )
-          rs % group_head = ALL ( pos == 0 ) ! for output would be needed to have this pw_grid % para % group_head
+               ! for output would be needed to have this pw_grid % para % group_head
+          rs % group_head = ALL ( pos == 0 ) 
           rs % group_coor = pos
           ! local dimensions of the grid
           rs % npts_local = pw_grid % npts
@@ -393,6 +398,13 @@ CONTAINS
           pw_grid%print_section,"",error=error),cp_p_file)
 
     IF ( should_output ) THEN
+      isnew = .TRUE.
+      DO i=1,noc
+        IF(printed(i)==rs%grid_id) isnew = .FALSE.
+      END DO
+      IF ( isnew ) THEN
+        noc = MIN(noc + 1, nomax)
+        printed(noc) = rs%grid_id
           IF ( rs % parallel ) THEN
              IF ( iounit>0) THEN
                 WRITE ( iounit, '(/,A,T71,I10)' ) &
@@ -443,6 +455,7 @@ CONTAINS
                WRITE ( iounit, '(/)' )
              ENDIF
           END IF
+      END IF
     END IF
 
     CALL cp_print_key_finished_output(iounit,logger,pw_grid%print_section,&

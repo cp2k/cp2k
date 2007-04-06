@@ -41,7 +41,9 @@ MODULE qs_all_potential
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                              qlist_type,&
                                              reduced_3c_list_type
-  USE termination,                     ONLY: stop_memory
+  USE virial_methods,                  ONLY: virial_pair_force
+
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -77,8 +79,9 @@ MODULE qs_all_potential
 !******************************************************************************
   SUBROUTINE  all_integrals(la_max,la_min,npgfa,rpgfa,zeta,&
                             lb_max,lb_min,npgfb,rpgfb,zetb,&
-                            rab,dab,jkind,jatom,nkind,sbc_3c,&
-                            reduced_3c_rho0,vall,hab,nder,pab,f_a,f_b)
+                            rab,dab,jkind,nkind,sbc_3c,&
+                            reduced_3c_rho0,vall,hab,nder,&
+                            pab,f_a,f_b,virial_ab,error)
 
     INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rpgfa, zeta
@@ -86,7 +89,7 @@ MODULE qs_all_potential
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rpgfb, zetb
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rab
     REAL(dp), INTENT(IN)                     :: dab
-    INTEGER, INTENT(IN)                      :: jkind, jatom, nkind
+    INTEGER, INTENT(IN)                      :: jkind, nkind
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sbc_3c
     TYPE(reduced_3c_list_type), &
@@ -98,16 +101,23 @@ MODULE qs_all_potential
       OPTIONAL                               :: pab
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: f_a, f_b
+    REAL(dp), DIMENSION(3,3), INTENT(OUT), &
+      OPTIONAL                               :: virial_ab
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'all_integrals'
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'all_integrals', &
+      routineP = moduleN//':'//routineN
+
     REAL(dp), PARAMETER                      :: EPS = 1.E-8_dp
 
     INTEGER :: bc, i, ic_a, ic_am, ic_ap, ic_b, ic_bm, icoa, icoa_plus, &
       icoam_plus, icoap_plus, icob, icobm, ipgfa, ipgfb, istat, katom, kkind, &
       knode, na, na_plus, nap, nb, nb_plus, ncoa, ncob, nnode_c
     INTEGER, DIMENSION(3)                    :: la, lam, lap, lb, lbm
-    LOGICAL                                  :: calculate_forces
-    REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a, force_b, rab2, &
+    LOGICAL                                  :: failure
+    LOGICAL                                  :: calculate_forces, use_virial
+    REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a(3), force_b(3), rab2, &
       rac(3), rac2, rbc(3), rbc2, rpgfc, zax2, zbx2, zc, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: Int_ab_plus, Int_ab_sum
@@ -116,8 +126,14 @@ MODULE qs_all_potential
 
 !   ---------------------------------------------------------------------------
 
+    failure = .FALSE.
+
     IF(PRESENT(pab).AND.PRESENT(f_a).AND.PRESENT(f_b)) THEN
       calculate_forces = .TRUE.
+      IF (PRESENT(virial_ab)) THEN
+        use_virial = .TRUE.
+        virial_ab=0._dp
+      END IF
     ELSE
       calculate_forces = .FALSE.
     END IF
@@ -127,9 +143,7 @@ MODULE qs_all_potential
     rab2 = dab*dab
 
     ALLOCATE(Int_ab_sum(ncoa,ncob),STAT = istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"Int_ab_sum",ncoa*ncob*dp_size)
-    END IF
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     Int_ab_sum = 0.0_dp
 
     IF(calculate_forces) THEN
@@ -141,10 +155,7 @@ MODULE qs_all_potential
         nb_plus = npgfb*ncoset(lb_max)
       END IF
       ALLOCATE(Int_ab_plus(na_plus,nb_plus),STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN,moduleN,__LINE__,"Int_ab_plus",&
-                  na_plus*nb_plus*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       f_a = 0.0_dp
       f_b = 0.0_dp
     ELSE
@@ -152,12 +163,11 @@ MODULE qs_all_potential
     END IF
 
     ALLOCATE(vverf(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(vvnuc(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "vverf,vvnuc",2*(ncoset(la_max+nder)*ncoset(lb_max)*(la_max+nder+lb_max+1))*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ff(0:la_max+nder+lb_max),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "ff",(1+la_max+nder+lb_max)*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO kkind = 1,nkind
 
@@ -199,9 +209,10 @@ MODULE qs_all_potential
                      vverf,vvnuc,ff(0:),&
                      maxder=nder,vabc_plus=Int_ab_plus)
 
+          force_a = 0.0_dp
+          force_b = 0.0_dp
+
           DO i = 1,3
-            force_a = 0.0_dp
-            force_b = 0.0_dp
 
             na = ncoset(la_max)
             nap = ncoset(la_max+nder)
@@ -242,7 +253,7 @@ MODULE qs_all_potential
 
                     END IF
 
-                    force_a = force_a - pab(icoa,icob)*der_intab_a
+                    force_a(i) = force_a(i) - pab(icoa,icob)*der_intab_a
 
                     IF(lbm(i)<0) THEN
                       der_intab_b = -zbx2*(Int_ab_plus(icoap_plus,icob)-&
@@ -253,18 +264,22 @@ MODULE qs_all_potential
                               REAL(lb(i),dp)*Int_ab_plus(icoa_plus,icobm)
                     END IF
 
-                    force_b = force_b - pab(icoa,icob)*der_intab_b
+                    force_b(i) = force_b(i) - pab(icoa,icob)*der_intab_b
 
                   END DO  ! ic_b
                 END DO  ! ipgfb
               END DO  ! ic_a
             END DO  ! ipgfa
 
-            f_a(i) = f_a(i) + force_a
-            f_b(i) = f_b(i) + force_b
+            f_a(i) = f_a(i) + force_a(i)
+            f_b(i) = f_b(i) + force_b(i)
             vall(kkind)%force_c(i,knode) = vall(kkind)%force_c(i,knode) -&
-                                        (force_a+force_b)
+                                        (force_a(i)+force_b(i))
           END DO  ! i
+          IF (use_virial) THEN
+            CALL virial_pair_force ( virial_ab, 1._dp, force_a, rac, error)
+            CALL virial_pair_force ( virial_ab, 1._dp, force_b, rbc, error)
+          END IF
         ELSE
 
           CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
@@ -283,33 +298,29 @@ MODULE qs_all_potential
 
     IF (calculate_forces) THEN
       DEALLOCATE(Int_ab_plus,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "Int_ab_plus")
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
     DEALLOCATE(vverf,vvnuc,ff,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "vverf,vvnuc,ff")
-    END IF
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(Int_ab_sum,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "Int_ab_sum")
-    END IF
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE all_integrals
 
 !******************************************************************************
 
- SUBROUTINE radii_3c_orbxall(atomic_kind_set,all_potential,eps_core)
+ SUBROUTINE radii_3c_orbxall(atomic_kind_set,all_potential,eps_core,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(all_potential_type), POINTER        :: all_potential
     REAL(dp), INTENT(IN)                     :: eps_core
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'radii_3c_orbxall'
+    CHARACTER(len=*), PARAMETER :: routineN = 'radii_3c_orbxall', &
+      routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: failure
     INTEGER                                  :: i, ico, icoa, ikind, ipgf, &
                                                 iset, istat, maxlgto, n, &
                                                 ncoa, ncoc, nkind, nseta
@@ -327,7 +338,7 @@ MODULE qs_all_potential
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
 
-!    REAL(dp), PARAMETER                      :: EPS = 1.E-06_dp
+    failure = .FALSE.
 
     NULLIFY(orb_rad,set_rad)
 
@@ -336,10 +347,11 @@ MODULE qs_all_potential
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
 
     ALLOCATE(vverf(ncoset(maxlgto),ncoset(maxlgto),1+maxlgto+maxlgto),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(vvnuc(ncoset(maxlgto),ncoset(maxlgto),1+maxlgto+maxlgto),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ff(0:maxlgto+maxlgto),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "vverf,vvnuc,ff")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ncoc = 1
     CALL get_potential(potential=all_potential,&
@@ -416,22 +428,19 @@ MODULE qs_all_potential
           set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
 
           DEALLOCATE(int_tmp,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "int_tmp")
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
         END DO  ! iset
 
         DEALLOCATE(r_cut_set,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "r_cut_set")
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       END IF
 
     END DO  ! ikind
 
     DEALLOCATE(vverf,vvnuc,ff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-          "vverf,vvnuc,ff")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE radii_3c_orbxall
 

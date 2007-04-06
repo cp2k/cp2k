@@ -526,10 +526,7 @@ CONTAINS
          h_stress(:,:) = 0.0_dp
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
                              v_hartree_gspace%pw,h_stress=h_stress,error=error)
-         DO dir=1,3
-           h_stress(dir,dir) = h_stress(dir,dir)/REAL(para_env%num_pe,dp)
-           virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) + h_stress(dir,dir)
-         END DO
+         virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe,dp)
        ELSE
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
                              v_hartree_gspace%pw,error=error)
@@ -539,7 +536,8 @@ CONTAINS
        ddapc_restraint_is_spin=.FALSE.
        et_coupling_calc=.FALSE.
        IF (qs_env%dft_control%qs_control%ddapc_restraint) THEN
-           CALL section_vals_val_get(input,"DFT%DENSITY_FITTING%TYPE_OF_DENSITY",i_val=my_id,error=error)
+           CALL section_vals_val_get(input,"DFT%DENSITY_FITTING%TYPE_OF_DENSITY",&
+                i_val=my_id,error=error)
            IF (my_id==do_spin_density) ddapc_restraint_is_spin=.TRUE.
            et_coupling_calc= qs_env%dft_control%qs_control%et_coupling_calc
        ENDIF
@@ -671,31 +669,34 @@ CONTAINS
            END IF
        END IF
 
+       ! only activate stress calculation if 
+       IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
+
        ! *** calculate the xc potential on the pw density ***
        ! *** associates v_rspace_new if the xc potential needs to be computed.
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, gapw_xc=gapw_xc, error=error)
 
-       IF (use_virial .AND. calculate_forces) THEN
-         DO dir=1,3
-           virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) -&
-                                         virial%pv_xc(dir,dir) 
-         END DO
-       ENDIF
-
        IF (gapw .OR. gapw_xc) THEN
           CALL calculate_vxc_atom(qs_env,just_energy,error)
        END IF
+
+       IF (use_virial .AND. calculate_forces) THEN
+         virial%pv_virial = virial%pv_virial - virial%pv_xc 
+         virial%pv_calculate = .FALSE.
+       ENDIF
        
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hf ) THEN
+
          DO ispin = 1,nspins
            CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
          CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
                                     para_env,ks_env%s_mstruct_changed,error)
          IF ( calculate_forces ) THEN
+           CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
            CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
                                         para_env,error)
          END IF

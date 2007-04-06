@@ -12,14 +12,14 @@
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH [04042007] refactoring
 !!
-!!   SOURCE
 !******************************************************************************
 
 MODULE virial_types
 
   USE kinds,                           ONLY: dp
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -29,14 +29,19 @@ MODULE virial_types
            virial_create, virial_retain, virial_release, zero_virial
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
+
   INTEGER, PRIVATE, SAVE :: last_virial_id_nr=0
 
   TYPE virial_type
-     INTEGER :: ref_count, id_nr
-     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_total, pv_kinetic, &
-                                         pv_virial, pv_constraint, &
-                                         pv_xc
-     LOGICAL :: pv_availability,pv_numer
+     INTEGER                            :: ref_count, id_nr
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_total, &
+                                           pv_virial, &
+                                           pv_kinetic, &
+                                           pv_constraint, &
+                                           pv_xc
+     LOGICAL                            :: pv_availability,&
+                                           pv_calculate,&
+                                           pv_numer
   END TYPE virial_type
 
 !!*****
@@ -63,17 +68,14 @@ CONTAINS
     virial_out % pv_xc = virial_in % pv_xc 
     virial_out % pv_constraint = virial_in % pv_constraint 
     virial_out % pv_availability = virial_in % pv_availability
+    virial_out % pv_calculate = virial_in % pv_calculate
     virial_out % pv_numer = virial_in % pv_numer
-! *****************************************************************************
+
   END SUBROUTINE  cp_virial
-! *****************************************************************************
+
 !******************************************************************************
 
   SUBROUTINE zero_virial ( virial, virial_in_use, numer_virial )
-
-!   Purpose:  zero the virials
-
-!   ***************************************************************************
 
     TYPE(virial_type), INTENT(OUT)           :: virial
     LOGICAL, INTENT(IN), OPTIONAL            :: virial_in_use, numer_virial
@@ -86,32 +88,33 @@ CONTAINS
     virial % pv_virial = 0.0_dp 
     virial % pv_xc = 0.0_dp 
     virial % pv_constraint = 0.0_dp 
+
     IF ( PRESENT ( virial_in_use ) ) THEN
        virial % pv_availability = virial_in_use
     ELSE
        virial % pv_availability = .FALSE.
     ENDIF
+
     IF ( PRESENT ( numer_virial ) ) THEN
        virial % pv_numer = numer_virial
     ELSE
        virial % pv_numer = .FALSE.
     ENDIF
-! *****************************************************************************
+
+    virial % pv_calculate = .FALSE.
+
   END SUBROUTINE  zero_virial
+
 ! *****************************************************************************
 
-!-----------------------------------------------------------------------------!
- SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
-                         pv_kinetic, pv_availability, pv_numer )
-
-!   Purpose: Set the virial_type
-
-!   ***************************************************************************
+  SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
+                         pv_kinetic, pv_availability, pv_calculate, pv_numer )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
-    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer
+    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer, &
+                                                pv_calculate
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_set', &
       routineP = moduleN//':'//routineN
@@ -124,21 +127,21 @@ CONTAINS
     IF ( PRESENT ( pv_constraint ) ) virial % pv_constraint = pv_constraint
     IF ( PRESENT ( pv_kinetic ) ) virial % pv_kinetic = pv_kinetic
     IF ( PRESENT ( pv_availability ) ) virial % pv_availability = pv_availability
+    IF ( PRESENT ( pv_calculate ) ) virial % pv_calculate = pv_calculate
     IF ( PRESENT ( pv_numer ) ) virial % pv_numer = pv_numer
 
   END SUBROUTINE virial_set
-!-----------------------------------------------------------------------------!
- SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
-                         pv_kinetic, pv_availability, pv_numer )
 
-!   Purpose: Get the virial_type
+! *****************************************************************************
 
-!   ***************************************************************************
+  SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
+                         pv_kinetic, pv_availability, pv_calculate, pv_numer )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
-    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer
+    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer, &
+                                                pv_calculate
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_get', &
       routineP = moduleN//':'//routineN
@@ -151,6 +154,7 @@ CONTAINS
     IF ( PRESENT ( pv_constraint ) ) pv_constraint = virial % pv_constraint
     IF ( PRESENT ( pv_kinetic ) ) pv_kinetic = virial % pv_kinetic 
     IF ( PRESENT ( pv_availability ) ) pv_availability = virial % pv_availability 
+    IF ( PRESENT ( pv_calculate ) ) pv_calculate = virial % pv_calculate 
     IF ( PRESENT ( pv_numer ) ) pv_numer = virial % pv_numer 
 
   END SUBROUTINE virial_get
@@ -158,10 +162,6 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE virial_create ( virial, virial_in_use, numer_virial, error )
-
-!   Purpose: create the virial structure
-
-!   ***************************************************************************
 
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, OPTIONAL                        :: virial_in_use, numer_virial
@@ -176,6 +176,7 @@ CONTAINS
 
     ALLOCATE ( virial, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+
     IF (PRESENT(virial_in_use).AND.PRESENT(numer_virial)) THEN
       CALL zero_virial ( virial, virial_in_use = virial_in_use,&
                          numer_virial = numer_virial )
@@ -186,13 +187,16 @@ CONTAINS
     ELSE
       CALL zero_virial ( virial )
     END IF    
+
+    virial%pv_calculate = .FALSE.
+
     last_virial_id_nr=last_virial_id_nr+1
     virial%id_nr=last_virial_id_nr
     virial%ref_count=1
 
   END SUBROUTINE virial_create
-!***************************************************************************
 
+!***************************************************************************
 !!****f* virial_types/virial_retain [1.0] *
 !!
 !!   NAME
@@ -239,6 +243,7 @@ SUBROUTINE virial_retain ( virial, error)
      virial%ref_count=virial%ref_count+1
   END IF
 END SUBROUTINE virial_retain
+
 !***************************************************************************
 !!****f* virial_types/virial_release [1.0] *
 !!
@@ -277,13 +282,15 @@ SUBROUTINE virial_release(virial, error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    INTEGER                                  :: istat
 
   failure=.FALSE.
   IF (ASSOCIATED(virial)) THEN
      CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
      virial%ref_count=virial%ref_count-1
      IF (virial%ref_count.EQ.0) THEN
-        DEALLOCATE(virial)
+        DEALLOCATE(virial,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      ENDIF
   END IF
   NULLIFY(virial)
@@ -292,3 +299,5 @@ END SUBROUTINE virial_release
 !******************************************************************************
 
 END MODULE virial_types
+
+!******************************************************************************

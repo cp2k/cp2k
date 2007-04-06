@@ -60,6 +60,7 @@ MODULE qs_core_energies
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -540,11 +541,8 @@ CONTAINS
                           force(jkind)%core_overlap(:,jatom) =&
                             force(jkind)%core_overlap(:,jatom) - deab(:)
                           IF (use_virial) THEN
-                            DO dir=1,3
-                              virial%pv_virial(dir,dir) = &
-                                  virial%pv_virial(dir,dir) + deab(dir) * &
-                                                                   rab(dir)
-                            END DO
+                            CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                                     deab, rab, error)
                           END IF
                         END IF
                       END IF
@@ -683,11 +681,8 @@ CONTAINS
                                 force(jkind)%core_overlap(:,jatom) =&
                                   force(jkind)%core_overlap(:,jatom) - deab(:)
                                 IF (use_virial) THEN
-                                  DO dir=1,3
-                                    virial%pv_virial(dir,dir) = &
-                                       virial%pv_virial(dir,dir) + deab(dir) *&
-                                                                        rab(dir)
-                                  END DO
+                                  CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                                           deab, rab, error)
                                 END IF
                               END IF
                             END IF

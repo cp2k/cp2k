@@ -1227,7 +1227,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
 
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
-    INTEGER :: handle, i, idir, ispin, j, k, n_deriv, npoints, nspins, order, &
+    INTEGER :: handle, i, idir, jdir, ispin, j, k, n_deriv, npoints, nspins, order, &
       stat, xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
@@ -1281,7 +1281,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
   END IF
 
   IF (PRESENT(virial)) THEN
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+    use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
   ELSE
     use_virial = .FALSE.
   ENDIF 
@@ -1494,6 +1494,23 @@ CPSourceFileRef,&
               CALL pw_zero(virial_pw)
            ENDIF
            CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
+           IF (use_virial) THEN
+             DO idir=1,3
+               DO k = bo(1,3), bo(2,3)
+                 DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                     virial_pw%cr3d(i,j,k)=drho(idir)%array(i,j,k)*&
+                            deriv_data(i,j,k)
+                   END DO
+                 END DO
+               END DO
+               DO jdir=1,idir
+                 virial%pv_xc(idir,jdir) = pw_grid%dvol*&
+                   accurate_sum ( virial_pw%cr3d(:,:,:) * drho(jdir)%array(:,:,:) )
+                 virial%pv_xc(jdir,idir) = virial%pv_xc(idir,jdir)
+               END DO
+             END DO
+           ENDIF
            DO idir=1,3
               CALL pw_create(pw_to_deriv_rho(idir)%pw,pw_grid=pw_grid,&
                    cr3d_ptr=drho(idir)%array,&
@@ -1505,25 +1522,21 @@ CPSourceFileRef,&
               DO k = bo(1,3), bo(2,3)
                  DO j = bo(1,2), bo(2,2)
                     DO i = bo(1,1), bo(2,1)
-                       IF (use_virial) THEN
-                          virial_pw%cr3d(i,j,k)=drho(idir)%array(i,j,k)*&
-                              drho(idir)%array(i,j,k)*deriv_data(i,j,k)
-                       ENDIF
                        drho(idir)%array(i,j,k)=drho(idir)%array(i,j,k)*&
                             deriv_data(i,j,k)
                     END DO
                  END DO
               END DO
-              IF (use_virial) THEN
-                 virial%pv_xc(idir,idir) = accurate_sum ( virial_pw%cr3d )*pw_grid%dvol
-                 CALL pw_zero(virial_pw)
-              ENDIF
               NULLIFY(drho(idir)%array)
            END DO
            IF (use_virial) THEN
              CALL pw_pool_give_back_pw(pw_pool,virial_pw,error=error)
            ENDIF
         ELSE
+           IF (use_virial) THEN
+             ! Stress tensor with LSD-GGA not implemented
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END IF
            DO idir=1,3
               CALL pw_pool_create_pw(pw_pool,pw_to_deriv_rho(idir)%pw,&
                    use_data=REALDATA3D,in_space=REALSPACE,&

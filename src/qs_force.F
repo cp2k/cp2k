@@ -376,7 +376,7 @@ CONTAINS
       IF (virial%pv_availability) THEN
         CALL mp_sum(virial%pv_virial,para_env%group)
       !  *** add the volume terms of the virial ***
-        IF (.NOT.virial%pv_numer) THEN
+        IF ((.NOT.virial%pv_numer) .AND. (.NOT.dft_control%qs_control%dftb)) THEN
           DO dir=1, 3
             virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc  &
                                                                   - 2.0_dp*energy%hartree

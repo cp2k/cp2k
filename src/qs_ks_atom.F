@@ -88,7 +88,7 @@ CONTAINS
 !!
 !!   HISTOTY
 !!     created [MI]
-!!     the loop over the soins is done internally [03-05,MI]
+!!     the loop over the spins is done internally [03-05,MI]
 !!
 !!
 !!

@@ -148,6 +148,7 @@ MODULE qs_core_hamiltonian
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
+  USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -254,9 +255,10 @@ CONTAINS
                           oce_present, rho0_present, harris_flag, xas_calculation,&
                           epr_calculation
 
-    REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
-    REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
-    INTEGER, DIMENSION(3)         :: cell_c,cell_c_max,cell_c_min
+    REAL(KIND = dp), DIMENSION(1)   :: rprjc,zetc
+    REAL(KIND = dp), DIMENSION(3)   :: force_a,force_b,rab,rac,rbc,ffa,ffb
+    REAL(KIND = dp), DIMENSION(3,3) :: virial_ab
+    INTEGER, DIMENSION(3)           :: cell_c,cell_c_max,cell_c_min
 
     TYPE(block_p_type), DIMENSION(:), POINTER    :: oceh,oces
     TYPE(block_p_type), DIMENSION(:,:), POINTER  :: oceht,ocest
@@ -317,7 +319,6 @@ CONTAINS
     TYPE(virial_type), POINTER                  :: virial
 
     INTEGER :: dir
-    REAL(kind = dp), DIMENSION(3,3) :: pv_virial
     LOGICAL         :: use_virial
     TYPE(ep_qs_type), POINTER :: ep_qs_env
 
@@ -875,7 +876,7 @@ CONTAINS
 ! !$OMP private(iset,ncoa,prjc,l,nprjc,lc_max,lc_min,zetc,ncoc,i,first_col,last_jatom) &
 ! !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
 ! !$OMP private(reduced_3c_oce,reduced_3c_rho0)&
-! !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
+! !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,ffa,ffb,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 ! !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
 ! !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b,neighbor_att) &
 ! !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,vall,ai_work,oceh,oces) &
@@ -1393,10 +1394,8 @@ CONTAINS
                       force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
 
                     IF (use_virial) THEN
-                      DO dir=1, 3
-                        virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir)-&
-                                                  f0*force_a(dir) * rab(dir)
-                      END DO
+                      CALL virial_pair_force ( virial%pv_virial, -f0, &
+                                               force_a, rab, error)
                     END IF
 
 ! !$OMP end critical (qs_core_force_overlap)
@@ -1492,11 +1491,8 @@ CONTAINS
                       force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
 
                       IF (use_virial) THEN
-                        DO dir=1, 3
-                          virial%pv_virial(dir,dir) = &
-                                                virial%pv_virial(dir,dir) +&
-                                                f0*force_a(dir) * rab(dir)
-                        END DO
+                        CALL virial_pair_force ( virial%pv_virial, f0, &
+                                                 force_a, rab, error)
                       END IF
 
 
@@ -1609,12 +1605,10 @@ CONTAINS
                             force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
 
                           IF (use_virial) THEN
-                            DO dir=1, 3
-                              virial%pv_virial(dir,dir) = &
-                                                   virial%pv_virial(dir,dir) +&
-                                                   f0*force_a(dir) * rac(dir) +&
-                                                   f0*force_b(dir) * rbc(dir)
-                            END DO
+                            CALL virial_pair_force ( virial%pv_virial, f0, &
+                                                     force_a, rac, error)
+                            CALL virial_pair_force ( virial%pv_virial, f0, &
+                                                     force_b, rbc, error)
                           END IF
 ! !$OMP end critical (qs_core_force_gth_ppl)
 
@@ -1829,14 +1823,7 @@ CONTAINS
 
                           force(kkind)%gth_ppnl(i,atom_c) =&
                             force(kkind)%gth_ppnl(i,atom_c) - f0*f
-
-
-
-                          IF (use_virial) THEN
-                            virial%pv_virial(i,i) = virial%pv_virial(i,i) +&
-                                                    f0*f * rac(i)
-                          END IF
-
+                          ffa(i) = f
 
 ! !$OMP end critical (qs_core_force_gth_ppnl)
 
@@ -1861,14 +1848,17 @@ CONTAINS
 
                           force(kkind)%gth_ppnl(i,atom_c) =&
                             force(kkind)%gth_ppnl(i,atom_c) - f0*f
+                          ffb(i) = f
 
-                          IF (use_virial) THEN
-                            virial%pv_virial(i,i) = virial%pv_virial(i,i) +&
-                                                    f0*f * rbc(i)
-                          END IF
 ! !$OMP end critical (qs_core_force_gth_ppnl)
 
                         END DO
+                        IF (use_virial) THEN
+                          CALL virial_pair_force ( virial%pv_virial, f0, &
+                                                   ffa, rac, error)
+                          CALL virial_pair_force ( virial%pv_virial, f0, &
+                                                   ffb, rbc, error)
+                        END IF
 
                       END IF
 
@@ -1888,15 +1878,18 @@ CONTAINS
                                  rpgfa(:,iset),zeta(:,iset),&
                                  lb_max(jset),lb_min(jset),npgfb(jset),&
                                  rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,jkind,jatom,nkind,sbc_3c,&
+                                 rab,dab,jkind,nkind,sbc_3c,&
                                  reduced_3c_rho0,vall,&
-                                 hab,nder,pab,force_a,force_b)
+                                 hab,nder,pab,force_a,force_b,virial_ab,error=error)
 
 ! !$OMP critical (qs_core_force_all_potential)
                     force(ikind)%all_potential(:,atom_a) = &
                         force(ikind)%all_potential(:,atom_a) + f0*force_a(:)
                     force(jkind)%all_potential(:,atom_b) = &
                         force(jkind)%all_potential(:,atom_b) + f0*force_b(:)
+                    IF (use_virial) THEN
+                      virial%pv_virial = virial%pv_virial + f0*virial_ab
+                    END IF
 ! !$OMP end critical (qs_core_force_all_potential)
 
                     DO kkind = 1,nkind
@@ -1920,9 +1913,9 @@ CONTAINS
                                  rpgfa(:,iset),zeta(:,iset),&
                                  lb_max(jset),lb_min(jset),npgfb(jset),&
                                  rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,jkind,jatom,nkind,sbc_3c,&
+                                 rab,dab,jkind,nkind,sbc_3c,&
                                  reduced_3c_rho0,vall,&
-                                 hab,nder)
+                                 hab,nder,error=error)
                     DO kkind = 1,nkind
                       IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
                       DEALLOCATE(vall(kkind)%force_c,STAT=istat)

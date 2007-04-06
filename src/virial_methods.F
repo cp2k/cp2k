@@ -12,9 +12,10 @@
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH [04042007] code refactoring
 !!
-!!   SOURCE
+!!
+!!*****
 !******************************************************************************
 
 MODULE virial_methods
@@ -34,16 +35,14 @@ MODULE virial_methods
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC:: virial_evaluate
+  PUBLIC:: virial_evaluate, virial_pair_force
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_methods'
 
-!!*****
 !******************************************************************************
 
 CONTAINS
 
-!!*****
 !******************************************************************************
 !!****** virial_methods/virial_evaluate [1.0] *
 !!
@@ -70,7 +69,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
@@ -100,8 +99,10 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
 !------------------------------------------------------------------------------
 
    IF ( virial % pv_availability ) THEN
-     NULLIFY(atomic_kind)
+
      CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
+
+     NULLIFY(atomic_kind)
      mfl = 0.0_dp
      nparticle_kind = SIZE ( atomic_kind_set )
      virial % pv_kinetic = 0.0_dp
@@ -122,15 +123,66 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
            END DO
         END DO
      END DO
-     mfl = REAL( 9 * nnodes,KIND=dp) * 2.0_dp * 1.e-6_dp
+     mfl = REAL( 9 * nnodes, KIND=dp) * 2.0_dp * 1.e-6_dp
 
      CALL mp_sum(virial%pv_kinetic,igroup)
 
-! total virial
+     ! total virial
      virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint
+
      CALL timestop ( mfl, handle )
+
    ENDIF
 
 END SUBROUTINE virial_evaluate
+
+!******************************************************************************
+!****** virial_methods/virial_pair_force [1.0] *
+!!
+!!   NAME
+!!     virial_pair_force
+!!
+!!   FUNCTION
+!!     Computes the contribution to the stress tensor from two-body
+!!     pair-wise forces    
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
 !!*****
+!******************************************************************************
+
+SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab, error)
+
+  REAL(KIND=dp), DIMENSION(3,3)            :: pv_virial
+  REAL(KIND=dp)                            :: f0
+  REAL(KIND=dp), DIMENSION(3)              :: force, rab
+  TYPE(cp_error_type), INTENT(inout)       :: error
+
+  CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_pair_force', &
+    routineP = moduleN//':'//routineN
+
+  INTEGER       :: i, j
+!------------------------------------------------------------------------------
+
+  DO i=1,3
+    DO j=1,3
+      pv_virial(i,j) = pv_virial(i,j) + f0 * force(i) * rab(j)
+    END DO
+!deb
+!   DO j=1,3
+!     if(i/=j) pv_virial(i,j) = 0._dp
+!   END DO
+!deb
+  END DO
+
+END SUBROUTINE virial_pair_force 
+
+!******************************************************************************
+
 END MODULE virial_methods
+
+!******************************************************************************
