@@ -681,8 +681,10 @@ CPSourceFileRef,&
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL read_chrg_section(charge_atm,charge_inp,tmp_section,0,error)
           DO j = 1, topology%natoms
+             record = atom_info%label_atmname(j)
+             ldum = qmmm_ff_precond_only_qm(record)
              DO i = 1, nchg
-                IF (atom_info%label_atmname(j)==charge_atm(i)) THEN
+                IF (record==charge_atm(i)) THEN
                    charges(j) = charge_inp(i)
                    EXIT
                 END IF
