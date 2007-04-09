@@ -6,3 +6,10 @@
 # QM/MM
 water_3.inp          2
 mol.inp              2
+h2_dbg_0.inp         2
+h2_dbg_1.inp         2
+h2_dbg_-2_2.inp      3
+h2_dbg_-2.inp        3 
+water_3_fdbg.inp     3
+water_3_fdbg_inv.inp 3 
+water_3_full.inp     7

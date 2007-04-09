@@ -38,6 +38,7 @@ MODULE semi_empirical_utils
                                              kcalmol
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
                                              mndo_default_parameter,&
+                                             pcharge_default_parameter,&
                                              pdg_default_parameter,&
                                              pm3_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
@@ -576,23 +577,25 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(se_parameter)) THEN
-      IF ( z < 0 ) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Atomic number < 0")
-      END IF
-      SELECT CASE (method)
-        CASE ("AM1")
-          CALL am1_default_parameter(se_parameter,z)
-        CASE ("PM3")
-          CALL pm3_default_parameter(se_parameter,z)
-        CASE ("PDG")
-          CALL pdg_default_parameter(se_parameter,z)
-        CASE ("MNDO")
-          CALL mndo_default_parameter(se_parameter,z)
-        CASE DEFAULT
+       IF ( z < 0 ) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Invalid method:"//method)
-      END SELECT
+               "Atomic number < 0")
+       END IF
+       SELECT CASE (method)
+       CASE ("AM1")
+          CALL am1_default_parameter(se_parameter,z)
+       CASE ("PM3")
+          CALL pm3_default_parameter(se_parameter,z)
+       CASE ("PDG")
+          CALL pdg_default_parameter(se_parameter,z)
+       CASE ("MNDO")
+          CALL mndo_default_parameter(se_parameter,z)
+       CASE ("POINT_CHARGE")
+          CALL pcharge_default_parameter(se_parameter,z)
+       CASE DEFAULT
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Invalid method:"//method)
+       END SELECT
     ELSE
 
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -620,6 +623,8 @@ CONTAINS
          se_type=4
        CASE ("MNDO")
          se_type=1
+       CASE ("POINT_CHARGE")
+         se_type=0
     END SELECT
 
   END FUNCTION get_se_type

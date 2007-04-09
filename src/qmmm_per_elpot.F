@@ -30,7 +30,7 @@ MODULE qmmm_per_elpot
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE input_constants,                 ONLY: do_qmmm_gauss,&
-                                             do_qmmm_grid,&
+                                             do_qmmm_coulomb,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -138,7 +138,7 @@ CONTAINS
        ALLOCATE(per_potentials(K)%Pot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_grid)
+       CASE(do_qmmm_coulomb)
           ! Not yet implemented for this case
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        CASE(do_qmmm_gauss,do_qmmm_swave)
@@ -158,11 +158,10 @@ CONTAINS
        gz = 0.0_dp
        
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_grid)
+       CASE(do_qmmm_coulomb)
           ! Not yet implemented for this case
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)          
        CASE(do_qmmm_gauss,do_qmmm_swave)
-
           pgf => pgfs(K)%pgf
           idim = 0
           DO ix = 0, kmax(1)

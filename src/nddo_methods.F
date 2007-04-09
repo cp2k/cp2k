@@ -59,6 +59,7 @@ MODULE nddo_methods
                                              get_se_type,&
                                              traceb
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              create_dbm_from_sm,&
                                              deallocate_dbm_from_sm,&
@@ -121,6 +122,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ncol_global, &
                                                 nspins, output_unit
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -132,7 +134,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h
+      POINTER                                :: matrix_h, matrix_p
     TYPE(section_vals_type), POINTER         :: scf_section
 
 !   ----------------------------------------------------------------------------
@@ -159,10 +161,11 @@ CONTAINS
        CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-
+       matrix_p => rho%rho_ao
+       energy%qmmm_el = 0.0_dp
        DO ispin=1,nspins
-         ! copy the core matrix into the fock matrix
-         CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
+          ! Copy the core matrix into the fock matrix
+          CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
        END DO
 
        CALL build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
@@ -170,11 +173,29 @@ CONTAINS
        CALL build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
-       energy%mulliken = 0._dp
-       energy%exc = 0._dp
+       ! QM/MM
+       IF (qs_env%qmmm) THEN
+          DO ispin=1,nspins
+             ! If QM/MM sumup the 1el Hamiltonian
+             CALL cp_sm_scale_and_add(matrix_a=ks_matrix(ispin)%matrix,&
+                                      matrix_b=qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+                                      error=error)
+             ! Compute QM/MM Energy
+             CALL cp_sm_sm_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+                                 matrix_p(ispin)%matrix,trace=qmmm_el,&
+                                 para_env=para_env,error=error)
+             energy%qmmm_el = energy%qmmm_el + qmmm_el
+          END DO
+       END IF
 
-       energy%total = energy%core + energy%core_overlap + 0.5_dp*energy%hartree + &
-            energy%qmmm_el + energy%mulliken
+       energy%mulliken = 0._dp
+       energy%exc      = 0._dp
+
+       energy%total = energy%core +&
+                      energy%core_overlap +&
+                      0.5_dp*energy%hartree + &
+                      energy%qmmm_el +&
+                      energy%mulliken
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -197,7 +218,7 @@ CONTAINS
                              occupation_numbers=occupation_numbers )
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                          mo_derivs(ispin)%matrix, ncol_global,error=error)
+                                    mo_derivs(ispin)%matrix, ncol_global,error=error)
              ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
              scaling_factor=2.0_dp*occupation_numbers
              CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
@@ -324,16 +345,6 @@ CONTAINS
        ecore2 = 0._dp
        enuclear = 0._dp
        itype = get_se_type(dft_control%qs_control%method)
-
-!deb
-!      nullify(particle_set)
-!      CALL get_qs_env(qs_env=qs_env,&
-!                        particle_set=particle_set)
-!      do iatom=1,SIZE(particle_set)
-!        CALL get_atomic_kind ( atomic_kind=particle_set(iatom)%atomic_kind, qeff=rc)
-!        write(6,*) "ATOM   ",iatom,"  CHARGE=  ",rc
-!      enddo
-!deb
 
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)

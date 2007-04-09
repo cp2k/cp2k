@@ -311,7 +311,7 @@ MODULE input_constants
        (/dump_atomic,dump_xmol,dump_dcd/)
 
   INTEGER, PARAMETER, PUBLIC :: do_qmmm_none=0,&
-                                do_qmmm_grid=1,&
+                                do_qmmm_coulomb=1,&
                                 do_qmmm_gauss=2,&
                                 do_qmmm_swave=3,&
                                 do_qmmm_link_imomm=1,&

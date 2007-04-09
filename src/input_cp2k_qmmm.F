@@ -180,10 +180,10 @@ CONTAINS
             variants=s2a("QMMM_COUPLING","ECOUPL"),& 
             description="Specifies the type of the QM - MM electrostatic coupling.",&
             usage="E_COUPL GAUSS",&
-            enum_c_vals=s2a( "NONE","GRID","GAUSS","S-WAVE"),&
-            enum_i_vals=(/ do_qmmm_none, do_qmmm_grid, do_qmmm_gauss, do_qmmm_swave/),&
+            enum_c_vals=s2a( "NONE","COULOMB","GAUSS","S-WAVE"),&
+            enum_i_vals=(/ do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave/),&
             enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
-                          "Using analytical collocation on the grids (for debugging/reference only)",&
+                          "Using analytical 1/r potential (Coulomb) - not available for GPW/GAPW",&
                           "Using fast gaussian expansion of the electrostatic potential (Erf(r/rc)/r)",&
                           "Using fast gaussian expansion of the s-wave electrostatic potential"),&
             default_i_val=do_qmmm_none, error=error)
@@ -879,6 +879,14 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"MM_POTENTIAL",&
             description="Controls the printing of the MM unidimensional potential on file",&
             print_level=high_print_level,each=(/1/),filename="MM_ELPOT.data",&
+            common_iter_levels=1,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"QMMM_MATRIX",&
+            description="Controls the printing of the QMMM 1 electron Hamiltonian Matrix"//&
+            " for methods like semiempirical and DFTB",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

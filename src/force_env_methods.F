@@ -741,7 +741,7 @@ END SUBROUTINE force_env_set_cell
 !!****f* force_env_methods/qmmm_energy_and_forces [1.0] *
 !!
 !!   NAME
-!!     qmmm_forces
+!!     qmmm_energy_and_forces
 !!
 !!   FUNCTION
 !!     calculates the qm/mm energy and forces
@@ -918,7 +918,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
   CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        force_env%qmmm_env,particles_mm,&
        mm_cell=mm_cell,&
-!       globenv=force_env%sub_force_env(qs_subsys)%force_env%globenv,&
        calc_force=need_f,error=error)
   !
   ! Print Out information on QS energy calculation...

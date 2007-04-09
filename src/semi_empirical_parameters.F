@@ -68,12 +68,41 @@ MODULE semi_empirical_parameters
             am1_default_parameter, &
             pdg_default_parameter, &
             pm3_default_parameter,&
+            pcharge_default_parameter,&
             slater_exponents,srules
 
 !!***
 ! *****************************************************************************
 
 CONTAINS
+
+! *****************************************************************************
+  SUBROUTINE pcharge_default_parameter(sep, z)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER                                  :: z
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pcharge_default_parameter'
+
+    sep%typ  = "POINT_CHARGE"
+    sep%name = "CLASSICAL"
+    sep%eheat = 0.0_dp
+    sep%z = z
+    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    sep%ngauss = 0
+    sep%defined = .TRUE.
+    sep%sto_exponents(0:3) = 0._dp !eV
+    sep%beta(0:3) = 0._dp !eV
+    sep%uss = 0._dp; sep%upp = 0._dp; sep%udd = 0._dp !eV
+    sep%alp = 0._dp
+    sep%eisol = 0._dp
+    sep%gss = 0._dp; sep%gsp = 0._dp; sep%gpp = 0._dp; sep%gp2 = 0._dp
+    sep%gsd = 0._dp; sep%gpd = 0._dp; sep%gdd = 0._dp
+    sep%hsp = 0._dp
+    sep%dd = 0._dp; sep%qq = 0._dp; sep%am = 0._dp; sep%ad = 0._dp; sep%aq = 0._dp
+    sep%fn1(1:4) = 0._dp; sep%fn2(1:4) = 0._dp; sep%fn3(1:4) = 0._dp
+    sep%bfn1 = 0._dp; sep%bfn2 = 0._dp; sep%bfn3 = 0._dp
+
+  END SUBROUTINE pcharge_default_parameter
 
 ! *****************************************************************************
 
@@ -83,8 +112,6 @@ CONTAINS
     INTEGER                                  :: z
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mndo_default_parameter'
-
-! -----------------------------------------------------------------------------
 
     sep%typ = "MNDO"
     sep%name = ptable(z)%name

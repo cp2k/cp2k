@@ -31,10 +31,10 @@ MODULE semi_empirical_integrals
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
 
-  PUBLIC :: rotint, rotnuc, drotint, drotnuc, set_taper_fn, taper
+  PUBLIC :: rotint, rotnuc, drotint, drotnuc, set_taper_fn, taper, nucint
 
-  REAL(KIND=dp), SAVE                  :: r0, al
-  LOGICAL, SAVE                        :: taper_fn_init = .FALSE.
+  REAL(KIND=dp), SAVE, PUBLIC          :: r0, al
+  LOGICAL, SAVE, PUBLIC                :: taper_fn_init = .FALSE.
 
 ! *****************************************************************************
 
@@ -611,8 +611,8 @@ CONTAINS
       IF (rij > 0.00002_dp) THEN
          rij = SQRT(rij)
          ! COMPUTE INTEGRALS IN DIATOMIC FRAME
-         CALL nucint(sepi,sepj,rij,ssss,ccore)
- 
+         CALL nucint(sepi,sepj,rij,ssss,ccore,itype)
+
          a=1._dp/rij
          x(1) = x(1)*a
          x(2) = x(2)*a
@@ -764,24 +764,27 @@ CONTAINS
             END DO
          ENDIF
          IF(itype == 4) THEN
-           ! PDDG function 
-           zaf=sepi%zeff/nt
-           zbf=sepj%zeff/nt
-           pai=sepi%pre(1)
-           pbi=sepi%pre(2)
-           paj=sepj%pre(1)
-           pbj=sepj%pre(2)
-           dai=sepi%d(1)
-           dbi=sepi%d(2)
-           daj=sepj%d(1)
-           dbj=sepj%d(2)
-           apdg=10._dp*0.5291772083_dp*0.5291772083_dp
-           qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
-                   (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
-                   (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
-                   (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
+            ! PDDG function 
+            zaf=sepi%zeff/nt
+            zbf=sepj%zeff/nt
+            pai=sepi%pre(1)
+            pbi=sepi%pre(2)
+            paj=sepj%pre(1)
+            pbj=sepj%pre(2)
+            dai=sepi%d(1)
+            dbi=sepi%d(2)
+            daj=sepj%d(1)
+            dbj=sepj%d(2)
+            apdg=10._dp*0.5291772083_dp*0.5291772083_dp
+            qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
+                    (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
+                    (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
+                    (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
+         ELSEIF (itype==0) THEN
+            qcorr = 0.0_dp
+            scale = 0.0_dp
          ELSE
-           qcorr = 0._dp
+            qcorr = 0.0_dp
          END IF
          enuc=enuc+scale+qcorr
  
@@ -1157,8 +1160,7 @@ CONTAINS
   END SUBROUTINE terep
 
 ! *****************************************************************************
-
-  SUBROUTINE nucint ( sepi, sepj, rij, ssss, core )
+  SUBROUTINE nucint ( sepi, sepj, rij, ssss, core, itype )
   !
   ! routine adapted from mopac7 (repp)
   ! vector version written by Ernest R. Davidson, Indiana University
@@ -1167,6 +1169,8 @@ CONTAINS
   !   on input rij     = interatomic distance
   !            sepi    = paramters of atom i
   !            sepj    = paramters of atom j
+  !            itype   = type of semi_empirical model
+  !                      extension to the original routine to compute qm/mm integrals
   !  on output core    = 4 X 2 array of electron-core attraction integrals
   !            ssss    = (ssss) integral
   !     The storage of the nuclear attraction integrals  core(kl/ij) iS
@@ -1179,6 +1183,7 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: core
+    INTEGER, INTENT(IN)                      :: itype
 
     LOGICAL                                  :: si, sj
     REAL(dp) :: ade, adi, adj, aed, aee, aeq, ami, amj, aqe, aqi, aqj, da, &
@@ -1197,19 +1202,22 @@ CONTAINS
       ddj = sepj%dd
       qqi = sepi%qq
       qqj = sepj%qq
- 
+
       IF ((.NOT.si) .AND. (.NOT.sj)) THEN
          !
          !  hydrogen - hydrogen  (SS/SS)
          !
          ami = sepi%am
          amj = sepj%am
-         aee = 0.5_dp/ami + 0.5_dp/amj
-         aee = aee * aee
+         aee = 0.0_dp
+         IF (itype/=0) THEN
+            aee = 0.5_dp/ami + 0.5_dp/amj
+            aee = aee * aee
+         END IF
          ri(1) = 1._dp/SQRT(r*r+aee)
          core(1,1) = zj*ri(1)
          core(1,2) = zi*ri(1)
- 
+
       ELSE IF (si .AND. (.NOT.sj)) THEN
          !
          !  heavy atom - hydrogen
@@ -1218,14 +1226,19 @@ CONTAINS
          adi = sepi%ad
          aqi = sepi%aq
          amj = sepj%am
-         aee = 0.5_dp/ami + 0.5_dp/amj
-         aee = aee * aee
          da=ddi
          qa=qqi * 2._dp
-         ade = 0.5_dp/adi + 0.5_dp/amj
-         ade = ade * ade
-         aqe = 0.5_dp/aqi + 0.5_dp/amj
-         aqe = aqe * aqe
+         aee = 0.0_dp
+         ade = 0.0_dp
+         aqe = 0.0_dp
+         IF (itype /=0) THEN
+            aee = 0.5_dp/ami + 0.5_dp/amj
+            ade = 0.5_dp/adi + 0.5_dp/amj
+            aqe = 0.5_dp/aqi + 0.5_dp/amj
+            aee = aee * aee
+            ade = ade * ade
+            aqe = aqe * aqe
+         END IF
          rsq = r*r
          arg(1) = rsq + aee
          xxx = r+da
@@ -1258,14 +1271,19 @@ CONTAINS
          amj = sepj%am
          adj = sepj%ad
          aqj = sepj%aq
-         aee = 0.5_dp/ami + 0.5_dp/amj
-         aee = aee * aee
          db=ddj
          qb=qqj * 2._dp
-         aed = 0.5_dp/ami + 0.5_dp/adj
-         aed = aed * aed
-         aeq = 0.5_dp/ami + 0.5_dp/aqj
-         aeq = aeq * aeq
+         aee = 0.0_dp
+         ade = 0.0_dp
+         aqe = 0.0_dp
+         IF (itype /=0) THEN
+            aee = 0.5_dp/ami + 0.5_dp/amj
+            aed = 0.5_dp/ami + 0.5_dp/adj
+            aeq = 0.5_dp/ami + 0.5_dp/aqj
+            aee = aee * aee
+            aed = aed * aed
+            aeq = aeq * aeq
+         END IF
          rsq = r*r
          arg(1) = rsq + aee
          xxx = r-db
@@ -1306,17 +1324,23 @@ CONTAINS
          adj = sepj%ad
          aqi = sepi%aq
          aqj = sepj%aq
-
-         aee = 0.5_dp/ami + 0.5_dp/amj
-         aee = aee * aee
-         ade = 0.5_dp/adi + 0.5_dp/amj
-         ade = ade * ade
-         aqe = 0.5_dp/aqi + 0.5_dp/amj
-         aqe = aqe * aqe
-         aed = 0.5_dp/ami + 0.5_dp/adj
-         aed = aed * aed
-         aeq = 0.5_dp/ami + 0.5_dp/aqj
-         aeq = aeq * aeq
+         ade = 0.0_dp
+         aee = 0.0_dp
+         aqe = 0.0_dp
+         aed = 0.0_dp
+         aeq = 0.0_dp
+         IF (itype /=0) THEN
+            aee = 0.5_dp/ami + 0.5_dp/amj
+            ade = 0.5_dp/adi + 0.5_dp/amj
+            aqe = 0.5_dp/aqi + 0.5_dp/amj
+            aed = 0.5_dp/ami + 0.5_dp/adj
+            aeq = 0.5_dp/ami + 0.5_dp/aqj
+            ade = ade * ade
+            aee = aee * aee
+            aqe = aqe * aqe
+            aed = aed * aed
+            aeq = aeq * aeq
+         END IF
          rsq = r * r
          arg(1) = rsq + aee
          xxx = r + da
@@ -1369,16 +1393,16 @@ CONTAINS
       END IF
 
       ssss = ri(1)
-
       ! Tapering function
       ft = taper ( rij )
       core(:,:) = ft*core(:,:)
       ssss = ft*ssss
-
+      ! If no orbitals are present on the atom let's zero the integral contribution
+      IF (sepi%natorb == -1) core(:,1) = 0.0_dp
+      IF (sepj%natorb == -1) core(:,2) = 0.0_dp
   END SUBROUTINE nucint
 
 ! *****************************************************************************
-
   SUBROUTINE drotint (sepi,sepj,r,dw,delta)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
@@ -1403,7 +1427,7 @@ CONTAINS
 
   END SUBROUTINE drotint
 
-
+! *****************************************************************************
   SUBROUTINE drotnuc (sepi,sepj,r,de1b,de2a,denuc,itype,delta)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
@@ -1448,12 +1472,13 @@ CONTAINS
 
     REAL(KIND=dp)                            :: dr, ep
 
-    dr = -al*(rij-r0)
-    IF ( taper_fn_init .AND. dr < 20._dp ) THEN
-      ep = EXP(dr)
-      ft = ep/(1._dp+ep)
-    ELSE
-      ft = 1._dp
+    ft = 1._dp
+    IF ( taper_fn_init ) THEN
+       dr = -al*(rij-r0)
+       IF ( dr < 20._dp ) THEN
+          ep = EXP(dr)
+          ft = ep/(1._dp+ep)
+       END IF
     END IF
 
   END FUNCTION taper

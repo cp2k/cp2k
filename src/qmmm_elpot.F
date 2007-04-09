@@ -30,7 +30,7 @@ MODULE qmmm_elpot
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE input_constants,                 ONLY: do_qmmm_gauss,&
-                                             do_qmmm_grid,&
+                                             do_qmmm_coulomb,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -159,62 +159,16 @@ CONTAINS
        ALLOCATE(potentials(K)%Pot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_grid)
-          ALLOCATE(pot0_2(3,np), stat=stat)
+       CASE(do_qmmm_coulomb)
+          NULLIFY(pot0_2)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(pot0_2(2,np), stat=stat)
        END SELECT
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_grid)
-          IF (compatibility) THEN
-             rc2=rc*rc; rc3=rc2*rc; rc4=rc3*rc; rc5=rc4*rc; rc6=rc5*rc; rc7=rc6*rc
-             pot0_2(1,1)= 1.0_dp/rc
-             pot0_2(2,1)= 0.0_dp
-             pot0_2(3,1)= 0.0_dp
-             x=0.0_dp
-             DO i=2,np
-                x=x+dx ; x2=x*x; x3=x2*x; x4=x3*x; x5=x4*x; x6=x5*x; x7=x6*x
-                pot0_2(1,i)= (rc4-x4)/(rc5-x5)
-                pot0_2(2,i)= x3*(-x5 + 5.0_dp*x*rc4 - 4.0_dp*rc5)/(x5-rc5)**2*dx
-                pot0_2(3,i)= 2.0_dp*x2*&
-                     (-6.0_dp*rc7-8.0_dp*rc6*x-6.0_dp*rc5*x2+10.0_dp*rc3*x4+6.0_dp*rc2*x5+3.0_dp*rc*x6+x7)/&
-                     (rc4+rc3*x+rc2*x2+rc*x3+x4)**3*d2x
-             END DO
-          ELSE
-             pot0_2(1,1)= 2.0_dp/(rootpi*rc)
-             pot0_2(2,1)= 0.0_dp
-             pot0_2(3,1)=-4.0_dp/(3.0_dp*rootpi*rc**3)
-             x=0.0_dp
-             DO i=2,np
-                x=x+dx
-                pot0_2(1,i)=erf(x/rc)/x
-                t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
-                pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
-                pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x
-             END DO             
-          END IF
-          ! Print info on the unidimensional MM electrostatic potential
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),cp_p_file).AND.&
-               logger%para_env%mepos==logger%para_env%source) THEN
-             CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
-             CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
-             myind = INDEX(FileName," ")
-             CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
-             WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
-             IF (para_env%ionode) THEN 
-                OPEN(UNIT=21,FILE=FileName)
-                WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
-                WRITE(21,'(A,T10,A,T30,A)')"#","Xval","ElecPot"
-                x=0.0_dp
-                DO i=1,np
-                   WRITE(21,'(T10,F15.9,T30,F15.9)')x,pot0_2(1,i)
-                   x=x+dx
-                END DO
-                CLOSE(21)
-             END IF
-          END IF
+       CASE(do_qmmm_coulomb)
+          ! Do Nothing
        CASE(do_qmmm_gauss,do_qmmm_swave)
           IF     (qmmm_coupl_type==do_qmmm_gauss) THEN
              ! Smooth Coulomb Potential ::  Erf(x/rc)/x

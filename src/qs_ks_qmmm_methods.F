@@ -178,6 +178,7 @@ CONTAINS
           END DO
           ks_qmmm_env%cube_info => cube_info
        END IF
+       NULLIFY(ks_qmmm_env%matrix_h)
        !
     END IF
 

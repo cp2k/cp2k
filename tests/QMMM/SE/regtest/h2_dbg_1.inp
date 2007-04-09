@@ -1,0 +1,82 @@
+# This test must give back teh result of the interaction of two charges (coulomb 1/r)
+# +1 and +0.5 at 3 Ang of distance (.08819616666666666666)
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    CHARGE 1
+    &QS
+      METHOD AM1
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM H
+        CHARGE 0.5
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+           atoms H H
+     EPSILON  0.0
+     SIGMA  1.0
+           RCUT 10.0
+         &END LENNARD-JONES
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    USE_GEEP_LIB 12
+    ECOUPL COULOMB
+    &QM_KIND H
+      MM_INDEX 1
+    &END QM_KIND
+    &PRINT
+     &QMMM_MATRIX
+     &END
+    &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+    &COORD
+ H     3.000000     0.8     4.000000  MOL1
+ H     3.000000     0.8     1.000000  MOL1
+    &END
+    &KIND H
+     ELEMENT H
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT water_1
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION
+

@@ -45,10 +45,10 @@ MODULE atomic_kind_types
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_method_am1,&
+                                             do_method_dftb,&
                                              do_method_mndo,&
                                              do_method_pdg,&
                                              do_method_pm3,&
-                                             do_method_dftb,&
                                              do_qs
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -83,9 +83,9 @@ MODULE atomic_kind_types
                                              init_se_param,&
                                              se_param_set_default,&
                                              write_se_param
-  USE shell_potential_types,           ONLY: shell_release,&
-                                             shell_retain,&
-                                             shell_kind_type
+  USE shell_potential_types,           ONLY: shell_kind_type,&
+                                             shell_release,&
+                                             shell_retain
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -184,7 +184,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nkind
     TYPE(cp_error_type), INTENT(inout)       :: error
-
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_atomic_kind_set'
 
@@ -394,7 +393,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ngrid_ang, ngrid_rad, &
                                                 lmax_rho0
     LOGICAL, INTENT(OUT), OPTIONAL           :: ghost
-    TYPE(shell_kind_type), POINTER, OPTIONAL      :: shell
+    TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
     LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atomic_kind'
@@ -598,7 +597,7 @@ CONTAINS
       ncgf_aux, npgf, nset, nsgf, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       gth_potential_present, elp_potential_present, paw_atom_present, &
-      qm_atom_present,shell_present, shell_adiabatic
+      qm_atom_present, shell_present, shell_adiabatic
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -622,9 +621,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
                                                 soft_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
-    TYPE(shell_kind_type), POINTER           :: shell
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
-
+    TYPE(shell_kind_type), POINTER           :: shell
 
 !   ---------------------------------------------------------------------------
 
@@ -1573,14 +1571,14 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: method_name_id, z
-    LOGICAL                                  :: defined, ghost, failure
+    LOGICAL                                  :: defined, failure, ghost
     REAL(dp)                                 :: mass
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
 
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
@@ -1611,8 +1609,9 @@ CONTAINS
         CALL init_se_param(atomic_kind%se_parameter,&
                            atomic_kind%orb_basis_set,error=error)
         IF ( ASSOCIATED(all_potential) ) THEN
-          CALL init_potential ( all_potential, itype="BARE", &
-             zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction)
+           CALL init_potential ( all_potential, itype="BARE", &
+                zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction)
+           se_parameter%zeff=se_parameter%zeff-all_potential%zeff_correction
         END IF
       ELSEIF (dft_control%qs_control%dftb) THEN
         CALL get_atomic_kind(atomic_kind,dftb_parameter=dftb_parameter)
@@ -1702,8 +1701,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: lmax_rho0
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
     LOGICAL, INTENT(IN), OPTIONAL            :: ghost
-    TYPE(shell_kind_type), POINTER, OPTIONAL      :: shell
-    LOGICAL, INTENT(IN),  OPTIONAL           :: shell_active
+    TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
+    LOGICAL, INTENT(IN), OPTIONAL            :: shell_active
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

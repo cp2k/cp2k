@@ -34,6 +34,8 @@ MODULE qs_ks_qmmm_types
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -76,9 +78,11 @@ MODULE qs_ks_qmmm_types
      INTEGER :: n_evals, &
                 id_nr, ref_count
 
-     TYPE(pw_env_type), POINTER :: pw_env
-     TYPE(coeff_type)               :: v_qmmm_rspace
+     TYPE(pw_env_type), POINTER                  :: pw_env
+     TYPE(coeff_type)                            :: v_qmmm_rspace
      TYPE(cube_info_type),DIMENSION(:), POINTER  :: cube_info
+     TYPE(real_matrix_p_type), DIMENSION(:), &
+          POINTER                                :: matrix_h
   END TYPE qs_ks_qmmm_env_type
 !!***
 !****************************************************************************
@@ -168,6 +172,9 @@ CONTAINS
              END DO
              DEALLOCATE(ks_qmmm_env%cube_info, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(ks_qmmm_env%matrix_h)) THEN
+             CALL deallocate_matrix_set(ks_qmmm_env%matrix_h,error)
           END IF
           DEALLOCATE(ks_qmmm_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

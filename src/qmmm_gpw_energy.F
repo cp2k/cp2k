@@ -35,7 +35,7 @@ MODULE qmmm_gpw_energy
   USE cube_utils,                      ONLY: cube_info_type
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_gauss,&
-                                             do_qmmm_grid,&
+                                             do_qmmm_coulomb,&
                                              do_qmmm_none,&
                                              do_qmmm_swave,&
                                              linear_interp,&
@@ -63,6 +63,7 @@ MODULE qmmm_gpw_energy
                                              pw_zero
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
+  USE qmmm_se_energy,                  ONLY: build_se_qmmm_matrix
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_per_pot_p_type,&
                                              qmmm_per_pot_type,&
@@ -79,12 +80,11 @@ MODULE qmmm_gpw_energy
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_energy'
 
   PUBLIC :: qmmm_el_coupling
-  PUBLIC :: qmmm_electrostatic_on_grid
-  PUBLIC :: qmmm_elec_with_gaussian,qmmm_elec_with_gaussian_low,&
+  PUBLIC :: qmmm_elec_with_gaussian, qmmm_elec_with_gaussian_low,&
             qmmm_elec_with_gaussian_LR, qmmm_elec_with_gaussian_LG
 !***
 !****************************************************************************
@@ -158,33 +158,32 @@ CONTAINS
        IF (qs_env%dft_control%qs_control%semi_empirical) THEN
           ! SEMIEMPIRICAL
           SELECT CASE(qmmm_env%qmmm_coupl_type)
-          CASE(do_qmmm_grid,do_qmmm_gauss,do_qmmm_swave)
+          CASE(do_qmmm_coulomb,do_qmmm_none)
+             CALL build_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,qs_env%para_env,error)
+             IF( qmmm_env%qmmm_coupl_type==do_qmmm_none) THEN
+                IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+                     "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+             END IF
+          CASE (do_qmmm_gauss,do_qmmm_swave)
              CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="QM/MM electrostatic coupling not yet implemented for semiempirical.", &
-                  error=error, error_level=cp_failure_level)
-          CASE(do_qmmm_none)
-             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
-                  "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+                  message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
+                  error=error, error_level=cp_failure_level)            
           CASE DEFAULT
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
        ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
+          ! DFTB
           CALL cp_unimplemented_error(fromWhere=routineP, &
           message="QM/MM electrostatic coupling not yet implemented for DFTB.", &
           error=error, error_level=cp_failure_level)
        ELSE
           ! QS 
           SELECT CASE(qmmm_env%qmmm_coupl_type)
-          CASE(do_qmmm_grid)
-             IF (iw>0) &
-                  WRITE(iw,'(T2,"QMMM|",1X,A)')"QM/MM Coupling computed on GRID."
-             ! Compute the MM electrostatic potential on GRID
-             CALL qmmm_electrostatic_on_grid(qmmm_env=qmmm_env,&
-                                             v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-                                             mm_particles=mm_particles,&
-                                             mm_cell=mm_cell,&
-                                             error=error)
+          CASE(do_qmmm_coulomb)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+                  error=error, error_level=cp_failure_level) 
           CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) &
                   WRITE(iw,'(T2,"QMMM|",1X,A)')&
@@ -227,202 +226,6 @@ CONTAINS
        CALL timestop(0.0_dp,handle)
     END IF
   END SUBROUTINE qmmm_el_coupling
-
-!!****f* qmmm_gpw_energy/qmmm_electrostatic_on_grid [1.0] *
-!!
-!!   NAME
-!!     qmmm_electrostatic_on_grid
-!!
-!!   FUNCTION
-!!     Compute the QM/MM electrostatic Interaction on Grid Points
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
-  SUBROUTINE  qmmm_electrostatic_on_grid(qmmm_env, v_qmmm, mm_particles, mm_cell, error)
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: mm_particles
-    TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-
-    CALL timeset(routineN,"I","",handle)
-
-    CALL qmmm_electrostatic_on_grid_low(&
-         v_qmmm,&
-         v_qmmm%pw%cr3d,&
-         qmmm_env%Potentials,&
-         mm_particles,&
-         qmmm_env%mm_atom_chrg,&
-         qmmm_env%mm_el_pot_radius,&
-         qmmm_env%mm_atom_index,&
-         qmmm_env%num_mm_atoms,&
-         mm_cell,&
-         qmmm_env%dOmmOqm,&
-         error)
-
-    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
-
-       CALL qmmm_electrostatic_on_grid_low(&
-            v_qmmm,&
-            v_qmmm%pw%cr3d,&
-            qmmm_env%added_charges%potentials,&
-            qmmm_env%added_charges%added_particles,&
-            qmmm_env%added_charges%mm_atom_chrg,&
-            qmmm_env%added_charges%mm_el_pot_radius,&
-            qmmm_env%added_charges%mm_atom_index,&
-            qmmm_env%added_charges%num_mm_atoms,&
-            mm_cell,&
-            qmmm_env%dOmmOqm,&
-            error)       
-
-    END IF
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE qmmm_electrostatic_on_grid
-
-!!****f* qmmm_gpw_energy/qmmm_electrostatic_on_grid_low [1.0] *
-!!
-!!   NAME
-!!     qmmm_electrostatic_on_grid_low
-!!
-!!   FUNCTION
-!!     Compute the QM/MM electrostatic Interaction on Grid Points: Low Level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** ********************************************************************** 
-  SUBROUTINE qmmm_electrostatic_on_grid_low(v_qmmm, Varray, potentials,&
-       mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, dOmmOqm, error)
-    TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
-    REAL(KIND=dp), DIMENSION(*)              :: Varray
-    TYPE(qmmm_pot_p_type), DIMENSION(:), &
-      POINTER                                :: potentials
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
-    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
-    TYPE(cell_type), POINTER                 :: mm_cell
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'qmmm_electrostatic_on_grid_low', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, Imm, Imp, IndMM, &
-                                                Ipot, ix, j, jj, k, my_j, &
-                                                my_k, n1, n2, n3
-    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dr1, dr2, dr3, dx, qt, r, rc, &
-                                                rt1, rt2, rt3, rv1, rv2, rv3, &
-                                                rx, rx2, rx3, rx4, rx5, xs1, &
-                                                xs2, xs3
-    REAL(KIND=dp), DIMENSION(3)              :: r_pbc
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
-    TYPE(qmmm_pot_type), POINTER             :: Pot
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
-
-    bo = v_qmmm%pw%pw_grid%bounds_local  
-    gbo = v_qmmm%pw%pw_grid%bounds
-    n1 = v_qmmm%pw%pw_grid%npts_local (1)   
-    n2 = v_qmmm%pw%pw_grid%npts_local (2)   
-    n3 = v_qmmm%pw%pw_grid%npts_local (3)   
-    dr1 = v_qmmm%pw%pw_grid%dr(1)
-    dr2 = v_qmmm%pw%pw_grid%dr(2)
-    dr3 = v_qmmm%pw%pw_grid%dr(3)
-    CALL timeset(routineN,"I","",handle)
-    MainLoopPot: DO Ipot = 1, SIZE(Potentials)
-       Pot    => Potentials(Ipot)%Pot
-       dx     =  Pot%dx 
-       pot0_2 => Pot%pot0_2
-       LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
-          Imm = Pot%mm_atom_index(Imp)
-          IndMM = mm_atom_index(Imm) 
-          rc = mm_el_pot_radius(Imm)
-          r_pbc=pbc(mm_particles(IndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
-          rt1= r_pbc(1) 
-          rt2= r_pbc(2) 
-          rt3= r_pbc(3) 
-          qt=mm_charges(Imm)
-          ! ! the following omp has been commented because it is incorrect
-          ! !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
-          ! !$omp                            r, rc, qt, ix, rx, rx2, rx3, rx4, rx5,&
-          ! !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3)&
-          ! !$omp                            shared(Varray,pot0_2,dx,bo,n1,n2,n3,gbo)
-          LoopOnGrid: DO k = bo(1,3), bo(2,3)
-             my_k=k-gbo(1,3)
-             xs3 = REAL(my_k,dp)*dr3
-             my_j=bo(1,2)-gbo(1,2)
-             jj=(k-bo(1,3))*n1*n2
-             xs2 = REAL(my_j,dp)*dr2
-             rv3 = rt3 - xs3
-             DO j = bo(1,2), bo(2,2)
-                xs1 = (bo(1,1)-gbo(1,1))*dr1
-                rv2 = rt2 - xs2
-                DO i = bo(1,1), bo(2,1)
-                   jj=jj+1
-                   rv1 = rt1 - xs1
-                   r   = SQRT(rv1*rv1 + rv2*rv2 + rv3*rv3)
-                   ix  = FLOOR(r/dx)+1
-                   rx  = (r-REAL(ix-1,dp)*dx)/dx
-                   rx2 = rx*rx
-                   rx3 = rx2*rx
-                   rx4 = rx3*rx
-                   rx5 = rx4*rx
-
-                   Varray(jj) = Varray(jj) + &
-                        (pot0_2(1,ix  )*(1_dp-10.0_dp*rx3+15.0_dp*rx4-6.0_dp*rx5) &
-                        +pot0_2(2,ix  )*(rx-6.0_dp*rx3+8.0_dp*rx4-3.0_dp*rx5)      &
-                        +pot0_2(3,ix  )*(0.5_dp*(rx2-rx5)+1.5_dp*(-rx3+rx4))     &
-                        +pot0_2(1,ix+1)*(10.0_dp*rx3-15.0_dp*rx4+6.0_dp*rx5)       &
-                        +pot0_2(2,ix+1)*(-4.0_dp*(rx3-rx5)+7.0_dp*(rx4-rx5))       &
-                        +pot0_2(3,ix+1)*(0.5_dp*(rx3+rx5)-rx4))                   &
-                        *(-1.0_dp) * & ! Sign of electrons
-                        qt
-                   xs1 = xs1 + dr1
-                END DO
-                xs2 = xs2 + dr2
-             END DO
-          END DO LoopOnGrid
-       END DO LoopMM
-    END DO MainLoopPot
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE qmmm_electrostatic_on_grid_low
 
 !!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian [1.0] *
 !!

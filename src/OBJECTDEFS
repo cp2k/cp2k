@@ -318,6 +318,8 @@ OBJECTS_GENERIC =\
  qmmm_links_methods.o\
  qmmm_per_elpot.o\
  qmmm_pw_grid.o\
+ qmmm_se_energy.o\
+ qmmm_se_forces.o\
  qmmm_topology_util.o\
  qmmm_types.o\
  qs_all_potential.o\
@@ -431,6 +433,7 @@ OBJECTS_GENERIC =\
  s_square_methods.o\
  scf_control_types.o\
  semi_empirical_integrals.o\
+ semi_empirical_int_ana.o\
  semi_empirical_parameters.o\
  semi_empirical_types.o\
  semi_empirical_utils.o\
