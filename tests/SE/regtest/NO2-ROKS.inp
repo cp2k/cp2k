@@ -24,6 +24,10 @@
     &QS
       EXTRAPOLATION use_prev_p
       METHOD PM3
+      &SE
+       ANALYTICAL_GRADIENTS F
+      &END
+
     &END QS
     &SCF
       EPS_SCF 1.0E-5

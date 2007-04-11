@@ -26,11 +26,11 @@ MODULE input_cp2k_dft
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
+  USE input_cp2k_poisson,              ONLY: create_poisson_section
+  USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
-  USE input_cp2k_poisson,              ONLY: create_poisson_section
-  USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&
@@ -1703,7 +1703,8 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_dftb_parameter_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_dftb_parameter_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -1774,6 +1775,12 @@ CONTAINS
        CALL keyword_create(keyword, name="orthogonal_basis",&
             description="Assume orthogonal basis set",&
             usage="ORTHOGONAL_BASIS",default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="analytical_gradients",&
+            description="Nuclear Gradients are computed analytically or numerically",&
+            usage="ANALYTICAL_GRADIENTS",default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5119,12 +5126,12 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_et_coupling_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection, print_key
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
     NULLIFY(keyword)
@@ -5178,11 +5185,10 @@ CONTAINS
 
   SUBROUTINE create_restraint_A(section,section_name,error)
     TYPE(section_type), POINTER              :: section
-    CHARACTER(len=*),INTENT(in)              :: section_name
+    CHARACTER(len=*), INTENT(in)             :: section_name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_restraint_A', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_restraint_A', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

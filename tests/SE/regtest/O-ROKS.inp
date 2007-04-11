@@ -19,6 +19,10 @@
     &END PRINT
     &QS
       METHOD AM1
+      &SE
+       ANALYTICAL_GRADIENTS F
+      &END
+
     &END QS
     &SCF
       EPS_SCF 1.0E-6

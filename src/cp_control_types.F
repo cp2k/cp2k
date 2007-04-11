@@ -19,9 +19,9 @@
 MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE kinds,                           ONLY: dp,&
-                                             default_path_length,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type
@@ -57,7 +57,7 @@ MODULE cp_control_types
 !------------------------------------------------------------------------------!
 ! Control parameters for semi empirical calculations
   TYPE semi_empirical_control_type
-     LOGICAL               :: orthogonal_basis
+     LOGICAL               :: orthogonal_basis, analytical_gradients
      REAL(KIND = dp)       :: delta
      REAL(KIND = dp)       :: rc_interaction
      REAL(KIND = dp)       :: rc_coulomb
@@ -444,7 +444,7 @@ END SUBROUTINE ddapc_control_retain
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE becke_control_create(becke_control,error)
-    TYPE(becke_constraint_type), POINTER      :: becke_control
+    TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_create', &
@@ -470,7 +470,7 @@ SUBROUTINE becke_control_create(becke_control,error)
  END SUBROUTINE becke_control_create
 
 SUBROUTINE becke_control_release(becke_control,error)
-    TYPE(becke_constraint_type), POINTER      :: becke_control
+    TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_release', &
@@ -494,7 +494,7 @@ SUBROUTINE becke_control_release(becke_control,error)
 END SUBROUTINE becke_control_release
 
 SUBROUTINE becke_control_retain(becke_control,error)
-    TYPE(becke_constraint_type), POINTER      :: becke_control
+    TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_retain', &
@@ -792,10 +792,10 @@ SUBROUTINE dftb_control_create(dftb_control,error)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_create', &
       routineP = moduleN//':'//routineN
-    
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-   
+
    failure=.FALSE.
    
    CPPrecondition(.NOT.ASSOCIATED(dftb_control),cp_failure_level,routineP,error,failure)
@@ -809,13 +809,13 @@ END SUBROUTINE dftb_control_create
 SUBROUTINE dftb_control_release(dftb_control,error)
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(cp_error_type), INTENT(inout)       :: error
-  
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_release', &
       routineP = moduleN//':'//routineN
-    
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-     
+
    failure=.FALSE.
      
    IF (ASSOCIATED(dftb_control)) THEN
@@ -832,15 +832,16 @@ END SUBROUTINE dftb_control_release
 !***************************************************************************
 
 SUBROUTINE se_control_create(se_control,error)
-    TYPE(semi_empirical_control_type), POINTER         :: se_control
-    TYPE(cp_error_type), INTENT(inout)                 :: error
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_control_create', &
       routineP = moduleN//':'//routineN
-    
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-   
+
    failure=.FALSE.
    
    CPPrecondition(.NOT.ASSOCIATED(se_control),cp_failure_level,routineP,error,failure)
@@ -850,15 +851,16 @@ SUBROUTINE se_control_create(se_control,error)
 END SUBROUTINE se_control_create
 !------------------------------------------------------------------------------!
 SUBROUTINE se_control_release(se_control,error)
-    TYPE(semi_empirical_control_type), POINTER         :: se_control
-    TYPE(cp_error_type), INTENT(inout)                 :: error
-  
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'se_control_release', &
       routineP = moduleN//':'//routineN
-    
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-     
+
    failure=.FALSE.
      
    IF (ASSOCIATED(se_control)) THEN

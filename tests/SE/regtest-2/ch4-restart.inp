@@ -5,7 +5,7 @@
     &QS
       METHOD PM3
       &SE
-       ANALYTICAL_GRADIENTS F
+       
       &END
     &END QS
     &SCF

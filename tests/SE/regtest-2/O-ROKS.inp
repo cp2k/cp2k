@@ -1,36 +1,32 @@
 &GLOBAL
 
-  PROJECT O2
-  RUN_TYPE GEO_OPT
+  PROJECT O
+  RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
-
-&MOTION
- &GEOOPT
-  OPTIMIZER BFGS
-  MAX_ITER  30
-  MAX_DR    0.001
-  RMS_DR    0.0005
-  MAX_FORCE 0.00015
-  RMS_FORCE 0.0001
- &END GEOOPT
-&END MOTION
 
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     ROKS
     MULTIP 3
+    &PRINT
+      &MO
+        EIGENVALUES
+        EIGENVECTORS
+        OCCUPATION_NUMBERS
+      &END MO
+    &END PRINT
     &QS
-      METHOD MNDO
+      METHOD AM1
       &SE
-       ANALYTICAL_GRADIENTS F
+       
       &END
 
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS atomic
+      SCF_GUESS CORE
     &END SCF
   &END DFT
   &SUBSYS
@@ -40,13 +36,9 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      O     0.000000     0.000000    -0.600000
-      O     0.000000     0.000000     0.600000
+      O     0.000000     0.000000     0.000000
     &END COORD
     &PRINT
-      &STRUCTURE_DATA
-        DISTANCE 1 2
-      &END STRUCTURE_DATA
       &KINDS
         BASIS_SET
         POTENTIAL

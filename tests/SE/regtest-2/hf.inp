@@ -3,31 +3,35 @@
   METHOD Quickstep
   &DFT
     &QS
-      METHOD MNDO
+      METHOD AM1
       &SE
-       ANALYTICAL_GRADIENTS F
+       
       &END
 
     &END QS
     &SCF
-      EPS_SCF 1.0E-5
       SCF_GUESS ATOMIC
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
+      ABC 20.0 20.0 20.0
       UNIT ANGSTROM
       PERIODIC NONE
     &END CELL
     &COORD
-    O   0.000000    0.000000   -0.065587
-    H   0.000000   -0.757136    0.520545
-    H   0.000000    0.757136    0.520545
+        F                   .00000000     .00000000     .00000000
+        H                   .40673664    -.11133319    -.90673603
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
 
   PROJECT H2O
+  RUN_TYPE GEO_OPT
 &END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 20
+  &END GEOOPT
+&END MOTION

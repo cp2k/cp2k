@@ -5,12 +5,16 @@
     &QS
       METHOD PM3
       &SE
-       ANALYTICAL_GRADIENTS F
+       
       &END
+
     &END QS
     &SCF
+      EPS_SCF 1.0E-7
       MAX_SCF 20
-      SCF_GUESS RESTART
+      &OT ON
+        PRECONDITIONER NONE
+      &END OT
     &END SCF
   &END DFT
   &SUBSYS
@@ -31,4 +35,5 @@
 &GLOBAL
 
   PROJECT ch4
+  TRACE OFF
 &END GLOBAL

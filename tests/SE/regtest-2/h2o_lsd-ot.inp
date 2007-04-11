@@ -2,15 +2,20 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    LSD
     &QS
+      EXTRAPOLATION use_guess
       METHOD AM1
       &SE
-       ANALYTICAL_GRADIENTS F
+       
       &END
 
     &END QS
     &SCF
       SCF_GUESS ATOMIC
+      &OT ON
+        PRECONDITIONER NONE
+      &END OT
     &END SCF
   &END DFT
   &SUBSYS

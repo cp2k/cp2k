@@ -9,3 +9,7 @@ mol.inp
 water_3.inp
 #DFTB update
 water_3.inp
+# using analytical gradients as default.. numerics 10^-11
+mol.inp
+water_3_full.inp
+water_3.inp

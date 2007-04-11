@@ -4,6 +4,10 @@
   &DFT
     &QS
       METHOD AM1
+      &SE
+       ANALYTICAL_GRADIENTS F
+      &END
+
     &END QS
     &SCF
       SCF_GUESS ATOMIC

@@ -6,7 +6,7 @@
     &QS
       METHOD MNDO
       &SE
-       ANALYTICAL_GRADIENTS F
+       
       &END
 
     &END QS

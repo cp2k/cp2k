@@ -23,7 +23,7 @@ MODULE cp_control_utils
   USE input_constants,                 ONLY: &
        bsse_run, do_band, do_ddapc_constraint, do_ddapc_restraint, &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_none, &
-       do_method_dftb, do_method_am1, do_method_gapw, do_method_gapw_xc, &
+       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
        do_method_gpw, do_method_kg_pol, do_method_mndo, do_method_pdg, &
        do_method_pm3, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
@@ -317,14 +317,15 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_qs_section "
 
-    INTEGER                                  :: j, jj, k, n_rep, n_var, istat
-    INTEGER, DIMENSION(:), POINTER           :: tmplist
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
+    INTEGER                                  :: istat, j, jj, k, n_rep, n_var
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
-    TYPE(section_vals_type), POINTER :: ddapc_restraint_section, loc_section, &
-      mull_section, s2_restraint_section, se_section, dftb_section, dftb_parameter
+    TYPE(section_vals_type), POINTER :: ddapc_restraint_section, &
+      dftb_parameter, dftb_section, loc_section, mull_section, &
+      s2_restraint_section, se_section
 
 !   ---------------------------------------------------------------------------
 
@@ -509,6 +510,8 @@ CONTAINS
 
 
     ! Semi-empirical code
+    CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
+                 l_val=qs_control%se_control%analytical_gradients,error=error)
     CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
                  l_val=qs_control%se_control%orthogonal_basis,error=error)
     CALL section_vals_val_get(se_section,"DELTA",&
@@ -523,7 +526,7 @@ CONTAINS
        qs_control %method_id == do_method_am1 .OR. &
        qs_control %method_id == do_method_pdg .OR. &
        qs_control %method_id == do_method_pm3) THEN
-         qs_control%se_control%orthogonal_basis=.TRUE.
+       qs_control%se_control%orthogonal_basis=.TRUE.
     END IF
 
     ! DFTB code
@@ -1198,7 +1201,7 @@ SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
 
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    
+
       CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
                                 r_val=qs_control%ddapc_restraint_control%strength,error=error)
       CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &

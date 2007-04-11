@@ -31,7 +31,7 @@ MODULE semi_empirical_integrals
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
 
-  PUBLIC :: rotint, rotnuc, drotint, drotnuc, set_taper_fn, taper, nucint
+  PUBLIC :: rotint, rotnuc, drotint, drotnuc, set_taper_fn, taper, nucint, terep
 
   REAL(KIND=dp), SAVE, PUBLIC          :: r0, al
   LOGICAL, SAVE, PUBLIC                :: taper_fn_init = .FALSE.
@@ -690,7 +690,7 @@ CONTAINS
             e2a(9) = -cpps2*xx32-cppp2*zz32
             e2a(10)= -cpps2*xx33-cppp2*zz33
          END IF
-
+         
          alpi = sepi%alp
          alpj = sepj%alp
          scale = EXP(-alpi*rij)+EXP(-alpj*rij)

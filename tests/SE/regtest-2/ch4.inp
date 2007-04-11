@@ -5,12 +5,13 @@
     &QS
       METHOD PM3
       &SE
-       ANALYTICAL_GRADIENTS F
+       
       &END
+
     &END QS
     &SCF
       MAX_SCF 20
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
     &END SCF
   &END DFT
   &SUBSYS

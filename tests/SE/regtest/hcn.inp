@@ -4,6 +4,10 @@
   &DFT
     &QS
       METHOD MNDO
+      &SE
+       ANALYTICAL_GRADIENTS F
+      &END
+
     &END QS
     &SCF
       MAX_SCF 20
