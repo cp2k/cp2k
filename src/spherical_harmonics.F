@@ -37,7 +37,7 @@ MODULE spherical_harmonics
 ! *****************************************************************************
 
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: fac,&
+  USE mathconstants,                   ONLY: fac,dfac,&
                                              maxfac,&
                                              pi
   USE termination,                     ONLY: stop_memory,&
@@ -1068,7 +1068,10 @@ CONTAINS
   FUNCTION dlegendre (x, l, m) RESULT (dplm)
     REAL(KIND=dp), INTENT(IN)                :: x
     INTEGER, INTENT(IN)                      :: l, m
-    REAL(KIND=dp)                            :: dplm
+    INTEGER                                  :: ll, i, mm, il, im
+    REAL(KIND=dp)                            :: dplm, pmm, plgndr, pll, dpll 
+    REAL(KIND=dp)                            :: dpmm, somx2, dsomx2, fact
+    REAL(KIND=dp)                            :: pmmp1, dpmmp1, plm
 
   IF ( ABS ( x ) > 1.0_dp ) CALL stop_program("dlegendre","x value > 1")
   SELECT CASE ( l )
@@ -1103,7 +1106,7 @@ CONTAINS
     CASE ( 2 )
       dplm = 15.0_dp * ( 1.0_dp - x * x ) - 30.0_dp * x * x
     CASE ( 1 )
-      dplm = 15.0_dp * x * SQRT ( 1.0_dp - x * x ) - x / SQRT ( 1.0_dp - x * x ) * ( 7.5_dp * x * x - 1.5_dp ) 
+      dplm = 15.0_dp * x * SQRT ( 1.0_dp - x * x ) - (x *  ( 7.5_dp * x * x - 1.5_dp ))/ SQRT ( 1.0_dp - x * x ) 
     CASE ( 0 )
       dplm = 7.5_dp * x * x - 1.5_dp
     END SELECT
@@ -1112,11 +1115,11 @@ CONTAINS
     CASE DEFAULT
       CALL stop_program("legendre","l = 4 and m value out of bounds")
     CASE ( 4 )
-      dplm = - 105.0_dp * 4.0_dp * ( 1.0_dp - x * x ) * x
+      dplm = - 420 * x * (1 - x*x)
     CASE ( 3 )
       dplm =  105.0_dp * ( ( 1.0_dp - x * x ) ** 1.5_dp - 3.0_dp * x * x * ( 1.0_dp - x * x ) ** 0.5_dp)
     CASE ( 2 )
-      dplm = 52.5_dp * 2.0_dp * x * ( 1.0_dp - x * x ) + ( 52.5_dp * x * x - 7.5_dp ) * (  - 2.0_dp * x )
+      dplm = 105.0_dp * x * ( 1.0_dp - x * x ) -2.0_dp * x * ( 52.5_dp * x * x - 7.5_dp )
     CASE ( 1 )
       IF( ABS(x) - 1.0_dp < EPSILON(1.0_dp)) THEN
         dplm = 0.0_dp
@@ -1125,7 +1128,7 @@ CONTAINS
                x * ( 17.5_dp * x ** 3 - 7.5_dp * x ) / SQRT ( 1.0_dp - x * x )
       END IF
     CASE ( 0 )
-      dplm = 4.375_dp * 4.0_dp *  x ** 3 - 3.75_dp * 2.0_dp * x ** 2
+      dplm = 4.375_dp * 4.0_dp *  x ** 3 - 3.75_dp * 2.0_dp * x 
     END SELECT
   CASE ( 5 )
     SELECT CASE ( ABS ( m ) )
@@ -1136,8 +1139,8 @@ CONTAINS
     CASE ( 4 )
       dplm = 945.0_dp * (( 1.0_dp - x * x ) ** 2 - 2.0_dp * x * x * ( 1.0_dp - x * x )) 
     CASE ( 3 )
-      dplm = -2.0_dp * 472.5_dp * x * ( 1.0_dp - x * x ) ** 1.5_dp + &
-               3.0_dp * x * ( -472.5_dp * x * x + 52.5_dp ) * ( 1.0_dp - x * x ) ** 0.5_dp
+      dplm = 945.0_dp * x * ( 1.0_dp - x * x ) ** 1.5_dp - &
+               3.0_dp * x * ( 472.5_dp * x * x - 52.5_dp ) * ( 1.0_dp - x * x ) ** 0.5_dp
     CASE ( 2 )
       dplm = (3.0_dp *157.5_dp * x ** 2 - 52.5_dp ) * ( 1.0_dp - x * x ) - &
                  ( 157.5_dp * x ** 3 - 52.5_dp * x ) * ( - 2.0_dp * x )
@@ -1145,11 +1148,11 @@ CONTAINS
       IF( ABS(x) - 1.0_dp < EPSILON(1.0_dp)) THEN
         dplm = 0.0_dp
       ELSE
-        dplm = - (-39.375_dp * 4.0_dp * x * x * x + 2.0_dp * 26.25_dp ) * SQRT ( 1.0_dp - x * x )  +&
+        dplm = - (-39.375_dp * 4.0_dp * x * x * x + 2.0_dp * 26.25_dp*x ) * SQRT ( 1.0_dp - x * x )  +&
             x * ( -39.375_dp * x **4 + 26.25_dp * x * x - 1.875_dp ) / SQRT ( 1.0_dp - x * x )
       END IF
     CASE ( 0 )
-      dplm = 7.875_dp * x ** 5 - 8.75_dp * x ** 3 + 1.875_dp * x
+      dplm = 5.0_dp * 7.875_dp * x ** 4 - 3.0_dp * 8.75_dp * x ** 2 + 1.875_dp
     END SELECT
   CASE ( 6 )
     SELECT CASE ( ABS ( m ) )
@@ -1180,11 +1183,55 @@ CONTAINS
             6.5625_dp * 2.0_dp * x 
     END SELECT
   CASE DEFAULT
-    CALL stop_program("dlegendre","l > 6 dplm not implemented")
+!    CALL stop_program("dlegendre","l > 6 dplm not implemented")
+    mm = ABS ( m )
+    IF ( mm > l ) CALL stop_program ( " dlgendre ","m out of bounds" )
+! use recurence from numerical recipies
+    pmm = 1.0_dp
+    dpmm = 0.0_dp
+    IF ( mm > 0 ) THEN
+      somx2 = SQRT((1.0_dp-x)*(1.0_dp+x))
+      dsomx2 = ((1d0 - x)*(1d0 + x))**(0.5d0*m-1)
+      dpmm = -m*x*dsomx2*dfac(2*m-1)
+      fact = 1.0_dp
+      DO im = 1, mm
+        pmm = -pmm * fact * somx2
+        dpmm = -dpmm
+        fact = fact + 2.0_dp
+      END DO
+    END IF
+    IF ( l == mm ) THEN
+      plm = pmm
+      dplm = dpmm
+    ELSE
+      pmmp1 = x * REAL ( 2 * mm + 1,KIND=dp) * pmm
+      dpmmp1 = (2*mm+1)*pmm + x*(2*mm+1)*dpmm
+      IF ( l == mm + 1 ) THEN
+        plm = pmmp1
+        dplm = dpmmp1
+      ELSE
+        DO il = mm + 2, l
+          pll = ( x * REAL ( 2 * il - 1,KIND=dp) * pmmp1 - &
+                      REAL ( il + mm - 1,KIND=dp) * pmm ) / REAL ( il - mm,KIND=dp)
+          dpll = ((2*il-1)*pmmp1 + x*(2*il-1)*dpmmp1 - (il+mm-1)*dpmm)/(il-mm)
+          pmm = pmmp1
+          pmmp1 = pll
+          dpmm = dpmmp1
+          dpmmp1 = dpll
+        END DO
+        plm = pll
+        dplm = dpll
+      END IF
+    END IF
+
   END SELECT
 
-
   END FUNCTION dlegendre
+
+
+
+! *****************************************************************************
+
 ! *****************************************************************************
 
   FUNCTION dPof1(x, l) 

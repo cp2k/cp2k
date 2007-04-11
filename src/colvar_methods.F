@@ -29,7 +29,7 @@ MODULE colvar_methods
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
        eval_point_der, eval_point_pos, plane_distance_colvar_id, &
-       rotation_colvar_id, torsion_colvar_id
+       rotation_colvar_id, torsion_colvar_id, qparm_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -44,11 +44,12 @@ MODULE colvar_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,maxfac,fac
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: fixd_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE spherical_harmonics,             ONLY: legendre,dlegendre
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -107,11 +108,11 @@ CONTAINS
                                                 n_var, ndim
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
-    LOGICAL, DIMENSION(7)                    :: my_subsection
+    LOGICAL, DIMENSION(8)                    :: my_subsection
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
       ddiff_section, distance_section, plane_dist_section, point_section, &
-      rotation_section, torsion_section, wrk_section
+      rotation_section, torsion_section, wrk_section, qparm_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -129,6 +130,7 @@ CONTAINS
     plane_dist_section   => section_vals_get_subs_vals(colvar_section,"DISTANCE_POINT_PLANE",i_rep_section=icol,&
                             error=error)
     rotation_section     => section_vals_get_subs_vals(colvar_section,"BOND_ROTATION",i_rep_section=icol,error=error)
+    qparm_section        => section_vals_get_subs_vals(colvar_section,"QPARM",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection(1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection(2), error=error)
@@ -137,6 +139,7 @@ CONTAINS
     CALL section_vals_get(plane_dist_section,   explicit=my_subsection(5), error=error)
     CALL section_vals_get(rotation_section,     explicit=my_subsection(6), error=error)
     CALL section_vals_get(ddiff_section,        explicit=my_subsection(7), error=error)
+    CALL section_vals_get(qparm_section,        explicit=my_subsection(8), error=error)
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -221,6 +224,34 @@ CONTAINS
        CALL colvar_check_points(colvar, ddiff_section, error)
        CALL section_vals_val_get(ddiff_section,"ATOMS",i_vals=iatms,error=error)
        colvar%ddiff_param%i_at_ddiff = iatms
+    ELSE IF (my_subsection(8)) THEN
+       ! Q Parameter
+       wrk_section => qparm_section
+       CALL colvar_create(colvar, qparm_colvar_id, error)
+       CALL colvar_check_points(colvar, qparm_section, error)
+       CALL section_vals_val_get(qparm_section,"RCUT",r_val=colvar%qparm_param%rcut,error=error)
+       CALL section_vals_val_get(qparm_section,"L",i_val=colvar%qparm_param%l,error=error)
+       NULLIFY(colvar%qparm_param%i_at_from)
+       NULLIFY(colvar%qparm_param%i_at_to)
+       CALL section_vals_val_get(qparm_section,"ATOMS_FROM",n_rep_val=n_var,error=error)
+       ndim = 0
+       DO k = 1, n_var
+          CALL section_vals_val_get(qparm_section,"ATOMS_FROM",i_rep_val=k,i_vals=iatms,error=error)
+          CALL reallocate(colvar%qparm_param%i_at_from,1, ndim+SIZE(iatms))
+          colvar%qparm_param%i_at_from(ndim+1:ndim+SIZE(iatms)) = iatms 
+          ndim = ndim + SIZE(iatms)
+       END DO
+       colvar%qparm_param%n_atoms_from = ndim
+       ! This section can be repeated
+       CALL section_vals_val_get(qparm_section,"ATOMS_TO",n_rep_val=n_var,error=error)
+       ndim = 0
+       DO k = 1, n_var
+          CALL section_vals_val_get(qparm_section,"ATOMS_TO",i_rep_val=k,i_vals=iatms,error=error)
+          CALL reallocate(colvar%qparm_param%i_at_to,1, ndim+SIZE(iatms))
+          colvar%qparm_param%i_at_to(ndim+1:ndim+SIZE(iatms)) = iatms 
+          ndim = ndim + SIZE(iatms)
+       END DO
+       colvar%qparm_param%n_atoms_to = ndim
     END IF
 
     CALL colvar_setup(colvar, error)
@@ -268,6 +299,15 @@ CONTAINS
                colvar%rotation_param%i_at1_bond2
            WRITE ( iw, '( A,T71,I10)' )  ' COLVARS| BOND_ROTATION   - POINT 2 LINE 2  >>> '//tag,&
                colvar%rotation_param%i_at2_bond2
+       CASE(qparm_colvar_id)
+          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| Q-PARM  >>> FROM '//tag,&
+               colvar%qparm_param%i_at_from(kk),&
+               kk=1,SIZE(colvar%qparm_param%i_at_from))
+          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| Q-PARM  >>>   TO '//tag,&
+               colvar%qparm_param%i_at_to(kk),&
+               kk=1,SIZE(colvar%qparm_param%i_at_to))
+          WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| RCUT',colvar%qparm_param%rcut
+          WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| L',colvar%qparm_param%l
        END SELECT
        IF (colvar%use_points) THEN
           WRITE ( iw, '( A)') ' COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS'
@@ -356,6 +396,8 @@ CONTAINS
           CALL plane_distance_colvar(colvar,cell, particles=particles, error=error)
        CASE (rotation_colvar_id)
           CALL rotation_colvar(colvar,cell, particles=particles, error=error)
+       CASE (qparm_colvar_id)
+          CALL qparm_colvar(colvar,cell, particles=particles, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -423,6 +465,8 @@ CONTAINS
           CALL plane_distance_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (rotation_colvar_id)
           CALL rotation_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+       CASE (qparm_colvar_id)
+          CALL qparm_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1199,6 +1243,143 @@ CONTAINS
     ftmp(3)=dedzid
     CALL put_derivative(colvar, 4, ftmp)
   END SUBROUTINE torsion_colvar
+
   !***************************************************************************
+
+  !!****f* colvar/qparm_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     qparm_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due (and on) the Q PARM collective variable
+  !!
+  !!   NOTES
+  !!
+  !!   AUTHOR
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE qparm_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qparm_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, j, jj, n_atoms_from, &
+                                                n_atoms_to, ndcrd, nncrd
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dfunc, ftmp(3), func, &
+                                                inv_n_atoms_from, invden, &
+                                                ncoord, num, r12, r_0, rdist, &
+                                                ss(3), xij(3),grad(3)
+    REAL(KIND=dp), DIMENSION(3)                   :: xpi, xpj
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    REAL(KIND=dp)                            :: rcut,costheta,dplm,qparm,fact,fi,dx
+    REAL(KIND=dp)                            :: pre_fac, plm, qlm, x_tmp, y_tmp, z_tmp, r_tmp
+    REAL(KIND=dp)                            :: sintheta, theta, ymag1, dylm
+
+    COMPLEX(KIND=dp)                         :: ylm, ylm_calc
+
+
+    INTEGER                                  :: l, m, lpm, lmm, nbond
+    REAL(KIND=dp) :: qparm_prev
+
+   failure=.FALSE.
+   n_atoms_to=colvar%qparm_param%n_atoms_to
+   n_atoms_from=colvar%qparm_param%n_atoms_from
+   rcut=colvar%qparm_param%rcut
+   l=colvar%qparm_param%l
+   NULLIFY(particles_i)
+   CPPrecondition(colvar%type_id==qparm_colvar_id,cp_failure_level,routineP,error,failure)
+   IF (PRESENT(particles)) THEN
+      my_particles => particles
+   ELSE
+      CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+      CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+      my_particles => particles_i%els
+   END IF
+
+   qparm=0.0_dp
+   qparm_prev=0.0_dp
+   colvar%dsdr=0.0_dp
+   inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
+   DO ii=1,n_atoms_from
+      i=colvar%qparm_param%i_at_from(ii)
+      CALL get_coordinates(colvar, i, xpi, my_particles)
+      qlm = 0
+      do m = 0, l 
+        ylm = 0d0
+        grad(:) = 0d0
+        nbond = 0
+        DO jj=1,n_atoms_to
+           j=colvar%qparm_param%i_at_to(jj)
+           IF (i==j) CYCLE
+           CALL get_coordinates(colvar, j, xpj, my_particles)       
+           ss=MATMUL(cell%h_inv,xpj(:)-xpi(:))
+           ss=ss-NINT(ss)
+           xij=MATMUL(cell%hmat,ss)
+           r12=SQRT(DOT_PRODUCT(xij,xij))
+           IF(r12 > rcut) CYCLE
+           nbond = nbond + 1
+           dx = 1d-8
+           x_tmp = xij(1)
+           y_tmp = xij(2)
+           z_tmp = xij(3)
+           r_tmp = r12 
+           if (dabs(x_tmp) .gt. 1d-8) then
+              fi = atan(y_tmp/x_tmp)
+           else
+             fi = 0.5*pi
+           endif
+           costheta = z_tmp/r_tmp
+           IF(costheta > 1.0_dp) costheta = 1.0_dp
+           IF(costheta < -1.0_dp) costheta = -1.0_dp
+           theta = dacos(costheta)
+           sintheta = dsin(theta)
+           plm = legendre (costheta, l, m)
+           dplm = dlegendre (costheta, l, m)
+           IF((l+m) .gt. maxfac) THEN
+             STOP "l-m GT maxfac"
+           ENDIF
+           lmm = fac(l-m)
+           lpm = fac(l+m)
+           pre_fac = dsqrt(((2*l+1)*lmm)/(4*pi*lpm))
+           dylm = pre_fac*dplm
+           ylm_calc = pre_fac*plm*(cmplx (dcos(m*fi), dsin(m*fi)))
+           ylm = ylm + ylm_calc
+           grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
+           grad(2) = grad(2) - dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
+           grad(3) = grad(3) + dylm*((1d0/r_tmp) - (z_tmp**2d0/r_tmp**3d0))
+        ENDDO
+        ylm = ylm/nbond
+        grad(:) = grad(:)/nbond
+        ymag1 = ylm*dconjg(ylm)
+        if (m .gt. 0) then
+          fact = 2
+        else
+          fact = 1
+        endif
+        qlm = qlm + fact*ymag1
+      enddo
+      pre_fac = (4d0*pi)/(2d0*l + 1) 
+      qlm = dsqrt(pre_fac*qlm)
+      qparm=qparm+qlm
+      ftmp(:) = fact*grad(:)
+      CALL put_derivative(colvar, ii, ftmp)
+   ENDDO
+
+   colvar%ss=qparm*inv_n_atoms_from
+   colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
+
+  END SUBROUTINE qparm_colvar
 
 END MODULE colvar_methods
