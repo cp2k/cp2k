@@ -91,6 +91,7 @@ TYPE qs_outer_scf_type
    REAL(KIND=dp), DIMENSION(:), POINTER :: energy
    REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
    REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
+   INTEGER, DIMENSION(:), POINTER :: count
 
 END TYPE qs_outer_scf_type
 
@@ -177,7 +178,7 @@ CONTAINS
 
        scf_env%outer_scf%iter_count=0
        NULLIFY(scf_env%outer_scf%variables, &
-            scf_env%outer_scf%gradient,scf_env%outer_scf%energy)
+            scf_env%outer_scf%gradient,scf_env%outer_scf%energy,scf_env%outer_scf%count)
 
        NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
             scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
@@ -364,6 +365,10 @@ SUBROUTINE scf_env_release(scf_env,error)
 
         IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
            DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+        IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
+           DEALLOCATE(scf_env%outer_scf%count,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
         IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN

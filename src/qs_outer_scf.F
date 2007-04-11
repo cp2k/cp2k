@@ -33,7 +33,8 @@ MODULE qs_outer_scf
                                              outer_scf_optimizer_diis,&
                                              outer_scf_optimizer_none,&
                                              outer_scf_optimizer_sd,&
-                                             outer_scf_s2_constraint
+                                             outer_scf_s2_constraint,&
+                                             outer_scf_optimizer_bisect
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -205,9 +206,10 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ibuf, ihistory, j, &
-                                                jbuf, nb
+                                                jbuf, nb, optimizer_type, ilow,ihigh
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: interval,tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a, b
@@ -216,8 +218,43 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
 
     failure=.FALSE.
     ihistory=scf_env%outer_scf%iter_count
+    optimizer_type=scf_control%outer_scf%optimizer
 
-    SELECT CASE(scf_control%outer_scf%optimizer)
+100 CONTINUE ! if we need a different run type we'll restart here
+
+    SELECT CASE(optimizer_type)
+    CASE(outer_scf_optimizer_bisect) ! bisection on the gradient, needs to be 1D
+      CPPrecondition(SIZE(scf_env%outer_scf%gradient(:,1))==1,cp_failure_level,routineP,error,failure)
+      ! find the pair of points that bracket a zero of the gradient, with the smallest interval possible
+      ilow=-1
+      ihigh=-1
+      interval=HUGE(interval)
+      DO i=1,ihistory
+       DO j=i+1,ihistory
+          ! distrust often used points
+          IF (scf_env%outer_scf%count(i).GT.scf_control%outer_scf%bisect_trust_count) CYCLE
+          IF (scf_env%outer_scf%count(j).GT.scf_control%outer_scf%bisect_trust_count) CYCLE
+
+          ! if they bracket a zero use them
+          IF (scf_env%outer_scf%gradient(1,i) * &
+              scf_env%outer_scf%gradient(1,j) < 0.0_dp) THEN
+              tmp = ABS(scf_env%outer_scf%variables(1,i)-scf_env%outer_scf%variables(1,j)) 
+              IF (tmp < interval) THEN
+                 ilow = i
+                 ihigh = j
+                 interval = tmp
+              ENDIF
+          ENDIF
+       ENDDO
+      ENDDO
+      IF (ilow == -1) THEN ! we didn't bracket a minimum yet, try something else
+         optimizer_type=outer_scf_optimizer_diis
+         GOTO 100
+      ENDIF
+      scf_env%outer_scf%count(ilow)=scf_env%outer_scf%count(ilow)+1
+      scf_env%outer_scf%count(ihigh)=scf_env%outer_scf%count(ihigh)+1
+      scf_env%outer_scf%variables(:,ihistory+1)=0.5_dp*(scf_env%outer_scf%variables(:,ilow)+&
+                                                        scf_env%outer_scf%variables(:,ihigh))
     CASE(outer_scf_optimizer_none)
       scf_env%outer_scf%variables(:,ihistory+1)=scf_env%outer_scf%variables(:,ihistory)
     CASE(outer_scf_optimizer_sd)
@@ -231,9 +268,8 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
       ! set up DIIS matrix
       nb=MIN(ihistory,scf_control%outer_scf%diis_buffer_length)
       IF (nb<2) THEN
-         scf_env%outer_scf%variables(:,ihistory+1)=scf_env%outer_scf%variables(:,ihistory) - &
-                        scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:,ihistory)
-
+         optimizer_type = outer_scf_optimizer_sd 
+         GOTO 100
       ELSE
          ALLOCATE(b(nb+1,nb+1),a(nb+1,nb+1),ev(nb+1),ipivot(nb+1))
          DO I=1,nb

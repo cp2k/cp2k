@@ -727,9 +727,19 @@ CONTAINS
                            SIZE(scf_env%outer_scf%gradient,1)
        IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
 
+       IF (output_unit>0) THEN
+          WRITE(output_unit,'(/,T3,A,I4,A,F25.14)') &
+                            "outer SCF iter = ",scf_env%outer_scf%iter_count, &
+                            " energy = ",scf_env%outer_scf%energy(scf_env%outer_scf%iter_count)
+          DO i=1,SIZE(scf_env%outer_scf%gradient(:,scf_env%outer_scf%iter_count))
+             WRITE(output_unit,'(T3,F25.14,F25.14)') scf_env%outer_scf%variables(i,scf_env%outer_scf%iter_count), &
+                                                     scf_env%outer_scf%gradient(i,scf_env%outer_scf%iter_count)
+          ENDDO
+       ENDIF
+
        IF (output_unit>0) WRITE(output_unit,'(/,T3,A,I4,A,E10.2,A,F25.14)') &
                             "outer SCF iter = ",scf_env%outer_scf%iter_count, &
-                            " gradient = ",outer_loop_eps," energy =",energy%total
+                            " RMS gradient = ",outer_loop_eps," energy =",energy%total
 
        IF (outer_loop_converged) THEN
             IF (output_unit>0) WRITE(output_unit,'(T3,A,I4,A,I4,A,/)') &
@@ -1855,6 +1865,9 @@ END SUBROUTINE qs_scf_print_summary
        nvariables = outer_loop_variables_count(scf_control,error)
        ALLOCATE(scf_env%outer_scf%variables(nvariables,nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(scf_env%outer_scf%count(nhistory),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       scf_env%outer_scf%count=0
        ALLOCATE(scf_env%outer_scf%gradient(nvariables,nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(scf_env%outer_scf%energy(nhistory),STAT=stat)
@@ -2055,6 +2068,10 @@ END SUBROUTINE qs_scf_print_summary
 
        IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
           DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
+          DEALLOCATE(scf_env%outer_scf%count,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        ENDIF
        IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN

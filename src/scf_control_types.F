@@ -31,7 +31,7 @@ MODULE scf_control_types
        atomic_guess, core_guess, general_roks, high_spin_roks, &
        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_becke, outer_scf_optimizer_sd, &
-       outer_scf_s2_constraint
+       outer_scf_s2_constraint, outer_scf_optimizer_bisect
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -126,6 +126,7 @@ MODULE scf_control_types
     INTEGER               :: optimizer
     INTEGER               :: diis_buffer_length
     INTEGER               :: extrapolation_order
+    INTEGER               :: bisect_trust_count
   END TYPE outer_scf_control_type
 
   TYPE scf_control_type
@@ -540,6 +541,8 @@ CONTAINS
                      r_val=scf_control%outer_scf%step_size,error=error)
           CALL section_vals_val_get(outer_scf_section,"DIIS_BUFFER_LENGTH",&
                      i_val=scf_control%outer_scf%diis_buffer_length,error=error)
+          CALL section_vals_val_get(outer_scf_section,"BISECT_TRUST_COUNT",&
+                     i_val=scf_control%outer_scf%bisect_trust_count,error=error)
           CALL section_vals_val_get(outer_scf_section,"TYPE",&
                      i_val=scf_control%outer_scf%type,error=error)
           CALL section_vals_val_get(outer_scf_section,"OPTIMIZER",&
@@ -696,6 +699,9 @@ CONTAINS
               WRITE (output_unit,'(T25,A)') "No outer loop optimization"
             CASE (outer_scf_optimizer_sd)
               WRITE (output_unit,'(T25,A)') "Steepest descent optimization"
+            CASE (outer_scf_optimizer_bisect)
+              WRITE (output_unit,'(T25,A)') "Gradient bisection"
+              WRITE (output_unit,'(T25,A,T72,I9)') "bisect_trust_count",scf_control%outer_scf%bisect_trust_count
             CASE (outer_scf_optimizer_diis)
               WRITE (output_unit,'(T25,A)') "DIIS optimization"
               WRITE (output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &

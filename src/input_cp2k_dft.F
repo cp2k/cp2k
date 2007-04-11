@@ -3295,12 +3295,20 @@ CONTAINS
             description="Method used to bring the outer loop to a stationary point",&
             usage="OPTIMIZER SD",&
             default_i_val=outer_scf_optimizer_none,&
-            enum_c_vals=s2a("SD","DIIS","NONE"),&
+            enum_c_vals=s2a("SD","DIIS","NONE","BISECT"),&
             enum_desc=s2a("Takes steps in the direction of the gradient, multiplied by step_size", &
             "Uses a Direct Inversion in the Iterative Subspace method", &
-            "Do nothing, useful only with the none type"),&
-            enum_i_vals=(/outer_scf_optimizer_sd,outer_scf_optimizer_diis,outer_scf_optimizer_none/),&
+            "Do nothing, useful only with the none type",&
+            "Bisection on the gradient, useful for difficult one dimensional cases"),&
+            enum_i_vals=(/outer_scf_optimizer_sd,outer_scf_optimizer_diis,outer_scf_optimizer_none,outer_scf_optimizer_bisect/),&
             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BISECT_TRUST_COUNT",&
+            description="Maximum number of times the same point will be used in bisection,"//&
+                        " a small number guards against the effect of wrongly converged states.", &
+            usage="BISECT_TRUST_COUNT 5", default_i_val=10,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
