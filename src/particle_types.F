@@ -58,6 +58,7 @@ MODULE particle_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort_unique
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -76,9 +77,9 @@ MODULE particle_types
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
                                               v           ! velocity
-     ! particle dependent terms for EAM
-     REAL(KIND = dp)                       :: rho, f_embed
-     ! particle dependent terms for shell-model
+     ! Particle dependent terms for EAM
+     REAL(KIND=dp)                         :: rho, f_embed
+     ! Particle dependent terms for shell-model
      INTEGER                               :: atom_index, shell_index
   END TYPE particle_type
 
@@ -154,7 +155,6 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
   p_out%v=p_in%v
   p_out%shell_index=p_in%shell_index
   p_out%atom_index=p_in%atom_index
-
 END SUBROUTINE clone_particle
 !***************************************************************************
 
@@ -215,7 +215,6 @@ END SUBROUTINE clone_particle
     INTEGER                                  :: iparticle, istat
 
 !   ---------------------------------------------------------------------------
-
 
     IF (ASSOCIATED(particle_set)) THEN
 
@@ -890,14 +889,15 @@ END SUBROUTINE clone_particle
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: handle, i, iw, n, natom
+    INTEGER                                  :: handle, i, iw, n, natom, &
+                                                wrk1(1), wrk2(2), wrk3(3), &
+                                                wrk4(4)
     INTEGER, DIMENSION(:), POINTER           :: atomic_indices
+    LOGICAL                                  :: unique
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -913,21 +913,17 @@ END SUBROUTINE clone_particle
                               error=error)
 
     IF (iw > 0) THEN
-
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
 
       natom = SIZE(particle_set)
-
       section => section_vals_get_subs_vals(section_vals=force_env_section,&
                                             subsection_name="SUBSYS%PRINT%STRUCTURE_DATA",&
                                             error=error)
 
       WRITE (UNIT=iw,FMT="(/,T2,A)") "REQUESTED STRUCTURE DATA"
-
       ! Print the requested atomic position vectors
-
       CALL section_vals_val_get(section_vals=section,&
                                 keyword_name="POSITION",&
                                 n_rep_val=n,&
@@ -945,7 +941,9 @@ END SUBROUTINE clone_particle
           WRITE (UNIT=string,FMT="(A,I6,A)")&
             "(",atomic_indices(1),")"
           CALL compress(string,full=.TRUE.)
-          IF (valid_indices(atomic_indices,1,1,natom)) THEN
+          wrk1=atomic_indices
+          CALL sort_unique(wrk1, unique)
+          IF (((wrk1(1)>=1).AND.(wrk1(SIZE(wrk1))<=natom)).AND.unique) THEN
             WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6)")&
               "r"//TRIM(string),"=",&
               pbc(particle_set(atomic_indices(1))%r(1:3),cell)/unit_of_length
@@ -957,7 +955,6 @@ END SUBROUTINE clone_particle
       END IF
 
       ! Print the requested distances
-
       CALL section_vals_val_get(section_vals=section,&
                                 keyword_name="DISTANCE",&
                                 n_rep_val=n,&
@@ -976,7 +973,9 @@ END SUBROUTINE clone_particle
           WRITE (UNIT=string,FMT="(A,2(I6,A))")&
             "(",atomic_indices(1),",",atomic_indices(2),")"
           CALL compress(string,full=.TRUE.)
-          IF (valid_indices(atomic_indices,2,1,natom)) THEN
+          wrk2=atomic_indices
+          CALL sort_unique(wrk2, unique)
+          IF (((wrk2(1)>=1).AND.(wrk2(SIZE(wrk2))<=natom)).AND.unique) THEN
             rab(:) = pbc(particle_set(atomic_indices(1))%r(:),&
                          particle_set(atomic_indices(2))%r(:),cell)
             dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
@@ -991,7 +990,6 @@ END SUBROUTINE clone_particle
       END IF
 
       ! Print the requested angles
-
       CALL section_vals_val_get(section_vals=section,&
                                 keyword_name="ANGLE",&
                                 n_rep_val=n,&
@@ -1010,7 +1008,9 @@ END SUBROUTINE clone_particle
           WRITE (UNIT=string,FMT="(A,3(I6,A))")&
             "(",atomic_indices(1),",",atomic_indices(2),",",atomic_indices(3),")"
           CALL compress(string,full=.TRUE.)
-          IF (valid_indices(atomic_indices,3,1,natom)) THEN
+          wrk3=atomic_indices
+          CALL sort_unique(wrk3, unique)
+          IF (((wrk3(1)>=1).AND.(wrk3(SIZE(wrk3))<=natom)).AND.unique) THEN
             rab(:) = pbc(particle_set(atomic_indices(1))%r(:),&
                          particle_set(atomic_indices(2))%r(:),cell)
             rbc(:) = pbc(particle_set(atomic_indices(2))%r(:),&
@@ -1025,7 +1025,6 @@ END SUBROUTINE clone_particle
       END IF
 
       ! Print the requested dihedral angles
-
       CALL section_vals_val_get(section_vals=section,&
                                 keyword_name="DIHEDRAL_ANGLE",&
                                 n_rep_val=n,&
@@ -1045,7 +1044,9 @@ END SUBROUTINE clone_particle
             "(",atomic_indices(1),",",atomic_indices(2),",",&
                 atomic_indices(3),",",atomic_indices(4),")"
           CALL compress(string,full=.TRUE.)
-          IF (valid_indices(atomic_indices,4,1,natom)) THEN
+          wrk4=atomic_indices
+          CALL sort_unique(wrk4, unique)
+          IF (((wrk4(1)>=1).AND.(wrk4(SIZE(wrk4))<=natom)).AND.unique) THEN
             rab(:) = pbc(particle_set(atomic_indices(1))%r(:),&
                          particle_set(atomic_indices(2))%r(:),cell)
             rbc(:) = pbc(particle_set(atomic_indices(2))%r(:),&
@@ -1066,41 +1067,6 @@ END SUBROUTINE clone_particle
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE write_structure_data
-
-  ! ***************************************************************************
-
-  FUNCTION valid_indices(indices,n,min_index,max_index) RESULT(indices_ok)
-
-    ! Check for a set of valid indices.
-    ! Creation (23.03.06,MK)
-
-    INTEGER, DIMENSION(:), POINTER           :: indices
-    INTEGER, INTENT(IN)                      :: n, min_index, max_index
-    LOGICAL                                  :: indices_ok
-
-    INTEGER                                  :: i, j
-
-! -------------------------------------------------------------------------
-
-    indices_ok = .TRUE.
-
-    DO i=1,n
-      IF ((indices(i) < min_index).OR.&
-          (indices(i) > max_index)) THEN
-        indices_ok = .FALSE.
-        RETURN
-      END IF
-      DO j=i+1,n
-        IF (indices(j) == indices(i)) THEN
-          indices_ok = .FALSE.
-          RETURN
-        END IF
-      END DO
-    END DO
-
-  END FUNCTION valid_indices
-
-  ! ***************************************************************************
 
   !******************************************************************************
   SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel, for, add )
