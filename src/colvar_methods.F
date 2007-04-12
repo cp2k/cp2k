@@ -1362,7 +1362,7 @@ CONTAINS
         ENDDO
         ylm = ylm/nbond
         grad(:) = grad(:)/nbond
-        ymag1 = ylm*dconjg(ylm)
+        ymag1 = ylm*conjg(ylm)
         if (m .gt. 0) then
           fact = 2
         else
