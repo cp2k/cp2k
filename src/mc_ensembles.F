@@ -1223,10 +1223,12 @@ CONTAINS
                                                 iparticle, istat, iunit, &
                                                 ivirial, iw, nchain_total, &
                                                 idivision, current_division, &
-                                                nmol_types, source, &
-                                                start_atom, end_atom, nvirial
+                                                nmol_types, source, iprint,&
+                                                start_atom, end_atom, nvirial,&
+                                                ibin, nbins
     LOGICAL                                  :: ionode, loverlap
-    REAL(dp), DIMENSION(:), POINTER          :: virial_cutoffs,virial_stepsize
+    REAL(dp), DIMENSION(:), POINTER          :: virial_cutoffs,virial_stepsize,&
+         mayer
     REAL(dp), DIMENSION(:, :), POINTER       :: mass,r_old
     REAL(KIND=dp)                            :: ave_virial,&
                                                 previous_exponential,distance,&
@@ -1266,16 +1268,19 @@ CONTAINS
     virial_stepsize(2)=0.1
     virial_stepsize(3)=0.2
 
+    nbins=CEILING(virial_cutoffs(1)/virial_stepsize(1)+(virial_cutoffs(2)-&
+         virial_cutoffs(1))/virial_stepsize(2)+(virial_cutoffs(3)-&
+         virial_cutoffs(2))/virial_stepsize(3))
+
+! we'll compute the average potential, and then integrate that, as opposed to
+! integrating every orientation and then averaging
+    ALLOCATE (mayer(1:nbins),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mayer",dp_size*nbins)
+    mayer(:)=0.0_dp
+
 ! figure out what the default write unit is
     iw = cp_logger_get_default_unit_nr()
-
-    IF (ionode) THEN
-       WRITE(iw,*)
-       WRITE(iw,*)
-       WRITE(iw,*) 'Beginning the calculation of the second virial coefficient'
-       WRITE(iw,*)
-       WRITE(iw,*)
-    ENDIF
 
 
 ! allocate a whole bunch of stuff based on how many boxes we have
@@ -1359,8 +1364,11 @@ CONTAINS
          particles(1)%list%els(iparticle)%r(1:3)=r_old(1:3,iparticle)
       ENDDO
 
+! print out a notice every 1%
+      iprint=FLOOR(REAL(nvirial)/100.0)
+      IF(iprint == 0) iprint=1
+
 ! loop over all nvirial random configurations
-      ave_virial=0.0E0_dp
       DO ivirial=1,nvirial
 
 ! move molecule two back to the origin
@@ -1381,9 +1389,8 @@ CONTAINS
          ENDIF
          CALL mp_bcast(r_old(:,:),source,group)
 
-         previous_exponential=0.0E0_dp
          distance=0.0E0_dp
-         integral=0.0E0_dp
+         ibin=1
          DO
 ! find out what our stepsize is
             current_division=0
@@ -1407,55 +1414,76 @@ CONTAINS
             CALL check_for_overlap (force_env(1)%force_env,nchains(:,1),nunits,loverlap,mol_type)
 
 ! compute the energy if there is no overlap
+! exponent is exp(-beta*energy)-1, also called the Mayer term
             IF(loverlap) THEN
-               current_exponential=0.0E0_dp
+               exponent=-1.0_dp
             ELSE
                CALL force_env_calc_energy_force(force_env(1)%force_env,&
                     calc_force=.FALSE.,error=error)
                CALL force_env_get(force_env(1)%force_env,&
                     potential_energy=trial_energy,error=error)
+
                exponent=-BETA*trial_energy
+
 #if defined (__SGL)
                IF(exponent .GT. 88.0_dp) THEN
-                  current_exponential=1.6E38_dp
+                  exponent=1.6E38_dp
                ELSEIF(exponent .LT. -103.0_dp) THEN
-                  current_exponential=0.0_dp
-               ELSE
-                  current_exponential=EXP(exponent)
+                  exponent=-1.0_dp
                ENDIF
 #else
                IF(exponent .GT. 500.0_dp) THEN
-                  current_exponential=1.4E217_dp
+                  exponent=1.4E217_dp
                ELSEIF(exponent .LT. -500.0_dp) THEN
-                  current_exponential=0.0_dp
-               ELSE
-                  current_exponential=EXP(exponent)
+                  exponent=-1.0_dp
                ENDIF
 #endif
+
             ENDIF
-
-! now we need to integrate, using the trapazoidal method
-! first, find the value of the square
-            previous_value=(previous_exponential-1.0E0_dp)*(distance-virial_stepsize(current_division))**2
-            current_value=(current_exponential-1.0E0_dp)*distance**2
-            square_value=previous_value*virial_stepsize(current_division)
-! now the triangle that sits on top of it, which is half the size of this square...
-! notice this is negative if the current value is less than the previous value
-            triangle_value=0.5E0_dp*((current_value-previous_value)*virial_stepsize(current_division))
-
-            integral=integral+square_value+triangle_value
-            previous_exponential=current_exponential
+            mayer(ibin)=mayer(ibin)+exponent
+            ibin=ibin+1
          ENDDO
-
-! now that the integration is done, average the second virial that results
-         ave_virial=ave_virial-2.0E0_dp*pi*integral
-
 ! write out some info that keeps track of where we are
-         IF(ionode) WRITE(iw,'(A,I6,A,I6)') ' Done with config ',ivirial,' out of ',nvirial
+         IF(ionode) THEN
+            IF(MOD(ivirial,iprint) == 0) WRITE(iw,'(A,I6,A,I6)') ' Done with config ',ivirial,' out of ',nvirial
+         ENDIF
       ENDDO
 
-! compute the average coefficient, and print it out to the screen
-      ave_virial=ave_virial/REAL(nvirial,dp)
+! now we integrate this average potential
+      mayer(:)=mayer(:)/REAL(nvirial,dp)
+
+      integral=0.0_dp
+      previous_value=0.0_dp
+      distance=0.0E0_dp
+      ibin=1
+      DO
+         current_division=0
+         DO idivision=1,nintegral_divisions
+            IF(distance .LT. virial_cutoffs(idivision)-virial_stepsize(idivision)/2.0E0_dp) THEN
+               current_division=idivision
+               EXIT
+            ENDIF
+         ENDDO
+         IF(current_division == 0) EXIT
+         distance=distance+virial_stepsize(current_division)
+         
+! now we need to integrate, using the trapazoidal method
+! first, find the value of the square
+         current_value=mayer(ibin)*distance**2
+         square_value=previous_value*virial_stepsize(current_division)
+! now the triangle that sits on top of it, which is half the size of this square...
+! notice this is negative if the current value is less than the previous value
+         triangle_value=0.5E0_dp*((current_value-previous_value)*virial_stepsize(current_division))
+
+         integral=integral+square_value+triangle_value
+         previous_value=current_value
+         ibin=ibin+1
+         WRITE(10000,*) distance, previous_value
+      ENDDO
+
+! now that the integration is done, compute the second virial that results
+      ave_virial=-2.0E0_dp*pi*integral
+
 ! convert from CP2K units to something else
       ave_virial=ave_virial*n_avogadro*angstrom**3/1.0E8_dp**3
       
@@ -1494,6 +1522,9 @@ CONTAINS
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_old")
+      DEALLOCATE(mayer,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "mayer")
 
   END SUBROUTINE mc_compute_virial
 END MODULE mc_ensembles
