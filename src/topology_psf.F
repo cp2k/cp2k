@@ -695,7 +695,7 @@ CPSourceFileRef,&
           DEALLOCATE(charge_inp,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE
-          charges = -999.0_dp
+          charges = -99.0_dp
        END IF
     ELSE
        charges = atom_info%atm_charge
