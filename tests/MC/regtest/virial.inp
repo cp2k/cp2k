@@ -8,13 +8,11 @@
       &END
       &CHARGE
         ATOM O
-        CHARGE -0.00
-#        CHARGE -0.8476
+        CHARGE -0.8476
       &END CHARGE
       &CHARGE
         ATOM H
-        CHARGE 0.00
-#        CHARGE 0.4238
+        CHARGE 0.4238
       &END CHARGE
       &BOND
         ATOMS O  H

@@ -20,3 +20,7 @@ MC_QS.inp
 MC_KG.inp
 # bug fix for the virial calculation
 virial.inp
+# another bug fix for the virial calculation, as well as a new feature
+virial.inp
+# problem with the input file
+virial.inp
