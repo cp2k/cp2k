@@ -141,6 +141,7 @@ MODULE mc_types
       REAL ( dp ) :: BETA
       REAL ( dp ) :: rcut
       REAL ( dp ),DIMENSION(:),POINTER :: avbmc_rmin,avbmc_rmax
+      REAL ( dp ),DIMENSION(:),POINTER :: virial_temps
       TYPE(mc_input_file_type),POINTER ::&
            mc_input_file,mc_bias_file
       TYPE(section_vals_type),POINTER :: input_file
@@ -290,7 +291,7 @@ CONTAINS
        fft_lib,iprint,rcut,ldiscrete,discrete_step,&
        pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
        input_file,mc_molecule_info,pmswap_mol,pmavbmc_mol,pmtrans_mol,pmrot_mol,&
-       pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box)
+       pmtraion_mol,mc_input_file,mc_bias_file,pmvol_box,virial_temps)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -337,7 +338,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: avbmc_atom
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: avbmc_rmin, avbmc_rmax, &
-                                                rmdihedral
+                                                rmdihedral, virial_temps
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input_file
     TYPE(mc_molecule_info_type), OPTIONAL, &
@@ -376,6 +377,7 @@ CONTAINS
     IF ( PRESENT ( lstop ) ) lstop = mc_par % lstop
     IF ( PRESENT ( ldiscrete ) ) ldiscrete = mc_par % ldiscrete
 
+    IF ( PRESENT ( virial_temps ) ) virial_temps => mc_par % virial_temps
     IF ( PRESENT ( avbmc_atom ) ) avbmc_atom => mc_par % avbmc_atom
     IF ( PRESENT ( avbmc_rmin ) ) avbmc_rmin => mc_par % avbmc_rmin
     IF ( PRESENT ( avbmc_rmax ) ) avbmc_rmax => mc_par % avbmc_rmax
@@ -848,6 +850,9 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     DEALLOCATE (mc_par%pbias,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par%pbias")
+    DEALLOCATE (mc_par%virial_temps,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mc_par%virial_temps")
 
    DEALLOCATE (mc_par,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1224,7 +1229,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
                                                 format_string, &
                                                 format_string_int
     INTEGER                                  :: handle, ia, ie, imol, itype, &
-                                                iw, method_name_id, stop_num
+                                                iw, method_name_id, stop_num, istat
     INTEGER, DIMENSION(:), POINTER           :: temp_i_array
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: temp_r_array
@@ -1331,6 +1336,14 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
 ! set the values of the arrays...if we just point, we have problems when we start fooling around
 ! with releasing force_envs and wonky values get set (despite that these are private)
+      CALL section_vals_val_get(mc_section,"VIRIAL_TEMPS",r_vals=temp_r_array,error=error)
+! yes, I'm allocating here...I cannot find a better place to do it, though
+      ALLOCATE (mc_par%virial_temps(1:SIZE(temp_r_array)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "virial_temps",dp_size*SIZE(temp_r_array))
+      DO imol=1,SIZE(temp_r_array)
+         mc_par%virial_temps(imol)=temp_r_array(imol)
+      ENDDO
       CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_vals=temp_r_array,error=error)
       DO imol=1,SIZE(temp_r_array)
          mc_par%avbmc_rmin(imol)=temp_r_array(imol)

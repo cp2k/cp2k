@@ -82,7 +82,9 @@ MODULE mc_ensembles
                                              particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom,&
-                                             n_avogadro
+                                             n_avogadro,&
+                                             joule,&
+                                             boltzmann
   USE termination,                     ONLY: external_control,&
                                              stop_memory,&
                                              stop_program
@@ -1225,18 +1227,18 @@ CONTAINS
                                                 idivision, current_division, &
                                                 nmol_types, source, iprint,&
                                                 start_atom, end_atom, nvirial,&
-                                                ibin, nbins
+                                                ibin, nbins, itemp, nvirial_temps
     LOGICAL                                  :: ionode, loverlap
     REAL(dp), DIMENSION(:), POINTER          :: virial_cutoffs,virial_stepsize,&
-         mayer
-    REAL(dp), DIMENSION(:, :), POINTER       :: mass,r_old
+         BETA,virial_temps
+    REAL(dp), DIMENSION(:, :), POINTER       :: mass,r_old,mayer
     REAL(KIND=dp)                            :: ave_virial,&
                                                 previous_exponential,distance,&
-                                                current_exponential,BETA,&
+                                                current_exponential,&
                                                 exponent,trial_energy,&
                                                 integral,previous_value,&
                                                 current_value,square_value,&
-                                                triangle_value,temperature
+                                                triangle_value
     REAL(KIND=dp), DIMENSION(1:3)            :: abc,center_of_mass
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
     TYPE(cp_subsystem_pp_type), &
@@ -1272,13 +1274,6 @@ CONTAINS
          virial_cutoffs(1))/virial_stepsize(2)+(virial_cutoffs(3)-&
          virial_cutoffs(2))/virial_stepsize(3))
 
-! we'll compute the average potential, and then integrate that, as opposed to
-! integrating every orientation and then averaging
-    ALLOCATE (mayer(1:nbins),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "mayer",dp_size*nbins)
-    mayer(:)=0.0_dp
-
 ! figure out what the default write unit is
     iw = cp_logger_get_default_unit_nr()
 
@@ -1306,8 +1301,8 @@ CONTAINS
 
 ! get some data out of mc_par
       CALL get_mc_par(mc_par(1)%mc_par,nvirial=nvirial,&
-         ionode=ionode,source=source,group=group,BETA=BETA,&
-         mc_molecule_info=mc_molecule_info,temperature=temperature)
+         ionode=ionode,source=source,group=group,&
+         mc_molecule_info=mc_molecule_info,virial_temps=virial_temps)
 
       IF (ionode) THEN
          WRITE(iw,*)
@@ -1323,6 +1318,14 @@ CONTAINS
            mol_type=mol_type,nchain_total=nchain_total,nunits=nunits,&
            mass=mass)
 
+      nvirial_temps=SIZE(virial_temps)
+      ALLOCATE (BETA(1:nvirial_temps),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "BETA",dp_size*nvirial_temps)
+      DO itemp=1,nvirial_temps
+          BETA(itemp) = 1 / virial_temps(itemp) / boltzmann * joule
+      ENDDO
+      
 ! get the subsystems and the cell information
       CALL force_env_get(force_env(1)%force_env,&
            subsys=subsys(1)%subsys,cell=cell(1)%cell,&
@@ -1368,8 +1371,15 @@ CONTAINS
       iprint=FLOOR(REAL(nvirial)/100.0)
       IF(iprint == 0) iprint=1
 
+! we'll compute the average potential, and then integrate that, as opposed to
+! integrating every orientation and then averaging
+    ALLOCATE (mayer(1:nvirial_temps,1:nbins),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "mayer",dp_size*nbins*nvirial_temps)
+    mayer(:,:)=0.0_dp
+
 ! loop over all nvirial random configurations
-      DO ivirial=1,nvirial
+    DO ivirial=1,nvirial
 
 ! move molecule two back to the origin
          start_atom=nunits(mol_type(1))+1
@@ -1416,31 +1426,36 @@ CONTAINS
 ! compute the energy if there is no overlap
 ! exponent is exp(-beta*energy)-1, also called the Mayer term
             IF(loverlap) THEN
-               exponent=-1.0_dp
+               DO itemp=1,nvirial_temps
+                  mayer(itemp,ibin)=mayer(itemp,ibin)-1.0_dp
+               ENDDO
             ELSE
                CALL force_env_calc_energy_force(force_env(1)%force_env,&
                     calc_force=.FALSE.,error=error)
                CALL force_env_get(force_env(1)%force_env,&
                     potential_energy=trial_energy,error=error)
 
-               exponent=-BETA*trial_energy
+               DO itemp=1,nvirial_temps
+
+                  exponent=-BETA(itemp)*trial_energy
 
 #if defined (__SGL)
-               IF(exponent .GT. 88.0_dp) THEN
-                  exponent=1.6E38_dp
-               ELSEIF(exponent .LT. -103.0_dp) THEN
-                  exponent=-1.0_dp
-               ENDIF
+                  IF(exponent .GT. 88.0_dp) THEN
+                     exponent=88.0_dp
+                  ELSEIF(exponent .LT. -103.0_dp) THEN
+                     exponent=-103.0_dp
+                  ENDIF
 #else
-               IF(exponent .GT. 500.0_dp) THEN
-                  exponent=1.4E217_dp
-               ELSEIF(exponent .LT. -500.0_dp) THEN
-                  exponent=-1.0_dp
-               ENDIF
+                  IF(exponent .GT. 500.0_dp) THEN
+                     exponent=500.0_dp
+                  ELSEIF(exponent .LT. -500.0_dp) THEN
+                     exponent=-500.0_dp
+                  ENDIF
 #endif
-
+                  mayer(itemp,ibin)=mayer(itemp,ibin)+dexp(exponent)-1.0_dp
+               ENDDO
             ENDIF
-            mayer(ibin)=mayer(ibin)+exponent
+
             ibin=ibin+1
          ENDDO
 ! write out some info that keeps track of where we are
@@ -1450,52 +1465,53 @@ CONTAINS
       ENDDO
 
 ! now we integrate this average potential
-      mayer(:)=mayer(:)/REAL(nvirial,dp)
+      mayer(:,:)=mayer(:,:)/REAL(nvirial,dp)
 
-      integral=0.0_dp
-      previous_value=0.0_dp
-      distance=0.0E0_dp
-      ibin=1
-      DO
-         current_division=0
-         DO idivision=1,nintegral_divisions
-            IF(distance .LT. virial_cutoffs(idivision)-virial_stepsize(idivision)/2.0E0_dp) THEN
-               current_division=idivision
-               EXIT
-            ENDIF
-         ENDDO
-         IF(current_division == 0) EXIT
-         distance=distance+virial_stepsize(current_division)
-         
+      DO itemp=1,nvirial_temps
+         integral=0.0_dp
+         previous_value=0.0_dp
+         distance=0.0E0_dp
+         ibin=1
+         DO
+            current_division=0
+            DO idivision=1,nintegral_divisions
+               IF(distance .LT. virial_cutoffs(idivision)-virial_stepsize(idivision)/2.0E0_dp) THEN
+                  current_division=idivision
+                  EXIT
+               ENDIF
+            ENDDO
+            IF(current_division == 0) EXIT
+            distance=distance+virial_stepsize(current_division)
+            
 ! now we need to integrate, using the trapazoidal method
 ! first, find the value of the square
-         current_value=mayer(ibin)*distance**2
-         square_value=previous_value*virial_stepsize(current_division)
+            current_value=mayer(itemp,ibin)*distance**2
+            square_value=previous_value*virial_stepsize(current_division)
 ! now the triangle that sits on top of it, which is half the size of this square...
 ! notice this is negative if the current value is less than the previous value
-         triangle_value=0.5E0_dp*((current_value-previous_value)*virial_stepsize(current_division))
+            triangle_value=0.5E0_dp*((current_value-previous_value)*virial_stepsize(current_division))
 
-         integral=integral+square_value+triangle_value
-         previous_value=current_value
-         ibin=ibin+1
-         WRITE(10000,*) distance, previous_value
-      ENDDO
+            integral=integral+square_value+triangle_value
+            previous_value=current_value
+            ibin=ibin+1
+         ENDDO
 
 ! now that the integration is done, compute the second virial that results
-      ave_virial=-2.0E0_dp*pi*integral
+         ave_virial=-2.0E0_dp*pi*integral
 
 ! convert from CP2K units to something else
-      ave_virial=ave_virial*n_avogadro*angstrom**3/1.0E8_dp**3
+         ave_virial=ave_virial*n_avogadro*angstrom**3/1.0E8_dp**3
       
-      IF(ionode) THEN
-         WRITE(iw,*)
-         WRITE(iw,*) '*********************************************************************'
-         WRITE(iw,'(A,F12.6,A)') ' ***                Temperature = ',temperature,'                     ***'
-         WRITE(iw,*) '***                                                               ***'
-         WRITE(iw,'(A,E12.6,A)') ' ***                  B2(T) = ',ave_virial,' cm**3/mol               ***'
-         WRITE(iw,*) '*********************************************************************'
-         WRITE(iw,*)
-      ENDIF
+         IF(ionode) THEN
+            WRITE(iw,*)
+            WRITE(iw,*) '*********************************************************************'
+            WRITE(iw,'(A,F12.6,A)') ' ***                Temperature = ',virial_temps(itemp),'                     ***'
+            WRITE(iw,*) '***                                                               ***'
+            WRITE(iw,'(A,E12.6,A)') ' ***                  B2(T) = ',ave_virial,' cm**3/mol               ***'
+            WRITE(iw,*) '*********************************************************************'
+            WRITE(iw,*)
+         ENDIF
+      ENDDO
 
 ! deallocate some stuff
       DEALLOCATE(mc_par,STAT=istat)
@@ -1525,6 +1541,9 @@ CONTAINS
       DEALLOCATE(mayer,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mayer")
+      DEALLOCATE(BETA,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "BETA")
 
   END SUBROUTINE mc_compute_virial
 END MODULE mc_ensembles

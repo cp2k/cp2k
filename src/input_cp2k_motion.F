@@ -1471,6 +1471,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="VIRIAL_TEMPS",&
+            description="The temperatures you wish to compute the virial coefficient for.  Only used if ensemble=VIRIAL.",&
+            usage="VIRIAL_TEMPS {real} {real} ... ",&
+            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="AVBMC_RMIN",&
             description="The inner radius for an AVBMC swap move, in angstroms for every molecule type.",&
             usage="AVBMC_RMIN {real} {real} ... ",&
