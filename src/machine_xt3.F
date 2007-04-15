@@ -73,10 +73,17 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
-    REAL(dp)                                 :: dclock
+#if defined(__parallel)
+    REAL(KIND=dp), EXTERNAL                  :: MPI_WTIME
 
-  ct = dclock()
+    ct = MPI_WTIME()
+#else
+    INTEGER                                  :: mclock
+
+    ct = mclock()*0.01_dp
+#endif
 END FUNCTION m_cputime
+
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
@@ -114,15 +121,18 @@ END SUBROUTINE m_datum
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
+#if defined(__parallel)
     INTEGER(KIND=int_8) m_memory
     INTEGER(KIND=int_8) total_free, largest_free, total_used
     INTEGER             fragments, i, heap_info
     i = heap_info(fragments, total_free, largest_free, total_used)
     m_memory=total_used
+#else
+    INTEGER(KIND=int_8) m_memory
+    m_memory=0
+#endif
+
   END FUNCTION m_memory
-
-! *****************************************************************************
-
 
 ! *****************************************************************************
 
