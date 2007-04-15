@@ -1135,8 +1135,7 @@ CONTAINS
        END IF
     END DO
     ! Available external info
-    kind_section => section_vals_get_subs_vals(subsys_section,&
-         "KIND",error=error)
+    kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
     ALLOCATE(keyword(n_rep),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1422,8 +1421,7 @@ CONTAINS
     END DO
     ! If not found maybe the user defined a KIND section..
     IF (.NOT.found) THEN
-       kind_section => section_vals_get_subs_vals(subsys_section,&
-            "KIND",error=error)
+       kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
        CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
        DO i_rep=1,n_rep
           CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&

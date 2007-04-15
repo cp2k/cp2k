@@ -181,6 +181,14 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"SUBCELL",&
+            description="Activates the printing of the subcells used for the"//&
+            "generation of neighbor lists.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
             description="Controls the printing of the banner of the MM program",&
             print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
@@ -579,7 +587,7 @@ CONTAINS
             "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2"//&
             "Functional Form (G96): 1/4*K*(R-R0)^2"//&
             "Functional Form (HARMONIC|CHARMM|G87): K*(R-R0)^2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="KIND",&

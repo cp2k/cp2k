@@ -163,7 +163,7 @@ CONTAINS
     NULLIFY (sac_ppl)
     NULLIFY (sac_ppl_aux)
     print_subcell_grid = .FALSE.
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%SUBCELL",&
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%SUBCELL",&
          extension=".Log",error=error)
     IF (output_unit>0)  print_subcell_grid = .TRUE.
 
@@ -466,7 +466,7 @@ CONTAINS
 
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-                                      "SUBSYS%PRINT%SUBCELL",error=error)
+         "DFT%PRINT%SUBCELL",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_kg_neighbor_lists1

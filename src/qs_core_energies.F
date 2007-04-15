@@ -190,7 +190,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER :: atom_a, atom_b, dir, group, handle, i, iatom, iatom_local, &
+    INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
       iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
       jkind, k, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
       nkind, output_unit
@@ -398,7 +398,7 @@ CONTAINS
 
     END DO
 
-    output_unit = cp_print_key_unit_nr(logger,qs_env%input,"SUBSYS%PRINT%SUBCELL",&
+    output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%SUBCELL",&
                                        extension=".Log",error=error)
     IF (output_unit > 0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
@@ -757,7 +757,7 @@ CONTAINS
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
-                                      "SUBSYS%PRINT%SUBCELL",error=error)
+                                      "DFT%PRINT%SUBCELL",error=error)
 
     CALL timestop(0.0_dp,handle)
 

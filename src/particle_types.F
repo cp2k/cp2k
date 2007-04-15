@@ -632,18 +632,15 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE write_fist_particle_coordinates(particle_set,cell,force_env_section,error)
+  SUBROUTINE write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
 
 !   Purpose: Write the atomic coordinates to the output unit.
-
 !   History: - Creation (05.06.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
@@ -654,8 +651,8 @@ END SUBROUTINE clone_particle
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
 
     IF (iw>0) THEN
 
@@ -684,23 +681,20 @@ END SUBROUTINE clone_particle
       WRITE (iw,'(/)')
     END IF
 
-    CALL cp_print_key_finished_output(iw,logger,force_env_section,&
-         "SUBSYS%PRINT%ATOMIC_COORDINATES", error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%ATOMIC_COORDINATES", error=error)
 
   END SUBROUTINE write_fist_particle_coordinates
 
-  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
+  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,subsys_section,error)
 
 !   Purpose: Write the atomic coordinates to the output unit.
-
 !   History: - Creation (05.06.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
@@ -711,8 +705,8 @@ END SUBROUTINE clone_particle
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
 
     IF (iw>0) THEN
 
@@ -742,13 +736,13 @@ END SUBROUTINE clone_particle
       WRITE (iw,'(/)')
     END IF
 
-    CALL cp_print_key_finished_output(iw,logger,force_env_section,&
-         "SUBSYS%PRINT%ATOMIC_COORDINATES", error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%ATOMIC_COORDINATES", error=error)
 
   END SUBROUTINE write_qs_particle_coordinates
 
 
-  SUBROUTINE write_particle_distances(particle_set,cell,force_env_section,error)
+  SUBROUTINE write_particle_distances(particle_set,cell,subsys_section,error)
 
 !   Purpose: Write the matrix of the particle distances to the output unit.
 
@@ -759,7 +753,7 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_particle_distances'
@@ -775,8 +769,8 @@ END SUBROUTINE clone_particle
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%INTERATOMIC_DISTANCES",extension=".distLog",error=error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%INTERATOMIC_DISTANCES",extension=".distLog",error=error)
 
     IF (iw>0) THEN
 
@@ -813,8 +807,8 @@ END SUBROUTINE clone_particle
 
     END IF
 
-    CALL cp_print_key_finished_output(iw,logger,force_env_section,&
-         "SUBSYS%PRINT%INTERATOMIC_DISTANCES", error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%INTERATOMIC_DISTANCES", error=error)
   END SUBROUTINE write_particle_distances
 
 ! *****************************************************************************
@@ -870,7 +864,7 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE write_structure_data(particle_set,cell,force_env_section,error)
+  SUBROUTINE write_structure_data(particle_set,cell,subsys_section,error)
 
     ! Write structure data requested by a separate structure data input
     ! section to the output unit.
@@ -881,7 +875,7 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data', &
@@ -907,8 +901,8 @@ END SUBROUTINE clone_particle
 
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger=logger,&
-                              basis_section=force_env_section,&
-                              print_key_path="SUBSYS%PRINT%STRUCTURE_DATA",&
+                              basis_section=subsys_section,&
+                              print_key_path="PRINT%STRUCTURE_DATA",&
                               extension=".coordLog",&
                               error=error)
 
@@ -918,8 +912,8 @@ END SUBROUTINE clone_particle
                     unit_of_length_name=unit_of_length_name)
 
       natom = SIZE(particle_set)
-      section => section_vals_get_subs_vals(section_vals=force_env_section,&
-                                            subsection_name="SUBSYS%PRINT%STRUCTURE_DATA",&
+      section => section_vals_get_subs_vals(section_vals=subsys_section,&
+                                            subsection_name="PRINT%STRUCTURE_DATA",&
                                             error=error)
 
       WRITE (UNIT=iw,FMT="(/,T2,A)") "REQUESTED STRUCTURE DATA"
@@ -1061,8 +1055,9 @@ END SUBROUTINE clone_particle
           END IF
         END DO
       END IF
-
     END IF
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%STRUCTURE_DATA", error=error)
 
     CALL timestop(0.0_dp,handle)
 

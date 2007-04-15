@@ -62,12 +62,15 @@
     #&END POISSON
 
     &PRINT
-        #&NEIGHBOR_LISTS
-        #    EACH 1
-        #&END NEIGHBOR_LISTS
-        &FF_INFO  DEBUG
-            EACH 1
-        &END FF_INFO
+      &SUBCELL
+          EACH 1
+      &END SUBCELL
+      #&NEIGHBOR_LISTS
+      #    EACH 1
+      #&END NEIGHBOR_LISTS
+      &FF_INFO  DEBUG
+          EACH 1
+      &END FF_INFO
     &END PRINT
 
 
@@ -89,9 +92,6 @@
         #&INTERATOMIC_DISTANCES
         #    EACH 1
         #&END INTERATOMIC_DISTANCES
-        &SUBCELL
-            EACH 1
-        &END SUBCELL
         #&TOPOLOGY_INFO
         #    EACH 1
         #    XYZ_INFO T

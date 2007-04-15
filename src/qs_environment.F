@@ -51,14 +51,14 @@ MODULE qs_environment
                                              gapw_control_type,&
                                              qs_control_type,&
                                              semi_empirical_control_type
-  USE cp_control_utils,                ONLY: read_dft_control,&
+  USE cp_control_utils,                ONLY: read_becke_section,&
+                                             read_ddapc_section,&
+                                             read_dft_control,&
                                              read_mgrid_section,&
                                              read_qs_section,&
                                              read_tddfpt_control,&
                                              write_dft_control,&
-                                             write_qs_control,&
-                                             read_ddapc_section,&
-                                             read_becke_section
+                                             write_qs_control
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
@@ -76,12 +76,12 @@ MODULE qs_environment
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE et_coupling_types,               ONLY: et_coupling_create
-  USE ewald_environment_types,         ONLY: ewald_environment_type,&
-                                             ewald_env_create,&
+  USE ewald_environment_types,         ONLY: ewald_env_create,&
                                              ewald_env_set,&
+                                             ewald_environment_type,&
                                              read_ewald_section
-  USE ewald_pw_types,                  ONLY: ewald_pw_type,&
-                                             ewald_pw_create
+  USE ewald_pw_types,                  ONLY: ewald_pw_create,&
+                                             ewald_pw_type
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_create,&
@@ -91,22 +91,14 @@ MODULE qs_environment
                                              harris_env_type
   USE harris_force_types,              ONLY: harris_force_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
-  USE header,                          ONLY: qs_header,&
-                                             se_header,&
-                                             dftb_header
-  USE input_constants,                 ONLY: do_method_gapw,&
-                                             do_method_gapw_xc,&
-                                             do_method_am1,&
-                                             do_method_mndo,&
-                                             do_method_pdg,&
-                                             do_method_pm3,&
-                                             do_method_dftb,&
-                                             general_roks,&
-                                             restart_guess,&
-                                             state_loc_all,&
-                                             state_loc_none,&
-                                             do_et_ddapc,&
-                                             do_et_becke
+  USE header,                          ONLY: dftb_header,&
+                                             qs_header,&
+                                             se_header
+  USE input_constants,                 ONLY: &
+       do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
+       do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_pdg, &
+       do_method_pm3, general_roks, restart_guess, state_loc_all, &
+       state_loc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -134,14 +126,14 @@ MODULE qs_environment
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
+  USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
+  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_setup
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
-  USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii,&
                                              init_se_nlradius
@@ -191,7 +183,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_init(qs_env,root_section,globenv,subsystem,cell,cell_ref,qmmm,&
-       qmmm_periodic,force_env_section,error)
+       qmmm_periodic,force_env_section,subsys_section,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -207,14 +199,16 @@ CONTAINS
       POINTER                                :: subsystem
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_hf, harris_flag, my_qmmm, &
-                                                my_qmmm_periodic, use_ref_cell,do_et
+    LOGICAL                                  :: do_et, do_hf, harris_flag, &
+                                                my_qmmm, my_qmmm_periodic, &
+                                                use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -231,19 +225,18 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                harris_section, hf_section, &
-                                                kind_section,et_coupling_section
+    TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
+      et_coupling_section, harris_section, hf_section, kind_section
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section, kind_section)
     para_env=>qs_env%para_env
-
-    cell_section => section_vals_get_subs_vals(force_env_section,&
-         "SUBSYS%CELL",error=error)
-    harris_section => section_vals_get_subs_vals(force_env_section, &
-         "DFT%QS%HARRIS", error=error)
+    IF (.NOT.ASSOCIATED(subsys_section)) THEN
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+    END IF
+    cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+    harris_section => section_vals_get_subs_vals(force_env_section, "DFT%QS%HARRIS", error=error)
 
     my_qmmm     = .FALSE.
     IF (PRESENT(qmmm)) my_qmmm=qmmm
@@ -273,16 +266,15 @@ CONTAINS
     END IF
     CALL get_cell ( my_cell, abc=abc)
 
-!   *** Setup the grids for the G-space Interpolation if any
+    !   *** Setup the grids for the G-space Interpolation if any
     CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_qmmm_periodic,&
-         my_cell, force_env_section, para_env, error)
+         my_cell, force_env_section, subsys_section, para_env, error)
 
-!   *** Print the cell parameters ***
-    CALL write_cell(my_cell,force_env_section,cell_ref=my_cell_ref,error=error)
+    !   *** Print the cell parameters ***
+    CALL write_cell(my_cell,subsys_section,cell_ref=my_cell_ref,error=error)
 
-!   Kind section
-    kind_section => section_vals_get_subs_vals(force_env_section,&
-            "SUBSYS%KIND",error=error)
+    !   Kind section
+    kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     IF (PRESENT(subsystem)) THEN
        my_subsystem => subsystem
        CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els,kind_section,para_env,&
@@ -290,16 +282,15 @@ CONTAINS
     ELSE
        CALL cp_subsys_create(my_subsystem,para_env=para_env,error=error)
 
-       colvar_section => section_vals_get_subs_vals(force_env_section,&
-                                 "SUBSYS%COLVAR",error=error)
+       colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
        CALL cp_subsys_read_colvar( my_subsystem, colvar_section, error=error)
-
 
        !   *** Read the particle coordinates and allocate the atomic kind, ***
        !   *** the molecule kind, and the molecule data structures         ***
        CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set, molecule_set,&
             my_subsystem%colvar_p,my_subsystem%gci, root_section, para_env, globenv,&
-            force_env_section=force_env_section,error=error)
+            force_env_section=force_env_section, subsys_section=subsys_section,&
+            error=error)
 
        CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
             force_env_section,error)
@@ -319,7 +310,7 @@ CONTAINS
     END IF
 
     CALL qs_init_subsys(qs_env,my_subsystem,my_cell,my_cell_ref,use_ref_cell,&
-         root_section,globenv,my_qmmm,harris=harris_flag,error=error)
+         root_section,subsys_section,globenv,my_qmmm,harris=harris_flag,error=error)
 
     IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
@@ -340,7 +331,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
-       root_section,globenv,qmmm,harris,error)
+       root_section,subsys_section,globenv,qmmm,harris,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -353,7 +344,7 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: root_section, subsys_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
@@ -362,19 +353,23 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'qs_init_subsys'
 
     INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, multiplicity, n_ao, natom, nelectron, output_unit, method_id, my_ival
+      maxlppnl, method_id, multiplicity, my_ival, n_ao, natom, nelectron, &
+      output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
-                                                was_present,et_ddapc,et_becke
+                                                was_present
     REAL(dp)                                 :: maxocc, rc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -390,20 +385,17 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_control_type), POINTER           :: qs_control
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:, :), POINTER               :: dftb_potential
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(dftb_control_type), POINTER         :: dftb_control
-    TYPE(qs_dftb_pairpot_type), &
-      DIMENSION(:,:), POINTER                :: dftb_potential
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(section_vals_type), POINTER         :: dft_section, qs_section,et_coupling_section,&
-                                                et_ddapc_section,et_becke_section,&
-                                                poisson_section,ewald_section,print_section
+    TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, &
+      et_coupling_section, et_ddapc_section, ewald_section, poisson_section, &
+      print_section, qs_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -498,9 +490,8 @@ CONTAINS
       NULLIFY (ewald_env,ewald_pw,dftb_potential)
       dftb_control => dft_control%qs_control%dftb_control
       CALL qs_dftb_param_init (atomic_kind_set,dftb_control,dftb_potential,&
-           force_env_section=qs_env%input,para_env=para_env,error=error)
+           subsys_section=subsys_section,para_env=para_env,error=error)
       CALL set_qs_env(qs_env,dftb_potential=dftb_potential,error=error)
-!deb  CALL write_dftb_atom_param(dftb_parameter,force_env_section,error)
       ! check for Ewald
       IF ( dftb_control%do_ewald ) THEN
         CALL ewald_env_create(ewald_env,para_env,error=error)
@@ -520,7 +511,7 @@ CONTAINS
 !   *** Check basis and fill in missing parts ***
 
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
-         force_env_section=qs_env%input,error=error)
+        subsys_section=subsys_section,error=error)
 
 !   *** Check that no all-electron potential is present if GPW or GAPW_XC
 
@@ -578,7 +569,7 @@ CONTAINS
 !   *** Initialize the atomic interaction radii ***
 
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
-                                qs_env%input,error)
+                                subsys_section,error)
 
 !   *** Distribute molecules and atoms using the new data structures ***
 
@@ -706,7 +697,7 @@ CONTAINS
           ! MAX(interaction range, orbital range)
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,&
-                 qs_env%input,error)
+                 subsys_section,error)
       END SELECT
     ENDIF
 
@@ -809,7 +800,6 @@ CONTAINS
     END IF
 
 !   *** Some options require that all MOs are computed ... ***
-
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
                                          "PRINT%MO/CARTESIAN",error=error),&
               cp_p_file).OR.&
@@ -817,11 +807,9 @@ CONTAINS
         (scf_control%eps_jacobi /= 0.0_dp).OR.&
         (dft_control%roks.AND.(.NOT.scf_control%use_ot))) THEN
        n_mo(:) = n_ao
-!MK    IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF
 
     ! Compatibility checks for ROKS
-
     IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
       IF (scf_control%roks_scheme == general_roks) THEN
         IF (para_env%ionode) THEN
@@ -895,57 +883,44 @@ CONTAINS
     END IF
 
     ! Print the DFT control parameters
-
     CALL write_dft_control(dft_control,dft_section,error)
 
     ! Print the Quickstep control parameters
-
     CALL write_qs_control(dft_control%qs_control,dft_section,error)
 
     ! Print XES/XAS control parameters
-
     IF (dft_control%do_xas_calculation) THEN
       CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
     END IF
 
     ! Print the unnormalized basis set information (input data)
-
-    CALL write_gto_basis_sets(atomic_kind_set,qs_env%input,error)
+    CALL write_gto_basis_sets(atomic_kind_set,subsys_section,error)
 
     ! Print the atomic kind set
-
-    CALL write_atomic_kind_set(atomic_kind_set,qs_env%input,error)
+    CALL write_atomic_kind_set(atomic_kind_set,subsys_section,error)
 
     ! Print the molecule kind set
-
-    CALL write_molecule_kind_set(molecule_kind_set,qs_env%input,error)
+    CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
     ! Print the total number of kinds, atoms, basis functions etc.
-
     CALL write_total_numbers(atomic_kind_set,particle_set,qs_env%input,error)
 
     ! Print the atomic coordinates
-
-    CALL write_qs_particle_coordinates(particle_set,cell,qs_env%input,error)
+    CALL write_qs_particle_coordinates(particle_set,cell,subsys_section,error)
 
     ! Print the interatomic distances
-
-    CALL write_particle_distances(particle_set,cell,qs_env%input,error)
+    CALL write_particle_distances(particle_set,cell,subsys_section,error)
 
     ! Print the requested structure data
-
-    CALL write_structure_data(particle_set,cell,qs_env%input,error)
+    CALL write_structure_data(particle_set,cell,subsys_section,error)
 
     ! Print the SCF parameters
-
     CALL scf_c_write_parameters(scf_control,qs_env%input,error=error)
 
     ! Sets up pw_env, qs_charges, mpools ...
-
     CALL qs_env_setup(qs_env,error)
 
     ! Allocate and Initialie rho0 soft on the global grid
-
     IF(dft_control%qs_control%method == "GAPW") THEN
       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
       CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)

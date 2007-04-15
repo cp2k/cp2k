@@ -114,7 +114,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set,&
        molecule_set, colvar_p, gci, root_section, para_env, globenv, qmmm, qmmm_env,&
-       force_env_section, error)
+       force_env_section, subsys_section, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -133,7 +133,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
@@ -144,7 +145,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: cell_section, &
                                                 constraint_section, &
-                                                subsys_section, &
                                                 topology_section
     TYPE(topology_parameters_type)           :: topology
 
@@ -152,17 +152,11 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL timeset(routineN,'I','',handle)
+    NULLIFY(cell_section, constraint_section, topology_section)
 
-    NULLIFY(cell_section,subsys_section)
-
-    subsys_section   =>  section_vals_get_subs_vals(force_env_section,&
-         "SUBSYS",error=error)
-    cell_section => section_vals_get_subs_vals(subsys_section,&
-         "CELL",error=error)
-    constraint_section =>  section_vals_get_subs_vals(root_section,&
-         "MOTION%CONSTRAINT",error=error)
-    topology_section   =>  section_vals_get_subs_vals(subsys_section,&
-         "TOPOLOGY",error=error)
+    cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+    constraint_section =>  section_vals_get_subs_vals(root_section,"MOTION%CONSTRAINT",error=error)
+    topology_section   =>  section_vals_get_subs_vals(subsys_section,"TOPOLOGY",error=error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     my_qmmm = .FALSE.

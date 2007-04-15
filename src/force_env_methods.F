@@ -69,8 +69,7 @@ MODULE force_env_methods
                                              qs_debug_run,&
                                              use_bazant_eip,&
                                              use_lenosky_eip
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_retain,&
+  USE input_section_types,             ONLY: section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kg_energy,                       ONLY: kg_energies
@@ -97,8 +96,7 @@ MODULE force_env_methods
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              update_particle_set,&
-                                             write_particle_coordinates,&
-                                             write_qs_particle_coordinates
+                                             write_particle_coordinates
   USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
   USE qmmm_gpw_energy,                 ONLY: qmmm_el_coupling
   USE qmmm_gpw_forces,                 ONLY: qmmm_forces
@@ -547,10 +545,6 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         ALLOCATE(force_env%subsys(1), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         NULLIFY(force_env%subsys(1)%subsys)
-
-        PRINT *, "accessing ep_env,id=",force_env%ep_env%id_nr
-        PRINT *, "accessing main_qs_env,id=",force_env%ep_env%main_qs_env%id_nr
-
         CALL get_qs_env(force_env%ep_env%main_qs_env,&
              subsys=force_env%subsys(1)%subsys,&
              error=error)
@@ -616,11 +610,13 @@ END SUBROUTINE force_env_create
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE ep_create_force_env(force_env,root_section, para_env, globenv, error)
+SUBROUTINE ep_create_force_env(force_env, root_section, para_env, globenv,&
+     force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_force_env', &
@@ -628,16 +624,13 @@ SUBROUTINE ep_create_force_env(force_env,root_section, para_env, globenv, error)
 
     LOGICAL                                  :: failure
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
   failure=.FALSE.
 
   IF (.NOT. failure) THEN
      NULLIFY(ep_env)
-     CALL ep_env_create(ep_env,root_section,para_env,globenv=globenv,&
+     CALL ep_env_create(ep_env, root_section, para_env, globenv=globenv,&
           error=error)
-     force_env_section=> section_vals_get_subs_vals(root_section,&
-          "FORCE_EVAL",error=error)
      CALL force_env_create(force_env,root_section,para_env,globenv=globenv,ep_env=ep_env,&
           force_env_section = force_env_section, error=error)
      CALL ep_env_release(ep_env,error=error)
@@ -878,9 +871,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
 
   ! Do some checks on coordinates and box
   CALL qmmm_validate_this_run(particles_qm, particles_mm, mm_cell, qm_cell, error=error)
-
-  ! Dump out coordinates
-  CALL write_qs_particle_coordinates(particles_qm,qm_cell,force_env_section, error)
 
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&

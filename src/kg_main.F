@@ -68,13 +68,15 @@ CONTAINS
 !!*****
 !******************************************************************************
 
-  SUBROUTINE kg_create_force_env(force_env,root_section,para_env, globenv,force_env_section,error)
+  SUBROUTINE kg_create_force_env(force_env,root_section,para_env, globenv,&
+       force_env_section, subsys_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_create_force_env', &
@@ -83,24 +85,18 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     CALL kg_env_create(kg_env,para_env=para_env,error=error)
-!   CALL cp_error_check(error,failure)
 
-    IF (.NOT. failure) CALL kg_init( kg_env, root_section, para_env, globenv, force_env_section,error )
-!   CALL cp_error_check(error,failure)
-
-    IF (.NOT. failure) CALL force_env_create(force_env,root_section, kg_env=kg_env, &
-         para_env= para_env, globenv=globenv, force_env_section=force_env_section, error=error)
-!   CALL cp_error_check(error,failure)
-
-    IF (.NOT. failure) CALL kg_env_release(kg_env,error=error)
+    CALL kg_init( kg_env, root_section, para_env, globenv, force_env_section, &
+         subsys_section, error )
+    CALL force_env_create(force_env,root_section, kg_env=kg_env, &
+         para_env= para_env, globenv=globenv, force_env_section=force_env_section,&
+         error=error)
+    CALL kg_env_release(kg_env,error=error)
 
     CALL timestop(0.0_dp,handle)
-
   END SUBROUTINE kg_create_force_env
 
 ! *****************************************************************************

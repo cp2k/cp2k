@@ -50,6 +50,10 @@
         O_SPLINE 4
       &END EWALD
     &END POISSON
+    &PRINT
+      &SUBCELL
+      &END
+    &END
   &END MM
   &SUBSYS
     &CELL
@@ -24640,10 +24644,6 @@
       CONNECTIVITY UPSF
       NHCOPT MOLECULE
     &END TOPOLOGY
-    &PRINT
-      &SUBCELL
-      &END
-    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL

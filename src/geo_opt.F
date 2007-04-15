@@ -25,7 +25,6 @@
 !*****************************************************************************
 MODULE geo_opt
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
-  USE cell_types,                      ONLY: cell_type
   USE cg_optimizer,                    ONLY: geoopt_cg
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
@@ -35,8 +34,6 @@ MODULE geo_opt
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -54,8 +51,6 @@ MODULE geo_opt
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
-  USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_distances
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -177,21 +172,17 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_do_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ihandle, isubsys
+    INTEGER                                  :: handle, i, ihandle
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: f
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: root_section
 
      CALL timeset(routineN,"I","",handle)
      failure=.FALSE.
-     NULLIFY( optimizer, para_env, cell, particles, subsys)
+     NULLIFY(optimizer, para_env)
      logger => cp_error_get_logger(error)
      root_section => force_env%root_section
      CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
@@ -217,7 +208,8 @@ MODULE geo_opt
               CALL cp_opt_gopt_stop(optimizer, error=error)
               EXIT
            END IF
-           CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section,error=error)
+           CALL write_restart(force_env=force_env,root_section=root_section,&
+                force_env_section=force_env_section,error=error)
         END DO
 
         ! write out more data for the minimum
@@ -226,18 +218,8 @@ MODULE geo_opt
                 fmt="(' Reevaluating wf at minimum')")
         END IF
         CALL cp_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
-             para_env=optimizer%para_env,force_env_section=force_env_section, error=error)
-
-
-
-        CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
-        DO isubsys=1,SIZE(subsys)
-           CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
-                error=error)
-           CALL write_particle_distances(particles%els,&
-                cell,force_env_section,error)
-        END DO
-
+             para_env=optimizer%para_env,force_env_section=force_env_section,&
+             error=error)
         CALL cp_opt_gopt_release(optimizer, error=error)
      END IF
      CALL cp_rm_iter_level(logger%iter_info,ihandle,error)

@@ -71,12 +71,14 @@ CONTAINS
 !!     03.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE eip_create_force_env(force_env,root_section, para_env, globenv, force_env_section, error)
+  SUBROUTINE eip_create_force_env(force_env,root_section, para_env, globenv,&
+       force_env_section, subsys_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eip_create_force_env', &
@@ -85,22 +87,16 @@ CONTAINS
     INTEGER                                  :: handle
     TYPE(eip_environment_type), POINTER      :: eip_env
 
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,"I","",handle)
-
     NULLIFY(eip_env)
 
     CALL eip_env_create(eip_env, error=error)
-
     CALL eip_init(eip_env, root_section, para_env,globenv, force_env_section=force_env_section,&
-         error=error)
-
-    CALL force_env_create(force_env,root_section, eip_env=eip_env, para_env=para_env, globenv=globenv, &
-                          force_env_section=force_env_section, error=error)
-
+         subsys_section=subsys_section, error=error)
+    
+    CALL force_env_create(force_env,root_section, eip_env=eip_env, para_env=para_env,&
+         globenv=globenv, force_env_section=force_env_section, error=error)
     CALL eip_env_release(eip_env, error=error)
-
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eip_create_force_env

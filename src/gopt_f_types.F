@@ -42,9 +42,7 @@ MODULE gopt_f_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_structure_data
+  USE particle_types,                  ONLY: write_structure_data
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -92,7 +90,8 @@ MODULE gopt_f_types
      INTEGER :: ref_count, id_nr
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(global_environment_type), POINTER   :: globenv
-     TYPE(section_vals_type), POINTER         :: force_env_section
+     TYPE(section_vals_type), POINTER         :: force_env_section,&
+                                                 motion_section
   END TYPE gopt_f_type
 !!***
   !****************************************************************************
@@ -187,6 +186,7 @@ SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
      gopt_env%force_env => force_env
      gopt_env%globenv => globenv
      gopt_env%force_env_section => force_env%force_env_section
+     gopt_env%motion_section =>  section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
   END IF
 END SUBROUTINE gopt_f_create
 !***************************************************************************
@@ -272,7 +272,8 @@ SUBROUTINE gopt_f_release(gopt_env, error)
      gopt_env%ref_count=gopt_env%ref_count-1
      IF (gopt_env%ref_count==0) THEN
         CALL force_env_release(gopt_env%force_env,error=error)
-        NULLIFY(gopt_env%force_env, gopt_env%globenv)
+        NULLIFY(gopt_env%force_env, gopt_env%globenv, gopt_env%force_env_section,&
+             gopt_env%motion_section)
         DEALLOCATE(gopt_env, stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF
@@ -329,9 +330,6 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-! INTEGER, SAVE :: cp_eval_at_count = 0
-! REAL(KIND=dp) :: epot
-
   failure=.FALSE.
   NULLIFY(particles, subsys, cell)
   
@@ -349,17 +347,11 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
            particles%els(ip)%r(idir)=x(idg)
         END DO
      END DO
-     CALL write_qs_particle_coordinates(particles%els,cell,force_env_section,error)
-     CALL write_particle_distances(particles%els,cell,force_env_section,error)
-     CALL write_structure_data(particles%els,cell,force_env_section,error)
+     CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
   END DO
 
   CALL force_env_calc_energy_force(gopt_env%force_env,&
        calc_force=PRESENT(gradient),error=error)
-
-  ! CALL force_env_get(gopt_env%force_env,potential_energy=epot, error=error)
-  ! cp_eval_at_count = cp_eval_at_count + 1
-  ! write(6,*) "CP_EVAL_AT ",cp_eval_at_count,epot
 
   ! This call is necessary for QM/MM if a Translation is applied
   ! this makes the geometry optimizer consistent

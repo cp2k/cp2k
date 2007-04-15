@@ -39,7 +39,6 @@ MODULE cp_subsystem_methods
                                              cp_subsystem_type
   USE input_constants,                 ONLY: do_conn_off
   USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -149,7 +148,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_small_subsystem(small_subsystem,big_subsys,small_cell,&
        small_para_env,sub_atom_index,sub_subsys_index,sub_atom_kind_name,&
-       root_section,para_env,force_env_section,error)
+       root_section,para_env,force_env_section,subsys_section,error)
     TYPE(cp_subsystem_type), POINTER         :: small_subsystem
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: big_subsys
@@ -161,7 +160,8 @@ CONTAINS
       DIMENSION(:), INTENT(in)               :: sub_atom_kind_name
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsystem', &
@@ -182,12 +182,11 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(topology_parameters_type)           :: topology
 
     failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
-         molecule_kind_set,molecule_set,particles,atomic_kinds,subsys_section)
+         molecule_kind_set,molecule_set,particles,atomic_kinds)
 
     CPPrecondition(.NOT.ASSOCIATED(small_subsystem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,error,failure)
@@ -197,8 +196,6 @@ CONTAINS
                    error,failure)
 
     IF (.NOT. failure) THEN
-       subsys_section => section_vals_get_subs_vals(force_env_section,&
-         "SUBSYS",error=error)
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
        ! 1. Initialize the topology structure type

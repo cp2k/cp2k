@@ -1,9 +1,7 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
 
 !!****** cp2k/mixed_environment [1.0] *
 !!
@@ -12,9 +10,12 @@
 !!
 !!   FUNCTION
 !!    initialize mixed environment
+!!
 !!   AUTHOR
 !!     fschiff
+!!
 !!   HISTORY
+!!
 !!   SOURCE
 !******************************************************************************
 
@@ -43,8 +44,7 @@ MODULE mixed_environment
   USE kinds,                           ONLY: dp
   USE mixed_energy_types,              ONLY: allocate_mixed_energy,&
                                              mixed_energy_type
-  USE mixed_environment_types,         ONLY: get_mixed_env,&
-                                             mixed_environment_type,&
+  USE mixed_environment_types,         ONLY: mixed_environment_type,&
                                              set_mixed_env
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
@@ -90,6 +90,7 @@ CONTAINS
 !!
 !!   AUTHOR
 !!    fschiff
+!!
 !!   MODIFICATION HISTORY
 !!
 !!   USED BY
@@ -126,7 +127,8 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section
+    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
+                                                subsys_section
 
   CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.
@@ -136,31 +138,28 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
   NULLIFY ( cell_section)
 
-  cell_section => section_vals_get_subs_vals(force_env_section,&
-       "SUBSYS%CELL",error=error)
+  subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+  cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
 
   CALL set_mixed_env(mixed_env,input=force_env_section,error=error)
-
   CALL cp_subsys_create ( subsystem, para_env = para_env, error = error )
 
   ! read colvars and add to subsystem
-  colvar_section => section_vals_get_subs_vals(force_env_section,&
-       "SUBSYS%COLVAR",error=error)
+  colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
   CALL cp_subsys_read_colvar( subsystem, colvar_section, error=error)
 
   CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, error=error,&
        cell_section=cell_section)
   CALL get_cell (cell, abc=abc)
 
-! Print the cell parameters ***
-  CALL write_cell ( cell, force_env_section, cell_ref, error)
+  ! Print the cell parameters ***
+  CALL write_cell ( cell, subsys_section, cell_ref, error)
 
-! topology
-  CALL get_mixed_env (mixed_env, error=error)
-
+  ! Topology
   CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
        subsystem%colvar_p,subsystem%gci,root_section,para_env,globenv,&
-       force_env_section=force_env_section,error=error)
+       force_env_section=force_env_section, subsys_section=subsys_section,&
+       error=error)
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
@@ -173,10 +172,8 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-
   CALL mixed_init_subsys ( mixed_env, subsystem, cell, cell_ref, use_ref_cell, &
-                          force_env_section,&
-                          error )
+                          force_env_section, subsys_section, error )
 
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
@@ -188,8 +185,7 @@ END SUBROUTINE mixed_init
 
 !   ***************************************************************************
   SUBROUTINE mixed_init_subsys ( mixed_env, subsystem, cell, cell_ref, use_ref_cell, &
-                                force_env_section,&
-                                error )
+                                force_env_section, subsys_section, error )
 
 !   Purpose: Read the input and the database files for the setup of the
 !            mixed environment.
@@ -201,7 +197,8 @@ END SUBROUTINE mixed_init
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(IN)                      :: use_ref_cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init_subsys'
@@ -226,14 +223,13 @@ END SUBROUTINE mixed_init
   molecule_set => subsystem % molecules_new % els
   molecule_kind_set => subsystem % molecule_kinds_new % els
 
-! Create the mixed_energy_type
+  ! Create the mixed_energy_type
   CALL allocate_mixed_energy( mixed_energy )
 
-! Print the molecule kind set
-  CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
+  ! Print the molecule kind set
+  CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
-! Distribute molecules and atoms using the new data structures ***
-
+  ! Distribute molecules and atoms using the new data structures ***
   CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
                                  particle_set=particle_set,&
                                  local_particles=local_particles,&
@@ -243,9 +239,7 @@ END SUBROUTINE mixed_init
                                  force_env_section=force_env_section,&
                                  error=error )
 
-! Create ewald grids
-
-! set the mixed_env
+  ! set the mixed_env
   CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsystem, error = error )
   CALL set_mixed_env ( mixed_env=mixed_env,&
                       cell=cell, cell_ref=cell_ref, &

@@ -895,6 +895,14 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"SUBCELL",&
+            description="Activates the printing of the subcells used for the"//&
+            "generation of neighbor lists.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"ao_matrices",&
             description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
             print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&

@@ -268,7 +268,7 @@ CONTAINS
 
     END DO
 
-    output_unit = cp_print_key_unit_nr(logger,kg_env%input,"SUBSYS%PRINT%SUBCELL",&
+    output_unit = cp_print_key_unit_nr(logger,kg_env%input,"DFT%PRINT%SUBCELL",&
          extension=".Log",error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
@@ -618,7 +618,7 @@ CONTAINS
     energy%core_overlap = ecore_overlap
 
     CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
-                                      "SUBSYS%PRINT%SUBCELL",error=error)
+                                      "DFT%PRINT%SUBCELL",error=error)
 
     CALL timestop(0.0_dp,handle)
 

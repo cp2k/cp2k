@@ -21,8 +21,6 @@
 
 MODULE external_potential_types
 
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
@@ -1632,32 +1630,22 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_all_potential(potential,force_env_section,output_unit,error)
+  SUBROUTINE write_all_potential(potential,output_unit,error)
 
     ! Write an atomic all-electron potential data set to the output unit.
 
     ! - Creation (09.02.2002,MK)
 
     TYPE(all_potential_type), POINTER        :: potential
-    TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=20)                        :: string
     TYPE(cp_logger_type), POINTER            :: logger
 
-! -------------------------------------------------------------------------
-
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
-
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-                                              force_env_section,&
-                                              "SUBSYS%PRINT%KINDS/POTENTIAL",&
-                                              error=error),&
-                   cp_p_file)) RETURN
-
     IF (output_unit > 0.AND.ASSOCIATED(potential)) THEN
       WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
         "Potential information for",ADJUSTR(TRIM(potential%name))
@@ -1677,31 +1665,21 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_elp_potential(potential,force_env_section,output_unit,error)
+  SUBROUTINE write_elp_potential(potential,output_unit,error)
 
     ! Write an effective-point-charge potential data set to the output unit.
 
     ! - Creation (24.09.2002,GT)
 
     TYPE(elp_potential_type), POINTER        :: potential
-    TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
 
-! -------------------------------------------------------------------------
-
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
-
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-                                              force_env_section,&
-                                              "SUBSYS%PRINT%KINDS/POTENTIAL",&
-                                              error=error),&
-                   cp_p_file)) RETURN
-
     IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
       WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
         "Potential information for",ADJUSTR(TRIM(potential%name))
@@ -1717,14 +1695,12 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_gth_potential(potential,force_env_section,output_unit,error)
+  SUBROUTINE write_gth_potential(potential,output_unit,error)
 
     ! Write an atomic GTH potential data set to the output unit.
-
     ! - Creation (09.02.2002,MK)
 
     TYPE(gth_potential_type), POINTER        :: potential
-    TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1733,56 +1709,47 @@ CONTAINS
     REAL(KIND=dp)                            :: r
     TYPE(cp_logger_type), POINTER            :: logger
 
-! -------------------------------------------------------------------------
-
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
-
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-                                              force_env_section,&
-                                              "SUBSYS%PRINT%KINDS/POTENTIAL",&
-                                              error=error),&
-                   cp_p_file)) RETURN
-
     IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
-        "Potential information for",ADJUSTR(TRIM(potential%name))
-      WRITE (UNIT=output_unit,FMT="(T8,A,T41,A40)")&
-        "Description: ",ADJUSTR(TRIM(potential%description(1))),&
-        "             ",ADJUSTR(TRIM(potential%description(2))),&
-        "             ",ADJUSTR(TRIM(potential%description(3))),&
-        "             ",ADJUSTR(TRIM(potential%description(4)))
-      WRITE (UNIT=output_unit,FMT="(/,T8,A,T69,F12.6)")&
-        "Gaussian exponent of the core charge distribution: ",&
-        potential%alpha_core_charge
-      WRITE (UNIT=string,FMT="(5I4)") potential%elec_conf
-      WRITE (UNIT=output_unit,FMT="(T8,A,T61,A20)")&
-        "Electronic configuration (s p d ...):",&
-        ADJUSTR(TRIM(string))
+       WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
+            "Potential information for",ADJUSTR(TRIM(potential%name))
+       WRITE (UNIT=output_unit,FMT="(T8,A,T41,A40)")&
+            "Description: ",ADJUSTR(TRIM(potential%description(1))),&
+            "             ",ADJUSTR(TRIM(potential%description(2))),&
+            "             ",ADJUSTR(TRIM(potential%description(3))),&
+            "             ",ADJUSTR(TRIM(potential%description(4)))
+       WRITE (UNIT=output_unit,FMT="(/,T8,A,T69,F12.6)")&
+            "Gaussian exponent of the core charge distribution: ",&
+            potential%alpha_core_charge
+       WRITE (UNIT=string,FMT="(5I4)") potential%elec_conf
+       WRITE (UNIT=output_unit,FMT="(T8,A,T61,A20)")&
+            "Electronic configuration (s p d ...):",&
+            ADJUSTR(TRIM(string))
 
-      r = 1.0_dp/SQRT(2.0_dp*potential%alpha_ppl)
+       r = 1.0_dp/SQRT(2.0_dp*potential%alpha_ppl)
 
-      WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T27,A,/,T21,5F12.6)")&
-        "Parameters of the local part of the GTH pseudopotential:",&
-        "rloc        C1          C2          C3          C4",&
-        r,(potential%cexp_ppl(i)*r**(2*(i-1)),i=1,potential%nexp_ppl)
+       WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T27,A,/,T21,5F12.6)")&
+            "Parameters of the local part of the GTH pseudopotential:",&
+            "rloc        C1          C2          C3          C4",&
+            r,(potential%cexp_ppl(i)*r**(2*(i-1)),i=1,potential%nexp_ppl)
 
-      IF (potential%lppnl > -1) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T20,A,/)")&
-          "Parameters of the non-local part of the GTH pseudopotential:",&
-          "l      r(l)      h(i,j,l)"
-        DO l=0,potential%lppnl
-          r = SQRT(0.5_dp/potential%alpha_ppnl(l))
-          WRITE (UNIT=output_unit,FMT="(T19,I2,5F12.6)")&
-            l,r,(potential%hprj_ppnl(1,j,l),j=1,potential%nprj_ppnl(l))
-          DO i=2,potential%nprj_ppnl(l)
-            WRITE (UNIT=output_unit,FMT="(T33,4F12.6)")&
-              (potential%hprj_ppnl(i,j,l),j=1,potential%nprj_ppnl(l))
+       IF (potential%lppnl > -1) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T20,A,/)")&
+               "Parameters of the non-local part of the GTH pseudopotential:",&
+               "l      r(l)      h(i,j,l)"
+          DO l=0,potential%lppnl
+             r = SQRT(0.5_dp/potential%alpha_ppnl(l))
+             WRITE (UNIT=output_unit,FMT="(T19,I2,5F12.6)")&
+                  l,r,(potential%hprj_ppnl(1,j,l),j=1,potential%nprj_ppnl(l))
+             DO i=2,potential%nprj_ppnl(l)
+                WRITE (UNIT=output_unit,FMT="(T33,4F12.6)")&
+                     (potential%hprj_ppnl(i,j,l),j=1,potential%nprj_ppnl(l))
+             END DO
           END DO
-        END DO
-      END IF
-   END IF
+       END IF
+    END IF
 
   END SUBROUTINE write_gth_potential
 

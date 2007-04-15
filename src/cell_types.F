@@ -702,7 +702,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_cell(cell,force_env_section,cell_ref,error)
+  SUBROUTINE write_cell(cell,subsys_section,cell_ref,error)
 
 !   Purpose: Write the cell parameters to the output unit.
 
@@ -711,7 +711,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -723,7 +723,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%CELL",&
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%CELL",&
          extension=".Log",error=error)
     IF (output_unit>0) THEN
 
@@ -775,8 +775,8 @@ CONTAINS
       ENDIF
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-       "SUBSYS%PRINT%CELL",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+       "PRINT%CELL",error=error)
 
   END SUBROUTINE write_cell
 

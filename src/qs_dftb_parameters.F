@@ -26,6 +26,7 @@ MODULE qs_dftb_parameters
                                              get_unit_number,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -72,13 +73,13 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE qs_dftb_param_init (atomic_kind_set,dftb_control,dftb_potential,&
-                                 force_env_section,para_env,error)
+                                 subsys_section,para_env,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dftb_control_type), INTENT(inout)   :: dftb_control
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), POINTER               :: dftb_potential
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -115,10 +116,10 @@ CONTAINS
     output_unit = -1
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         "SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
-       output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-            "SUBSYS%PRINT%KINDS",extension=".Log",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,subsys_section,&
+         "PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
+       output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+            "PRINT%KINDS",extension=".Log",error=error)
        IF ( output_unit > 0 ) THEN
          WRITE(output_unit,"(/,A)") " DFTB| A set of relativistic DFTB "//&
               "parameters for material sciences."
@@ -141,7 +142,8 @@ CONTAINS
          WRITE(output_unit,"(A,T25,A)") " DFTB| Sc,N,C      :",&
             " M. Krause et al, JCP 115 6596 (2001)"
        END IF
-
+       CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+            "PRINT%KINDS",error=error)
     END IF
 
     sklist = (dftb_control%sk_file_list /= "")

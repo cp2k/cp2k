@@ -79,8 +79,8 @@ MODULE md_run
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_types_new,              ONLY: global_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE shell_potential_types,           ONLY: shell_kind_type
   USE physcon,                         ONLY: kelvin
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: external_control,&
                                              stop_memory
   USE timings,                         ONLY: timeset,&
@@ -215,7 +215,7 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
-    CALL read_md_section ( simpar, root_section, para_env, globenv, subsys_section, error )
+    CALL read_md_section ( simpar, root_section, para_env, globenv, error )
     simpar%info_constraint = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
          extension=".shakeLog",log_filename=.FALSE.,error=error)
@@ -243,7 +243,7 @@ CONTAINS
                           dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
                           cell=cell, cell_ref = cell_ref, virial = virial,&
                           force_env_section=force_env_section, error=error )
-! Define a reference cell for compatibility with MD restarts
+       ! Define a reference cell for compatibility with MD restarts
 
        DO isubsys=1,SIZE(subsys)
           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",i_rep_section=isubsys,&
@@ -319,31 +319,16 @@ CONTAINS
                             shell_particles=shell_particles,&
                             core_particles=core_particles,&
                             error=error)
-!dbg
-! write(*,*) 'part'
-!  do i = 1,12
-!     write(*,*) i, particles%els(i)%r(1:3)/cell%unit_of_length
-!  enddo
-! write(*,*) 'shell'
-!  do i = 1,12
-!     write(*,*) i, shell_particles%els(i)%r(1:3)/cell%unit_of_length
-!  enddo
-! write(*,*) 'core'
-!  do i = 1,12
-!     write(*,*) i, core_particles%els(i)%r(1:3)/cell%unit_of_length
-!  enddo
-!
-!dbg
+
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
               shell_present=shell_present, shell_adiabatic=shell_adiabatic)
          NULLIFY (work_section,work2_section)
-         work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+         work_section  => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
 
          IF(shell_present .AND. shell_adiabatic) THEN
-!!  shell-model with constraint NYI
+            ! shell-model with constraint NYI
            CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,error,failure)
-!!
            work2_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
            CALL initialize_velocities(simpar,particles%els,&
                                       molecule_kinds=molecule_kinds_new,&
@@ -603,10 +588,13 @@ END SUBROUTINE md_output
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
-                                                isubsys, iw, natom, shell_index
+                                                isubsys, iw, natom, &
+                                                shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, is_shell, shell_adiabatic
-    REAL(KIND=dp)                            :: e_kinetic, fac_massc, fac_masss, mass, scale, &
+    LOGICAL                                  :: failure, is_shell, &
+                                                shell_adiabatic
+    REAL(KIND=dp)                            :: e_kinetic, fac_massc, &
+                                                fac_masss, mass, scale, &
                                                 temperature, total_mass, v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -614,9 +602,8 @@ END SUBROUTINE md_output
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: core_particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(shell_kind_type), POINTER           :: shell
 
 ! -------------------------------------------------------------------------

@@ -32,9 +32,7 @@ MODULE atomic_kind_types
        write_gto_basis_set, write_orb_basis_set
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE external_potential_types,        ONLY: &
@@ -69,7 +67,8 @@ MODULE atomic_kind_types
                                              massunit
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: deallocate_dftb_atom_param,&
-                                             get_dftb_atom_param
+                                             get_dftb_atom_param,&
+                                             write_dftb_atom_param
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              deallocate_grid_atom,&
                                              grid_atom_type
@@ -1557,20 +1556,19 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE check_atomic_kind(atomic_kind,dft_control,para_env,&
-                               force_env_section,error)
+  SUBROUTINE check_atomic_kind(atomic_kind,dft_control,para_env,subsys_section,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: method_name_id, z
+    INTEGER                                  :: z
     LOGICAL                                  :: defined, failure, ghost
     REAL(dp)                                 :: mass
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -1580,7 +1578,6 @@ CONTAINS
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     TYPE(semi_empirical_type), POINTER       :: se_parameter
 
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
     CALL get_atomic_kind(atomic_kind,name=name,z=z,mass=mass,&
                          orb_basis_set=orb_basis_set,&
@@ -1588,67 +1585,63 @@ CONTAINS
                          elp_potential=elp_potential,&
                          gth_potential=gth_potential, ghost=ghost)
 
-    IF (method_name_id == do_qs) THEN
-      IF (z < 0) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                     "No valid element is assign to the atomic kind ",para_env)
-      END IF
-      IF (dft_control%qs_control%semi_empirical) THEN
-        CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
-        IF (.NOT.ASSOCIATED(se_parameter)) THEN
+    IF (z < 0) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "No valid element is assign to the atomic kind ",para_env)
+    END IF
+    IF (dft_control%qs_control%semi_empirical) THEN
+       CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
+       IF (.NOT.ASSOCIATED(se_parameter)) THEN
           CALL allocate_se_param(atomic_kind%se_parameter)
           CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
-        END IF
-        CALL get_se_param(se_parameter,defined=defined)
-        IF (.NOT.defined) THEN
+       END IF
+       CALL get_se_param(se_parameter,defined=defined)
+       IF (.NOT.defined) THEN
           ! set default parameters
           CALL se_param_set_default(se_parameter,z,&
-                 dft_control%qs_control%method)
-        END IF
-        CALL write_se_param(se_parameter,force_env_section,error)
-        CALL init_se_param(atomic_kind%se_parameter,&
-                           atomic_kind%orb_basis_set,error=error)
-        IF ( ASSOCIATED(all_potential) ) THEN
-           CALL init_potential ( all_potential, itype="BARE", &
-                zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction)
-           se_parameter%zeff=se_parameter%zeff-all_potential%zeff_correction
-        END IF
-      ELSEIF (dft_control%qs_control%dftb) THEN
-        CALL get_atomic_kind(atomic_kind,dftb_parameter=dftb_parameter)
-        CPPostcondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
-        CALL get_dftb_atom_param(dftb_parameter,defined=defined,error=error)
-        CPPostcondition(defined,cp_failure_level,routineP,error,failure)
-      ELSE
-        IF ((.NOT.ASSOCIATED(gth_potential)).AND.&
+               dft_control%qs_control%method)
+       END IF
+       CALL write_se_param(se_parameter,subsys_section,error)
+       CALL init_se_param(atomic_kind%se_parameter,&
+            atomic_kind%orb_basis_set,error=error)
+       IF ( ASSOCIATED(all_potential) ) THEN
+          CALL init_potential ( all_potential, itype="BARE", &
+               zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction)
+          se_parameter%zeff=se_parameter%zeff-all_potential%zeff_correction
+       END IF
+    ELSEIF (dft_control%qs_control%dftb) THEN
+       CALL get_atomic_kind(atomic_kind,dftb_parameter=dftb_parameter)
+       CPPostcondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
+       CALL get_dftb_atom_param(dftb_parameter,defined=defined,error=error)
+       CPPostcondition(defined,cp_failure_level,routineP,error,failure)
+       CALL write_dftb_atom_param(dftb_parameter,subsys_section,error)
+    ELSE
+       IF ((.NOT.ASSOCIATED(gth_potential)).AND.&
             (.NOT.ASSOCIATED(all_potential)).AND.&
             (.NOT.ASSOCIATED(elp_potential)).AND.&
             (.NOT.ghost)) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-                      "No potential type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
-        END IF
-        IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
+               "No potential type was defined for the "//&
+               "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
+       END IF
+       IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-                      "No basis set type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
-        END IF
-      END IF
-    ELSE IF (method_name_id == do_kg) THEN
-      !no checks programmed yet
+               "No basis set type was defined for the "//&
+               "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
+       END IF
     END IF
 
   END SUBROUTINE check_atomic_kind
 
 ! *****************************************************************************
 
-  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
-                                   force_env_section,error)
+  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,para_env,subsys_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind_set'
@@ -1662,7 +1655,7 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL check_atomic_kind(atomic_kind,dft_control,para_env,force_env_section,error)
+        CALL check_atomic_kind(atomic_kind,dft_control,para_env,subsys_section,error)
       END DO
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1781,7 +1774,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_atomic_kind(atomic_kind,force_env_section,output_unit,error)
+  SUBROUTINE write_atomic_kind(atomic_kind,output_unit,error)
 
 !   Purpose: Write an atomic kind data set to the output unit.
 
@@ -1790,7 +1783,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1811,14 +1803,12 @@ CONTAINS
           atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
           "Number of atoms: ",atomic_kind%natom
 
-        CALL write_orb_basis_set(atomic_kind%orb_basis_set,force_env_section,&
-                                 output_unit,error)
+        CALL write_orb_basis_set(atomic_kind%orb_basis_set,output_unit,error)
 
         IF (atomic_kind%ghost) THEN
           WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
             "The atoms of this atomic kind are GHOST atoms!"
         END IF
-
         IF (atomic_kind%paw_atom) THEN
           WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
             "The atoms of this atomic kind are PAW atoms (GAPW):"
@@ -1827,33 +1817,23 @@ CONTAINS
             "Rho0 radius:",atomic_kind%hard0_radius,&
             "Maximum GTO radius used for PAW projector construction:",&
             atomic_kind%max_rad_local
-          CALL write_orb_basis_set(atomic_kind%soft_basis_set,force_env_section,&
-                                   output_unit,error)
+          CALL write_orb_basis_set(atomic_kind%soft_basis_set,output_unit,error)
         END IF
-
-        CALL write_aux_basis_set(atomic_kind%aux_basis_set,force_env_section,&
-                                 output_unit,error)
-
-        CALL write_potential(atomic_kind%all_potential,force_env_section,&
-                             output_unit,error)
-        CALL write_potential(atomic_kind%elp_potential,force_env_section,&
-                             output_unit,error)
-        CALL write_potential(atomic_kind%gth_potential,force_env_section,&
-                             output_unit,error)
-
+        CALL write_aux_basis_set(atomic_kind%aux_basis_set,output_unit,error)
+        ! Potentials
+        CALL write_potential(atomic_kind%all_potential,output_unit,error)
+        CALL write_potential(atomic_kind%elp_potential,output_unit,error)
+        CALL write_potential(atomic_kind%gth_potential,output_unit,error)
       ELSE
-
         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-
       END IF
-
     END IF
 
   END SUBROUTINE write_atomic_kind
 
   ! ***************************************************************************
 
-  SUBROUTINE write_atomic_kind_set(atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_atomic_kind_set(atomic_kind_set,subsys_section,error)
 
     ! Write an atomic kind set data set to the output unit.
 
@@ -1861,7 +1841,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind_set', &
@@ -1872,16 +1852,11 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
 
-! -------------------------------------------------------------------------
-
     failure = .FALSE.
-
     NULLIFY (logger)
-
     logger => cp_error_get_logger(error)
-
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-                                       "SUBSYS%PRINT%KINDS",extension=".Log",&
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+                                       "PRINT%KINDS",extension=".Log",&
                                        error=error)
     IF (output_unit > 0) THEN
       IF (ASSOCIATED(atomic_kind_set)) THEN
@@ -1889,21 +1864,21 @@ CONTAINS
         nkind = SIZE(atomic_kind_set)
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL write_atomic_kind(atomic_kind,force_env_section,output_unit,error)
+          CALL write_atomic_kind(atomic_kind,output_unit,error)
         END DO
       ELSE
         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
       END IF
     END IF
 
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-                                      "SUBSYS%PRINT%KINDS",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+                                      "PRINT%KINDS",error=error)
 
   END SUBROUTINE write_atomic_kind_set
 
   ! ***************************************************************************
 
-  SUBROUTINE write_gto_basis_sets(atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_gto_basis_sets(atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write all the GTO basis sets of an atomic kind set to the output
 !            unit (for the printing of the unnormalized basis sets as read from
@@ -1915,7 +1890,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
@@ -1926,23 +1901,12 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
 
-! -------------------------------------------------------------------------
-
     failure = .FALSE.
-
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
-
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-                                              force_env_section,&
-                                              "SUBSYS%PRINT%KINDS/BASIS_SET",&
-                                              error=error),&
-                   cp_p_file)) RETURN
-
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-                                       "SUBSYS%PRINT%KINDS/BASIS_SET",&
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+                                       "PRINT%KINDS/BASIS_SET",&
                                        extension=".Log",error=error)
-
     IF (output_unit > 0) THEN
       IF (ASSOCIATED(atomic_kind_set)) THEN
         WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
@@ -1958,14 +1922,14 @@ CONTAINS
                                    output_unit,error)
           CALL write_gto_basis_set(atomic_kind%soft_basis_set,&
                                    output_unit,error)
-        END DO
+       END DO
       ELSE
         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
       END IF
     END IF
 
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%KINDS/BASIS_SET",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%KINDS/BASIS_SET",error=error)
 
   END SUBROUTINE write_gto_basis_sets
 

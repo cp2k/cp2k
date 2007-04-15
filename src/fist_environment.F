@@ -22,7 +22,7 @@ MODULE fist_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
@@ -77,7 +77,8 @@ MODULE fist_environment
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_fist_particle_coordinates,&
-                                             write_particle_distances
+                                             write_particle_distances,&
+                                             write_structure_data
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -117,20 +118,23 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_section, error )
+SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_section,&
+     subsys_section, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init'
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure, qmmm, use_ref_cell
-    LOGICAL                                  :: shell_present, shell_adiabatic
+    LOGICAL                                  :: failure, qmmm, &
+                                                shell_adiabatic, &
+                                                shell_present, use_ref_cell
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -146,13 +150,12 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles,&
-                                                shell_particles, &
-                                                core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set,&
-                                                shell_particle_set, &
-                                                core_particle_set
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 ewald_section, mm_section, &
@@ -167,15 +170,13 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, &
             poisson_section, shell_particle_set, shell_particles, &
             core_particle_set, core_particles)
-
-  mm_section => section_vals_get_subs_vals(force_env_section,&
-       "MM",error=error)
-  cell_section => section_vals_get_subs_vals(force_env_section,&
-       "SUBSYS%CELL",error=error)
-  poisson_section => section_vals_get_subs_vals(force_env_section,&
-       "MM%POISSON",error=error)
-  ewald_section => section_vals_get_subs_vals(force_env_section,&
-       "MM%POISSON%EWALD",error=error)
+  IF (.NOT.ASSOCIATED(subsys_section)) THEN
+     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+  END IF
+  mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
+  cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+  poisson_section => section_vals_get_subs_vals(mm_section,"POISSON",error=error)
+  ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
 
   CALL set_fist_env(fist_env,input=force_env_section,error=error)
 
@@ -188,36 +189,35 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL cp_subsys_create ( subsystem, para_env = para_env, error = error )
 
   ! read colvars and add to subsystem
-  colvar_section => section_vals_get_subs_vals(force_env_section,&
-       "SUBSYS%COLVAR",error=error)
+  colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
   CALL cp_subsys_read_colvar( subsystem, colvar_section, error=error)
 
   CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, error=error,&
        cell_section=cell_section)
   CALL get_cell (cell, abc=abc)
 
-! Print the cell parameters ***
-  CALL write_cell ( cell, force_env_section, cell_ref, error)
+  ! Print the cell parameters
+  CALL write_cell ( cell, subsys_section, cell_ref, error)
 
-! Create the ewald environment
+  ! Create the ewald environment
   CALL ewald_env_create ( ewald_env, para_env, error )
 
-! Read the input section and set the ewald_env ***
+  ! Read the input section and set the ewald_env
   CALL read_ewald_section ( ewald_env, ewald_section,error )
   CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
-! topology
   CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
-
+  ! Topology
   CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
        subsystem%colvar_p, subsystem%gci, root_section, para_env, globenv,qmmm=qmmm,&
-       qmmm_env=qmmm_env, force_env_section=force_env_section,error=error)
+       qmmm_env=qmmm_env, force_env_section=force_env_section,subsys_section=subsys_section,&
+       error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&
                              ewald_env, fist_nonbond_env, root_section, para_env, globenv, qmmm=qmmm,&
-                             qmmm_env=qmmm_env, force_env_section=force_env_section, &
-                             shell_particle_set=shell_particle_set, &
+                             qmmm_env=qmmm_env, subsys_section=subsys_section,&
+                             mm_section=mm_section, shell_particle_set=shell_particle_set, &
                              core_particle_set=core_particle_set, cell=cell, error=error )
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
@@ -251,7 +251,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
   CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
                           fist_nonbond_env, ewald_env, force_env_section,&
-                          error )
+                          subsys_section,error )
 
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
@@ -266,7 +266,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 !   ***************************************************************************
   SUBROUTINE fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
                                 fist_nonbond_env, ewald_env, force_env_section,&
-                                error )
+                                subsys_section, error )
 
 !   Purpose: Read the input and the database files for the setup of the
 !            FIST environment.
@@ -280,7 +280,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     LOGICAL, INTENT(IN)                      :: use_ref_cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init_subsys'
@@ -311,14 +312,14 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL allocate_fist_energy( thermo )
 
 ! Print the molecule kind set
-  CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
+  CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
 ! Print the atomic coordinates
-  CALL write_fist_particle_coordinates(particle_set,cell,force_env_section,error)
-  CALL write_particle_distances(particle_set,cell,force_env_section,error)
+  CALL write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
+  CALL write_particle_distances(particle_set,cell,subsys_section,error)
+  CALL write_structure_data(particle_set, cell=cell, subsys_section=subsys_section, error=error)
 
 ! Distribute molecules and atoms using the new data structures ***
-
   CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
                                  particle_set=particle_set,&
                                  local_particles=local_particles,&

@@ -153,28 +153,25 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, istat, iw, &
-      maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
-      output_unit, jkind
+      jkind, maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, &
+      nkind, output_unit
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
-    LOGICAL :: all_pairs_list, all_potential_present, cls, &
-      gth_potential_present, mic, molecule_only, nmr, epr, paw_atom, & !R 
+    LOGICAL :: all_pairs_list, all_potential_present, cls, epr, &
+      gth_potential_present, mic, molecule_only, nmr, paw_atom, &
       paw_atom_present, print_subcell_grid, rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, oce_present, &
       orb_present, ppl_present, ppnl_present, Qlm_present, semi_present
-    REAL(dp)                                 :: r_skin, rcprj, alpha
+    REAL(dp)                                 :: alpha, r_skin, rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, c_radius, oce_radius, &
       orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius, &
       V0hmv0s_radius
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: ab_radius
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ab_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
-    TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), &
-      POINTER                                :: dftb_potential
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
@@ -194,9 +191,13 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
+    TYPE(qs_dftb_pairpot_type), &
+      DIMENSION(:, :), POINTER               :: dftb_potential
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
 
+!R 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
@@ -229,7 +230,7 @@ CONTAINS
     print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger=logger,&
                                        basis_section=force_env_section,&
-                                       print_key_path="SUBSYS%PRINT%SUBCELL",&
+                                       print_key_path="DFT%PRINT%SUBCELL",&
                                        extension=".Log",&
                                        error=error)
     IF (output_unit > 0) print_subcell_grid = .TRUE.
@@ -938,7 +939,7 @@ CONTAINS
                                          "c_radius",nkind*dp_size)
         CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
         CALL ewald_env_get ( ewald_env, alpha=alpha )
-        c_radius = 0.5_dp*SQRT(-log(3.5_dp*alpha**3*1.e-12_dp))/alpha
+        c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
         CALL build_neighbor_lists(sac_3c,atom,cell,r_skin,maxatom_local,&
                                   .FALSE.,output_unit,orb_present,orb_present,&
                                   c_radius,c_radius,mic=mic,name="EWALD OVERLAP")
@@ -1221,7 +1222,7 @@ CONTAINS
     CALL cp_print_key_finished_output(unit_nr=output_unit,&
                                       logger=logger,&
                                       basis_section=force_env_section,&
-                                      print_key_path="SUBSYS%PRINT%SUBCELL",&
+                                      print_key_path="DFT%PRINT%SUBCELL",&
                                       error=error)
 
     CALL timestop(0.0_dp,handle)
@@ -1253,7 +1254,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
-    REAL(dp), DIMENSION(:,:), INTENT(IN), &
+    REAL(dp), DIMENSION(:, :), INTENT(IN), &
       OPTIONAL                               :: pair_radius
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic, &

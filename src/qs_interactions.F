@@ -79,7 +79,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,&
-                                    force_env_section,error)
+                                    subsys_section,error)
 
 !   Purpose: Initialize all the atomic kind radii for a given threshold value.
 
@@ -91,7 +91,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_interaction_radii'
@@ -446,25 +446,25 @@ CONTAINS
       END IF
     END DO  ! ikind
 
-    IF (p_orb)  CALL write_pgf_orb_radii("orb",cell,atomic_kind_set,force_env_section,error)
-    IF (p_aux)  CALL write_pgf_orb_radii("aux",cell,atomic_kind_set,force_env_section,error)
-    IF (p_ccr)  CALL write_core_charge_radii(cell,atomic_kind_set,force_env_section,error)
-    IF (p_ppl)  CALL write_ppl_radii(cell,atomic_kind_set,force_env_section,error)
-    IF (p_ppnl) CALL write_ppnl_radii(cell,atomic_kind_set,force_env_section,error)
-    IF (p_paw)  CALL write_paw_radii(cell,atomic_kind_set,force_env_section,error)
+    IF (p_orb)  CALL write_pgf_orb_radii("orb",cell,atomic_kind_set,subsys_section,error)
+    IF (p_aux)  CALL write_pgf_orb_radii("aux",cell,atomic_kind_set,subsys_section,error)
+    IF (p_ccr)  CALL write_core_charge_radii(cell,atomic_kind_set,subsys_section,error)
+    IF (p_ppl)  CALL write_ppl_radii(cell,atomic_kind_set,subsys_section,error)
+    IF (p_ppnl) CALL write_ppnl_radii(cell,atomic_kind_set,subsys_section,error)
+    IF (p_paw)  CALL write_paw_radii(cell,atomic_kind_set,subsys_section,error)
 
   END SUBROUTINE init_interaction_radii
 
 ! *****************************************************************************
   SUBROUTINE init_se_nlradius(se_control,cell,atomic_kind_set,&
-                   force_env_section,error)
+                   subsys_section,error)
 
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_se_nlradius'
@@ -501,18 +501,18 @@ CONTAINS
 
     END DO
 
-    CALL write_kind_radii(cell,atomic_kind_set,force_env_section,error)
+    CALL write_kind_radii(cell,atomic_kind_set,subsys_section,error)
 
   END SUBROUTINE init_se_nlradius
 
 ! *****************************************************************************
 
-  SUBROUTINE write_kind_radii(cell,atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_kind_radii(cell,atomic_kind_set,subsys_section,error)
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=10)                        :: bas
@@ -536,8 +536,8 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
 !   *** Print the kind radii ***
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/KIND_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/KIND_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
         "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
@@ -558,14 +558,14 @@ CONTAINS
         END IF
       END DO
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/KIND_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/KIND_RADII",error=error)
 
   END SUBROUTINE write_kind_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the radii of the core charge distributions to the output
 !            unit.
@@ -577,7 +577,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
@@ -593,8 +593,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/CORE_CHARGE_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/CORE_CHARGE_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
        CALL get_cell(cell=cell,&
                      unit_of_length=unit_of_length,&
@@ -628,13 +628,13 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/CORE_CHARGE_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/CORE_CHARGE_RADII",error=error)
   END SUBROUTINE write_core_charge_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_pgf_orb_radii(basis,cell,atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_pgf_orb_radii(basis,cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the orbital basis function radii to the output unit.
 
@@ -646,7 +646,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=10)                        :: bas
@@ -685,8 +685,8 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
 !   *** Print the kind radii ***
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/KIND_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/KIND_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T46,A,T53,A,T63,A,T72,A)")&
         "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
@@ -724,12 +724,12 @@ CONTAINS
         END IF
       END DO
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/KIND_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/KIND_RADII",error=error)
 
 !   *** Print the shell set radii ***
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/SET_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/SET_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
         "RADII: SHELL SETS OF "//TRIM(bas)//" BASIS in "//&
@@ -766,11 +766,11 @@ CONTAINS
         END IF
       END DO
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/SET_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/SET_RADII",error=error)
 !   *** Print the primitive Gaussian function radii ***
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/PGF_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/PGF_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
         "RADII: PRIMITIVE GAUSSIANS OF "//TRIM(bas)//" BASIS in "//&
@@ -812,13 +812,13 @@ CONTAINS
         END IF
       END DO
    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/PGF_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/PGF_RADII",error=error)
   END SUBROUTINE write_pgf_orb_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_ppl_radii(cell,atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_ppl_radii(cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the radii of the exponential functions of the Goedecker
 !            pseudopotential (GTH, local part) to the logical unit number
@@ -831,7 +831,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
@@ -845,8 +845,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/GTH_PPL_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/GTH_PPL_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
@@ -874,13 +874,13 @@ CONTAINS
         END IF
       END DO
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/GTH_PPL_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/GTH_PPL_RADII",error=error)
   END SUBROUTINE write_ppl_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the radii of the projector functions of the Goedecker
 !            pseudopotential (GTH, non-local part) to the logical unit number
@@ -893,7 +893,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
@@ -906,8 +906,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/GTH_PPNL_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/GTH_PPNL_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
@@ -929,12 +929,12 @@ CONTAINS
         END IF
       END DO
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/GTH_PPNL_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/GTH_PPNL_RADII",error=error)
   END SUBROUTINE write_ppnl_radii
 
 ! *****************************************************************************
-  SUBROUTINE write_paw_radii(cell,atomic_kind_set,force_env_section,error)
+  SUBROUTINE write_paw_radii(cell,atomic_kind_set,subsys_section,error)
   
 !   Purpose: Write the radii of the one center projector 
 
@@ -943,7 +943,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
@@ -957,8 +957,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/GAPW_PRJ_RADII",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%RADII/GAPW_PRJ_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
        CALL get_cell(cell=cell,&
             unit_of_length=unit_of_length,&
@@ -981,8 +981,8 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%RADII/GAPW_PRJ_RADII",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%RADII/GAPW_PRJ_RADII",error=error)
   END SUBROUTINE write_paw_radii
 
 
@@ -1014,17 +1014,17 @@ CONTAINS
     INTEGER, OPTIONAL                        :: o1, o2
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rb(3), rp(3), zetp, &
                                                 eps, prefactor, cutoff
-    REAL(KIND=dp)                            :: radius, rad_a, rad_b
+    REAL(KIND=dp)                            :: radius
 
-    INTEGER                                  :: d, i, ico, j, jco, k, la(3), &
-                                                lb(3), lxa, lxb, lya, lyb, &
-                                                lza, lzb
+    INTEGER                                  :: i, ico, j, jco, la(3), lb(3), &
+                                                lxa, lxb, lya, lyb, lza, lzb
     REAL(KIND=dp)                            :: bini, binj, coef(0:20), &
                                                 polycoef(0:60), &
-                                                prefactor_local, s1, s2
+                                                prefactor_local, rad_a, &
+                                                rad_b, s1, s2
 
+! get the local prefactor, we'll now use the largest density matrix element of the block to screen
 
-    ! get the local prefactor, we'll now use the largest density matrix element of the block to screen
     IF (PRESENT(pab)) THEN
        prefactor_local=cutoff
        DO lxa=0,la_max

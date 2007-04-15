@@ -113,23 +113,18 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
                                                 my_pos, remark1, remark2, &
                                                 title
-    INTEGER                                  :: box, crd, cocrd, cofrc, covel, &
-                                                delta_t, ene, &
-                                                ener_mix, frc, handle, i, &
-                                                iskip, isubsys, iw, nat, nshell, &
-                                                shcrd, shene, shfrc, shvel, str, &
-                                                vel
+    INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
+      handle, i, iskip, isubsys, iw, nat, nshell, shcrd, shene, shfrc, shvel, &
+      str, vel
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: init, init_coforce, init_cotraj, &
-                                                init_covel, init_force, init_traj, &
-                                                init_vel, init_shtraj, &
-                                                init_shforce, init_shvel, &
-                                                is_mixed, qmmm, &
-                                                shell_adiabatic, shell_present
+    LOGICAL :: init, init_coforce, init_cotraj, init_covel, init_force, &
+      init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
+      qmmm, shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
-    REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, ekin_shell, epot, &
-      harm_shell, hugoniot, temp, temp_baro, temp_coefs, temp_qm, temp_shell
+    REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, &
+      ekin_shell, epot, harm_shell, hugoniot, temp, temp_baro, temp_coefs, &
+      temp_qm, temp_shell
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
     TYPE(average_quantities_type), SAVE      :: averages
@@ -140,9 +135,8 @@ CONTAINS
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: core_particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 motion_section, root_section
     TYPE(simulation_parameters_type), &
@@ -608,7 +602,7 @@ CONTAINS
        !------------------
        ! Print Coordinates
        !------------------
-       CALL write_structure_data(particles%els,cell,force_env_section,error)
+       CALL write_structure_data(particles%els,cell,motion_section,error)
        IF ( crd > 0 ) THEN
           IF(simpar%output_format==dump_dcd) THEN
              IF ( init_traj ) THEN

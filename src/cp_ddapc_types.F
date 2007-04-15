@@ -236,6 +236,7 @@ CONTAINS
 !!
 !!
 !!   AUTHOR
+!!     Teodoro Laino - [tlaino]
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -273,6 +274,7 @@ CONTAINS
 !!
 !!
 !!   AUTHOR
+!!     Teodoro Laino - [tlaino]
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -350,17 +352,19 @@ CONTAINS
 !!
 !!
 !!   AUTHOR
+!!     Teodoro Laino - [tlaino]
 !!
 !!   MODIFICATION HISTORY
 !!     none
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,qm_cell,&
-       force_env_section, para_env, error)
+       force_env_section, subsys_section, para_env, error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
     LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic
     TYPE(cell_type), POINTER                 :: qm_cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -370,15 +374,15 @@ CONTAINS
     INTEGER                                  :: my_val, npts(3), output_unit, &
                                                 stat
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL :: analyt, decoupling, do_qmmm_periodic, do_restraint,do_restraintB, &
-      do_solvation, explicit, failure, ionode
+    LOGICAL :: analyt, decoupling, do_qmmm_periodic, do_restraint, &
+      do_restraintB, do_solvation, explicit, failure, ionode
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: cell_section, grid_print_section, &
       multipole_section, poisson_section, printC_section, qmmm_per_section, &
-      restraint_section, solvation_section,restraint_sectionB
+      restraint_section, restraint_sectionB, solvation_section
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
@@ -463,7 +467,7 @@ CONTAINS
           NULLIFY(LG, gx, gy, gz)
           IF (cp_ddapc_ewald%do_qmmm_periodic) THEN
              NULLIFY(mm_cell, dummy_cell)
-             cell_section => section_vals_get_subs_vals(force_env_section,"SUBSYS%CELL",error=error)
+             cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
              CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, error=error)
              hmat = mm_cell%hmat
              CALL eval_lg(multipole_section, hmat, mm_cell%deth, LG, gx, gy, gz, error)
@@ -488,7 +492,28 @@ CONTAINS
     END IF
   END SUBROUTINE cp_ddapc_ewald_create
 
-
+!***************************************************************************
+!!****f* cp_ddapc_types/eval_lg [1.0] *
+!!
+!!   NAME
+!!     eval_lg
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!
+!!   AUTHOR
+!!     Teodoro Laino - [tlaino]
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   SUBROUTINE eval_lg(multipole_section, hmat, deth, LG, gx, gy, gz, error)
     TYPE(section_vals_type), POINTER         :: multipole_section
     REAL(KIND=dp), INTENT(IN)                :: hmat(3,3), deth
@@ -566,6 +591,7 @@ CONTAINS
 !!
 !!
 !!   AUTHOR
+!!     Teodoro Laino - [tlaino]
 !!
 !!   MODIFICATION HISTORY
 !!     none

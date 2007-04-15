@@ -48,9 +48,11 @@ MODULE force_env_types
                                              fp_type
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
-  USE input_section_types,             ONLY: section_vals_release,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_release,&
                                              section_vals_retain,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_release,&
@@ -110,7 +112,8 @@ MODULE force_env_types
             force_env_set,&
             force_env_get,&
             force_env_pos_get,&
-            force_env_get_natom
+            force_env_get_natom,&
+            multiple_fe_list
 
 !!***
 !******************************************************************************
@@ -403,9 +406,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
-                                                kinetic_energy
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: harmonic_shell, &
-                                                kinetic_shell
+                                                kinetic_energy, &
+                                                harmonic_shell, kinetic_shell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
@@ -860,6 +862,65 @@ FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
   END IF
 END FUNCTION force_env_get_natom
 !***************************************************************************
+
+!!****f* force_env_types/multiple_fe_list *
+!!
+!!   NAME
+!!     multiple_fe_list
+!!
+!!   FUNCTION
+!!     returns the order of the multiple force_env
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - force_env: the force_env you what information about
+!!     - natom: the numer of atoms
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
+    TYPE(section_vals_type), POINTER         :: force_env_sections, &
+                                                root_section
+    INTEGER, DIMENSION(:), POINTER           :: i_force_eval
+    INTEGER                                  :: nforce_eval
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'multiple_fe_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iforce_eval, main_force_eval, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
+    LOGICAL                                  :: failure
+
+  ! Let's treat the case of Multiple force_eval
+  CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+  CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
+       i_vals=my_i_force_eval,ignore_required=.TRUE.,error=error)
+  ALLOCATE(i_force_eval(nforce_eval),stat=stat)
+  CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  IF (nforce_eval>0) THEN
+     IF (nforce_eval==SIZE(my_i_force_eval)) THEN
+        i_force_eval                = my_i_force_eval
+     ELSE
+        ! The difference in the amount of defined force_env MUST be one..
+        CPPostcondition(nforce_eval-SIZE(my_i_force_eval)==1,cp_fatal_level,routineP,error,failure)
+        DO iforce_eval = 1, nforce_eval
+           IF (ANY(my_i_force_eval==iforce_eval)) CYCLE
+           main_force_eval = iforce_eval
+           EXIT
+        END DO
+        i_force_eval(1)             = main_force_eval
+        i_force_eval(2:nforce_eval) = my_i_force_eval
+     END IF
+  END IF
+END SUBROUTINE multiple_fe_list
 
 END MODULE force_env_types
 

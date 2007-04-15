@@ -21,8 +21,6 @@
 MODULE basis_set_types
 
   USE ai_coulomb,                      ONLY: coulomb2
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
@@ -1161,8 +1159,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_aux_basis_set(aux_basis_set,force_env_section,output_unit,&
-                                 error)
+  SUBROUTINE write_aux_basis_set(aux_basis_set,output_unit,error)
 
     ! Write an auxiliary Gaussian-type orbital (GTO) basis set data set to the
     ! output unit.
@@ -1170,25 +1167,15 @@ CONTAINS
     ! - Creation (09.01.2002,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
-! -------------------------------------------------------------------------
-
     NULLIFY (logger)
 
     logger => cp_error_get_logger(error)
-
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-                                              force_env_section,&
-                                              "SUBSYS%PRINT%KINDS/BASIS_SET",&
-                                              error=error),&
-                   cp_p_file)) RETURN
-
     IF (ASSOCIATED(aux_basis_set).AND.(output_unit>0)) THEN
 
        WRITE (UNIT=output_unit,FMT="(/,T8,A,T31,A30)")&
@@ -1230,7 +1217,6 @@ CONTAINS
            END DO
          END DO
        END DO
-
     END IF
 
   END SUBROUTINE write_aux_basis_set
@@ -1277,8 +1263,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_orb_basis_set(orb_basis_set,force_env_section,output_unit,&
-                                 error)
+  SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,error)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
     ! unit.
@@ -1286,25 +1271,14 @@ CONTAINS
     ! - Creation (09.01.2002,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
-! -------------------------------------------------------------------------
-
     NULLIFY(logger)
-
     logger => cp_error_get_logger(error)
-
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-                                              force_env_section,&
-                                              "SUBSYS%PRINT%KINDS/BASIS_SET",&
-                                              error=error),&
-                   cp_p_file)) RETURN
-
     IF (ASSOCIATED(orb_basis_set).AND.(output_unit>0)) THEN
       WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
         "Orbital basis set information for",TRIM(orb_basis_set%name)
@@ -1342,7 +1316,6 @@ CONTAINS
            END DO
          END DO
        END DO
-
     END IF
 
   END SUBROUTINE write_orb_basis_set

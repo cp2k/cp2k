@@ -30,6 +30,7 @@ MODULE environment
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
+  USE force_env_types,                 ONLY: multiple_fe_list
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
@@ -498,7 +499,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     INTEGER                                  :: iforce_eval, method_name_id, &
                                                 nforce_eval, num_threads, &
                                                 output_unit, print_level
-    LOGICAL                                  :: ata, failure, trace, trace_sync
+    INTEGER, DIMENSION(:), POINTER           :: i_force_eval
+    LOGICAL                                  :: ata, explicit, failure, &
+                                                trace, trace_sync
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
@@ -509,7 +512,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
     failure = .FALSE.
     trace = .FALSE.
-    NULLIFY(dft_section,global_section)
+    NULLIFY(dft_section,global_section, i_force_eval)
 
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
@@ -569,13 +572,12 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 !$omp end parallel
     IF (output_unit > 0 ) THEN
       WRITE (UNIT=output_unit,FMT=*)
+      CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
       DO iforce_eval = 1, nforce_eval
          dft_section => section_vals_get_subs_vals3(force_env_sections,"DFT",&
-              i_rep_section=iforce_eval,error=error)
+              i_rep_section=i_force_eval(iforce_eval),error=error)
          qmmm_section => section_vals_get_subs_vals3(force_env_sections,"QMMM",&
-              i_rep_section=iforce_eval,error=error)
-         subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-              i_rep_section=iforce_eval,error=error)
+              i_rep_section=i_force_eval(iforce_eval),error=error)
          CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
               c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
          CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
@@ -584,9 +586,15 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
               c_val=restart_file_name , ignore_required=.TRUE., error=error)
          CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
               c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
-         CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
-              c_val=coord_file_name, ignore_required=.TRUE., error=error)
-         CALL integer_to_string(iforce_eval,env_num)
+         ! SUBSYS - If any
+         subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+              i_rep_section=i_force_eval(iforce_eval),error=error)
+         CALL section_vals_get(subsys_section, explicit=explicit, error=error)
+         IF (explicit) THEN 
+            CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
+                 c_val=coord_file_name, ignore_required=.TRUE., error=error)
+         END IF
+         CALL integer_to_string(i_force_eval(iforce_eval),env_num)
 
          WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
               start_section_label//"| Force Environment number",&
@@ -603,17 +611,17 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
               ADJUSTR(coord_file_name(:40))
 
       END DO
-
-
- WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
-        start_section_label//"| Method name",&
-        ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
-        start_section_label//"| Project name",&
-        ADJUSTR(globenv%project_name(:40)),&
-        start_section_label//"| Default FFT library",&
-        ADJUSTR(globenv%default_fft_library(:40)),&
-        start_section_label//"| Run type",&
-        ADJUSTR(run_type_names(globenv%run_type_id)(:40))
+      DEALLOCATE(i_force_eval)
+      
+      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+           start_section_label//"| Method name",&
+           ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
+           start_section_label//"| Project name",&
+           ADJUSTR(globenv%project_name(:40)),&
+           start_section_label//"| Default FFT library",&
+           ADJUSTR(globenv%default_fft_library(:40)),&
+           start_section_label//"| Run type",&
+           ADJUSTR(run_type_names(globenv%run_type_id)(:40))
 
       CALL section_vals_val_get(global_section,"ALLTOALL_SGL",l_val=ata,error=error)
       WRITE (UNIT=output_unit,FMT="(T2,A,T80,L1)")&

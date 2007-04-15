@@ -1051,7 +1051,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_molecule_kind_set(molecule_kind_set,force_env_section,error)
+  SUBROUTINE write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
 !   Purpose: Write a moleculeatomic kind set data set to the output unit.
 
@@ -1061,7 +1061,7 @@ CONTAINS
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set', &
@@ -1078,8 +1078,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%MOLECULES",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
+         "PRINT%MOLECULES",extension=".Log",error=error)
     IF (output_unit>0) THEN
       IF (ASSOCIATED(molecule_kind_set)) THEN
         WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "MOLECULE KIND INFORMATION"
@@ -1119,8 +1119,8 @@ CONTAINS
       END IF
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%MOLECULES",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+         "PRINT%MOLECULES",error=error)
   END SUBROUTINE write_molecule_kind_set
 
 ! *****************************************************************************

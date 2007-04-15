@@ -113,12 +113,14 @@ CONTAINS
 !!     03.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE eip_init(eip_env, root_section, para_env, globenv, force_env_section, error)
+  SUBROUTINE eip_init(eip_env, root_section, para_env, globenv, force_env_section,&
+       subsys_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init', &
@@ -157,12 +159,12 @@ CONTAINS
               particle_set, atomic_kind_set, particles, molecules, &
               molecule_kinds, atomic_kinds)
 
-      cell_section => section_vals_get_subs_vals(force_env_section,&
-                                                 "SUBSYS%CELL", error=error)
-      colvar_section => section_vals_get_subs_vals(force_env_section, &
-                                                   "SUBSYS%COLVAR", error=error)
-      eip_section => section_vals_get_subs_vals(force_env_section, &
-                                                 "EIP", error=error)
+      IF (.NOT.ASSOCIATED(subsys_section)) THEN
+         subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+      END IF
+      cell_section => section_vals_get_subs_vals(subsys_section,"CELL", error=error)
+      colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR", error=error)
+      eip_section => section_vals_get_subs_vals(force_env_section,"EIP", error=error)
 
       CALL eip_env_set(eip_env=eip_env, eip_input=eip_section, &
                        force_env_input=force_env_section, error=error)
@@ -171,7 +173,7 @@ CONTAINS
                      use_ref_cell=use_ref_cell, cell_section=cell_section, &
                      error=error)
       CALL get_cell(cell=cell, abc=abc)
-      CALL write_cell(cell=cell, force_env_section=force_env_section,error=error)
+      CALL write_cell(cell=cell, subsys_section=subsys_section,error=error)
 
       CALL cp_subsys_create(subsystem, para_env=para_env, error=error)
       CALL cp_subsys_read_colvar(subsys=subsystem, colvar_section=colvar_section, &
@@ -179,7 +181,8 @@ CONTAINS
 
       CALL topology_control(atomic_kind_set, particle_set,molecule_kind_set,&
            molecule_set, subsystem%colvar_p, subsystem%gci, root_section, &
-           para_env, globenv, force_env_section=force_env_section,error=error)
+           para_env, globenv, force_env_section=force_env_section,&
+           subsys_section=subsys_section, error=error)
 
       CALL particle_list_create(particles, els_ptr=particle_set, error=error)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set, error=error)
@@ -195,7 +198,7 @@ CONTAINS
 
       CALL eip_init_subsys(eip_env=eip_env, subsystem=subsystem, cell=cell, &
                            cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
-                           error=error)
+                           subsys_section=subsys_section,error=error)
 
       CALL cell_release(cell, error=error)
       CALL cell_release(cell_ref, error=error)
@@ -235,11 +238,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE eip_init_subsys(eip_env, subsystem, cell, cell_ref, &
-                             use_ref_cell, error)
+                             use_ref_cell, subsys_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_subsys', &
@@ -273,22 +277,22 @@ CONTAINS
     molecule_set => subsystem%molecules_new%els
 
 !   *** Print the atomic kind set ***
-    CALL write_atomic_kind_set(atomic_kind_set, eip_env%force_env_input, &
+    CALL write_atomic_kind_set(atomic_kind_set, subsys_section, &
                                error=error)
 
 !   *** Print the molecule kind set ***
-    CALL write_molecule_kind_set(molecule_kind_set, eip_env%force_env_input, &
+    CALL write_molecule_kind_set(molecule_kind_set, subsys_section, &
                                  error=error)
 
 !   *** Print the atomic coordinates 
     CALL write_qs_particle_coordinates(particle_set, cell=cell, &
-                                       force_env_section=eip_env%force_env_input, &
+                                       subsys_section=subsys_section, &
                                        error=error)
     CALL write_particle_distances(particle_set, cell=cell, &
-                                  force_env_section=eip_env%force_env_input, &
+                                  subsys_section=subsys_section, &
                                   error=error)
     CALL write_structure_data(particle_set, cell=cell, &
-                              force_env_section=eip_env%force_env_input, &
+                              subsys_section=subsys_section, &
                               error=error)
 
 !   *** Distribute molecules and atoms using the new data structures ***

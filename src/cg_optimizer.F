@@ -25,7 +25,6 @@ MODULE cg_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE bfgs_optimizer,                  ONLY: check_converg,&
                                              write_cycle_infos
-  USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -42,16 +41,14 @@ MODULE cg_optimizer
                                              gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates,&
-                                             write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_structure_data
+                                             write_particle_coordinates
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -104,7 +101,6 @@ CONTAINS
     INTEGER                                  :: handle, ihandle, output_unit
     LOGICAL                                  :: failure, ionode
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
@@ -112,7 +108,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: motion_section, root_section
 
     CALL timeset(routineN,"I","",handle)
     para_env=>force_env%para_env
@@ -121,13 +117,13 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     failure = .FALSE.
     IF (.NOT.failure) THEN
+       motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        ionode      = para_env%source==para_env%mepos
-       output_unit = cp_print_key_unit_nr(logger,root_section,&
-         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
+       output_unit = cp_print_key_unit_nr(logger,motion_section,&
+         "GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
        CALL force_env_get(force_env,&
-                          cell=cell,&
                           subsys=subsys,error=error)
        CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                           atomic_kinds=atomic_kinds,&
@@ -144,17 +140,11 @@ CONTAINS
        END IF
 
        particle_set => particles%els
-       CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
-       CALL write_particle_distances(particle_set,cell,force_env_section,error)
-       CALL write_structure_data(particle_set,cell,force_env_section,error)
-
        CALL  cp_cg_main(force_env, x0, gopt_param, output_unit>0, output_unit, &
-            globenv, force_env_section, gopt_env, error)
+            globenv, force_env_section, motion_section, gopt_env, error)
 
-       CALL write_particle_distances(particle_set,cell,force_env_section,error)
-
-       CALL cp_print_key_finished_output(output_unit,logger,root_section,&
-            "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
+            "GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
@@ -184,14 +174,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cg_main(force_env, x0, gopt_param, ionode, output_unit,&
-       globenv, force_env_section, gopt_env, error)
+       globenv, force_env_section, motion_section, gopt_env,  error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(gopt_param_type), POINTER           :: gopt_param
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                motion_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -211,7 +202,6 @@ CONTAINS
                                                 opt_energy, res_lim, step
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
@@ -274,7 +264,8 @@ CONTAINS
           END IF
           CALL external_control(should_stop,"GEO",globenv,error)
           IF(should_stop) EXIT
-          CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section,error=error)
+          CALL write_restart(force_env=force_env,root_section=root_section,&
+               force_env_section=force_env_section,error=error)
           !
           ! Convergence check
           !
@@ -288,7 +279,6 @@ CONTAINS
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
                 CALL force_env_get(force_env,&
-                     cell=cell,&
                      subsys=subsys,error=error)
                 CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                      particles=particles,error=error)
@@ -301,7 +291,6 @@ CONTAINS
              END IF
              CALL cp_print_key_finished_output(dataunit,logger,root_section,&
                   "MOTION%PRINT%TRAJECTORY", error=error)
-             CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
           END IF
           IF (conv.OR.(its==maxiter))  EXIT
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&

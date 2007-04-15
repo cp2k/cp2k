@@ -49,7 +49,8 @@ MODULE input_cp2k_restarts
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_type
+                                             force_env_type,&
+                                             multiple_fe_list
   USE input_constants,                 ONLY: mol_dyn_run,&
                                              mon_car_run,&
                                              pint_run,&
@@ -1037,11 +1038,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iforce_eval, myid, nforce_eval
-    LOGICAL                                  :: skip_vel_section
+    INTEGER, DIMENSION(:), POINTER           :: i_force_eval
+    LOGICAL                                  :: explicit, failure, &
+                                                skip_vel_section
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 rng_section, subsys_section
 
+    failure = .FALSE.
     NULLIFY(rng_section, subsys_section)
     ! If it's not a dynamical run don't update the velocity section
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
@@ -1051,17 +1055,20 @@ CONTAINS
 
     ! Go on updatig the force_env_section
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+    CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
     DO iforce_eval=1,nforce_eval
        subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-            i_rep_section=iforce_eval,error=error)
+            i_rep_section=i_force_eval(iforce_eval),error=error)
+       CALL section_vals_get(subsys_section, explicit=explicit, error=error)
+       IF (.NOT.explicit) CYCLE ! Nothing to update...
        rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
        my_force_env => force_env
        IF (iforce_eval>1) my_force_env => force_env%sub_force_env(iforce_eval-1)%force_env
        CALL update_rng(rng_section,my_force_env,error)
        CALL update_subsys(subsys_section,my_force_env,skip_vel_section,error)
     END DO
-
+    DEALLOCATE(i_force_eval)
+    
   END SUBROUTINE update_force_eval
 
 !!****f* input_cp2k_restarts/update_rng [1.0] *
@@ -1204,8 +1211,7 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
+    TYPE(particle_list_type), POINTER        :: particles, shell_particles
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
@@ -1248,7 +1254,7 @@ CONTAINS
        ELSE
           CALL section_vals_remove_values(work_section, error)
        END IF
-! write restart input for shell-model
+       ! write restart input for shell-model
        IF(ASSOCIATED(shell_particles)) THEN
          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
          CALL section_coord_val_set(work_section, shell_particles, molecules, conv_factor, scale,&
@@ -1345,8 +1351,7 @@ CONTAINS
     INTEGER                                  :: ik, imol, irk, k, last_atom, &
                                                 Nlist
     LOGICAL                                  :: failure, ldum, &
-                                                molname_generated,&
-                                                my_shell
+                                                molname_generated, my_shell
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(molecule_type), POINTER             :: molecule_now

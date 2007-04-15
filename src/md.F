@@ -179,13 +179,12 @@ CONTAINS
   !!   NOTES
   !!*** ************************************************************************
 
-  SUBROUTINE read_md_section ( simpar,root_section, para_env, globenv, subsys_section, error)
+  SUBROUTINE read_md_section ( simpar,root_section, para_env, globenv, error)
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=default_path_length)       :: filename
@@ -211,7 +210,7 @@ CONTAINS
     iw=cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
 
-    CALL read_md_new_section(simpar, root_section, md_section, subsys_section, error)
+    CALL read_md_new_section(simpar, root_section, md_section, error)
 
     IF ( iw > 0 ) WRITE (iw, *)
 
@@ -379,11 +378,10 @@ CONTAINS
   !!
   !!
   !!*** *************************************************************************
-  SUBROUTINE read_md_new_section(simpar, root_section, md_section, subsys_section, error)
+  SUBROUTINE read_md_new_section(simpar, root_section, md_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
-    TYPE(section_vals_type), POINTER         :: root_section, md_section, &
-                                                subsys_section
+    TYPE(section_vals_type), POINTER         :: root_section, md_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_new_section', &
@@ -570,12 +568,14 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, istat, iw, &
-                                                natoms, nfixd, nshell, shell_index
+                                                natoms, nfixd, nshell, &
+                                                shell_index
     LOGICAL                                  :: explicit, explicit2, failure, &
                                                 is_ok, is_shell, shell_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    REAL(KIND=dp)                            :: akin, denom, fac_massc, fac_masss, &
-                                                mass, mass_tot, sc, temp
+    REAL(KIND=dp)                            :: akin, denom, fac_massc, &
+                                                fac_masss, mass, mass_tot, &
+                                                sc, temp
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

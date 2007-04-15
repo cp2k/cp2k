@@ -438,12 +438,12 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
     LOGICAL                                  :: failure
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section
+                                                root_section, subsys_section
 
 !**************************************************************************
 
       failure= .FALSE.
-      NULLIFY(globenv, force_env, force_env_section )
+      NULLIFY(globenv, force_env, force_env_section, subsys_section )
 
       ! init globenv with the data
       CALL globenv_create(globenv, error=error)
@@ -461,13 +461,16 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
       SELECT CASE ( method_name_id )
       CASE ( do_fist )
          CALL fist_create_force_env(force_env, root_section, para_env, globenv,&
-                                    force_env_section=force_env_section, error=error)
+                                    force_env_section=force_env_section, subsys_section=subsys_section,&
+                                    error=error)
       CASE ( do_qs )
          CALL quickstep_create_force_env(force_env, root_section,  para_env,globenv, &
-                                         force_env_section=force_env_section, error=error)
+                                         force_env_section=force_env_section, subsys_section=subsys_section,&
+                                         error=error)
       CASE ( do_kg )
          CALL kg_create_force_env ( force_env, root_section, para_env, globenv, &
-                                    force_env_section=force_env_section, error=error)
+                                    force_env_section=force_env_section, subsys_section=subsys_section,&
+                                    error=error)
       CASE default
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT

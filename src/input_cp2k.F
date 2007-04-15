@@ -765,17 +765,27 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="MULTIPLE_FORCE_EVALS",&
-         description="describe how to handle multiple force_evals",&
+         description="Describes how to handle multiple force_evals.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
     NULLIFY(keyword)
-     CALL keyword_create(keyword, name="FORCE_EVAL_ORDER",&
-          description='Specify the orders of the respa shells from the slowest to the fastest force evaluation.',&
-          usage="FORCE_EVAL_ORDER <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
-          default_i_vals=(/1/), error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="FORCE_EVAL_ORDER",&
+         description='Specify the orders of the different force_eval. When using a MIXED force_eval'//&
+         " this does not need to be specified in this list, because it that takes into account only the real"//&
+         " energy contributions",&
+         usage="FORCE_EVAL_ORDER <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
+         default_i_vals=(/1/), error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="MULTIPLE_SUBSYS",&
+         description="Specify if force_eval have different subsys. In case hey share the same subsys,"//&
+         " it needs to be specified only in the MIXED force_eval (if using MIXED) or"//&
+         " in the force_eval corresponding to first force_eval of the previous order (when not using MIXED).",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
    END SUBROUTINE create_multi_force_section
 !***************************************************************************

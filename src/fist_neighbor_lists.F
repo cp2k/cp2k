@@ -144,7 +144,7 @@ CONTAINS
 
 
     print_subcell_grid = .FALSE.
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%SUBCELL",&
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"MM%PRINT%SUBCELL",&
          extension=".Log",error=error)
     IF (output_unit > 0)  print_subcell_grid = .TRUE.
 
@@ -261,7 +261,7 @@ CONTAINS
     CALL cp_print_key_finished_output(unit_nr=output_unit,&
          logger=logger,&
          basis_section=force_env_section,&
-         print_key_path="SUBSYS%PRINT%SUBCELL",&
+         print_key_path="MM%PRINT%SUBCELL",&
          error=error)
     CALL timestop(0.0_dp,handle)
 

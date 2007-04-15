@@ -277,7 +277,8 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsys_loc
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: bsse_section, &
-                                                force_env_section
+                                                force_env_section, &
+                                                subsys_section
 
     failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag,error=error)
@@ -286,7 +287,8 @@ CONTAINS
          force_env_section )
     CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
-    bsse_section => section_vals_get_subs_vals(force_env_section,"BSSE",error=error)
+    bsse_section   => section_vals_get_subs_vals(force_env_section,"BSSE",error=error)
+    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     IF (.NOT.failure) THEN
        ALLOCATE(my_conf(SIZE(conf)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -354,15 +356,16 @@ CONTAINS
        !
        energy = 0.0_dp
 
-       IF (method_name_id == do_qs) THEN          
+       IF (method_name_id == do_qs) THEN
 
           CALL create_small_subsystem(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
                sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
-               root_section=root_section,para_env=para_env,force_env_section=force_env_section, error=error)
+               root_section=root_section,para_env=para_env,force_env_section=force_env_section,&
+               subsys_section=subsys_section,error=error)
 
           CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsystem=subsys_loc,&
-               force_env_section=force_env_section, error=error)
+               force_env_section=force_env_section, subsys_section=subsys_section, error=error)
 
           CALL cp_subsys_release(subsys_loc,error=error)
           !

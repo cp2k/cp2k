@@ -20,7 +20,6 @@
 
 MODULE kg_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             check_atomic_kind_set,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
                                              read_atomic_kind_set,&
@@ -153,13 +152,15 @@ CONTAINS
 !!****
 !!*****************************************************************************
 
-  SUBROUTINE kg_init (kg_env,root_section,para_env,globenv,force_env_section,error)
+  SUBROUTINE kg_init (kg_env,root_section,para_env,globenv,force_env_section,&
+       subsys_section, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'kg_init'
@@ -217,12 +218,12 @@ CONTAINS
     NULLIFY ( logger )
 
     logger => cp_error_get_logger(error)
-    cell_section => section_vals_get_subs_vals(force_env_section,&
-         "SUBSYS%CELL",error=error)
-    dft_section =>  section_vals_get_subs_vals(force_env_section,&
-         "DFT",error=error)
-    qs_section =>  section_vals_get_subs_vals(dft_section,&
-         "QS",error=error)
+    IF (.NOT.ASSOCIATED(subsys_section)) THEN
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+    END IF
+    cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+    dft_section =>  section_vals_get_subs_vals(force_env_section,"DFT",error=error)
+    qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
          extension=".Log",error=error)
@@ -245,8 +246,7 @@ CONTAINS
     CALL write_qs_control ( dft_control % qs_control, dft_section, error)
 
     ! read colvars and add to subsystem
-    colvar_section => section_vals_get_subs_vals(force_env_section,&
-                              "SUBSYS%COLVAR",error=error)
+    colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
     CALL cp_subsys_read_colvar( kg_env%subsys, colvar_section, error=error)
 
 !   *** Read the input section with the cell parameters
@@ -255,20 +255,17 @@ CONTAINS
     CALL get_cell( cell, abc=abc)
 
 !   *** Print the cell parameters ***
-    CALL write_cell ( cell, force_env_section, error=error)
+    CALL write_cell ( cell, subsys_section, error=error)
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set,molecule_set,&
          kg_env%subsys%colvar_p, kg_env%subsys%gci, root_section,para_env,globenv, &
-         force_env_section=force_env_section,error=error)
+         force_env_section=force_env_section, subsys_section=subsys_section, error=error)
 
     ! Read/write the atomic kind set
-    kind_section => section_vals_get_subs_vals(force_env_section,&
-         "SUBSYS%KIND",error=error)
+    kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,force_env_section,error)
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
-         force_env_section=kg_env%input,error=error)
-    CALL write_gto_basis_sets(atomic_kind_set,kg_env%input,error)
+    CALL write_gto_basis_sets(atomic_kind_set,subsys_section,error)
 
     CALL num_ao_el_per_molecule(molecule_kind_set)
 
@@ -293,22 +290,22 @@ CONTAINS
     ! Initialise/print the atomic/molecular kind set
     CALL init_atomic_kind_set(atomic_kind_set,para_env,force_env_section=force_env_section,&
                               method=dft_control%qs_control%method,error=error)
-    CALL write_atomic_kind_set(atomic_kind_set,kg_env%input,error)
-    CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
+    CALL write_atomic_kind_set(atomic_kind_set,subsys_section,error)
+    CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
     CALL write_total_numbers(atomic_kind_set,particle_set,kg_env%input,error)
 
     ! Print the atomic coordinates
-    CALL write_qs_particle_coordinates(particle_set,cell,kg_env%input,error)
+    CALL write_qs_particle_coordinates(particle_set,cell,subsys_section,error)
 
     ! Print the interatomic distances ***
-    CALL write_particle_distances(particle_set,cell,kg_env%input,error)
+    CALL write_particle_distances(particle_set,cell,subsys_section,error)
 
     ! Print the requested structure data
-    CALL write_structure_data(particle_set,cell,kg_env%input,error)
+    CALL write_structure_data(particle_set,cell,subsys_section,error)
 
     ! Initialize the atomic interaction radii
     CALL init_interaction_radii ( dft_control%qs_control, cell, &
-                                  atomic_kind_set, kg_env%input, error)
+                                  atomic_kind_set, subsys_section, error)
 
     ! Distribute molecules and atoms using the new data structures
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
@@ -386,7 +383,7 @@ CONTAINS
 
     IF ( kg_gpw ) THEN
       !Sets up qs_env for subsystems
-      CALL kg_subsys_setup(kg_env,force_env_section,error)
+      CALL kg_subsys_setup(kg_env,force_env_section,subsys_section,error)
     ELSE
       CALL dft_control_release(dft_control, error=error)
     END IF
@@ -474,7 +471,6 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
          "PRINT%TOTAL_NUMBERS",error=error)
 
-
   END SUBROUTINE write_total_numbers
 
 !******************************************************************************
@@ -497,11 +493,10 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!****
-  SUBROUTINE kg_subsys_setup(kg_env,force_env_section,error)
-
-
+  SUBROUTINE kg_subsys_setup(kg_env,force_env_section,subsys_section,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
@@ -615,11 +610,10 @@ CONTAINS
                     wf_history=wf_history     ,&
                     error=error                 )
 
-!   *** Setup the grids for the G-space Interpolation if any
+    !   *** Setup the grids for the G-space Interpolation if any
     CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, .FALSE., .FALSE.,&
-         cell, force_env_section, para_env, error)
+         cell, force_env_section, subsys_section, para_env, error)
 
-!    CALL scf_c_release(scf_control,error=error)
     CALL dft_control_release(dft_control, error=error)
     CALL wfi_release(wf_history,error=error)
 
@@ -630,7 +624,6 @@ CONTAINS
 
     CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
-!MI
 !   Here add the allocations and initialization of the separated blocks of the fm
 !   They should be arguments of the kg_env
     CALL get_kg_env(kg_env=kg_env,&
@@ -696,8 +689,6 @@ CONTAINS
             CALL section_vals_val_get(mol_charge_section,"MOLECULE",i_rep_section=ich,&
                  i_val=molch_kind,error=error)
         END IF
-!dbg
-!     write(*,*) 'molecule', nrep, molch_kind
 
         CALL section_vals_val_get(mol_charge_section,"MOLNAME",i_rep_section=ich,&
                 n_rep_val=nrep,error=error)
@@ -709,12 +700,9 @@ CONTAINS
                 ((molch_kind/=0).AND.(molch_name/="UNDEF"))) THEN
            CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
-!dbg
-!     write(*,*) 'molname', nrep, molch_name
+
         CALL section_vals_val_get(mol_charge_section,"CHARGE",i_rep_section=ich,&
                 i_val=molch_val,error=error)
-!dbg
-!     write(*,*) 'charge', nrep, molch_val
 
         IF(molch_kind/=0) THEN
           imolecule_kind = molch_kind

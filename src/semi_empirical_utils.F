@@ -378,10 +378,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_se_param(se_parameter,force_env_section,error)
+  SUBROUTINE write_se_param(se_parameter,subsys_section,error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_se_param'
@@ -400,10 +400,10 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF (ASSOCIATED(se_parameter).AND.BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         "SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
+    IF (ASSOCIATED(se_parameter).AND.BTEST(cp_print_key_should_output(logger%iter_info,subsys_section,&
+         "PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
 
-       output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%KINDS",&
+       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",&
             extension=".Log",error=error)
 
        IF (output_unit >0) THEN
@@ -558,8 +558,8 @@ CONTAINS
              END IF
           END SELECT
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-            "SUBSYS%PRINT%KINDS",error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
+            "PRINT%KINDS",error=error)
     END IF
 
   END SUBROUTINE write_se_param

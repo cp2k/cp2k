@@ -26,6 +26,7 @@ MODULE input_cp2k_motion
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
+  USE input_cp2k_subsys,               ONLY: create_structure_data
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -238,7 +239,10 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       
+       CALL create_structure_data(print_key, error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)           
+
        CALL cp_print_key_section_create(print_key,"forces",&
             description="controls the output of the forces",&
             print_level=high_print_level, common_iter_levels=1,&
@@ -2517,7 +2521,11 @@ SUBROUTINE create_respa_section(section, error)
   IF (.NOT. failure) THEN  
 
      CALL section_create(section,name="RESPA",&
-          description="RESPA specific parameters.",&
+          description="RESPA specific parameters. RESPA exploits multiple force_eval."//&
+          " In this case the order of the force_eval maps "//&
+          " the order of the respa shells from the slowest to the fastest force evaluation."//&
+          " Most of the times force_evals share the same subsys. It's enough then to specify the "//&
+          " subsys in the force_eval corresponding at the first index in the multiple_force_eval list",&
           n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
        

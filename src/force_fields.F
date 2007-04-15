@@ -45,8 +45,7 @@ MODULE force_fields
                                              force_field_pack,&
                                              force_field_qeff_output
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -88,7 +87,7 @@ CONTAINS
   SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,&
-       root_section,para_env,globenv, qmmm, qmmm_env, force_env_section,&
+       root_section,para_env,globenv, qmmm, qmmm_env, subsys_section, mm_section,&
        shell_particle_set, core_particle_set, cell, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -107,13 +106,11 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section, mm_section
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: shell_particle_set, &
+                                                core_particle_set
     TYPE(cell_type), POINTER                 :: cell
-
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
@@ -123,17 +120,11 @@ CONTAINS
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_field_type)                   :: ff_type
-    TYPE(section_vals_type), POINTER         :: mm_section, subsys_section
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
-
-    subsys_section   =>  section_vals_get_subs_vals(force_env_section,&
-         "SUBSYS",error=error)
-    mm_section => section_vals_get_subs_vals(force_env_section,&
-       "MM",error=error)
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)

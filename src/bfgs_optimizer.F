@@ -53,9 +53,7 @@ MODULE bfgs_optimizer
                                              molecule_kind_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates,&
-                                             write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_particle_coordinates
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -200,9 +198,6 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
 
-    CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
-    CALL write_particle_distances(particle_set,cell,force_env_section,error)
-
     IF(ionode)THEN
        CALL open_file(file_name="HESSIAN",&
             file_status="UNKNOWN",&
@@ -261,7 +256,6 @@ CONTAINS
          END IF
          CALL cp_print_key_finished_output(traj_unit,logger,root_section,&
                                            "MOTION%PRINT%TRAJECTORY",error=error)
-         CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
        END IF
 
        IF (output_unit>0)THEN
@@ -760,8 +754,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
      "  Informations at step = ",it
      WRITE(UNIT=output_unit,FMT="(T2,A,T47,A)")&
@@ -891,7 +883,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, indf
+    INTEGER                                  :: indf
     LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
                                                 conv_rg
     REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
@@ -901,7 +893,6 @@ CONTAINS
 !                                                gcon = 0.00045_dp, &
 !                                                rmsgcon = 0.00030_dp, &
 !                                                rmsxcon = 0.0015_dp
-
 
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force
