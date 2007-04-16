@@ -4,7 +4,9 @@
  &FORCE_EVAL
   METHOD MIXED
   &MIXED
-   LAMBDA 0.3
+   &LINEAR
+     LAMBDA 0.3
+   &END
   &END
   &SUBSYS
     &TOPOLOGY

@@ -1397,7 +1397,7 @@ END SUBROUTINE create_cpot_section
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
+    TYPE(section_type), POINTER              :: subsection
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -1407,7 +1407,7 @@ END SUBROUTINE create_cpot_section
                         "defined by a mixing of force_evals",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="MIXING_TYPE",&
             description="The type of mixing to be employed",&
@@ -1416,37 +1416,56 @@ END SUBROUTINE create_cpot_section
             enum_c_vals=s2a("LINEAR_COMBINATION", &
                             "MINIMUM",&
                             "COUPLED",&
-                            "RESTRAINT"),&
-            enum_desc=s2a("Linear combination of force envs", &
-                          "Use the force env with the minimum energy",&
-                          "Consider the force envs as a two state system with a given coupling matrix element",&
-                          "Use the difference between the energy of the force envs as a restraint on the first"),&
-            enum_i_vals=(/mix_linear_combination,mix_minimum,mix_coupled,mix_restrained/), error=error)
+                            "RESTRAINT",&
+                            "GENMIX"),&
+            enum_desc=s2a("Linear combination of force envs (support only 2 force_evals)", &
+                          "Use the force env with the minimum energy (support only 2 force_evals)",&
+                          "Consider the force envs as a two state system with a given"//&
+                          " coupling matrix element (support only 2 force_evals)",&
+                          "Use the difference between the energy of the force envs as a"//&
+                          " restraint on the first (support only 2 force_evals)",&
+                          "Defines a user-driven generica coupling (support for an unlimited number of force_eval)"),&
+            enum_i_vals=(/mix_linear_combination,mix_minimum,mix_coupled,mix_restrained,mix_generic/),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       ! Double force_eval
+       CALL section_create(subsection,name="LINEAR",&
+            description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
        CALL keyword_create(keyword, name="LAMBDA",&
-            description="Specify the mixing parameter lambda in the formula:"//&
-            " F= lambda F1 + (1-lambda) F2",&
+            description="Specify the mixing parameter lambda in the formula:",&
             usage="lambda <REAL>", type_of_var=real_t,&
             required=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="COUPLING",&
+            description="Coupling between two force_eval: E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
        CALL keyword_create(keyword, name="COUPLING_PARAMETER",&
-            description="Coupling parameter H12 used in the coupling"//&
-            " E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2" ,&
+            description="Coupling parameter H12 used in the coupling",&
             usage="COUPLING_PARAMETER <REAL>", type_of_var=real_t,&
             required=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="RESTRAINT",&
+            description="Restraint between two force_eval: E = E1 + k*(E1-E2-t)**2",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
        CALL keyword_create(keyword, name="RESTRAINT_TARGET",&
-            description="Target value of the restraint (t) in "//&
-            "k*(E1-E2-t)**2" ,&
+            description="Target value of the restraint (t) ",&
             usage="RESTRAINT_TARGET <REAL>", type_of_var=real_t,&
             required=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTRAINT_STRENGTH",&
@@ -1454,8 +1473,47 @@ END SUBROUTINE create_cpot_section
             "k*(E1-E2-t)**2" ,&
             usage="RESTRAINT_STRENGTH <REAL>", type_of_var=real_t,&
             required=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+       
+       ! Multiple force_eval
+       CALL section_create(subsection,name="GENERIC",&
+            description="User driven coupling between two or more force_eval.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="MIXING_FUNCTION",&
+            description="Specifies the mixing functional form in mathematical notation.",&
+            usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VARIABLES",&
+            description="Defines the variables of the functional form. To allow an efficient"//&
+            " mapping the order of the energy variables will be considered identical to the"//&
+            " order of the force_eval in the force_eval_order list.",&
+            usage="VARIABLES x", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PARAMETERS",&
+            description="Defines the parameters of the functional form",&
+            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VALUES",&
+            description="Defines the values of  parameter of the functional form",&
+            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 

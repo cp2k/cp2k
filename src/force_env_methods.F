@@ -71,6 +71,7 @@ MODULE force_env_methods
                                              mix_linear_combination,&
                                              mix_minimum,&
                                              mix_restrained,&
+                                             mix_generic,&
                                              qs_debug_run,&
                                              use_bazant_eip,&
                                              use_lenosky_eip
@@ -87,7 +88,7 @@ MODULE force_env_methods
   USE kg_rho_types,                    ONLY: kg_rho_type
   USE kg_rspw_methods,                 ONLY: kg_rspw_rebuild
   USE kg_rspw_types,                   ONLY: kg_rspw_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, default_path_length, default_string_length
   USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
                                              meta_env_type
@@ -132,6 +133,12 @@ MODULE force_env_methods
                                              virial_retain,&
                                              virial_type,&
                                              zero_virial
+  USE fparser,                         ONLY: EvalErrType,&
+                                             evalf,&
+                                             finalizef,&
+                                             initf,&
+                                             parsef
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -273,12 +280,12 @@ CONTAINS
        CASE ( use_qmmm )
           CALL qmmm_energy_and_forces(force_env,need_f,error=error)
        CASE ( use_mixed_force )
-          CALL mixed_energy_forces(force_env,error=error)
+          CALL mixed_energy_forces(force_env,need_f,error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        IF (.NOT.my_skip) THEN
-! warning: shell-model not yet implemented for these options
+          ! warning: shell-model not yet implemented for these options
           ! Metadynamics
           IF (ASSOCIATED(force_env%meta_env)) THEN
              CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
@@ -990,7 +997,7 @@ END SUBROUTINE apply_qmmm_trasl
 !! ****f* force_env_methods/mixed_energy_forces  [1.0] 
 !!
 !!   NAME
-!!    mixed_forces
+!!    mixed_energy_forces
 !!
 !!   FUNCTION
 !!    Computes energy and forces for a mixed force_env type
@@ -1009,18 +1016,19 @@ END SUBROUTINE apply_qmmm_trasl
 !!      04.07  generalization to an illimited number of force_eval [tlaino]
 !!
 !!***************************************************************************
-SUBROUTINE mixed_energy_forces(force_env,error)
+SUBROUTINE mixed_energy_forces(force_env,need_f,error)
     TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(IN)                      :: need_f
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iforce_eval, iparticle, &
-                                                mixing_type, nforce_eval, stat
-    LOGICAL                                  :: failure, need_f
+                                                mixing_type, nforce_eval, stat, mydim, j
+    LOGICAL                                  :: failure
     REAL(KIND=dp) :: coupling_parameter, der_1, der_2, energy, lambda, &
-      restraint_strength, restraint_target, sd
+      restraint_strength, restraint_target, sd, dx, dedf, pfx1, pfx2, mfx1, mfx2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
@@ -1032,9 +1040,11 @@ SUBROUTINE mixed_energy_forces(force_env,error)
       DIMENSION(:), POINTER                  :: particles
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(section_vals_type), POINTER         :: force_env_section
-
+    CHARACTER(LEN=default_path_length)       :: coupling_function
+    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: data_function, variables, parameters, my_par
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: par_values, my_val
+    
     failure=.FALSE.
-    need_f=.TRUE.
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     ! Get infos about the mixed subsys
@@ -1062,7 +1072,7 @@ SUBROUTINE mixed_energy_forces(force_env,error)
        CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys(1)%subsys,&
             particles=particles(iforce_eval)%list,error=error)
 
-       ! Copy particles to the mixed env
+       ! Mapping particles from iforce_eval environment to the mixed env
        DO iparticle = 1, SIZE(particles_mix%els)
           particles(iforce_eval)%list%els(iparticle)%r= particles_mix%els(iparticle)%r
        END DO
@@ -1087,7 +1097,8 @@ SUBROUTINE mixed_energy_forces(force_env,error)
     CASE(mix_linear_combination)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
-       CALL section_vals_val_get(force_env_section,"MIXED%LAMBDA",r_val=lambda,error=error)
+       CALL section_vals_val_get(force_env_section,"MIXED%LINEAR%LAMBDA",&
+            r_val=lambda,error=error)
        mixed_energy%pot=lambda*energies(1) + (1.0_dp-lambda)*energies(2)
        DO iparticle = 1, SIZE(particles_mix%els)
           particles_mix%els(iparticle)%f(:)= lambda* particles(1)%list%els(iparticle)%f(:) +&
@@ -1110,8 +1121,8 @@ SUBROUTINE mixed_energy_forces(force_env,error)
     CASE(mix_coupled)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
-       CALL section_vals_val_get(force_env_section,"MIXED%COUPLING_PARAMETER",r_val=coupling_parameter,&
-            error=error)
+       CALL section_vals_val_get(force_env_section,"MIXED%COUPLING%COUPLING_PARAMETER",&
+            r_val=coupling_parameter,error=error)
        sd = SQRT((energies(1)-energies(2))**2+4.0_dp*coupling_parameter**2)
        der_1=(1.0_dp-(1.0_dp/(2.0_dp*sd))*2.0_dp*(energies(1)-energies(2)))/2.0_dp
        der_2=(1.0_dp+(1.0_dp/(2.0_dp*sd))*2.0_dp*(energies(1)-energies(2)))/2.0_dp
@@ -1123,16 +1134,80 @@ SUBROUTINE mixed_energy_forces(force_env,error)
     CASE(mix_restrained)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
-       CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT_TARGET",r_val=restraint_target,&
-            error=error)
-       CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT_STRENGTH",r_val=restraint_strength,&
-            error=error)
+       CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT%RESTRAINT_TARGET",&
+            r_val=restraint_target,error=error)
+       CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT%RESTRAINT_STRENGTH",&
+            r_val=restraint_strength,error=error)
        mixed_energy%pot=energies(1)+restraint_strength*(energies(1)-energies(2)-restraint_target)**2
        DO iparticle = 1, SIZE(particles_mix%els)
           particles_mix%els(iparticle)%f(:)= particles(1)%list%els(iparticle)%f(:) + &
                2.0_dp*restraint_strength*(energies(1)-energies(2)-restraint_target)* &
                (particles(1)%list%els(iparticle)%f(:)-particles(2)%list%els(iparticle)%f(:))
        END DO
+    CASE(mix_generic)
+       ! Support any number of force_eval sections
+       NULLIFY(data_function, variables, parameters, par_values)
+       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%MIXING_FUNCTION",&
+            c_vals=data_function,error=error)
+       ! Clean the function structure
+       coupling_function = ""
+       DO j = 1, SIZE(data_function)
+          coupling_function(LEN_TRIM(coupling_function)+1:) = TRIM(data_function(j))
+       END DO
+       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VARIABLES",&
+            c_vals=variables,error=error)
+       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",&
+            c_vals=parameters,error=error)
+       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VALUES",&
+            r_vals=par_values,error=error)
+       mydim = SIZE(variables)
+       IF (ASSOCIATED(parameters)) THEN
+          CPPrecondition(SIZE(parameters)==SIZE(par_values),cp_failure_level,routineP,error,failure)
+          mydim=mydim+SIZE(parameters)
+       END IF
+       ALLOCATE(my_par(mydim),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(my_val(mydim),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       my_par(1:SIZE(variables)) = variables
+       my_val(1:SIZE(variables)) = energies
+       IF (ASSOCIATED(parameters)) THEN
+          my_par(SIZE(variables)+1:) = parameters(1:SIZE(parameters))
+          my_val(SIZE(variables)+1:) = par_values(1:SIZE(parameters))
+       END IF
+       CALL initf(1)
+       CALL parsef(1,TRIM(coupling_function),my_par)
+       ! Now the hardest part.. map energy with corresponding force_eval
+       mixed_energy%pot= evalf(1,my_val)
+       CPPrecondition(EvalErrType<=0,cp_failure_level,routineP,error,failure)
+       DO iparticle = 1, SIZE(particles_mix%els)
+          particles_mix%els(iparticle)%f(:) = 0.0_dp
+       END DO
+       DO iforce_eval = 1, nforce_eval
+          ! copmpute derivatives of the target function w.r.t. the energy of the
+          ! present force_eval - 5 point formula O(dx^4)
+          dx = 0.001_dp
+          my_val(iforce_eval) = energies(iforce_eval) + 2.0_dp * dx
+          pfx2 = - evalf(1,my_val)
+          my_val(iforce_eval) = energies(iforce_eval) + dx
+          pfx1 = 8.0_dp * evalf(1,my_val)
+          my_val(iforce_eval) = energies(iforce_eval) - dx
+          mfx1 = -8.0_dp * evalf(1,my_val)
+          my_val(iforce_eval) = energies(iforce_eval) - 2.0_dp * dx
+          mfx2 = evalf(1,my_val)
+          dedf = ( pfx2 + pfx1 + mfx1 + mfx2 ) / (12.0_dp*dx)
+          ! 
+          DO iparticle = 1, SIZE(particles_mix%els)
+             particles_mix%els(iparticle)%f(:) = particles_mix%els(iparticle)%f(:) +&
+                  dedf * particles(iforce_eval)%list%els(iparticle)%f(:)
+          END DO
+          my_val(iforce_eval) = energies(iforce_eval)
+       END DO
+       CALL finalizef()
+       DEALLOCATE(my_par,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(my_val,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT

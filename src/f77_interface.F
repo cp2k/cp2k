@@ -769,12 +769,17 @@ CPSourceFileRef,&
           CALL fp_env_write(fp_env,fp_section,error=error)
           CALL force_env_set(my_force_env,fp_env=fp_env,error=error)
           CALL fp_env_release(fp_env,error=error)
+          ! Subsys section
+          NULLIFY(subsys_section)
+          IF (.NOT.multiple_subsys) THEN
+             ! Reference subsys from the first ordered force_eval
+             subsys_section => section_vals_get_subs_vals(force_env_sections,"SUBSYS",&
+                  i_rep_section=i_force_eval(1),error=error)
+          END IF
           ! Handle multiple force_eval
           IF (nforce_eval>1.AND.iforce_eval==1) THEN
              ALLOCATE(my_force_env%sub_force_env(nsubforce_size),stat=stat)
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             IF (.NOT.multiple_subsys) subsys_section => &
-                  section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
           END IF
           IF (iforce_eval==1) THEN
              force_env => my_force_env

@@ -517,6 +517,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: mix_linear_combination=701, &
                                 mix_minimum=702, &
                                 mix_coupled=703, &
-                                mix_restrained=704
+                                mix_restrained=704,&
+                                mix_generic=705
 
 END MODULE input_constants
