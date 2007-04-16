@@ -68,8 +68,13 @@ MODULE force_env_methods
   USE input_constants,                 ONLY: dump_xmol,&
                                              qs_debug_run,&
                                              use_bazant_eip,&
-                                             use_lenosky_eip
-  USE input_section_types,             ONLY: section_vals_retain,&
+                                             use_lenosky_eip, &
+                                             mix_linear_combination, &
+                                             mix_minimum, &
+                                             mix_coupled, &
+                                             mix_restrained
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kg_energy,                       ONLY: kg_energies
@@ -988,6 +993,7 @@ END SUBROUTINE apply_qmmm_trasl
 !!
 !!   FUNCTION
 !!    biased MD for a direct umbrella sampling
+!!    and other functionality that works by combining results of two different force envs
 !!
 !!   NOTES
 !!    -
@@ -1009,9 +1015,10 @@ SUBROUTINE mixed_energy_forces(force_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iparticle
+    INTEGER                                  :: iparticle, mixing_type
     LOGICAL                                  :: failure, need_f
-    REAL(KIND=dp)                            :: energy_ox, energy_red, lambda
+    REAL(KIND=dp)                            :: energy_ox, energy_red, lambda, coupling_parameter, &
+                                                der_red, der_ox, sd, restraint_target, restraint_strength
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mix, subsys_ox, &
@@ -1029,8 +1036,6 @@ SUBROUTINE mixed_energy_forces(force_env,error)
   CALL force_env_get(force_env=force_env, subsys=subsys_mix, force_env_section=force_env_section, &
                      error=error)
 
-  CALL section_vals_val_get(force_env_section,"MIXED%LAMBDA",r_val=lambda,&
-                            error=error)
 
   CALL force_env_get(force_env=force_env%sub_force_env(1)%force_env,&
        subsys=subsys_red,error=error)
@@ -1065,11 +1070,56 @@ SUBROUTINE mixed_energy_forces(force_env,error)
 
   CALL get_mixed_env(mixed_env=force_env%mixed_env, mixed_energy=mixed_energy,error=error)
 
-  mixed_energy%pot=lambda*energy_red + (1-lambda)*energy_ox
-  DO iparticle = 1, SIZE(particles_mix%els)
-     particles_mix%els(iparticle)%f(:)= lambda*particles_red%els(iparticle)%f(:) +&
-          (1.0_dp - lambda )* particles_ox%els(iparticle)%f(:)
-  END DO
+
+  CALL section_vals_val_get(force_env_section,"MIXED%MIXING_TYPE",i_val=mixing_type,&
+                            error=error)
+
+  SELECT CASE(mixing_type)
+  CASE(mix_linear_combination)
+     CALL section_vals_val_get(force_env_section,"MIXED%LAMBDA",r_val=lambda,&
+                               error=error)
+     mixed_energy%pot=lambda*energy_red + (1-lambda)*energy_ox
+     DO iparticle = 1, SIZE(particles_mix%els)
+        particles_mix%els(iparticle)%f(:)= lambda*particles_red%els(iparticle)%f(:) +&
+             (1.0_dp - lambda )* particles_ox%els(iparticle)%f(:)
+     END DO
+  CASE(mix_minimum)
+     IF (energy_red<energy_ox) THEN
+        mixed_energy%pot=energy_red
+        DO iparticle = 1, SIZE(particles_mix%els)
+            particles_mix%els(iparticle)%f(:)= particles_red%els(iparticle)%f(:) 
+        END DO
+     ELSE
+        mixed_energy%pot=energy_ox
+        DO iparticle = 1, SIZE(particles_mix%els)
+            particles_mix%els(iparticle)%f(:)= particles_ox%els(iparticle)%f(:) 
+        END DO
+     ENDIF
+  CASE(mix_coupled)
+     CALL section_vals_val_get(force_env_section,"MIXED%COUPLING_PARAMETER",r_val=coupling_parameter,&
+                               error=error)
+     sd = sqrt((energy_red-energy_ox)**2+4*coupling_parameter**2)
+     der_red=(1.0_dp-(1.0_dp/(2*sd))*2*(energy_red-energy_ox))/2
+     der_ox=(1.0_dp-(1.0_dp/(2*sd))*2*(energy_red-energy_ox)*(-1))/2
+     mixed_energy%pot=(energy_red+energy_ox-sd)/2
+     DO iparticle = 1, SIZE(particles_mix%els)
+        particles_mix%els(iparticle)%f(:)= der_red*particles_red%els(iparticle)%f(:) +&
+                                           der_ox * particles_ox%els(iparticle)%f(:)
+     END DO
+  CASE(mix_restrained)
+     CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT_TARGET",r_val=restraint_target,&
+                               error=error)
+     CALL section_vals_val_get(force_env_section,"MIXED%RESTRAINT_STRENGTH",r_val=restraint_strength,&
+                               error=error)
+     mixed_energy%pot=energy_red+restraint_strength*(energy_red-energy_ox-restraint_target)**2
+     DO iparticle = 1, SIZE(particles_mix%els)
+        particles_mix%els(iparticle)%f(:)= particles_red%els(iparticle)%f(:) + &
+                                           2*restraint_strength*(energy_red-energy_ox-restraint_target)* &
+                                           (particles_red%els(iparticle)%f(:)-particles_ox%els(iparticle)%f(:))
+     END DO
+  CASE DEFAULT
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+  END SELECT
 
   
 END SUBROUTINE mixed_energy_forces

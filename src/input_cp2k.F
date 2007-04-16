@@ -1408,10 +1408,51 @@ END SUBROUTINE create_cpot_section
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="MIXING_TYPE",&
+            description="The type of mixing to be employed",&
+            usage="MIXING_TYPE LINEAR_COMBINATION",&
+            default_i_val=mix_linear_combination,&
+            enum_c_vals=s2a("LINEAR_COMBINATION", &
+                            "MINIMUM",&
+                            "COUPLED",&
+                            "RESTRAINT"),&
+            enum_desc=s2a("Linear combination of force envs", &
+                          "Use the force env with the minimum energy",&
+                          "Consider the force envs as a two state system with a given coupling matrix element",&
+                          "Use the difference between the energy of the force envs as a restraint on the first"),&
+            enum_i_vals=(/mix_linear_combination,mix_minimum,mix_coupled,mix_restrained/), error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specify the mixing parameter lambda in the formula:"//&
             " F= lambda F1 + (1-lambda) F2",&
             usage="lambda <REAL>", type_of_var=real_t,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COUPLING_PARAMETER",&
+            description="Coupling parameter H12 used in the coupling"//&
+            " E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2" ,&
+            usage="COUPLING_PARAMETER <REAL>", type_of_var=real_t,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTRAINT_TARGET",&
+            description="Target value of the restraint (t) in "//&
+            "k*(E1-E2-t)**2" ,&
+            usage="RESTRAINT_TARGET <REAL>", type_of_var=real_t,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTRAINT_STRENGTH",&
+            description="Strength of the restraint (k) in "//&
+            "k*(E1-E2-t)**2" ,&
+            usage="RESTRAINT_STRENGTH <REAL>", type_of_var=real_t,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

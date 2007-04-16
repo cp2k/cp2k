@@ -513,4 +513,10 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_vwn5=1,&
                                 do_vwn3=2
 
+  ! mixing of force envs
+  INTEGER, PARAMETER, PUBLIC :: mix_linear_combination=701, &
+                                mix_minimum=702, &
+                                mix_coupled=703, &
+                                mix_restrained=704
+
 END MODULE input_constants
