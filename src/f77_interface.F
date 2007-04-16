@@ -77,7 +77,8 @@ MODULE f77_interface
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get,&
-                                             section_vals_write
+                                             section_vals_write,&
+                                             section_vals_remove_values
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: init_mathcon
@@ -614,7 +615,8 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     TYPE(section_vals_type), POINTER :: fe_section, force_env_section, &
-      force_env_sections, fp_section, input_file, root_section, subsys_section
+      force_env_sections, fp_section, input_file, root_section, subsys_section,&
+      wrk_section
     TYPE(timer_env_type), POINTER            :: timer_env
 
     failure=.FALSE.
@@ -708,9 +710,16 @@ END SUBROUTINE f_env_rm_defaults
        DO iforce_eval = 1, nforce_eval
           ! Initialize force_env
           NULLIFY(force_env_section, my_force_env)
+          ! Enforce the deletion of the subsys (unless not explicitly required)
+          IF (ASSOCIATED(subsys_section)) THEN
+             wrk_section => section_vals_get_subs_vals(force_env_sections,"SUBSYS",&
+                  i_rep_section=i_force_eval(iforce_eval),error=error)
+             CALL section_vals_remove_values(wrk_section, error=error)
+          END IF
           CALL section_vals_duplicate(force_env_sections,force_env_section,&
                i_force_eval(iforce_eval),i_force_eval(iforce_eval),error)
           CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+
           SELECT CASE (method_name_id)
           CASE (do_ep)
              ! does not support multi force_env_sections
