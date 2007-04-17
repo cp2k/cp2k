@@ -889,58 +889,58 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
     TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=default_path_length)       :: filename
 
-    CHARACTER(len=default_path_length)       :: postfix, root
-    CHARACTER(len=default_string_length)     :: my_middle_name, outPath
+    CHARACTER(len=default_path_length)       :: postfix, root, outPath
+    CHARACTER(len=default_string_length)     :: my_middle_name, outName
     INTEGER                                  :: my_ind1, my_ind2
-    LOGICAL                                  :: build_complete_name
+    LOGICAL                                  :: has_root
 
   CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
   IF (outPath=="__STD_OUT__") outPath=""
-
-  ! find out if the extension is present in the input provided name
-  my_ind2 = INDEX(outPath,"/")
-  IF (my_ind2 /= 0) THEN
-     build_complete_name = .FALSE.
-     DO WHILE (INDEX(outPath(my_ind2+1:),"/")/=0)
-        my_ind2 = INDEX(outPath(my_ind2+1:),"/") + my_ind2
-     END DO
-     my_ind1 = INDEX(outPath(my_ind2:),".")
-  ELSE
-     build_complete_name = .TRUE.
-     my_ind1 = INDEX(outPath,".")
-  END IF
+  outName=outPath
+  has_root=.false.
+  my_ind1=INDEX(outPath,"/")
+  my_ind2 = len_trim(outPath)
   IF (my_ind1 /= 0) THEN
-     build_complete_name  = .FALSE.
+     has_root = .true.
+     DO WHILE (INDEX(outPath(my_ind1+1:my_ind2),"/")/=0)
+        my_ind1 = INDEX(outPath(my_ind1+1:my_ind2),"/") + my_ind1
+     END DO
+     IF (my_ind1 == my_ind2) then
+        outName=""
+     ELSE
+        outName = outPath(my_ind1+1:my_ind2)
+     END IF
   END IF
 
-  IF (build_complete_name) THEN
-     IF (PRESENT(middle_name)) THEN
-        IF (outPath.EQ."") THEN
-           my_middle_name="-"//middle_name
-        ELSE
-           my_middle_name="-"//TRIM(outPath)//"-"//middle_name
-        END IF
+  IF (PRESENT(middle_name)) THEN
+     IF (outName/="") THEN
+        my_middle_name="-"//TRIM(outName)//"-"//middle_name
      ELSE
-        IF (outPath.EQ."") THEN
-           my_middle_name=""
-        ELSE
-           my_middle_name="-"//TRIM(outPath)
-        ENDIF
-     ENDIF
-     IF (my_middle_name.EQ."-") my_middle_name=""
-     root=TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
-
-     ! use the cp_iter_string as a postfix
-     postfix="-"//TRIM(cp_iter_string(logger%iter_info,print_key=print_key,for_file=.TRUE.,error=error))
-     IF (TRIM(postfix)=="-") postfix=""
-
-     ! and add the extension
-     postfix=TRIM(postfix)//extension
-
+        my_middle_name="-"//middle_name
+     END IF
   ELSE
-     root=outPath
-     postfix=""
+     IF (outName/="") THEN
+        my_middle_name="-"//TRIM(outName)
+     ELSE
+        my_middle_name = ""
+     END IF
   ENDIF
+
+  IF (.not.has_root) THEN
+     root=TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
+  ELSE IF (outName=="") THEN
+     root=outPath(1:my_ind1)//TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
+  ELSE
+     root=outPath(1:my_ind1)//my_middle_name(2:len_trim(my_middle_name))
+  END IF
+
+  ! use the cp_iter_string as a postfix
+  postfix="-"//TRIM(cp_iter_string(logger%iter_info,print_key=print_key,for_file=.TRUE.,error=error))
+  IF (TRIM(postfix)=="-") postfix=""
+  
+  ! and add the extension
+  postfix=TRIM(postfix)//extension
+
   ! and let the logger generate the filename
   CALL cp_logger_generate_filename(logger,res=filename,&
        root=root, postfix=postfix,local=my_local)
