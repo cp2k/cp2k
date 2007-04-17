@@ -84,6 +84,7 @@ CONTAINS
 !   *** Close the specified file ***
 
     IF (opened) THEN
+       IF (unit_number==6) STOP "tryed to close unit 6"
 
       IF (PRESENT(file_status)) THEN
         status_string = file_status
