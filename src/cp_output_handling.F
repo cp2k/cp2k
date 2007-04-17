@@ -1121,7 +1121,7 @@ END FUNCTION cp_print_key_unit_nr
     IF (my_should_output.and.(my_local.OR.&
          logger%para_env%source==logger%para_env%mepos)) THEN
         CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
-        IF (my_on_file.AND.(outPath.NE.'__STD_OUT__')) THEN
+        IF (my_on_file.OR.outPath.NE.'__STD_OUT__') THEN
            CPPrecondition(unit_nr>0,cp_failure_level,routineP,error,failure)
            CALL close_file(unit_nr,"KEEP")
            unit_nr=-1
