@@ -24,7 +24,8 @@ MODULE fparser
                                 parsef,   & ! Parse single function string
                                 evalf,    & ! Evaluate single function
                                 EvalErrMsg,&! Error message (Use only when EvalErrType>0)
-                                finalizef   ! Finalize the function parser
+                                finalizef,& ! Finalize the function parser
+                                evalfd
   INTEGER, PUBLIC            :: EvalErrType ! =0: no error occured, >0: evaluation error
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   PRIVATE
@@ -776,5 +777,73 @@ CONTAINS
        IF (k > 0) str2(j:j) = lc(k:k)
     END DO
   END SUBROUTINE LowCase
-  !
+
+  !!****** fparser/evalfd [1.0] *
+  !!
+  !!   NAME
+  !!     evalfd
+  !!
+  !!   FUNCTION
+  !!     Evaluates derivatives 
+  !!
+  !!   AUTHOR
+  !!     Main algorithm from Numerical Recipes
+  !!     Ridders, C.J.F. 1982 - Advances in Engineering Software, Vol.4, no. 2, pp. 75-76
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  FUNCTION evalfd(id_fun,ipar,vals,h,err) RESULT(derivative)
+    INTEGER, INTENT(IN)                      :: id_fun, ipar
+    REAL(KIND=rn), DIMENSION(:), POINTER     :: vals
+    REAL(KIND=rn), INTENT(IN)                :: h
+    REAL(KIND=rn), INTENT(OUT)               :: err
+    REAL(KIND=rn)                            :: derivative
+
+    INTEGER, PARAMETER                       :: ntab = 10
+    REAL(KIND=rn), PARAMETER                 :: big_error = 1.0E30_rn, &
+                                                con = 1.4_rn, con2 = con*con, &
+                                                safe = 2.0_rn
+
+    INTEGER                                  :: i, j
+    REAL(KIND=rn)                            :: a(ntab,ntab), errt, fac, &
+                                                funcm, funcp, hh, xval
+
+    derivative = HUGE(0.0_rn)
+    IF(h/=0._rn) THEN
+       xval = vals(ipar)
+       hh=h
+       vals(ipar) = xval + hh
+       funcp = evalf(id_fun, vals)
+       vals(ipar) = xval - hh
+       funcm = evalf(id_fun, vals)
+       a(1,1)=(funcp-funcm)/(2.0_rn*hh)
+       err=big_error
+       DO i=2,ntab
+          hh=hh/con
+          vals(ipar) = xval + hh
+          funcp = evalf(id_fun, vals)
+          vals(ipar) = xval - hh
+          funcm = evalf(id_fun, vals)          
+          a(1,i)=(funcp-funcm)/(2.0_rn*hh)
+          fac=con2
+          DO j=2,i
+             a(j,i)=(a(j-1,i)*fac-a(j-1,i-1))/(fac-1.0_rn)
+             fac=con2*fac
+             errt=MAX(ABS(a(j,i)-a(j-1,i)),ABS(a(j,i)-a(j-1,i-1)))
+             IF (errt.LE.err) THEN
+                err=errt
+                derivative=a(j,i)
+             ENDIF
+          END DO
+          IF(ABS(a(i,i)-a(i-1,i-1)).GE.safe*err)RETURN
+       END DO
+    ELSE
+       CALL stop_program("evalfd","Error: DX provided equals zero!!")
+    END IF
+    vals(ipar)=xval
+  END FUNCTION evalfd
+
 END MODULE fparser

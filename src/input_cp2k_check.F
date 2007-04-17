@@ -278,7 +278,8 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
     LOGICAL                                  :: explicit1, explicit2, &
-                                                failure, flag, flag2
+                                                failure, flag, flag2, &
+                                                subsys_check
     REAL(KIND=dp)                            :: myt
     TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_parser_type), POINTER            :: cpparser
@@ -326,54 +327,66 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                 routineP,"Restart and input file MUST have the number of force_env sections",&
                 error,failure)
         END IF
-
+        ! Real restart of force_evals
         DO iforce_eval = 1, nforce_eval1
            section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
                 i_rep_section=iforce_eval,error=error)
            section2 => section_vals_get_subs_vals3(sections2,"SUBSYS",&
                 i_rep_section=iforce_eval,error=error)
-!           WRITE(*,*)"TEO",iforce_eval,nforce_eval1,subsys_ind
-           CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,error=error)
-           IF (flag) THEN
-              section  => section_vals_get_subs_vals(section1,"CELL",error=error)
-              CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)              
+           ! Some care needs to be handled when treating multiple force_eval
+           ! Both subsys need to be consistently associated or not
+           ! Mixed stuff will be rejected for safety reason..
+           subsys_check = (ASSOCIATED(section1).EQV.ASSOCIATED(section2))
+           IF (subsys_check) THEN
+              IF (ASSOCIATED(section1)) THEN
+                 CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,error=error)
+                 IF (flag) THEN
+                    section  => section_vals_get_subs_vals(section1,"CELL",error=error)
+                    CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)              
+                 END IF
+                 
+                 CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,&
+                      error=error)
+                 IF (flag) THEN
+                    section => section_vals_get_subs_vals(section1,"COORD",error=error)
+                    CALL section_vals_set_subs_vals(section2,"COORD",section,error=error)
+                 END IF
+                 
+                 CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,&
+                      error=error)
+                 IF (flag) THEN
+                    section => section_vals_get_subs_vals(section1,"RNG_INIT",error=error)
+                    CALL section_vals_set_subs_vals(section2,"RNG_INIT",section,error=error)
+                 END IF
+                 
+                 CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,&
+                      error=error)
+                 IF (flag) THEN
+                    section => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
+                    CALL section_vals_set_subs_vals(section2,"VELOCITY",section,error=error)
+                 END IF
+                 
+                 CALL section_vals_val_get(r_section,"RESTART_SHELL_POS",l_val=flag,&
+                      error=error)
+                 IF (flag) THEN
+                    section => section_vals_get_subs_vals(section1,"SHELL_COORD",error=error)
+                    CALL section_vals_set_subs_vals(section2,"SHELL_COORD",section,error=error)
+                 END IF
+                 
+                 CALL section_vals_val_get(r_section,"RESTART_SHELL_VELOCITY",l_val=flag,&
+                      error=error)
+                 IF (flag) THEN
+                    section => section_vals_get_subs_vals(section1,"SHELL_VELOCITY",error=error)
+                    CALL section_vals_set_subs_vals(section2,"SHELL_VELOCITY",section,error=error)
+                 END IF
+              END IF
+           ELSE
+              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                   routineP,"Error while reading the restart file. Two force_eval have incompatible"//&
+                   " subsys.One of them has an allocated subsys while the other has not! Check your"//&
+                   " input file or whether the restart file is compatible with the input!",&
+                   error,failure)    
            END IF
-
-           CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,&
-                error=error)
-           IF (flag) THEN
-              section => section_vals_get_subs_vals(section1,"COORD",error=error)
-              CALL section_vals_set_subs_vals(section2,"COORD",section,error=error)
-           END IF
-
-           CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,&
-                error=error)
-           IF (flag) THEN
-              section => section_vals_get_subs_vals(section1,"RNG_INIT",error=error)
-              CALL section_vals_set_subs_vals(section2,"RNG_INIT",section,error=error)
-           END IF
-
-           CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,&
-                error=error)
-           IF (flag) THEN
-              section => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
-              CALL section_vals_set_subs_vals(section2,"VELOCITY",section,error=error)
-           END IF
-
-           CALL section_vals_val_get(r_section,"RESTART_SHELL_POS",l_val=flag,&
-                error=error)
-           IF (flag) THEN
-              section => section_vals_get_subs_vals(section1,"SHELL_COORD",error=error)
-              CALL section_vals_set_subs_vals(section2,"SHELL_COORD",section,error=error)
-           END IF
-
-           CALL section_vals_val_get(r_section,"RESTART_SHELL_VELOCITY",l_val=flag,&
-                error=error)
-           IF (flag) THEN
-              section => section_vals_get_subs_vals(section1,"SHELL_VELOCITY",error=error)
-              CALL section_vals_set_subs_vals(section2,"SHELL_VELOCITY",section,error=error)
-           END IF
-
         END DO
         CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&
              error=error)

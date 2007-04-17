@@ -1398,6 +1398,7 @@ END SUBROUTINE create_cpot_section
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -1512,9 +1513,21 @@ END SUBROUTINE create_cpot_section
             n_var=-1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DX",&
+            description="Parameter used for computing the derivative with the Ridders method.",&
+            usage="DX <REAL>", default_r_val=0.1_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ERROR_LIMIT",&
+            description="Checks that the error in computing the derivative is not larger than "//&
+            "the value set. In case prints a warning message.",&
+            usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-
     END IF
 
   END SUBROUTINE create_mix_section
