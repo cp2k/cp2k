@@ -44,7 +44,7 @@
   &END MD
   &PRINT
     &TRAJECTORY
-      FILENAME deca_ala2.xyz
+      FILENAME =deca_ala2.xyz
     &END
   &END
 &END MOTION
