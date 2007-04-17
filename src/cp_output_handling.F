@@ -295,7 +295,9 @@ CONTAINS
             description=' controls part of the filename for output. '//&
                         ' use __STD_OUT__ (exactly as written here) for the screen or standard logger. '//&
                         ' use filename to obtain projectname-filename. '//&
-                        ' use ./filename to get filename ',&
+                        ' use ./filename to get filename.'//&
+                        ' A middle name (if present), iteration numbers'//&
+                        ' and extension are always added to the filename.',&
             usage="FILENAME ./filename ",&
             default_lc_val=my_filename, error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
@@ -940,7 +942,6 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
   
   ! and add the extension
   postfix=TRIM(postfix)//extension
-
   ! and let the logger generate the filename
   CALL cp_logger_generate_filename(logger,res=filename,&
        root=root, postfix=postfix,local=my_local)
@@ -1112,7 +1113,7 @@ END FUNCTION cp_print_key_unit_nr
     IF (my_should_output.and.(my_local.OR.&
          logger%para_env%source==logger%para_env%mepos)) THEN
         CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
-        IF (my_on_file.OR.outPath.NE.'__STD_OUT__') THEN
+        IF (my_on_file.AND.(outPath.NE.'__STD_OUT__')) THEN
            CPPrecondition(unit_nr>0,cp_failure_level,routineP,error,failure)
            CALL close_file(unit_nr,"KEEP")
            unit_nr=-1
