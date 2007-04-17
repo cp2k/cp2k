@@ -297,7 +297,11 @@ CONTAINS
                         ' use filename to obtain projectname-filename. '//&
                         ' use ./filename to get filename.'//&
                         ' A middle name (if present), iteration numbers'//&
-                        ' and extension are always added to the filename.',&
+                        ' and extension are always added to the filename.'//&
+                        ' if you want to avoid it use =filename, in this'//&
+                        ' case the filename is always exactly as typed.'//&
+                        ' Please note that this can lead to clashes of'//&
+                        ' filenames.',&
             usage="FILENAME ./filename ",&
             default_lc_val=my_filename, error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
@@ -897,6 +901,10 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
     LOGICAL                                  :: has_root
 
   CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
+  IF (outPath(1:1)=='=') THEN
+     filename=outPath(2:len_trim(outPath))
+     return
+  END IF
   IF (outPath=="__STD_OUT__") outPath=""
   outName=outPath
   has_root=.false.
