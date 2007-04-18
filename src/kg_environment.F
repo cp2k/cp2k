@@ -568,8 +568,7 @@ CONTAINS
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
 
-    CALL virial_create ( qs_env % virial, virial_in_use = .FALSE.,&
-         numer_virial = .FALSE. ,error=error)
+    CALL virial_create ( qs_env % virial, error=error)
 
     CALL wfi_create(wf_history,&
                     interpolation_method_nr = &

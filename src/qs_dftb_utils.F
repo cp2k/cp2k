@@ -96,10 +96,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
     CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,error,failure)
+    DEALLOCATE (dftb_parameter,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE deallocate_dftb_atom_param
 

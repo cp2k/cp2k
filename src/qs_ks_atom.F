@@ -51,6 +51,9 @@ MODULE qs_ks_atom
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -116,8 +119,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: my_tddft, new_atom_b, &
-                                                new_atom_c, paw_atom
+                                                new_atom_c, paw_atom, use_virial
     REAL(dp), DIMENSION(3, 3)                :: force_tmp
+    REAL(dp), DIMENSION(3)                   :: rac, rbc
     REAL(kind=dp)                            :: factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dCPC_h, dCPC_s
@@ -143,6 +147,7 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
     TYPE(rho_atom_type), POINTER             :: rho_at
+    TYPE(virial_type), POINTER                  :: virial
 
 !******************************************************************************
 
@@ -167,6 +172,7 @@ CONTAINS
            oce=oce, &
            para_env=para_env,&
            rho_atom_set=rho_atom,&
+           virial=virial,&
            sab_orb=sab_orb,error=error)
 
     IF (my_tddft) THEN
@@ -205,10 +211,11 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
             "PC_h,PC_s",2*(max_nsgf*max_gau*nspins)*dp_size)
       lPC = max_nsgf
+      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
 
     nkind = SIZE(atomic_kind_set,1)
-    ! Collect the local potentialcontributions from all the processors
+    ! Collect the local potential contributions from all the processors
     DO ikind = 1,nkind
        NULLIFY(atomic_kind,atom_list)
        atomic_kind => atomic_kind_set(ikind)
@@ -370,6 +377,14 @@ CONTAINS
                     force(jkind)%vhxc_atom(1:3,ja_kind) = &
                                          force(jkind)%vhxc_atom(1:3,ja_kind) + &
                                          force_tmp(1:3,2)
+                    IF (use_virial) THEN
+                      rac = reduced_3c_oce(kkind)%rac(1:3,knode)
+                      rbc = reduced_3c_oce(kkind)%rbc(1:3,knode)
+                      CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                               force_tmp(1:3,1), rac, error)
+                      CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                               force_tmp(1:3,2), rbc, error)
+                    END IF
                   ELSE
                     rho_at => rho_atom(katom)
                     force_tmp(1:3,1:3) = 0.0_dp
@@ -385,6 +400,14 @@ CONTAINS
                     force(jkind)%vhxc_atom(1:3,ja_kind) = &
                                           force(jkind)%vhxc_atom(1:3,ja_kind) + &
                                           force_tmp(1:3,1)
+                    IF (use_virial) THEN
+                      rac = reduced_3c_oce(kkind)%rac(1:3,knode)
+                      rbc = reduced_3c_oce(kkind)%rbc(1:3,knode)
+                      CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                               force_tmp(1:3,2), rac, error)
+                      CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                               force_tmp(1:3,1), rbc, error)
+                    END IF
                   END IF
                 END IF
 

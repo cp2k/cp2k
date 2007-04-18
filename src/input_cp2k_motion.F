@@ -2411,11 +2411,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)         
        CALL keyword_release(keyword,error=error)         
           
-       CALL keyword_create(keyword, name="pv_num",&         
-            description="Indicates that a finite difference scheme is used to compute virial",&         
-            usage="pv_num LOGICAL",&         
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)         
-       CALL section_add_keyword(section,keyword,error=error)         
+       CALL keyword_create(keyword, name="pv_num",&
+            description="Indicates that a finite difference scheme is used to compute virial",&
+            usage="pv_num LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="pv_dia",&
+            description="Only calculate diagonal part of numerical virial",&
+            usage="pv_dia LOGICAL",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL create_uniaxial_section(uni_section, error=error)

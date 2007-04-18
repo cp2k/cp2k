@@ -304,7 +304,7 @@ CONTAINS
       ELSEIF (dft_control%qs_control%dftb) THEN
         CALL build_dftb_matrices(qs_env=qs_env,para_env=para_env,&
                                  calculate_forces=.TRUE.,error=error)
-       CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
+        CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
                               calculate_forces=.TRUE.,error=error)
       ELSE
         CALL build_core_hamiltonian_matrix(qs_env=qs_env,&

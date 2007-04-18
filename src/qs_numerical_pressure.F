@@ -26,6 +26,8 @@ MODULE qs_numerical_pressure
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
+                                             real_to_scaled,&
+                                             scaled_to_real,&
                                              get_hinv
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
@@ -50,7 +52,11 @@ MODULE qs_numerical_pressure
 
   PUBLIC :: qs_calc_numerical_pressure
 
+!****************************************************************************
+
   CONTAINS
+
+!****************************************************************************
 
   SUBROUTINE qs_calc_numerical_pressure(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -61,10 +67,11 @@ MODULE qs_numerical_pressure
     REAL(kind=dp), PARAMETER                 :: Dx = 0.001_dp
 
     INTEGER                                  :: ip, iseq, isubsys, iw, j, k, &
-                                                l, stat
+                                                l, stat, iq
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(2)              :: numer_energy
-    REAL(kind=dp), DIMENSION(3)              :: numer_stress = 0.0_dp
+    REAL(kind=dp), DIMENSION(3)              :: s
+    REAL(kind=dp), DIMENSION(3,3)            :: numer_stress = 0.0_dp
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: pos_ref
     TYPE(cell_type), POINTER                 :: cell, cell_local, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
@@ -76,6 +83,8 @@ MODULE qs_numerical_pressure
       POINTER                                :: particles
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
     TYPE(virial_type), POINTER               :: virial
+
+!----------------------------------------------------------------------------
 
     NULLIFY(cell_local)
     failure = .FALSE.
@@ -98,13 +107,14 @@ MODULE qs_numerical_pressure
           iseq = iseq + subsys(isubsys)%subsys%particles%n_els
        END DO
        ALLOCATE( pos_ref(iseq,3), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        iseq = 0
        DO isubsys=1, SIZE(subsys)
-         particles => subsys(isubsys)%subsys%particles%els
-         DO ip = 1, subsys(isubsys)%subsys%particles%n_els
-            iseq = iseq + 1
-            pos_ref(iseq,:) = particles(ip)%r
-         END DO
+          particles => subsys(isubsys)%subsys%particles%els
+          DO ip = 1, subsys(isubsys)%subsys%particles%n_els
+             iseq = iseq + 1
+             pos_ref(iseq,:) = particles(ip)%r
+          END DO
        END DO
        CALL force_env_get(force_env,cell=cell,cell_ref=cell_ref,&
                           virial=virial, error=error)
@@ -113,71 +123,65 @@ MODULE qs_numerical_pressure
        !
        ! First change box.
        !
-
        DO ip = 1, 3
-         DO k = 1, 2
-           cell%hmat(ip,ip) = cell_local%hmat(ip,ip)  - (-1.0_dp)**k * Dx
-           CALL get_hinv( cell )
-           iseq = 0
-           !
-           ! Then scale positions.
-           !
-           DO  isubsys = 1, SIZE(subsys)
-             particles => subsys(isubsys)%subsys%particles%els
-           DO j = 1, subsys(isubsys)%subsys%particles%n_els
-             iseq = iseq + 1
-             DO l = 1, 3
-             IF (l == ip) THEN
-                   particles(j)%r(l) = pos_ref(iseq,l) * cell%hmat(l,l) / cell_local%hmat(l,l)
-                 ELSE
-                   particles(j)%r(l) = pos_ref(iseq,l)
-                 END IF
-              END DO
+          DO iq = 1, 3
+             IF ( virial%pv_diagonal .AND. ip /= iq ) CYCLE
+             DO k = 1, 2
+                cell%hmat(ip,iq) = cell_local%hmat(ip,iq)  - (-1.0_dp)**k * Dx
+                CALL get_hinv( cell )
+                iseq = 0
+                !
+                ! Then scale positions.
+                !
+                DO isubsys = 1, SIZE(subsys)
+                   particles => subsys(isubsys)%subsys%particles%els
+                   DO j = 1, subsys(isubsys)%subsys%particles%n_els
+                      iseq = iseq + 1
+                      CALL real_to_scaled(s,pos_ref(iseq,1:3),cell_local)
+                      CALL scaled_to_real(particles(j)%r,s,cell)
+                   END DO
+                END DO
+                !
+                ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
+                !
+                NULLIFY ( new_ks_env )
+                CALL set_qs_env(force_env%qs_env,cell=cell,error=error)
+                CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
+                CALL qs_ks_create ( new_ks_env, force_env % qs_env ,error=error)
+                CALL set_qs_env(force_env % qs_env, ks_env=new_ks_env ,error=error)
+                CALL qs_ks_release ( new_ks_env ,error=error)
+                !
+                ! Compute energies
+                !
+                CALL qs_energies(force_env%qs_env,globenv,&
+                                 consistent_energies=.TRUE.,error=error)
+                numer_energy(k) = force_env%qs_env%energy%total
+                ! reset cell
+                cell%hmat(ip,iq) = cell_local%hmat(ip,iq)
              END DO
-         END DO
-           !
-           ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
-           !
-           NULLIFY ( new_ks_env )
-!           force_env%qs_env%use_ref_cell=.TRUE.
-           CALL set_qs_env(force_env%qs_env,&
-                           cell=cell,error=error)
-           CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
-           CALL qs_ks_create ( new_ks_env, force_env % qs_env ,error=error)
-           CALL set_qs_env(force_env % qs_env, ks_env=new_ks_env ,error=error)
-           CALL qs_ks_release ( new_ks_env ,error=error)
-           !
-           ! Compute energies
-           !
-           CALL qs_energies(force_env%qs_env,globenv,&
-                            consistent_energies=.TRUE.,error=error)
-           numer_energy(k) = force_env%qs_env%energy%total
-! reset cell
-           cell%hmat(ip,ip) = cell_local%hmat(ip,ip)
-         END DO
-         CALL get_hinv( cell )
-         numer_stress(ip) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)
-         virial%pv_virial(ip,ip) = (-1.0_dp)*numer_stress(ip) * cell_local%hmat(ip,ip)
-         IF (globenv%run_type_id.EQ.qs_debug_run) THEN
-           IF (para_env%ionode) THEN
-              WRITE(iw,'(/A/A,I1,A,I1,A,F15.9)')"----- NUMERICAL STRESS -----",&
-                "pv_virial(",ip,",",ip,"): ",virial%pv_virial(ip,ip)
-           END IF
-         END IF
+             CALL get_hinv( cell )
+             numer_stress(ip,iq) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)
+             virial%pv_virial(ip,iq) = (-1.0_dp)*numer_stress(ip,iq) * cell_local%hmat(ip,iq)
+             IF (globenv%run_type_id.EQ.qs_debug_run) THEN
+               IF (para_env%ionode) THEN
+                  WRITE(iw,'(/A/A,I1,A,I1,A,F15.9)')"----- NUMERICAL STRESS -----",&
+                    "pv_virial(",ip,",",iq,"): ",virial%pv_virial(ip,iq)
+               END IF
+             END IF
+          END DO
        END DO
        !
        ! Reset postions and rebuild environment.
        !
        iseq = 0
        DO isubsys=1, SIZE(subsys)
-         particles => subsys(isubsys)%subsys%particles%els
-         DO ip = 1, subsys(isubsys)%subsys%particles%n_els
-            iseq = iseq + 1
-            particles(ip)%r = pos_ref(iseq,:)
-         END DO
+          particles => subsys(isubsys)%subsys%particles%els
+          DO ip = 1, subsys(isubsys)%subsys%particles%n_els
+             iseq = iseq + 1
+             particles(ip)%r = pos_ref(iseq,:)
+          END DO
        END DO
        CALL get_hinv ( cell )
-!       force_env%qs_env%use_ref_cell=.TRUE.
        !
        ! Rebuild the appropriate environments to obtain original environment
        !
@@ -190,14 +194,21 @@ MODULE qs_numerical_pressure
        CALL qs_ks_release ( new_ks_env ,error=error)
 
        IF (para_env%ionode) THEN
-       WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
+          WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
            'NUMERICAL STRESS END *****************************'
        END IF
 
-       IF (ASSOCIATED( pos_ref )) DEALLOCATE( pos_ref )
+       IF (ASSOCIATED( pos_ref )) THEN
+         DEALLOCATE( pos_ref, stat=stat )
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        IF (ASSOCIATED( cell_local )) CALL cell_release( cell_local ,error=error)
     END IF
+
   END SUBROUTINE qs_calc_numerical_pressure
 
+!****************************************************************************
 
 END MODULE qs_numerical_pressure
+
+!****************************************************************************

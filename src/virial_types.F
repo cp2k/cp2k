@@ -41,7 +41,8 @@ MODULE virial_types
                                            pv_xc
      LOGICAL                            :: pv_availability,&
                                            pv_calculate,&
-                                           pv_numer
+                                           pv_numer,&
+                                           pv_diagonal
   END TYPE virial_type
 
 !!*****
@@ -70,15 +71,15 @@ CONTAINS
     virial_out % pv_availability = virial_in % pv_availability
     virial_out % pv_calculate = virial_in % pv_calculate
     virial_out % pv_numer = virial_in % pv_numer
+    virial_out % pv_diagonal = virial_in % pv_diagonal
 
   END SUBROUTINE  cp_virial
 
 !******************************************************************************
 
-  SUBROUTINE zero_virial ( virial, virial_in_use, numer_virial )
+  SUBROUTINE zero_virial ( virial )
 
     TYPE(virial_type), INTENT(OUT)           :: virial
-    LOGICAL, INTENT(IN), OPTIONAL            :: virial_in_use, numer_virial
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'zero_virial', &
       routineP = moduleN//':'//routineN
@@ -89,32 +90,23 @@ CONTAINS
     virial % pv_xc = 0.0_dp 
     virial % pv_constraint = 0.0_dp 
 
-    IF ( PRESENT ( virial_in_use ) ) THEN
-       virial % pv_availability = virial_in_use
-    ELSE
-       virial % pv_availability = .FALSE.
-    ENDIF
-
-    IF ( PRESENT ( numer_virial ) ) THEN
-       virial % pv_numer = numer_virial
-    ELSE
-       virial % pv_numer = .FALSE.
-    ENDIF
-
+    virial % pv_availability = .FALSE.
+    virial % pv_numer = .FALSE.
     virial % pv_calculate = .FALSE.
+    virial % pv_diagonal = .FALSE.
 
   END SUBROUTINE  zero_virial
 
 ! *****************************************************************************
 
   SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
-                         pv_kinetic, pv_availability, pv_calculate, pv_numer )
+    pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
     LOGICAL, OPTIONAL                        :: pv_availability, pv_numer, &
-                                                pv_calculate
+                                                pv_calculate, pv_diagonal
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_set', &
       routineP = moduleN//':'//routineN
@@ -129,19 +121,20 @@ CONTAINS
     IF ( PRESENT ( pv_availability ) ) virial % pv_availability = pv_availability
     IF ( PRESENT ( pv_calculate ) ) virial % pv_calculate = pv_calculate
     IF ( PRESENT ( pv_numer ) ) virial % pv_numer = pv_numer
+    IF ( PRESENT ( pv_diagonal ) ) virial % pv_diagonal = pv_diagonal
 
   END SUBROUTINE virial_set
 
 ! *****************************************************************************
 
   SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
-                         pv_kinetic, pv_availability, pv_calculate, pv_numer )
+    pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
     LOGICAL, OPTIONAL                        :: pv_availability, pv_numer, &
-                                                pv_calculate
+                                                pv_calculate, pv_diagonal
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_get', &
       routineP = moduleN//':'//routineN
@@ -156,15 +149,15 @@ CONTAINS
     IF ( PRESENT ( pv_availability ) ) pv_availability = virial % pv_availability 
     IF ( PRESENT ( pv_calculate ) ) pv_calculate = virial % pv_calculate 
     IF ( PRESENT ( pv_numer ) ) pv_numer = virial % pv_numer 
+    IF ( PRESENT ( pv_diagonal ) ) pv_diagonal = virial % pv_diagonal 
 
   END SUBROUTINE virial_get
 
 ! *****************************************************************************
 
-  SUBROUTINE virial_create ( virial, virial_in_use, numer_virial, error )
+  SUBROUTINE virial_create ( virial, error )
 
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL, OPTIONAL                        :: virial_in_use, numer_virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create', &
@@ -177,18 +170,7 @@ CONTAINS
     ALLOCATE ( virial, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
-    IF (PRESENT(virial_in_use).AND.PRESENT(numer_virial)) THEN
-      CALL zero_virial ( virial, virial_in_use = virial_in_use,&
-                         numer_virial = numer_virial )
-    ELSE IF (PRESENT(virial_in_use)) THEN
-      CALL zero_virial ( virial, virial_in_use = virial_in_use )
-    ELSE IF (PRESENT(numer_virial)) THEN
-      CALL zero_virial ( virial, numer_virial = numer_virial )
-    ELSE
-      CALL zero_virial ( virial )
-    END IF    
-
-    virial%pv_calculate = .FALSE.
+    CALL zero_virial ( virial )
 
     last_virial_id_nr=last_virial_id_nr+1
     virial%id_nr=last_virial_id_nr

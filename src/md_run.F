@@ -303,7 +303,7 @@ CONTAINS
        CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,&
             cell,work_section=work_section,error=error)
        CALL virial_set ( virial,pv_availability=simpar%pv_availability,&
-                         pv_numer=simpar%pv_numerical)
+                         pv_numer=simpar%pv_numerical,pv_diagonal=simpar%pv_diagonal)
        !
        ! Always initialize velocities
        ! and possibly restart them

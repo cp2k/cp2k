@@ -172,11 +172,6 @@ SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab, error)
     DO j=1,3
       pv_virial(i,j) = pv_virial(i,j) + f0 * force(i) * rab(j)
     END DO
-!deb
-!   DO j=1,3
-!     if(i/=j) pv_virial(i,j) = 0._dp
-!   END DO
-!deb
   END DO
 
 END SUBROUTINE virial_pair_force 

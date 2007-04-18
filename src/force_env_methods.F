@@ -134,6 +134,7 @@ MODULE force_env_methods
                                              timestop
   USE virial_types,                    ONLY: virial_create,&
                                              virial_retain,&
+                                             virial_set,&
                                              virial_type,&
                                              zero_virial
 #include "cp_common_uses.h"
@@ -196,7 +197,7 @@ CONTAINS
     INTEGER                                  :: isubsys, nat, output_unit, &
                                                 print_forces, stat
     LOGICAL                                  :: energy_consistency, failure, &
-                                                ionode, my_skip, need_f
+                                                ionode, my_skip, need_f, pvn, pvd
     REAL(kind=dp)                            :: e_pot
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
@@ -233,7 +234,10 @@ CONTAINS
     END IF
     CALL force_env_get(force_env,virial=virial,error=error)
     IF (virial%pv_availability) THEN
-       CALL zero_virial(virial,virial%pv_availability, virial%pv_numer)
+       pvn = virial%pv_numer
+       pvd = virial%pv_diagonal
+       CALL zero_virial(virial)
+       CALL virial_set(virial,pv_availability=.TRUE.,pv_numer=pvn,pv_diagonal=pvd)
     END IF
     IF (.NOT.failure) THEN
 
@@ -432,7 +436,8 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use=use_fist_force
            force_env%fist_env => fist_env
            CALL fist_env_retain ( fist_env, error = error )
-           CALL virial_create ( force_env % virial, virial_in_use = .TRUE. ,error=error)
+           CALL virial_create ( force_env % virial, error=error)
+           CALL virial_set ( force_env % virial, pv_availability = .TRUE.)
         END IF
      END IF
      IF (PRESENT(kg_env)) THEN
@@ -441,7 +446,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use=use_kg_force
            force_env%kg_env => kg_env
            CALL kg_env_retain(kg_env,error=error)
-           CALL virial_create ( force_env%virial, virial_in_use = .FALSE. ,error=error)
+           CALL virial_create ( force_env%virial, error=error)
            kg_env%virial => force_env%virial
            CALL virial_retain(kg_env%virial,error=error)
         END IF
@@ -453,7 +458,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use = use_eip_force
            force_env%eip_env => eip_env
            CALL eip_env_retain(eip_env, error=error)
-           CALL virial_create(force_env%virial, virial_in_use = .FALSE.,error=error)
+           CALL virial_create(force_env%virial, error=error)
            eip_env%virial => force_env%virial
            CALL virial_retain(eip_env%virial,error=error)
         END IF
@@ -467,9 +472,10 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            IF (force_env%globenv%run_type_id == qs_debug_run) THEN
               CALL section_vals_val_get(root_section,"DEBUG%DEBUG_PRESSURE",&
                    l_val=virial_in_use,error=error)
-              CALL virial_create(force_env%virial, virial_in_use = virial_in_use,error=error)
+              CALL virial_create(force_env%virial, error=error)
+              CALL virial_set ( force_env % virial, pv_availability = virial_in_use)
            ELSE
-              CALL virial_create(force_env%virial, virial_in_use = .FALSE.,error=error)
+              CALL virial_create(force_env%virial, error=error)
            END IF
            qs_env%virial => force_env%virial
            CALL virial_retain(qs_env%virial,error=error)
@@ -488,7 +494,8 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         force_env%in_use=use_mixed_force
         force_env%mixed_env => mixed_env
         CALL mixed_env_retain ( mixed_env, error = error )
-        CALL virial_create ( force_env % virial, virial_in_use = .TRUE. ,error=error)
+        CALL virial_create ( force_env % virial, error=error)
+        CALL virial_set ( force_env % virial, pv_availability = .TRUE.)
      END IF
      IF (PRESENT(ep_env)) THEN
         IF (ASSOCIATED(ep_env)) THEN
@@ -496,7 +503,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use=use_ep_force
            force_env%ep_env => ep_env
            CALL ep_env_retain(ep_env,error=error)
-           CALL virial_create ( force_env%virial, virial_in_use = .FALSE. ,error=error)
+           CALL virial_create ( force_env%virial, error=error)
         END IF
      END IF
      CPPostcondition(force_env%in_use/=0,cp_failure_level,routineP,error,failure)

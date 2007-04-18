@@ -68,6 +68,9 @@ MODULE qs_dftb_matrices
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -115,10 +118,11 @@ CONTAINS
       lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
       neighbor_list_id, ngrd, ngrdcut, nkind, nlist, nmat, nnode, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem
-    LOGICAL                                  :: defined, failure, new_atom_b
+    LOGICAL                                  :: defined, failure, new_atom_b, &
+                                                use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, ga, gb, s_cut, &
-                                                urep_cut
+                                                urep_cut, foab, fow, f0
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
     REAL(KIND=dp), DIMENSION(2)              :: surr
@@ -153,6 +157,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: gamma_matrix, matrix_h, &
                                                 matrix_p, matrix_s, matrix_w
+    TYPE(virial_type), POINTER               :: virial
 
 !   ----------------------------------------------------------------------------
 
@@ -242,6 +247,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       particle_set=particle_set,&
                       rho=rho,matrix_w=matrix_w,&
+                      virial=virial,&
                       force=force,error=error)
       matrix_p => rho%rho_ao
       IF (SIZE(matrix_p) == 2) THEN
@@ -255,6 +261,7 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
+      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
 
     erep = 0._dp
@@ -467,13 +474,15 @@ CONTAINS
                        dfblock = -dfblock/ddr
                        dsblock = -dsblock/ddr
                        IF ( irow == iatom ) THEN
-                         force_ab(i) = force_ab(i) - SUM(dfblock*pblock)
-                         force_w(i) = force_w(i) + SUM(dsblock*wblock)
+                         foab = -SUM(dfblock*pblock)
+                         fow = SUM(dsblock*wblock)
                          dsblock = -dsblock
                        ELSE
-                         force_ab(i) = force_ab(i) + SUM(dfblock*pblock)
-                         force_w(i) = force_w(i) - SUM(dsblock*wblock)
+                         foab = SUM(dfblock*pblock)
+                         fow = -SUM(dsblock*wblock)
                        END IF
+                       force_ab(i) = force_ab(i) + foab
+                       force_w(i) = force_w(i) + fow
                        IF ( dftb_control%self_consistent ) THEN
                          NULLIFY (dsblock_i)
                          CALL get_block_node(matrix=matrix_s(1+i)%matrix,&
@@ -484,6 +493,17 @@ CONTAINS
                          dsblock_i = dsblock_i + dsblock
                        END IF
                      ENDDO
+                     IF ( use_virial ) THEN
+                       IF ( irow == iatom ) THEN
+                         f0 = -1._dp
+                       ELSE
+                         f0 = 1._dp
+                       END IF
+                       CALL virial_pair_force ( virial%pv_virial, f0, &
+                                                force_ab, rij, error)
+                       CALL virial_pair_force ( virial%pv_virial, f0, &
+                                                force_w, rij, error)
+                     END IF
                      DEALLOCATE (dfblock,dsblock,STAT=istat)
                      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
                    END IF
@@ -542,7 +562,11 @@ CONTAINS
                         force(ikind)%repulsive(:,atom_a) - force_rr(:)
                     force(jkind)%repulsive(:,atom_b) =&
                         force(jkind)%repulsive(:,atom_b) + force_rr(:)
-                 END IF
+                    IF ( use_virial ) THEN
+                      CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                               force_rr, rij, error)
+                     END IF
+                  END IF
                END IF
 
                sab_orb_neighbor_node => next(sab_orb_neighbor_node)

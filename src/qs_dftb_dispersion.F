@@ -39,6 +39,9 @@ MODULE qs_dftb_dispersion
        neighbor_node_type, next
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
+
 #include "cp_common_uses.h"
 
   PRIVATE
@@ -66,11 +69,11 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
       istat, jatom, jkind, natom, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure
+    LOGICAL                                  :: defined, failure, use_virial
     REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, &
                                                 evdw, rc, rc_a, rc_b, x0ij, &
                                                 xij, xp
-    REAL(KIND=dp), DIMENSION(3)              :: rij
+    REAL(KIND=dp), DIMENSION(3)              :: rij, fdij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -90,6 +93,7 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(virial_type), POINTER               :: virial
 
 !   ----------------------------------------------------------------------------
 
@@ -100,6 +104,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
+                    virial=virial,&
                     dft_control=dft_control,error=error)
 
     energy%dispersion = 0._dp
@@ -121,6 +126,7 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                  atom_of_kind=atom_of_kind)
+        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
       END IF
 
       evdw = 0._dp
@@ -196,10 +202,11 @@ CONTAINS
                      devdw = dij*12._dp*(xp**6 - xp**12)/dr
                      atom_a = atom_of_kind(iatom)
                      atom_b = atom_of_kind(jatom)
+                     fdij(:) = devdw * rij(:)/dr
                      force(ikind)%dispersion(:,atom_a) =&
-                         force(ikind)%dispersion(:,atom_a) - devdw * rij(:)/dr
+                         force(ikind)%dispersion(:,atom_a) - fdij(:)
                      force(jkind)%dispersion(:,atom_b) =&
-                         force(jkind)%dispersion(:,atom_b) + devdw * rij(:)/dr
+                         force(jkind)%dispersion(:,atom_b) + fdij(:)
                    END IF
                  ELSE
                    ! Shorter distance. 
@@ -212,11 +219,16 @@ CONTAINS
                      atom_a = atom_of_kind(iatom)
                      atom_b = atom_of_kind(jatom)
                      devdw = -5*B*dr**4 -10*C*dr**9
+                     fdij(:) = devdw * rij(:)/dr
                      force(ikind)%dispersion(:,atom_a) =&
-                         force(ikind)%dispersion(:,atom_a) - devdw * rij(:)/dr
+                         force(ikind)%dispersion(:,atom_a) - fdij(:)
                      force(jkind)%dispersion(:,atom_b) =&
-                         force(jkind)%dispersion(:,atom_b) + devdw * rij(:)/dr
+                         force(jkind)%dispersion(:,atom_b) + fdij(:)
                    END IF
+                 END IF
+                 IF(calculate_forces .AND. (dr > 0.001_dp) .AND. use_virial) THEN
+                   CALL virial_pair_force ( virial%pv_virial, -1._dp, &
+                                            fdij, rij, error)
                  END IF
                END IF
 

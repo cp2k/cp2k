@@ -41,7 +41,7 @@ MODULE qs_dftb_coulomb
                                              do_rsgrid_distributed
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: oorootpi,&
-                                             pi
+                                             pi, fourpi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pme_tools,                       ONLY: get_center,&
@@ -60,6 +60,7 @@ MODULE qs_dftb_coulomb
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_transfer,&
+                                             pw_integral_a2b,&
                                              pw_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -84,6 +85,9 @@ MODULE qs_dftb_coulomb
                                              sparse_times_local
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -122,11 +126,11 @@ CONTAINS
                                                 nmat
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
-    LOGICAL                                  :: do_ewald, failure
+    LOGICAL                                  :: do_ewald, failure, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij
-    REAL(KIND=dp), DIMENSION(3)              :: rij
+    REAL(KIND=dp), DIMENSION(3)              :: rij, fij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, gmcharge, ksblock, &
-                                                mcin, mcout, pblock, sblock
+       mcin, mcout, pblock, sblock, gblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -145,12 +149,14 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: gamma_matrix, matrix_p, &
                                                 matrix_s
+    TYPE(virial_type), POINTER               :: virial
 
 !   ----------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
+    use_virial=.FALSE.
 
     IF ( calculate_forces ) THEN
       nmat = 4
@@ -163,7 +169,12 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     gmcharge = 0._dp
 
-    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,error=error)
+    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,&
+                    particle_set=particle_set,cell=cell,&
+                    virial=virial,error=error)
+    IF ( calculate_forces ) THEN
+      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+    END IF
 
     ALLOCATE(mcin(1,natom),mcout(1,natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -176,6 +187,26 @@ CONTAINS
     DEALLOCATE(mcin,mcout,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    IF ( calculate_forces .AND. use_virial ) THEN
+      DO iatom=1,natom
+        NULLIFY(block_node)
+        block_node => first_block_node(gamma_matrix(1)%matrix,iatom)
+        DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,block_col=jatom)
+          DO i=1,3
+            NULLIFY(gblock)
+            CALL get_block_node(matrix=gamma_matrix(i+1)%matrix,block_row=iatom,&
+                 block_col=jatom,block=gblock)
+            fij(i) = gblock(1,1)*mcharge(iatom)*mcharge(jatom)
+          END DO
+          rij = particle_set(iatom)%r - particle_set(jatom)%r
+          rij = pbc(rij,cell)
+          CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
+          block_node => next_block_node(block_node)
+        END DO
+      END DO
+    END IF
+
     ! 1/R contribution
     do_ewald = qs_env%dft_control%qs_control%dftb_control%do_ewald
     IF (do_ewald) THEN
@@ -183,12 +214,12 @@ CONTAINS
       NULLIFY(ewald_env,ewald_pw)
       CALL get_qs_env(qs_env=qs_env,&
                       ewald_env=ewald_env,ewald_pw=ewald_pw,&
-                      cell=cell,error=error)
+                      error=error)
       CALL get_cell(cell=cell,periodic=periodic,deth=deth)
       CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
-      CALL get_qs_env(qs_env=qs_env,sac_3c=n_list,&
-                      particle_set=particle_set,error=error)
-      CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,error=error)
+      CALL get_qs_env(qs_env=qs_env,sac_3c=n_list,error=error)
+      CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
+                              virial,use_virial,error=error)
       SELECT CASE(ewald_type)
       CASE DEFAULT
         CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
@@ -203,13 +234,12 @@ CONTAINS
              "PME not implemented in DFTB",error)
       CASE(do_ewald_spme)
         CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,&
-          gmcharge,mcharge,calculate_forces,error)
+          gmcharge,mcharge,calculate_forces,virial,use_virial,error)
       END SELECT
     ELSE
       ! direct sum
       CALL get_qs_env(qs_env=qs_env,&
-                      cell=cell,local_particles=local_particles,&
-                      particle_set=particle_set,error=error)
+                      local_particles=local_particles,error=error)
       DO ikind=1,SIZE(local_particles%n_el)
         DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -226,6 +256,7 @@ CONTAINS
           END DO
         END DO
       END DO
+      CPPostcondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -301,7 +332,14 @@ CONTAINS
                   force(ikind)%rho_elec(i,atom_i) + fi
               force(jkind)%rho_elec(i,atom_j) =&
                   force(jkind)%rho_elec(i,atom_j) - fi
+              fij(i) = fi
             END DO
+            IF (use_virial) THEN
+              rij = particle_set(iatom)%r - particle_set(jatom)%r
+              rij = pbc(rij,cell)
+              CALL virial_pair_force ( virial%pv_virial, 1._dp, &
+                                       fij, rij, error)
+            END IF
           END IF
           block_node => next_block_node(block_node)
         END DO
@@ -327,7 +365,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,&
-      gmcharge,mcharge,calculate_forces,error)
+      gmcharge,mcharge,calculate_forces,virial,use_virial,error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -339,20 +377,20 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(inout)                          :: mcharge
     LOGICAL, INTENT(in)                      :: calculate_forces
+    TYPE(virial_type), POINTER               :: virial
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ierr, &
-                                                ipart, jpart, n, npart, &
-                                                nsmax, o_spline, p1, &
-                                                rs_distributed_id
+    INTEGER                                  :: group, handle, i, j, ierr, &
+      ipart, jpart, n, npart, nsmax, o_spline, p1, rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: ndim
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols, fat(3), fint, &
-                                                vgc
+                                                vgc, ffa
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     TYPE(greens_fn_type), POINTER            :: green
@@ -364,6 +402,7 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
+    REAL(KIND=dp), DIMENSION(3,3)            :: h_stress, f_stress
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
@@ -444,7 +483,13 @@ CONTAINS
   CALL pw_pool_create_pw ( pw_pool, phi_g,  &
                            use_data = COMPLEXDATA1D,   &
                            in_space = RECIPROCALSPACE, error=error)
-  CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, error=error)
+  IF ( use_virial ) THEN
+    CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
+                            h_stress=h_stress, error=error)
+  ELSE
+    CALL pw_poisson_solve ( poisson_env, rhob_g, vgc, phi_g, dphi_g, &
+                            error=error)
+  END IF
 
   CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
 
@@ -459,15 +504,16 @@ CONTAINS
 
 !------------- STRESS TENSOR CALCULATION ------------
 
-! DO i = 1, 3
-!   DO j = i, 3
-!      f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw)
-!      f_stress(j,i) = f_stress(i,j)
-!   END DO
-! END DO
-! ffa = ( 1.0_dp / fourpi )  * ( 0.5_dp / alpha ) ** 2
-! f_stress = -ffa * f_stress
-! pv_g = h_stress + f_stress
+  IF ( use_virial ) THEN
+    DO i = 1, 3
+      DO j = i, 3
+         f_stress(i,j) = pw_integral_a2b(dphi_g(i)%pw,dphi_g(j)%pw)
+         f_stress(j,i) = f_stress(i,j)
+      END DO
+    END DO
+    ffa = ( 1.0_dp / fourpi )  * ( 0.5_dp / alpha ) ** 2
+    virial%pv_virial = virial%pv_virial - ffa * f_stress + h_stress
+  END IF
 
 !--------END OF STRESS TENSOR CALCULATION -----------
 
@@ -654,7 +700,8 @@ END SUBROUTINE get_delta
 
 ! *****************************************************************************
 
-  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,error)
+  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
+                                virial,use_virial,error)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: gmcharge
@@ -662,6 +709,8 @@ END SUBROUTINE get_delta
     REAL(KIND=dp), INTENT(in)                :: alpha
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: n_list
+    TYPE(virial_type), POINTER               :: virial
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dftb_ewald_overlap', &
@@ -670,7 +719,7 @@ END SUBROUTINE get_delta
     INTEGER                                  :: handle, i, iab, iatom, ilist, &
                                                 inode, jatom, nlist, nmat, &
                                                 nnode
-    REAL(KIND=dp)                            :: dfr, dr, fr, rij(3)
+    REAL(KIND=dp)                            :: dfr, dr, fr, rij(3), pfr
     TYPE(neighbor_list_type), POINTER        :: n_list_ab, n_list_local
     TYPE(neighbor_node_type), POINTER        :: n_list_node
 
@@ -715,6 +764,10 @@ END SUBROUTINE get_delta
                 gmcharge(iatom,i)=gmcharge(iatom,i)-rij(i-1)*mcharge(jatom)*dfr
                 gmcharge(jatom,i)=gmcharge(jatom,i)+rij(i-1)*mcharge(iatom)*dfr
               END DO
+            END IF
+            IF ( use_virial ) THEN
+              pfr = -dfr*mcharge(iatom)*mcharge(jatom)
+              CALL virial_pair_force ( virial%pv_virial, pfr, rij, rij, error)
             END IF
           END IF
 
