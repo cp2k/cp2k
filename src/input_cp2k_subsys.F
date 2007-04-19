@@ -1104,7 +1104,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
-                                                subsubsection
+                                                subsubsection, subsubsubsection
 
     failure=.FALSE.
 
@@ -1169,13 +1169,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONN_FILE_NAME",&
-            variants=(/"CONN_FILE"/),&
-            description="Specifies the filename that contains the molecular connectivity.",&
-            usage="CONN_FILE_NAME FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
        CALL keyword_create(keyword, name="COORDINATE",&
             description="Set up the way in which coordinates will be read.",&
             usage="COORDINATE (PDB||XYZ||G96||OFF)", &
@@ -1188,29 +1181,8 @@ CONTAINS
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
- 
-       CALL keyword_create(keyword, name="CONNECTIVITY",&
-            description="Ways to determine and generate a molecules. "// &
-            "Default is to use GENERATE",&
-            usage="CONNECTIVITY (PSF||UPSF||MOL_SET||GENERATE||OFF||G87||G96)", &
-            enum_c_vals=s2a("PSF","UPSF","MOL_SET","GENERATE","OFF","G87","G96"),&
-            enum_i_vals=(/do_conn_psf,&
-                          do_conn_psf_u,&
-                          do_conn_mol_set,&
-                          do_conn_generate,&
-                          do_conn_off,&
-                          do_conn_g87,do_conn_g96/),&
-            enum_desc=s2a("Use  a PSF file to determine the connectivity."//&
-                                  " (support standard CHARMM/XPLOR and EXT CHARMM)",&
-                          "Read a PSF file in an unformatted way (useful for not so standard PSF).",&
-                          "Use multiple PSF (for now...) files to generate the whole sytem.",&
-                          "Use a simple distance criteria. (Look at keyword BONDPARM)",&
-                          "Do not generate molecules. (Use for QS or ill defined systems)",&
-                          "Use GROMOS G87 topology file.",&
-                          "Use GROMOS G96 topology file."),&
-            default_i_val=do_conn_generate,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+
+       CALL connectivity_framework(section, do_conn_generate, error)
 
        CALL keyword_create(keyword, name="EXCLUDE_VDW",&
             description="Specifies which kind of Van der Waals interaction to skip.",&
@@ -1422,24 +1394,90 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
 
-       NULLIFY(subsection)
+       NULLIFY(subsection, subsubsection, subsubsubsection)
        CALL section_create(subsection,name="MOL_SET",&
-            description="Molecule section. Right now only works with PSF.",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            description="Specify the connectivity of a full system specifyin the connectivity"//&
+            " of fragments of the system",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL section_create(subsubsection,name="MOLECULE",&
+            description="Specify information about the connectivity of single molecules",&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="NMOL",&
             description="number of molecules ",&
             usage="NMOL {integer}", default_i_val=1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONN_FILE_NAME",&
-            description="filename that contains the molecular connectivity.",&
-            usage="CONN_FILE_NAME FILENAME",required=.TRUE.,&
-            type_of_var=lchar_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL connectivity_framework(subsubsection, do_conn_psf, error)
+
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_create(subsubsection,name="MERGE_MOLECULES",&
+            description="Enables the creation of connecting bridges (bonds, angles, torsions, impropers)"//&
+            " between the two or more molecules defined with independent connectivity.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL section_create(subsubsubsection,name="bonds",&
+            description="Defines new bonds",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Two integer indexes per line defining the new bond."//&
+            " Indexes must be relative to the full system and not to the single molecules",&
+            repeats=.TRUE.,required=.TRUE.,&
+            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, error=error)
+       CALL section_add_keyword(subsubsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
+       CALL section_release(subsubsubsection,error=error)
+
+       CALL section_create(subsubsubsection,name="angles",&
+            description="Defines new angles",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Three integer indexes per line defining the new angle"//&
+            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
+            usage="<INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=3, error=error)
+       CALL section_add_keyword(subsubsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
+       CALL section_release(subsubsubsection,error=error)
+
+       CALL section_create(subsubsubsection,name="torsions",&
+            description="Defines new torsions",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Four integer indexes per line defining the new torsion"//&
+            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
+            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+       CALL section_add_keyword(subsubsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
+       CALL section_release(subsubsubsection,error=error)
+
+       CALL section_create(subsubsubsection,name="impropers",&
+            description="Defines new impropers",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)      
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Four integer indexes per line defining the new improper"//&
+            " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
+            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+       CALL section_add_keyword(subsubsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsubsection, subsubsubsection, error=error)
+       CALL section_release(subsubsubsection,error=error)
+
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -1447,5 +1485,73 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_topology_section
+
+!***************************************************************************
+!!****f* input_cp2k_subsys/connectivity_framework [1.0] *
+!!
+!!   NAME
+!!     connectivity_framework
+!!
+!!   FUNCTION
+!!     Specify keywords used to define connectivity 
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE connectivity_framework(section,default,error)
+    TYPE(section_type), POINTER              :: section
+    INTEGER, INTENT(IN)                      :: default
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_framework', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="CONN_FILE_NAME",&
+            variants=(/"CONN_FILE"/),&
+            description="Specifies the filename that contains the molecular connectivity.",&
+            usage="CONN_FILE_NAME FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="CONNECTIVITY",&
+            description="Ways to determine and generate a molecules. "// &
+            "Default is to use GENERATE",&
+            usage="CONNECTIVITY (PSF||UPSF||MOL_SET||GENERATE||OFF||G87||G96)", &
+            enum_c_vals=s2a("PSF","UPSF","MOL_SET","GENERATE","OFF","G87","G96"),&
+            enum_i_vals=(/do_conn_psf,&
+                          do_conn_psf_u,&
+                          do_conn_mol_set,&
+                          do_conn_generate,&
+                          do_conn_off,&
+                          do_conn_g87,do_conn_g96/),&
+            enum_desc=s2a("Use  a PSF file to determine the connectivity."//&
+                                  " (support standard CHARMM/XPLOR and EXT CHARMM)",&
+                          "Read a PSF file in an unformatted way (useful for not so standard PSF).",&
+                          "Use multiple PSF (for now...) files to generate the whole sytem.",&
+                          "Use a simple distance criteria. (Look at keyword BONDPARM)",&
+                          "Do not generate molecules. (Use for QS or ill defined systems)",&
+                          "Use GROMOS G87 topology file.",&
+                          "Use GROMOS G96 topology file."),&
+            default_i_val=default,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE connectivity_framework
 
 END MODULE input_cp2k_subsys

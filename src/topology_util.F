@@ -72,7 +72,8 @@ MODULE topology_util
             array1_list_type,&
             array2_list_type,&
             give_back_molecule,&
-            reorder_list_array
+            reorder_list_array,&
+            tag_molecule
 
   INTERFACE reorder_structure
      MODULE PROCEDURE reorder_structure1d, reorder_structure2d
@@ -841,6 +842,43 @@ CONTAINS
     END IF
   END SUBROUTINE give_back_molecule
 
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     tag_molecule
+!!
+!!   SYNOPSIS
+!!
+!!
+!!   FUNCTION
+!!     gives back a mapping of molecules.. icheck needs to be initialized with -1
+!!
+!!   AUTHOR
+!!     Teodoro Laino 04.2007 - Zurich University
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  RECURSIVE SUBROUTINE tag_molecule(icheck, bond_list, i, my_mol)
+    INTEGER, DIMENSION(:), POINTER           :: icheck
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list
+    INTEGER, INTENT(IN)                      :: i
+    INTEGER, INTENT(IN)                      :: my_mol
+
+    INTEGER                                  :: j, k
+
+
+    icheck(i) = my_mol
+    DO j = 1, SIZE(bond_list(i)%array1)
+       k = bond_list(i)%array1(j)
+       IF (k<=i) CYCLE
+       CALL tag_molecule(icheck, bond_list, k, my_mol)
+    END DO
+
+  END SUBROUTINE tag_molecule
 
 !******************************************************************************
 !!****** topology_util [1.0] *

@@ -1,0 +1,38 @@
+PSF EXT
+ 
+         1 !NTITLE
+ Conversion from AMBER PARMTOP ::GLY
+ 
+         7 !NATOM
+         1 MOL01           1 GLY      N       N      -0.493700        14.010           0
+         2 MOL01           1 GLY      H       H       0.301800         1.008           0
+         3 MOL01           1 GLY      CA      CT4    -0.033200        12.010           0
+         4 MOL01           1 GLY      HA2     H12     0.068700         1.008           0
+         5 MOL01           1 GLY      HA3     H12     0.068700         1.008           0
+         6 MOL01           1 GLY      C       C       0.673100        12.010           0
+         7 MOL01           1 GLY      O       O      -0.585400        16.000           0
+  
+         6 !NBOND
+         1         2         3         4         3         5         1         3
+         3         6         6         7
+ 
+         8 !NTHETA
+         1         3         4         1         3         5         2         1         3
+         4         3         5         4         3         6         5         3         6
+         1         3         6         3         6         7
+ 
+         6 !NPHI
+         2         1         3         4         2         1         3         5
+         2         1         3         6         4         3         6         7
+         5         3         6         7         1         3         6         7
+ 
+         0 !NIMPHI
+ 
+         0 !NDON
+ 
+         0 !NACC
+ 
+         0 !NNB
+ 
+         0 !NGRP
+ 

@@ -67,8 +67,10 @@ MODULE topology
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
   USE topology_psf,                    ONLY: pre_read_topology_psf,&
+                                             psf_post_process,&
                                              read_topology_psf,&
-                                             write_topology_psf
+                                             write_topology_psf,&
+                                             idm_psf
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
@@ -317,9 +319,9 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: element0, filename, my_element
     CHARACTER(len=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: elements
-    INTEGER                                  :: handle, handle2, i, i_rep, &
-                                                id, imol, itmp, iw, j, k, &
-                                                n_rep, nmol, stat
+    INTEGER                                  :: conn_type, handle, handle2, &
+                                                i, i_rep, id, imol, itmp, iw, &
+                                                j, k, n_rep, nmol, stat
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
@@ -341,18 +343,25 @@ CONTAINS
     SELECT CASE (topology%conn_type)
     CASE (do_conn_mol_set)
        CALL pre_read_topology_psf(topology,subsys_section,error)
-       section => section_vals_get_subs_vals(subsys_section,&
-                  "TOPOLOGY%MOL_SET",error=error)
+       section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET",error=error)
+       section => section_vals_get_subs_vals(section,"MOLECULE",error=error)
        CALL section_vals_get(section,n_repetition=n_rep,error=error)
        DO i_rep=1,n_rep
-         CALL section_vals_val_get(section,"NMOL",i_val=nmol,&
-                                    i_rep_section=i_rep,error=error)
-         CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,&
-                                    i_rep_section=i_rep,error=error)
-         DO imol=1,nmol
-           CALL read_topology_psf(filename,topology,para_env,subsys_section,&
-                do_conn_psf,error)
-         END DO
+          CALL section_vals_val_get(section,"NMOL",i_val=nmol,&
+               i_rep_section=i_rep,error=error)
+          CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,&
+               i_rep_section=i_rep,error=error)
+          CALL section_vals_val_get(section,"CONNECTIVITY",i_val=conn_type,&
+               i_rep_section=i_rep,error=error)
+          CALL cp_assert(((conn_type==do_conn_psf).OR.(conn_type==do_conn_psf_u)),&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "MOL_SET feature implemented only for PSF/UPSF connectivity type."//&
+ CPSourceFileRef,&
+               error=error,failure=failure)         
+          DO imol=1,nmol
+             CALL read_topology_psf(filename,topology,para_env,subsys_section,&
+                  conn_type,error)
+          END DO
        END DO
        CALL cp_assert(SIZE(topology%atom_info%label_molname)==topology%natoms,&
             cp_failure_level,cp_assertion_failed,routineP,&
@@ -361,6 +370,10 @@ CONTAINS
             "connectivity. "//&
  CPSourceFileRef,&
             error=error,failure=failure)
+       ! Merge defined structures
+       section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES",&
+            error=error)
+       CALL idm_psf(topology,section,subsys_section,error)
     CASE (do_conn_g96,do_conn_g87)
        CALL pre_read_topology_gromos(topology,subsys_section,error)
        CALL read_topology_gromos(topology%conn_file_name,topology,para_env,&
@@ -375,6 +388,11 @@ CONTAINS
     CASE DEFAULT
        ! No default.. stop the execution
        CALL stop_program ("connectivity_control","no default")
+    END SELECT
+    ! Post process of PSF information
+    SELECT CASE (topology%conn_type)
+    CASE (do_conn_mol_set,do_conn_psf, do_conn_psf_u)
+       CALL psf_post_process(topology,subsys_section,error)
     END SELECT
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

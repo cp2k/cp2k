@@ -50,8 +50,10 @@
     &END KIND
     &TOPOLOGY
       &MOL_SET
-        NMOL 3
-        CONN_FILE_NAME topology_atoms_WAT.psf
+        &MOLECULE
+          NMOL 3
+          CONN_FILE_NAME topology_atoms_WAT.psf
+        &END
       &END
       CONNECTIVITY MOL_SET
     &END TOPOLOGY

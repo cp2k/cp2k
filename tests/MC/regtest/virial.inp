@@ -69,8 +69,10 @@
     &TOPOLOGY
       CONNECTIVITY MOL_SET
       &MOL_SET
-        NMOL 2
-        CONN_FILE_NAME topology_fist_WAT.psf
+        &MOLECULE
+          NMOL 2
+          CONN_FILE_NAME topology_fist_WAT.psf
+        &END
       &END
     &END
   &END SUBSYS

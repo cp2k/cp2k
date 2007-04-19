@@ -1,0 +1,58 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/full_system.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 36
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 34.2920000  34.0500000  34.4732000
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/full_system.pdb
+      COORDINATE pdb
+      CONNECTIVITY MOL_SET
+      &MOL_SET
+        &MOLECULE
+          NMOL 1
+          CONN_FILE_NAME ../sample_psf/solute1.psf
+        &END
+        &MOLECULE
+          NMOL 145
+          CONN_FILE_NAME ../sample_psf/solvent.psf
+        &END
+      &END
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+         PSF_INFO
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+
+  PROJECT project
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION

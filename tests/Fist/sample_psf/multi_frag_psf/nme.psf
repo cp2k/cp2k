@@ -1,0 +1,36 @@
+PSF EXT
+ 
+         1 !NTITLE
+ Conversion from AMBER PARMTOP ::NME
+ 
+         6 !NATOM
+         1 MOL01           1 NME      N       N      -0.493700        14.010           0
+         2 MOL01           1 NME      H       H       0.301800         1.008           0
+         3 MOL01           1 NME      CH3     CT5    -0.007600        12.010           0
+         4 MOL01           1 NME      HH31    H13     0.066500         1.008           0
+         5 MOL01           1 NME      HH32    H13     0.066500         1.008           0
+         6 MOL01           1 NME      HH33    H13     0.066500         1.008           0
+  
+         5 !NBOND
+         1         2         3         4         3         5         3         6
+         1         3
+ 
+         7 !NTHETA
+         1         3         4         1         3         5         1         3         6
+         2         1         3         4         3         5         4         3         6
+         5         3         6
+ 
+         3 !NPHI
+         2         1         3         4         2         1         3         5
+         2         1         3         6
+ 
+         0 !NIMPHI
+ 
+         0 !NDON
+ 
+         0 !NACC
+ 
+         0 !NNB
+ 
+         0 !NGRP
+ 

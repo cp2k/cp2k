@@ -38,6 +38,7 @@ MODULE topology_psf
                                              do_conn_psf_u,&
                                              do_skip_14
   USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_val_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -52,7 +53,9 @@ MODULE topology_psf
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: array1_list_type,&
-                                             reorder_structure
+                                             reorder_structure,&
+                                             tag_molecule
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -60,7 +63,11 @@ MODULE topology_psf
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_psf'
 
   PRIVATE
-  PUBLIC :: pre_read_topology_psf, read_topology_psf, write_topology_psf
+  PUBLIC :: pre_read_topology_psf,&
+            read_topology_psf,&
+            write_topology_psf,&
+            psf_post_process,&
+            idm_psf
 
 !!*****
 !******************************************************************************
@@ -154,6 +161,11 @@ CONTAINS
 !!     Read PSF topology file
 !!     Teodoro Laino - Introduced CHARMM31 EXT PSF standard format
 !!
+!!   HISTORY
+!!     04-2007 Teodoro Laino - Zurich University [tlaino]
+!!     This routine should contain only information read from the PSF format
+!!     and all post_process should be performef in the psf_post_process
+!!
 !!   SOURCE
 !******************************************************************************
 
@@ -172,13 +184,11 @@ CONTAINS
     CHARACTER(LEN=2*default_string_length)   :: psf_format
     CHARACTER(LEN=3)                         :: c_int
     CHARACTER(LEN=default_string_length)     :: dummy_field, field, label
-    INTEGER :: handle, i, iatom, ibond, idum, index_now, ionfo, iphi, itheta, &
-      iw, jatom, N, natom, natom_prev, nbond, nbond_prev, nonfo, nphi, &
-      nphi_prev, ntheta, ntheta_prev, output_unit, stat
+    INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, &
+      natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
+      ntheta_prev, output_unit
     LOGICAL                                  :: do_onfo, failure, found, &
                                                 ionode
-    TYPE(array1_list_type), DIMENSION(:), &
-      POINTER                                :: ex_bend_list, ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -307,6 +317,7 @@ CPSourceFileRef,&
     IF(ASSOCIATED(conn_info%bond_a)) nbond_prev = SIZE(conn_info%bond_a)
 
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NBOND section'
+    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated BOND: ',nbond_prev
     label = '!NBOND'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
@@ -341,38 +352,13 @@ CPSourceFileRef,&
        conn_info%bond_b(nbond_prev+1:)=conn_info%bond_b(nbond_prev+1:)+natom_prev
     END IF
     !
-    ! PARA_RES structure
-    !
-    i = 0
-    IF(ASSOCIATED(conn_info%c_bond_a)) i = SIZE(conn_info%c_bond_a)
-    DO ibond=1+nbond_prev,nbond+nbond_prev
-       iatom = conn_info%bond_a(ibond)
-       jatom = conn_info%bond_b(ibond)
-       IF(topology%para_res) THEN
-          IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
-               (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
-               (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
-             IF(iw>0) WRITE(iw,'(T2,A,2I6)') "PSF_INFO| PARA_RES, bond between molecules atom ",&
-                  iatom,jatom
-             i = i + 1
-             CALL reallocate(conn_info%c_bond_a,1,i)
-             CALL reallocate(conn_info%c_bond_b,1,i)
-             conn_info%c_bond_a(i) = iatom
-             conn_info%c_bond_b(i) = jatom
-          END IF
-       ELSE
-          IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-          END IF
-       END IF
-    END DO
-    !
     ! THETA section
     !
     ntheta_prev = 0
     IF(ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
 
     IF(iw>0) WRITE(iw,'(T2,A)')'PSF_INFO| Parsing the NTHETA section'
+    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated THETA: ',ntheta_prev
     label = '!NTHETA'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
@@ -385,9 +371,6 @@ CPSourceFileRef,&
        CALL reallocate(conn_info%theta_a,1,ntheta_prev+ntheta)
        CALL reallocate(conn_info%theta_b,1,ntheta_prev+ntheta)
        CALL reallocate(conn_info%theta_c,1,ntheta_prev+ntheta)
-       CALL reallocate(conn_info%ub_a,1,ntheta_prev+ntheta)
-       CALL reallocate(conn_info%ub_b,1,ntheta_prev+ntheta)
-       CALL reallocate(conn_info%ub_c,1,ntheta_prev+ntheta)
        !Read in the bend info
        IF (psf_type==do_conn_psf_u) THEN
           DO itheta=1,ntheta,3
@@ -414,17 +397,13 @@ CPSourceFileRef,&
        conn_info%theta_c(ntheta_prev+1:)=conn_info%theta_c(ntheta_prev+1:)+natom_prev
     END IF
     !
-    ! UB structure
-    !
-    conn_info%ub_a(:) = conn_info%theta_a(:)
-    conn_info%ub_b(:) = conn_info%theta_b(:)
-    conn_info%ub_c(:) = conn_info%theta_c(:)
-    !
     ! PHI section
     !
     nphi_prev  = 0
     IF(ASSOCIATED(conn_info%phi_a))   nphi_prev = SIZE(conn_info%phi_a)
+
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NPHI section'
+    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated PHI: ',nphi_prev
     label = '!NPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
@@ -438,10 +417,6 @@ CPSourceFileRef,&
        CALL reallocate(conn_info%phi_b,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_c,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_d,1,nphi_prev+nphi)
-       IF (do_onfo) THEN
-          CALL reallocate(conn_info%onfo_a,1,nphi_prev+nphi)
-          CALL reallocate(conn_info%onfo_b,1,nphi_prev+nphi)
-       END IF
        !Read in the torsion info
        IF (psf_type==do_conn_psf_u) THEN
           DO iphi=1,nphi,2
@@ -471,93 +446,13 @@ CPSourceFileRef,&
        conn_info%phi_d(nphi_prev+1:)=conn_info%phi_d(nphi_prev+1:)+natom_prev
     END IF
     !
-    ! ONFO structure
-    !
-    IF (do_onfo) THEN
-       conn_info%onfo_a(nphi_prev+1:) = conn_info%phi_a(nphi_prev+1:)
-       conn_info%onfo_b(nphi_prev+1:) = conn_info%phi_d(nphi_prev+1:)
-       ! Reorder bonds
-       ALLOCATE(ex_bond_list(natom+natom_prev),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I=1,natom+natom_prev
-          ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       N = 0
-       IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
-       CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
-       ! Reorder bends
-       ALLOCATE(ex_bend_list(natom+natom_prev),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I=1,natom+natom_prev
-          ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       N = 0
-       IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
-       CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
-       nonfo = 0
-       DO ionfo=1, nphi_prev+nphi
-       ! Check if the torsion is not shared between angles or bonds
-          IF ( ANY(ex_bond_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo)).OR.&
-               ANY(ex_bend_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo))) CYCLE
-          nonfo = nonfo + 1
-          conn_info%onfo_a(nonfo) = conn_info%onfo_a(ionfo)
-          conn_info%onfo_b(nonfo) = conn_info%onfo_b(ionfo)
-       END DO
-       ! deallocate bends
-       DO I=1,natom+natom_prev
-          DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(ex_bend_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! deallocate bonds
-       DO I=1,natom+natom_prev
-          DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(ex_bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! Get unique onfo
-       ALLOCATE(ex_bond_list(natom+natom_prev),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO I=1,natom+natom_prev
-          ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       N = 0
-       IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo
-       CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
-       nonfo = 0
-       DO I=1,natom+natom_prev
-          DO ionfo = 1, SIZE(ex_bond_list(I)%array1)
-             IF (COUNT(ex_bond_list(I)%array1==ex_bond_list(I)%array1(ionfo))/=1) THEN
-                ex_bond_list(I)%array1(ionfo) = 0
-             ELSE
-                IF (ex_bond_list(I)%array1(ionfo)<=I) CYCLE
-                nonfo = nonfo + 1
-                conn_info%onfo_a(nonfo) = I
-                conn_info%onfo_b(nonfo) = ex_bond_list(I)%array1(ionfo)
-             END IF
-          END DO
-       END DO
-       CALL reallocate(conn_info%onfo_a,1,nonfo)
-       CALL reallocate(conn_info%onfo_b,1,nonfo)
-       DO I=1,natom+natom_prev
-          DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-       DEALLOCATE(ex_bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    !
     ! IMPHI section
     !
     nphi_prev = 0
     IF(ASSOCIATED(conn_info%impr_a)) nphi_prev = SIZE(conn_info%impr_a)
 
     IF(iw>0) WRITE(iw,'(T2,A)')'PSF_INFO| Parsing the NIMPHI section'
+    IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Previous number of allocated IMPHI: ',nphi_prev
     label = '!NIMPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF ( .NOT. found ) THEN
@@ -614,6 +509,361 @@ CPSourceFileRef,&
     END IF
     CALL stop_program ("read_topology_psf","Error while reading PSF data!")
   END SUBROUTINE read_topology_psf
+
+
+!!*****
+!******************************************************************************
+!!****** topology/psf_post_process [1.0] *
+!!
+!!   NAME
+!!     psf_post_process
+!!
+!!   FUNCTION
+!!    Post processing of PSF informations
+!!
+!!   SOURCE
+!******************************************************************************
+
+  SUBROUTINE  psf_post_process(topology,subsys_section,error)
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'psf_post_process', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iatom, ibond, &
+                                                ionfo, iw, jatom, N, natom, &
+                                                nbond, nonfo, nphi, ntheta, &
+                                                stat
+    LOGICAL                                  :: do_onfo, failure
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: ex_bend_list, ex_bond_list
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
+         extension=".subsysLog",error=error)
+    CALL timeset(routineN,'I','',handle)
+    atom_info => topology%atom_info
+    conn_info => topology%conn_info
+    do_onfo = (topology%exclude_vdw/=do_skip_14).OR.(topology%exclude_ei/=do_skip_14)
+    !
+    ! PARA_RES structure
+    !
+    natom = 0
+    nbond = 0
+    i     = 0
+    IF(ASSOCIATED(atom_info%label_molname)) natom = SIZE(atom_info%label_molname)
+    IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+    IF(ASSOCIATED(conn_info%c_bond_a))    i = SIZE(conn_info%c_bond_a)
+    DO ibond=1,nbond
+       iatom = conn_info%bond_a(ibond)
+       jatom = conn_info%bond_b(ibond)
+       IF(topology%para_res) THEN
+          IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
+               (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
+               (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+             IF(iw>0) WRITE(iw,'(T2,A,2I6)') "PSF_INFO| PARA_RES, bond between molecules atom ",&
+                  iatom,jatom
+             i = i + 1
+             CALL reallocate(conn_info%c_bond_a,1,i)
+             CALL reallocate(conn_info%c_bond_b,1,i)
+             conn_info%c_bond_a(i) = iatom
+             conn_info%c_bond_b(i) = jatom
+          END IF
+       ELSE
+          IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END IF
+       END IF
+    END DO
+    !
+    ! UB structure
+    !
+    ntheta = 0
+    IF (ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
+    CALL reallocate(conn_info%ub_a,1,ntheta)
+    CALL reallocate(conn_info%ub_b,1,ntheta)
+    CALL reallocate(conn_info%ub_c,1,ntheta)
+    conn_info%ub_a(:) = conn_info%theta_a(:)
+    conn_info%ub_b(:) = conn_info%theta_b(:)
+    conn_info%ub_c(:) = conn_info%theta_c(:)
+    !
+    ! ONFO structure
+    !
+    nphi = 0
+    IF (ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
+    CALL reallocate(conn_info%onfo_a,1,nphi)
+    CALL reallocate(conn_info%onfo_b,1,nphi)
+    IF (do_onfo) THEN
+       conn_info%onfo_a(1:) = conn_info%phi_a(1:)
+       conn_info%onfo_b(1:) = conn_info%phi_d(1:)
+       ! Reorder bonds
+       ALLOCATE(ex_bond_list(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I=1,natom
+          ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       N = 0
+       IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
+       CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+       ! Reorder bends
+       ALLOCATE(ex_bend_list(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I=1,natom
+          ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       N = 0
+       IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
+       CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
+       nonfo = 0
+       DO ionfo=1, nphi
+       ! Check if the torsion is not shared between angles or bonds
+          IF ( ANY(ex_bond_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo)).OR.&
+               ANY(ex_bend_list(conn_info%onfo_a(ionfo))%array1==conn_info%onfo_b(ionfo))) CYCLE
+          nonfo = nonfo + 1
+          conn_info%onfo_a(nonfo) = conn_info%onfo_a(ionfo)
+          conn_info%onfo_b(nonfo) = conn_info%onfo_b(ionfo)
+       END DO
+       ! deallocate bends
+       DO I=1,natom
+          DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(ex_bend_list,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! deallocate bonds
+       DO I=1,natom
+          DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(ex_bond_list,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Get unique onfo
+       ALLOCATE(ex_bond_list(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I=1,natom
+          ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       N = 0
+       IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo
+       CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
+       nonfo = 0
+       DO I=1,natom
+          DO ionfo = 1, SIZE(ex_bond_list(I)%array1)
+             IF (COUNT(ex_bond_list(I)%array1==ex_bond_list(I)%array1(ionfo))/=1) THEN
+                ex_bond_list(I)%array1(ionfo) = 0
+             ELSE
+                IF (ex_bond_list(I)%array1(ionfo)<=I) CYCLE
+                nonfo = nonfo + 1
+                conn_info%onfo_a(nonfo) = I
+                conn_info%onfo_b(nonfo) = ex_bond_list(I)%array1(ionfo)
+             END IF
+          END DO
+       END DO
+       CALL reallocate(conn_info%onfo_a,1,nonfo)
+       CALL reallocate(conn_info%onfo_b,1,nonfo)
+       DO I=1,natom
+          DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(ex_bond_list,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
+  END SUBROUTINE psf_post_process
+
+!!*****
+!******************************************************************************
+!!****** topology/idm_psf [1.0] *
+!!
+!!   NAME
+!!     idm_psf
+!!
+!!   FUNCTION
+!!    Input driven modification (IDM) of PSF defined structures
+!!
+!!   AUTHOR
+!!    Teodoro Laino - Zurich University 04.2007
+!!
+!!   SOURCE
+!******************************************************************************
+
+  SUBROUTINE  idm_psf(topology,section,subsys_section,error)
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(section_vals_type), POINTER         :: section, subsys_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'idm_psf', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iw, natom, nbond, &
+                                                nimpr, nphi, ntheta, n_rep, j, stat, mol_id,&
+                                                noe, istart, iend, istart1, iend1, item
+    LOGICAL                                  :: explicit, failure
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: subsection
+    INTEGER, DIMENSION(:), POINTER           :: tmp, tag_mols, wrk
+    TYPE(array1_list_type), DIMENSION(:), &
+         POINTER                             :: ex_bond_list
+
+    NULLIFY(logger)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
+         extension=".subsysLog",error=error)
+    CALL timeset(routineN,'I','',handle)
+    CALL section_vals_get(section, explicit=explicit, error=error)
+    IF (explicit) THEN
+       atom_info => topology%atom_info
+       conn_info => topology%conn_info
+       natom = 0
+       IF(ASSOCIATED(atom_info%label_molname)) natom = SIZE(atom_info%label_molname)
+       nbond = 0
+       IF (ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+       ntheta = 0
+       IF (ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
+       nphi = 0
+       IF (ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
+       nimpr = 0
+       IF (ASSOCIATED(conn_info%impr_a)) nimpr = SIZE(conn_info%impr_a)
+       ! Any new defined bond
+       subsection => section_vals_get_subs_vals(section,"BONDS",error=error)
+       CALL section_vals_get(subsection, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep, error=error)
+          CALL reallocate(conn_info%bond_a,1,n_rep+nbond)
+          CALL reallocate(conn_info%bond_b,1,n_rep+nbond)
+          DO i = 1, n_rep
+             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp, error=error)
+             conn_info%bond_a(nbond+i)=tmp(1)
+             conn_info%bond_b(nbond+i)=tmp(2)
+          END DO
+          ! And now modify the molecule name if two molecules have been bridged
+          ALLOCATE(ex_bond_list(natom),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(tag_mols(natom),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(wrk(natom),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO j=1,natom
+             ALLOCATE(ex_bond_list(j)%array1(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, nbond+n_rep, error)
+          ! Loop over atoms to possiblyt change molecule name
+          tag_mols=-1
+          mol_id = 1
+          DO i = 1, natom
+             IF (tag_mols(i)/=-1) CYCLE
+             CALL tag_molecule(tag_mols, ex_bond_list, i, mol_id)
+             mol_id = mol_id + 1
+          END DO
+          mol_id = mol_id - 1
+          IF (iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| Number of molecules detected after merging: ',mol_id
+          ! Now simply check about the contiguousness of molecule definition
+          CALL sort(tag_mols, natom, wrk)
+          item   = tag_mols(1)
+          istart = 1
+          DO i = 2, natom
+             IF (tag_mols(i)==item) CYCLE
+             iend = i-1
+             noe = iend-istart+1
+             istart1 = MINVAL(wrk(istart:iend))
+             iend1   = MAXVAL(wrk(istart:iend))
+             CPPostcondition(iend1-istart1+1==noe,cp_failure_level,routineP,error,failure)
+             atom_info%label_molname(istart1:iend1)="MOL"//cp_to_string(item)
+             item = tag_mols(i)
+             istart = i
+          END DO
+          iend = i-1
+          noe  = iend-istart+1
+          istart1 = MINVAL(wrk(istart:iend))
+          iend1   = MAXVAL(wrk(istart:iend))
+          CPPostcondition(iend1-istart1+1==noe,cp_failure_level,routineP,error,failure)
+          atom_info%label_molname(istart1:iend1)="MOL"//cp_to_string(item)
+          ! Deallocate bonds
+          DO i=1,natom
+             DEALLOCATE(ex_bond_list(i)%array1,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDDO
+          DEALLOCATE(ex_bond_list,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(tag_mols,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(wrk,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       ! Any new defined angle
+       subsection => section_vals_get_subs_vals(section,"ANGLES",error=error)
+       CALL section_vals_get(subsection, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep, error=error)
+          CALL reallocate(conn_info%theta_a,1,n_rep+ntheta)
+          CALL reallocate(conn_info%theta_b,1,n_rep+ntheta)
+          CALL reallocate(conn_info%theta_c,1,n_rep+ntheta)
+          DO i = 1, n_rep
+             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp, error=error)
+             conn_info%theta_a(ntheta+i)=tmp(1)
+             conn_info%theta_b(ntheta+i)=tmp(2)
+             conn_info%theta_c(ntheta+i)=tmp(3)
+          END DO
+       END IF
+       ! Any new defined torsion
+       subsection => section_vals_get_subs_vals(section,"TORSIONS",error=error)
+       CALL section_vals_get(subsection, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep, error=error)
+          CALL reallocate(conn_info%phi_a,1,n_rep+nphi)
+          CALL reallocate(conn_info%phi_b,1,n_rep+nphi)
+          CALL reallocate(conn_info%phi_c,1,n_rep+nphi)
+          CALL reallocate(conn_info%phi_d,1,n_rep+nphi)
+          DO i = 1, n_rep
+             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp, error=error)
+             conn_info%phi_a(nphi+i)=tmp(1)
+             conn_info%phi_b(nphi+i)=tmp(2)
+             conn_info%phi_c(nphi+i)=tmp(3)
+             conn_info%phi_d(nphi+i)=tmp(4)
+          END DO
+       END IF
+       ! Any new defined improper
+       subsection => section_vals_get_subs_vals(section,"IMPROPERS",error=error)
+       CALL section_vals_get(subsection, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",n_rep_val=n_rep, error=error)
+          CALL reallocate(conn_info%impr_a,1,n_rep+nimpr)
+          CALL reallocate(conn_info%impr_b,1,n_rep+nimpr)
+          CALL reallocate(conn_info%impr_c,1,n_rep+nimpr)
+          CALL reallocate(conn_info%impr_d,1,n_rep+nimpr)
+          DO i = 1, n_rep
+             CALL section_vals_val_get(subsection,"_DEFAULT_KEYWORD_",i_rep_val=i, i_vals=tmp, error=error)
+             conn_info%impr_a(nimpr+i)=tmp(1)
+             conn_info%impr_b(nimpr+i)=tmp(2)
+             conn_info%impr_c(nimpr+i)=tmp(3)
+             conn_info%impr_d(nimpr+i)=tmp(4)
+          END DO
+       END IF
+    END IF
+    CALL timestop(0.0_dp,handle)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
+
+  END SUBROUTINE idm_psf
 
 !!*****
 !******************************************************************************

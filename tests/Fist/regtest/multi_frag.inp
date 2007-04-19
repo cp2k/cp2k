@@ -1,0 +1,130 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/multi_frag_pot/full.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 36
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 38.2908000  37.8868000  38.0118000
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/multi_frag.pdb
+      COORDINATE pdb
+      CONNECTIVITY MOL_SET
+      &MOL_SET
+        &MOLECULE
+          NMOL 1
+          CONN_FILE_NAME ../sample_psf/multi_frag_psf/ace.psf
+        &END
+        &MOLECULE
+          NMOL 1
+          CONN_FILE_NAME ../sample_psf/multi_frag_psf/ala.psf
+        &END
+        &MOLECULE
+          NMOL 1
+          CONN_FILE_NAME ../sample_psf/multi_frag_psf/gly.psf
+        &END
+        &MOLECULE
+          NMOL 1
+          CONN_FILE_NAME ../sample_psf/multi_frag_psf/nme.psf
+        &END
+        &MOLECULE
+          NMOL 554
+          CONN_FILE_NAME ../sample_psf/multi_frag_psf/meoh.psf
+        &END
+        &MERGE_MOLECULES
+          &BONDS
+          # BONDS between ACE-ALA-GLY-NME
+         5         7
+        15        17
+        22        24
+          &END
+          &ANGLES
+         5         7         8
+        15        17        18
+        22        24        25
+         6         5         7
+         5         7         9
+         2         5         7
+        16        15        17
+        15        17        19
+         9        15        17
+        23        22        24
+        22        24        26
+        19        22        24
+          &END
+          &TORSIONS
+         6         5         7         8
+         5         7         9        10
+         4         2         5         7
+         3         2         5         7
+         2         5         7         8
+         1         2         5         7
+        16        15        17        18
+        15        17        19        20
+        15        17        19        21
+        10         9        15        17
+         9        15        17        18
+        23        22        24        25
+        22        24        26        27
+        22        24        26        28
+        22        24        26        29
+        21        19        22        24
+        20        19        22        24
+        19        22        24        25
+         5         9         7         8
+        15        19        17        18
+        22        26        24        25
+         6         5         7         9
+         5         7         9        11
+         5         7         9        15
+         2         5         7         9
+        16        15        17        19
+        15        17        19        22
+        11         9        15        17
+         9        15        17        19
+         7         9        15        17
+        23        22        24        26
+        19        22        24        26
+        17        19        22        24
+         2         7         5         6
+         9        17        15        16
+        19        24        22        23
+          &END
+        &END
+      &END
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+         PSF_INFO
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+
+  PROJECT project_multi_frag
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION

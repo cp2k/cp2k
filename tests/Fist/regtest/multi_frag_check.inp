@@ -1,0 +1,49 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/multi_frag_pot/full.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 36
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 38.2908000  37.8868000  38.0118000
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/multi_frag.pdb
+      COORDINATE pdb
+      CONNECTIVITY PSF
+      CONN_FILE_NAME ../sample_psf/multi_frag_psf/full.psf
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+         PSF_INFO
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+
+  PROJECT project_multi_frag
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION

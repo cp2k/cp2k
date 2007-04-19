@@ -1,0 +1,36 @@
+PSF EXT
+ 
+         1 !NTITLE
+ Conversion from AMBER PARMTOP ::MOL
+ 
+         6 !NATOM
+         1 MOL01           1 MOL      HC1     H14     0.037200         1.008           0
+         2 MOL01           1 MOL      C1      CT6     0.116600        12.010           0
+         3 MOL01           1 MOL      HC2     H14     0.037200         1.008           0
+         4 MOL01           1 MOL      HC3     H14     0.037200         1.008           0
+         5 MOL01           1 MOL      O1      OH     -0.649700        16.000           0
+         6 MOL01           1 MOL      HO1     HO      0.421500         1.008           0
+  
+         5 !NBOND
+         1         2         2         3         2         4         5         6
+         2         5
+ 
+         7 !NTHETA
+         1         2         3         1         2         4         1         2         5
+         2         5         6         3         2         4         3         2         5
+         4         2         5
+ 
+         3 !NPHI
+         1         2         5         6         3         2         5         6
+         4         2         5         6
+ 
+         0 !NIMPHI
+ 
+         0 !NDON
+ 
+         0 !NACC
+ 
+         0 !NNB
+ 
+         0 !NGRP
+ 

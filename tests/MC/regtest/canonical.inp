@@ -112,12 +112,14 @@
     &TOPOLOGY
       CONNECTIVITY MOL_SET
       &MOL_SET
-        NMOL 7
-        CONN_FILE_NAME topology_fist_WAT.psf
-      &END
-      &MOL_SET
-        NMOL 6
-        CONN_FILE_NAME topology_fist_ARG.psf
+        &MOLECULE
+          NMOL 7
+          CONN_FILE_NAME topology_fist_WAT.psf
+        &END
+        &MOLECULE
+          NMOL 6
+          CONN_FILE_NAME topology_fist_ARG.psf
+        &END
       &END
     &END
   &END SUBSYS

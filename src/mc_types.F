@@ -1020,7 +1020,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     irep=0
     nstart=1
     DO
-       CALL mc_parse_text(mc_input_file%text,nstart,nlines-1,"&MOL_SET",&
+       CALL mc_parse_text(mc_input_file%text,nstart,nlines-1,"&MOLECULE",&
          .FALSE.,row_number, idum)
        IF(row_number == 0) EXIT
        nstart=row_number+1

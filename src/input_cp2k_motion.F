@@ -392,6 +392,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_ac_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
        CALL cp_print_key_section_create(print_key,"free_energy_info",&
             description="Controls the printing of basic and summary information during the"//&
             " Free Energy calculation", &
@@ -402,6 +406,48 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_fe_section
+
+!!****f* input_cp2k/create_ac_section *
+!!
+!!   NAME
+!!     create_ac_section
+!!
+!!   FUNCTION
+!!     creates the alchemical section for free energy evaluation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teodoro laino [tlaino] 04.2007
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_ac_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ac_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="alchemical_change",&
+            description="Controls the calculation of delta free energies"//&
+            " with the alchemical change method.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       
+       
+    END IF
+  END SUBROUTINE create_ac_section
 
 !!****f* input_cp2k/create_ui_section *
 !!

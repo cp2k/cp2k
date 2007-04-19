@@ -1,0 +1,37 @@
+PSF EXT
+ 
+         1 !NTITLE
+ Conversion from AMBER PARMTOP ::ACE
+ 
+         6 !NATOM
+         1 MOL01           1 ACE      HH31    HC1     0.143700         1.008           0
+         2 MOL01           1 ACE      CH3     CT1    -0.518800        12.010           0
+         3 MOL01           1 ACE      HH32    HC1     0.143700         1.008           0
+         4 MOL01           1 ACE      HH33    HC1     0.143700         1.008           0
+         5 MOL01           1 ACE      C       C       0.673100        12.010           0
+         6 MOL01           1 ACE      O       O      -0.585400        16.000           0
+  
+         5 !NBOND
+         1         2         2         3         2         4         2         5
+         5         6
+ 
+         7 !NTHETA
+         1         2         3         1         2         4         1         2         5
+         3         2         4         3         2         5         4         2         5
+         2         5         6
+ 
+         3 !NPHI
+         1         2         5         6         3         2         5         6
+         4         2         5         6
+ 
+         0 !NIMPHI
+ 
+         0 !NDON
+ 
+         0 !NACC
+ 
+         0 !NNB
+ 
+         0 !NGRP
+
+
