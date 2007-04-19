@@ -425,7 +425,7 @@ CONTAINS
        END IF
 
        IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-          tmp_section => section_vals_get_subs_vals(md_section,"UNIAXIAL",error=error)
+          tmp_section => section_vals_get_subs_vals(md_section,"MSST",error=error)
           CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p0,error=error)
           CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
           CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)

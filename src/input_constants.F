@@ -129,9 +129,9 @@ MODULE input_constants
          "nvt                ",&
          "npt_i              ",&
          "npt_f              ",&
-         "nph                ",&
-         "nph_uniaxial       ",&
-         "nph_uniaxial_damped",&
+         "msst               ",&
+         "msst_damped        ",&
+         "hydrostaticshock   ",&
          "isokin             ",&
          "reftraj            ",&
          "langevin           " /)
@@ -139,25 +139,25 @@ MODULE input_constants
                                 nvt_ensemble=2,&
                                 npt_i_ensemble=3,&
                                 npt_f_ensemble=4,&
-                                nph_ensemble=5,&
-                                nph_uniaxial_ensemble=6,&
-                                nph_uniaxial_damped_ensemble=7,&
+                                nph_uniaxial_ensemble=5,&
+                                nph_uniaxial_damped_ensemble=6,&
+                                nph_ensemble=7,&
                                 isokin_ensemble=8,&
                                 reftraj_ensemble=9,&
                                 langevin_ensemble=10
   INTEGER, PARAMETER, PUBLIC, DIMENSION(10) :: ensemble_name_index=&
        (/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
-         npt_f_ensemble,nph_ensemble,nph_uniaxial_ensemble,&
-         nph_uniaxial_damped_ensemble,isokin_ensemble,reftraj_ensemble,&
+         npt_f_ensemble,nph_uniaxial_ensemble,&
+         nph_uniaxial_damped_ensemble,nph_ensemble,isokin_ensemble,reftraj_ensemble,&
          langevin_ensemble/)
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: ensemble_name_desc=&
    (/"constant energy (microcanonical)                                             ",&
      "constant temperature (canonical, Nose-Hoover)                                ",&
      "constant pressure using an isotropic cell                                    ",&
      "constant pressure using a flexible cell                                      ",&
-     "hugoniot (shocks) general                                                    ",&
-     "hugoniot (shocks) uniaxial                                                   ",&
-     "hugoniot (shocks) uniaxial damped                                            ",&
+     "simulate steady shock (uniaxial)                                             ",&
+     "simulate steady shock (uniaxial) with extra viscosity                        ",&
+     "simulate steady shock with hydrostatic pressure                              ",&
      "constant kinetic energy                                                      ",&
      "reading frames from a file called reftraj.xyz (e.g. for property calculation)",&
      "langevin dynamics (constant temperature)                                     "/)

@@ -2425,7 +2425,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_uniaxial_section(uni_section, error=error)
+       CALL create_msst_section(uni_section, error=error)
        CALL section_add_subsection(section, uni_section, error=error)
        CALL section_release(uni_section,error=error)       
 
@@ -2604,10 +2604,10 @@ SUBROUTINE create_qs_md_section(section, error)
 END SUBROUTINE create_qs_md_section
 
 !***************************************************************************
-!!****f* input_cp2k/create_uniaxial_section *
+!!****f* input_cp2k/create_msst_section *
 !!
 !!   NAME
-!!     create_uniaxial_section
+!!     create_msst_section
 !!
 !!   FUNCTION
 !!     -
@@ -2625,11 +2625,11 @@ END SUBROUTINE create_qs_md_section
 !!
 !!*** **********************************************************************
 
-SUBROUTINE create_uniaxial_section(section, error)
+SUBROUTINE create_msst_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_uniaxial_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_msst_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -2640,8 +2640,10 @@ SUBROUTINE create_uniaxial_section(section, error)
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN  
 
-       CALL section_create(section,name="uniaxial",&
-            description="Parameters for uniaxial shock.",&
+       CALL section_create(section,name="msst",&
+            description="Parameters for Multi-Scale Shock Technique (MSST) "//&
+                        "which simulate the effect of a steady planar shock on a unit cell. "//&
+                        "Reed et. al. Physical Review Letters 90, 235503 (2003).",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
@@ -2661,28 +2663,28 @@ SUBROUTINE create_uniaxial_section(section, error)
        CALL keyword_release(keyword,error=error)         
 
        CALL keyword_create(keyword, name="VOLUME",&
-            description="Initial compression",&
+            description="Initial volume",&
             usage="VOLUME real",&
             default_r_val=0._dp, n_var=1, unit_str='angstrom^3',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
        CALL keyword_create(keyword, name="CMASS",&
-            description="Barostat mass",&
+            description="Effective cell mass",&
             usage="CMASS real",&
             default_r_val=0._dp, n_var=1,unit_str='au_m',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
        CALL keyword_create(keyword, name="VSHOCK",variants=(/"V_SHOCK"/),&
-            description="Velocity of shock front",&
+            description="Velocity shock",&
             usage="VSHOCK real",&
             default_r_val=0._dp, n_var=1,unit_str='m/s',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
        CALL keyword_create(keyword, name="GAMMA",&
-            description="Damping coefficient for barostat and particles",&
+            description="Damping coefficient for cell volume",&
             usage="GAMMA real",&
             unit_str='fs^-1', &
             default_r_val=0.0_dp, error=error)
@@ -2690,7 +2692,7 @@ SUBROUTINE create_uniaxial_section(section, error)
        CALL keyword_release(keyword,error=error)             
 
     END IF
-  END SUBROUTINE create_uniaxial_section
+  END SUBROUTINE create_msst_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_barostat_section *
