@@ -118,6 +118,7 @@ MODULE cp_control_types
     INTEGER                         :: functional_form
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
+    REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
   END TYPE ddapc_restraint_type
 
 ! *** some parameters useful for becke_constraints
@@ -386,6 +387,7 @@ SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
    ddapc_restraint_control%target=1.0_dp
    ddapc_restraint_control%natoms=0
    NULLIFY(ddapc_restraint_control%atoms)
+   NULLIFY(ddapc_restraint_control%coeff)
 
 END SUBROUTINE ddapc_control_create
 !------------------------------------------------------------------------------!
@@ -405,6 +407,8 @@ SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
    IF (ddapc_restraint_control%ref_count==0) THEN
       IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
           DEALLOCATE(ddapc_restraint_control%atoms)
+      IF (ASSOCIATED(ddapc_restraint_control%coeff)) &
+          DEALLOCATE(ddapc_restraint_control%coeff)
       ddapc_restraint_control%ref_count=0
       ddapc_restraint_control%strength=0.0_dp
       ddapc_restraint_control%target=0.0_dp

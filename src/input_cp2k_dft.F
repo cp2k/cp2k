@@ -1990,6 +1990,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,name="COEFF",&
+            description="Defines the the coefficient of the atom in the atom list (default is one) ",&
+            usage="COEFF 1.0 -1.0",&
+            type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="FUNCTIONAL_FORM",&
             description="Specifies the functional form of the term added",&
             usage="FUNCTIONAL_FORM RESTRAINT",&
@@ -5236,6 +5243,13 @@ CONTAINS
             description="Specifies the list of atoms that is summed in the restraint",&
             usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="COEFF",&
+            description="Defines the the coefficient of the atom in the atom list (default is one), currently DDAPC only ",&
+            usage="COEFF 1.0 -1.0",&
+            type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

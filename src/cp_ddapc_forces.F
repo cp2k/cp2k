@@ -426,7 +426,7 @@ CONTAINS
     order_p = 0.0_dp
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-       order_p = order_p + SUM(charges(ind+1:ind+n_gauss))
+       order_p = order_p + ddapc_restraint_control%coeff(I)*SUM(charges(ind+1:ind+n_gauss))
     ENDDO
     ddapc_restraint_control%ddapc_order_p = order_p
 
@@ -439,7 +439,7 @@ CONTAINS
       dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
       DO I=1,ddapc_restraint_control%natoms
          ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-         uv(ind+1:ind+n_gauss)  = dE
+         uv(ind+1:ind+n_gauss)  = dE*ddapc_restraint_control%coeff(I)
       ENDDO
     CASE(do_ddapc_constraint)
       energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
@@ -447,7 +447,7 @@ CONTAINS
       ! derivative of the energy
       DO I=1,ddapc_restraint_control%natoms
          ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-         uv(ind+1:ind+n_gauss)  = ddapc_restraint_control%strength
+         uv(ind+1:ind+n_gauss)  = ddapc_restraint_control%strength*ddapc_restraint_control%coeff(I)
       ENDDO
 
     CASE DEFAULT

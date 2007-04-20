@@ -922,6 +922,8 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
            "QS| ddapc restraint atoms: ", qs_control%ddapc_restraint_control%natoms
          WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%ddapc_restraint_control%atoms
+         WRITE (UNIT=output_unit,FMT="(T2,A)") "Coefficients:"
+         WRITE (UNIT=output_unit,FMT="(5F6.2)") qs_control%ddapc_restraint_control%coeff
          SELECT CASE(qs_control%ddapc_restraint_control%functional_form)
          CASE (do_ddapc_restraint)
            WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
@@ -1201,6 +1203,7 @@ SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
 
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
+    REAL(KIND=dp), DIMENSION(:), POINTER           :: rtmplist
 
       CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
                                 r_val=qs_control%ddapc_restraint_control%strength,error=error)
@@ -1230,6 +1233,26 @@ SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
            qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
          END DO
       END DO
+
+      IF(ASSOCIATED(qs_control%ddapc_restraint_control%coeff))&
+           DEALLOCATE(qs_control%ddapc_restraint_control%coeff)
+      ALLOCATE(qs_control%ddapc_restraint_control%coeff(qs_control%ddapc_restraint_control%natoms))
+      qs_control%ddapc_restraint_control%coeff=1.0_dp
+
+      CALL section_vals_val_get(ddapc_restraint_section,"COEFF", &
+                                n_rep_val=n_rep,error=error)
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(ddapc_restraint_section,"COEFF",i_rep_val=k,r_vals=rtmplist, error=error)
+         DO  j = 1,SIZE(rtmplist)
+           jj = jj+1
+           IF (jj>qs_control%ddapc_restraint_control%natoms) &
+                 CALL stop_program(routine, "Need the same number of coeff as there are atoms ")
+           qs_control%ddapc_restraint_control%coeff (jj) = rtmplist(j)
+         END DO
+      END DO
+      IF (jj<qs_control%ddapc_restraint_control%natoms .AND. jj.NE.0) &
+            CALL stop_program(routine, "Need no or the same number of coeff as there are atoms ")
 
     END SUBROUTINE read_ddapc_section
 
