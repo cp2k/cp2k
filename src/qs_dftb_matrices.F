@@ -207,6 +207,8 @@ CONTAINS
         nmat=1
       END IF
       NULLIFY(gamma_matrix)
+      CALL get_qs_env(qs_env=qs_env,&
+                      gamma_matrix=gamma_matrix,error=error)
       CALL allocate_matrix_set(gamma_matrix,nmat,error=error)
       NULLIFY(distribution_2d)
       CALL get_qs_env(qs_env=qs_env,&
@@ -806,6 +808,8 @@ CONTAINS
             atomic_kind_set)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    matrix_s=matrix_s,&
+                    matrix_h=matrix_h,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
@@ -848,7 +852,7 @@ CONTAINS
                          last_row=last_sgf,&
                          first_col=first_sgf,&
                          last_col=last_sgf,&
-                         matrix_name="OVERLAP MATRIX",&
+                         matrix_name="OVERLAP MATRIX DFTB",&
                          matrix_symmetry="symmetric",&
                          sparsity_id=neighbor_list_id, &
                          distribution_2d=distribution_2d,error=error)
@@ -860,7 +864,7 @@ CONTAINS
 
     CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                                     TARGET=matrix_h(1)%matrix,&
-                                    target_name="CORE HAMILTONIAN MATRIX",&
+                                    target_name="CORE HAMILTONIAN MATRIX DFTB",&
                                     target_symmetry="symmetric",error=error)
     IF ( nmat > 1 ) THEN
       DO i=2,nmat

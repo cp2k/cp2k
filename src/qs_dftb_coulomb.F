@@ -528,9 +528,12 @@ CONTAINS
        CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
        CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
     END DO
-
-    CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
+  ELSE
+    DO i = 1, 3
+       CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw ,error=error)
+    END DO
   END IF
+  CALL pw_pool_give_back_pw ( pw_pool, rhob_r ,error=error)
 
 !----------------- FORCE CALCULATION ----------------
 

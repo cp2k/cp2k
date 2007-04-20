@@ -77,10 +77,12 @@ MODULE qs_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE et_coupling_types,               ONLY: et_coupling_create
   USE ewald_environment_types,         ONLY: ewald_env_create,&
+                                             ewald_env_release,&
                                              ewald_env_set,&
                                              ewald_environment_type,&
                                              read_ewald_section
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
+                                             ewald_pw_release,&
                                              ewald_pw_type
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
@@ -501,10 +503,11 @@ CONTAINS
         print_section => section_vals_get_subs_vals(qs_env%input,&
             "PRINT%GRID_INFORMATION",error=error)
         CALL read_ewald_section(ewald_env,ewald_section,error=error)
-        CALL set_qs_env(qs_env,ewald_env=ewald_env,error=error)
         CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
              print_section=print_section,error=error)
-        CALL set_qs_env(qs_env,ewald_pw=ewald_pw,error=error)
+        CALL set_qs_env(qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+        CALL ewald_env_release(ewald_env,error=error)
+        CALL ewald_pw_release(ewald_pw,error=error)
       END IF
     END IF
 
