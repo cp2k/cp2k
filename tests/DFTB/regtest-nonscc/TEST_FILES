@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+ch2o-1.inp           1
+ch2o-2.inp           1
+ch2o-3.inp           1
+h2-1.inp             1
+h2-2.inp             1
+h2-3.inp             1
+h2-4.inp             1
+h2o-32_1.inp         1
+h2o-32_2.inp         1
+h2o-32_3.inp         1
+h2o-32_4.inp         1
+MoS.inp              1
+n2.inp               1
+s2.inp               1

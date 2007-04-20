@@ -1,0 +1,38 @@
+
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        SELF_CONSISTENT    F
+        ORTHOGONAL_BASIS   F   
+        &PARAMETER
+          PARAM_FILE_PATH  ../nonscc
+          SK_FILE   N N   nn
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      SCF_GUESS RANDOM
+      &OT ON
+        PRECONDITIONER NONE
+      &END OT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+     N     0.000000    0.000000    0.000000   
+     N     1.100000    0.000000    0.000000  
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT N2
+  RUN_TYPE GEO_OPT
+  PRINT_LEVEL HIGH
+&END GLOBAL

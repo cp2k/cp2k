@@ -1,0 +1,39 @@
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        SELF_CONSISTENT    T
+        ORTHOGONAL_BASIS   F   
+        DO_EWALD           F
+        &PARAMETER
+          PARAM_FILE_PATH  ../scc
+          SK_FILE   C C   cc.spl
+          SK_FILE   C O   co.spl
+          SK_FILE   O C   oc.spl
+          SK_FILE   O O   oo.spl
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      SCF_GUESS CORE
+      MIXING 1.0
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+     C     0.000000    0.000000    0.000000   
+     O     1.100000    0.000000    0.000000  
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT CO
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL HIGH
+&END GLOBAL

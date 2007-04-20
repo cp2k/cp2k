@@ -31,3 +31,5 @@ NEB/regtest-2
 NEB/regtest-3
 QS/regtest-hfx
 QS/regtest-hybrid
+DFTB/regtest-nonscc
+DFTB/regtest-scc
