@@ -230,7 +230,7 @@ CONTAINS
        CALL colvar_create(colvar, qparm_colvar_id, error)
        CALL colvar_check_points(colvar, qparm_section, error)
        CALL section_vals_val_get(qparm_section,"RCUT",r_val=colvar%qparm_param%rcut,error=error)
-       CALL section_vals_val_get(qparm_section,"ALPHA",r_val=colvar%qparm_param%alpha,error=error)
+       !CALL section_vals_val_get(qparm_section,"ALPHA",r_val=colvar%qparm_param%alpha,error=error)
        CALL section_vals_val_get(qparm_section,"L",i_val=colvar%qparm_param%l,error=error)
        NULLIFY(colvar%qparm_param%i_at_from)
        NULLIFY(colvar%qparm_param%i_at_to)

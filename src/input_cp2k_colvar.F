@@ -836,12 +836,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ALPHA",&
-            description="Specifies the width of the Fermi-Dirac style smearing around RCUT.",&
-            usage="ALPHA {real}",required=.TRUE.,&
-            n_var=1, unit_str="angstrom^-1",type_of_var=real_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !CALL keyword_create(keyword, name="ALPHA",&
+       !     description="Specifies the width of the Fermi-Dirac style smearing around RCUT.",&
+       !     usage="ALPHA {real}",required=.TRUE.,&
+       !     n_var=1, unit_str="angstrom^-1",type_of_var=real_t, error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
 
        ! Must be present in each colvar and handled properly
        CALL create_point_section(subsection,error)
