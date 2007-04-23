@@ -1,3 +1,5 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
 #
+# reset for bug fix for forces
+argon_GENPOT_fcc-ql.inp
