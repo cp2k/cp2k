@@ -230,6 +230,7 @@ CONTAINS
        CALL colvar_create(colvar, qparm_colvar_id, error)
        CALL colvar_check_points(colvar, qparm_section, error)
        CALL section_vals_val_get(qparm_section,"RCUT",r_val=colvar%qparm_param%rcut,error=error)
+       CALL section_vals_val_get(qparm_section,"ALPHA",r_val=colvar%qparm_param%alpha,error=error)
        CALL section_vals_val_get(qparm_section,"L",i_val=colvar%qparm_param%l,error=error)
        NULLIFY(colvar%qparm_param%i_at_from)
        NULLIFY(colvar%qparm_param%i_at_to)
@@ -307,6 +308,7 @@ CONTAINS
                colvar%qparm_param%i_at_to(kk),&
                kk=1,SIZE(colvar%qparm_param%i_at_to))
           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| RCUT',colvar%qparm_param%rcut
+          WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| ALPHA',colvar%qparm_param%alpha
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| L',colvar%qparm_param%l
        END SELECT
        IF (colvar%use_points) THEN
@@ -1277,27 +1279,29 @@ CONTAINS
     REAL(KIND=dp)                            :: dfunc, ftmp(3), func, &
                                                 inv_n_atoms_from, invden, &
                                                 ncoord, num, r12, r_0, rdist, &
-                                                ss(3), xij(3),grad(3)
+                                                ss(3), xij(3)
+    REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_tot, grad_nb_tot
     REAL(KIND=dp), DIMENSION(3)                   :: xpi, xpj
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
     REAL(KIND=dp)                            :: rcut,costheta,dplm,qparm,fact,fi,dx
-    REAL(KIND=dp)                            :: pre_fac, plm, qlm, x_tmp, y_tmp, z_tmp, r_tmp
-    REAL(KIND=dp)                            :: sintheta, theta, ymag1, dylm
+    REAL(KIND=dp)                            :: pre_fac, plm, qlm, qlm_nb, x_tmp, y_tmp, z_tmp, r_tmp
+    REAL(KIND=dp)                            :: sintheta, theta, ymag1, ymag2, dylm, f1, plm2
 
-    COMPLEX(KIND=dp)                         :: ylm, ylm_calc
+    COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm2, ylm2_tot
 
 
-    INTEGER                                  :: l, m, lpm, lmm, nbond
-    REAL(KIND=dp) :: qparm_prev
+    INTEGER                                  :: l, m, lpm, lmm, bond
+    REAL(KIND=dp)                            :: nbond, alpha
 
    failure=.FALSE.
    n_atoms_to=colvar%qparm_param%n_atoms_to
    n_atoms_from=colvar%qparm_param%n_atoms_from
    rcut=colvar%qparm_param%rcut
    l=colvar%qparm_param%l
+   alpha=colvar%qparm_param%alpha
    NULLIFY(particles_i)
    CPPrecondition(colvar%type_id==qparm_colvar_id,cp_failure_level,routineP,error,failure)
    IF (PRESENT(particles)) THEN
@@ -1309,16 +1313,19 @@ CONTAINS
    END IF
 
    qparm=0.0_dp
-   qparm_prev=0.0_dp
    colvar%dsdr=0.0_dp
    inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
    DO ii=1,n_atoms_from
       i=colvar%qparm_param%i_at_from(ii)
       CALL get_coordinates(colvar, i, xpi, my_particles)
       qlm = 0
+      qlm_nb = 0
+      grad_tot(:) = 0d0
+      grad_nb_tot(:) = 0d0
       do m = 0, l 
         ylm = 0d0
         grad(:) = 0d0
+        grad_nb(:) = 0d0
         nbond = 0
         DO jj=1,n_atoms_to
            j=colvar%qparm_param%i_at_to(jj)
@@ -1329,14 +1336,19 @@ CONTAINS
            xij=MATMUL(cell%hmat,ss)
            r12=SQRT(DOT_PRODUCT(xij,xij))
            IF(r12 > rcut) CYCLE
-           nbond = nbond + 1
-           dx = 1d-8
+           nbond = nbond + 1.0_dp !/(1.0_dp + exp(alpha*(r12 - rcut)))
+           bond  = 1.0_dp/(1.0_dp + exp(alpha*(r12 - rcut)))
+           IF (bond > 1.0_dp) then 
+             print*,"bond > 1.0_dp", bond
+             STOP
+           ENDIF
+           dx = 1.0d-6
            x_tmp = xij(1)
            y_tmp = xij(2)
            z_tmp = xij(3)
            r_tmp = r12 
            if (dabs(x_tmp) .gt. 1d-8) then
-              fi = atan(y_tmp/x_tmp)
+             fi = atan(y_tmp/x_tmp)
            else
              fi = 0.5*pi
            endif
@@ -1352,31 +1364,48 @@ CONTAINS
            ENDIF
            lmm = fac(l-m)
            lpm = fac(l+m)
-           pre_fac = dsqrt(((2*l+1)*lmm)/(4*pi*lpm))
-           dylm = pre_fac*dplm
+           pre_fac = sqrt(((2*l+1)*lmm)/(4*pi*lpm))
+           if (plm < 0d0) then
+             dylm = -pre_fac*dplm !*plm/dabs(plm)
+           else
+             dylm = pre_fac*dplm
+           endif  
            ylm_calc = pre_fac*plm*(cmplx (dcos(m*fi), dsin(m*fi)))
+           ymag1 = (sqrt(ylm_calc*conjg(ylm_calc)))
            ylm = ylm + ylm_calc
+           ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
            grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
            grad(2) = grad(2) - dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
            grad(3) = grad(3) + dylm*((1d0/r_tmp) - (z_tmp**2d0/r_tmp**3d0))
+           grad_nb(1) = grad_nb(1) - alpha*exp(alpha*(r12-rcut))*(x_tmp/(r_tmp*r_tmp))
+           grad_nb(2) = grad_nb(2) - alpha*exp(alpha*(r12-rcut))*(y_tmp/(r_tmp*r_tmp))
+           grad_nb(3) = grad_nb(3) - alpha*exp(alpha*(r12-rcut))*(z_tmp/(r_tmp*r_tmp))
         ENDDO
-        ylm = ylm/nbond
-        grad(:) = grad(:)/nbond
-        ymag1 = ylm*conjg(ylm)
         if (m .gt. 0) then
           fact = 2
         else
           fact = 1
         endif
+        ymag1 = ylm*dconjg(ylm)
+        qlm_nb = qlm_nb + fact*ymag1
+        if (nbond < 0.0001_dp) CYCLE
+        ylm = ylm/nbond
+        grad(:) = grad(:)/nbond
+        ymag1 = ylm*dconjg(ylm)
+        ymag2 = ylm2_tot*dconjg(ylm2_tot)
         qlm = qlm + fact*ymag1
+        !fnum_tot = fnum_tot + fact*fnum
+        grad_tot(:) = grad_tot(:) + fact*grad(:)
+        grad_nb_tot(:) = grad_nb_tot(:) + fact*grad_nb(:)
       enddo
       pre_fac = (4d0*pi)/(2d0*l + 1) 
+      qlm_nb = dsqrt(pre_fac*qlm_nb)
       qlm = dsqrt(pre_fac*qlm)
       qparm=qparm+qlm
-      ftmp(:) = fact*grad(:)
+      grad_nb_tot(:) = grad_nb_tot(:)*qlm_nb
+      ftmp(:) = dsqrt(pre_fac)*(grad_tot(:))  !  + grad_nb_tot(:))
       CALL put_derivative(colvar, ii, ftmp)
    ENDDO
-
    colvar%ss=qparm*inv_n_atoms_from
    colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
 

@@ -446,6 +446,7 @@ CONTAINS
        END IF
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + ibond*SIZE(molecule_kind%molecule_list)
+       
        ALLOCATE(bond_list(ibond),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ibond = 0

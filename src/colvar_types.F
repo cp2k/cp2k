@@ -138,7 +138,7 @@ MODULE colvar_types
                                         n_atoms_from
      INTEGER, POINTER, DIMENSION (:) :: i_at_from,&
                                         i_at_to
-     REAL(KIND=dp)                   :: rcut
+     REAL(KIND=dp)                   :: rcut, alpha
   END TYPE qparm_colvar_type
 
   !!****s* colvar_types/dist_colvar_param [1.0] *
@@ -792,6 +792,7 @@ CONTAINS
        colvar_out%qparm_param%n_atoms_from = colvar_in%qparm_param%n_atoms_from
        colvar_out%qparm_param%rcut         = colvar_in%qparm_param%rcut
        colvar_out%qparm_param%l            = colvar_in%qparm_param%l
+       colvar_out%qparm_param%alpha        = colvar_in%qparm_param%alpha
        ndim = SIZE(colvar_out%qparm_param%i_at_from)
        ALLOCATE(colvar_out%qparm_param%i_at_from(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -800,7 +801,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%qparm_param%i_at_from    = colvar_in%qparm_param%i_at_from + my_offset
        colvar_out%qparm_param%i_at_to      = colvar_in%qparm_param%i_at_from + my_offset
-
     END SELECT
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone

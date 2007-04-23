@@ -764,8 +764,6 @@ CONTAINS
 
   END SUBROUTINE create_point_section
 
-
-
 !!****f* input_cp2k/create_colvar_qparm_section *
 !!
 !!   NAME
@@ -802,7 +800,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="qparm",&
-            description="Section to define the Q parameter as collective variables.",&
+            description="Section to define the Q parameter (crystalline order parameter) as a collective variable.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
         
@@ -838,6 +836,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ALPHA",&
+            description="Specifies the width of the Fermi-Dirac style smearing around RCUT.",&
+            usage="ALPHA {real}",required=.TRUE.,&
+            n_var=1, unit_str="angstrom^-1",type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Must be present in each colvar and handled properly
        CALL create_point_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -846,7 +851,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_qparm_section
-
-
 
 END MODULE input_cp2k_colvar

@@ -601,7 +601,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"constraint_info",&
             description="Prints information about iterative constraints solutions",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
+            print_level=silent_print_level, filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
