@@ -5,7 +5,7 @@
       &DFTB
         SELF_CONSISTENT    T
         DO_EWALD           T
-        DISPERSION         T
+        DISPERSION         F
         &PARAMETER
           PARAM_FILE_PATH  ../scc
           PARAM_FILE_NAME  scc_parameter
@@ -16,7 +16,7 @@
     &SCF
       SCF_GUESS ATOMIC
       MIXING 0.2
-      MAX_SCF  20
+      MAX_SCF  5
       &OT ON
         PRECONDITIONER NONE
       &END OT

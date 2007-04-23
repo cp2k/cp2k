@@ -1,0 +1,41 @@
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        SELF_CONSISTENT    F
+        DISPERSION         T
+        ORTHOGONAL_BASIS   F   
+        &PARAMETER
+          PARAM_FILE_PATH  ../nonscc
+          SK_FILE  Mo Mo  momo
+          SK_FILE  Mo S   mos
+          SK_FILE  S  Mo  smo
+          SK_FILE  S  S   ss
+          UFF_FORCE_FIELD  ../uff_table
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      SCF_GUESS CORE
+      MAX_SCF 10
+      MIXING 1
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 100.0 100.0 100.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+Mo  0.000000 0.00000 0.00000
+S   1.500000 0.00000 0.00000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+PROJECT MoS
+PRINT_LEVEL low
+&END GLOBAL
+

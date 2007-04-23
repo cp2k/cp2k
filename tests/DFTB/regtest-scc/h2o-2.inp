@@ -5,7 +5,7 @@
       &DFTB
         SELF_CONSISTENT    T
         DO_EWALD           T
-        DISPERSION         T
+        DISPERSION         F
         &PARAMETER
           PARAM_FILE_PATH  ../scc
           PARAM_FILE_NAME  scc_parameter
@@ -16,13 +16,13 @@
     &SCF
       SCF_GUESS CORE
       MIXING 0.2
-      MAX_SCF  20
+      MAX_SCF  5
     &END SCF
     &POISSON
       &EWALD
        EWALD_TYPE SPME
-       GMAX 25
-       O_SPLINE 5
+       GMAX 16
+       O_SPLINE 4
       &END EWALD
     &END POISSON
   &END DFT
@@ -139,7 +139,7 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 5
+    STEPS 2
     TIMESTEP 0.48
     TEMPERATURE 330.0
   &END MD
