@@ -29,7 +29,7 @@ MODULE colvar_methods
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
        eval_point_der, eval_point_pos, plane_distance_colvar_id, &
-       rotation_colvar_id, torsion_colvar_id, qparm_colvar_id
+       qparm_colvar_id, rotation_colvar_id, torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -44,12 +44,15 @@ MODULE colvar_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: pi,maxfac,fac
+  USE mathconstants,                   ONLY: fac,&
+                                             maxfac,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: fixd_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE spherical_harmonics,             ONLY: legendre,dlegendre
+  USE spherical_harmonics,             ONLY: dlegendre,&
+                                             legendre
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -112,7 +115,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
       ddiff_section, distance_section, plane_dist_section, point_section, &
-      rotation_section, torsion_section, wrk_section, qparm_section
+      qparm_section, rotation_section, torsion_section, wrk_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -230,7 +233,7 @@ CONTAINS
        CALL colvar_create(colvar, qparm_colvar_id, error)
        CALL colvar_check_points(colvar, qparm_section, error)
        CALL section_vals_val_get(qparm_section,"RCUT",r_val=colvar%qparm_param%rcut,error=error)
-       !CALL section_vals_val_get(qparm_section,"ALPHA",r_val=colvar%qparm_param%alpha,error=error)
+       CALL section_vals_val_get(qparm_section,"ALPHA",r_val=colvar%qparm_param%alpha,error=error)
        CALL section_vals_val_get(qparm_section,"L",i_val=colvar%qparm_param%l,error=error)
        NULLIFY(colvar%qparm_param%i_at_from)
        NULLIFY(colvar%qparm_param%i_at_to)
@@ -569,8 +572,8 @@ CONTAINS
     INTEGER                                  :: i, j, k, l
     LOGICAL                                  :: failure
     REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), &
-      fi(3), fj(3), fk(3), fl(3), r12, ri(3), rj(3), rk(3), rl(3), xpij(3), &
-      xpkj(3), xpl(3), xpn(3), ss(3)
+      fi(3), fj(3), fk(3), fl(3), r12, ri(3), rj(3), rk(3), rl(3), ss(3), &
+      xpij(3), xpkj(3), xpl(3), xpn(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -693,8 +696,8 @@ CONTAINS
     REAL(dp)                                 :: a, b, fmod, t0, t1, t2, t3, &
                                                 xdum(3), xij(3), xkj(3)
     REAL(KIND=dp)                            :: dp1b1(3), dp1b2(3), dp2b1(3), &
-                                                dp2b2(3), xp1b1(3), xp1b2(3), &
-                                                xp2b1(3), xp2b2(3), ss(3)
+                                                dp2b2(3), ss(3), xp1b1(3), &
+                                                xp1b2(3), xp2b1(3), xp2b2(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -870,7 +873,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fi(3), fj(3), fk(3), &
                                                 fmod, ri(3), rj(3), rk(3), &
-                                                t0, t1, t2, t3, xij(3), xkj(3), ss(3)
+                                                ss(3), t0, t1, t2, t3, &
+                                                xij(3), xkj(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -1108,9 +1112,8 @@ CONTAINS
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
       dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
       dedzic, dedzid, dedzt, dedzu, dt, e, ftmp(3), o0, rcb, rt2, rtmp(3), &
-      rtru, ru2, sine, xba, xca, xcb, xdb, xdc, xia, xib, xic, xid, xt, xtu, &
-      xu, yba, yca, ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, &
-      zcb, zdb, zdc, zia, zib, zic, zid, zt, ztu, zu, ss(3)
+      rtru, ru2, sine, ss(3), xba, xca, xcb, xdb, xdc, xt, xtu, xu, yba, yca, &
+      ycb, ydb, ydc, yt, ytu, yu, zba, zca, zcb, zdb, zdc, zt, ztu, zu
     REAL(dp), DIMENSION(3, 4)                :: rr
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
@@ -1273,28 +1276,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qparm_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, j, jj, n_atoms_from, &
-                                                n_atoms_to, ndcrd, nncrd
+    COMPLEX(KIND=dp)                         :: ylm, ylm2_tot, ylm_calc
+    INTEGER                                  :: bond, i, ii, j, jj, l, lmm, &
+                                                lpm, m, n_atoms_from, &
+                                                n_atoms_to
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dfunc, ftmp(3), func, &
-                                                inv_n_atoms_from, invden, &
-                                                ncoord, num, r12, r_0, rdist, &
-                                                ss(3), xij(3)
-    REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_tot, grad_nb_tot
-    REAL(KIND=dp), DIMENSION(3)                   :: xpi, xpj
+    REAL(KIND=dp) :: alpha, costheta, dplm, dx, dylm, fact, fi, ftmp(3), &
+      inv_n_atoms_from, nbond, plm, pre_fac, qlm, qlm_nb, qparm, r12, r_tmp, &
+      rcut, sintheta, ss(3), theta, x_tmp, xij(3), y_tmp, ymag1, ymag2, z_tmp
+    REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_nb_tot, &
+                                                grad_tot, xpi, xpj
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
-    REAL(KIND=dp)                            :: rcut,costheta,dplm,qparm,fact,fi,dx
-    REAL(KIND=dp)                            :: pre_fac, plm, qlm, qlm_nb, x_tmp, y_tmp, z_tmp, r_tmp
-    REAL(KIND=dp)                            :: sintheta, theta, ymag1, ymag2, dylm, f1, plm2
-
-    COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm2, ylm2_tot
-
-
-    INTEGER                                  :: l, m, lpm, lmm, bond
-    REAL(KIND=dp)                            :: nbond, alpha
 
    failure=.FALSE.
    n_atoms_to=colvar%qparm_param%n_atoms_to
@@ -1320,12 +1314,12 @@ CONTAINS
       CALL get_coordinates(colvar, i, xpi, my_particles)
       qlm = 0
       qlm_nb = 0
-      grad_tot(:) = 0d0
-      grad_nb_tot(:) = 0d0
-      do m = 0, l 
-        ylm = 0d0
-        grad(:) = 0d0
-        grad_nb(:) = 0d0
+      grad_tot(:) = 0.0_dp
+      grad_nb_tot(:) = 0.0_dp
+      DO m = 0, l 
+        ylm = 0.0_dp
+        grad(:) = 0.0_dp
+        grad_nb(:) = 0.0_dp
         nbond = 0
         DO jj=1,n_atoms_to
            j=colvar%qparm_param%i_at_to(jj)
@@ -1337,73 +1331,73 @@ CONTAINS
            r12=SQRT(DOT_PRODUCT(xij,xij))
            IF(r12 > rcut) CYCLE
            nbond = nbond + 1.0_dp !/(1.0_dp + exp(alpha*(r12 - rcut)))
-           bond  = 1.0_dp/(1.0_dp + exp(alpha*(r12 - rcut)))
-           IF (bond > 1.0_dp) then 
-             print*,"bond > 1.0_dp", bond
+           bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r12 - rcut)))
+           IF (bond > 1.0_dp) THEN 
+             PRINT*,"bond > 1.0_dp", bond
              STOP
            ENDIF
-           dx = 1.0d-6
+           dx = 1.0e-6_dp
            x_tmp = xij(1)
            y_tmp = xij(2)
            z_tmp = xij(3)
            r_tmp = r12 
-           if (dabs(x_tmp) .gt. 1d-8) then
-             fi = atan(y_tmp/x_tmp)
-           else
-             fi = 0.5*pi
-           endif
+           IF (ABS(x_tmp) .GT. 1e-8_dp) THEN
+             fi = ATAN(y_tmp/x_tmp)
+           ELSE
+             fi = 0.5_dp*pi
+           ENDIF
            costheta = z_tmp/r_tmp
            IF(costheta > 1.0_dp) costheta = 1.0_dp
            IF(costheta < -1.0_dp) costheta = -1.0_dp
-           theta = dacos(costheta)
-           sintheta = dsin(theta)
+           theta = ACOS(costheta)
+           sintheta = SIN(theta)
            plm = legendre (costheta, l, m)
            dplm = dlegendre (costheta, l, m)
-           IF((l+m) .gt. maxfac) THEN
+           IF((l+m) .GT. maxfac) THEN
              STOP "l-m GT maxfac"
            ENDIF
            lmm = fac(l-m)
            lpm = fac(l+m)
-           pre_fac = sqrt(((2*l+1)*lmm)/(4*pi*lpm))
-           if (plm < 0d0) then
-             dylm = -pre_fac*dplm !*plm/dabs(plm)
-           else
+           pre_fac = SQRT(((2*l+1)*lmm)/(4*pi*lpm))
+           IF (plm < 0.0_dp) THEN
+             dylm = -pre_fac*dplm !*plm/abs(plm)
+           ELSE
              dylm = pre_fac*dplm
-           endif  
-           ylm_calc = pre_fac*plm*(cmplx (dcos(m*fi), dsin(m*fi)))
-           ymag1 = (sqrt(ylm_calc*conjg(ylm_calc)))
+           ENDIF  
+           ylm_calc = pre_fac*plm*(CMPLX (COS(m*fi), SIN(m*fi)))
+           ymag1 = (SQRT(ylm_calc*CONJG(ylm_calc)))
            ylm = ylm + ylm_calc
            ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
            grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
            grad(2) = grad(2) - dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
-           grad(3) = grad(3) + dylm*((1d0/r_tmp) - (z_tmp**2d0/r_tmp**3d0))
-           grad_nb(1) = grad_nb(1) - alpha*exp(alpha*(r12-rcut))*(x_tmp/(r_tmp*r_tmp))
-           grad_nb(2) = grad_nb(2) - alpha*exp(alpha*(r12-rcut))*(y_tmp/(r_tmp*r_tmp))
-           grad_nb(3) = grad_nb(3) - alpha*exp(alpha*(r12-rcut))*(z_tmp/(r_tmp*r_tmp))
+           grad(3) = grad(3) + dylm*((1.0_dp/r_tmp) - (z_tmp**2.0_dp/r_tmp**3))
+           grad_nb(1) = grad_nb(1) - alpha*EXP(alpha*(r12-rcut))*(x_tmp/(r_tmp*r_tmp))
+           grad_nb(2) = grad_nb(2) - alpha*EXP(alpha*(r12-rcut))*(y_tmp/(r_tmp*r_tmp))
+           grad_nb(3) = grad_nb(3) - alpha*EXP(alpha*(r12-rcut))*(z_tmp/(r_tmp*r_tmp))
         ENDDO
-        if (m .gt. 0) then
-          fact = 2
-        else
-          fact = 1
-        endif
-        ymag1 = ylm*dconjg(ylm)
+        IF (m .GT. 0) THEN
+          fact = 2.0_dp
+        ELSE
+          fact = 1.0_dp
+        ENDIF
+        ymag1 = ylm*CONJG(ylm)
         qlm_nb = qlm_nb + fact*ymag1
-        if (nbond < 0.0001_dp) CYCLE
+        IF (nbond < 0.0001_dp) CYCLE
         ylm = ylm/nbond
         grad(:) = grad(:)/nbond
-        ymag1 = ylm*dconjg(ylm)
-        ymag2 = ylm2_tot*dconjg(ylm2_tot)
+        ymag1 = ylm*CONJG(ylm)
+        ymag2 = ylm2_tot*CONJG(ylm2_tot)
         qlm = qlm + fact*ymag1
         !fnum_tot = fnum_tot + fact*fnum
         grad_tot(:) = grad_tot(:) + fact*grad(:)
         grad_nb_tot(:) = grad_nb_tot(:) + fact*grad_nb(:)
-      enddo
-      pre_fac = (4d0*pi)/(2d0*l + 1) 
-      qlm_nb = dsqrt(pre_fac*qlm_nb)
-      qlm = dsqrt(pre_fac*qlm)
+      ENDDO
+      pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1.0_dp) 
+      qlm_nb = SQRT(pre_fac*qlm_nb)
+      qlm = SQRT(pre_fac*qlm)
       qparm=qparm+qlm
       grad_nb_tot(:) = grad_nb_tot(:)*qlm_nb
-      ftmp(:) = dsqrt(pre_fac)*(grad_tot(:))  !  + grad_nb_tot(:))
+      ftmp(:) = SQRT(pre_fac)*(grad_tot(:))  !  + grad_nb_tot(:))
       CALL put_derivative(colvar, ii, ftmp)
    ENDDO
    colvar%ss=qparm*inv_n_atoms_from
