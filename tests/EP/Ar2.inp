@@ -46,6 +46,7 @@
   &EP
     comp_input subAr2.inp
     at_per_mol 1
+    e0_only
   &END
 &END FORCE_EVAL
 &GLOBAL
