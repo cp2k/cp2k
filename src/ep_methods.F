@@ -1193,6 +1193,7 @@ CONTAINS
        CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,Ap,error=error)
        CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,r,error=error)
        CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,z,error=error)
+       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,p_ortho,error=error)
     END IF
 
   END SUBROUTINE stupid_solve
