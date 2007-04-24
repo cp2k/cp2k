@@ -50,6 +50,7 @@ MODULE ep_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_array_utils, only: cp_2d_r_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -184,6 +185,7 @@ MODULE ep_types
      INTEGER, DIMENSION(:), POINTER :: sub_nmo,sub_nao,full_nmo,full_nao,at2sub
      TYPE(ep_energy_type) :: energy
      TYPE(ep_force_type), POINTER :: force
+     TYPE(cp_2d_r_p_type), DIMENSION(:), pointer :: base_C0
   END TYPE ep_env_type
   !!***
   !****************************************************************************
@@ -373,6 +375,14 @@ CONTAINS
           CALL section_vals_release(ep_env%root_section,error=error)
           CALL ep_envs_rm_ep_env(ep_env,error=error)
           CALL ep_force_release(ep_env%force,error=error)
+          IF (ASSOCIATED(ep_env%base_C0)) THEN
+             DO i=1,SIZE(ep_env%base_C0)
+                DEALLOCATE(ep_env%base_C0(i)%array,stat=stat)
+                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             END DO
+             DEALLOCATE(ep_env%base_C0,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
           DEALLOCATE(ep_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -524,7 +534,7 @@ CONTAINS
             ep_env%main_p_env,ep_env%sub_p_env,ep_env%m_pi_Hrho_psi0d,&
             ep_env%psi1, ep_env%precond,ep_env%sub_nmo,ep_env%sub_nao,&
             ep_env%full_nmo,ep_env%full_nao,ep_env%input,ep_env%at2sub,&
-            ep_env%force,ep_env%root_section)
+            ep_env%force,ep_env%root_section,ep_env%base_C0)
        CALL ep_energy_zero(ep_env%energy,error=error)
        ep_env%root_section => root_section
        CALL section_vals_retain(root_section,error)

@@ -933,6 +933,7 @@ CONTAINS
              DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          CALL xc_rho_set_release(kpp1_env%rho_set,error=error) ! it would be better to pass a pw pool
        END IF
        IF (PRESENT(grid_changed)) THEN
           IF (grid_changed) THEN

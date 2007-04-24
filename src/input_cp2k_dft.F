@@ -99,6 +99,31 @@ CONTAINS
          error=error)
 
     NULLIFY(keyword)
+    CALL keyword_create(keyword, name="EPS_LIN_SOLV",&
+         description="Requested convergence of the linear solver (for psi1)",&
+         usage="EPS_LIN_SOLV",&
+         default_r_val=1.e-5_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="ROTATE",&
+         description="If rotations from a unique set of coefficients should"//&
+         " be used or if single molecule optimizations generate it",&
+         usage="ROTATE",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="START_COEFFS",&
+         description="Starting coefficients for roatation based ep",&
+         usage="START_COEFFS 1.0 0.0 ...",&
+          type_of_var=real_t, n_var=-1,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="E0_ONLY",&
+         description="If only e0 should be calculated",&
+         usage="E0_ONLY",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="COMP_INPUT",&
          description="Path to the input to be used for the component of the main system",&
          usage="COMP_INPUT comp.inp",&

@@ -63,6 +63,7 @@ MODULE ep_methods
                                              sm_pool_create_matrix,&
                                              sm_pool_give_back_matrix,&
                                              sm_pools_create_matrix_vect
+  USE cp_array_utils, only: cp_2d_r_p_type
   USE distribution_2d_types,           ONLY: distribution_2d_get
 !  USE qs_overlap, only: write_sparse_matrix
   USE ep_qs_methods,                   ONLY: ep_qs_create
@@ -181,230 +182,13 @@ MODULE ep_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_methods'
   INTEGER, PRIVATE, SAVE :: last_ep_env_id=0
 
-  PUBLIC :: ep_calculation, ep_env_init_low, ep_env_transfer_psi0, &
+  PUBLIC :: ep_env_init_low, ep_env_transfer_psi0, &
        ep_env_localize_matrix, ep_env_calc_e_f_low
 
   !!***
   !****************************************************************************
 
 CONTAINS
-
-  !!****f* ep_methods/ep_calculation [1.0] *
-  !!
-  !!   NAME
-  !!     ep_calculation
-  !!
-  !!   FUNCTION
-  !!     Perform an ep calculation
-  !!
-  !!   NOTES
-  !!     still in active development, ugly code
-  !!
-  !!   INPUTS
-  !!     - qs_env: the qs_env of the full system as returned after qs_init
-  !!     - globenv: globenv, needed for some initializations
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
-  SUBROUTINE ep_calculation(qs_env,globenv, error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ep_calculation', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-
-    CALL timeset(routineN,"I","",handle)
-
-    !x  failure=.FALSE.
-    !x  NULLIFY(particle_set,ep_env,sub_qs,dft_control, energy, mos)
-    !x  logger => cp_error_get_logger(error)
-    !x  unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-    !x  print_ep_matrixes=logger%print_keys%ep_matrixes
-    !x
-    !x  CALL cp_log(logger,cp_note_level,routineP,&
-    !x       "Finishing initialization of qs_env")
-    !x  CALL ep_env_finish_qs_init(qs_env, globenv, error)
-    !x  CALL cp_error_check(error,failure)
-    !x
-    !x  ! define projections (i.e. subsystems)
-    !x  CALL cp_log(logger,cp_note_level,routineP,&
-    !x       "Defining projections (i.e. subsystmes)")
-    !x  IF (.NOT. failure) THEN
-    !x     CALL get_qs_env(qs_env,particle_set=particle_set, &
-    !x          dft_control=dft_control, mos=mos, error=error)
-    !x     natoms=SIZE(particle_set)
-    !x     nspins=dft_control%nspins
-    !x
-    !x     NULLIFY(sub_proj(1)%projection, sub_proj(2)%projection)
-    !x
-    !x     ALLOCATE(atoms(natoms/2),stat=stat)
-    !x     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    !x     DO iatom=1,natoms/2
-    !x        atoms(iatom)=iatom
-    !x     END DO
-    !x     CALL p_proj_create(sub_proj(1)%projection, atoms=atoms,&
-    !x          particle_set=particle_set, error=error)
-    !x     DEALLOCATE(atoms,stat=stat)
-    !x     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    !x
-    !x     ALLOCATE(atoms((natoms+1)/2),stat=stat)
-    !x     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    !x     DO iatom=1,(natoms+1)/2
-    !x        atoms(iatom)=iatom+natoms/2
-    !x     END DO
-    !x     CALL p_proj_create(sub_proj(2)%projection, atoms=atoms,&
-    !x          particle_set=particle_set, error=error)
-    !x     DEALLOCATE(atoms,stat=stat)
-    !x     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    !x  END IF
-    !x
-    !x  ! create ep_env
-    !x  IF (.not.failure) THEN
-    !x     CALL cp_log(logger,cp_note_level,routineP,&
-    !x          "Creating ep_env")
-    !x     CALL ep_env_create(ep_env,main_qs_env=qs_env, projections=sub_proj,&
-    !x          error=error)
-    !x     CALL cp_log(logger,cp_note_level,routineP,&
-    !x          "Creating ep_env_created")
-    !x     CALL cp_error_check(error,failure)
-    !x  END IF
-    !x
-    !x  IF (print_ep_matrixes) THEN
-    !x     IF (.not.failure) THEN
-    !x!FM        CALL cp_sm_output(logger=logger, &
-    !x!FM             outputName="ep_s", &
-    !x!FM             fromWhere=routineP, iter=0, &
-    !x!FM             matrix=ep_env%main_qs_env%matrix_s(1)%matrix,&
-    !x!FM             para_env=logger%para_env,error=error)
-    !x     END IF
-    !x  END IF
-    !x
-    !x  ! energy in subsystem with diag
-    !x  DO isub=1,SIZE(ep_env%sub_qs_env)
-    !x     CALL cp_log(logger,cp_note_level,routineP,&
-    !x          "Diagonalization of subsystem "//ADJUSTL(cp_to_string(isub)))
-    !x     sub_qs => ep_env%sub_qs_env(isub)%qs_env
-    !x     CALL qs_energies(sub_qs,globenv,error=error)
-    !x  END DO
-    !x
-    !x  ! perturbative approach for complete system
-    !x  CALL cp_log(logger,cp_note_level,routineP,&
-    !x       "Starting perturbation")
-    !x
-    !x  CALL ep_env_transfer_psi0(ep_env, error=error)
-    !x
-    !x  CALL p_env_psi0_changed(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
-    !x       Hrho_psi0d=ep_env%m_pi_Hrho_psi0d, error=error)
-    !x
-    !x  CALL p_postortho(p_env=ep_env%main_p_env,qs_env=ep_env%main_qs_env,&
-    !x          v=ep_env%m_pi_Hrho_psi0d, &
-    !x          n_cols=ep_env%main_p_env%n_mo,&
-    !x          error=error)
-    !x  DO ispin=1,SIZE(mos)
-    !x     CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo, &
-    !x          nmo=nmo, maxocc=maxocc)
-    !x     IF (lfomo>nmo) THEN
-    !x        CALL cp_fm_scale_and_add(alpha=-maxocc,&
-    !x             matrix_a=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,error=error)
-    !x     ELSE
-    !x        CALL cp_unimplemented_error(fromWhere=routineP,&
-    !x             message="symmetrized onesided smearing to do",&
-    !x             error=error)
-    !x     END IF
-    !x  END DO
-    !x
-    !x  IF (print_ep_matrixes) THEN
-    !x     CALL cp_fm_vect_write(matrixes=ep_env%m_pi_Hrho_psi0d, &
-    !x          unit_nr=cp_logger_get_default_unit_nr(logger), &
-    !x          long_description=.TRUE.,&
-    !x          local=.FALSE., error=error)
-    !x
-    !x     CALL p_env_write(ep_env%main_p_env,unit_nr=unit_nr,&
-    !x          long_description=debug_this_module, local=.FALSE.,&
-    !x          error=error)
-    !x
-    !x  END IF
-    !x
-    !x  CALL get_qs_env(ep_env%main_qs_env, energy=energy, error=error)
-    !x  WRITE (UNIT=unit_nr,FMT="(/,(T3,A,T60,F20.10))")&
-    !x       "Overlap energy of the core charge distribution:",energy%core_overlap,&
-    !x       "Self energy of the core charge distribution:   ",energy%core_self,&
-    !x       "Core Hamiltonian energy:                       ",energy%core,&
-    !x       "Hartree energy:                                ",energy%hartree,&
-    !x       "Exchange-correlation energy:                   ",energy%exc,&
-    !x       "Total energy:                                  ",energy%total
-    !x
-    !x  IF (logger%print_keys%ep_operator) THEN
-    !x     CALL p_env_write_ep_matrix(p_env=ep_env%main_p_env, &
-    !x          qs_env=ep_env%main_qs_env, &
-    !x          name="ep_op", error=error)
-    !x  END IF
-    !x
-    !x  CALL stupid_solve(ep_env,eps_r=1.0e-5_dp,error=error)
-    !x
-    !x  ! calculate the energy correction (half from bra part, half from ket part)
-    !x  e_corr=0.0_dp
-    !x  DO ispin=1,nspins
-    !x     CALL cp_fm_trace(matrix_a=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
-    !x          matrix_b=ep_env%psi1(ispin)%matrix,trace=e_corr_s,error=error)
-    !x     e_corr=e_corr-e_corr_s
-    !x  END DO
-    !x  e_corr=e_corr
-    !x  WRITE(unit=unit_nr,fmt="(a,es18.10)")" ep energy correction = ", e_corr
-    !x
-    !x  IF (print_ep_matrixes) THEN
-    !x     CALL cp_fm_vect_write(matrixes=ep_env%psi1, &
-    !x          unit_nr=cp_logger_get_default_unit_nr(logger), &
-    !x          long_description=.TRUE.,&
-    !x          local=.FALSE., error=error)
-    !x  END IF
-    !x
-    !x  IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-    !x       "DFT%PRINT%EP_RHO_CUBE/RHO1",error=error),cp_p_file) ) THEN
-    !x     unit_nr=cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%EP_RHO_CUBE",&
-    !x          extension=".cube",middle_name="rho1",log_filename=.FALSE.,error=error)
-    !x     CALL rs_pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=file_unit,&
-    !x          ionode=logger%para_env%mepos==logger%para_env%source,&
-    !x          title="rho1",stride=section_get_ival(qs_env%input,"DFT%PRINT%EP_RHO_CUBE"),&
-    !x          force_env_section=qs_env%input,error=error)
-    !x     CALL cp_print_key_finished_output(unit_nr,logger,qs_env%input,&
-    !x          "DFT%PRINT%EP_RHO_CUBE/RHO1",error=error)
-    !x  END IF
-    !x
-    !x  IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-    !x       "DFT%PRINT%EP_RHO_CUBE/RHO0",error=error),cp_p_file) ) THEN
-    !x     unit_nr=cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%EP_RHO_CUBE",&
-    !x          extension=".cube",middle_name="rho0",log_filename=.FALSE.,error=error)
-    !x     CALL rs_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
-    !x          ionode=logger%para_env%mepos==logger%para_env%source,&
-    !x          title="rho0",stride=section_get_ival(qs_env%input,"DFT%PRINT%EP_RHO_CUBE"),&
-    !x          force_env_section=qs_env%input,error=error)
-    !x     CALL cp_print_key_finished_output(unit_nr,logger,qs_env%input,&
-    !x          "DFT%PRINT%EP_RHO_CUBE/RHO0",error=error)
-    !x  END IF
-    !x
-    !x  IF (print_ep_matrixes) THEN
-    !x     CALL kpp1_write(kpp1_env=ep_env%main_p_env%kpp1_env,&
-    !x          unit_nr=unit_nr, long_description=.TRUE., local=.FALSE.,&
-    !x          force_env_section=qs_env%input, error=error)
-    !x     CALL p_env_write(ep_env%main_p_env,unit_nr=unit_nr,&
-    !x          long_description=debug_this_module, local=.FALSE.,&
-    !x          error=error)
-    !x  END IF
-    !x
-    CALL timestop(0.0_dp, handle)
-  END SUBROUTINE ep_calculation
-  !***************************************************************************
 
 !!****f* ep_methods/print_qs_energies *
 !!
@@ -479,6 +263,54 @@ CONTAINS
   END SUBROUTINE print_qs_energies
 !***************************************************************************
 
+  !!****f* ep_methods/calc_c0_tilde [1.0] *
+  !!
+  !!   NAME
+  !!     calc_c0_tilde
+  !!
+  !!   FUNCTION
+  !!     calculates c0 for a single molecule
+  !!
+  !!   INPUTS
+  !!     - ep_env: the ep_env with all the 
+  !!     - main_qs_env: the qs_env of the full system
+  !!     - projections: the projections into the subsystems
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
+  !!
+  !!   AUTHOR
+  !!     Clotilde Cucinotta
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE calc_c0_tilde(ep_env,mol_pos,new_c,imol,error)
+    TYPE(ep_env_type), pointer :: ep_env
+    TYPE(cp_2d_r_p_type), DIMENSION(:), intent(in) :: new_c
+    REAL(kind=dp), DIMENSION(:), intent(in) :: mol_pos
+    INTEGER, intent(in) :: imol
+    TYPE(cp_error_type), intent(inout) :: error
+    
+    INTEGER :: ispin, icol, irow
+    REAL(dp), DIMENSION(:), POINTER :: coeff_standard1d
+
+    ! legge dall'input
+    CALL section_vals_val_get(ep_env%root_section,"FORCE_EVAL%EP%START_COEFFS",&
+         r_vals=coeff_standard1d,error=error)
+    
+    ! trova rotazione usando la posizione mol_pos (coordinate xyz xyz xyz)
+    ! che porta la molecola nella posizione standard
+
+    ! ruota gli orbitali standard per avere gli orbitali della molecola
+    ! attuale in new_c
+    DO ispin=1,ep_env%nspins
+       DO icol=1,ep_env%sub_nmo(ispin)
+          DO irow=1,ep_env%sub_nao(ispin)
+             new_c(ispin)%array(icol,irow)=0.0_dp
+          END DO
+       END DO
+    END DO
+  END SUBROUTINE calc_c0_tilde
+  !***************************************************************************
+  
   !!****f* ep_methods/ep_env_create [1.0] *
   !!
   !!   NAME
@@ -1092,7 +924,7 @@ CONTAINS
   !!     solves a linear system with conjugated gradient
   !!
   !!   NOTES
-  !!     The linear solver should go in nother module, this is a quick and
+  !!     The linear solver should go in another module, this is a quick and
   !!     dirty implementation.
   !!     A: postortho (p_op_l1+p_op_l2) preortho
   !!     x: ep_env%psi1
@@ -1854,45 +1686,46 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e0', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER :: flag, handle, i, iat, iatom, idir, ii, ikind, imol, ispin, iw, &
-      lfomo, natom, nkind, nmo, nspin, output_unit, stat, unit_nr
+         lfomo, natom, nkind, nmo, nspin, output_unit, stat, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
-                                                natom_of_kind
+         natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: at
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: maxocc
+    LOGICAL                                  :: failure, e0_only,do_rotations
+    REAL(dp)                                 :: maxocc, eps_lin_solv, e_corr_s
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                                :: atomic_kind_set
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: psi0
+         DIMENSION(:)                           :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
+         POINTER                                :: mo_derivs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+         POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
+         POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, matrix_w
+         POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: print_section, qs_env_input
-
-!----------------
+    TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:) :: rotatedC0
+    TYPE(cp_fm_type), POINTER                :: orbitals
+    !----------------
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -1901,7 +1734,7 @@ CONTAINS
 
     NULLIFY (atomic_kind_set, dft_control, force, ks_env, mos, matrix_ks, &
          matrix_s, matrix_w, particle_set, rho, scf_control,para_env,&
-         blacs_env)
+         blacs_env,orbitals)
 
     globenv => ep_env%globenv
     qs_env => ep_env%main_qs_env
@@ -1999,17 +1832,56 @@ CONTAINS
           END DO
        END DO
     END DO
-    ! ** calc e and psi00
-    IF (ASSOCIATED(rep_env)) THEN
-       CALL rep_env_calc_e_f(rep_env,calc_f=.FALSE.,error=error)
+
+    CALL section_vals_val_get(ep_env%root_section,"FORCE_EVAL%EP%ROTATE",&
+         l_val=do_rotations,error=error)
+    IF (.NOT.do_rotations) THEN
+       ! ** calc e and psi00
+       IF (ASSOCIATED(rep_env)) THEN
+          CALL rep_env_calc_e_f(rep_env,calc_f=.FALSE.,error=error)
+       END IF
+       ep_env%energy%e_no_int=SUM(rep_env%f(rep_env%ndim+1,:))
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+            extension=".epLog",message=routineP//&
+            " calculated psi0 locally, e_no_int="//&
+            TRIM(ADJUSTL(cp_to_string(ep_env%energy%e_no_int))),error=error)
+       ! ** transfer psi0
+       CALL ep_env_transfer_psi0(ep_env,error=error)
+    else
+       ! matrix for rotated C
+       ALLOCATE(rotatedC0(ep_env%nspins),stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       DO ispin=1,ep_env%nspins
+          ALLOCATE(rotatedC0(ispin)%array(ep_env%sub_nmo(ispin),ep_env%sub_nao(ispin)),stat=stat)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=orbitals,nmo=nmo)
+          CALL cp_fm_set_all(orbitals,0.0_dp,error=error)
+       END DO
+       DO imol=1,ep_env%nmol
+          IF (rep_env%replica_owner(imol)==rep_env%cart%mepos(2)) THEN
+             ! this should return the C0 for a molecule
+             CALL calc_c0_tilde(ep_env,&
+                  mol_pos=rep_env%r(:,imol),new_c=rotatedC0,&
+                  imol=imol,error=error)
+          END IF
+          DO ispin=1,ep_env%nspins
+             ! transfer to matrix in the full systems (psi0)
+             CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=orbitals,nmo=nmo)
+             CALL mp_bcast(rotatedC0(ispin)%array, rep_env%replica_owner(imol),&
+                  rep_env%para_env_inter_rep%group)
+             CALL cp_fm_set_submatrix(orbitals,rotatedC0(ispin)%array,&
+                  start_col=(imol-1)*ep_env%sub_nmo(ispin)+1,&
+                  start_row=(imol-1)*ep_env%sub_nao(ispin)+1,&
+                  transpose=.TRUE.,error=error)
+          END DO
+       END DO
+       DO ispin=1,ep_env%nspins
+          DEALLOCATE(rotatedC0(ispin)%array,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END DO
+       DEALLOCATE(rotatedC0,stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     END IF
-    ep_env%energy%e_no_int=SUM(rep_env%f(rep_env%ndim+1,:))
-    CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
-         extension=".epLog",message=routineP//&
-         " calculated psi0 locally, e_no_int="//&
-         TRIM(ADJUSTL(cp_to_string(ep_env%energy%e_no_int))),error=error)
-    ! ** transfer psi0
-    CALL ep_env_transfer_psi0(ep_env,error=error)
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",message=routineP//&
          " transferred psi0 to main system",error=error)
@@ -2107,14 +1979,28 @@ CONTAINS
          extension=".epLog",message=routineP//&
          " preconditioner setup main_p_env finished",error=error)
 
-    ! *** perturb to do
-    CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
-         extension=".epLog",message=routineP//&
-         " perturbation start",error=error)
-    CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
-         extension=".epLog",message=routineP//&
-         " perturbation end",error=error)
-    ! *** end perturb
+    CALL section_vals_val_get(ep_env%root_section,"FORCE_EVAL%EP%E0_ONLY",&
+         l_val=e0_only,error=error)
+    IF (.NOT. e0_only) THEN
+       ! *** perturb to do
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+            extension=".epLog",message=routineP//&
+            " perturbation start",error=error)
+       CALL section_vals_val_get(ep_env%root_section,"FORCE_EVAL%EP%EPS_LIN_SOLV",&
+            r_val=eps_lin_solv,error=error)
+       CALL stupid_solve(ep_env,eps_r=eps_lin_solv,error=error)
+
+       ep_env%energy%e1=0.0_dp
+       DO ispin=1,ep_env%nspins
+          CALL cp_fm_trace(matrix_a=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
+               matrix_b=ep_env%psi1(ispin)%matrix,trace=e_corr_s,error=error)
+          ep_env%energy%e1=ep_env%energy%e1-e_corr_s
+       END DO
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+            extension=".epLog",message=routineP//&
+            " perturbation end",error=error)
+       ! *** end perturb
+    END IF
 
     ep_env%energy%e_tot=ep_env%energy%e0+ep_env%energy%e1
     output_unit=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%RUN_INFO",&
@@ -2210,7 +2096,7 @@ CONTAINS
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",message=routineP//&
          " calculate dc/dr forces",error=error)
-!    CALL ep_calc_f_sub(ep_env,error=error)
+    !    CALL ep_calc_f_sub(ep_env,error=error)
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",message=routineP//&
          " finished calculating forces dc/dr",error=error)
@@ -2317,7 +2203,7 @@ CONTAINS
          extension=".Log",error=error)
     print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
     CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit,&
-             print_section=print_section,error=error)
+         print_section=print_section,error=error)
 
     CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
          "DFT%PRINT%DERIVATIVES",error=error)
@@ -2584,44 +2470,44 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_f_sub', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iat, idir, ierr, &
-                                                irep, irep_local, ispin, nat, &
-                                                stat
+         irep, irep_local, ispin, nat, &
+         stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: fdiff(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                                :: atomic_kind_set
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: aomo_work1, coeffs_cr, &
-                                                pi_Hrho_psi0d
+         POINTER                                :: aomo_work1, coeffs_cr, &
+         pi_Hrho_psi0d
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: ao_mo_fm_pools
+         POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxao_fm_pool, &
-                                                maxao_maxmo_fm_pool, &
-                                                maxmo_maxmo_fm_pool
+         maxao_maxmo_fm_pool, &
+         maxmo_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: aoao_work1, psi0
     TYPE(ep_force_type), POINTER             :: ep_force
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(global_environment_type), POINTER   :: sub_globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+         POINTER                                :: mos
     TYPE(qs_environment_type), POINTER       :: sub_qs_env
     TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
+         POINTER                                :: force
     TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot, tmp_snap
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_w
+         POINTER                                :: matrix_s, matrix_w
     TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: local_P_H_pi
+         DIMENSION(:, :), POINTER               :: local_P_H_pi
     TYPE(real_matrix_type), POINTER          :: diag_P_H_pi
     TYPE(replica_env_type), POINTER          :: rep_env
 
-!   ---------------------------------------------------------------------------
+    !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -2741,8 +2627,9 @@ CONTAINS
        CALL fm_pool_give_back_fm(maxao_maxao_fm_pool,aoao_work1,error=error)
 
        ! invert second order matrix and finds coeffs of ddE/(dC dR)
-       !       CALL ep_sub_stupid_solve(ep_env,coeffs_cr,coeffs_ecr)
-
+       ! analytic
+       !CALL ep_sub_stupid_solve(ep_env,coeffs_cr,coeffs_ecr)
+       ! f_diff
        DO iat=1,ep_env%nat_per_mol
           DO idir=1,3
              ! f_diff deriv
