@@ -1283,7 +1283,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: alpha, costheta, dplm, dx, dylm, fact, fi, ftmp(3), &
       inv_n_atoms_from, nbond, plm, pre_fac, qlm, qlm_nb, qparm, r12, r_tmp, &
-      rcut, sintheta, ss(3), theta, x_tmp, xij(3), y_tmp, ymag1, ymag2, z_tmp
+      rcut, sintheta, ss(3), theta, x_tmp, xij(3), y_tmp, ymag1, z_tmp
     REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_nb_tot, &
                                                 grad_tot, xpi, xpj
     TYPE(particle_list_type), POINTER        :: particles_i
@@ -1386,7 +1386,6 @@ CONTAINS
         ylm = ylm/nbond
         grad(:) = grad(:)/nbond
         ymag1 = ylm*CONJG(ylm)
-        ymag2 = ylm2_tot*CONJG(ylm2_tot)
         qlm = qlm + fact*ymag1
         !fnum_tot = fnum_tot + fact*fnum
         grad_tot(:) = grad_tot(:) + fact*grad(:)
