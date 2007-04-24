@@ -5,7 +5,7 @@
       METHOD DFTB
       &DFTB
         SELF_CONSISTENT    F
-        DISPERSION         T
+        DISPERSION         F
         &PARAMETER
           PARAM_FILE_PATH  ../nonscc
           PARAM_FILE_NAME  nonscc_parameter
@@ -133,7 +133,7 @@
 &MOTION
   &MD
     ENSEMBLE NPT_I
-    STEPS 2
+    STEPS 1
     TIMESTEP 0.48
     TEMPERATURE 330.0
     PV_AVA T

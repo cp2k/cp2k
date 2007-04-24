@@ -17,3 +17,5 @@ h2o.inp
 h2o-2.inp
 h2o-3.inp
 h2o-4.inp
+# reduce test size
+h2o-1.inp

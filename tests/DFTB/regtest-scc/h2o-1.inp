@@ -5,7 +5,7 @@
       &DFTB
         SELF_CONSISTENT    T
         DO_EWALD           T
-        DISPERSION         T
+        DISPERSION         F
         &PARAMETER
           PARAM_FILE_PATH  ../scc
           PARAM_FILE_NAME  scc_parameter
@@ -137,7 +137,7 @@
 &MOTION
   &MD
     ENSEMBLE NPT_I
-    STEPS 5
+    STEPS 2
     TIMESTEP 0.48
     TEMPERATURE 330.0
     PV_AVA T
