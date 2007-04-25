@@ -362,6 +362,15 @@ CONTAINS
 ! *** makes the MOs eigenstates, computes eigenvalues, write cubes
        IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
             error=error),cp_p_file) .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error) /=0) THEN
+         IF (qs_env%dft_control%restricted) THEN
+          !
+          ! The issue is that one state is different from the others, so we certainly can't rotate all N+1 alpha states among themselves
+          ! furthermore, alpha and beta orbitals do have the same shape, but not the same v_xc, therefore these seems to be no reason that
+          ! they should have the same eigenvalues.
+          ! So it looks like I need a convincing definition of an eigenstate in this case :-)
+          ! 
+          IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs in the restricted case ... skipping"
+         ELSE
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -410,6 +419,7 @@ CONTAINS
                 ENDDO
              END IF
           ENDDO
+         ENDIF
        ENDIF
 
 ! *** init the localization environment, needed e.g. for wannier functions and molecular states
@@ -474,6 +484,9 @@ CONTAINS
                 END IF
              END DO
           END IF
+         IF (qs_env%dft_control%restricted) THEN
+          IF (ionode) WRITE(output_unit,*) " Unclear how we define MOs / localization in the restricted case ... skipping"
+         ELSE
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -569,6 +582,7 @@ CONTAINS
 
              DEALLOCATE(center)
           ENDDO
+         ENDIF
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
