@@ -284,7 +284,7 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE calc_c0_tilde(ep_env,mol_pos,new_c,imol,error)
     TYPE(ep_env_type), pointer :: ep_env
-    TYPE(cp_2d_r_p_type), DIMENSION(:), intent(in) :: new_c
+    TYPE(cp_2d_r_p_type), DIMENSION(:), intent(inout) :: new_c
     REAL(kind=dp), DIMENSION(:), intent(in) :: mol_pos
     INTEGER, intent(in) :: imol
     TYPE(cp_error_type), intent(inout) :: error
