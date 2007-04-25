@@ -43,7 +43,8 @@ MODULE md_energies
                                              npt_i_ensemble
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              sp
@@ -115,7 +116,7 @@ CONTAINS
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
       handle, i, iskip, isubsys, iw, nat, nshell, shcrd, shene, shfrc, shvel, &
-      str, vel
+      str, vel, outformat
     INTEGER, POINTER                         :: itimes
     LOGICAL :: init, init_coforce, init_cotraj, init_covel, init_force, &
       init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
@@ -273,13 +274,6 @@ CONTAINS
        init_covel   = .TRUE.
        init_coforce = .TRUE. 
     END IF
-    my_form = "FORMATTED"
-    my_ext  = ".xyz"
-    IF(simpar%output_format==dump_dcd) THEN
-       my_form = "UNFORMATTED"
-       my_ext  = ".dcd"
-    END IF
-
 !-------------------------------------------------------------
 ! Performing protocol relevant to the first step of an MD run
 !-------------------------------------------------------------
@@ -517,6 +511,8 @@ CONTAINS
        !--------------------------------------------------------------
        ene = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%ENERGY",&
             extension=".ener",file_position=my_pos, file_action=my_act,error=error)
+
+       CALL get_output_format(motion_section,"PRINT%TRAJECTORY",my_form,my_ext,error)
        crd = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="pos", error=error)
@@ -538,9 +534,11 @@ CONTAINS
        ELSE
          box = 0
        END IF
+       CALL get_output_format(motion_section,"PRINT%VELOCITIES",my_form,my_ext,error)
        vel = cp_print_key_unit_nr(logger,motion_section,"PRINT%VELOCITIES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="vel", error=error)
+       CALL get_output_format(motion_section,"PRINT%FORCES",my_form,my_ext,error)
        frc = cp_print_key_unit_nr(logger,motion_section,"PRINT%FORCES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="force", error=error)
@@ -556,6 +554,7 @@ CONTAINS
          shene=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
             extension=".shener",file_position=my_pos, file_action=my_act,error=error)
 
+         CALL get_output_format(motion_section,"PRINT%SHELL_TRAJECTORY",my_form,my_ext,error)
          shcrd =  cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="shpos", error=error)
@@ -572,22 +571,27 @@ CONTAINS
          shcrd = 0
        END IF
        IF(shell_adiabatic) THEN
+         CALL get_output_format(motion_section,"PRINT%CORE_TRAJECTORY",my_form,my_ext,error)
          cocrd = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_TRAJECTORY",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="copos", error=error)
 
+         CALL get_output_format(motion_section,"PRINT%SHELL_VELOCITIES",my_form,my_ext,error)
          shvel = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_VELOCITIES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="shvel", error=error)
          
+         CALL get_output_format(motion_section,"PRINT%CORE_VELOCITIES",my_form,my_ext,error)
          covel = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_VELOCITIES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="covel", error=error)
 
+         CALL get_output_format(motion_section,"PRINT%SHELL_FORCES",my_form,my_ext,error)
          shfrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_FORCES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="shfrc", error=error)
 
+         CALL get_output_format(motion_section,"PRINT%CORE_FORCES",my_form,my_ext,error)
          cofrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_FORCES",&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="cofrc", error=error)
@@ -604,7 +608,8 @@ CONTAINS
        !------------------
        CALL write_structure_data(particles%els,cell,motion_section,error)
        IF ( crd > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+         CALL section_vals_val_get(motion_section,"PRINT%TRAJECTORY%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_traj ) THEN
                 !Lets write the header for the coordinate dcd
                 iskip = section_get_ival(motion_section,"PRINT%TRAJECTORY%EACH",error=error)
@@ -618,7 +623,7 @@ CONTAINS
                 CALL m_flush(crd)
                 init_traj = .FALSE.
              ENDIF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -630,7 +635,7 @@ CONTAINS
                   particles=particles,&
                   error=error)
              CALL write_particle_coordinates(particles%els,crd,&
-                  simpar%output_format,"POS",title,cell)
+                  outformat,"POS",title,cell)
           END DO
           CALL m_flush(crd)
        END IF
@@ -669,7 +674,8 @@ CONTAINS
        ! Print Velocities
        !------------------
        IF ( vel > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%VELOCITIES%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_vel ) THEN
                 iskip = section_get_ival(motion_section,"PRINT%VELOCITIES%EACH",error=error)
                 WRITE(vel) "VEL ",0,itimes,iskip,&
@@ -682,7 +688,7 @@ CONTAINS
                 CALL m_flush(vel)
                 init_vel = .FALSE.
              END IF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -694,7 +700,7 @@ CONTAINS
                   particles=particles,&
                   error=error)
              CALL write_particle_coordinates(particles%els,vel,&
-                  simpar%output_format,"VEL",title,cell)
+                  outformat,"VEL",title,cell)
           END DO
           CALL m_flush(vel)
        END IF
@@ -702,7 +708,8 @@ CONTAINS
        ! Print Force
        !------------------
        IF ( frc > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%FORCES%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_force ) THEN
                 iskip = section_get_ival(motion_section,"PRINT%FORCES%EACH",error=error)
                 WRITE(frc) "FRC ",0,itimes,iskip,&
@@ -715,7 +722,7 @@ CONTAINS
                 CALL m_flush(frc)
                 init_force = .FALSE.
              END IF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -727,7 +734,7 @@ CONTAINS
                   particles=particles,&
                   error=error)
              CALL write_particle_coordinates(particles%els,frc,&
-                  simpar%output_format,"FORCE",title,cell)
+                  outformat,"FORCE",title,cell)
           END DO
           CALL m_flush(frc)
        END IF
@@ -777,7 +784,8 @@ CONTAINS
        ! Print Shell Coordinates
        !------------------
        IF ( shcrd > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%SHELL_TRAJECTORY%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_shtraj ) THEN
                 !Lets write the header for the coordinate dcd
                 iskip = section_get_ival(motion_section,"PRINT%SHELL_TRAJECTORY%EACH",error=error)
@@ -791,7 +799,7 @@ CONTAINS
                 CALL m_flush(shcrd)
                 init_shtraj = .FALSE.
              ENDIF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -803,7 +811,7 @@ CONTAINS
                   shell_particles=shell_particles,&
                   error=error)
              CALL write_particle_coordinates(shell_particles%els,shcrd,&
-                  simpar%output_format,"POS",title,cell)
+                  outformat,"POS",title,cell)
           END DO
           CALL m_flush(shcrd)
        END IF
@@ -811,7 +819,8 @@ CONTAINS
        ! Print Shell Velocities
        !------------------
        IF ( shvel > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%SHELL_VELOCITIES%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_shvel ) THEN
                 iskip = section_get_ival(motion_section,"PRINT%SHELL_VELOCITIES%EACH",error=error)
                 WRITE(vel) "VEL ",0,itimes,iskip,&
@@ -824,7 +833,7 @@ CONTAINS
                 CALL m_flush(shvel)
                 init_shvel = .FALSE.
              END IF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -836,7 +845,7 @@ CONTAINS
                   shell_particles=shell_particles,&
                   error=error)
              CALL write_particle_coordinates(shell_particles%els,shvel,&
-                  simpar%output_format,"VEL",title,cell)
+                  outformat,"VEL",title,cell)
           END DO
           CALL m_flush(shvel)
        END IF
@@ -844,7 +853,8 @@ CONTAINS
        ! Print Shell Force
        !------------------
        IF ( shfrc > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%SHELL_FORCES%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_shforce ) THEN
                 iskip = section_get_ival(motion_section,"PRINT%SHELL_FORCES%EACH",error=error)
                 WRITE(shfrc) "FRC ",0,itimes,iskip,&
@@ -857,7 +867,7 @@ CONTAINS
                 CALL m_flush(shfrc)
                 init_shforce = .FALSE.
              END IF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -869,7 +879,7 @@ CONTAINS
                   shell_particles=shell_particles,&
                   error=error)
              CALL write_particle_coordinates(shell_particles%els,shfrc,&
-                  simpar%output_format,"FORCE",title,cell)
+                  outformat,"FORCE",title,cell)
           END DO
           CALL m_flush(shfrc)
        END IF
@@ -879,7 +889,8 @@ CONTAINS
        ! Print Core Coordinates
        !------------------
        IF ( cocrd > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%CORE_TRAJECTORY%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_cotraj ) THEN
                 !Lets write the header for the coordinate dcd
                 iskip = section_get_ival(motion_section,"PRINT%CORE_TRAJECTORY%EACH",error=error)
@@ -893,7 +904,7 @@ CONTAINS
                 CALL m_flush(cocrd)
                 init_cotraj = .FALSE.
              ENDIF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -905,7 +916,7 @@ CONTAINS
                   core_particles=core_particles,&
                   error=error)
              CALL write_particle_coordinates(core_particles%els,cocrd,&
-                  simpar%output_format,"POS",title,cell)
+                  outformat,"POS",title,cell)
           END DO
           CALL m_flush(cocrd)
        END IF
@@ -913,7 +924,8 @@ CONTAINS
        ! Print core Velocities
        !------------------
        IF ( covel > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%CORE_VELOCITIES%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_covel ) THEN
                 iskip = section_get_ival(motion_section,"PRINT%CORE_VELOCITIES%EACH",error=error)
                 WRITE(vel) "VEL ",0,itimes,iskip,&
@@ -926,7 +938,7 @@ CONTAINS
                 CALL m_flush(covel)
                 init_covel = .FALSE.
              END IF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -938,7 +950,7 @@ CONTAINS
                   core_particles=core_particles,&
                   error=error)
              CALL write_particle_coordinates(core_particles%els,covel,&
-                  simpar%output_format,"VEL",title,cell)
+                  outformat,"VEL",title,cell)
           END DO
           CALL m_flush(covel)
        END IF
@@ -946,7 +958,8 @@ CONTAINS
        ! Print core Force
        !------------------
        IF ( cofrc > 0 ) THEN
-          IF(simpar%output_format==dump_dcd) THEN
+          CALL section_vals_val_get(motion_section,"PRINT%CORE_FORCES%FORMAT",i_val=outformat,error=error)
+          IF(outformat==dump_dcd) THEN
              IF ( init_coforce ) THEN
                 iskip = section_get_ival(motion_section,"PRINT%CORE_FORCES%EACH",error=error)
                 WRITE(cofrc) "FRC ",0,itimes,iskip,&
@@ -959,7 +972,7 @@ CONTAINS
                 CALL m_flush(cofrc)
                 init_coforce = .FALSE.
              END IF
-          ELSEIF(simpar%output_format==dump_xmol) THEN
+          ELSEIF(outformat==dump_xmol) THEN
              !         *** This information can be digested by Molden ***
              WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                   " i =",itimes,", E =",epot
@@ -971,7 +984,7 @@ CONTAINS
                   core_particles=core_particles,&
                   error=error)
              CALL write_particle_coordinates(core_particles%els,cofrc,&
-                  simpar%output_format,"FORCE",title,cell)
+                  outformat,"FORCE",title,cell)
           END DO
           CALL m_flush(cofrc)
        END IF
@@ -1029,4 +1042,22 @@ CONTAINS
 
   END SUBROUTINE md_energy
 
+  SUBROUTINE get_output_format(section,path,my_form,my_ext,error)
+    TYPE(section_vals_type), POINTER         :: section
+    CHARACTER(LEN=*), INTENT(OUT)            :: my_form, my_ext
+    CHARACTER(LEN=*), INTENT(IN)             :: path
+    TYPE(cp_error_type), INTENT(inout)       :: error
+   
+    INTEGER :: output_format
+ 
+    my_form = "FORMATTED"
+    my_ext  = ".xyz"
+    CALL section_vals_val_get(section,TRIM(path)//"%FORMAT",i_val=output_format,error=error)
+    IF(output_format==dump_dcd) THEN
+       my_form = "UNFORMATTED"
+       my_ext  = ".dcd"
+    END IF
+
+  END SUBROUTINE get_output_format
+ 
 END MODULE md_energies

@@ -128,7 +128,6 @@ MODULE md
      REAL (KIND=dp) :: f_annealing
      REAL (KIND=dp) :: gamma_nph
      INTEGER        :: ensemble
-     INTEGER        :: output_format
      LOGICAL :: constraint
      LOGICAL :: annealing
      LOGICAL :: pv_numerical
@@ -242,8 +241,6 @@ CONTAINS
     IF ( iw > 0 ) THEN
        CALL get_cp2k_units ( unit )
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
-       WRITE ( iw, '( A,T61,A )' ) ' MD| Output Format ', &
-            ADJUSTR ( output_name_types(simpar % output_format)(1:20))
        WRITE ( iw, '( A,T61,A )' ) ' MD| Ensemble Type ', &
             ADJUSTR ( ensemble_name_types(simpar % ensemble)(1:20))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
@@ -413,9 +410,6 @@ CONTAINS
        END IF
 
        tmp_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
-       CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%FORMAT", &
-            i_val=simpar%output_format,error=error)
-
        tmp_section => section_vals_get_subs_vals(root_section,&
             "MOTION%CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -488,7 +482,6 @@ CONTAINS
     simpar % units % tau = 'FS'
     simpar % units % tau_cell = 'FS'
     simpar % units % verlet_skin = 'ANGSTROMS'
-    simpar % output_format = dump_xmol
     simpar % ensemble = nve_ensemble
     simpar % nsteps = 0
     simpar % dt = 0.0_dp
