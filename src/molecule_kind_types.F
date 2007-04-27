@@ -31,7 +31,9 @@ MODULE molecule_kind_types
                                              coord_colvar_id,&
                                              ddiff_colvar_id,&
                                              dist_colvar_id,&
+                                             hydronium_colvar_id,&
                                              plane_distance_colvar_id,&
+                                             qparm_colvar_id,&
                                              rotation_colvar_id,&
                                              torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -230,6 +232,8 @@ CONTAINS
     ncolv%ncoord      = 0
     ncolv%nplane_dist = 0
     ncolv%nrot        = 0
+    ncolv%nqparm      = 0
+    ncolv%nhydronium  = 0
     ncolv%nrestraint  = 0
     IF (ASSOCIATED(colv_list)) THEN
        DO k = 1, SIZE(colv_list)
@@ -249,6 +253,10 @@ CONTAINS
              ncolv%nplane_dist = ncolv%nplane_dist + 1
           CASE(torsion_colvar_id)
              ncolv%ntorsion = ncolv%ntorsion + 1
+          CASE(qparm_colvar_id)
+             ncolv%nqparm = ncolv%nqparm + 1
+          CASE(hydronium_colvar_id)
+             ncolv%nhydronium = ncolv%nhydronium + 1
           END SELECT
        END DO
     END IF
@@ -258,7 +266,9 @@ CONTAINS
                  ncolv%ncoord       +&
                  ncolv%nplane_dist  +&
                  ncolv%nddiff       +&
-                 ncolv%nrot
+                 ncolv%nrot         +&
+                 ncolv%nqparm       +&
+                 ncolv%nhydronium
 
   END SUBROUTINE setup_colvar_counters
 

@@ -54,6 +54,7 @@ MODULE colvar_methods
   USE particle_types,                  ONLY: particle_type
   USE spherical_harmonics,             ONLY: dlegendre,&
                                              legendre
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -1306,19 +1307,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qparm_colvar', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp)                         :: ylm, ylm2_tot, ylm_calc
-    INTEGER                                  :: bond, i, ii, j, jj, l, lmm, &
-                                                lpm, m, n_atoms_from, &
-                                                n_atoms_to
+    INTEGER                                  :: i, ii, j, jj, n_atoms_from, &
+                                                n_atoms_to, ndcrd, nncrd
     LOGICAL                                  :: failure
-    REAL(KIND=dp) :: alpha, costheta, dplm, dx, dylm, fact, fi, ftmp(3), &
-      inv_n_atoms_from, nbond, plm, pre_fac, qlm, qlm_nb, qparm, r12, r_tmp, &
-      rcut, sintheta, ss(3), theta, x_tmp, xij(3), y_tmp, ymag1, z_tmp
-    REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_nb_tot, &
-                                                grad_tot, xpi, xpj
+    REAL(KIND=dp)                            :: dfunc, ftmp(3), func, &
+                                                inv_n_atoms_from, invden, &
+                                                ncoord, num, r12, r_0, rdist, &
+                                                ss(3), xij(3)
+    REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_tot, grad_nb_tot
+    REAL(KIND=dp), DIMENSION(3)              :: xpi, xpj
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
+
+    REAL(KIND=dp)                            :: rcut,costheta,dplm,qparm,fact,fi
+    REAL(KIND=dp)                            :: pre_fac, plm, qlm, qlm2, x_tmp, y_tmp, z_tmp, r_tmp
+    REAL(KIND=dp)                            :: theta, ymag1, ymag, dylm, f1, plm2
+
+    COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm_calc2 
+
+    INTEGER                                  :: l, m, lpm, lmm
+    REAL(KIND=dp)                            :: nbond, bond, alpha, exp_fac
 
    failure=.FALSE.
    n_atoms_to=colvar%qparm_param%n_atoms_to
@@ -1342,8 +1351,8 @@ CONTAINS
    DO ii=1,n_atoms_from
       i=colvar%qparm_param%i_at_from(ii)
       CALL get_coordinates(colvar, i, xpi, my_particles)
-      qlm = 0
-      qlm_nb = 0
+      qlm = 0.0_dp
+      qlm2 = 0.0_dp
       grad_tot(:) = 0.0_dp
       grad_nb_tot(:) = 0.0_dp
       DO m = 0, l 
@@ -1359,19 +1368,12 @@ CONTAINS
            ss=ss-NINT(ss)
            xij=MATMUL(cell%hmat,ss)
            r12=SQRT(DOT_PRODUCT(xij,xij))
-           IF(r12 > rcut) CYCLE
-           nbond = nbond + 1.0_dp !/(1.0_dp + exp(alpha*(r12 - rcut)))
-           bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r12 - rcut)))
-           IF (bond > 1.0_dp) THEN 
-             PRINT*,"bond > 1.0_dp", bond
-             STOP
-           ENDIF
-           dx = 1.0e-6_dp
+           IF(r12 < rcut) nbond = nbond + 1.0_dp
            x_tmp = xij(1)
            y_tmp = xij(2)
            z_tmp = xij(3)
            r_tmp = r12 
-           IF (ABS(x_tmp) .GT. 1e-8_dp) THEN
+           IF (ABS(x_tmp) .GT. 1.0E-8_dp) THEN
              fi = ATAN(y_tmp/x_tmp)
            ELSE
              fi = 0.5_dp*pi
@@ -1380,53 +1382,57 @@ CONTAINS
            IF(costheta > 1.0_dp) costheta = 1.0_dp
            IF(costheta < -1.0_dp) costheta = -1.0_dp
            theta = ACOS(costheta)
-           sintheta = SIN(theta)
            plm = legendre (costheta, l, m)
            dplm = dlegendre (costheta, l, m)
            IF((l+m) .GT. maxfac) THEN
-             STOP "l-m GT maxfac"
+             CALL stop_program("qparm_colvar","l-m GT maxfac")
            ENDIF
            lmm = fac(l-m)
            lpm = fac(l+m)
-           pre_fac = SQRT(((2*l+1)*lmm)/(4*pi*lpm))
+           bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r_tmp - rcut)))
+           IF (bond > 1.0_dp) THEN 
+             CALL stop_program("qparm_colvar","bond GT 1.0_dp")
+           ENDIF
+           pre_fac = bond*SQRT(((2*l+1)*lmm)/(4*pi*lpm))
            IF (plm < 0.0_dp) THEN
-             dylm = -pre_fac*dplm !*plm/abs(plm)
+             dylm = -pre_fac*dplm !*plm/dabs(plm)
            ELSE
              dylm = pre_fac*dplm
            ENDIF  
-           ylm_calc = pre_fac*plm*(CMPLX (COS(m*fi), SIN(m*fi)))
-           ymag1 = (SQRT(ylm_calc*CONJG(ylm_calc)))
+           ylm_calc = pre_fac*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
            ylm = ylm + ylm_calc
+           ylm_calc2 = pre_fac/bond*plm*(CMPLX(COS(m*fi),SIN(m*fi)))
+           ymag = (SQRT(ylm_calc2*CONJG(ylm_calc2)))
            ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
            grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
            grad(2) = grad(2) - dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
-           grad(3) = grad(3) + dylm*((1.0_dp/r_tmp) - (z_tmp**2.0_dp/r_tmp**3))
-           grad_nb(1) = grad_nb(1) - alpha*EXP(alpha*(r12-rcut))*(x_tmp/(r_tmp*r_tmp))
-           grad_nb(2) = grad_nb(2) - alpha*EXP(alpha*(r12-rcut))*(y_tmp/(r_tmp*r_tmp))
-           grad_nb(3) = grad_nb(3) - alpha*EXP(alpha*(r12-rcut))*(z_tmp/(r_tmp*r_tmp))
+           grad(3) = grad(3) + dylm*((1.0_dp/r_tmp) - (z_tmp**2/r_tmp**3))
+           exp_fac = alpha*EXP(alpha*(r_tmp-rcut))/((1.0_dp+EXP(alpha*(r_tmp-rcut)))**2)
+           grad_nb(1) = grad_nb(1) - ymag*exp_fac*(x_tmp/r_tmp)
+           grad_nb(2) = grad_nb(2) - ymag*exp_fac*(y_tmp/r_tmp)
+           grad_nb(3) = grad_nb(3) - ymag*exp_fac*(z_tmp/r_tmp)
         ENDDO
         IF (m .GT. 0) THEN
           fact = 2.0_dp
         ELSE
           fact = 1.0_dp
         ENDIF
-        ymag1 = ylm*CONJG(ylm)
-        qlm_nb = qlm_nb + fact*ymag1
-        IF (nbond < 0.0001_dp) CYCLE
+        IF (nbond < 0.0001_dp) THEN
+          CALL stop_program("qparm_colvar","NBOND = 0.0")
+        ENDIF
         ylm = ylm/nbond
         grad(:) = grad(:)/nbond
+        grad_nb(:) = grad_nb(:)/nbond
         ymag1 = ylm*CONJG(ylm)
         qlm = qlm + fact*ymag1
-        !fnum_tot = fnum_tot + fact*fnum
         grad_tot(:) = grad_tot(:) + fact*grad(:)
         grad_nb_tot(:) = grad_nb_tot(:) + fact*grad_nb(:)
       ENDDO
-      pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1.0_dp) 
-      qlm_nb = SQRT(pre_fac*qlm_nb)
+      pre_fac = (4.0_dp*pi)/(2.0_dp*l + 1) 
       qlm = SQRT(pre_fac*qlm)
+      qlm2 = SQRT(pre_fac*qlm2)
       qparm=qparm+qlm
-      grad_nb_tot(:) = grad_nb_tot(:)*qlm_nb
-      ftmp(:) = SQRT(pre_fac)*(grad_tot(:))  !  + grad_nb_tot(:))
+      ftmp(:) = SQRT(pre_fac)*(grad_tot(:) + grad_nb_tot(:))
       CALL put_derivative(colvar, ii, ftmp)
    ENDDO
    colvar%ss=qparm*inv_n_atoms_from
