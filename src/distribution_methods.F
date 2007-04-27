@@ -649,16 +649,12 @@ CONTAINS
 
       n = nmolecule_local_row(imolecule_kind)
 
-      !JVDV IF (n > 0) THEN
-        ALLOCATE (local_molecule_row(imolecule_kind)%array(n),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "local_molecule_row(imolecule_kind)%array",&
-                           n*int_size)
-        END IF
-      !JVDV ELSE
-      !JVDV NULLIFY (local_molecule_row(imolecule_kind)%array)
-      !JVDV END IF
+      ALLOCATE (local_molecule_row(imolecule_kind)%array(n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "local_molecule_row(imolecule_kind)%array",&
+                         n*int_size)
+      END IF
 
       imolecule_local = 0
 
@@ -688,16 +684,12 @@ CONTAINS
 
       n = nmolecule_local_col(imolecule_kind)
 
-      !JVDV IF (n > 0) THEN
-        ALLOCATE (local_molecule_col(imolecule_kind)%array(n),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "local_molecule_col(imolecule_kind)%array",&
-                           n*int_size)
-        END IF
-      !JVDV ELSE
-      !JVDV   NULLIFY (local_molecule_col(imolecule_kind)%array)
-      !JVDV END IF
+      ALLOCATE (local_molecule_col(imolecule_kind)%array(n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "local_molecule_col(imolecule_kind)%array",&
+                         n*int_size)
+      END IF
 
       imolecule_local = 0
 
@@ -731,29 +723,21 @@ CONTAINS
 
       n = nparticle_local_row(iparticle_kind)
 
-      !JVDV IF (n > 0) THEN
-        ALLOCATE (local_particle_row(iparticle_kind)%array(n),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "local_particle_row(iparticle_kind)%array",&
-                           n*int_size)
-        END IF
-      !JVDV ELSE
-      !JVDV   NULLIFY (local_particle_row(iparticle_kind)%array)
-      !JVDV END IF
+      ALLOCATE (local_particle_row(iparticle_kind)%array(n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "local_particle_row(iparticle_kind)%array",&
+                         n*int_size)
+      END IF
 
       n = nparticle_local_col(iparticle_kind)
 
-      !JVDV IF (n > 0) THEN
-        ALLOCATE (local_particle_col(iparticle_kind)%array(n),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "local_particle_col(iparticle_kind)%array",&
-                           n*int_size)
-        END IF
-      !JVDV ELSE
-      !JVDV   NULLIFY (local_particle_col(iparticle_kind)%array)
-      !JVDV END IF
+      ALLOCATE (local_particle_col(iparticle_kind)%array(n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,&
+                         "local_particle_col(iparticle_kind)%array",&
+                         n*int_size)
+      END IF
 
     END DO
 
