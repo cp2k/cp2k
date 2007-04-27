@@ -372,12 +372,26 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                     section => section_vals_get_subs_vals(section1,"SHELL_COORD",error=error)
                     CALL section_vals_set_subs_vals(section2,"SHELL_COORD",section,error=error)
                  END IF
+
+                 CALL section_vals_val_get(r_section,"RESTART_CORE_POS",l_val=flag,&
+                      error=error)
+                 IF (flag) THEN
+                    section => section_vals_get_subs_vals(section1,"CORE_COORD",error=error)
+                    CALL section_vals_set_subs_vals(section2,"CORE_COORD",section,error=error)
+                 END IF
+
                  
                  CALL section_vals_val_get(r_section,"RESTART_SHELL_VELOCITY",l_val=flag,&
                       error=error)
                  IF (flag) THEN
                     section => section_vals_get_subs_vals(section1,"SHELL_VELOCITY",error=error)
                     CALL section_vals_set_subs_vals(section2,"SHELL_VELOCITY",section,error=error)
+                 END IF
+                 CALL section_vals_val_get(r_section,"RESTART_CORE_VELOCITY",l_val=flag,&
+                      error=error)
+                 IF (flag) THEN
+                    section => section_vals_get_subs_vals(section1,"CORE_VELOCITY",error=error)
+                    CALL section_vals_set_subs_vals(section2,"CORE_VELOCITY",section,error=error)
                  END IF
               END IF
            ELSE

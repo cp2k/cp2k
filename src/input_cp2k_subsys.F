@@ -409,6 +409,14 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_core_coord_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_core_vel_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_create(subsection,name="print",&
             description="Controls printings related to the subsys",&
             n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
@@ -774,6 +782,58 @@ CONTAINS
     END IF
   END SUBROUTINE create_shell_vel_section
 
+!***************************************************************************
+!!****f* input_cp2k_subsys/create_core_vel_section [1.0] *
+!!
+!!   NAME
+!!     create_core_vel_section
+!!
+!!   FUNCTION
+!!     Creates the shell velocity section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_core_vel_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_core_vel_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="core_velocity",&
+            description="The velocities of cores for shell-model potentials, "//&
+            "in xyz format  ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The core velocities in xyz format. The same order as"//&
+            " the shell coordinate is assumed.",repeats=.TRUE.,required=.TRUE.,&
+            usage="<REAL> <REAL> <REAL> ", type_of_var=real_t, n_var=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_core_vel_section
+
 
 !***************************************************************************
 !!****f* input_cp2k_subsys/create_coord_section [1.0] *
@@ -875,6 +935,56 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_shell_coord_section
+
+!***************************************************************************
+!!****f* input_cp2k_subsys/create_core_coord_section [1.0] *
+!!
+!!   NAME
+!!     create_core_coord_section
+!!
+!!   FUNCTION
+!!     Creates the &core_COORD section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_core_coord_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_core_coord_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="core_coord",&
+            description="The core coordinates for the shell-model potentials"//&
+            " xyz format with an additional column for the index of the corresponding particle",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The core coordinates in xyz format.",repeats=.TRUE.,&
+            usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_core_coord_section
 
 
 !***************************************************************************

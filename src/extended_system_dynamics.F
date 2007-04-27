@@ -523,7 +523,6 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
-
 !    TYPE(distribution_1d_type), POINTER      :: particles
 !------------------------------------------------------------------------------
 
@@ -563,6 +562,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
     END DO
   END DO
   npart_local=ii
+
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
@@ -648,6 +648,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
   ii = 0
   jj = 0
   IF(my_shell_adiabatic) THEN
+
     DO ikind = 1, SIZE ( molecule_kind_set )
       nmol_local = local_molecules % n_el ( ikind )
       DO imol_local = 1, nmol_local
@@ -664,6 +665,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
                                               nhc % p_scale ( 2, ii ) % point
           particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * &
                                               nhc % p_scale ( 3, ii ) % point
+
           shell_index=particle_set ( ipart ) %shell_index
           IF(shell_index/=0) THEN
              atomic_kind => particle_set ( ipart ) % atomic_kind
@@ -689,7 +691,9 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
         END DO  ! ipart
       END DO  ! imol_local
     END DO  ! ikind
+
   ELSE
+
     DO ikind = 1, SIZE ( molecule_kind_set )
       nmol_local = local_molecules % n_el ( ikind )
       DO imol_local = 1, nmol_local
@@ -705,10 +709,12 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
                                             nhc % p_scale ( 2, ii ) % point
            particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * &
                                             nhc % p_scale ( 3, ii ) % point
+
         END DO  ! ipart
       END DO  ! imol_local
     END DO  ! ikind
     flops = flops + REAL ( npart_local*3,KIND=dp)
+
   END IF  ! my_shell_adiabatic
 
   flops = flops * 1.E-6_dp
@@ -759,6 +765,11 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
+!dbg
+    REAL(dp) :: vcom(3),mtot
+    INTEGER, SAVE :: iter = 0
+!dbg
+
 
 !------------------------------------------------------------------------------
 
@@ -774,6 +785,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
   nhc % v_scale = 1.0_dp
   nhc % s_kin = 0.0_dp
   ii = 0
+
   DO ikind = 1, SIZE ( molecule_kind_set )
     nmol_local = local_molecules % n_el ( ikind )
     DO imol_local = 1, nmol_local
@@ -791,6 +803,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
             + mass * vel ( 2, ipart ) * vel ( 2, ipart )
         nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
             + mass * vel ( 3, ipart ) * vel ( 3, ipart )
+
       END DO
     END DO
   END DO
@@ -879,6 +892,12 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 ! now scale the particle velocities
   ii = 0
   jj = 0
+!dbg
+   mtot = 0.0_dp
+   vcom = 0.0_dp
+   iter = iter + 1
+!dbg
+
   IF(my_shell_adiabatic) THEN
     DO ikind = 1, SIZE ( molecule_kind_set )
       nmol_local = local_molecules % n_el ( ikind )
@@ -909,6 +928,13 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
              core_vel( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
              core_vel( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
           END IF
+!dbg
+    vcom(1) = vcom(1) + mass * vel ( 1, ipart )
+    vcom(2) = vcom(2) + mass * vel ( 2, ipart )
+    vcom(3) = vcom(3) + mass * vel ( 3, ipart )
+    mtot = mtot + mass
+!dbg
+
         END DO  ! ipart
       END DO  ! imol_local
     END DO  ! ikind
@@ -922,15 +948,30 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
         CALL get_molecule ( molecule, first_atom = first_atom, &
                             last_atom = last_atom ) 
         DO ipart = first_atom, last_atom
+!dbg
+      atomic_kind => particle_set ( ipart ) % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+!dbg
           ii = ii + 1
           vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
           vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
           vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
+
+!dbg
+    vcom(1) = vcom(1) + mass * vel ( 1, ipart )
+    vcom(2) = vcom(2) + mass * vel ( 2, ipart )
+    vcom(3) = vcom(3) + mass * vel ( 3, ipart )
+    mtot = mtot + mass
+!dbg
+
         END DO  ! ipart
       END DO  ! imol_local
     END DO  ! ikind
     flops = flops + REAL ( npart_local*3,KIND=dp)
   END IF
+!dbg
+  write(115,'(I10,3f16.10)') iter, vcom(1)/mtot, vcom(2)/mtot, vcom(3)/mtot
+!dbg
 
   flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)

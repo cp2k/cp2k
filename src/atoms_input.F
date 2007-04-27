@@ -301,22 +301,23 @@ CONTAINS
     CHARACTER(len=2*default_string_length)   :: line_att
     CHARACTER(len=default_string_length)     :: name_kind
     CHARACTER(len=default_string_length), &
-      ALLOCATABLE, DIMENSION(:)              :: at_name
+      ALLOCATABLE, DIMENSION(:)              :: at_name, at_name_c
     INTEGER                                  :: end_c, handle, ishell, istat, &
                                                 j, nshell, output_unit, &
                                                 sh_index, start_c, wrd
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index, at_index_c
     LOGICAL                                  :: explicit, failure, ionode, &
                                                 is_ok, is_shell, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: dab, mass_com, rab(3), &
                                                 unit_of_length
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: r
+      DIMENSION(:, :)                        :: r, rc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(section_vals_type), POINTER         :: shell_coord_section
+    TYPE(section_vals_type), POINTER         :: core_coord_section
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(val_type), POINTER                  :: val
 
@@ -330,10 +331,12 @@ CONTAINS
       output_unit = -1
     END IF
 
-    NULLIFY(shell_coord_section)
+    NULLIFY(shell_coord_section, core_coord_section)
     shell_coord_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
     CALL section_vals_get(shell_coord_section, explicit=explicit, error=error)
     IF (.NOT.explicit) RETURN
+
+    explicit = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -348,7 +351,7 @@ CONTAINS
     CALL section_vals_val_get(shell_coord_section,"_DEFAULT_KEYWORD_",&
          n_rep_val=nshell,error=error)
 
-    CPPostcondition(SIZE(shell_particle_set,1)==nshell, cp_failure_level, routineP, error, failure)
+    CPPostcondition(SIZE(shell_particle_set,1)==nshell,cp_failure_level, routineP, error, failure)
     IF(.NOT. failure) THEN
       ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -391,6 +394,62 @@ CONTAINS
             start_c=end_c
          END DO
       END DO
+
+
+      IF(PRESENT(core_particle_set)) THEN
+        core_coord_section => section_vals_get_subs_vals(subsys_section,"core_COORD",error=error)
+        CALL section_vals_get(core_coord_section, explicit=explicit, error=error)
+        IF(explicit) THEN
+          CALL section_vals_val_get(core_coord_section,"_DEFAULT_KEYWORD_",&
+               n_rep_val=nshell,error=error)
+
+   CPPostcondition(SIZE(core_particle_set,1)==nshell,cp_failure_level,routineP,error,failure)
+          IF(.NOT. failure) THEN
+            ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell), STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+            CALL Pwarning("Overwriting cores coordinates. "//&
+                 " Active coordinates READ from &SHELL_COORD section",&
+                 root_section, error)
+            CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
+            DO ishell=1,nshell
+               ! we use only the first default_string_length characters of each line
+              is_ok=cp_sll_val_next(list,val,error=error)
+              CALL val_get(val,c_val=line_att,error=error)
+              start_c=1
+              DO wrd=1,5
+                DO j=start_c,LEN(line_att)
+                   IF (line_att(j:j)/=' ') THEN
+                      start_c=j
+                      EXIT
+                   END IF
+                END DO
+                end_c=LEN(line_att)+1
+                DO j=start_c,LEN(line_att)
+                   IF (line_att(j:j)==' ') THEN
+                      end_c=j
+                      EXIT
+                   END IF
+                END DO
+                CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
+                     cp_assertion_failed,routineP,&
+                     "incorrectly formatted line in coord section'"//line_att//"'",&
+                     error,failure)
+                IF (wrd==1) THEN
+                   at_name_c(ishell)=line_att(start_c:end_c-1)
+                   CALL uppercase(at_name_c(ishell))
+                ELSE IF (wrd==5) THEN
+                   READ (line_att(start_c:end_c-1),*) at_index_c(ishell)
+                ELSE
+                   READ (line_att(start_c:end_c-1),*) rc(wrd-1,ishell)
+                END IF
+                start_c=end_c
+              END DO
+            END DO
+          END IF ! failure
+        END IF  ! explicit
+      END IF  ! core_particle_set
+
       !-----------------------------------------------------------------------------
       ! 3. Check corrispondence and convert coordinates into internal cp2k coordinates
       !-----------------------------------------------------------------------------
@@ -408,7 +467,7 @@ CONTAINS
            END IF
            shell_particle_set(sh_index)%atom_index=at_index(ishell)
 
-           IF(PRESENT(core_particle_set)) THEN
+           IF(PRESENT(core_particle_set) .AND. .NOT. explicit) THEN
              core_particle_set(sh_index)%r(1) = (mass_com*particle_set(at_index(ishell))%r(1)-&
                    shell%mass_shell*shell_particle_set(sh_index)%r(1))/shell%mass_core
              core_particle_set(sh_index)%r(2) = (mass_com*particle_set(at_index(ishell))%r(2)-&
@@ -417,6 +476,16 @@ CONTAINS
                    shell%mass_shell*shell_particle_set(sh_index)%r(3))/shell%mass_core
              core_particle_set(sh_index)%atom_index=at_index(ishell)
              rab = pbc(shell_particle_set(sh_index)%r,core_particle_set(sh_index)%r,cell)
+           ELSE IF(explicit) THEN
+             IF (scaled_coordinates) THEN
+               CALL scaled_to_real(rc(:,ishell),core_particle_set(sh_index)%r(:),cell)
+             ELSE
+               core_particle_set(sh_index)%r(:) = rc(:,ishell)*unit_of_length
+             END IF
+             core_particle_set(sh_index)%atom_index=at_index_c(ishell)
+             rab = pbc(shell_particle_set(sh_index)%r,core_particle_set(sh_index)%r,cell)
+       CPPostcondition(TRIM(at_name(ishell))==TRIM(at_name_c(ishell)),cp_failure_level,routineP,error,failure)
+       CPPostcondition(at_index(ishell)==at_index_c(ishell),cp_failure_level,routineP,error,failure)
            ELSE
              rab = pbc(shell_particle_set(sh_index)%r,particle_set(at_index(ishell))%r,cell)
            END IF
@@ -436,6 +505,8 @@ CONTAINS
          END IF
       END DO
       DEALLOCATE(r,at_index,at_name,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(rc,at_index_c,at_name_c,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     
     END IF

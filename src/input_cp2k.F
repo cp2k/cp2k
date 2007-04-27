@@ -969,7 +969,18 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_CORE_POS",&
+            description="Takes the positions of the cores from the external file (only if shel-model)",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RESTART_SHELL_VELOCITY",&
+            description="Takes the velocities of the shells from the external file (only if shel-model)",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY",&
             description="Takes the velocities of the shells from the external file (only if shel-model)",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)

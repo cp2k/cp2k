@@ -91,16 +91,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, atom_b, handle, &
-                                                ikind, ilist, ipair, jkind, &
+                                                i, ikind, ilist, ipair, jkind, &
                                                 nkinds, npairs, shell_a, &
                                                 shell_b, shell_type
+!dbg
+!    INTEGER :: done_sh(4)
+!    INTEGER, SAVE :: iter_sh = 0
+!dbg
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: do_shell, failure, &
+    LOGICAL                                  :: all_terms, do_shell, failure, &
                                                 shell_present
     REAL(KIND=dp) :: cell_v(3), energy, fr(3), fr_com(3), fscalar, ptens11, &
       ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, &
       rab(3), rab2, rab2_com, rab2_max, rab_cc(3), rab_com(3), rab_cs(3), &
-      rab_sc(3), rab_ss(3)
+      rab_list(3,4), rab_sc(3), rab_ss(3)
     REAL(KIND=dp), DIMENSION(3)              :: cvi
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_com
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
@@ -159,6 +163,10 @@ CONTAINS
 ! !$OMP reduction(+:ptens11,ptens12,ptens13,ptens21,ptens22,ptens23, &
 ! !$OMP             ptens31,ptens32,ptens33) &
 ! !$OMP private(ipair) 
+
+!dbg
+!    iter_sh = iter_sh + 1
+!dbg
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
        npairs=neighbor_kind_pair%npairs
@@ -188,6 +196,8 @@ CONTAINS
        DO ipair = 1, npairs
           atom_a = list(1,ipair)
           atom_b = list(2,ipair)
+          all_terms = .TRUE.
+!          done_sh = 0
           IF (do_shell) THEN
              IF(shell_type==sh_sh) THEN
                 shell_a = particle_set(atom_a)%shell_index
@@ -211,6 +221,20 @@ CONTAINS
                 rab_cs = 0.0_dp
                 rab_ss = rshell_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
              END IF
+             ! ##########
+!             rab_list(1:3,1) = rab_cc(1:3)+cell_v(1:3)
+!             rab_list(1:3,2) = rab_cs(1:3)+cell_v(1:3)
+!             rab_list(1:3,3) = rab_sc(1:3)+cell_v(1:3)
+!             rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
+!             DO i = 1,4
+!               rab2 = rab_list(1,i)*rab_list(1,i)+rab_list(2,i)*rab_list(2,i)+&
+!                      rab_list(3,i)*rab_list(3,i)
+!               IF (rab2 >= rab2_max) THEN
+!!                  all_terms = .FALSE.
+!                  EXIT
+!               END IF
+!             END DO
+             ! ############ 
           ELSE
              shell_a=0
              shell_b=0
@@ -219,13 +243,15 @@ CONTAINS
              rab_cs = 0.0_dp
              rab_ss = 0.0_dp
           END IF
+
           fr_com(:) = 0.0_dp
           pv_com = 0.0_dp
           rab_com = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
           rab_com = rab_com +cell_v
           rab2_com =  rab_com(1)*rab_com(1) + rab_com(2)*rab_com(2) + rab_com(3)*rab_com(3)
-
-          IF (rab2_com <= rab2_max) THEN
+!dbg
+!          IF (rab2_com <= rab2_max) THEN ! .AND. all_terms) THEN
+!dbg
              fr = 0.0_dp
              rab = rab_cc
              rab = rab+cell_v
@@ -238,6 +264,9 @@ CONTAINS
                 fr(1) = fscalar*rab(1)
                 fr(2) = fscalar*rab(2)
                 fr(3) = fscalar*rab(3)
+!dbg
+!  done_sh(1)= 1
+!dbg
              END IF
              
              IF(shell_a /= 0 ) THEN
@@ -307,6 +336,9 @@ CONTAINS
                       pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2) 
                       pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3) 
                       
+!dbg
+!  done_sh(2)= 1
+!dbg
                    END IF
                    ! core-shell : Coulomb only
                    rab = rab_cs 
@@ -339,6 +371,9 @@ CONTAINS
                       pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2) 
                       pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3) 
 
+!dbg
+!  done_sh(3)= 1
+!dbg
                    END IF
                    ! shell-core : Coulomb only
                    rab = rab_sc
@@ -371,6 +406,9 @@ CONTAINS
                       pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2) 
                       pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3) 
                       
+!dbg
+!  done_sh(4)= 1
+!dbg
                    END IF
                 ELSEIF(shell_type==nosh_sh) THEN
                    ! shell-ion or ion-shell : VDW + Coulomb
@@ -412,7 +450,7 @@ CONTAINS
                       pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1) 
                       pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2) 
                       pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3) 
-                      
+!                      
                    END IF
                 END IF
              END IF
@@ -425,7 +463,21 @@ CONTAINS
              ptens13 = ptens13 + pv_com(1,3)
              ptens23 = ptens23 + pv_com(2,3)
              ptens33 = ptens33 + pv_com(3,3)
-          END IF
+!
+!          ELSEIF(rab2_com <= rab2_max .AND. .NOT. all_terms) THEN
+!              write(*,*) 'rab2_max', rab2_max
+!             DO i = 1,4
+!               rab2 = rab_list(1,i)*rab_list(1,i)+rab_list(2,i)*rab_list(2,i)+&
+!                      rab_list(3,i)*rab_list(3,i)
+!                write(*,*) iter_sh, ilist, ipair, i , rab2
+!             END DO
+!          END IF
+!
+!dbg
+!   IF(done_sh(1)/=done_sh(2) .OR.done_sh(1)/=done_sh(2) .OR. done_sh(1)/=done_sh(2)  )THEN
+!     write(155,*) iter_sh, ilist, ipair, done_sh(1),done_sh(2),done_sh(3),done_sh(4)
+!   END IF
+!dbg
        END DO
     END DO
     ptens_nonbond(1,1) = ptens_nonbond(1,1) + ptens11

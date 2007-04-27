@@ -1211,11 +1211,14 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(particle_list_type), POINTER        :: particles, shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, &
+                                                particles, &
+                                                shell_particles
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
-    NULLIFY(work, work_section, particles, subsys, cell, cell_ref)
+    NULLIFY(work, work_section, core_particles, particles, shell_particles, &
+            subsys, cell, cell_ref)
     CALL timeset(routineN,"I",'',handle)
     CALL force_env_get(force_env,&
                        subsys=subsys,&
@@ -1230,7 +1233,8 @@ CONTAINS
     DO isubsys=1,SIZE(subsys)
        CALL cp_subsys_get(subsys(isubsys)%subsys,&
             particles=particles, molecules_new=molecules, &
-            shell_particles=shell_particles, error=error)       
+            shell_particles=shell_particles, &
+            core_particles=core_particles, error=error)       
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
        scale = .FALSE.
@@ -1257,11 +1261,20 @@ CONTAINS
        ! write restart input for shell-model
        IF(ASSOCIATED(shell_particles)) THEN
          work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-         CALL section_coord_val_set(work_section, shell_particles, molecules, conv_factor, scale,&
-            cell, shell=.TRUE., error=error)
+         CALL section_coord_val_set(work_section, shell_particles, molecules, &
+              conv_factor, scale, cell, shell=.TRUE., error=error)
          IF (.NOT.skip_vel_section) THEN
            work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
            CALL section_velocity_val_set(work_section, shell_particles, conv_factor=1.0_dp, error=error)
+         END IF
+       ENDIF
+       IF(ASSOCIATED(core_particles)) THEN
+         work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
+         CALL section_coord_val_set(work_section, core_particles, molecules, &
+              conv_factor, scale, cell, shell=.TRUE., error=error)
+         IF (.NOT.skip_vel_section) THEN
+           work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+           CALL section_velocity_val_set(work_section, core_particles, conv_factor=1.0_dp, error=error)
          END IF
        ENDIF
        !
