@@ -3,3 +3,5 @@
 #
 # reset for bug fix for forces
 argon_GENPOT_fcc-ql.inp
+# reset for smearing
+argon_GENPOT_fcc-ql.inp
