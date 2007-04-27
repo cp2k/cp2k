@@ -178,6 +178,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_colvar_hydronium_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_colvar_var_section
 
@@ -850,5 +854,156 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_qparm_section
+
+!!****f* input_cp2k/create_colvar_hudronium_section *
+!!
+!!   NAME
+!!     create_colvar_hyrdonium_section
+!!
+!!   FUNCTION
+!!     collective variables specifying hydronium solvation 
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Marcel Baer
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_colvar_hydronium_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="hydronium",&
+            description="Section to define the formation of a hydronium as a collective variable.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="OXYGENS",&
+            description="Specify indexes of atoms building the coordination variable. ",&
+            usage="OXYGENS {integer} {integer} ..",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="HYDROGENS",&
+            description="Specify indexes of atoms building the coordination variable. ",&
+            usage="HYDROGENS {integer} {integer} ..",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ROO",&
+            variants=(/"R_OO"/),&
+            description="Specify the ROO parameter in the coordination function.",&
+            usage="ROO {real}",default_r_val=3.0_dp,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="pNO",&
+            variants=(/"EXPON_NUMERATORA"/),&
+            description="Sets the value of the numerator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="pNO {integer}",default_i_val=6,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="qNO",&
+            variants=(/"EXPON_DENOMINATORA"/),&
+            description="Sets the value of the denominator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="qNO {integer}",default_i_val=12,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ROH",&
+            variants=(/"R_OH"/),&
+            description="Specify the ROH parameter in the coordination function.",&
+            usage="ROH {real}",default_r_val=3.0_dp,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="pNH",&
+            variants=(/"EXPON_NUMERATORB"/),&
+            description="Sets the value of the numerator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="pNH {integer}",default_i_val=6,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="qNH",&
+            variants=(/"EXPON_DENOMINATORB"/),&
+            description="Sets the value of the denominator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="qNH {integer}",default_i_val=12,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NH",&
+            variants=(/"NHtest"/),&
+            description="Specify the NH parameter in the hydronium function.",&
+            usage="NH {real}",default_r_val=3.0_dp,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="p",&
+            variants=(/"EXPON_NUMERATOR"/),&
+            description="Sets the value of the numerator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="p {integer}",default_i_val=8,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="q",&
+            variants=(/"EXPON_DENOMINATOR"/),&
+            description="Sets the value of the denominator of the exponential factor"//&
+            "in the coordination FUNCTION.",&
+            usage="q {integer}",default_i_val=16,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LAMBDA",&
+            variants=(/"LAMBDA"/),&
+            description="Specify the LAMBDA parameter in the hydronium function.",&
+            usage="LAMBDA {real}",default_r_val=10.0_dp,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_colvar_hydronium_section
 
 END MODULE input_cp2k_colvar

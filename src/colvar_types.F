@@ -58,6 +58,7 @@ MODULE colvar_types
             rotation_colvar_type,&
             ddiff_colvar_type,&
             qparm_colvar_type,&
+            hydronium_colvar_type,&
             point_type,&
             colvar_check_points,&
             eval_point_der,&
@@ -71,7 +72,8 @@ MODULE colvar_types
                                 plane_distance_colvar_id  = 5,&
                                 rotation_colvar_id        = 6,&
                                 ddiff_colvar_id           = 7,&
-                                qparm_colvar_id           = 8
+                                qparm_colvar_id           = 8,&
+                                hydronium_colvar_id       = 9
 
   !!****s* colvar/dist_colvar_param [1.0] *
   !!
@@ -141,6 +143,17 @@ MODULE colvar_types
      REAL(KIND=dp)                   :: rcut, alpha
   END TYPE qparm_colvar_type
 
+  TYPE hydronium_colvar_type
+     INTEGER                         :: n_oxygens,&
+                                        n_hydrogens,&
+                                        pnh,qnh,pno,qno,&
+                                        p,q
+     INTEGER, POINTER, DIMENSION (:) :: i_oxygens, &
+                                        i_hydrogens
+     REAL(KIND=dp)                   :: r_OO, r_OH, lambda,nh
+  END TYPE hydronium_colvar_type
+
+
   !!****s* colvar_types/dist_colvar_param [1.0] *
   !!
   !!   NAME
@@ -174,6 +187,7 @@ MODULE colvar_types
      TYPE(rotation_colvar_type), POINTER      :: rotation_param
      TYPE(ddiff_colvar_type), POINTER         :: ddiff_param
      TYPE(qparm_colvar_type), POINTER         :: qparm_param
+     TYPE(hydronium_colvar_type), POINTER     :: hydronium_param
      TYPE(point_type), DIMENSION(:), POINTER  :: points
   END TYPE colvar_type
 
@@ -196,6 +210,7 @@ MODULE colvar_types
      INTEGER :: nrot
      INTEGER :: nddiff
      INTEGER :: nqparm
+     INTEGER :: nhydronium
      INTEGER :: nrestraint
      !
      INTEGER :: ntot
@@ -247,8 +262,9 @@ CONTAINS
     NULLIFY(colvar%plane_distance_param)
     NULLIFY(colvar%rotation_param)
     NULLIFY(colvar%ddiff_param)
-    NULLIFY(colvar%qparm_param)
     NULLIFY(colvar%coord_param)
+    NULLIFY(colvar%qparm_param)
+    NULLIFY(colvar%hydronium_param)
     NULLIFY(colvar%i_atom)
     NULLIFY(colvar%dsdr)
     NULLIFY(colvar%points)
@@ -279,6 +295,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(qparm_colvar_id)
           ALLOCATE(colvar%qparm_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(hydronium_colvar_id)
+          ALLOCATE(colvar%hydronium_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
@@ -562,6 +581,33 @@ CONTAINS
              list(idum) = i
           ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(hydronium_colvar_id)
+          np = colvar%hydronium_param%n_oxygens+colvar%hydronium_param%n_hydrogens
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=0
+          DO ii=1,colvar%hydronium_param%n_oxygens
+             i = colvar%hydronium_param%i_oxygens(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          DO ii=1,colvar%hydronium_param%n_hydrogens
+             i = colvar%hydronium_param%i_hydrogens(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1,colvar%hydronium_param%n_oxygens
+             idum = idum + 1
+             i = colvar%hydronium_param%i_oxygens(ii)
+             list(idum) = i
+          ENDDO
+          DO ii=1,colvar%hydronium_param%n_hydrogens
+             idum = idum + 1
+             i = colvar%hydronium_param%i_hydrogens(ii)
+             list(idum) = i
+          ENDDO
+          CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
        END SELECT
        
        ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
@@ -705,6 +751,13 @@ CONTAINS
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        DEALLOCATE(colvar%qparm_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (hydronium_colvar_id)
+       DEALLOCATE(colvar%hydronium_param%i_oxygens, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%hydronium_param%i_hydrogens,stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       DEALLOCATE(colvar%hydronium_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
     CASE default
@@ -801,6 +854,26 @@ CONTAINS
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%qparm_param%i_at_from    = colvar_in%qparm_param%i_at_from + my_offset
        colvar_out%qparm_param%i_at_to      = colvar_in%qparm_param%i_at_from + my_offset
+     CASE(hydronium_colvar_id)
+       colvar_out%hydronium_param%n_hydrogens = colvar_in%hydronium_param%n_hydrogens  
+       colvar_out%hydronium_param%n_oxygens   = colvar_in%hydronium_param%n_oxygens
+       colvar_out%hydronium_param%nh          = colvar_in%hydronium_param%nh
+       colvar_out%hydronium_param%pnh         = colvar_in%hydronium_param%pnh
+       colvar_out%hydronium_param%pno         = colvar_in%hydronium_param%pno
+       colvar_out%hydronium_param%qnh         = colvar_in%hydronium_param%qnh
+       colvar_out%hydronium_param%qno         = colvar_in%hydronium_param%qno
+       colvar_out%hydronium_param%p           = colvar_in%hydronium_param%p
+       colvar_out%hydronium_param%q           = colvar_in%hydronium_param%q
+       colvar_out%hydronium_param%r_OO        = colvar_in%hydronium_param%r_OO         
+       colvar_out%hydronium_param%r_OH        = colvar_in%hydronium_param%r_OH         
+       ndim = SIZE(colvar_out%hydronium_param%i_oxygens)
+       ALLOCATE(colvar_out%hydronium_param%i_oxygens(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       ndim = SIZE(colvar_out%hydronium_param%i_hydrogens)
+       ALLOCATE(colvar_out%hydronium_param%i_hydrogens(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%hydronium_param%i_oxygens    = colvar_in%hydronium_param%i_oxygens + my_offset
+       colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
     END SELECT
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone

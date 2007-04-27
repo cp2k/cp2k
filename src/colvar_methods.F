@@ -29,7 +29,8 @@ MODULE colvar_methods
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
        eval_point_der, eval_point_pos, plane_distance_colvar_id, &
-       qparm_colvar_id, rotation_colvar_id, torsion_colvar_id
+       qparm_colvar_id, rotation_colvar_id, torsion_colvar_id, &
+       hydronium_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -108,14 +109,15 @@ CONTAINS
     CHARACTER(LEN=7)                         :: tag
     CHARACTER(LEN=default_string_length)     :: tmpStr, tmpStr2
     INTEGER                                  :: handle, iatm, iw, k, kk, &
-                                                n_var, ndim
+                                                n_var, ndim, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
-    LOGICAL, DIMENSION(8)                    :: my_subsection
+    LOGICAL, DIMENSION(9)                    :: my_subsection
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
       ddiff_section, distance_section, plane_dist_section, point_section, &
-      qparm_section, rotation_section, torsion_section, wrk_section
+      qparm_section, rotation_section, torsion_section, wrk_section, &
+      hydronium_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -134,6 +136,7 @@ CONTAINS
                             error=error)
     rotation_section     => section_vals_get_subs_vals(colvar_section,"BOND_ROTATION",i_rep_section=icol,error=error)
     qparm_section        => section_vals_get_subs_vals(colvar_section,"QPARM",i_rep_section=icol,error=error)
+    hydronium_section    => section_vals_get_subs_vals(colvar_section,"HYDRONIUM",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection(1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection(2), error=error)
@@ -143,6 +146,7 @@ CONTAINS
     CALL section_vals_get(rotation_section,     explicit=my_subsection(6), error=error)
     CALL section_vals_get(ddiff_section,        explicit=my_subsection(7), error=error)
     CALL section_vals_get(qparm_section,        explicit=my_subsection(8), error=error)
+    CALL section_vals_get(hydronium_section,    explicit=my_subsection(9),error=error)
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
@@ -256,6 +260,28 @@ CONTAINS
           ndim = ndim + SIZE(iatms)
        END DO
        colvar%qparm_param%n_atoms_to = ndim
+    ELSE IF (my_subsection(9)) THEN
+       CALL colvar_create(colvar,hydronium_colvar_id, error)
+       CALL section_vals_val_get(hydronium_section,"OXYGENS",i_vals=iatms,error=error)
+       colvar%hydronium_param%n_oxygens = SIZE(iatms)
+       ALLOCATE(colvar%hydronium_param%i_oxygens(SIZE(iatms)),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       colvar%hydronium_param%i_oxygens = iatms
+       CALL section_vals_val_get(hydronium_section,"HYDROGENS",i_vals=iatms,error=error)
+       colvar%hydronium_param%n_hydrogens = SIZE(iatms)
+       ALLOCATE(colvar%hydronium_param%i_hydrogens(SIZE(iatms)),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       colvar%hydronium_param%i_hydrogens = iatms       
+       CALL section_vals_val_get(hydronium_section,"ROO",r_val=colvar%hydronium_param%r_OO,error=error)
+       CALL section_vals_val_get(hydronium_section,"ROH",r_val=colvar%hydronium_param%r_OH,error=error)
+       CALL section_vals_val_get(hydronium_section,"pNH",i_val=colvar%hydronium_param%pnh,error=error)
+       CALL section_vals_val_get(hydronium_section,"qNH",i_val=colvar%hydronium_param%qnh,error=error)
+       CALL section_vals_val_get(hydronium_section,"pNO",i_val=colvar%hydronium_param%pno,error=error)
+       CALL section_vals_val_get(hydronium_section,"qNO",i_val=colvar%hydronium_param%qno,error=error)
+       CALL section_vals_val_get(hydronium_section,"p",i_val=colvar%hydronium_param%p,error=error)
+       CALL section_vals_val_get(hydronium_section,"q",i_val=colvar%hydronium_param%q,error=error)
+       CALL section_vals_val_get(hydronium_section,"NH",r_val=colvar%hydronium_param%nh,error=error)
+       CALL section_vals_val_get(hydronium_section,"LAMBDA",r_val=colvar%hydronium_param%lambda,error=error)
     END IF
 
     CALL colvar_setup(colvar, error)
@@ -403,6 +429,8 @@ CONTAINS
           CALL rotation_colvar(colvar,cell, particles=particles, error=error)
        CASE (qparm_colvar_id)
           CALL qparm_colvar(colvar,cell, particles=particles, error=error)
+       CASE (hydronium_colvar_id)
+          CALL hydronium_colvar(colvar,cell,particles=particles, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -472,6 +500,8 @@ CONTAINS
           CALL rotation_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (qparm_colvar_id)
           CALL qparm_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
+       CASE (hydronium_colvar_id)
+          CALL hydronium_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1403,5 +1433,350 @@ CONTAINS
    colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
 
   END SUBROUTINE qparm_colvar
+
+  !!****f* colvar/hydronium_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     hydronium_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due (and on) the hydronium collective variable
+  !!
+  !!   NOTES
+  !!
+  !!   AUTHOR
+  !!     Marcel Baer
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE hydronium_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, jj, kk, n_oxygens, &
+                                                n_hydrogens, qnh, pnh,&
+                                                pno, qno,p,q,stat,idim,ipart
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dfunc, func, invden,num, &
+                                                r12, r_OO, r_OH, rdist, ss(3), &
+                                                xij(3),lambda,qtot,fscalar,nh
+! DEBUG
+    REAL ( dp )                              :: ss_m,ss_p
+    REAL ( dp ), ALLOCATABLE                 :: fo_numer ( :, : )
+! DEBUG
+    REAL(dp), DIMENSION(3)                   :: xpi, xpj
+    REAL(dp), DIMENSION(:)                   :: nhcoord,M,&
+                                                qloc,no
+    ALLOCATABLE                              :: nhcoord,M,&
+                                                qloc,no
+    REAL(dp), DIMENSION(:,:,:)               :: dfunc_nh,dfunc_no,dM
+    ALLOCATABLE                              :: dfunc_nh,dfunc_no,dM
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+    n_oxygens=colvar%hydronium_param%n_oxygens
+    n_hydrogens=colvar%hydronium_param%n_hydrogens
+    nh=colvar%hydronium_param%nh
+    pnh=colvar%hydronium_param%pnh
+    qnh=colvar%hydronium_param%qnh
+    pno=colvar%hydronium_param%pno
+    qno=colvar%hydronium_param%qno
+    r_OO=colvar%hydronium_param%r_OO
+    r_OH=colvar%hydronium_param%r_OH
+    lambda=colvar%hydronium_param%lambda
+    p=colvar%hydronium_param%p
+    q=colvar%hydronium_param%q
+
+
+    NULLIFY(particles_i)
+    CPPrecondition(colvar%type_id==hydronium_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+
+    ALLOCATE ( dfunc_nh ( 3, n_oxygens, n_hydrogens ), stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE ( nhcoord  ( n_oxygens), stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE ( M (  n_oxygens ), stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE ( dM ( 3, n_oxygens,n_hydrogens ), stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+
+    ALLOCATE ( dfunc_no ( 3, n_oxygens, n_oxygens ), stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE ( no       (  n_oxygens), stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    
+    ALLOCATE ( qloc (  n_oxygens), stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!! DEBUG
+!
+!    ALLOCATE ( fo_numer ( 3,n_oxygens+n_hydrogens), stat=stat )
+!    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+!
+!    DO ipart = 1, SIZE ( my_particles )
+!      DO idim = 1, 3
+!        my_particles ( ipart ) % r ( idim ) = my_particles ( ipart ) % r ( idim ) + 1.0e-5_dp
+!! Zero Arrays:
+!        M = 0._dp 
+!        no = 0._dp 
+!        qloc = 0._dp 
+!        nhcoord = 0._dp
+!        DO ii=1,n_oxygens
+!           i=colvar%hydronium_param%i_oxygens(ii)
+!           xpi(:)=my_particles(i)%r(1:3)
+!! Computing M( n ( ii ) ) 
+!          DO jj=1,n_hydrogens
+!            i=colvar%hydronium_param%i_hydrogens(jj)
+!            xpj(:)=my_particles(i)%r(1:3)
+!            ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+!            ss=ss-NINT(ss)
+!            xij=MATMUL(cell%hmat,ss)
+!            r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+!            rdist = r12/r_OH
+!            num=(1.0_dp-rdist**pnh)
+!            invden=1.0_dp/(1.0_dp-rdist**qnh)
+!            IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
+!            nhcoord(ii)=nhcoord(ii) + num*invden 
+!          END DO 
+!          M(ii)  = 1.0_dp-(1.0_dp - ((nhcoord(ii)/nh)**p)/(1.0_dp - (nhcoord(ii)/nh)**q)) 
+!
+!! Computing no ( ii )
+!          DO jj=1,n_oxygens
+!            i=colvar%hydronium_param%i_oxygens(jj)
+!            xpj(:)=my_particles(i)%r(1:3)
+!            ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+!            ss=ss-NINT(ss)
+!            xij=MATMUL(cell%hmat,ss)
+!            r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+!            IF ( r12 < 1.e-3_dp ) CYCLE
+!            rdist = r12/r_OO
+!            num=(1.0_dp-rdist**pno)
+!            invden=1.0_dp/(1.0_dp-rdist**qno)
+!            IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
+!            no(ii)=no(ii)+ num*invden 
+!          END DO 
+!        END DO 
+!
+!! computing qloc and Q
+!        qtot=0._dp
+!        DO ii = 1, n_oxygens
+!          qloc ( ii ) = exp ( lambda * M (ii) * no ( ii ) )
+!          qtot = qtot + qloc ( ii ) 
+!        END DO 
+!        ss_p=LOG(qtot)/lambda
+!      ! compute ss
+!! minus delta
+!        my_particles ( ipart ) % r ( idim ) = my_particles ( ipart ) % r ( idim ) - 2.0_dp*1.0e-5_dp
+!! Zero Arrays:
+!        M = 0._dp 
+!        no = 0._dp 
+!        qloc = 0._dp 
+!        nhcoord = 0._dp
+!        DO ii=1,n_oxygens
+!          i=colvar%hydronium_param%i_oxygens(ii)
+!          xpi(:)=my_particles(i)%r(1:3)
+!! Computing M( n ( ii ) ) 
+!          DO jj=1,n_hydrogens
+!             i=colvar%hydronium_param%i_hydrogens(jj)
+!             xpj(:)=my_particles(i)%r(1:3)
+!             ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+!             ss=ss-NINT(ss)
+!             xij=MATMUL(cell%hmat,ss)
+!             r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+!             rdist = r12/r_OH
+!             num=(1.0_dp-rdist**pnh)
+!             invden=1.0_dp/(1.0_dp-rdist**qnh)
+!             IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
+!             nhcoord(ii)=nhcoord(ii) + num*invden 
+!          END DO 
+!          M(ii)  = 1.0_dp-(1.0_dp - ((nhcoord(ii)/nh)**p)/(1.0_dp - (nhcoord(ii)/nh)**q)) 
+!
+!! Computing no ( ii )
+!          DO jj=1,n_oxygens
+!            i=colvar%hydronium_param%i_oxygens(jj)
+!            xpj(:)=my_particles(i)%r(1:3)
+!            ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+!            ss=ss-NINT(ss)
+!            xij=MATMUL(cell%hmat,ss)
+!            r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+!            IF ( r12 < 1.e-3_dp ) CYCLE
+!            rdist = r12/r_OO
+!            num=(1.0_dp-rdist**pno)
+!            invden=1.0_dp/(1.0_dp-rdist**qno)
+!            IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
+!            no(ii)=no(ii)+ num*invden 
+!          END DO 
+!        ENDDO 
+!! computing qloc and Q
+!        qtot=0._dp
+!        DO ii = 1, n_oxygens
+!          qloc ( ii ) = exp ( lambda * M (ii) * no ( ii ) )
+!          qtot = qtot + qloc ( ii ) 
+!        END DO 
+!        ss_m=LOG(qtot)/lambda
+!      ! compute ss
+!        fo_numer ( idim, ipart )  = (ss_m-ss_p)/2.0_dp/1e-5_dp
+!        WRITE ( *, * ) "FNUMER O", idim, ipart, fo_numer ( idim, ipart )
+!        my_particles ( ipart ) % r ( idim ) = my_particles ( ipart ) % r ( idim ) + 1.0e-5_dp
+!      END DO
+!    END DO 
+!    DEALLOCATE ( fo_numer, stat=stat )
+!    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DEBUG
+
+! Zero Arrays:
+    colvar%dsdr=0.0_dp
+    dfunc_nh = 0._dp 
+    dfunc_no = 0._dp 
+    M = 0._dp 
+    dM = 0._dp 
+    no = 0._dp 
+    qloc = 0._dp 
+    nhcoord = 0._dp
+    DO ii=1,n_oxygens
+       i=colvar%hydronium_param%i_oxygens(ii)
+       xpi(:)=my_particles(i)%r(1:3)
+! Computing M( n ( ii ) ) 
+       DO jj=1,n_hydrogens
+          i=colvar%hydronium_param%i_hydrogens(jj)
+          xpj(:)=my_particles(i)%r(1:3)
+          ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+          ss=ss-NINT(ss)
+          xij=MATMUL(cell%hmat,ss)
+          r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+          rdist = r12/r_OH
+          num=(1.0_dp-rdist**pnh)
+          invden=1.0_dp/(1.0_dp-rdist**qnh)
+          IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
+          fscalar = ((-pnh*(rdist**(pnh-1))*invden) &
+                     + num*(invden)**2*qnh*(rdist**(qnh-1)))/(r12*r_OH) 
+
+          dfunc_nh(1,ii,jj)= xij (1) * fscalar
+          dfunc_nh(2,ii,jj)= xij (2) * fscalar
+          dfunc_nh(3,ii,jj)= xij (3) * fscalar
+
+          nhcoord(ii)=nhcoord(ii) + num*invden 
+       END DO 
+       M(ii)  = 1.0_dp-(1.0_dp - (nhcoord(ii)/nh)**p)/&
+                       (1.0_dp - (nhcoord(ii)/nh)**q) 
+
+! Computing no ( ii )
+       DO jj=1,n_oxygens
+          i=colvar%hydronium_param%i_oxygens(jj)
+          xpj(:)=my_particles(i)%r(1:3)
+          ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+          ss=ss-NINT(ss)
+          xij=MATMUL(cell%hmat,ss)
+          r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+          IF ( r12 < 1.e-3_dp ) CYCLE
+          rdist = r12/r_OO
+          num=(1.0_dp-rdist**pno)
+          invden=1.0_dp/(1.0_dp-rdist**qno)
+          IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
+          fscalar = ((-pno*(rdist**(pno-1))*invden) &
+                     + num*(invden)**2*qno*(rdist**(qno-1)))/(r12*r_OO) 
+          
+          dfunc_no(1,ii,jj)= xij(1)*fscalar
+          dfunc_no(2,ii,jj)= xij(2)*fscalar
+          dfunc_no(3,ii,jj)= xij(3)*fscalar
+
+          no(ii)=no(ii)+ num*invden 
+       END DO 
+    END DO 
+! no(ii) done
+
+! computing qloc and Q
+    qtot = 0._dp
+    DO ii = 1, n_oxygens
+     qloc ( ii ) = exp ( lambda * M (ii) * no ( ii ) )
+     qtot = qtot + qloc ( ii ) 
+    END DO 
+! compute forces
+    DO ii = 1, n_oxygens
+! Computing f_OH
+       DO jj=1,n_hydrogens
+          dM(1,ii,jj)=(p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(1,ii,jj))/nh/ &
+                      (1.0_dp - (nhcoord(ii)/nh)**q) - &
+                      (1.0_dp - (nhcoord(ii)/nh)**p)/ &
+                      ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
+                      q*dfunc_nh(1,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
+          dM(2,ii,jj)=(p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(2,ii,jj))/nh/ &
+                      (1.0_dp - (nhcoord(ii)/nh)**q) - &
+                      (1.0_dp - (nhcoord(ii)/nh)**p)/ &
+                      ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
+                      q*dfunc_nh(2,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
+          dM(3,ii,jj)=(p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(3,ii,jj))/nh/ &
+                      (1.0_dp - (nhcoord(ii)/nh)**q) - &
+                      (1.0_dp - (nhcoord(ii)/nh)**p)/ &
+                      ((1.0_dp - (nhcoord(ii)/nh)**q)**2) *&
+                      q*dfunc_nh(3,ii,jj)*(nhcoord(ii)/nh)**(q-1)/nh
+
+          colvar%dsdr(1,ii)=colvar%dsdr(1,ii)+qloc(ii)*dM(1,ii,jj)*no(ii)/qtot
+          colvar%dsdr(1,n_oxygens+jj)=colvar%dsdr(1,n_oxygens+jj) &
+                                              -qloc(ii)*dM(1,ii,jj)*no(ii)/qtot
+          colvar%dsdr(2,ii)=colvar%dsdr(2,ii)+qloc(ii)*dM(2,ii,jj)*no(ii)/qtot
+          colvar%dsdr(2,n_oxygens+jj)=colvar%dsdr(2,n_oxygens+jj) &
+                                              -qloc(ii)*dM(2,ii,jj)*no(ii)/qtot
+          colvar%dsdr(3,ii)=colvar%dsdr(3,ii)+qloc(ii)*dM(3,ii,jj)*no(ii)/qtot
+          colvar%dsdr(3,n_oxygens+jj)=colvar%dsdr(3,n_oxygens+jj) &
+                                              -qloc(ii)*dM(3,ii,jj)*no(ii)/qtot
+       END DO 
+! Computing f_OO
+       DO jj=1,n_oxygens
+          colvar%dsdr(1,ii)=colvar%dsdr(1,ii)+qloc(ii)*M(ii)*dfunc_no(1,ii,jj)/qtot
+          colvar%dsdr(1,jj)=colvar%dsdr(1,jj) &
+                                              -qloc(ii)*M(ii)*dfunc_no(1,ii,jj)/qtot
+          colvar%dsdr(2,ii)=colvar%dsdr(2,ii)+qloc(ii)*M(ii)*dfunc_no(2,ii,jj)/qtot
+          colvar%dsdr(2,jj)=colvar%dsdr(2,jj) &
+                                              -qloc(ii)*M(ii)*dfunc_no(2,ii,jj)/qtot
+          colvar%dsdr(3,ii)=colvar%dsdr(3,ii)+qloc(ii)*M(ii)*dfunc_no(3,ii,jj)/qtot
+          colvar%dsdr(3,jj)=colvar%dsdr(3,jj) &
+                                              -qloc(ii)*M(ii)*dfunc_no(3,ii,jj)/qtot
+       END DO 
+    END DO 
+    
+    colvar%ss=LOG(qtot)/lambda
+    DEALLOCATE ( dfunc_nh, stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE ( nhcoord, stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE ( M, stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE ( dM, stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE ( dfunc_no, stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE ( no, stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE ( qloc, stat=stat )
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+  END SUBROUTINE hydronium_colvar
+
+
+  !***************************************************************************
+
+
+
 
 END MODULE colvar_methods
