@@ -181,7 +181,8 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(section_vals_type), POINTER :: force_env_section, motion_section, &
-      print_section, root_section, subsys_section, work2_section, work3_section, work_section
+      print_section, root_section, subsys_section, work2_section, &
+      work3_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
@@ -438,24 +439,8 @@ CONTAINS
                                         error=error)
           END DO
        END IF
-
-!dbg
-!   write(*,*) 'SHELL'
-!   do i = 1,12
-!   write(*,'(3(1E24.16))') shell_particles%els(i)%r(1:3)
-!   end do 
-!   write(*,*) 'CORE'
-!   do i = 1,12
-!   write(*,'(3(1E24.16))') core_particles%els(i)%r(1:3)
-!   end do 
-!dbg
-
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.,error=error)
-!dbg
-!  stop 'ene'
-!dbg
- 
        IF (simpar%do_respa)THEN
           CALL force_env_calc_energy_force ( &
             force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
@@ -609,11 +594,8 @@ END SUBROUTINE md_output
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, is_shell, &
                                                 shell_adiabatic
-    REAL(KIND=dp)                            :: e_kinetic, ekin_c, ekin_com, &
-                                                ekin_s, ekin_shell, fac_massc, &
-                                                fac_masss, mass, scale, &
-                                                temp_shell, temperature, &
-                                                total_mass, v2
+    REAL(KIND=dp) :: e_kinetic, ekin_c, ekin_com, ekin_s, ekin_shell, &
+      fac_massc, fac_masss, mass, scale, temperature, total_mass, v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

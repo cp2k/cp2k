@@ -28,9 +28,9 @@ MODULE colvar_methods
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_check_points, colvar_create, colvar_setup, &
        colvar_type, coord_colvar_id, ddiff_colvar_id, dist_colvar_id, &
-       eval_point_der, eval_point_pos, plane_distance_colvar_id, &
-       qparm_colvar_id, rotation_colvar_id, torsion_colvar_id, &
-       hydronium_colvar_id
+       eval_point_der, eval_point_pos, hydronium_colvar_id, &
+       plane_distance_colvar_id, qparm_colvar_id, rotation_colvar_id, &
+       torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -116,9 +116,9 @@ CONTAINS
     LOGICAL, DIMENSION(9)                    :: my_subsection
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
-      ddiff_section, distance_section, plane_dist_section, point_section, &
-      qparm_section, rotation_section, torsion_section, wrk_section, &
-      hydronium_section
+      ddiff_section, distance_section, hydronium_section, plane_dist_section, &
+      point_section, qparm_section, rotation_section, torsion_section, &
+      wrk_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -1307,27 +1307,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qparm_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, j, jj, n_atoms_from, &
-                                                n_atoms_to, ndcrd, nncrd
+    COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm_calc2
+    INTEGER                                  :: i, ii, j, jj, l, lmm, lpm, m, &
+                                                n_atoms_from, n_atoms_to
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dfunc, ftmp(3), func, &
-                                                inv_n_atoms_from, invden, &
-                                                ncoord, num, r12, r_0, rdist, &
-                                                ss(3), xij(3)
-    REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_tot, grad_nb_tot
-    REAL(KIND=dp), DIMENSION(3)              :: xpi, xpj
+    REAL(KIND=dp) :: alpha, bond, costheta, dplm, dylm, exp_fac, fact, fi, &
+      ftmp(3), inv_n_atoms_from, nbond, plm, pre_fac, qlm, qlm2, qparm, r12, &
+      r_tmp, rcut, ss(3), theta, x_tmp, xij(3), y_tmp, ymag, ymag1, z_tmp
+    REAL(KIND=dp), DIMENSION(3)              :: grad, grad_nb, grad_nb_tot, &
+                                                grad_tot, xpi, xpj
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
-    REAL(KIND=dp)                            :: rcut,costheta,dplm,qparm,fact,fi
-    REAL(KIND=dp)                            :: pre_fac, plm, qlm, qlm2, x_tmp, y_tmp, z_tmp, r_tmp
-    REAL(KIND=dp)                            :: theta, ymag1, ymag, dylm, f1, plm2
-
-    COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm_calc2 
-
-    INTEGER                                  :: l, m, lpm, lmm
-    REAL(KIND=dp)                            :: nbond, bond, alpha, exp_fac
 
    failure=.FALSE.
    n_atoms_to=colvar%qparm_param%n_atoms_to
@@ -1467,20 +1458,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, jj, kk, n_oxygens, &
-                                                n_hydrogens, qnh, pnh,&
-                                                pno, qno,p,q,stat,idim,ipart
+    INTEGER                                  :: i, ii, jj, n_hydrogens, &
+                                                n_oxygens, p, pnh, pno, q, &
+                                                qnh, qno, stat
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: dfunc, func, invden,num, &
-                                                r12, r_OO, r_OH, rdist, ss(3), &
-                                                xij(3),lambda,qtot,fscalar,nh
-! DEBUG
-    REAL ( dp )                              :: ss_m,ss_p
-    REAL ( dp ), ALLOCATABLE                 :: fo_numer ( :, : )
-! DEBUG
+    REAL(dp)                                 :: fscalar, invden, lambda, nh, &
+                                                num, qtot, r12, r_OH, r_OO, &
+                                                rdist, ss(3), xij(3)
     REAL(dp), DIMENSION(3)                   :: xpi, xpj
-    REAL(dp), DIMENSION(:)                   :: nhcoord,M,&
-                                                qloc,no
+    REAL(dp), DIMENSION(:)                   :: M, nhcoord, no, qloc
+
+! DEBUG
+! DEBUG
+
     ALLOCATABLE                              :: nhcoord,M,&
                                                 qloc,no
     REAL(dp), DIMENSION(:,:,:)               :: dfunc_nh,dfunc_no,dM
@@ -1532,124 +1522,6 @@ CONTAINS
     
     ALLOCATE ( qloc (  n_oxygens), stat=stat )
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!! DEBUG
-!
-!    ALLOCATE ( fo_numer ( 3,n_oxygens+n_hydrogens), stat=stat )
-!    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-!
-!    DO ipart = 1, SIZE ( my_particles )
-!      DO idim = 1, 3
-!        my_particles ( ipart ) % r ( idim ) = my_particles ( ipart ) % r ( idim ) + 1.0e-5_dp
-!! Zero Arrays:
-!        M = 0._dp 
-!        no = 0._dp 
-!        qloc = 0._dp 
-!        nhcoord = 0._dp
-!        DO ii=1,n_oxygens
-!           i=colvar%hydronium_param%i_oxygens(ii)
-!           xpi(:)=my_particles(i)%r(1:3)
-!! Computing M( n ( ii ) ) 
-!          DO jj=1,n_hydrogens
-!            i=colvar%hydronium_param%i_hydrogens(jj)
-!            xpj(:)=my_particles(i)%r(1:3)
-!            ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
-!            ss=ss-NINT(ss)
-!            xij=MATMUL(cell%hmat,ss)
-!            r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-!            rdist = r12/r_OH
-!            num=(1.0_dp-rdist**pnh)
-!            invden=1.0_dp/(1.0_dp-rdist**qnh)
-!            IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
-!            nhcoord(ii)=nhcoord(ii) + num*invden 
-!          END DO 
-!          M(ii)  = 1.0_dp-(1.0_dp - ((nhcoord(ii)/nh)**p)/(1.0_dp - (nhcoord(ii)/nh)**q)) 
-!
-!! Computing no ( ii )
-!          DO jj=1,n_oxygens
-!            i=colvar%hydronium_param%i_oxygens(jj)
-!            xpj(:)=my_particles(i)%r(1:3)
-!            ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
-!            ss=ss-NINT(ss)
-!            xij=MATMUL(cell%hmat,ss)
-!            r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-!            IF ( r12 < 1.e-3_dp ) CYCLE
-!            rdist = r12/r_OO
-!            num=(1.0_dp-rdist**pno)
-!            invden=1.0_dp/(1.0_dp-rdist**qno)
-!            IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
-!            no(ii)=no(ii)+ num*invden 
-!          END DO 
-!        END DO 
-!
-!! computing qloc and Q
-!        qtot=0._dp
-!        DO ii = 1, n_oxygens
-!          qloc ( ii ) = exp ( lambda * M (ii) * no ( ii ) )
-!          qtot = qtot + qloc ( ii ) 
-!        END DO 
-!        ss_p=LOG(qtot)/lambda
-!      ! compute ss
-!! minus delta
-!        my_particles ( ipart ) % r ( idim ) = my_particles ( ipart ) % r ( idim ) - 2.0_dp*1.0e-5_dp
-!! Zero Arrays:
-!        M = 0._dp 
-!        no = 0._dp 
-!        qloc = 0._dp 
-!        nhcoord = 0._dp
-!        DO ii=1,n_oxygens
-!          i=colvar%hydronium_param%i_oxygens(ii)
-!          xpi(:)=my_particles(i)%r(1:3)
-!! Computing M( n ( ii ) ) 
-!          DO jj=1,n_hydrogens
-!             i=colvar%hydronium_param%i_hydrogens(jj)
-!             xpj(:)=my_particles(i)%r(1:3)
-!             ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
-!             ss=ss-NINT(ss)
-!             xij=MATMUL(cell%hmat,ss)
-!             r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-!             rdist = r12/r_OH
-!             num=(1.0_dp-rdist**pnh)
-!             invden=1.0_dp/(1.0_dp-rdist**qnh)
-!             IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
-!             nhcoord(ii)=nhcoord(ii) + num*invden 
-!          END DO 
-!          M(ii)  = 1.0_dp-(1.0_dp - ((nhcoord(ii)/nh)**p)/(1.0_dp - (nhcoord(ii)/nh)**q)) 
-!
-!! Computing no ( ii )
-!          DO jj=1,n_oxygens
-!            i=colvar%hydronium_param%i_oxygens(jj)
-!            xpj(:)=my_particles(i)%r(1:3)
-!            ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
-!            ss=ss-NINT(ss)
-!            xij=MATMUL(cell%hmat,ss)
-!            r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-!            IF ( r12 < 1.e-3_dp ) CYCLE
-!            rdist = r12/r_OO
-!            num=(1.0_dp-rdist**pno)
-!            invden=1.0_dp/(1.0_dp-rdist**qno)
-!            IF ( ABS ( invden )  < 1.e-10_dp )  invden = 1.e-10_dp
-!            no(ii)=no(ii)+ num*invden 
-!          END DO 
-!        ENDDO 
-!! computing qloc and Q
-!        qtot=0._dp
-!        DO ii = 1, n_oxygens
-!          qloc ( ii ) = exp ( lambda * M (ii) * no ( ii ) )
-!          qtot = qtot + qloc ( ii ) 
-!        END DO 
-!        ss_m=LOG(qtot)/lambda
-!      ! compute ss
-!        fo_numer ( idim, ipart )  = (ss_m-ss_p)/2.0_dp/1e-5_dp
-!        WRITE ( *, * ) "FNUMER O", idim, ipart, fo_numer ( idim, ipart )
-!        my_particles ( ipart ) % r ( idim ) = my_particles ( ipart ) % r ( idim ) + 1.0e-5_dp
-!      END DO
-!    END DO 
-!    DEALLOCATE ( fo_numer, stat=stat )
-!    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DEBUG
 
 ! Zero Arrays:
     colvar%dsdr=0.0_dp
@@ -1715,7 +1587,7 @@ CONTAINS
 ! computing qloc and Q
     qtot = 0._dp
     DO ii = 1, n_oxygens
-     qloc ( ii ) = exp ( lambda * M (ii) * no ( ii ) )
+     qloc ( ii ) = EXP ( lambda * M (ii) * no ( ii ) )
      qtot = qtot + qloc ( ii ) 
     END DO 
 ! compute forces
@@ -1778,11 +1650,5 @@ CONTAINS
     DEALLOCATE ( qloc, stat=stat )
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE hydronium_colvar
-
-
-  !***************************************************************************
-
-
-
 
 END MODULE colvar_methods

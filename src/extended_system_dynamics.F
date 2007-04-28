@@ -512,17 +512,19 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     INTEGER, INTENT(IN)                      :: group
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
-    TYPE(particle_type), POINTER, OPTIONAL   :: shell_particle_set( : )
-    TYPE(particle_type), POINTER, OPTIONAL   :: core_particle_set( : )
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
+                                                core_particle_set( : )
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
-      ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, shell_index
+      ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, &
+      shell_index
     LOGICAL                                  :: my_shell_adiabatic
-    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, mass, scale
-    REAL(KIND=dp)                            :: vc(3), vs(3)
+    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
+                                                mass, scale, vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
+
 !    TYPE(distribution_1d_type), POINTER      :: particles
 !------------------------------------------------------------------------------
 
@@ -754,24 +756,17 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     INTEGER, INTENT(IN)                      :: group
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:)
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: core_vel(:,:)
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:), core_vel(:,:)
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
-      ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, shell_index
+      ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, &
+      shell_index
     LOGICAL                                  :: my_shell_adiabatic
-    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, mass, scale
-    REAL(KIND=dp)                            :: vc(3), vs(3)
+    REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
+                                                mass, scale, vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
-!dbg
-    REAL(dp) :: vcom(3),mtot
-    INTEGER, SAVE :: iter = 0
-!dbg
-
-
-!------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0.0_dp
@@ -892,12 +887,6 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 ! now scale the particle velocities
   ii = 0
   jj = 0
-!dbg
-   mtot = 0.0_dp
-   vcom = 0.0_dp
-   iter = iter + 1
-!dbg
-
   IF(my_shell_adiabatic) THEN
     DO ikind = 1, SIZE ( molecule_kind_set )
       nmol_local = local_molecules % n_el ( ikind )
@@ -928,13 +917,6 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
              core_vel( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
              core_vel( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
           END IF
-!dbg
-    vcom(1) = vcom(1) + mass * vel ( 1, ipart )
-    vcom(2) = vcom(2) + mass * vel ( 2, ipart )
-    vcom(3) = vcom(3) + mass * vel ( 3, ipart )
-    mtot = mtot + mass
-!dbg
-
         END DO  ! ipart
       END DO  ! imol_local
     END DO  ! ikind
@@ -948,31 +930,15 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
         CALL get_molecule ( molecule, first_atom = first_atom, &
                             last_atom = last_atom ) 
         DO ipart = first_atom, last_atom
-!dbg
-      atomic_kind => particle_set ( ipart ) % atomic_kind
-     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!dbg
           ii = ii + 1
           vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
           vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
           vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
-
-!dbg
-    vcom(1) = vcom(1) + mass * vel ( 1, ipart )
-    vcom(2) = vcom(2) + mass * vel ( 2, ipart )
-    vcom(3) = vcom(3) + mass * vel ( 3, ipart )
-    mtot = mtot + mass
-!dbg
-
         END DO  ! ipart
       END DO  ! imol_local
     END DO  ! ikind
     flops = flops + REAL ( npart_local*3,KIND=dp)
   END IF
-!dbg
-  write(115,'(I10,3f16.10)') iter, vcom(1)/mtot, vcom(2)/mtot, vcom(3)/mtot
-!dbg
-
   flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)
 
@@ -986,14 +952,14 @@ END SUBROUTINE lnhc_particles
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(IN)                :: com_vel( :, : )
-    REAL(KIND=dp), INTENT(INOUT)             :: shell_vel( :, : )
-    REAL(KIND=dp), INTENT(INOUT)             :: core_vel( :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: shell_vel( :, : ), &
+                                                core_vel( :, : )
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
-               nparticle_local, shell_index
+      nparticle_local, shell_index
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: fac_massc, fac_masss, mass
-    REAL(KIND=dp)                            :: vc(3), vs(3)
+    REAL(KIND=dp)                            :: fac_massc, fac_masss, mass, &
+                                                vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 

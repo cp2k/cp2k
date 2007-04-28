@@ -34,10 +34,9 @@ MODULE md
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       dump_xmol, ensemble_name_types, isokin_ensemble, langevin_ensemble, &
-       nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
-       output_name_types
+       ensemble_name_types, isokin_ensemble, langevin_ensemble, nph_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -64,7 +63,7 @@ MODULE md
   IMPLICIT NONE
 
   PRIVATE
-
+  LOGICAL, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md'
 
   ! Public data types
@@ -558,9 +557,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_section, work_section
     LOGICAL, INTENT(IN), OPTIONAL            :: force_rescaling
     TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: work2_section
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: work3_section
+      POINTER                                :: work2_section, work3_section
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: shell_part, core_part
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -572,14 +569,12 @@ CONTAINS
                                                 imolecule_kind, istat, iw, &
                                                 natoms, nfixd, nshell, &
                                                 shell_index
-    LOGICAL                                  :: comvel, explicit, explicit2, &
-                                                explicit3, failure, &
-                                                my_force_rescaling,&
-                                                is_ok, is_shell, shell_present
+    LOGICAL :: explicit, explicit2, explicit3, failure, is_ok, is_shell, &
+      my_force_rescaling, shell_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    REAL(KIND=dp)                            :: akin, akin0, denom, fac_massc, &
-                                                fac_masss, mass, mass_tot, &
-                                                sc, temp, temp0
+    REAL(KIND=dp)                            :: akin, akin0, denom, &
+                                                fac_massc, fac_masss, mass, &
+                                                mass_tot, sc, temp, temp0
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -629,7 +624,6 @@ CONTAINS
       shell_present = ASSOCIATED(shell_part)
       IF(shell_present) nshell = SIZE(shell_part)
     END IF
-    COMVEL = .FALSE.
     temp0 = 0.0_dp
     temp = 0.0_dp
 
@@ -688,32 +682,16 @@ CONTAINS
             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
                  shell_active=is_shell, shell= shell )
             mass_tot = mass_tot + mass
-
-!            IF(is_shell) THEN
-!              IF (is_fixed(i)) THEN
-!                part ( i ) % v  = 0.0_dp 
-!                core_part(part( i )%shell_index)%v=-shell%mass_shell/shell%mass_core * &
-!                                   shell_part(part( i )%shell_index)%v( : )
-!              ELSE
-!                part ( i ) % v  = vel
-!                core_part(part( i )%shell_index)%v = (mass * part( i )%v( : ) - &
-!                    shell%mass_shell* shell_part(part( i )%shell_index)%v( : ))/shell%mass_core 
-!                vcom  = vcom +  mass * part ( i ) % v
-!                denom = denom + mass
-!
-!              END IF
-!            ELSE
-              IF (is_fixed(i)) THEN
-                 part ( i ) % v ( 1 ) = 0.0_dp
-                 part ( i ) % v ( 2 ) = 0.0_dp
-                 part ( i ) % v ( 3 ) = 0.0_dp
-              ELSE
-                 part ( i ) % v  = vel
-                 vcom  = vcom + mass * part ( i ) % v
-                 denom = denom + mass
-                 akin0 =  akin0 + 0.5_dp * mass * SUM( vel * vel)
-              END IF
-!            END IF
+            IF (is_fixed(i)) THEN
+               part ( i ) % v ( 1 ) = 0.0_dp
+               part ( i ) % v ( 2 ) = 0.0_dp
+               part ( i ) % v ( 3 ) = 0.0_dp
+            ELSE
+               part ( i ) % v  = vel
+               vcom  = vcom + mass * part ( i ) % v
+               denom = denom + mass
+               akin0 =  akin0 + 0.5_dp * mass * SUM( vel * vel)
+            END IF
          END DO 
        ELSE
          DO i = 1, natoms
@@ -753,17 +731,15 @@ CONTAINS
           IF (.NOT.is_fixed(i)) THEN
              v = part ( i ) % v ( : ) - vcom ( : )
              akin = akin + 0.5_dp * mass * SUM( v * v)
-!dbg
-             IF(COMVEL) THEN
-               part ( i ) % v ( : ) = v(:)
-               IF(shell_present .AND. is_shell) THEN
-                 shell_part( part ( i ) % shell_index)%v(:) = &
-                       shell_part( part ( i ) % shell_index)%v(:) - vcom ( : )
-                 core_part( part ( i ) % shell_index)%v(:) = &
-                       core_part( part ( i ) % shell_index)%v(:) - vcom ( : )
-               END IF
+             IF(debug_this_module) THEN
+                part ( i ) % v ( : ) = v(:)
+                IF(shell_present .AND. is_shell) THEN
+                   shell_part( part ( i ) % shell_index)%v(:) = &
+                        shell_part( part ( i ) % shell_index)%v(:) - vcom ( : )
+                   core_part( part ( i ) % shell_index)%v(:) = &
+                        core_part( part ( i ) % shell_index)%v(:) - vcom ( : )
+                END IF
              END IF
-!dbg
           END IF
        END DO
        temp = 0.0_dp
@@ -801,7 +777,7 @@ CONTAINS
                ENDIF
             END DO  ! i
             vcom_new=vcom_new/ denom
-          ELSEIF( COMVEL ) THEN
+          ELSEIF(debug_this_module) THEN
             sc = SQRT ( temp0/temp )
             vcom_new = 0.0_dp
             DO i = 1, natoms
@@ -938,12 +914,8 @@ CONTAINS
        ELSE
           temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
        END IF
-!dbg
-!       WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
-!            ' Initial Temperature ', temp / unit % kelvin, " K"
        WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
             ' Initial Temperature ', temp / unit % kelvin, " K"
-!dbg
        WRITE ( iw, '( A, T61, F20.12 )' ) &
             ' Centre of mass velocity in direction x:', vcom_new ( 1 )
        WRITE ( iw, '( A, T61, F20.12 )' ) &
