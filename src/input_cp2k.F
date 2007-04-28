@@ -1408,7 +1408,8 @@ END SUBROUTINE create_cpot_section
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: sub2section, sub3section, &
+                                                subsection
 
     failure=.FALSE.
 
@@ -1539,6 +1540,93 @@ END SUBROUTINE create_cpot_section
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
+
+       ! Mapping of atoms
+       NULLIFY(sub2section, sub3section)
+       CALL section_create(subsection,name="MAPPING",&
+            description="Defines the mapping of atoms for the different force_eval with the mixed force_eval."//&
+            " The default is to have a mapping 1-1 between atom index (i.e. all force_eval share the same"//&
+            " geometrical structure). The mapping is based on defining fragments and the mapping the "//&
+            " fragments between the several force_eval and the mixed force_eval",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       ! Mixed force_eval
+       CALL section_create(sub2section,name="FORCE_EVAL_MIXED",&
+            description="Defines the fragments for the mixed force_eval (reference)",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL section_create(sub3section,name="FRAGMENT",&
+            description="Fragment definition",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="Defines the index of the fragment defined",&
+            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.TRUE.,error=error)
+       CALL section_add_keyword(sub3section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Starting and ending atomic index defining one fragment must be provided",& 
+            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(sub3section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(sub2section,sub3section,error=error)
+       CALL section_release(sub3section,error=error)
+       CALL section_add_subsection(subsection,sub2section,error=error)
+       CALL section_release(sub2section,error=error)
+
+       ! All other force_eval
+       CALL section_create(sub2section,name="FORCE_EVAL",&
+            description="Defines the fragments and the mapping for each force_eval (an integer index (ID) "//&
+            "needs to be provided as parameter)",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="Defines the index of the force_eval for which fragments and mappings are provided",&
+            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.TRUE.,error=error)
+       CALL section_add_keyword(sub2section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(sub3section,name="FRAGMENT",&
+            description="Fragment definition",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="Defines the index of the fragment defined",&
+            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.FALSE.,error=error)
+       CALL section_add_keyword(sub3section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Starting and ending atomic index defining one fragment must be provided",& 
+            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(sub3section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAP",&
+            description="Provides the index of the fragment of the MIXED force_eval mapped on the"//&
+            " locally defined fragment.",& 
+            usage="MAP <INTEGER>", type_of_var=integer_t, n_var=1, repeats=.FALSE.,&
+            required=.TRUE.,error=error)
+       CALL section_add_keyword(sub3section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(sub2section,sub3section,error=error)
+       CALL section_release(sub3section,error=error)
+       CALL section_add_subsection(subsection,sub2section,error=error)
+       CALL section_release(sub2section,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_mix_section
