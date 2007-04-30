@@ -27,31 +27,17 @@
 
 MODULE qs_environment_methods
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_create,&
-                                             distribution_2d_release,&
-                                             distribution_2d_type,&
-                                             distribution_2d_write
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
-  USE global_types,                    ONLY: HIGH
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp,&
-                                             int_size
-  USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_sum
+  USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -80,7 +66,6 @@ MODULE qs_environment_methods
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
