@@ -33,3 +33,9 @@ H-2.inp            1
 H2O-1.inp          1
 # outer scf with FULL_ALL
 H2O.inp            1
+# different parallel distributions
+H2O-dist-1.inp     1
+H2O-dist-2.inp     1
+H2O-dist-3.inp     1
+H2O-dist-4.inp     1
+H2O-dist-5.inp     1

@@ -175,3 +175,5 @@ spin_restraint.inp
 spin_restraint.inp
 ### reset DFTB update
 spin_restraint.inp
+#  
+C2H4-meta.inp
