@@ -25,6 +25,8 @@ MODULE distribution_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -36,17 +38,22 @@ MODULE distribution_methods
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_type,&
                                              distribution_2d_write
-  USE input_section_types,             ONLY: section_vals_type
+  USE distribution_optimize,           ONLY: distribute_2d_monte_carlo
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             get_molecule_kind_set,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
+  USE input_constants,                 ONLY: model_block_count,model_block_surface, model_block_lmax
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -478,78 +485,59 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_2d'
 
-    INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
-      imolecule_local, iparticle_kind, ipcol, iprow, istat, iw, jpcol, jprow, &
-      kind_a, molecule_a, mypcol, myprow, n, natom, nload, nmolecule, &
-      nmolecule_kind, nparticle_kind, npcol, nprow, nsgf, output_unit
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: nmolecule_local_col, &
-      nmolecule_local_row, nparticle_local_col, nparticle_local_row, work, &
-      workload_col, workload_col_old, workload_row, workload_row_old
+    INTEGER :: group, iatom, iatom_mol, imol, imolecule, imolecule_kind, &
+      iparticle_kind, ipcol, iprow, istat, iw, kind_a, mypcol, myprow, n, &
+      natom, natom_mol, nele, nmolecule, nmolecule_kind, nparticle_kind, &
+      npcol, nprow, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_ele, nparticle_local_col, &
+                                                nparticle_local_row, row_ele, &
+                                                work
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_ele_pair
     INTEGER, DIMENSION(:), POINTER           :: col_distribution, &
                                                 molecule_list, &
                                                 row_distribution
+    LOGICAL                                  :: molecular_distribution, skip_optimization
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
-      POINTER                                :: local_molecule_col, &
-                                                local_molecule_row, &
-                                                local_particle_col, &
+      POINTER                                :: local_particle_col, &
                                                 local_particle_row
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(section_vals_type), POINTER         :: distribution_section, &
+                                                mc_section
 
 !   ---------------------------------------------------------------------------
 
     logger => cp_error_get_logger(error)
 
-    group = blacs_env%para_env%group
+    distribution_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION",error=error)
+    mc_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION%2D_MC",error=error)
+    CALL section_vals_val_get(distribution_section,"2D_MOLECULAR_DISTRIBUTION",l_val=molecular_distribution,error=error)
+    CALL section_vals_val_get(distribution_section,"SKIP_OPTIMIZATION",l_val=skip_optimization,error=error)
 
+    group = blacs_env%para_env%group
     myprow = blacs_env%mepos(1) + 1
     mypcol = blacs_env%mepos(2) + 1
     nprow = blacs_env%num_pe(1)
     npcol = blacs_env%num_pe(2)
 
-    ALLOCATE (workload_row(nprow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "workload_row",nprow*int_size)
-    workload_row(:) = 0
-
-    ALLOCATE (workload_row_old(nprow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "workload_row_old",nprow*int_size)
-
-    ALLOCATE (workload_col(npcol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "workload_col",npcol*int_size)
-    workload_col(:) = 0
-
-    ALLOCATE (workload_col_old(npcol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "workload_col_old",npcol*int_size)
 
     nmolecule_kind = SIZE(molecule_kind_set)
-
-    ALLOCATE (local_molecule_row(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "local_molecule_row",&
-                                     nmolecule_kind*int_size)
-
-    ALLOCATE (local_molecule_col(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "local_molecule_col",&
-                                     nmolecule_kind*int_size)
-
-    ALLOCATE (nmolecule_local_row(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nmolecule_local_row",&
-                                     nmolecule_kind*int_size)
-    nmolecule_local_row(:) = 0
-
-    ALLOCATE (nmolecule_local_col(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nmolecule_local_col",&
-                                     nmolecule_kind*int_size)
-    nmolecule_local_col(:) = 0
+    CALL get_molecule_kind_set(molecule_kind_set,nmolecule=nmolecule)
 
     nparticle_kind = SIZE(particle_kind_set)
+    CALL get_atomic_kind_set(atomic_kind_set=particle_kind_set,natom=natom)
+
+    !
+    ! we need to generate two representations of the distribution, one as a straight array with global particles
+    ! one ordered wrt to kinds and only listing the local particles
+    ! 
+    ALLOCATE (row_distribution(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "row_distribution",natom*int_size)
+
+    ALLOCATE (col_distribution(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "col_distribution",natom*int_size)
 
     ALLOCATE (local_particle_row(nparticle_kind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -565,218 +553,132 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_row",&
                                      nparticle_kind*int_size)
-    nparticle_local_row(:) = 0
 
     ALLOCATE (nparticle_local_col(nparticle_kind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_col",&
                                      nparticle_kind*int_size)
-    nparticle_local_col(:) = 0
 
-    CALL get_atomic_kind_set(atomic_kind_set=particle_kind_set,natom=natom)
+    IF (skip_optimization) THEN ! just in case the optimization is to heavy to be performed
+       imol = 0
+       DO imolecule_kind=1,nmolecule_kind
+          molecule_kind => molecule_kind_set(imolecule_kind)
+          CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+          DO imolecule=1,SIZE(molecule_list)
+             imol = imol + 1
+             DO iatom_mol=1,natom_mol
+                iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1 
+                IF (molecular_distribution) THEN
+                   row_distribution(iatom) = MOD(imol,nprow)+1 
+                   col_distribution(iatom) = MOD(imol,npcol)+1
+                ELSE
+                   row_distribution(iatom) = MOD(iatom,nprow)+1
+                   col_distribution(iatom) = MOD(iatom,npcol)+1
+                ENDIF
+             ENDDO
+          ENDDO
+       ENDDO
+    ELSE
+       !
+       ! this could be a lot of memory, even in QS case
+       ! one solution is to turn this into a function, but this would presumably 
+       ! slow down the distribute_2d_monte_carlo
+       ! making this a function might be needed if the cost of a block depends on its
+       ! assigned row / col.
+       !
+       IF (molecular_distribution) THEN
+           nele=nmolecule
+       ELSE
+           nele=natom
+       ENDIF
 
-    ALLOCATE (row_distribution(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "row_distribution",natom*int_size)
-    row_distribution(:) = 0
+       ALLOCATE (row_ele(nele),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"row_ele",nele*int_size)
+       ALLOCATE (col_ele(nele),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"col_ele",nele*int_size)
+       ALLOCATE(cost_ele_pair(nele,nele),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cost_ele_pair",natom*natom*int_size)
 
-    ALLOCATE (col_distribution(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "col_distribution",natom*int_size)
-    col_distribution(:) = 0
+       !
+       ! have the cost model provide the costs for each atomic block
+       !
+       CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
+                                                   molecule_kind_set,molecule_set,error=error)
 
-    DO imolecule_kind=1,nmolecule_kind
+       !
+       ! optimize the distribution
+       ! 
+       CALL distribute_2d_monte_carlo(cost_ele_pair,nprow,npcol,nele,row_ele,col_ele, &
+                                      mc_section,blacs_env%para_env,error)
 
-      molecule_kind => molecule_kind_set(imolecule_kind)
+       DEALLOCATE(cost_ele_pair)
+        
+       ! prepare to add the distribution to the data, i.e. get the atomic distribution in all cases
 
-      NULLIFY (molecule_list)
+       IF (.NOT. molecular_distribution) THEN
+          row_distribution = row_ele
+          col_distribution = col_ele
+       ELSE
+          imol = 0
+          DO imolecule_kind=1,nmolecule_kind
+             molecule_kind => molecule_kind_set(imolecule_kind)
+             CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
+             DO imolecule=1,SIZE(molecule_list)
+                imol = imol + 1
+                DO iatom_mol=1,natom_mol
+                   iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1 
+                   row_distribution(iatom) = row_ele(imol)
+                   col_distribution(iatom) = col_ele(imol)
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDIF
 
-!     *** Get the number of molecules and the number of ***
-!     *** atoms in each molecule of that molecular kind ***
+       DEALLOCATE(row_ele)
+       DEALLOCATE(col_ele)
+    ENDIF
 
-      CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                             molecule_list=molecule_list,&
-                             natom=natom,&
-                             nsgf=nsgf)
+    ! prepare the lists of local particles
 
-!     *** Consider the number of atoms or basis ***
-!     *** functions which depends on the method ***
+    ! count local particles of a given kind
+    nparticle_local_col=0
+    nparticle_local_row=0
+    DO iatom=1,natom
+       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,kind_number=kind_a)
+       IF (row_distribution(iatom)==myprow) nparticle_local_row(kind_a)=nparticle_local_row(kind_a)+1
+       IF (col_distribution(iatom)==mypcol) nparticle_local_col(kind_a)=nparticle_local_col(kind_a)+1
+    ENDDO
 
-      nload = MAX(natom,nsgf)
-      nmolecule = SIZE(molecule_list)
-
-!     *** Save current estimated work load ***
-
-      workload_row_old(:) = workload_row(:)
-      workload_col_old(:) = workload_col(:)
-
-!     *** Get the number of local molecules for each process row ***
-
-      DO imolecule=1,nmolecule
-        iprow = 1
-        DO jprow=1,nprow
-          IF (workload_row(jprow) < workload_row(iprow)) iprow = jprow
-        END DO
-        workload_row(iprow) = workload_row(iprow) + nload
-        IF (iprow == myprow) THEN
-          nmolecule_local_row(imolecule_kind) =&
-            nmolecule_local_row(imolecule_kind) + 1
-        END IF
-      END DO
-
-!     *** Get the number of local molecules for each process column ***
-
-      DO imolecule=1,nmolecule
-        ipcol = 1
-        DO jpcol=1,npcol
-          IF (workload_col(jpcol) < workload_col(ipcol)) ipcol = jpcol
-        END DO
-        workload_col(ipcol) = workload_col(ipcol) + nload
-        IF (ipcol == mypcol) THEN
-          nmolecule_local_col(imolecule_kind) =&
-            nmolecule_local_col(imolecule_kind) + 1
-        END IF
-      END DO
-
-!     *** Reset work load ***
-
-      workload_row(:) = workload_row_old(:)
-      workload_col(:) = workload_col_old(:)
-
-!     *** Distribute the molecules ***
-
-!     *** Block rows ***
-
-      n = nmolecule_local_row(imolecule_kind)
-
-      ALLOCATE (local_molecule_row(imolecule_kind)%array(n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "local_molecule_row(imolecule_kind)%array",&
-                         n*int_size)
-      END IF
-
-      imolecule_local = 0
-
-      DO imolecule=1,nmolecule
-        iprow = 1
-        DO jprow=1,nprow
-          IF (workload_row(jprow) < workload_row(iprow)) iprow = jprow
-        END DO
-        workload_row(iprow) = workload_row(iprow) + nload
-        molecule_a = molecule_list(imolecule)
-        DO iatom=1,natom
-          atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
-          row_distribution(atom_a) = iprow - 1 ! generate blacs rows
-          IF (iprow == myprow) THEN
-            IF (iatom == 1) THEN
-              imolecule_local = imolecule_local + 1
-              local_molecule_row(imolecule_kind)%array(imolecule_local) = molecule_a
-            END IF
-            CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
-                                 kind_number=kind_a)
-            nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
-          END IF
-        END DO
-      END DO
-
-!     *** Block columns ***
-
-      n = nmolecule_local_col(imolecule_kind)
-
-      ALLOCATE (local_molecule_col(imolecule_kind)%array(n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "local_molecule_col(imolecule_kind)%array",&
-                         n*int_size)
-      END IF
-
-      imolecule_local = 0
-
-      DO imolecule=1,nmolecule
-        ipcol = 1
-        DO jpcol=1,npcol
-          IF (workload_col(jpcol) < workload_col(ipcol)) ipcol = jpcol
-        END DO
-        workload_col(ipcol) = workload_col(ipcol) + nload
-        molecule_a = molecule_list(imolecule)
-        DO iatom=1,natom
-          atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
-          col_distribution(atom_a) = ipcol - 1 ! generate blacs cols
-          IF (ipcol == mypcol) THEN
-            IF (iatom == 1) THEN
-              imolecule_local = imolecule_local + 1
-              local_molecule_col(imolecule_kind)%array(imolecule_local) = molecule_a
-            END IF
-            CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
-                                 kind_number=kind_a)
-            nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
-          END IF
-        END DO
-      END DO
-
-    END DO
-
-!   *** Build the particle distribution w.r.t. the molecule distribution ***
-
+    ! allocate space 
     DO iparticle_kind=1,nparticle_kind
-
       n = nparticle_local_row(iparticle_kind)
-
       ALLOCATE (local_particle_row(iparticle_kind)%array(n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "local_particle_row(iparticle_kind)%array",&
-                         n*int_size)
-      END IF
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__, "local_particle_row(iparticle_kind)%array", n*int_size)
 
       n = nparticle_local_col(iparticle_kind)
-
       ALLOCATE (local_particle_col(iparticle_kind)%array(n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "local_particle_col(iparticle_kind)%array",&
-                         n*int_size)
-      END IF
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__, "local_particle_col(iparticle_kind)%array", n*int_size)
+    ENDDO
 
-    END DO
+    ! store
+    nparticle_local_col=0
+    nparticle_local_row=0
+    DO iatom=1,natom
+       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,kind_number=kind_a)
+       IF (row_distribution(iatom)==myprow) THEN
+           nparticle_local_row(kind_a)=nparticle_local_row(kind_a)+1
+           local_particle_row(kind_a)%array(nparticle_local_row(kind_a)) = iatom
+       ENDIF
+       IF (col_distribution(iatom)==mypcol) THEN
+           nparticle_local_col(kind_a)=nparticle_local_col(kind_a)+1
+           local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = iatom
+       ENDIF
+    ENDDO
+        
 
-    nparticle_local_row(:) = 0
-    nparticle_local_col(:) = 0
-
-    DO imolecule_kind=1,nmolecule_kind
-
-      molecule_kind => molecule_kind_set(imolecule_kind)
-
-      CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                             natom=natom)
-
-      DO imolecule=1,nmolecule_local_row(imolecule_kind)
-        molecule_a = local_molecule_row(imolecule_kind)%array(imolecule)
-        DO iatom=1,natom
-          atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
-          CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
-                               kind_number=kind_a)
-          nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
-          local_particle_row(kind_a)%array(nparticle_local_row(kind_a)) = atom_a
-        END DO
-      END DO
-
-      DO imolecule=1,nmolecule_local_col(imolecule_kind)
-        molecule_a = local_molecule_col(imolecule_kind)%array(imolecule)
-        DO iatom=1,natom
-          atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
-          CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
-                               kind_number=kind_a)
-          nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
-          local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = atom_a
-        END DO
-      END DO
-
-    END DO
-
-!   *** Generate the 2d distribution structure ***
-
+!   *** Generate the 2d distribution structure  but take care of the zero offsets required 
+    row_distribution = row_distribution - 1
+    col_distribution = col_distribution - 1
     CALL distribution_2d_create(distribution_2d,&
                                 row_distribution_ptr=row_distribution,&
                                 col_distribution_ptr=col_distribution,&
@@ -815,9 +717,9 @@ CONTAINS
               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
               "DISTRIBUTION OF THE PARTICLES (ROWS)",&
               "Process row   Number of particles      Number of matrix rows",&
-              (iprow-1,work(iprow),workload_row(iprow),iprow=1,nprow)
+              (iprow-1,work(iprow),-1,iprow=1,nprow)
          WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
-              "Sum",SUM(work),SUM(workload_row)
+              "Sum",SUM(work),-1
          CALL m_flush(output_unit)
       END IF
 
@@ -844,9 +746,9 @@ CONTAINS
               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
               "DISTRIBUTION OF THE PARTICLES (COLUMNS)",&
               "Process col   Number of particles   Number of matrix columns",&
-              (ipcol-1,work(ipcol),workload_col(ipcol),ipcol=1,npcol)
+              (ipcol-1,work(ipcol),-1,ipcol=1,npcol)
          WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
-              "Sum",SUM(work),SUM(workload_col)
+              "Sum",SUM(work),-1
          CALL m_flush(output_unit)
       END IF
 
@@ -874,56 +776,6 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    DEALLOCATE (workload_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "workload_row")
-
-    DEALLOCATE (workload_row_old,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "workload_row_old")
-
-    DEALLOCATE (workload_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "workload_col")
-
-    DEALLOCATE (workload_col_old,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "workload_col_old")
-
-    DO imolecule_kind=1,nmolecule_kind
-      IF (ASSOCIATED(local_molecule_row(imolecule_kind)%array)) THEN
-        DEALLOCATE (local_molecule_row(imolecule_kind)%array,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "local_molecule_row(imolecule_kind)%array")
-        END IF
-      END IF
-    END DO
-    DEALLOCATE (local_molecule_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "local_molecule_row")
-
-    DO imolecule_kind=1,nmolecule_kind
-      IF (ASSOCIATED(local_molecule_col(imolecule_kind)%array)) THEN
-        DEALLOCATE (local_molecule_col(imolecule_kind)%array,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-                           "local_molecule_col(imolecule_kind)%array")
-        END IF
-      END IF
-    END DO
-    DEALLOCATE (local_molecule_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "local_molecule_col")
-
-    DEALLOCATE (nmolecule_local_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nmolecule_local_row")
-
-    DEALLOCATE (nmolecule_local_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "nmolecule_local_col")
-
     DEALLOCATE (nparticle_local_row,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_row")
@@ -934,6 +786,142 @@ CONTAINS
 
   END SUBROUTINE distribute_molecules_2d
 
-! *****************************************************************************
+!!****f* distribution_methods/distribute_2d_cost_model *
+!!
+!!   NAME
+!!     distribute_2d_cost_model
+!!
+!!   FUNCTION
+!!     this is the crucial part in order to get a good distribution. The cost
+!!     model must model properly the cost of each cost_ele_pair
+!!
+!!   NOTES
+!!
+!!   MODIFICATION HISTORY
+!!     04.2007 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
+                                                molecule_kind_set,molecule_set,error)
+
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: cost_ele_pair
+    TYPE(section_vals_type), POINTER         :: distribution_section
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: particle_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_cost_model', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL :: molecular_distribution,symmetric,include_ab,failure
+
+    INTEGER :: nmolecule_kind, cost_block_ab,iparticle,cost_model,natom
+    INTEGER :: imol_a,imolecule_kind_a,natom_mol_a,imolecule_a,iatom_mol_a,iatom_a
+    INTEGER :: imol_b,imolecule_kind_b,natom_mol_b,imolecule_b,iatom_mol_b,iatom_b
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_a
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_b
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list_a, &
+                                                molecule_list_b
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nsgf
+    INTEGER, POINTER, DIMENSION(:)           :: lmax_basis
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: lmax
+    TYPE(gto_basis_set_type), POINTEr        :: orb_basis_set
+
+    failure = .FALSE.
+    cost_ele_pair = 0
+
+    natom=SIZE(particle_set)
+
+    CALL section_vals_val_get(distribution_section,"2D_MOLECULAR_DISTRIBUTION",l_val=molecular_distribution,error=error)
+    CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
+    CALL section_vals_val_get(distribution_section,"SYMMETRIC",l_val=symmetric,error=error)
+
+    SELECT CASE(cost_model)
+    CASE(model_block_count)
+       ! do nothing
+    CASE(model_block_surface)
+       ALLOCATE(nsgf(natom))
+       DO iparticle=1,natom
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=nsgf(iparticle))
+       ENDDO
+    CASE(model_block_lmax)
+       ALLOCATE(lmax(natom))
+       DO iparticle=1,natom
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,orb_basis_set=orb_basis_set)
+          CALL get_gto_basis_set(orb_basis_set,lmax=lmax_basis)
+          lmax(iparticle)=MAXVAL(lmax_basis)
+       ENDDO
+    END SELECT
+
+    !
+    ! loop over the molecules and atoms in the molecules so that we know both molecule index and atom index
+    !
+    nmolecule_kind = SIZE(molecule_kind_set)
+    imol_a = 0
+    DO imolecule_kind_a=1,nmolecule_kind
+       molecule_kind_a => molecule_kind_set(imolecule_kind_a)
+       CALL get_molecule_kind(molecule_kind=molecule_kind_a, molecule_list=molecule_list_a, natom=natom_mol_a)
+       DO imolecule_a=1,SIZE(molecule_list_a)
+          imol_a = imol_a + 1
+          DO iatom_mol_a=1,natom_mol_a
+             iatom_a = molecule_set(molecule_list_a(imolecule_a))%first_atom + iatom_mol_a - 1
+
+             imol_b = 0
+             DO imolecule_kind_b=1,nmolecule_kind
+                molecule_kind_b => molecule_kind_set(imolecule_kind_b)
+                CALL get_molecule_kind(molecule_kind=molecule_kind_b, molecule_list=molecule_list_b, natom=natom_mol_b)
+                DO imolecule_b=1,SIZE(molecule_list_b)
+                   imol_b = imol_b + 1
+                   DO iatom_mol_b=1,natom_mol_b
+                      iatom_b = molecule_set(molecule_list_b(imolecule_b))%first_atom + iatom_mol_b - 1
+
+                      ! is this block actually include in the S matrix
+                      IF (symmetric) THEN
+                        IF (iatom_a > iatom_b) THEN
+                          include_ab = (MODULO(iatom_a + iatom_b,2) /= 0)
+                        ELSE
+                          include_ab = (MODULO(iatom_a + iatom_b,2) == 0)
+                        END IF
+                      ELSE
+                        include_ab = .TRUE.
+                      END IF
+
+                      ! here we estimate the computational cost of the block ab based on the model of choice
+                      IF (include_ab) THEN 
+                         SELECT CASE(cost_model)
+                         CASE(model_block_count)
+                             cost_block_ab = 1
+                         CASE(model_block_surface)
+                             cost_block_ab = nsgf(iatom_a)*nsgf(iatom_b)
+                         CASE(model_block_lmax)
+                             cost_block_ab = lmax(iatom_a)+lmax(iatom_b)+1
+                         CASE DEFAULT
+                             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                         END SELECT
+                      ELSE
+                         cost_block_ab=0
+                      ENDIF
+
+                      IF (molecular_distribution) THEN
+                          cost_ele_pair(imol_a,imol_b) = cost_ele_pair(imol_a,imol_b) + cost_block_ab
+                      ELSE
+                          cost_ele_pair(iatom_a,iatom_b) = cost_block_ab
+                      ENDIF
+
+                   ENDDO ! iatom_mol_b
+                ENDDO ! imolecule_b
+             ENDDO ! imolecule_kind_b
+
+          ENDDO ! iatom_mol_a
+       ENDDO ! imolecule_a
+    ENDDO ! imolecule_kind_a
+
+  END SUBROUTINE distribute_2d_cost_model
 
 END MODULE distribution_methods

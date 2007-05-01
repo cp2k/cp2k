@@ -97,6 +97,7 @@ OBJECTS_GENERIC =\
  distribution_1d_types.o\
  distribution_2d_types.o\
  distribution_methods.o\
+ distribution_optimize.o\
  dynamical_coeff_types.o\
  eigenvalueproblems.o\
  environment.o\
@@ -179,6 +180,7 @@ OBJECTS_GENERIC =\
  input_cp2k_check.o\
  input_cp2k_colvar.o\
  input_cp2k_dft.o\
+ input_cp2k_distribution.o\
  input_cp2k_eip.o\
  input_cp2k_mm.o\
  input_cp2k_motion.o\

@@ -28,6 +28,7 @@ MODULE input_cp2k_dft
   USE input_constants
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
+  USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -1636,6 +1637,11 @@ CONTAINS
             default_i_val=do_method_gpw, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL create_distribution_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
        CALL create_dftb_control_section(subsection,error)

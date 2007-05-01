@@ -520,4 +520,9 @@ MODULE input_constants
                                 mix_restrained=704,&
                                 mix_generic=705
 
+  ! cost models for distribution 2d
+  INTEGER, PARAMETER, PUBLIC :: model_block_count=453, &
+                                model_block_surface=454, &
+                                model_block_lmax=455
+
 END MODULE input_constants
