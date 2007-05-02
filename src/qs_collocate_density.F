@@ -81,7 +81,8 @@ MODULE qs_collocate_density
   USE mathconstants,                   ONLY: pi,&
                                              twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum, &
+                                             mp_sync
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
                                              ncoset
@@ -1223,6 +1224,8 @@ CONTAINS
     !PARATIME   WRITE (unit_nr,'(T3,A,F0.3,A,F0.3)') "calculate rho, grid bit. maximum time: ", &
     !PARATIME                                            time_max," , minimum time: ",time_min
     !PARATIME END IF
+
+    CALL mp_sync(para_env%group)
 
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
 

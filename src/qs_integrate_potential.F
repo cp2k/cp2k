@@ -68,7 +68,8 @@ MODULE qs_integrate_potential
                                              int_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
-                                             mp_shift
+                                             mp_shift,&
+                                             mp_sync
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
@@ -403,11 +404,6 @@ CONTAINS
     IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
     IF (PRESENT(gapw)) my_gapw = gapw
 
-    IF (my_compute_tau) THEN
-      CALL timeset("integrate_v_tau","I","",handle)
-    ELSE
-      CALL timeset("integrate_v_rspace","I","",handle)
-    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -419,6 +415,13 @@ CONTAINS
                     input=input,&
                     force=force,pw_env=pw_env,&
                     virial=virial,error=error)
+
+    CALL mp_sync(para_env%group)
+    IF (my_compute_tau) THEN
+      CALL timeset("integrate_v_tau","I","",handle)
+    ELSE
+      CALL timeset("integrate_v_rspace","I","",handle)
+    END IF
 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
@@ -1124,6 +1127,8 @@ CONTAINS
       DEALLOCATE (atom_of_kind,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
     END IF
+
+    CALL mp_sync(para_env%group)
 
     CALL timestop(0.0_dp,handle)
 

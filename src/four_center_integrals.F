@@ -44,7 +44,8 @@ MODULE four_center_integrals
                                              evaluate_eri_screen
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum, &
+                                             mp_sync
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -406,6 +407,8 @@ MODULE four_center_integrals
     REAL(dp)                                 :: sa, sb, sc, sd, prim
     LOGICAL                                  :: mem_flag
 
+    ! many timings somewhat more clear
+    CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
     CALL section_vals_val_get(hf_section,"FRACTION",r_val=hf_fraction,error=error)
@@ -910,6 +913,9 @@ MODULE four_center_integrals
     ! as a result, we don't call it, but some memory remains allocated
     !  
     ! CALL terminate_libint(lib)
+
+    ! many timings somewhat more clear
+    CALL mp_sync(para_env%group)
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE integrate_four_center
