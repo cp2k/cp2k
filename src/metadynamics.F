@@ -400,7 +400,7 @@ CONTAINS
     dt = meta_env%dt
     meta_env%n_steps=meta_env%n_steps+1
     ! Initialize velocity
-    IF (meta_env%restart) THEN
+    IF (meta_env%restart.AND.meta_env%extended_lagrange) THEN
        meta_env%ekin_s = 0.0_dp
        DO i_c=1,meta_env%n_colvar
           cv => meta_env%metavar(i_c)
