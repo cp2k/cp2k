@@ -248,7 +248,7 @@ CONTAINS
         mepos  = para_env%mepos
         bo = get_limit( natom, num_pe, mepos )
 
-        DO iat = bo(1),bo(2) !1,natom
+        DO iat = bo(1),bo(2)
           iatom = atom_list(iat)
 
           rho_atom_set(iatom)%exc_h = 0.0_dp
@@ -599,9 +599,6 @@ CONTAINS
             CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
             CALL fill_rho_set(rho1_set_s,lsd,nspins,needs,rho1_s,drho1_s,na,ir,error)
 
-!            DO ia=1, na
-!               weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
-!            END DO
          END DO
 
          CALL xc_2nd_deriv_of_r(xc_section=xc_section, &

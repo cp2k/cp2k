@@ -75,6 +75,7 @@ MODULE md_run
                                              md_env_release,&
                                              md_environment_type,&
                                              set_md_env
+  USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_types_new,              ONLY: global_constraint_type
@@ -85,6 +86,7 @@ MODULE md_run
                                              stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_set,&
@@ -439,8 +441,10 @@ CONTAINS
                                         error=error)
           END DO
        END IF
+
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.,error=error)
+ 
        IF (simpar%do_respa)THEN
           CALL force_env_calc_energy_force ( &
             force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
@@ -503,6 +507,7 @@ CONTAINS
       IF (should_stop) EXIT
       DO ibead=1,nbeads
         CALL temperature_control(simpar,force_env_p(ibead)%force_env,logger,error)
+        CALL comvel_control(simpar,force_env_p(ibead)%force_env,logger,error)
       END DO
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
@@ -588,14 +593,15 @@ END SUBROUTINE md_output
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, handle, iatom, ikind, &
-                                                isubsys, iw, natom, &
-                                                nfree_shell, shell_index
+    INTEGER                                  :: atom, bo(2), handle, iatom, ikind, &
+                                                isubsys, iw, mepos, natom, &
+                                                nfree_shell, num_pe, shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, is_shell, &
                                                 shell_adiabatic
     REAL(KIND=dp) :: e_kinetic, ekin_c, ekin_com, ekin_s, ekin_shell, &
-      fac_massc, fac_masss, mass, scale, temperature, total_mass, v2
+      fac_massc, fac_masss, mass, scale, temp_shell, temperature, &
+      total_mass, v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -611,6 +617,7 @@ END SUBROUTINE md_output
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY(atomic_kind,atomic_kinds,particles,atom_list,subsys,para_env)
+    NULLIFY( core_particles, shell_particles, shell)
 
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -761,7 +768,15 @@ END SUBROUTINE md_output
       ekin_s = 0.0_dp
       nfree_shell = 0
 
+
       CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
+      iw = cp_print_key_unit_nr(logger,force_env%root_section,&
+           "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+           extension=".mdLog",error=error)
+
+      num_pe = para_env%num_pe
+      mepos  = para_env%mepos
+
       DO isubsys=1,SIZE(subsys)
 
         CALL cp_subsys_get(subsys(isubsys)%subsys,&
@@ -786,10 +801,12 @@ END SUBROUTINE md_output
                                  mass=mass,&
                                  natom=natom,&
                                  shell_active=is_shell,shell=shell)
+
+            bo = get_limit( natom, num_pe, mepos )
             IF(is_shell) THEN
                fac_masss = shell%mass_shell/mass 
                fac_massc = shell%mass_core/mass 
-               DO iatom=1,natom
+               DO iatom=bo(1),bo(2)
                   atom = atom_list(iatom)
                   shell_index = particles%els(atom)%shell_index
                   vs(1:3) = shell_particles%els(shell_index)%v(1:3)
@@ -808,6 +825,7 @@ END SUBROUTINE md_output
           END DO  ! ikind
         END IF  ! shell_adiabatic
       END DO ! isub
+      CALL mp_sum(ekin_shell,para_env%group)
 
       IF(nfree_shell > 0) THEN
         temperature = 2.0_dp*ekin_shell/REAL(nfree_shell,KIND=dp)
@@ -838,7 +856,7 @@ END SUBROUTINE md_output
                                     shell_active=is_shell,shell=shell)
                IF(is_shell) THEN
                   fac_massc = 1.0_dp/mass 
-                  DO iatom=1,natom
+                  DO iatom= 1, natom
                      atom = atom_list(iatom)
                      shell_index = particles%els(atom)%shell_index
                      vs(1:3) = shell_particles%els(shell_index)%v(1:3)
@@ -856,7 +874,7 @@ END SUBROUTINE md_output
                                  0.5_dp*mass*(v(1)*v(1)+v(2)*v(2)+v(3)*v(3))
                   END DO  ! iatom
                ELSE
-                  DO iatom=1,natom
+                  DO iatom= 1,natom
                      atom = atom_list(iatom)
                      v(:) = particles%els(atom)%v(:)
                      vcom = vcom + v * mass
@@ -865,18 +883,21 @@ END SUBROUTINE md_output
                END IF  ! is_shell
              END DO  ! ikind
            END DO ! isub
-!          IF (iw>0) THEN
+
+           IF (iw>0) THEN
              WRITE (UNIT=6,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
-              "Temperature  shell internal motion scaled to requested temperature:",&
-              temperature*kelvin," K  ->",simpar%temp_sh_ext*kelvin," K"
-            WRITE (UNIT=6,FMT="(/,T2,A,(T58,A3,F20.10))")&
-              "Centre of mass motion (COM):","x =",vcom(1)/total_mass,&
-                                             "y =",vcom(2)/total_mass,&
-                                             "z =",vcom(3)/total_mass
-!           END IF
+                  "Temperature  shell internal motion scaled to requested temperature:",&
+                  temperature*kelvin," K  ->",simpar%temp_sh_ext*kelvin," K"
+             WRITE (UNIT=6,FMT="(/,T2,A,(T58,A3,F20.10))")&
+                  "Centre of mass motion (COM):","x =",vcom(1)/total_mass,&
+                                                 "y =",vcom(2)/total_mass,&
+                                                 "z =",vcom(3)/total_mass
+           END IF
 
         ENDIF
       END IF  ! nfree_shell
+      CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
+           "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF  ! simpar%temp_sh_tol > 0
 
     CALL timestop(0.0_dp,handle)
@@ -885,4 +906,269 @@ END SUBROUTINE md_output
 
 ! *****************************************************************************
 
+  SUBROUTINE comvel_control(simpar,force_env,logger, error)
+
+    ! Set to 0 the velocity of the COM along MD runs, if required.
+
+    ! - Creation (29.04.2007,MI)
+
+    ! *************************************************************************
+
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'comvel_control', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom, bo(2), handle, iatom, ikind, &
+                                                isubsys, iw, natom, &
+                                                mepos, num_pe, shell_index
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, is_shell, &
+                                                shell_adiabatic
+    REAL(KIND=dp)                            :: e_kinetic, &
+                                                fac_massc, &
+                                                fac_masss, mass, scale, &
+                                                temperature, temp_new, &
+                                                total_mass, v2, vel_com
+    REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
+    TYPE(shell_kind_type), POINTER           :: shell
+
+! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    NULLIFY(atomic_kind,atomic_kinds,particles,atom_list,subsys,para_env)
+    NULLIFY( core_particles, shell_particles, shell)
+
+    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+
+    IF (simpar%comvel_tol > 0.0_dp ) THEN
+
+      CALL force_env_get(force_env,subsys=subsys,para_env=para_env,error=error)
+      iw = cp_print_key_unit_nr(logger,force_env%root_section,&
+           "MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+           extension=".mdLog",error=error)
+
+
+      num_pe = para_env%num_pe
+      mepos  = para_env%mepos
+
+      e_kinetic = 0.0_dp
+      total_mass = 0.0_dp
+      vcom(:) = 0.0_dp
+      DO isubsys=1,SIZE(subsys)
+
+        CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                           atomic_kinds=atomic_kinds,&
+                           particles=particles,&
+                           error=error)
+
+        ! Calculate the current com velocity and the temperature
+
+        DO ikind=1,atomic_kinds%n_els
+          atomic_kind => atomic_kinds%els(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               atom_list=atom_list,&
+                               mass=mass,&
+                               natom=natom)
+          v2 = 0.0_dp
+          v(:) = 0.0_dp
+          bo = get_limit( natom, num_pe, mepos )
+          DO iatom=bo(1),bo(2)
+            atom = atom_list(iatom)
+            v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                      particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                      particles%els(atom)%v(3)*particles%els(atom)%v(3)
+            v(:) = v(:) + particles%els(atom)%v(:)
+          END DO
+          e_kinetic = e_kinetic + 0.5_dp*mass*v2
+          vcom(:) = vcom(:) + mass*v(:)
+          total_mass = total_mass + REAL(natom,KIND=dp)*mass
+        END DO
+      END DO  ! isubsys
+      CALL mp_sum(e_kinetic,para_env%group)
+      CALL mp_sum(vcom,para_env%group)
+      CALL mp_sum(total_mass,para_env%group)
+
+      temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
+      vcom = vcom / total_mass
+      vel_com = sqrt(vcom(1)*vcom(1)+vcom(2)*vcom(2)+vcom(3)*vcom(3))
+
+      ! Subtract the velocity of the COM, if requested
+
+      IF (vel_com > simpar%comvel_tol) THEN
+
+        e_kinetic = 0.0_dp
+        v(:) = 0.0_dp
+        DO isubsys=1,SIZE(subsys)
+
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                             atomic_kinds=atomic_kinds,&
+                             particles=particles,&
+                             shell_particles=shell_particles,&
+                             core_particles=core_particles,&
+                             error=error)
+
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
+               shell_adiabatic=shell_adiabatic)
+
+          IF(shell_adiabatic) THEN
+            DO ikind=1,atomic_kinds%n_els
+              atomic_kind => atomic_kinds%els(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                   atom_list=atom_list,&
+                                   mass=mass,&
+                                   natom=natom,&
+                                   shell_active=is_shell,shell=shell)
+              IF(is_shell) THEN
+                v2 = 0.0_dp
+                DO iatom=1,natom
+                  atom = atom_list(iatom)
+                  shell_index = particles%els(atom)%shell_index
+                  particles%els(atom)%v(:) = particles%els(atom)%v(:) - vcom(:)
+                  v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                            particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                            particles%els(atom)%v(3)*particles%els(atom)%v(3)
+                  shell_particles%els(shell_index)%v(:) = shell_particles%els(shell_index)%v(:) -vcom(:)
+                  core_particles%els(shell_index)%v(:) = core_particles%els(shell_index)%v(:) -vcom(:)
+                END DO  ! iatom
+                e_kinetic = e_kinetic + 0.5_dp*mass*v2
+              ELSE
+                v2 = 0.0_dp
+                DO iatom=1,natom
+                  atom = atom_list(iatom)
+                  particles%els(atom)%v(:) = particles%els(atom)%v(:) - vcom(:)
+                  v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                            particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                            particles%els(atom)%v(3)*particles%els(atom)%v(3)
+                END DO  ! iatom
+                e_kinetic = e_kinetic + 0.5_dp*mass*v2
+              END IF
+            END DO  ! ikind
+          ELSE
+            DO ikind=1,atomic_kinds%n_els
+              atomic_kind => atomic_kinds%els(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                   atom_list=atom_list,&
+                                   mass=mass,&
+                                   natom=natom)
+              v2 = 0.0_dp
+              DO iatom=1,natom
+                atom = atom_list(iatom)
+                particles%els(atom)%v(:) = particles%els(atom)%v(:)-vcom(:)
+                v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                          particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                          particles%els(atom)%v(3)*particles%els(atom)%v(3)
+              END DO
+              e_kinetic = e_kinetic + 0.5_dp*mass*v2
+            END DO  ! ikind
+          END IF  ! shell_adiabatic
+
+        END DO  ! isub
+ 
+        temp_new = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
+        scale = SQRT( temperature / temp_new)
+
+        DO isubsys=1,SIZE(subsys)
+
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                             atomic_kinds=atomic_kinds,&
+                             particles=particles,&
+                             shell_particles=shell_particles,&
+                             core_particles=core_particles,&
+                             error=error)
+
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,&
+               shell_adiabatic=shell_adiabatic)
+
+          IF(shell_adiabatic) THEN
+            DO ikind=1,atomic_kinds%n_els
+              atomic_kind => atomic_kinds%els(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                   atom_list=atom_list,&
+                                   mass=mass,&
+                                   natom=natom,&
+                                   shell_active=is_shell,shell=shell)
+              IF(is_shell) THEN
+                fac_masss = shell%mass_shell/mass
+                fac_massc = shell%mass_core/mass
+                v(:) = 0.0_dp
+                DO iatom=1,natom
+                  atom = atom_list(iatom)
+                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+                  v(:) = v(:) + particles%els(atom)%v(:) 
+                  shell_index = particles%els(atom)%shell_index
+                  vs(1:3) = shell_particles%els(shell_index)%v(1:3)
+                  vc(1:3) = core_particles%els(shell_index)%v(1:3)
+                  shell_particles%els(shell_index)%v(1) = &
+                        particles%els(atom)%v(1) + fac_massc*(vs(1)-vc(1))
+                  shell_particles%els(shell_index)%v(2) = &
+                        particles%els(atom)%v(2) + fac_massc*(vs(2)-vc(2))
+                  shell_particles%els(shell_index)%v(3) = &
+                        particles%els(atom)%v(3) + fac_massc*(vs(3)-vc(3))
+                  core_particles%els(shell_index)%v(1) = &
+                        particles%els(atom)%v(1) + fac_masss*(vc(1)-vs(1))
+                  core_particles%els(shell_index)%v(2) = &
+                        particles%els(atom)%v(2) + fac_masss*(vc(2)-vs(2))
+                  core_particles%els(shell_index)%v(3) = &
+                        particles%els(atom)%v(3) + fac_masss*(vc(3)-vs(3))
+                END DO  ! iatom
+                vcom_new(:) = vcom_new(:) + mass*v(:)
+              ELSE
+                v(:) = 0.0_dp
+                DO iatom=1,natom
+                  atom = atom_list(iatom)
+                  particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+                  v(:) = v(:) + particles%els(atom)%v(:) 
+                END DO  ! iatom
+                vcom_new(:) = vcom_new(:) + mass*v(:)
+              END IF
+            END DO  ! ikind
+          ELSE
+            DO ikind=1,atomic_kinds%n_els
+              atomic_kind => atomic_kinds%els(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                   atom_list=atom_list,&
+                                   mass=mass,&
+                                   natom=natom)
+              v(:) = 0.0_dp
+              DO iatom=1,natom
+                atom = atom_list(iatom)
+                particles%els(atom)%v(:) = scale*particles%els(atom)%v(:)
+                v(:) = v(:) + particles%els(atom)%v(:) 
+              END DO
+              vcom_new(:) = vcom_new(:) + mass*v(:)
+            END DO
+          END IF
+
+        END DO  ! isub
+        IF (iw>0) THEN
+          WRITE (UNIT=iw,FMT="(/,T2,A,3F16.10,A,3F16.10,A)")&
+            "The velocity of the COM has been subtracted:",&
+            vcom(1:3)," a.u.  ->", vcom_new," 0.0"
+        END IF
+
+      END IF  !vel_com > simpar%comvel_tol
+
+      CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
+           "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE comvel_control
+
+  ! ***************************************************************************
 END MODULE md_run

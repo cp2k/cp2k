@@ -44,6 +44,7 @@ MODULE extended_system_dynamics
   IMPLICIT NONE
 
   PRIVATE
+  LOGICAL, PARAMETER :: debug_this_module=.FALSE.
   PUBLIC :: lnhc, shell_scale_comv
 
   INTERFACE lnhc
@@ -501,7 +502,8 @@ END SUBROUTINE lnhc_barostat
 !******************************************************************************
 SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
                                atomic_kind_set, particle_set, local_molecules, &
-                               group, shell_adiabatic, shell_particle_set, core_particle_set)
+                               group, shell_adiabatic, shell_particle_set, &
+                               core_particle_set, vshell_rescale)
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
@@ -514,11 +516,12 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
+    LOGICAL, OPTIONAL                        :: vshell_rescale
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
       ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, &
       shell_index
-    LOGICAL                                  :: my_shell_adiabatic
+    LOGICAL                                  :: my_shell_adiabatic, my_vshell_rescale
     REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
                                                 mass, scale, vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -532,6 +535,8 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
   flops = 0.0_dp
   my_shell_adiabatic = .FALSE.
   IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
+  my_vshell_rescale = .FALSE.
+  IF(PRESENT(vshell_rescale)) my_vshell_rescale = vshell_rescale
 
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
@@ -676,19 +681,30 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
              fac_massc = shell%mass_core/mass
              vs(1:3) = shell_particle_set(shell_index)%v(1:3)
              vc(1:3) = core_particle_set(shell_index)%v(1:3)
-             jj = jj + 4
-             shell_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) +&
-                   fac_massc*(vs(1)-vc(1))
-             shell_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) +&
-                   fac_massc*(vs(2)-vc(2))
-             shell_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) +&
-                   fac_massc*(vs(3)-vc(3))
-             core_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) +&
-                   fac_masss*(vc(1)-vs(1))
-             core_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) +&
-                   fac_masss*(vc(2)-vs(2))
-             core_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) +&
-                   fac_masss*(vc(3)-vs(3))
+             IF(MY_VSHELL_RESCALE) THEN
+               jj = jj + 2
+               shell_particle_set(shell_index )%v(1) = vs(1) * nhc % p_scale ( 1, ii ) % point
+               shell_particle_set(shell_index )%v(2) = vs(2) * nhc % p_scale ( 2, ii ) % point
+               shell_particle_set(shell_index )%v(3) = vs(3) * nhc % p_scale ( 3, ii ) % point
+               core_particle_set(shell_index )%v(1) = vc(1) * nhc % p_scale ( 1, ii ) % point
+               core_particle_set(shell_index) %v(2) = vc(2) * nhc % p_scale ( 2, ii ) % point
+               core_particle_set(shell_index) %v(3) = vc(3) * nhc % p_scale ( 3, ii ) % point
+             ELSE
+               jj = jj + 6
+               shell_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) +&
+                     fac_massc*(vs(1)-vc(1))
+               shell_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) +&
+                     fac_massc*(vs(2)-vc(2))
+               shell_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) +&
+                     fac_massc*(vs(3)-vc(3))
+               core_particle_set(shell_index)%v(1) = particle_set(ipart)%v(1) +&
+                     fac_masss*(vc(1)-vs(1))
+               core_particle_set(shell_index)%v(2) = particle_set(ipart)%v(2) +&
+                     fac_masss*(vc(2)-vs(2))
+               core_particle_set(shell_index)%v(3) = particle_set(ipart)%v(3) +&
+                     fac_masss*(vc(3)-vs(3))
+             END IF
+
           END IF
         END DO  ! ipart
       END DO  ! imol_local
@@ -743,7 +759,8 @@ END SUBROUTINE lnhc_particle_set
 !******************************************************************************
 SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
                                atomic_kind_set, particle_set, local_molecules, &
-                               vel, group,  shell_adiabatic, shell_vel, core_vel)
+                               vel, group,  shell_adiabatic, shell_vel, &
+                               core_vel, vshell_rescale)
 
 
     TYPE(lnhc_parameters_type), &
@@ -757,21 +774,27 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
     INTEGER, INTENT(IN)                      :: group
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_adiabatic
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: shell_vel(:,:), core_vel(:,:)
+    LOGICAL, OPTIONAL                        :: vshell_rescale
 
     INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
       ipart, iyosh, jj, last_atom, n, nmol_local, npart_local, nx1, nx2, &
       shell_index
-    LOGICAL                                  :: my_shell_adiabatic
+    INTEGER, SAVE :: iter = 0
+    LOGICAL                                  :: my_shell_adiabatic, my_vshell_rescale
     REAL(KIND=dp)                            :: fac_massc, fac_masss, flops, &
-                                                mass, scale, vc(3), vs(3)
+                                                mass, mtot, scale, vc(3), vcom(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(shell_kind_type), POINTER           :: shell
+
+!------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0.0_dp
   my_shell_adiabatic = .FALSE.
   IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
+  my_vshell_rescale = .FALSE.
+  IF(PRESENT(vshell_rescale)) my_vshell_rescale = vshell_rescale
 
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
@@ -887,6 +910,12 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 ! now scale the particle velocities
   ii = 0
   jj = 0
+  IF(debug_this_module) THEN
+    mtot = 0.0_dp
+    vcom = 0.0_dp
+    iter = iter + 1
+  END IF
+
   IF(my_shell_adiabatic) THEN
     DO ikind = 1, SIZE ( molecule_kind_set )
       nmol_local = local_molecules % n_el ( ikind )
@@ -909,13 +938,29 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
              fac_massc = shell%mass_core/mass
              vs(1:3) = shell_vel( 1:3,shell_index )
              vc(1:3) = core_vel( 1:3,shell_index )
-             jj = jj + 6
-             shell_vel( 1,shell_index ) = vel( 1, ipart ) + fac_massc*(vs(1)-vc(1))
-             shell_vel( 2,shell_index ) = vel( 2, ipart ) + fac_massc*(vs(2)-vc(2))
-             shell_vel( 3,shell_index ) = vel( 3, ipart ) + fac_massc*(vs(3)-vc(3))
-             core_vel( 1,shell_index ) = vel( 1, ipart ) + fac_masss*(vc(1)-vs(1))
-             core_vel( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
-             core_vel( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
+             IF(MY_VSHELL_RESCALE) THEN
+               jj = jj + 2
+               shell_vel( 1,shell_index ) =  vs(1) * nhc % p_scale ( 1, ii ) % point
+               shell_vel( 2,shell_index ) =  vs(2) * nhc % p_scale ( 2, ii ) % point
+               shell_vel( 3,shell_index ) =  vs(3) * nhc % p_scale ( 3, ii ) % point
+               core_vel( 1,shell_index ) =  vc(1) * nhc % p_scale ( 1, ii ) % point
+               core_vel( 2,shell_index ) =  vc(2) * nhc % p_scale ( 2, ii ) % point
+               core_vel( 3,shell_index ) =  vc(3) * nhc % p_scale ( 3, ii ) % point
+             ELSE
+               jj = jj + 6
+               shell_vel( 1,shell_index ) = vel( 1, ipart ) + fac_massc*(vs(1)-vc(1))
+               shell_vel( 2,shell_index ) = vel( 2, ipart ) + fac_massc*(vs(2)-vc(2))
+               shell_vel( 3,shell_index ) = vel( 3, ipart ) + fac_massc*(vs(3)-vc(3))
+               core_vel( 1,shell_index ) = vel( 1, ipart ) + fac_masss*(vc(1)-vs(1))
+               core_vel( 2,shell_index ) = vel( 2, ipart ) + fac_masss*(vc(2)-vs(2))
+               core_vel( 3,shell_index ) = vel( 3, ipart ) + fac_masss*(vc(3)-vs(3))
+             END IF
+          END IF
+          IF(debug_this_module) THEN
+            vcom(1) = vcom(1) + mass * vel ( 1, ipart )
+            vcom(2) = vcom(2) + mass * vel ( 2, ipart )
+            vcom(3) = vcom(3) + mass * vel ( 3, ipart )
+            mtot = mtot + mass
           END IF
         END DO  ! ipart
       END DO  ! imol_local
@@ -934,11 +979,23 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
           vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
           vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
           vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
+          IF(debug_this_module) THEN
+            atomic_kind => particle_set ( ipart ) % atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+            vcom(1) = vcom(1) + mass * vel ( 1, ipart )
+            vcom(2) = vcom(2) + mass * vel ( 2, ipart )
+            vcom(3) = vcom(3) + mass * vel ( 3, ipart )
+            mtot = mtot + mass
+          END IF
         END DO  ! ipart
       END DO  ! imol_local
     END DO  ! ikind
     flops = flops + REAL ( npart_local*3,KIND=dp)
   END IF
+  IF(debug_this_module) THEN
+     write(115,'(I10,3f16.10)') iter, vcom(1)/mtot, vcom(2)/mtot, vcom(3)/mtot
+  END IF
+
   flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)
 

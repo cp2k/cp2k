@@ -63,7 +63,6 @@ MODULE md
   IMPLICIT NONE
 
   PRIVATE
-  LOGICAL, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md'
 
   ! Public data types
@@ -118,6 +117,7 @@ MODULE md
      REAL (KIND=dp) :: temp_ext
      REAL (KIND=dp) :: temp_baro
      REAL (KIND=dp) :: temp_tol
+     REAL (KIND=dp) :: comvel_tol
      REAL (KIND=dp) :: p_ext
      REAL (KIND=dp) :: cmass
      REAL (KIND=dp) :: v0
@@ -133,6 +133,7 @@ MODULE md
      LOGICAL :: pv_diagonal
      LOGICAL :: pv_availability
      LOGICAL :: dump_lm 
+     LOGICAL :: vshell_rescale
      INTEGER :: nfree
      INTEGER :: nc
      INTEGER :: nyosh
@@ -396,11 +397,13 @@ CONTAINS
        CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
+       CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=simpar%comvel_tol,error=error)
        CALL section_vals_val_get(md_section,"TEMP_SHELL",r_val=simpar%temp_sh_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_SHELL_TOL",r_val=simpar%temp_sh_tol,error=error)
        CALL section_vals_val_get(md_section,"PV_AVA",l_val=simpar%pv_availability,error=error)
        CALL section_vals_val_get(md_section,"PV_NUM",l_val=simpar%pv_numerical,error=error)
        CALL section_vals_val_get(md_section,"PV_DIA",l_val=simpar%pv_diagonal,error=error)
+       CALL section_vals_val_get(md_section,"VSHELL_RESCALE",l_val=simpar%vshell_rescale,error=error)
 
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
@@ -489,6 +492,7 @@ CONTAINS
     simpar % temp_ext = 0.0_dp
     simpar % temp_baro = 0.0_dp
     simpar % temp_tol = 0.0_dp
+    simpar % comvel_tol = 0.0_dp
     simpar % temp_sh_ext = 0.0_dp
     simpar % temp_sh_tol = 0.0_dp
     simpar % p_ext = 0.0_dp
@@ -498,6 +502,7 @@ CONTAINS
     simpar % pv_numerical=.FALSE.
     simpar % pv_diagonal=.TRUE.
     simpar % pv_availability=.FALSE.
+    simpar % vshell_rescale=.FALSE.
     simpar % shake_tol = 1.0E-6_dp
     simpar % nhclen = 3
     simpar % nc = 2
@@ -569,12 +574,12 @@ CONTAINS
                                                 imolecule_kind, istat, iw, &
                                                 natoms, nfixd, nshell, &
                                                 shell_index
-    LOGICAL :: explicit, explicit2, explicit3, failure, is_ok, is_shell, &
-      my_force_rescaling, shell_present
+    LOGICAL :: comvel, explicit, explicit2, explicit3, failure, is_ok, &
+      is_shell, my_force_rescaling, shell_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    REAL(KIND=dp)                            :: akin, akin0, denom, &
-                                                fac_massc, fac_masss, mass, &
-                                                mass_tot, sc, temp, temp0
+    REAL(KIND=dp)                            :: akin, akin0, denom, fac_massc, &
+                                                fac_masss, mass, mass_tot, &
+                                                sc, temp, temp0
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -731,15 +736,6 @@ CONTAINS
           IF (.NOT.is_fixed(i)) THEN
              v = part ( i ) % v ( : ) - vcom ( : )
              akin = akin + 0.5_dp * mass * SUM( v * v)
-             IF(debug_this_module) THEN
-                part ( i ) % v ( : ) = v(:)
-                IF(shell_present .AND. is_shell) THEN
-                   shell_part( part ( i ) % shell_index)%v(:) = &
-                        shell_part( part ( i ) % shell_index)%v(:) - vcom ( : )
-                   core_part( part ( i ) % shell_index)%v(:) = &
-                        core_part( part ( i ) % shell_index)%v(:) - vcom ( : )
-                END IF
-             END IF
           END IF
        END DO
        temp = 0.0_dp
@@ -775,37 +771,6 @@ CONTAINS
                  core_part(shell_index)%v(2)=part(i)%v(2) + fac_masss*(vc(2)-vs(2))
                  core_part(shell_index)%v(3)=part(i)%v(3) + fac_masss*(vc(3)-vs(3))
                ENDIF
-            END DO  ! i
-            vcom_new=vcom_new/ denom
-          ELSEIF(debug_this_module) THEN
-            sc = SQRT ( temp0/temp )
-            vcom_new = 0.0_dp
-            DO i = 1, natoms
-                 atomic_kind => part ( i ) % atomic_kind
-                 CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass, &
-                      shell_active=is_shell )
-              part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
-              part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
-              part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
-              vcom_new =  vcom_new + mass * part ( i ) % v
-
-              shell_index = part ( i ) %shell_index
-              IF(shell_present .AND. shell_index/=0) THEN
-                atomic_kind => part ( i ) %atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                     mass=mass, shell=shell)
-                fac_masss = shell%mass_shell/mass 
-                fac_massc = shell%mass_core/mass
-                vs(1:3) = shell_part(shell_index)%v(1:3)
-                vc(1:3) = core_part(shell_index)%v(1:3)
-                   
-                shell_part(shell_index)%v(1)=part(i)%v(1) + fac_massc*(vs(1)-vc(1))
-                shell_part(shell_index)%v(2)=part(i)%v(2) + fac_massc*(vs(2)-vc(2))
-                shell_part(shell_index)%v(3)=part(i)%v(3) + fac_massc*(vs(3)-vc(3))
-                core_part(shell_index)%v(1)=part(i)%v(1) + fac_masss*(vc(1)-vs(1))
-                core_part(shell_index)%v(2)=part(i)%v(2) + fac_masss*(vc(2)-vs(2))
-                core_part(shell_index)%v(3)=part(i)%v(3) + fac_masss*(vc(3)-vs(3))
-              ENDIF
             END DO  ! i
             vcom_new=vcom_new/ denom
           END IF

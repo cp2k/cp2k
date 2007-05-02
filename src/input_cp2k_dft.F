@@ -4853,7 +4853,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nmr",&
-            description="The chemical shift is calculated by DFPT ",&
+            description="The chemical shift is calculated by DFPT. This feature is not operative yet, DO NOT USE IT ",&
             n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 

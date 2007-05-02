@@ -2429,6 +2429,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="comvel_tol",&
+            description="The maximum accepted velocity of the center of mass"//&
+            "If it is 0 no subtraction is performed. "//&
+            "With Shell-Model, comvel may drift if SUBSYS%TOPOLOGY%NHCOPT /= GLOBAL ", &
+            usage="comvel_tol 0.0", default_r_val=0.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="annealing",&
             description="Specifies the rescaling factor for velocities after the integration"//&
             "scheme used. Automatically enables the annealing procedure.", &
@@ -2500,6 +2508,16 @@ CONTAINS
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="vshell_rescale",&   
+            description="If NOSE, the velocitie of core and shell are simply rescaled together "//&
+            "with the velocities of the corresponding particles. This might favour heat exchange "//&
+            " making necessary some kind of control of the internal core-shell kinetic energy (TEMP_SHELL_TOL)",&
+            usage="vshell_rescale LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        CALL create_msst_section(uni_section, error=error)
        CALL section_add_subsection(section, uni_section, error=error)

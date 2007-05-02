@@ -1129,7 +1129,7 @@ CONTAINS
         CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group , &
                     shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-                    core_particle_set=core_particle_set)
+                    core_particle_set=core_particle_set,  vshell_rescale=simpar%vshell_rescale)
       ELSE
         CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group )
@@ -1331,7 +1331,7 @@ CONTAINS
         CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, &
                     vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-                    shell_vel=shell_vel, core_vel=core_vel)
+                    shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
       ELSE
         CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
@@ -1605,7 +1605,7 @@ CONTAINS
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group , &
                     shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-                    core_particle_set=core_particle_set)
+                    core_particle_set=core_particle_set, vshell_rescale=simpar%vshell_rescale)
       ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group )
@@ -1843,7 +1843,7 @@ CONTAINS
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, &
                     vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-                    shell_vel=shell_vel, core_vel=core_vel)
+                    shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
       ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
@@ -3023,7 +3023,7 @@ CONTAINS
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group , &
                     shell_adiabatic=shell_adiabatic, shell_particle_set=shell_particle_set,&
-                    core_particle_set=core_particle_set)
+                    core_particle_set=core_particle_set, vshell_rescale=simpar%vshell_rescale)
       ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, para_env % group )
@@ -3328,7 +3328,7 @@ CONTAINS
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                     atomic_kind_set, particle_set, local_molecules, &
                     vel, para_env % group , shell_adiabatic = shell_adiabatic, &
-                    shell_vel=shell_vel, core_vel=core_vel)
+                    shell_vel=shell_vel, core_vel=core_vel, vshell_rescale=simpar%vshell_rescale)
      ELSE
         CALL lnhc ( nhc_part ( isubsys ), molecule_kind_set, molecule_set, &
                    atomic_kind_set, particle_set, local_molecules, vel, para_env % group )
