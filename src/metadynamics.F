@@ -45,6 +45,7 @@ MODULE metadynamics
   USE metadynamics_types,              ONLY: hills_env_type,&
                                              meta_env_type,&
                                              metavar_type
+  USE parallel_rng_types,              ONLY: next_random_number
   USE particle_list_types,             ONLY: particle_list_type
 #include "cp_common_uses.h"
 
@@ -145,7 +146,6 @@ CONTAINS
           meta_env%metavar(i)%ss=0.0_dp
           meta_env%metavar(i)%ss0=0.0_dp
           meta_env%metavar(i)%ff_s=0.0_dp
-          meta_env%metavar(i)%vv=0.0_dp
           meta_env%metavar(i)%vvp=0.0_dp
           meta_env%metavar(i)%cv_energy=0.0_dp
           meta_env%metavar(i)%delta_s=0.0_dp
@@ -193,7 +193,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iw, n_colvar, n_rep, id_method
+    INTEGER                                  :: i, id_method, iw, n_colvar, &
+                                                n_rep
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
     TYPE(cp_logger_type), POINTER            :: logger
@@ -223,11 +224,11 @@ CONTAINS
     CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps,error=error)
     CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
          i_val=meta_env%hills_env%n_hills,error=error)
-    CALL section_vals_val_get(metadyn_section,"TEMPERATURE",n_rep_val=n_rep,error=error)
+    CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
+    CALL section_vals_val_get(metadyn_section,"TEMP_TOL",n_rep_val=n_rep,error=error)
     IF ( n_rep /= 0 ) THEN
        meta_env%tempcontrol=.TRUE.
-       CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
-       meta_env%toll_temp=meta_env%temp_wanted/SQRT(REAL(meta_env%n_colvar,dp))
+       CALL section_vals_val_get(metadyn_section,"TEMP_TOL",r_val=meta_env%toll_temp,error=error)
     END IF
 
     DO i= 1, n_colvar
@@ -374,7 +375,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_add_forces', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: FACTEM = 315795.260 
 
     INTEGER                                  :: i, i_c, icolvar, ii, isubsys, &
                                                 iw
@@ -399,7 +399,22 @@ CONTAINS
 
     dt = meta_env%dt
     meta_env%n_steps=meta_env%n_steps+1
-
+    ! Initialize velocity
+    IF (meta_env%restart) THEN
+       meta_env%ekin_s = 0.0_dp
+       DO i_c=1,meta_env%n_colvar
+          cv => meta_env%metavar(i_c)
+          cv%vvp = next_random_number(force_env%globenv%gaussian_rng_stream,error=error)
+          meta_env%ekin_s = meta_env%ekin_s + 0.5E0_dp*cv%mass*cv%vvp**2
+       END DO
+       ekin_w = 0.5_dp*meta_env%temp_wanted*REAL(meta_env%n_colvar,KIND=dp)
+       fac_t  = SQRT(ekin_w/MAX(meta_env%ekin_s,1.0E-8_dp))
+       DO i_c = 1, meta_env%n_colvar
+          cv     => meta_env%metavar(i_c)
+          cv%vvp = cv%vvp*fac_t
+       ENDDO
+       meta_env%ekin_s = 0.0_dp
+    END IF
     ! compute ss and the derivative of ss with respect to the atomic positions
     DO i_c=1,meta_env%n_colvar
        cv => meta_env%metavar(i_c)
@@ -411,6 +426,7 @@ CONTAINS
        ! Restart for Extended Lagrangian Metadynamics
        !
        IF (meta_env%restart) THEN
+          ! Initialize the position of the collective variable in the extended lagrange
           ss0_section => section_vals_get_subs_vals(meta_env%metadyn_section,"EXT_LAGRANGE_SS0",error=error)
           CALL section_vals_get(ss0_section, explicit=explicit, error=error)
           IF (explicit) THEN
@@ -429,7 +445,10 @@ CONTAINS
           END IF
        END IF
        !
-       IF(.NOT.meta_env%extended_lagrange) cv%ss0 =  cv%ss
+       IF(.NOT.meta_env%extended_lagrange) THEN 
+          cv%ss0 = cv%ss
+          cv%vvp = 0.0_dp
+       END IF
     ENDDO
     meta_env%restart = .FALSE.
 
@@ -473,14 +492,13 @@ CONTAINS
           ENDDO
           !  velocity verlet on the s0
           fft    = cv%ff_s+cv%ff_hills
-          cv%vv  = cv%vvp+0.5E0_dp*dt*fft/cv%mass
-          cv%vvp = cv%vv+0.5E0_dp*dt*fft/cv%mass
+          cv%vvp = cv%vvp+dt*fft/cv%mass
           meta_env%ekin_s = meta_env%ekin_s + 0.5E0_dp*cv%mass*cv%vvp**2
        ENDDO
        !  velocity rescaling on the s0
        IF(meta_env%tempcontrol)THEN
-          ekin_w   = 0.5_dp*meta_env%temp_wanted/FACTEM*REAL(meta_env%n_colvar,KIND=dp)
-          tol_ekin = 0.5_dp*meta_env%toll_temp/FACTEM*REAL(meta_env%n_colvar,KIND=dp)
+          ekin_w   = 0.5_dp*meta_env%temp_wanted*REAL(meta_env%n_colvar,KIND=dp)
+          tol_ekin = 0.5_dp*meta_env%toll_temp*REAL(meta_env%n_colvar,KIND=dp)
           IF(ABS(ekin_w-meta_env%ekin_s)> tol_ekin)THEN
              fac_t=SQRT(ekin_w/MAX(meta_env%ekin_s,1.0E-8_dp))
              DO i_c = 1, meta_env%n_colvar
@@ -495,7 +513,7 @@ CONTAINS
           cv => meta_env%metavar(i_c)
           ss0_test=cv%ss0+dt*cv%vvp
           IF((cv%do_wall_p .AND. ss0_test > cv%wall_p) .OR. &
-               (cv%do_wall_m .AND. ss0_test < cv%wall_m))  THEN    
+             (cv%do_wall_m .AND. ss0_test < cv%wall_m))  THEN    
              cv%vvp = -cv%vvp
           ENDIF
        ENDDO
@@ -507,7 +525,7 @@ CONTAINS
           meta_env%cv_energy = meta_env%cv_energy + cv%cv_energy
        ENDDO
     ENDIF
-    ! reflecting boundary conditions on the ss  
+    ! reflecting boundary conditions on the ss
     DO i_c = 1, meta_env%n_colvar
        cv => meta_env%metavar(i_c)
        IF((cv%do_wall_p .AND. cv%ss  > cv%wall_p) .OR. &
@@ -735,7 +753,7 @@ CONTAINS
           delta_s_history(i,n_hills) = colvars(i)%delta_s
           ww_history(n_hills)        = hills_env%ww
        ENDDO
-
+       ! Print just program_run_info
        iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
             "PRINT%PROGRAM_RUN_INFO",extension=".metadynLog",error=error)
        IF (iw>0) THEN
@@ -743,18 +761,19 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
-       iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-            "PRINT%HILLS",extension=".metadynLog",error=error)
-       IF (iw>0) THEN
-          WRITE(iw,'(f12.1,30f13.5)')&
-               meta_env%dt*meta_env%n_steps,  &
-               (hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
-               (hills_env%delta_s_history(ih,n_hills),ih=1,n_colvar),&
-               hills_env%ww_history(n_hills)
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-            "PRINT%HILLS", error=error)
-    ENDIF
+    END IF
+    ! Print Hills file
+    iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
+         "PRINT%HILLS",extension=".metadynLog",error=error)
+    IF ((iw>0).AND.(n_hills>0)) THEN
+       WRITE(iw,'(f12.1,30f13.5)')&
+            meta_env%dt*meta_env%n_steps,  &
+            (hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
+            (hills_env%delta_s_history(ih,n_hills),ih=1,n_colvar),&
+            hills_env%ww_history(n_hills)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
+         "PRINT%HILLS", error=error)
     !
     ! Forces from the hills
     !

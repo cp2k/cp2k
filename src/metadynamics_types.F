@@ -50,7 +50,7 @@ MODULE metadynamics_types
   END TYPE hills_env_type
 
   TYPE metavar_type
-     REAL(KIND=dp) :: mass, lambda, ss, ss0, ff_s, vv, vvp, &
+     REAL(KIND=dp) :: mass, lambda, ss, ss0, ff_s, vvp, &
                       cv_energy, delta_s, ff_hills
      LOGICAL       :: do_wall_p,do_wall_m
      REAL(KIND=dp) :: wall_p, wall_m

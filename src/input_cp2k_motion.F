@@ -1837,10 +1837,17 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMPERATURE",&
-            variants=(/"TEMPCONTROL"/),&
-            description="If a Lagrangian scheme is used the temperature control for the collective "//&
+            description="If a Lagrangian scheme is used the temperature for the collective "//&
             "variables is specified. ",&
             usage="TEMPERATURE {real}",&
+            default_r_val=0.0_dp,unit_str='K',error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TEMP_TOL",&
+            description="If a Lagrangian scheme is used the temperature tolerance for the collective "//&
+            "variables is specified. ",&
+            usage="TEMP_TOL {real}",&
             type_of_var=real_t,unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
