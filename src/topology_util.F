@@ -147,7 +147,7 @@ CONTAINS
     ELSE
       output_unit = -1
     END IF
-    WRITE(output_unit,'(T2,"REORDER |  ")')
+    IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
     atom_info => topology%atom_info
     conn_info => topology%conn_info    
     natom = topology%natoms
@@ -435,7 +435,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(conn_info%bond_b,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    WRITE(output_unit,'(T2,"REORDER |  ")')
+    IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
