@@ -906,8 +906,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE copy_local_sm_to_replicated_fm (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'copy_local_sm_to_replicated_fm', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iblock_col, &
                                                 iblock_row, icol, icol_block, &
@@ -919,10 +919,10 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the input matrix ***
 
-    CALL timeset(routine,handle)
+    CALL timeset(routineN,handle)
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
-      CALL stop_program(routine,"The input matrix pointer is not associated")
+      CALL stop_program(routineN,"The input matrix pointer is not associated")
     END IF
 
     IF (ASSOCIATED(fm)) DEALLOCATE (fm)
@@ -931,7 +931,7 @@ END SUBROUTINE cp_sm_scale_and_add
     ncol = sparse_matrix%ncol
 
     ALLOCATE (fm(nrow,ncol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"fm",nrow*ncol*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineN,"fm",nrow*ncol*dp_size)
     fm(:,:) = 0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
