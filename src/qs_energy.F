@@ -38,6 +38,9 @@ MODULE qs_energy
                                              section_vals_val_get,&
                                              section_vals_get
   USE kinds,                           ONLY: dp
+  USE pw_env_types,                    ONLY: pw_env_get
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -96,6 +99,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: input
     TYPE(section_vals_type), POINTER         :: rest_b_section
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !   ---------------------------------------------------------------------------
 
@@ -107,7 +111,7 @@ CONTAINS
                     error=error)
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
-
+    qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
     IF ( dft_control%qs_control%semi_empirical ) THEN
@@ -142,7 +146,7 @@ CONTAINS
     END IF
     ! **********  Calculate the electron transfer coupling elements********
     do_et=.FALSE.
-    do_et=qs_env%dft_control%qs_control%et_coupling_calc.OR.qs_env%dft_control%qs_control%becke_constraint
+    do_et=qs_env%dft_control%qs_control%et_coupling_calc
     IF(do_et)THEN
        qs_env%et_coupling%energy=qs_env%energy%total
        qs_env%et_coupling%keep_matrix=.TRUE.
@@ -172,6 +176,12 @@ CONTAINS
                                 calculate_forces=.FALSE., &
                                 just_energy=.TRUE.,error=error) 
        CALL calc_et_coupling(qs_env,error)
+       IF(qs_env%dft_control%qs_control%becke_constraint)THEN
+          CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+          CALL pw_pool_give_back_coeff(auxbas_pw_pool,&
+               qs_env%dft_control%qs_control%becke_control%becke_pot,error=error)
+          qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
+       END IF
     END IF
     
 

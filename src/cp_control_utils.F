@@ -325,7 +325,7 @@ CONTAINS
     REAL(dp)                                 :: tmpsqrt, value
     TYPE(section_vals_type), POINTER :: ddapc_restraint_section, &
       dftb_parameter, dftb_section, loc_section, mull_section, &
-      s2_restraint_section, se_section
+      s2_restraint_section, se_section, becke_constraint_section
 
 !   ---------------------------------------------------------------------------
 
@@ -337,6 +337,7 @@ CONTAINS
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
     s2_restraint_section => section_vals_get_subs_vals(qs_section,"S2_RESTRAINT", error=error)
+    becke_constraint_section=> section_vals_get_subs_vals(qs_section,"BECKE_CONSTRAINT", error=error)
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
     dftb_section => section_vals_get_subs_vals(qs_section,"DFTB", error=error)
     dftb_parameter => section_vals_get_subs_vals(dftb_section,"PARAMETER", error=error)
@@ -507,6 +508,12 @@ CONTAINS
       CALL section_vals_val_get(s2_restraint_section,"FUNCTIONAL_FORM", &
                                 i_val=qs_control%s2_restraint_control%functional_form,error=error)
     ENDIF
+    
+    CALL section_vals_get(becke_constraint_section,explicit=qs_control%becke_constraint,error=error)
+
+    IF (qs_control%becke_constraint) THEN
+       CALL  read_becke_section(qs_control,becke_constraint_section,error)
+    ENDIF    
 
 
     ! Semi-empirical code
@@ -1285,6 +1292,7 @@ SUBROUTINE read_becke_section(qs_control,becke_section,error)
 
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rtmplist
 
       CALL section_vals_val_get(becke_section,"STRENGTH", &
                                 r_val=qs_control%becke_control%strength,error=error)
@@ -1311,6 +1319,27 @@ SUBROUTINE read_becke_section(qs_control,becke_section,error)
            qs_control%becke_control%atoms (jj) = tmplist(j)
          END DO
       END DO
+
+      IF(ASSOCIATED(qs_control%becke_control%coeff))&
+           DEALLOCATE(qs_control%becke_control%coeff)
+      ALLOCATE(qs_control%becke_control%coeff(qs_control%becke_control%natoms))
+      qs_control%becke_control%coeff=1.0_dp
+
+      CALL section_vals_val_get(becke_section,"COEFF", &
+                                n_rep_val=n_rep,error=error)
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(becke_section,"COEFF",i_rep_val=k,r_vals=rtmplist, error=error)
+         DO  j = 1,SIZE(rtmplist)
+           jj = jj+1
+           IF (jj>qs_control%becke_control%natoms) &
+                 CALL stop_program(routine, "Need the same number of coeff as there are atoms ")
+           qs_control%becke_control%coeff (jj) = rtmplist(j)
+         END DO
+      END DO
+      IF (jj<qs_control%becke_control%natoms .AND. jj.NE.0) &
+            CALL stop_program(routine, "Need no or the same number of coeff as there are atoms ")
+
 
     END SUBROUTINE read_becke_section
 

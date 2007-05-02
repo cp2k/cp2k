@@ -36,7 +36,8 @@ MODULE qs_ks_methods
   USE coefficient_types,               ONLY: &
        coeff_add, coeff_copy, coeff_init, coeff_scale, coeff_subtract, &
        coeff_sumup, coeff_transform_space, coeff_type, coeff_zero
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             becke_constraint_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply,&
                                              cp_ddapc_apply_CD
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -326,17 +327,18 @@ CONTAINS
       my_kg_gpw, use_virial
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
-                                                s2_order_p
+                                                s2_order_p,inv_vol
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type) :: becke_const, ep_pot_r_coeff, ep_rho_g, ep_rho_r, &
+    TYPE(coeff_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, &
       rho_tot_gspace, v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, &
       v_spin_ddapc_rest_r
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
+    TYPE(becke_constraint_type),POINTER      :: becke
     TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -360,7 +362,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
-         input, poisson_env, scf_section,my_rho)
+         input, poisson_env, scf_section,my_rho,becke)
 
     !   -----------------------------------------------------------------------
 
@@ -617,35 +619,47 @@ CONTAINS
 
        !***** Check if becke potential is needed to constrain charges *****
        IF(qs_env%dft_control%qs_control%becke_constraint)THEN
-          CALL pw_pool_init_coeff(auxbas_pw_pool,coeff=becke_const,use_data=REALDATA3D,&
-               in_space=REALSPACE,error=error) 
-          CALL becke_constraint(qs_env,becke_const,error=error)
-          CALL coeff_scale(becke_const,becke_const%pw%pw_grid%dvol)
-          
-          IF(qs_env%et_coupling%keep_matrix)THEN
-             IF(qs_env%et_coupling%first_run)THEN
-                NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
-                CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                     TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
-                     target_name="ET_RESTRAINT_MATRIX_A",error=error)
-                CALL integrate_v_rspace(becke_const,&
-                     h=qs_env%et_coupling%rest_mat(1),&
-                     qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-                qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%becke_control%becke_order_p
-                qs_env%et_coupling%e1=qs_env%dft_control%qs_control%becke_control%strength
-                qs_env%et_coupling%keep_matrix=.FALSE.
-             ELSE
-                NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
-                CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
+          becke => qs_env%dft_control%qs_control%becke_control
+          IF(becke%need_pot.OR.calculate_forces)THEN
+             CALL pw_pool_init_coeff(auxbas_pw_pool,coeff=becke%becke_pot,use_data=REALDATA3D,&
+                  in_space=REALSPACE,error=error) 
+             CALL becke_constraint(qs_env,becke_const=becke%becke_pot,calc_pot=.TRUE.,&
+                                   calculate_forces=calculate_forces,error=error)
+             CALL coeff_scale(becke%becke_pot,becke%becke_pot%pw%pw_grid%dvol)
+             becke%need_pot=.FALSE.
+          ELSE
+             inv_vol=1.0_dp/becke%becke_pot%pw%pw_grid%dvol
+             CALL coeff_scale(becke%becke_pot,inv_vol)
+             CALL becke_constraint(qs_env,becke%becke_pot,calc_pot=.FALSE.,&
+                                   calculate_forces=calculate_forces,error=error)
+             CALL coeff_scale(becke%becke_pot,becke%becke_pot%pw%pw_grid%dvol)
+          ENDIF
+
+          IF(qs_env%dft_control%qs_control%et_coupling_calc)THEN
+             IF(qs_env%et_coupling%keep_matrix)THEN
+                IF(qs_env%et_coupling%first_run)THEN
+                   NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
+                   CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
+                        TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
+                        target_name="ET_RESTRAINT_MATRIX_A",error=error)
+                   CALL integrate_v_rspace(becke%becke_pot,&
+                        h=qs_env%et_coupling%rest_mat(1),&
+                        qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                   qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%becke_control%becke_order_p
+                   qs_env%et_coupling%e1=qs_env%dft_control%qs_control%becke_control%strength
+                   qs_env%et_coupling%keep_matrix=.FALSE.
+                ELSE
+                   NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
+                   CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                         TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
                         target_name="ET_RESTRAINT_MATRIX_B",error=error)
-                CALL integrate_v_rspace(becke_const,&
-                     h=qs_env%et_coupling%rest_mat(2),&
-                     qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                   CALL integrate_v_rspace(becke%becke_pot,&
+                        h=qs_env%et_coupling%rest_mat(2),&
+                        qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+                END IF
              END IF
           END IF
        END IF
-
        ! *** Add the QM/MM potential ***
        IF (qs_env%qmmm) THEN
           output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
@@ -807,7 +821,7 @@ CONTAINS
                   END IF
                   IF(qs_env%dft_control%qs_control%becke_constraint)THEN
                      v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                          +becke_const%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
+                          +becke%becke_pot%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
                   END IF
                   ! the electrostatic sic contribution
                   SELECT CASE (dft_control%sic_method_id)
@@ -918,11 +932,9 @@ CONTAINS
            CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_spin_ddapc_rest_r,&
                                         error=error)
        ENDIF
-       IF(qs_env%dft_control%qs_control%becke_constraint)THEN
-           CALL pw_pool_give_back_coeff(auxbas_pw_pool,becke_const,&
+       IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_constraint)&
+           CALL pw_pool_give_back_coeff(auxbas_pw_pool,becke%becke_pot,&
                                         error=error)
-       END IF
-
 
        IF(my_kg_gpw) THEN
          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)

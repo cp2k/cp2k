@@ -1664,6 +1664,11 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
+       CALL create_becke_constraint_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
        CALL create_s2_restraint_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -2048,6 +2053,74 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_ddapc_restraint_section
+
+  SUBROUTINE create_becke_constraint_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_becke_constraint_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    NULLIFY(keyword, print_key)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"BECKE_CONSTRAINT",&
+            description="Use Becke weight population in a constraint ",&
+            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="STRENGTH",&
+            description="force constant of the restraint",&
+            usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TARGET",&
+            description="target value of the restraint",&
+            usage="TARGET {real} ",default_r_val=1._dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the list of atoms that is summed in the restraint",&
+            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="COEFF",&
+            description="Defines the the coefficient of the atom in the atom list (default is one), currently DDAPC only ",&
+            usage="COEFF 1.0 -1.0",&
+            type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FUNCTIONAL_FORM",&
+            description="Specifies the functional form of the term added",&
+            usage="FUNCTIONAL_FORM RESTRAINT",&
+            enum_c_vals=s2a("RESTRAINT","CONSTRAINT"),&
+            enum_i_vals=(/ do_ddapc_restraint, do_ddapc_constraint/),&
+            enum_desc=s2a("Harmonic potential: s*(q-t)**2","Constraint form: s*(q-t)"),&
+            default_i_val=do_ddapc_restraint, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing basic info about the method", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+
+  END SUBROUTINE create_becke_constraint_section
 
   SUBROUTINE create_s2_restraint_section(section,error)
     TYPE(section_type), POINTER              :: section

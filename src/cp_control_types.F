@@ -28,6 +28,7 @@ MODULE cp_control_types
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
+  USE coefficient_types,               ONLY: coeff_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -130,6 +131,9 @@ MODULE cp_control_types
     INTEGER                         :: functional_form
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
+    TYPE(coeff_type)                :: becke_pot
+    LOGICAL                         :: need_pot
+    REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
  END TYPE becke_constraint_type
 
 !------------------------------------------------------------------------------!
@@ -469,7 +473,9 @@ SUBROUTINE becke_control_create(becke_control,error)
    becke_control%functional_form=-1
    becke_control%target=1.0_dp
    becke_control%natoms=0
+   becke_control%need_pot=.TRUE.
    NULLIFY(becke_control%atoms)
+   NULLIFY(becke_control%coeff)
 
  END SUBROUTINE becke_control_create
 
@@ -489,6 +495,8 @@ SUBROUTINE becke_control_release(becke_control,error)
    IF (becke_control%ref_count==0) THEN
       IF (ASSOCIATED(becke_control%atoms)) &
           DEALLOCATE(becke_control%atoms)
+      IF (ASSOCIATED(becke_control%coeff)) &
+          DEALLOCATE(becke_control%coeff)
       becke_control%ref_count=0
       becke_control%strength=0.0_dp
       becke_control%target=0.0_dp
