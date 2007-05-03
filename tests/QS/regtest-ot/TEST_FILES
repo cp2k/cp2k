@@ -24,3 +24,6 @@ C2H4-init.inp      1
 sic_ddapc_rt.inp   1
 # introduce coeff
 He2_ddapc_constraint-4.inp 1
+#test constraint on becke wight population
+H2-BECKE-MD.inp 1
+H2-diffBECKE-ET_coupling.inp 1
