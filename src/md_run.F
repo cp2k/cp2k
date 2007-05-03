@@ -1157,8 +1157,10 @@ END SUBROUTINE md_output
         IF (iw>0) THEN
           WRITE (UNIT=iw,FMT="(/,T2,A)") &
             " #########  The velocity of the COM has been subtracted:"
-          WRITE (UNIT=iw,FMT="(T2,10X,2(3F16.10,A))") &
-            vcom(1:3)," a.u.  ->", vcom_new(1:3)," a.u"
+          WRITE (UNIT=iw,FMT="(T2,10X,A,3F16.10,A)") &
+            "VCOM = ",vcom(1:3)," a.u.  ->"
+          WRITE (UNIT=iw,FMT="(T2,16X,A,3F16.10,A)") &
+            "  ->", vcom_new(1:3)," a.u"
         END IF
 
       END IF  !vel_com > simpar%comvel_tol
