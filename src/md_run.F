@@ -1080,7 +1080,7 @@ END SUBROUTINE md_output
  
         temp_new = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
         scale = SQRT( temperature / temp_new)
-
+        vcom_new = 0.0_dp
         DO isubsys=1,SIZE(subsys)
 
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
@@ -1155,9 +1155,10 @@ END SUBROUTINE md_output
 
         END DO  ! isub
         IF (iw>0) THEN
-          WRITE (UNIT=iw,FMT="(/,T2,A,3F16.10,A,3F16.10,A)")&
-            "The velocity of the COM has been subtracted:",&
-            vcom(1:3)," a.u.  ->", vcom_new," 0.0"
+          WRITE (UNIT=iw,FMT="(/,T2,A)") &
+            " #########  The velocity of the COM has been subtracted:"
+          WRITE (UNIT=iw,FMT="(T2,10X,2(3F16.10,A))") &
+            vcom(1:3)," a.u.  ->", vcom_new(1:3)," a.u"
         END IF
 
       END IF  !vel_com > simpar%comvel_tol
