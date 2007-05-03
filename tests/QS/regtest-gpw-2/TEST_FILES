@@ -51,3 +51,5 @@ H2O+SC.inp         0
 spin_restraint.inp 1
 #New grouping colvar
 H2O-meta_g.inp     1
+#Colvar for hydronium
+H2O-meta_hydro.inp 1

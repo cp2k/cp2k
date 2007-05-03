@@ -1,0 +1,104 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROGRAM CP2K 
+  PROJECT meta-01
+  RUN_TYPE md 
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 5
+    TIMESTEP 0.50
+    TEMPERATURE 150
+    &NOSE
+      LENGTH     3
+      YOSHIDA             3
+      TIMECON  [wavenumber_t] 5000
+      MTS        2
+    &END NOSE
+  &END MD
+  &FREE_ENERGY
+    METHOD METADYN
+  &METADYN
+    DO_HILLS T
+    NT_HILLS 2
+    WW .005
+    TEMPERATURE 150.
+    &METAVAR
+      LAMBDA 1.2
+      MASS 40.
+      SUBSYS 1
+      COLVAR 1
+      SCALE .050
+    &END METAVAR 
+  &END METADYN
+  &END FREE_ENERGY
+&END MOTION
+&FORCE_EVAL 
+  METHOD QUICKSTEP
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ O        0.000000        0.000000        0.000000 
+ H        0.120000        0.060000       -0.990000
+ H       -0.960000       -0.250000        0.160000
+ O        0.140000        2.389000        0.920000 
+ H        0.480000        2.609000        1.790000
+ H       -0.040000        3.269000        0.540000
+ O       -2.450000       -0.590000        0.410000
+ H       -2.874000       -0.061000        0.935000
+ H       -2.760000       -1.480000        0.620000
+ O       -0.140000        0.254000       -2.427000 
+ H       -1.043000        0.354000       -2.615000
+ H        0.252000        0.281000       -3.381000
+ H        0.100000        0.930000        0.350000
+    &END COORD
+    &TOPOLOGY
+      NHCOPT MASSIVE
+    &END TOPOLOGY
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &PRINT
+      &ATOMIC_COORDINATES SILENT
+      &END ATOMIC_COORDINATES
+    &END PRINT
+    &COLVAR
+     &HYDRONIUM
+      OXYGENS   1 4 7 10  
+      HYDROGENS 2 3 5 6 8 9 11 12 13    
+      ROO 5.5
+      ROH 2.2
+      NH  2.2
+      PNH 8
+      QNH 16
+      PNO 8
+      QNO 16
+      LAMBDA 10.
+     &END HYDRONIUM
+    &END COLVAR
+  &END SUBSYS
+  &DFT
+   CHARGE +1
+   &MGRID
+     CUTOFF 200
+   &END MGRID
+   &SCF
+     SCF_GUESS          ATOMIC
+   &END SCF
+   &QS
+   &END QS
+   &XC
+     &XC_FUNCTIONAL Pade
+     &END XC_FUNCTIONAL
+   &END XC
+  &END DFT
+&END FORCE_EVAL
