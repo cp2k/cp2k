@@ -376,10 +376,11 @@ CONTAINS
        CALL keyword_create(keyword, name="METHOD",&
             description="Defines the method to use to compute free energy.",&
             usage="METHOD (METADYN|UI)",&
-            enum_c_vals=s2a( "METADYN","UI"),&
-            enum_i_vals=(/do_fe_meta,do_fe_ui/),&
+            enum_c_vals=s2a( "METADYN","UI","AC"),&
+            enum_i_vals=(/do_fe_meta,do_fe_ui,do_fe_ac/),&
             enum_desc=s2a("Metadynamics",&
-                          "Umbrella Integration"),&
+                          "Umbrella Integration",&
+                          "Alchemical Change"),&
             default_i_val=do_fe_meta,repeats=.FALSE.,required=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -435,17 +436,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
     IF (.NOT.failure) THEN
+       NULLIFY(keyword)
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       CALL section_create(section,name="alchemical_change",&
+       CALL section_create(section,name="ALCHEMICAL_CHANGE",&
             description="Controls the calculation of delta free energies"//&
             " with the alchemical change method.",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        
-       
+       CALL keyword_create(keyword, name="PARAMETER",&
+            description="Defines the perturbing parameter of the alchemical change tranformation",&
+            usage="PARAMETERS k", required=.TRUE., type_of_var=char_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
     END IF
   END SUBROUTINE create_ac_section
 

@@ -296,7 +296,8 @@ MODULE input_constants
        (/transformation_normal,transformation_stage/)
   ! Free Energy methods
   INTEGER, PARAMETER, PUBLIC :: do_fe_meta=0,&
-                                do_fe_ui=1
+                                do_fe_ui=1,&
+                                do_fe_ac=2
   !
   ! Output format files
   !

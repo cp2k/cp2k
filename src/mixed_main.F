@@ -53,8 +53,6 @@ MODULE mixed_main
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-!
-!-----------------------------------------------------------------------------!
 !!****** mixed_main/mixed [1.0] *
 !!
 !!   NAME
@@ -82,8 +80,6 @@ CONTAINS
 SUBROUTINE mixed_create_force_env ( force_env, root_section, para_env,globenv,&
                                    force_env_section, method_name_id,error )
 
-
-! Argument
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -98,27 +94,18 @@ SUBROUTINE mixed_create_force_env ( force_env, root_section, para_env,globenv,&
     INTEGER                                  :: handle
     TYPE(mixed_environment_type), POINTER    :: mixed_env
 
-!------------------------------------------------------------------------------
-
   CALL timeset(routineN,"I","",handle)
-
   CALL mixed_env_create( mixed_env, para_env = para_env ,error=error)
-
   CALL set_mixed_env (mixed_env, error=error)
-
-
-
-! *** Read the input and the database files and perform further  ***
-! *** initializations for the setup of the MIXED environment ***
-
+  ! *** Read the input and the database files and perform further  ***
+  ! *** initializations for the setup of the MIXED environment ***
   CALL mixed_init ( mixed_env, root_section, para_env, globenv, force_env_section, error )
-
   CALL force_env_create ( force_env, root_section, mixed_env = mixed_env, &
                           para_env = para_env, globenv = globenv, &
-                          force_env_section=force_env_section, error = error )
+                          force_env_section=force_env_section,&
+                          error = error )
 
   CALL mixed_env_release ( mixed_env, error = error )
-
   CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE mixed_create_force_env

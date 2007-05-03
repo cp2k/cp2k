@@ -320,7 +320,6 @@ CONTAINS
 
        print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&
                         extension=".xyz",error=error)
-
        IF (print_forces>0 .AND. need_f) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
           WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
@@ -333,6 +332,8 @@ CONTAINS
                   dump_xmol,"FORCE"," FORCES| (a.u.) " )
           END DO
        ENDIF
+       CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,&
+            "PRINT%FORCES",error=error)
 
        ! Dump force_eval energy..
        IF (output_unit>0.AND.(.NOT.need_f)) THEN
@@ -1025,7 +1026,7 @@ END SUBROUTINE apply_qmmm_trasl
 !!             structures
 !!
 !!***************************************************************************
-SUBROUTINE mixed_energy_forces(force_env,need_f,error)
+SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN)                      :: need_f
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1056,7 +1057,7 @@ SUBROUTINE mixed_energy_forces(force_env,need_f,error)
       DIMENSION(:), POINTER                  :: particles
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                mapping_section
+                                                mapping_section, root_section
 
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -1065,6 +1066,7 @@ SUBROUTINE mixed_energy_forces(force_env,need_f,error)
     CALL force_env_get(force_env=force_env,&
                        subsys=subsys_mix,&
                        force_env_section=force_env_section,&
+                       root_section=root_section,&
                        error=error)
     CALL cp_subsys_get(subsys=subsys_mix(1)%subsys,&
                        particles=particles_mix,&
@@ -1224,6 +1226,9 @@ SUBROUTINE mixed_energy_forces(force_env,need_f,error)
                mapping_section, .FALSE., error)
           my_val(iforce_eval) = energies(iforce_eval)
        END DO
+       ! If we're performing an alchemical change transformation we have to print out
+       ! the derivative w.r.t. the parameter lambda
+       CALL dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, error)
        CALL finalizef()
        DEALLOCATE(my_par,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1240,6 +1245,76 @@ SUBROUTINE mixed_energy_forces(force_env,need_f,error)
     DEALLOCATE(energies, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 END SUBROUTINE mixed_energy_forces
+
+!!****f* force_env_types/dump_der_par *
+!!
+!!   NAME
+!!     dump_der_par
+!!
+!!   FUNCTION
+!!     Dumps additional information when performing an alchemical change run
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich [tlaino] - 05.2007
+!!
+!!*** **********************************************************************
+SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, error)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: my_par
+    REAL(KIND=dp), INTENT(IN)                :: dx, lerr
+    TYPE(section_vals_type), POINTER         :: root_section
+    INTEGER, INTENT(IN)                      :: nforce_eval
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dump_der_par', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: par
+    INTEGER                                  :: i, iforce_eval, output_unit
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp)                            :: dedf, err
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: fe_section
+
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    fe_section => section_vals_get_subs_vals(root_section,&
+         "MOTION%FREE_ENERGY%ALCHEMICAL_CHANGE",error=error)
+    CALL section_vals_get(fe_section, explicit=explicit, error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(fe_section,"PARAMETER",c_val=par,error=error)
+       DO i = 1, SIZE(my_par)
+          IF (my_par(i)==par) EXIT
+       END DO
+       CPPrecondition(i<=SIZE(my_par),cp_failure_level,routineP,error,failure)
+       dedf = evalfd(1,i,my_val,dx,err)
+       CPPostconditionNoFail(ABS(err)<lerr,cp_warning_level,routineP,error)
+
+       output_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%FREE_ENERGY%FREE_ENERGY_INFO",&
+                        extension=".free_energy",error=error)
+       IF (output_unit>0) THEN
+          WRITE(output_unit,'(T2,79("-"),T37," oOo ")')
+          DO iforce_eval = 1, nforce_eval
+             WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| FORCE_EVAL Nr.",I5,T48,"ENERGY (Hartree)= ",F15.9)')&
+                  iforce_eval, my_val(iforce_eval)
+          END DO
+          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF ENERGY w.r.t. PARAMETER (",A,")",T66,F15.9)')&
+               TRIM(par),dedf
+          WRITE(output_unit,'(T2,79("-"))')
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,root_section,&
+            "MOTION%FREE_ENERGY%FREE_ENERGY_INFO",error=error)
+    END IF
+
+END SUBROUTINE dump_der_par
 
 !!****f* force_env_types/mixed_map_forces *
 !!
@@ -1282,7 +1357,7 @@ END SUBROUTINE mixed_energy_forces
 
     failure = .FALSE.
     ! Get Mapping index array
-    natom = SIZE(particles(1)%list%els)
+    natom = SIZE(particles(iforce_eval)%list%els)
     CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
     DO iparticle = 1, natom
        jparticle = map_index(iparticle)
@@ -1364,7 +1439,7 @@ END SUBROUTINE mixed_energy_forces
        END DO
        CPPrecondition(i<=nforce_eval,cp_failure_level,routineP,error,failure)
        fragments_sys => section_vals_get_subs_vals(map_full_sys,"FRAGMENT",error=error)
-       fragments_loc => section_vals_get_subs_vals(map_force_ev,"FRAGMENT",error=error)
+       fragments_loc => section_vals_get_subs_vals(map_force_ev,"FRAGMENT",i_rep_section=i,error=error)
        !Perform few check on the structure of the input mapping section. as provided by the user
        CALL section_vals_get(fragments_loc, explicit=explicit, n_repetition=n_rep_loc, error=error)
        CPPrecondition(explicit,cp_failure_level,routineP,error,failure)
