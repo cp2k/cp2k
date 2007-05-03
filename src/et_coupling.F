@@ -527,7 +527,7 @@ END SUBROUTINE becke_constraint
                                                 sum_cell_f_all, &
                                                 sum_cell_f_constr, target_val,&
                                                 tmp_const,sum_Pm,th,dpolyn
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: P_i
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: P_i,coefficients
     REAL(kind=dp), ALLOCATABLE, &
          DIMENSION(:, :)                     :: R12,s_my_ij,dw_dR,integrated,&
                                                 d_sum_const_dR,d_sum_Pm_dR,dP_i_dRi
@@ -566,11 +566,13 @@ END SUBROUTINE becke_constraint
         
         ALLOCATE(catom(qs_env%dft_control%qs_control%becke_control%natoms))
         ALLOCATE(is_constraint(particles%n_els))
-        
+        ALLOCATE(coefficients(particles%n_els))
+
         is_constraint=.FALSE.
         DO i=1,qs_env%dft_control%qs_control%becke_control%natoms
            catom(i)=qs_env%dft_control%qs_control%becke_control%atoms(i)
            is_constraint(qs_env%dft_control%qs_control%becke_control%atoms(i))=.TRUE.
+           coefficients(catom(i))= qs_env%dft_control%qs_control%becke_control%coeff(i)
         ENDDO
 
         
@@ -704,12 +706,14 @@ END SUBROUTINE becke_constraint
                     END DO
                     d_sum_Pm_dR(:,iatom)= d_sum_Pm_dR(:,iatom)+ dP_i_dRi(:,iatom)
 
-                    IF(is_constraint(iatom)) d_sum_const_dR(:,iatom)= d_sum_const_dR(:,iatom)+ dP_i_dRi(:,iatom)
+                    IF(is_constraint(iatom)) d_sum_const_dR(:,iatom)= d_sum_const_dR(:,iatom)+ dP_i_dRi(:,iatom)*&
+                                                                      coefficients(iatom)
                     DO jatom = 1,particles%n_els
                        IF(iatom.NE.jatom)THEN
                           d_sum_Pm_dR(:,jatom)=d_sum_Pm_dR(:,jatom)+ dP_i_dRj(:,iatom,jatom)
 
-                          IF(is_constraint(iatom))d_sum_const_dR(:,jatom)= d_sum_const_dR(:,jatom)+ dP_i_dRj(:,iatom,jatom)
+                          IF(is_constraint(iatom))d_sum_const_dR(:,jatom)= d_sum_const_dR(:,jatom)+ dP_i_dRj(:,iatom,jatom)*&
+                                                                      coefficients(iatom)
                        END IF
                     END DO
                  ELSE
@@ -726,7 +730,7 @@ END SUBROUTINE becke_constraint
    
               sum_cell_f_constr=0.0_dp
               DO ip=1,qs_env%dft_control%qs_control%becke_control%natoms
-                 sum_cell_f_constr=sum_cell_f_constr+P_i(catom(ip))
+                 sum_cell_f_constr=sum_cell_f_constr+P_i(catom(ip))* qs_env%dft_control%qs_control%becke_control%coeff(ip)
               END DO
 
 
@@ -760,6 +764,7 @@ END SUBROUTINE becke_constraint
         DEALLOCATE(d_sum_const_dR)
         DEALLOCATE(dP_i_dRi)
         DEALLOCATE(dP_i_dRj)
+        DEALLOCATE(coefficients)
         CALL mp_sum(integrated,qs_env%para_env%group)
 
         DO iatom=1,natom
