@@ -9,3 +9,5 @@ uo2_shell_nvt.inp
 uo2_shell_npti_b.inp     
 uo2_shell_npti.inp      
 uo2_shell_npt300.inp   
+#3 steps were not enough and a bug was passing through the regtest
+C_tersoff.inp

@@ -1233,17 +1233,17 @@ CONTAINS
        f_nonbond(2,kparticle) = f_nonbond(2,kparticle) + prefactor*drk(2)
        f_nonbond(3,kparticle) = f_nonbond(3,kparticle) + prefactor*drk(3)
 
-       ptens_nonbond(1,1) = ptens_nonbond(1,1) - prefactor*(rij(1)*drj(1) + rik(1)*drk(1))
-       ptens_nonbond(1,2) = ptens_nonbond(1,2) - prefactor*(rij(1)*drj(2) + rik(1)*drk(2))
-       ptens_nonbond(1,3) = ptens_nonbond(1,3) - prefactor*(rij(1)*drj(3) + rik(1)*drk(3))
+       ptens_nonbond(1,1) = ptens_nonbond(1,1) + prefactor*(rij(1)*drj(1) + rik(1)*drk(1))
+       ptens_nonbond(1,2) = ptens_nonbond(1,2) + prefactor*(rij(1)*drj(2) + rik(1)*drk(2))
+       ptens_nonbond(1,3) = ptens_nonbond(1,3) + prefactor*(rij(1)*drj(3) + rik(1)*drk(3))
 
-       ptens_nonbond(2,1) = ptens_nonbond(2,1) - prefactor*(rij(2)*drj(1) + rik(2)*drk(1))
-       ptens_nonbond(2,2) = ptens_nonbond(2,2) - prefactor*(rij(2)*drj(2) + rik(2)*drk(2))
-       ptens_nonbond(2,3) = ptens_nonbond(2,3) - prefactor*(rij(2)*drj(3) + rik(2)*drk(3))
+       ptens_nonbond(2,1) = ptens_nonbond(2,1) + prefactor*(rij(2)*drj(1) + rik(2)*drk(1))
+       ptens_nonbond(2,2) = ptens_nonbond(2,2) + prefactor*(rij(2)*drj(2) + rik(2)*drk(2))
+       ptens_nonbond(2,3) = ptens_nonbond(2,3) + prefactor*(rij(2)*drj(3) + rik(2)*drk(3))
 
-       ptens_nonbond(3,1) = ptens_nonbond(3,1) - prefactor*(rij(3)*drj(1) + rik(3)*drk(1))
-       ptens_nonbond(3,2) = ptens_nonbond(3,2) - prefactor*(rij(3)*drj(2) + rik(3)*drk(2))
-       ptens_nonbond(3,3) = ptens_nonbond(3,3) - prefactor*(rij(3)*drj(3) + rik(3)*drk(3))
+       ptens_nonbond(3,1) = ptens_nonbond(3,1) + prefactor*(rij(3)*drj(1) + rik(3)*drk(1))
+       ptens_nonbond(3,2) = ptens_nonbond(3,2) + prefactor*(rij(3)*drj(2) + rik(3)*drk(2))
+       ptens_nonbond(3,3) = ptens_nonbond(3,3) + prefactor*(rij(3)*drj(3) + rik(3)*drk(3))
     END DO
   END SUBROUTINE ter_zeta_ij_d
 
@@ -1513,15 +1513,15 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R1*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R1*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_R1*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_R1*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_R1*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_R1*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_R1*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_R1*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_R1*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_R1*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_R1*rij(3)*rij(3)
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_R1*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_R1*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_R1*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_R1*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_R1*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_R1*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_R1*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_R1*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_R1*rij(3)*rij(3)
 
     f_R2 = f_C * f_R_d * fac
     f_nonbond(1,iparticle) = f_nonbond(1,iparticle) + f_R2*rij(1)
@@ -1531,15 +1531,15 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_R2*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_R2*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_R2*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_R2*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_R2*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_R2*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_R2*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_R2*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_R2*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_R2*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_R2*rij(3)*rij(3)
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_R2*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_R2*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_R2*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_R2*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_R2*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_R2*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_R2*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_R2*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_R2*rij(3)*rij(3)
 
     ! Lets do the f_A1 piece derivative of F_C
     f_A1 = f_C_d * b_ij * f_A * fac
@@ -1550,15 +1550,15 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A1*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A1*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_A1*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_A1*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_A1*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_A1*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_A1*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_A1*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_A1*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_A1*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_A1*rij(3)*rij(3)
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_A1*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_A1*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_A1*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_A1*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_A1*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_A1*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_A1*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_A1*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_A1*rij(3)*rij(3)
 
     ! Lets do the f_A2 piece derivative of F_A
     f_A2 = f_C * b_ij * f_A_d * fac
@@ -1569,21 +1569,20 @@ CONTAINS
     f_nonbond(2,jparticle) = f_nonbond(2,jparticle) - f_A2*rij(2)
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A2*rij(3)
 
-    ptens_nonbond(1,1) = ptens_nonbond(1,1) + f_A2*rij(1)*rij(1)
-    ptens_nonbond(1,2) = ptens_nonbond(1,2) + f_A2*rij(1)*rij(2)
-    ptens_nonbond(1,3) = ptens_nonbond(1,3) + f_A2*rij(1)*rij(3)
-    ptens_nonbond(2,1) = ptens_nonbond(2,1) + f_A2*rij(2)*rij(1)
-    ptens_nonbond(2,2) = ptens_nonbond(2,2) + f_A2*rij(2)*rij(2)
-    ptens_nonbond(2,3) = ptens_nonbond(2,3) + f_A2*rij(2)*rij(3)
-    ptens_nonbond(3,1) = ptens_nonbond(3,1) + f_A2*rij(3)*rij(1)
-    ptens_nonbond(3,2) = ptens_nonbond(3,2) + f_A2*rij(3)*rij(2)
-    ptens_nonbond(3,3) = ptens_nonbond(3,3) + f_A2*rij(3)*rij(3)
+    ptens_nonbond(1,1) = ptens_nonbond(1,1) - f_A2*rij(1)*rij(1)
+    ptens_nonbond(1,2) = ptens_nonbond(1,2) - f_A2*rij(1)*rij(2)
+    ptens_nonbond(1,3) = ptens_nonbond(1,3) - f_A2*rij(1)*rij(3)
+    ptens_nonbond(2,1) = ptens_nonbond(2,1) - f_A2*rij(2)*rij(1)
+    ptens_nonbond(2,2) = ptens_nonbond(2,2) - f_A2*rij(2)*rij(2)
+    ptens_nonbond(2,3) = ptens_nonbond(2,3) - f_A2*rij(2)*rij(3)
+    ptens_nonbond(3,1) = ptens_nonbond(3,1) - f_A2*rij(3)*rij(1)
+    ptens_nonbond(3,2) = ptens_nonbond(3,2) - f_A2*rij(3)*rij(2)
+    ptens_nonbond(3,3) = ptens_nonbond(3,3) - f_A2*rij(3)*rij(3)
 
     ! Lets do the f_A3 piece derivative of b_ij
     prefactor = f_C * b_ij_d * f_A * fac  ! Note need to do d(Zeta_ij)/dR
     CALL ter_zeta_ij_d(pot,r_last_update_pbc,iparticle,jparticle,f_nonbond,ptens_nonbond,prefactor,&
          full_loc_list, loc_cell_v,cell_v)
-
     CALL timestop ( handle )
   END SUBROUTINE get_force_tersoff
 
@@ -1824,7 +1823,7 @@ CONTAINS
     ptens_nonbond(3,1) = ptens_nonbond(3,1) + ptens31
     ptens_nonbond(3,2) = ptens_nonbond(3,2) + ptens32
     ptens_nonbond(3,3) = ptens_nonbond(3,3) + ptens33
-
+    
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond_manybody
 

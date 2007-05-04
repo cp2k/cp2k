@@ -7,7 +7,7 @@
 &MOTION
   &MD
     ENSEMBLE MSST
-    STEPS 3
+    STEPS 10
     TIMESTEP 0.1
     TEMPERATURE 300.0
     PV_AVA T
@@ -18,7 +18,7 @@
     &END MSST
     &PRINT
       &ENERGY
-        EACH 10
+        EACH 1
         FILENAME md1.ener
       &END ENERGY
     &END PRINT
