@@ -45,7 +45,8 @@ MODULE four_center_integrals
   USE mathconstants
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum, &
-                                             mp_sync
+                                             mp_sync, &
+                                             mp_max
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -364,7 +365,7 @@ MODULE four_center_integrals
       md, natom, ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, &
       nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, &
       number_of_precalc_integrals, pa, pb, pc, pd, sgfa, sgfb, sgfc, sgfd, &
-      stat
+      stat, total_integrals_to_store, total_integrals_to_store_max, total_integrals_to_store_aver
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, &
@@ -393,7 +394,7 @@ MODULE four_center_integrals
     TYPE(cp_logger_type), POINTER            :: logger
     REAL(dp)                                 :: tmp1, tmp2, tmp3, tmp11, tmp21, tmp31
     INTEGER                                  :: pa1, pb1, pc1, pd1, pa2, pb2, pc2, pd2,&
-                                                jpgf,kpgf
+                                                jpgf,kpgf, handle_getP, handle_screen, handle_main
     REAL(dp), DIMENSION(:,:,:,:,:,:),&
                      POINTER                 :: screening2
     REAL(dp)                                 :: max_val1, max_val2, max_val3, max_val4
@@ -450,6 +451,7 @@ MODULE four_center_integrals
  
     ene_x_aa = 0.0_dp; ene_x_bb = 0.0_dp
 
+    CALL timeset(routineN//"_getP",handle_getP)
 
     ALLOCATE(full_density(1,1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -463,12 +465,11 @@ MODULE four_center_integrals
       CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
       CALL mp_sum(full_density_beta,para_env%group)
     END IF
+
+    CALL timestop(handle_getP)
+
     
-    IF(nspins == 1) THEN
-      fac = 0.5_dp * hf_fraction
-    ELSE
-      fac = 1.0_dp * hf_fraction
-    END IF
+    CALL timeset(routineN//"_screen",handle_screen)
 
     ALLOCATE(schwarz_screening(natom,natom,max_set,max_set),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -539,11 +540,21 @@ MODULE four_center_integrals
         END DO
       END DO
     END DO
+
+    CALL timestop(handle_screen)
+
+
+    CALL timeset(routineN//"_main",handle_main)
+
+    total_integrals_to_store=0
     memory_usage = 0.0_dp
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
-
-
+    IF(nspins == 1) THEN
+      fac = 0.5_dp * hf_fraction
+    ELSE
+      fac = 1.0_dp * hf_fraction
+    END IF
 
     ALLOCATE(T(ncoset(max_am),&
                ncoset(max_am),&
@@ -665,6 +676,7 @@ MODULE four_center_integrals
                     IF(max_val2<eps_schwarz) CYCLE
                     
                     current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+                    total_integrals_to_store=total_integrals_to_store+current_counter
                     mem_flag = .FALSE.
                     IF( integral_counter + current_counter<= number_of_precalc_integrals) THEN
                       ALLOCATE(primitive_integrals(ncoa,ncob,ncoc,ncod),STAT=stat)
@@ -881,17 +893,28 @@ MODULE four_center_integrals
     CALL mp_sum(ene_x_aa,para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
     energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
+
+    CALL timestop(handle_main)
     
     iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
              extension=".scfLog",error=error)
+    total_integrals_to_store_max=total_integrals_to_store
+    total_integrals_to_store_aver=(total_integrals_to_store+para_env%num_pe-1)/(para_env%num_pe)
+    CALL mp_max(total_integrals_to_store_max,para_env%group)
+    CALL mp_sum(total_integrals_to_store_aver,para_env%group)
+
     IF (iw>0) then
       IF(memory_usage < integral_counter * dp_size /1024_dp/1024_dp) THEN
         memory_usage = integral_counter * dp_size /1024_dp/1024_dp
       END IF
       WRITE (UNIT=iw,FMT="(/,(T3,A,T60,F20.10))")&
                "Memory used for x_buffer [MB]:                 ",memory_usage
-      WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
+      WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                "Number of integrals stored in buffer:          ",integral_counter-1
+      WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+               "Maximum number of elements to store:          ",total_integrals_to_store_max
+      WRITE (UNIT=iw,FMT="((T3,A,T60,I20),/)")&
+               "Average number of elements to store:          ",total_integrals_to_store_aver
     END IF
     CALL cp_print_key_finished_output(iw,logger,hf_section,&
                                       "HF_INFO", error=error)
