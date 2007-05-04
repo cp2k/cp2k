@@ -598,7 +598,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ih, iw, j, n_colvar, &
-                                                n_step, ndum, stat
+                                                n_step, ndum, stat, Fpr
     INTEGER, POINTER                         :: n_hills
     LOGICAL                                  :: explicit, failure
     REAL(dp)                                 :: dfunc, dp2, rval
@@ -761,19 +761,24 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
+       ! Print Hills file
+       CALL section_vals_val_get(meta_env%metadyn_section,"PRINT%HILLS%EACH",i_val=Fpr,&
+            error=error)
+       IF (MOD(n_hills,Fpr)==0) THEN
+          iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
+               "PRINT%HILLS",extension=".metadynLog",ignore_should_output=.TRUE.,&
+               error=error)
+          IF (iw>0) THEN
+             WRITE(iw,'(f12.1,30f13.5)')&
+                  meta_env%dt*meta_env%n_steps,  &
+                  (hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
+                  (hills_env%delta_s_history(ih,n_hills),ih=1,n_colvar),&
+                  hills_env%ww_history(n_hills)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
+               "PRINT%HILLS", ignore_should_output=.TRUE., error=error)
+       END IF
     END IF
-    ! Print Hills file
-    iw = cp_print_key_unit_nr(logger,meta_env%metadyn_section,&
-         "PRINT%HILLS",extension=".metadynLog",error=error)
-    IF ((iw>0).AND.(n_hills>0)) THEN
-       WRITE(iw,'(f12.1,30f13.5)')&
-            meta_env%dt*meta_env%n_steps,  &
-            (hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
-            (hills_env%delta_s_history(ih,n_hills),ih=1,n_colvar),&
-            hills_env%ww_history(n_hills)
-    END IF
-    CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
-         "PRINT%HILLS", error=error)
     !
     ! Forces from the hills
     !
