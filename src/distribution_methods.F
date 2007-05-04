@@ -53,7 +53,9 @@ MODULE distribution_methods
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
-  USE input_constants,                 ONLY: model_block_count,model_block_surface, model_block_lmax
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE input_constants,                 ONLY: model_block_count,model_block_surface, model_block_lmax, model_block_hfx
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -488,7 +490,7 @@ CONTAINS
     INTEGER :: group, iatom, iatom_mol, imol, imolecule, imolecule_kind, &
       iparticle_kind, ipcol, iprow, istat, iw, kind_a, mypcol, myprow, n, &
       natom, natom_mol, nele, nmolecule, nmolecule_kind, nparticle_kind, &
-      npcol, nprow, output_unit
+      npcol, nprow, output_unit, handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_ele, nparticle_local_col, &
                                                 nparticle_local_row, row_ele, &
                                                 work
@@ -506,6 +508,8 @@ CONTAINS
                                                 mc_section
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
 
@@ -602,8 +606,13 @@ CONTAINS
        !
        ! have the cost model provide the costs for each atomic block
        !
+       output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
+                                                            extension=".Log",error=error)
        CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                                                   molecule_kind_set,molecule_set,error=error)
+                                                   molecule_kind_set,molecule_set,output_unit,error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+                                             "PRINT%DISTRIBUTION",error=error)
+
 
        !
        ! optimize the distribution
@@ -784,6 +793,8 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_col")
 
+    CALL timestop(handle)
+
   END SUBROUTINE distribute_molecules_2d
 
 !!****f* distribution_methods/distribute_2d_cost_model *
@@ -802,7 +813,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                                                molecule_kind_set,molecule_set,error)
+                                                molecule_kind_set,molecule_set,output_unit,error)
 
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: cost_ele_pair
     TYPE(section_vals_type), POINTER         :: distribution_section
@@ -814,6 +825,7 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_cost_model', &
@@ -821,9 +833,9 @@ CONTAINS
 
     LOGICAL :: molecular_distribution,symmetric,include_ab,failure
 
-    INTEGER :: nmolecule_kind, cost_block_ab,iparticle,cost_model,natom
-    INTEGER :: imol_a,imolecule_kind_a,natom_mol_a,imolecule_a,iatom_mol_a,iatom_a
-    INTEGER :: imol_b,imolecule_kind_b,natom_mol_b,imolecule_b,iatom_mol_b,iatom_b
+    INTEGER :: nmolecule_kind, cost_block_ab,iparticle,cost_model,natom, handle
+    INTEGER :: imol_a,imolecule_kind_a,natom_mol_a,imolecule_a,iatom_mol_a,iatom_a,ishell_a
+    INTEGER :: imol_b,imolecule_kind_b,natom_mol_b,imolecule_b,iatom_mol_b,iatom_b,ishell_b
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_a
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_b
     INTEGER, DIMENSION(:), POINTER           :: molecule_list_a, &
@@ -832,6 +844,13 @@ CONTAINS
     INTEGER, POINTER, DIMENSION(:)           :: lmax_basis
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lmax
     TYPE(gto_basis_set_type), POINTEr        :: orb_basis_set
+    TYPE my_store_type
+       INTEGER, POINTER, DIMENSION(:) :: nsgf
+    END TYPE my_store_type
+    TYPE(my_store_type), ALLOCATABLE, DIMENSION(:) :: nsgf_all
+    CHARACTER(LEN=20) :: cost_model_used
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     cost_ele_pair = 0
@@ -842,6 +861,30 @@ CONTAINS
     CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
     CALL section_vals_val_get(distribution_section,"SYMMETRIC",l_val=symmetric,error=error)
 
+    IF (output_unit>0) THEN
+        ! Cost Model (CM) info
+        WRITE(output_unit,'(T2,A)') ""
+        WRITE(output_unit,'(T2,A)') "2D_CM| distribution_2d cost model info"
+        WRITE(output_unit,'(T2,A,T78,A)') "2D_CM| molecular_distribution ",MERGE("YES"," NO",molecular_distribution)
+        WRITE(output_unit,'(T2,A,T78,A)') "2D_CM| account for symmetry ",MERGE("YES"," NO",symmetric)
+
+        cost_model_used="UNKNOWN"
+        SELECT CASE(cost_model)
+        CASE(model_block_count)
+             cost_model_used="BLOCK COUNT"
+        CASE(model_block_surface)
+             cost_model_used="BLOCK SURFACE"
+        CASE(model_block_lmax)
+             cost_model_used="BLOCK LMAX"
+        CASE(model_block_hfx)
+             cost_model_used="BLOCK HFX"
+        CASE DEFAULT
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END SELECT
+
+        WRITE(output_unit,'(T2,A,T61,A)') "2D_CM| cost model ",ADJUSTR(cost_model_used)
+    ENDIF
+
     SELECT CASE(cost_model)
     CASE(model_block_count)
        ! do nothing
@@ -851,11 +894,17 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=nsgf(iparticle))
        ENDDO
     CASE(model_block_lmax)
-       ALLOCATE(lmax(natom))
+        ALLOCATE(lmax(natom))
+        DO iparticle=1,natom
+           CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,orb_basis_set=orb_basis_set)
+           CALL get_gto_basis_set(orb_basis_set,lmax=lmax_basis)
+           lmax(iparticle)=MAXVAL(lmax_basis)
+        ENDDO
+    CASE(model_block_hfx)
+       ALLOCATE(nsgf_all(natom))
        DO iparticle=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(orb_basis_set,lmax=lmax_basis)
-          lmax(iparticle)=MAXVAL(lmax_basis)
+          CALL get_gto_basis_set(orb_basis_set,nsgf_set=nsgf_all(iparticle)%nsgf)
        ENDDO
     END SELECT
 
@@ -901,6 +950,13 @@ CONTAINS
                              cost_block_ab = nsgf(iatom_a)*nsgf(iatom_b)
                          CASE(model_block_lmax)
                              cost_block_ab = lmax(iatom_a)+lmax(iatom_b)+1
+                         CASE(model_block_hfx)
+                             cost_block_ab=0
+                             DO ishell_a=LBOUND(nsgf_all(iatom_a)%nsgf,1),UBOUND(nsgf_all(iatom_a)%nsgf,1)
+                             DO ishell_b=LBOUND(nsgf_all(iatom_b)%nsgf,1),UBOUND(nsgf_all(iatom_b)%nsgf,1)
+                                cost_block_ab=cost_block_ab+nsgf_all(iatom_a)%nsgf(ishell_a) * nsgf_all(iatom_b)%nsgf(ishell_b)
+                             ENDDO
+                             ENDDO
                          CASE DEFAULT
                              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                          END SELECT
@@ -921,6 +977,8 @@ CONTAINS
           ENDDO ! iatom_mol_a
        ENDDO ! imolecule_a
     ENDDO ! imolecule_kind_a
+
+    CALL timestop(handle)
 
   END SUBROUTINE distribute_2d_cost_model
 
