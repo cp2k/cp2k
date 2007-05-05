@@ -26,30 +26,3 @@ H2O-tpss.inp       1
 H2O-tpss_new.inp   1
 # farming
 farming.inp        0
-# isokinetic ensemble
-H2O-5.inp          1
-# the added_MOs keyword
-H2O-6.inp          1
-# tests BFGS and LBFGS and CG
-H2-geo-1.inp       1
-H2-geo-2.inp       1
-H2-geo-3.inp       1
-H2-geo-4.inp       1
-# some problems with CU
-Cu.inp             1
-# test derivatives and keywords
-H2O-debug-1.inp    1
-H2O-debug-2.inp    1
-H2O-debug-3.inp    1
-# new colvar
-C2H4-meta.inp      1
-# improved atomic_kind
-test-pdb.inp       1
-# Spin density DDAP charges
-H2O+SC.inp         0
-# spin restraint
-spin_restraint.inp 1
-#New grouping colvar
-H2O-meta_g.inp     1
-#Colvar for hydronium
-H2O-meta_hydro.inp 1
