@@ -78,5 +78,10 @@
       TIMECON 1000.
       MTS 2
     &END NOSE
+    &KG_COEFF
+      &STORAGE
+        FILENAME CMASSES
+      &END
+    &END
   &END MD
 &END MOTION
