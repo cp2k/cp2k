@@ -32,13 +32,15 @@ MODULE distribution_methods
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type, &
+                                             cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE distribution_optimize,           ONLY: distribute_2d_monte_carlo
+  USE four_center_integrals,           ONLY: compute_memory_needs
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -490,7 +492,7 @@ CONTAINS
     INTEGER :: group, iatom, iatom_mol, imol, imolecule, imolecule_kind, &
       iparticle_kind, ipcol, iprow, istat, iw, kind_a, mypcol, myprow, n, &
       natom, natom_mol, nele, nmolecule, nmolecule_kind, nparticle_kind, &
-      npcol, nprow, output_unit, handle
+      npcol, nprow, output_unit, handle, cost_model
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_ele, nparticle_local_col, &
                                                 nparticle_local_row, row_ele, &
                                                 work
@@ -505,7 +507,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(section_vals_type), POINTER         :: distribution_section, &
-                                                mc_section
+                                                mc_section, hf_section
+    REAL(KIND=dp)                            :: eps_schwarz
 
 !   ---------------------------------------------------------------------------
 
@@ -517,6 +520,14 @@ CONTAINS
     mc_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION%2D_MC",error=error)
     CALL section_vals_val_get(distribution_section,"2D_MOLECULAR_DISTRIBUTION",l_val=molecular_distribution,error=error)
     CALL section_vals_val_get(distribution_section,"SKIP_OPTIMIZATION",l_val=skip_optimization,error=error)
+
+    CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
+    IF (cost_model==model_block_hfx) THEN
+       hf_section => section_vals_get_subs_vals(force_env_section,"DFT%XC%HF",error=error)
+       CALL section_vals_val_get(hf_section,"EPS_SCHWARZ",r_val=eps_schwarz,error=error)
+    ELSE
+       eps_schwarz=0.0_dp
+    ENDIF
 
     group = blacs_env%para_env%group
     myprow = blacs_env%mepos(1) + 1
@@ -609,7 +620,7 @@ CONTAINS
        output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
                                                             extension=".Log",error=error)
        CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                                                   molecule_kind_set,molecule_set,output_unit,error=error)
+                         molecule_kind_set,molecule_set,eps_schwarz,output_unit,blacs_env%para_env,error=error)
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
                                              "PRINT%DISTRIBUTION",error=error)
 
@@ -813,7 +824,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                                                molecule_kind_set,molecule_set,output_unit,error)
+                                                molecule_kind_set,molecule_set,eps_schwarz,output_unit,para_env,error)
 
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: cost_ele_pair
     TYPE(section_vals_type), POINTER         :: distribution_section
@@ -825,7 +836,9 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    REAL(KIND=dp), INTENT(IN)                :: eps_schwarz
     INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_cost_model', &
@@ -844,11 +857,9 @@ CONTAINS
     INTEGER, POINTER, DIMENSION(:)           :: lmax_basis
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lmax
     TYPE(gto_basis_set_type), POINTEr        :: orb_basis_set
-    TYPE my_store_type
-       INTEGER, POINTER, DIMENSION(:) :: nsgf
-    END TYPE my_store_type
-    TYPE(my_store_type), ALLOCATABLE, DIMENSION(:) :: nsgf_all
+    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: memory_blocks_ab
     CHARACTER(LEN=20) :: cost_model_used
+    INTEGER, PARAMETER                       :: nscale = 1000 ! use kilointegrals
 
     CALL timeset(routineN,handle)
 
@@ -901,11 +912,8 @@ CONTAINS
            lmax(iparticle)=MAXVAL(lmax_basis)
         ENDDO
     CASE(model_block_hfx)
-       ALLOCATE(nsgf_all(natom))
-       DO iparticle=1,natom
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(orb_basis_set,nsgf_set=nsgf_all(iparticle)%nsgf)
-       ENDDO
+       ALLOCATE(memory_blocks_ab(natom,natom))
+       CALL compute_memory_needs(memory_blocks_ab,eps_schwarz,particle_set,particle_kind_set,para_env,error)
     END SELECT
 
     !
@@ -951,12 +959,8 @@ CONTAINS
                          CASE(model_block_lmax)
                              cost_block_ab = lmax(iatom_a)+lmax(iatom_b)+1
                          CASE(model_block_hfx)
-                             cost_block_ab=0
-                             DO ishell_a=LBOUND(nsgf_all(iatom_a)%nsgf,1),UBOUND(nsgf_all(iatom_a)%nsgf,1)
-                             DO ishell_b=LBOUND(nsgf_all(iatom_b)%nsgf,1),UBOUND(nsgf_all(iatom_b)%nsgf,1)
-                                cost_block_ab=cost_block_ab+nsgf_all(iatom_a)%nsgf(ishell_a) * nsgf_all(iatom_b)%nsgf(ishell_b)
-                             ENDDO
-                             ENDDO
+                             ! scale to avoid overflow
+                             cost_block_ab = ( memory_blocks_ab(iatom_a,iatom_b) + nscale - 1 ) / nscale
                          CASE DEFAULT
                              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                          END SELECT
