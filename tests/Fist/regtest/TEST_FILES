@@ -46,3 +46,6 @@ argon_nph_plastic.inp     2
 multi_psf.inp             2
 multi_frag.inp            2
 multi_frag_check.inp      2
+#only internal force field
+deca_ala_intern.inp       2
+water_intern.inp          2

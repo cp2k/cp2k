@@ -29,69 +29,44 @@
 MODULE force_fields_util
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
-  USE atoms_input,                     ONLY: read_shell_coord_input
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: Pwarning
   USE colvar_types,                    ONLY: dist_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE ewald_environment_types,         ONLY: ewald_environment_type
-  USE external_potential_types,        ONLY: elp_potential_type,&
-                                             get_potential,&
-                                             set_potential
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
-       allocate_impr_kind_set, allocate_onfo_kind_set, &
-       allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
-       bond_kind_type, charmm_info_type, deallocate_bend_kind_set, &
-       deallocate_bond_kind_set, force_field_type, gromos_info_type, &
-       impr_kind_dealloc_ref, impr_kind_type, input_info_type, &
-       onfo_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, &
-       ub_kind_dealloc_ref, ub_kind_type
-  USE input_constants,                 ONLY: do_qmmm_none
+       allocate_impr_kind_set, allocate_torsion_kind_set, &
+       allocate_ub_kind_set, bend_kind_type, bond_kind_type, &
+       charmm_info_type, deallocate_bend_kind_set, deallocate_bond_kind_set, &
+       force_field_type, gromos_info_type, impr_kind_dealloc_ref, &
+       impr_kind_type, input_info_type, torsion_kind_dealloc_ref, &
+       torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
+  USE force_fields_all,                ONLY: &
+       force_field_pack_bend, force_field_pack_bond, force_field_pack_ch, &
+       force_field_pack_impr, force_field_pack_mbse, force_field_pack_onfo, &
+       force_field_pack_pp, force_field_pack_ppse, force_field_pack_sbe, &
+       force_field_pack_sne, force_field_pack_tors, force_field_pack_ub, &
+       force_field_unique_bend, force_field_unique_bond, &
+       force_field_unique_impr, force_field_unique_onfo, &
+       force_field_unique_tors, force_field_unique_ub
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE manybody_potential,              ONLY: spline_manybody_control
-  USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        atom_type, bend_type, bond_type, colvar_constraint_type, &
        g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
-       impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
-       shell_type, torsion_type, ub_type
-  USE molecule_types_new,              ONLY: get_molecule,&
-                                             molecule_type
-  USE pair_potential,                  ONLY: get_nonbond_storage,&
-                                             spline_nonbond_control
-  USE pair_potential_types,            ONLY: &
-       ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh, nosh_sh, &
-       pair_potential_lj_create, pair_potential_pp_create, &
-       pair_potential_pp_release, pair_potential_pp_type, &
-       pair_potential_single_clean, pair_potential_single_copy, sh_sh, &
-       tersoff_type
-  USE particle_types,                  ONLY: allocate_particle_set,&
-                                             particle_type
-  USE physcon,                         ONLY: bohr
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+       impr_type, molecule_kind_type, set_molecule_kind, torsion_type, ub_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type
+  USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE shell_potential_types,           ONLY: shell_create,&
-                                             shell_kind_type,&
-                                             shell_release
-  USE splines,                         ONLY: spline_data_release,&
-                                             spline_data_retain,&
-                                             spline_data_type,&
-                                             spline_env_create,&
+  USE splines,                         ONLY: spline_data_type,&
                                              spline_env_release,&
                                              spline_environment_type
-  USE string_utilities,                ONLY: compress,&
-                                             integer_to_string,&
-                                             uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -162,62 +137,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length) :: atmname, ldum, name_atm_a, &
-      name_atm_a2, name_atm_a_local, name_atm_b, name_atm_b2, &
-      name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
-    INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, &
-      i, ii, ikind, ilink, imul, itype, iw, iw2, iw3, iw4, j, jj, jkind, k, &
-      last, match_names, n, natom, nbend, nbond, nimpr, nkinds, nmol, nonfo, &
-      nshell_tot, ntorsion, nub, output_unit, stat
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list, &
-                                                shell_list_tmp
-    INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
-      map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
-    LOGICAL :: allocate_spline_bond_env, failure, fatal, found, found_a, &
-      found_b, found_shell, ionode, is_a_shell, is_b_shell, is_link_atom, &
-      my_qmmm, null_massfrac, only_qm, shell_adiabatic, shell_present, &
-      use_qmmm_ff
-    REAL(KIND=dp)                            :: atmmass, epsilon0, epsilon_a, &
-                                                epsilon_b, qi1, qi2, qi3, &
-                                                qi4, rmin, rmin2_a, rmin2_b, &
-                                                scale_factor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(bend_kind_type), DIMENSION(:), &
-      POINTER                                :: bend_kind_set
-    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
-    TYPE(bond_kind_type), DIMENSION(:), &
-      POINTER                                :: bond_kind_set
-    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    INTEGER                                  :: handle, i, iw, iw2, iw3, iw4, &
+                                                output_unit
+    LOGICAL                                  :: failure, fatal, ionode, &
+                                                my_qmmm, shell_present
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gromos_info_type), POINTER          :: gro_info
-    TYPE(impr_kind_type), DIMENSION(:), &
-      POINTER                                :: impr_kind_set
-    TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
     TYPE(input_info_type), POINTER           :: inp_info
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(onfo_kind_type), DIMENSION(:), &
-      POINTER                                :: onfo_kind_set
-    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond, potparm_nonbond
-    TYPE(shell_kind_type), POINTER           :: shell
-    TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_environment_type), POINTER :: spline_bond_env, &
       spline_c_coul_env, spline_cs_coul_env, spline_manybody_env, &
       spline_nonbond_env, spline_sc_coul_env
-    TYPE(torsion_kind_type), DIMENSION(:), &
-      POINTER                                :: torsion_kind_set
-    TYPE(torsion_type), DIMENSION(:), &
-      POINTER                                :: torsion_list
-    TYPE(ub_kind_type), DIMENSION(:), &
-      POINTER                                :: ub_kind_set
-    TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
@@ -238,15 +172,8 @@ CONTAINS
          extension=".mmLog",error=error)
     iw4= cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".mmLog",error=error)
-    NULLIFY(atomic_kind,molecule_kind,bond_list,bend_list,&
-         torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,&
-         map_torsion_kind,bond_kind_set,bend_kind_set,ub_kind_set,&
-         onfo_kind_set,impr_kind_set,torsion_kind_set,my_atom_list,&
-         potparm_bond, potparm_nonbond,shell)
-    only_qm = .FALSE.
+    NULLIFY(potparm_bond, potparm_nonbond)
     my_qmmm = .FALSE.
-    use_qmmm_ff = qmmm_env%use_qmmm_ff
-    allocate_spline_bond_env = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
     inp_info => ff_type%inp_info
     chm_info => ff_type%chm_info
@@ -255,1899 +182,161 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. Determine the number of unique bond kind and allocate bond_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_bond1','I','',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nbond=nbond,bond_list=bond_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       IF(nbond>0) THEN
-          ALLOCATE(map_bond_kind(nbond),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
-          DO j=1,nbond
-            map_bond_kind(j)=j
-          END DO
-          counter=nbond
-         ELSE
-          DO j=1,nbond
-             atm_a = bond_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a)
-             atm_b = bond_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b)
-             found = .FALSE.
-             DO k=1,j-1
-                atm_a = bond_list(k)%a
-                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_a2)
-                atm_b = bond_list(k)%b
-                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_b2)
-                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2))) .OR. &
-                     (((name_atm_a)==(name_atm_b2)) .AND. &
-                     ((name_atm_b)==(name_atm_a2))) ) THEN
-                   found = .TRUE.
-                   map_bond_kind(j) = map_bond_kind(k)
-                   EXIT
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                counter=counter+1
-                map_bond_kind(j) = counter
-             END IF
-          END DO
-         END IF
-          NULLIFY(bond_kind_set)
-          CALL allocate_bond_kind_set(bond_kind_set,counter,error)
-          DO j=1,nbond
-             bond_list(j)%bond_kind => bond_kind_set(map_bond_kind(j))
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               bond_kind_set=bond_kind_set,bond_list=bond_list)
-          DEALLOCATE(map_bond_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-    CALL timestop(handle2)
+    CALL  force_field_unique_bond (particle_set, molecule_kind_set, molecule_set, &
+         ff_type, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Determine the number of unique bend kind and allocate bend_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_bend1',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nbend=nbend,bend_list=bend_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       IF(nbend>0) THEN
-          ALLOCATE(map_bend_kind(nbend),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
-          DO j=1,nbend
-            map_bend_kind(j)=j
-          END DO
-          counter=nbend
-         ELSE
-          DO j=1,nbend
-             atm_a = bend_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a)
-             atm_b = bend_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b)
-             atm_c = bend_list(j)%c
-             atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_c)
-             found = .FALSE.
-             DO k=1,j-1
-                atm_a = bend_list(k)%a
-                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_a2)
-                atm_b = bend_list(k)%b
-                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_b2)
-                atm_c = bend_list(k)%c
-                atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_c2)
-                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2)) .AND. &
-                     ((name_atm_c)==(name_atm_c2))) .OR. &
-                     (((name_atm_a)==(name_atm_c2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2)) .AND. &
-                     ((name_atm_c)==(name_atm_a2))) ) THEN
-                   found = .TRUE.
-                   map_bend_kind(j) = map_bend_kind(k)
-                   EXIT
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                counter=counter+1
-                map_bend_kind(j) = counter
-             END IF
-          END DO
-         END IF
-          NULLIFY(bend_kind_set)
-          CALL allocate_bend_kind_set(bend_kind_set,counter,error)
-          DO j=1,nbend
-             bend_list(j)%bend_kind => bend_kind_set(map_bend_kind(j))
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               bend_kind_set=bend_kind_set,bend_list=bend_list)
-          DEALLOCATE(map_bend_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_unique_bend (particle_set, molecule_kind_set, molecule_set, &
+         ff_type, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_UB1',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nub=nub,ub_list=ub_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       IF(nub>0) THEN
-          ALLOCATE(map_ub_kind(nub),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          counter=0
-          DO j=1,nub
-             atm_a = ub_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a)
-             atm_b = ub_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b)
-             atm_c = ub_list(j)%c
-             atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_c)
-             found = .FALSE.
-             DO k=1,j-1
-                atm_a = ub_list(k)%a
-                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_a2)
-                atm_b = ub_list(k)%b
-                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_b2)
-                atm_c = ub_list(k)%c
-                atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_c2)
-                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2)) .AND. &
-                     ((name_atm_c)==(name_atm_c2))) .OR. &
-                     (((name_atm_a)==(name_atm_c2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2)) .AND. &
-                     ((name_atm_c)==(name_atm_a2))) ) THEN
-                   found = .TRUE.
-                   map_ub_kind(j) = map_ub_kind(k)
-                   EXIT
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                counter=counter+1
-                map_ub_kind(j) = counter
-             END IF
-          END DO
-          CALL allocate_ub_kind_set(ub_kind_set,counter,error)
-          DO j=1,nub
-             ub_list(j)%ub_kind => ub_kind_set(map_ub_kind(j))
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               ub_kind_set=ub_kind_set,ub_list=ub_list)
-          DEALLOCATE(map_ub_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_unique_ub (particle_set, molecule_kind_set, molecule_set,   &
+         error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Determine the number of unique torsion kind and allocate torsion_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_torsion1',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            ntorsion=ntorsion,torsion_list=torsion_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       IF(ntorsion>0) THEN
-          ALLOCATE(map_torsion_kind(ntorsion),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
-          DO j=1,ntorsion
-            map_torsion_kind(j)=j
-          END DO
-          counter=ntorsion
-         ELSE
-          DO j=1,ntorsion
-             atm_a = torsion_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a)
-             atm_b = torsion_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b)
-             atm_c = torsion_list(j)%c
-             atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_c)
-             atm_d = torsion_list(j)%d
-             atomic_kind => particle_set(atm_d+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_d)
-             found = .FALSE.
-             DO k=1,j-1
-                atm_a = torsion_list(k)%a
-                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_a2)
-                atm_b = torsion_list(k)%b
-                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_b2)
-                atm_c = torsion_list(k)%c
-                atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_c2)
-                atm_d = torsion_list(k)%d
-                atomic_kind => particle_set(atm_d+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_d2)
-                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2)) .AND. &
-                     ((name_atm_c)==(name_atm_c2)) .AND. &
-                     ((name_atm_d)==(name_atm_d2))) .OR. &
-                     (((name_atm_a)==(name_atm_d2)) .AND. &
-                     ((name_atm_b)==(name_atm_c2)) .AND. &
-                     ((name_atm_c)==(name_atm_b2)) .AND. &
-                     ((name_atm_d)==(name_atm_a2))) ) THEN
-                   found = .TRUE.
-                   map_torsion_kind(j) = map_torsion_kind(k)
-                   EXIT
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                counter=counter+1
-                map_torsion_kind(j) = counter
-             END IF
-          END DO
-         END IF
-          NULLIFY(torsion_kind_set)
-          CALL allocate_torsion_kind_set(torsion_kind_set,counter,error)
-          DO j=1,ntorsion
-             torsion_list(j)%torsion_kind => torsion_kind_set(map_torsion_kind(j))
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               torsion_kind_set=torsion_kind_set,torsion_list=torsion_list)
-          DEALLOCATE(map_torsion_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_unique_tors (particle_set, molecule_kind_set, molecule_set, &
+         ff_type, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Determine the number of unique impr kind and allocate impr_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_impr1',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nimpr=nimpr,impr_list=impr_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       IF(nimpr>0) THEN
-          ALLOCATE(map_impr_kind(nimpr),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          counter=0
-         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
-          DO j=1,nimpr
-            map_impr_kind(j)=j
-          END DO
-          counter=nimpr
-         ELSE
-          DO j=1,nimpr
-             atm_a = impr_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a)
-             atm_b = impr_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b)
-             atm_c = impr_list(j)%c
-             atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_c)
-             atm_d = impr_list(j)%d
-             atomic_kind => particle_set(atm_d+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_d)
-             found = .FALSE.
-             DO k=1,j-1
-                atm_a = impr_list(k)%a
-                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_a2)
-                atm_b = impr_list(k)%b
-                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_b2)
-                atm_c = impr_list(k)%c
-                atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_c2)
-                atm_d = impr_list(k)%d
-                atomic_kind => particle_set(atm_d+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_d2)
-                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2)) .AND. &
-                     ((name_atm_c)==(name_atm_c2)) .AND. &
-                     ((name_atm_d)==(name_atm_d2))) .OR. &
-                     (((name_atm_a)==(name_atm_d2)) .AND. &
-                     ((name_atm_b)==(name_atm_c2)) .AND. &
-                     ((name_atm_c)==(name_atm_b2)) .AND. &
-                     ((name_atm_d)==(name_atm_a2))) ) THEN
-                   found = .TRUE.
-                   map_impr_kind(j) = map_impr_kind(k)
-                   EXIT
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                counter=counter+1
-                map_impr_kind(j) = counter
-             END IF
-          END DO
-         END IF
-          NULLIFY(impr_kind_set)
-          CALL allocate_impr_kind_set(impr_kind_set,counter,error)
-          DO j=1,nimpr
-             impr_list(j)%impr_kind => impr_kind_set(map_impr_kind(j))
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               impr_kind_set=impr_kind_set,impr_list=impr_list)
-          DEALLOCATE(map_impr_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_unique_impr (particle_set, molecule_kind_set, molecule_set, &
+         ff_type, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Determine the number of unique onfo kind and allocate onfo_kind_set
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_onfo1',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nonfo=nonfo,onfo_list=onfo_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       IF(nonfo>0) THEN
-          ALLOCATE(map_onfo_kind(nonfo),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          counter=0
-          DO j=1,nonfo
-             atm_a = onfo_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a,qeff=qi1)
-             atm_b = onfo_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b,qeff=qi2)
-             found = .FALSE.
-             DO k=1,j-1
-                atm_a = onfo_list(k)%a
-                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_a2,qeff=qi3)
-                atm_b = onfo_list(k)%b
-                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_b2,qeff=qi4)
-                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2))) .OR. &
-                     (((name_atm_a)==(name_atm_b2)) .AND. &
-                     ((name_atm_b)==(name_atm_a2))) ) THEN
-                   IF(((qi1==qi3).AND.(qi2==qi4)).OR.((qi1==qi4).AND.(qi2==qi3)))THEN
-                      found = .TRUE.
-                      map_onfo_kind(j) = map_onfo_kind(k)
-                      EXIT
-                   END IF
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                counter=counter+1
-                map_onfo_kind(j) = counter
-             END IF
-          END DO
-          CALL allocate_onfo_kind_set(onfo_kind_set,counter,error)
-          DO j=1,nonfo
-             onfo_list(j)%onfo_kind => onfo_kind_set(map_onfo_kind(j))
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               onfo_kind_set=onfo_kind_set,onfo_list=onfo_list)
-          DEALLOCATE(map_onfo_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_unique_onfo (particle_set, molecule_kind_set,&
+         molecule_set, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 7. BONDS
+    ! 7. Bonds
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_bonds2',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nbond=nbond,bond_list=bond_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       DO j=1,nbond
-          atm_a = bond_list(j)%a
-          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_a)
-          atm_b = bond_list(j)%b
-          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_b)
-          found = .FALSE.
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
-
-          ! loop over params from gromos
-          IF(ASSOCIATED(gro_info%bond_k)) THEN
-             k=SIZE(gro_info%bond_k)
-             READ(bond_list(j)%name(6:80),*) itype
-             IF(itype<=k) THEN
-               bond_list(j)%bond_kind%k(1) = gro_info%bond_k(itype)
-               bond_list(j)%bond_kind%r0   = gro_info%bond_r0(itype)
-               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%name = "G96"
-               IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
-               found = .TRUE.
-             ELSE
-               !k=SIZE(gro_info%solvent_k)
-               !bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype/k)
-               !bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype/k)
-               itype=itype-k
-               bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
-               bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype)
-               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%name = "G96"
-               IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
-               IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
-               found = .TRUE.
-             END IF
-          END IF
-
-          ! loop over params from charmm
-          IF(ASSOCIATED(chm_info%bond_a)) THEN
-             DO k=1,SIZE(chm_info%bond_a)
-                IF( (((chm_info%bond_a(k))==(name_atm_a)) .AND. &
-                     ((chm_info%bond_b(k))==(name_atm_b))) .OR. &
-                     (((chm_info%bond_a(k))==(name_atm_b)) .AND. &
-                     ((chm_info%bond_b(k))==(name_atm_a))) ) THEN
-                   bond_list(j)%bond_kind%name = "CHARMM"
-                   bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
-                   bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
-                   IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-
-          ! always have the input param last to overwrite all the other ones
-          IF(ASSOCIATED(inp_info%bond_a)) THEN
-             DO k=1,SIZE(inp_info%bond_a)
-                IF( (((inp_info%bond_a(k))==(name_atm_a)) .AND. &
-                     ((inp_info%bond_b(k))==(name_atm_b))) .OR. &
-                     (((inp_info%bond_a(k))==(name_atm_b)) .AND. &
-                     ((inp_info%bond_b(k))==(name_atm_a))) ) THEN
-                   bond_list(j)%bond_kind%name = inp_info%bond_kind(k)
-                   bond_list(j)%bond_kind%k(:) = inp_info%bond_k(:,k)
-                   bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
-                   IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-
-          IF(.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                                   atm2=TRIM(name_atm_b),&
-                                                   fatal=fatal,&
-                                                   type_name="Bond",&
-                                                   array=Ainfo,&
-                                                   error=error)
-          !
-          ! QM/MM modifications
-          !
-          IF (only_qm) THEN
-             bond_list(j)%name           = "UNSET"
-             bond_list(j)%bond_kind%name = "UNSET"
-          END IF
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            bond_list=bond_list)
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_pack_bond (particle_set, molecule_kind_set, molecule_set,   &
+         ff_type, root_section, fatal, Ainfo, chm_info, inp_info, gro_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 8. BENDS
+    ! 8. Bends
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_bends2',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nbend=nbend,bend_list=bend_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       DO j=1,nbend
-          atm_a = bend_list(j)%a
-          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_a)
-          atm_b = bend_list(j)%b
-          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_b)
-          atm_c = bend_list(j)%c
-          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_c)
-          found = .FALSE.
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
-          CALL uppercase(name_atm_c)
-
-          ! loop over params from GROMOS
-          IF(ASSOCIATED(gro_info%bend_k)) THEN
-             k=SIZE(gro_info%bend_k)
-             READ(bend_list(j)%name(6:80),*) itype
-             IF(itype>0) THEN
-               bend_list(j)%bend_kind%k      = gro_info%bend_k(itype)
-               bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype)
-               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%name   = "G96"
-               IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
-               found = .TRUE.
-             ELSE
-               bend_list(j)%bend_kind%k      = gro_info%bend_k(itype/k)
-               bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype/k)
-               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%name   = "G96"
-               IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
-               IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
-               found = .TRUE.
-             END IF
-          END IF
-
-          ! loop over params from CHARMM
-          IF(ASSOCIATED(chm_info%bend_a)) THEN
-             DO k=1,SIZE(chm_info%bend_a)
-                IF( (((chm_info%bend_a(k))==(name_atm_a)) .AND. &
-                     ((chm_info%bend_b(k))==(name_atm_b)) .AND. &
-                     ((chm_info%bend_c(k))==(name_atm_c))) .OR. &
-                     (((chm_info%bend_a(k))==(name_atm_c)) .AND. &
-                     ((chm_info%bend_b(k))==(name_atm_b)) .AND. &
-                     ((chm_info%bend_c(k))==(name_atm_a))) ) THEN
-                   bend_list(j)%bend_kind%name   = "CHARMM"
-                   bend_list(j)%bend_kind%k      = chm_info%bend_k(k)
-                   bend_list(j)%bend_kind%theta0 = chm_info%bend_theta0(k)
-                   IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-
-          ! always have the input param last to overwrite all the other ones
-          IF(ASSOCIATED(inp_info%bend_a)) THEN
-             DO k=1,SIZE(inp_info%bend_a)
-                IF( (((inp_info%bend_a(k))==(name_atm_a)) .AND. &
-                     ((inp_info%bend_b(k))==(name_atm_b)) .AND. &
-                     ((inp_info%bend_c(k))==(name_atm_c))) .OR. &
-                     (((inp_info%bend_a(k))==(name_atm_c)) .AND. &
-                     ((inp_info%bend_b(k))==(name_atm_b)) .AND. &
-                     ((inp_info%bend_c(k))==(name_atm_a))) ) THEN
-                   bend_list(j)%bend_kind%name   = inp_info%bend_kind(k)
-                   bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
-                   bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
-                   IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-
-          IF(.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                                   atm2=TRIM(name_atm_b),&
-                                                   atm3=TRIM(name_atm_c),&
-                                                   fatal=fatal,&
-                                                   type_name="Angle",&
-                                                   array=Ainfo,&
-                                                   error=error)
-          !
-          ! QM/MM modifications
-          !
-          IF (only_qm) THEN
-             bend_list(j)%name           = "UNSET"
-             bend_list(j)%bend_kind%name = "UNSET"
-          END IF
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            bend_list=bend_list)
-    END DO
+    CALL force_field_pack_bend (particle_set, molecule_kind_set, molecule_set,   &
+         ff_type, root_section, fatal, Ainfo, chm_info, inp_info, gro_info, error)
     ! Give information and abort if any bond or angle parameter is missing..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
-    CALL timestop(handle2)
+    
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 9. Urey-Bradley
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_UB2',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nub=nub,ub_list=ub_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       DO j=1,nub
-          atm_a = ub_list(j)%a
-          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_a)
-          atm_b = ub_list(j)%b
-          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_b)
-          atm_c = ub_list(j)%c
-          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_c)
-          found = .FALSE.
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
-          CALL uppercase(name_atm_c)
-
-          ! loop over params from GROMOS
-          ! ikuo - None that I know...
-
-          ! loop over params from charmm
-          IF(ASSOCIATED(chm_info%ub_a)) THEN
-             DO k=1,SIZE(chm_info%ub_a)
-                IF( (((chm_info%ub_a(k))==(name_atm_a)) .AND. &
-                     ((chm_info%ub_b(k))==(name_atm_b)) .AND. &
-                     ((chm_info%ub_c(k))==(name_atm_c))) .OR. &
-                     (((chm_info%ub_a(k))==(name_atm_c)) .AND. &
-                     ((chm_info%ub_b(k))==(name_atm_b)) .AND. &
-                     ((chm_info%ub_c(k))==(name_atm_a))) ) THEN
-                   ub_list(j)%ub_kind%name   = "CHARMM"
-                   ub_list(j)%ub_kind%k(1)   = chm_info%ub_k(k)
-                   ub_list(j)%ub_kind%r0     = chm_info%ub_r0(k)
-                   IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
-                        TRIM(name_atm_b)," ",TRIM(name_atm_c)
-                   IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-
-          ! always have the input param last to overwrite all the other ones
-          IF(ASSOCIATED(inp_info%ub_a)) THEN
-             DO k=1,SIZE(inp_info%ub_a)
-                IF( (((inp_info%ub_a(k))==(name_atm_a)) .AND. &
-                     ((inp_info%ub_b(k))==(name_atm_b)) .AND. &
-                     ((inp_info%ub_c(k))==(name_atm_c))) .OR. &
-                    (((inp_info%ub_a(k))==(name_atm_c)) .AND. &
-                     ((inp_info%ub_b(k))==(name_atm_b)) .AND. &
-                     ((inp_info%ub_c(k))==(name_atm_a))) ) THEN
-                   ub_list(j)%ub_kind%name   = inp_info%ub_kind(k)
-                   ub_list(j)%ub_kind%k(:)   = inp_info%ub_k(:,k)
-                   ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
-                   IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-
-          IF(.NOT.found) THEN
-             CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                       atm2=TRIM(name_atm_b),&
-                                       atm3=TRIM(name_atm_c),&
-                                       type_name="Urey-Bradley",&
-                                       array=Ainfo,&
-                                       error=error)
-             ub_list(j)%name           = "UNSET"
-             ub_list(j)%ub_kind%name   = "UNSET"
-             ub_list(j)%ub_kind%k      = 0.0_dp
-             ub_list(j)%ub_kind%r0     = 0.0_dp
-          END IF
-          !
-          ! QM/MM modifications
-          !
-          IF (only_qm) THEN
-             ub_list(j)%name         = "UNSET"
-             ub_list(j)%ub_kind%name = "UNSET"
-          END IF
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            ub_list=ub_list)
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_pack_ub (particle_set, molecule_kind_set, molecule_set,     &
+         root_section, Ainfo, chm_info, inp_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 10. TORSION
+    ! 10. Torsions
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_torsion2',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            ntorsion=ntorsion,torsion_list=torsion_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       DO j=1,ntorsion
-          IF(torsion_list(j)%torsion_kind%name == "UNDEF") THEN
-             atm_a = torsion_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a)
-             atm_b = torsion_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b)
-             atm_c = torsion_list(j)%c
-             atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_c)
-             atm_d = torsion_list(j)%d
-             atomic_kind => particle_set(atm_d+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_d)
-             found = .FALSE.
-             only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
-             CALL uppercase(name_atm_a)
-             CALL uppercase(name_atm_b)
-             CALL uppercase(name_atm_c)
-             CALL uppercase(name_atm_d)
-
-             ! loop over params from GROMOS
-             IF(ASSOCIATED(gro_info%torsion_k)) THEN
-               k=SIZE(gro_info%torsion_k)
-               READ(torsion_list(j)%name(6:80),*) itype
-               IF(itype>0) THEN
-                 CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
-                 torsion_list(j)%torsion_kind%nmul   = 1
-                 torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype)
-                 torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype)
-                 torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype)
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
-                 found = .TRUE.
-               ELSE
-                 CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
-                 CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
-                 torsion_list(j)%torsion_kind%nmul   = 1
-                 torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype/k)
-                 torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
-                 torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
-                 IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
-                 IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
-                 found = .TRUE.
-               END IF
-             END IF
-
-             ! loop over params from CHARMM
-             IF(ASSOCIATED(chm_info%torsion_a)) THEN
-                DO k=1,SIZE(chm_info%torsion_a)
-                   IF( (((chm_info%torsion_a(k))==(name_atm_a)) .AND. &
-                        ((chm_info%torsion_b(k))==(name_atm_b)) .AND. &
-                        ((chm_info%torsion_c(k))==(name_atm_c)) .AND. &
-                        ((chm_info%torsion_d(k))==(name_atm_d))) .OR. &
-                       (((chm_info%torsion_a(k))==(name_atm_d)) .AND. &
-                        ((chm_info%torsion_b(k))==(name_atm_c)) .AND. &
-                        ((chm_info%torsion_c(k))==(name_atm_b)) .AND. &
-                        ((chm_info%torsion_d(k))==(name_atm_a))) ) THEN
-                      imul = torsion_list(j)%torsion_kind%nmul + 1
-                      CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
-                      CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
-                      torsion_list(j)%torsion_kind%name    = "CHARMM"
-                      torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
-                      torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
-                      torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
-                      torsion_list(j)%torsion_kind%nmul = imul
-                      found = .TRUE.
-                   END IF
-                END DO
-
-                IF(.NOT.found) THEN
-                   DO k=1,SIZE(chm_info%torsion_a)
-                      IF( (((chm_info%torsion_a(k))==("X")) .AND. &
-                           ((chm_info%torsion_b(k))==(name_atm_b)) .AND. &
-                           ((chm_info%torsion_c(k))==(name_atm_c)) .AND. &
-                           ((chm_info%torsion_d(k))==("X"))) .OR. &
-                           (((chm_info%torsion_a(k))==("X")) .AND. &
-                           ((chm_info%torsion_b(k))==(name_atm_c)) .AND. &
-                           ((chm_info%torsion_c(k))==(name_atm_b)) .AND. &
-                           ((chm_info%torsion_d(k))==("X"))) ) THEN
-                         imul = torsion_list(j)%torsion_kind%nmul + 1
-                         CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
-                         CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                         CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
-                         torsion_list(j)%torsion_kind%name    = "CHARMM"
-                         torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
-                         torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
-                         torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
-                         torsion_list(j)%torsion_kind%nmul = imul
-                         found = .TRUE.
-                      END IF
-                   END DO
-                END IF
-             END IF
-             ! always have the input param last to overwrite all the other ones
-             IF(ASSOCIATED(inp_info%torsion_a)) THEN
-                DO k=1,SIZE(inp_info%torsion_a)
-                   IF( (((inp_info%torsion_a(k))==(name_atm_a)) .AND. &
-                        ((inp_info%torsion_b(k))==(name_atm_b)) .AND. &
-                        ((inp_info%torsion_c(k))==(name_atm_c)) .AND. &
-                        ((inp_info%torsion_d(k))==(name_atm_d))) .OR. &
-                        (((inp_info%torsion_a(k))==(name_atm_d)) .AND. &
-                        ((inp_info%torsion_b(k))==(name_atm_c)) .AND. &
-                        ((inp_info%torsion_c(k))==(name_atm_b)) .AND. &
-                        ((inp_info%torsion_d(k))==(name_atm_a))) ) THEN
-                      imul = torsion_list(j)%torsion_kind%nmul + 1
-                      CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
-                      CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
-                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
-                      torsion_list(j)%torsion_kind%name    = inp_info%torsion_kind(k)
-                      torsion_list(j)%torsion_kind%k(imul) = inp_info%torsion_k(k)
-                      torsion_list(j)%torsion_kind%m(imul) = inp_info%torsion_m(k)
-                      torsion_list(j)%torsion_kind%cosphi0(imul) = COS(inp_info%torsion_cosphi0(k))
-                      torsion_list(j)%torsion_kind%nmul    = imul
-                      found = .TRUE.
-                   END IF
-                END DO
-             END IF
-
-             IF(.NOT.found) THEN
-                CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                          atm2=TRIM(name_atm_b),&
-                                          atm3=TRIM(name_atm_c),&
-                                          atm4=TRIM(name_atm_c),&
-                                          type_name="Torsion",&
-                                          array=Ainfo,&
-                                          error=error)
-                torsion_list(j)%torsion_kind%name = "UNSET"
-                torsion_list(j)%name              = "UNSET"
-             ELSE
-                ldum = cp_to_string(imul)
-                IF ((imul /= 1).AND.(iw>0))&
-                     WRITE(iw,'(/,2("UTIL_INFO| ",A,/))')&
-                     "Multiple Torsion declarations: "//TRIM(name_atm_a)//&
-                     ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d),&
-                     "Present torsion multiplicity "//TRIM(ldum)//" ."
-             END IF
-             !
-             ! QM/MM modifications
-             !
-             IF (only_qm) THEN
-                IF (iw>0) WRITE(iw,*)"    Torsion PARAM between QM atoms ",j," : ",&
-                     TRIM(name_atm_a)," ",&
-                     TRIM(name_atm_b)," ",&
-                     TRIM(name_atm_c)," ",&
-                     TRIM(name_atm_d)," ",&
-                     torsion_list(j)%a,&
-                     torsion_list(j)%b,&
-                     torsion_list(j)%c,&
-                     torsion_list(j)%d
-                torsion_list(j)%torsion_kind%name = "UNSET"
-                torsion_list(j)%name              = "UNSET"
-             END IF
-          END IF
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            torsion_list=torsion_list)
-    END DO
-    CALL timestop(handle2)
+    CALL force_field_pack_tors (particle_set, molecule_kind_set, molecule_set,   &
+         ff_type, Ainfo, chm_info, inp_info, gro_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 11. IMPROPERS
+    ! 11. Impropers
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_impr2',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nimpr=nimpr,impr_list=impr_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       DO j=1,nimpr
-          atm_a = impr_list(j)%a
-          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_a)
-          atm_b = impr_list(j)%b
-          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_b)
-          atm_c = impr_list(j)%c
-          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_c)
-          atm_d = impr_list(j)%d
-          atomic_kind => particle_set(atm_d+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_d)
-          found = .FALSE.
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
-          CALL uppercase(name_atm_c)
-          CALL uppercase(name_atm_d)
-
-          ! loop over params from GROMOS
-          IF(ASSOCIATED(gro_info%impr_k)) THEN
-            k=SIZE(gro_info%impr_k)
-            READ(impr_list(j)%name(6:80),*) itype
-            IF(itype>0) THEN
-              impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
-              impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
-              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%name = "G96"
-              IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
-              found = .TRUE.
-            ELSE
-              impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
-              impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
-              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%name = "G96"
-              IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
-              IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
-              found = .TRUE.
-            END IF
-          END IF
-
-
-          ! loop over params from charmm
-          IF(ASSOCIATED(chm_info%impr_a)) THEN
-             DO k=1,SIZE(chm_info%impr_a)
-                IF( (((chm_info%impr_a(k))==(name_atm_a)) .AND. &
-                     ((chm_info%impr_b(k))==(name_atm_b)) .AND. &
-                     ((chm_info%impr_c(k))==(name_atm_c)) .AND. &
-                     ((chm_info%impr_d(k))==(name_atm_d))) .OR. &
-                     (((chm_info%impr_a(k))==(name_atm_d)) .AND. &
-                     ((chm_info%impr_b(k))==(name_atm_c)) .AND. &
-                     ((chm_info%impr_c(k))==(name_atm_b)) .AND. &
-                     ((chm_info%impr_d(k))==(name_atm_a))) ) THEN
-                   impr_list(j)%impr_kind%name = "CHARMM"
-                   impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
-                   impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                   IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                DO k=1,SIZE(chm_info%impr_a)
-                   IF( (((chm_info%impr_a(k))==(name_atm_a)) .AND. &
-                        ((chm_info%impr_b(k))==("X")) .AND. &
-                        ((chm_info%impr_c(k))==("X")) .AND. &
-                        ((chm_info%impr_d(k))==(name_atm_d))) .OR. &
-                        (((chm_info%impr_a(k))==(name_atm_d)) .AND. &
-                        ((chm_info%impr_b(k))==("X")) .AND. &
-                        ((chm_info%impr_c(k))==("X")) .AND. &
-                        ((chm_info%impr_d(k))==(name_atm_a))) ) THEN
-                      impr_list(j)%impr_kind%name = "CHARMM"
-                      impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
-                      impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                      IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
-                           ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                           " overwriting!",root_section,error)
-                      found = .TRUE.
-                      EXIT
-                   END IF
-                END DO
-             END IF
-          END IF
-
-          ! always have the input param last to overwrite all the other ones
-          IF(ASSOCIATED(inp_info%impr_a)) THEN
-             DO k=1,SIZE(inp_info%impr_a)
-                IF( (((inp_info%impr_a(k))==(name_atm_a)) .AND. &
-                     ((inp_info%impr_b(k))==(name_atm_b)) .AND. &
-                     ((inp_info%impr_c(k))==(name_atm_c)) .AND. &
-                     ((inp_info%impr_d(k))==(name_atm_d))) .OR. &
-                     (((inp_info%impr_a(k))==(name_atm_d)) .AND. &
-                     ((inp_info%impr_b(k))==(name_atm_c)) .AND. &
-                     ((inp_info%impr_c(k))==(name_atm_b)) .AND. &
-                     ((inp_info%impr_d(k))==(name_atm_a))) ) THEN
-                   impr_list(j)%impr_kind%name = inp_info%impr_kind(k)
-                   impr_list(j)%impr_kind%k    = inp_info%impr_k(k)
-                   impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
-                   IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",root_section,error)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-
-          IF(.NOT.found) THEN
-             CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                       atm2=TRIM(name_atm_b),&
-                                       atm3=TRIM(name_atm_c),&
-                                       atm4=TRIM(name_atm_c),&
-                                       type_name="Improper",&
-                                       array=Ainfo,&
-                                       error=error)
-             impr_list(j)%impr_kind%k      = 0.0_dp
-             impr_list(j)%impr_kind%phi0   = 0.0_dp
-             impr_list(j)%impr_kind%name   = "UNSET"
-             impr_list(j)%name             = "UNSET"
-          END IF
-          !
-          ! QM/MM modifications
-          !
-          IF (only_qm) THEN
-             impr_list(j)%impr_kind%name = "UNSET"
-             impr_list(j)%name           = "UNSET"
-          END IF
-
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            impr_list=impr_list)
-    END DO
+    CALL force_field_pack_impr (particle_set, molecule_kind_set, molecule_set,   &
+         ff_type, root_section, Ainfo, chm_info, inp_info, gro_info, error)
     ! Give information only if any Urey-Bradley, Torsion or improper is missing
     ! continue calculation..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
-    CALL timestop(handle2)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    !12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential parameters
+    ! 12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential 
+    !     parameters
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_qeff',handle2)
-    ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    nshell_tot = 0
-    n = 0
-    null_massfrac =.FALSE.
-    DO i=1,SIZE(atomic_kind_set)
-       atomic_kind => atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            elp_potential=elp_potential,&
-            atom_list=my_atom_list,&
-            name=atmname)
-       CALL get_potential(potential=elp_potential,&
-            qeff=charge(i))
-
-       found = .FALSE.
-       found_shell = .FALSE.
-       only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
-       CALL uppercase(atmname)
-       IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
-       ! loop over params from charmm
-       IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
-          DO j=1,SIZE(ff_type%chm_info%charge_atm)
-             IF((ff_type%chm_info%charge_atm(j))==atmname) THEN
-                charge(i) = ff_type%chm_info%charge(j)
-                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",root_section,error)
-                found = .TRUE.
-             END IF
-          END DO
-       END IF
-       ! always have the input param last to overwrite all the other ones
-       IF(ASSOCIATED(ff_type%inp_info%charge_atm)) THEN
-          DO j=1,SIZE(ff_type%inp_info%charge_atm)
-             IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(ff_type%inp_info%charge_atm(j)),atmname
-             IF((ff_type%inp_info%charge_atm(j))==atmname) THEN
-                charge(i) = ff_type%inp_info%charge(j)
-                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",root_section,error)
-                found = .TRUE.
-             END IF
-          END DO
-       END IF
-       IF (ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
-          IF (ASSOCIATED(ff_type%inp_info%nonbonded%pot)) THEN
-             ! Let's find the nonbonded potential where this atom is involved
-             DO j = 1, SIZE(ff_type%inp_info%nonbonded%pot)
-                IF ( atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
-                     atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN
-                   SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
-                   CASE (ea_type,tersoff_type)
-                      ! Charge is zero for EAM and TERSOFF type potential
-                      charge(i) = 0.0_dp
-                      found     = .TRUE.
-                      EXIT
-                   END SELECT
-                END IF
-             END DO
-          END IF
-       END IF
-       IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                                 fatal=fatal,&
-                                                 type_name="Charge",&
-                                                 array=Ainfo,&
-                                                 error=error)
-       !
-       ! QM/MM modifications
-       !
-       IF (only_qm.AND.my_qmmm) THEN
-          IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN
-             scale_factor = 0.0_dp
-             IF (is_link_atom) THEN
-                !
-                ! Find the scaling factor...
-                !
-                DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
-                   IF (ANY(my_atom_list == qmmm_env%mm_link_atoms(ilink))) EXIT
-                END DO
-                CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,error,failure)
-                scale_factor = qmmm_env%fist_scale_charge_link(ilink)
-             END IF
-             charge(i) = charge(i) * scale_factor
-          END IF
-       END IF
-
-       CALL set_potential(potential=elp_potential,&
-            qeff=charge(i))
-       CALL set_atomic_kind(atomic_kind=atomic_kind,&
-            elp_potential=elp_potential)
-
-       ! The shell potential can be defined only from input
-       IF(ASSOCIATED(ff_type%inp_info%shell_list)) THEN
-          DO j=1,SIZE(ff_type%inp_info%shell_list)
-             IF (iw>0) WRITE(iw,*)"Shell Checking ::",&
-                       TRIM(ff_type%inp_info%shell_list(j)%atm_name),atmname
-
-             IF((ff_type%inp_info%shell_list(j)%atm_name)==atmname) THEN
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     shell=shell, mass=atmmass,natom=natom)
-                IF(.NOT. ASSOCIATED(shell)) THEN
-                  CALL shell_create(shell,error)
-                END IF
-                nshell_tot = nshell_tot + natom
-                shell%charge_core=ff_type%inp_info%shell_list(j)%shell%charge_core
-                shell%charge_shell=ff_type%inp_info%shell_list(j)%shell%charge_shell
-                shell%massfrac=ff_type%inp_info%shell_list(j)%shell%massfrac
-                IF(shell%massfrac <EPSILON( 1.0_dp )) null_massfrac = .TRUE.
-                shell%k_spring=ff_type%inp_info%shell_list(j)%shell%k_spring
-                shell%max_dist=ff_type%inp_info%shell_list(j)%shell%max_dist
-                shell%shell_cutoff=ff_type%inp_info%shell_list(j)%shell%shell_cutoff
-
-                shell%mass_shell=shell%massfrac*atmmass
-                shell%mass_core=atmmass-shell%mass_shell
-
-                IF (found_shell) CALL Pwarning("Multiple shell declarations: "//TRIM(atmname)//&
-                     " overwriting!",root_section,error)
-                found_shell = .TRUE.
-                CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                     shell=shell, shell_active=.TRUE.,error=error)
-                CALL shell_release(shell, error)
-             END IF
-          END DO  ! j shell kind
-       END IF   ! associated shell_list
-
-    END DO  ! i atomic kind
-
-    IF (iw>0) WRITE(iw,*)"Total number of particles with a shell :: ", nshell_tot
-    ! If shell-model is present: Create particle_set of shells (coord. vel. force)
-    NULLIFY(shell_particle_set,core_particle_set)
-    IF(nshell_tot>0) THEN
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
-      IF(shell_adiabatic .AND. null_massfrac) THEN
-         CALL stop_program(TRIM(routineN),"Shell-model adiabatic: at least one shell_kind has mass=0 Abort..")
-      END IF
-      CALL allocate_particle_set(shell_particle_set,nshell_tot)
-      CALL allocate_particle_set(core_particle_set,nshell_tot)
-      counter = 0
-      DO i = 1,SIZE(particle_set)
-        NULLIFY(atomic_kind,shell)
-        atomic_kind => particle_set(i)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atomic_kind, shell_active=is_a_shell)
-        IF(is_a_shell) THEN
-          counter = counter+1
-          particle_set(i)%shell_index = counter
-          shell_particle_set(counter)%shell_index=counter
-          shell_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
-          shell_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
-          shell_particle_set(counter)%atom_index =   i
-          core_particle_set(counter)%atomic_kind => particle_set(i)%atomic_kind
-          core_particle_set(counter)%r(1:3) =  particle_set(i)%r(1:3)
-          core_particle_set(counter)%atom_index =   i
-        ELSE
-          particle_set(i)%shell_index = 0
-        END IF
-      END DO  ! i atom in particle_set
-
-      CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,error,failure)
-      ! Initialize the shells coordinates
-      IF(shell_adiabatic) THEN
-        CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-             root_section, subsys_section, core_particle_set, error=error)
-      ELSE
-        CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-             root_section, subsys_section,error=error)
-      END IF
-
-
-      ! Determine the number of shells per molecule kind
-      n = 0
-      DO i=1,SIZE(molecule_kind_set)
-        molecule_kind => molecule_kind_set(i)
-        CALL get_molecule_kind(molecule_kind=molecule_kind,&
-             molecule_list=molecule_list, natom=natom, nmolecule=nmol)
-        molecule=>molecule_set(molecule_list(1))
-        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-        ALLOCATE(shell_list_tmp(natom),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        counter = 0
-        DO j = first, last
-          atomic_kind => particle_set(j)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               shell_active=is_a_shell)
-          IF(is_a_shell) THEN
-            counter = counter+1
-            shell_list_tmp(counter) = j - first + 1
-          END IF
-        END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
-        IF(counter/=0) THEN
-          CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               shell_list=shell_list)
-          IF(ASSOCIATED(shell_list)) THEN
-             DEALLOCATE(shell_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             NULLIFY(shell_list)
-          END IF
-          ALLOCATE(shell_list(counter), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO j = 1, counter
-            shell_list(j)%a = shell_list_tmp(j)
-            atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                 name=atmname, shell=shell)
-            CALL uppercase(atmname)
-            shell_list(j)%name = atmname 
-            shell_list(j)%shell_kind => shell
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               nshell=counter, shell_list=shell_list)
-        END IF
-        DEALLOCATE(shell_list_tmp,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        n = n + nmol * counter 
-      END DO  ! i molecule kind
-    END IF  ! nshell_tot>0
-    CPPostcondition(n==nshell_tot,cp_failure_level,routineP,error,failure)
-
+    CALL force_field_pack_ch  (particle_set, atomic_kind_set, molecule_kind_set,&
+         molecule_set, root_section, qmmm_env, subsys_section, shell_particle_set,&
+         core_particle_set, cell, fatal, iw, Ainfo, my_qmmm, chm_info, inp_info,&
+         error)
     ! Give information only if charge is missing and abort..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
-    DEALLOCATE (charge,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(handle2)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 13. Set spline_bond_env, use for ONFO interaction
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_onfo2',handle2)
-    CALL pair_potential_pp_create ( potparm_bond,  &
-         SIZE ( atomic_kind_set ), &
-         error )
-    DO i=1,SIZE(atomic_kind_set)
-       atomic_kind => atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
-       DO j=i,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(j)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
-          found = .FALSE.
-          found_a = .FALSE.
-          found_b = .FALSE.
-          name_atm_a = name_atm_a_local
-          name_atm_b = name_atm_b_local
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
-
-          IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
-             ii = 0 
-             jj = 0
-             DO k=1,SIZE(gro_info%nonbond_a_14)
-                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a_14(k))) THEN
-                   ii = k
-                   found_a = .TRUE.
-                   EXIT
-                END IF
-             END DO
-             DO k=1,SIZE(gro_info%nonbond_a_14)
-                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a_14(k))) THEN
-                   jj = k
-                   found_b   = .TRUE.
-                   EXIT
-                END IF
-             END DO
-             IF(ii/=0 .AND. jj/=0) THEN
-                CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-                potparm_bond%pot(i,j)%pot%type       = lj_type
-                potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-                potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_bond%pot(i,j)%pot%lj%epsilon = 1.0_dp
-                potparm_bond%pot(i,j)%pot%lj%sigma6  = gro_info%nonbond_c6_14(ii,jj)
-                potparm_bond%pot(i,j)%pot%lj%sigma12 = gro_info%nonbond_c12_14(ii,jj)
-                potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
-                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
-                found = .TRUE.
-             END IF
-          END IF
-
-          ! loop over params from CHARMM
-          ii = 0
-          jj = 0
-          IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
-             DO k=1,SIZE(chm_info%nonbond_a_14)
-                IF((name_atm_a)==(chm_info%nonbond_a_14(k))) THEN
-                   ii = k
-                   rmin2_a = chm_info%nonbond_rmin2_14(k)
-                   epsilon_a = chm_info%nonbond_eps_14(k)
-                   found_a = .TRUE.
-                END IF
-             END DO
-             DO k=1,SIZE(chm_info%nonbond_a_14)
-                IF((name_atm_b)==(chm_info%nonbond_a_14(k))) THEN
-                   jj = k
-                   rmin2_b   = chm_info%nonbond_rmin2_14(k)
-                   epsilon_b = chm_info%nonbond_eps_14(k)
-                   found_b   = .TRUE.
-                END IF
-             END DO
-          END IF
-          IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-             IF(.NOT.found_a) THEN
-                DO k=1,SIZE(chm_info%nonbond_a)
-                   IF((name_atm_a)==(chm_info%nonbond_a(k))) THEN
-                      ii = k
-                      rmin2_a   = chm_info%nonbond_rmin2(k)
-                      epsilon_a = chm_info%nonbond_eps(k)
-                   END IF
-                END DO
-             END IF
-             IF(.NOT.found_b) THEN
-                DO k=1,SIZE(chm_info%nonbond_a)
-                   IF((name_atm_b)==(chm_info%nonbond_a(k))) THEN
-                      jj = k
-                      rmin2_b   = chm_info%nonbond_rmin2(k)
-                      epsilon_b = chm_info%nonbond_eps(k)
-                   END IF
-                END DO
-             END IF
-          END IF
-          IF(ii/=0 .AND. jj/=0) THEN
-             rmin = rmin2_a + rmin2_b
-             epsilon0 = SQRT(epsilon_a*epsilon_b)
-             CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-             potparm_bond%pot(i,j)%pot%type       = lj_charmm_type
-             potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-             potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-             potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon0
-             potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-             potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-             potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
-             IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                  " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
-             found = .TRUE.
-          END IF
-
-          ! always have the input param last to overwrite all the other ones
-          IF(ASSOCIATED(inp_info%nonbonded14)) THEN
-             DO k=1,SIZE(inp_info%nonbonded14%pot)
-                IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-                     " with ",TRIM(inp_info%nonbonded14%pot(k)%pot%at1),&
-                     TRIM(inp_info%nonbonded14%pot(k)%pot%at2)
-                IF((((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                     ((name_atm_b)==(inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
-                     (((name_atm_b)==(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                     ((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
-                   CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,&
-                        potparm_bond%pot(i,j)%pot,error)
-                   IF (found) CALL Pwarning("Multiple ONFO declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
-                   IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-          ! at the very end we offer the possibility to overwrite the parameters for QM/MM
-          ! nonbonded interactions
-          IF (use_qmmm_ff) THEN
-             match_names = 0
-             IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names + 1
-             IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names + 1
-             IF (match_names == 1) THEN
-                IF (ASSOCIATED(qmmm_env%inp_info%nonbonded14)) THEN
-                   DO k=1,SIZE(qmmm_env%inp_info%nonbonded14%pot)
-                      IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-                           " with ",TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1),&
-                           TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2)
-                      IF(( ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                           ((name_atm_b) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
-                           (((name_atm_b)==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                           ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
-                         CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,&
-                              potparm_bond%pot(i,j)%pot,error)
-                         IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              root_section,error)
-                         IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                              " ",TRIM(name_atm_b)
-                         found = .TRUE.
-                         EXIT
-                      END IF
-                   END DO
-                END IF
-             END IF
-          END IF
-
-          IF(.NOT.found) THEN
-             CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                       atm2=TRIM(name_atm_b),&
-                                       type_name="Spline_Bond_Env",&
-                                       array=Ainfo,&
-                                       error=error)
-             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot ,error=error)
-             potparm_bond%pot(i,j)%pot%type       = nn_type
-             potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-             potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-          ELSE
-             allocate_spline_bond_env = .TRUE.
-          END IF
-          ! If defined global RCUT let's use it
-          IF(ff_type%rcut_nb>0.0_dp) THEN
-             potparm_bond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
-          END IF
-          IF (only_qm) THEN
-             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot ,error=error)
-          END IF
-       END DO  ! atom kind j
-    END DO  ! atom kind i
-    ! Give information if any 1-4 is missing.. continue calculation..
-    CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
-    NULLIFY(spline_bond_env)
-    CALL get_nonbond_storage(spline_bond_env, potparm_bond, atomic_kind_set, &
-          ei_scale14=ff_type%ei_scale14, vdw_scale14=ff_type%vdw_scale14, error=error)
-    CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
-         atomic_kind_set , ewald_env, ei_scale14=ff_type%ei_scale14, &
-         vdw_scale14=ff_type%vdw_scale14, eps_spline=ff_type%eps_spline, &
-         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
-         do_14=.TRUE., scale_cutoff=ff_type%scale_cutoff, error=error)
-
-    DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
-       DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
-          n = spline_bond_env % spltab ( ikind, jkind )
-          spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
-          !
-          CALL spline_data_retain ( spline_data, error )
-          CALL spline_data_release ( potparm_bond %pot( ikind, jkind )%pot % pair_spline_data, error )
-          potparm_bond %pot( ikind, jkind )%pot % pair_spline_data => spline_data
-       END DO
-    END DO
-    CALL timestop(handle2)
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 14. ONFO
-    !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_onfo3',handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nonfo=nonfo,onfo_list=onfo_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-
-       DO j=1,nonfo
-          atm_a = onfo_list(j)%a
-          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_a, kind_number = ikind )
-          atm_b = onfo_list(j)%b
-          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_b, kind_number = jkind )
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
-
-          CALL spline_data_retain (potparm_bond%pot(ikind, jkind )%pot % pair_spline_data,error=error)
-          CALL spline_data_release(onfo_list(j)%onfo_kind%spline_data, error=error)
-          onfo_list(j)%onfo_kind%spline_data => &
-               potparm_bond %pot( ikind, jkind )%pot % pair_spline_data
-
-          IF(iw>0) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
-               TRIM(name_atm_a)," ",&
-               TRIM(name_atm_b)
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            onfo_list=onfo_list)
-    END DO
-    CALL pair_potential_pp_release ( potparm_bond, error )
-    CALL timestop(handle2)
+    IF (ff_type%nonbonded14) THEN
+       NULLIFY(spline_bond_env)
+       CALL force_field_pack_sbe  (atomic_kind_set, ff_type, root_section, qmmm_env,&
+            iw, Ainfo,  chm_info, inp_info, gro_info, potparm_bond, ewald_env, &
+            spline_bond_env, iw2, iw3, iw4, error)
+       ! Give information if any 1-4 is missing.. continue calculation..
+       CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
+       !--------------------------------------------------------------------------
+       !--------------------------------------------------------------------------
+       ! 14. ONFO
+       !--------------------------------------------------------------------------
+       CALL force_field_pack_onfo(particle_set, molecule_kind_set, molecule_set,&
+            iw, potparm_bond, error)
+    END IF
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set spline_nonbond_env
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_nonbond',handle2)
-    CALL pair_potential_pp_create ( potparm_nonbond,  &
-         SIZE ( atomic_kind_set ), &
-         error )
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
-    DO i=1,SIZE(atomic_kind_set)
-       atomic_kind => atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local,&
-           shell_active=is_a_shell)
-       DO j=i,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(j)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local,&
-               shell_active=is_b_shell)
-          found = .FALSE.
-          name_atm_a = name_atm_a_local
-          name_atm_b = name_atm_b_local
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
+    IF (ff_type%nonbonded) THEN
+       CALL force_field_pack_sne (atomic_kind_set, ff_type, root_section, qmmm_env,&
+            fatal, iw, Ainfo, chm_info, inp_info, gro_info, potparm_nonbond, error)
+       ! Give information and abort if any pair potential spline is missing..
+       CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
 
-          ! loop over params from GROMOS
-          IF(ASSOCIATED(gro_info%nonbond_a)) THEN
-             ii = 0 
-             jj = 0
-             DO k=1,SIZE(gro_info%nonbond_a)
-                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
-                   ii = k
-                   EXIT
-                END IF
-             END DO
-             DO k=1,SIZE(gro_info%nonbond_a)
-                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
-                   jj = k
-                   EXIT
-                END IF
-             END DO
-
-             IF(ii/=0 .AND. jj/=0) THEN
-                CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
-                potparm_nonbond%pot(i,j)%pot%type       = lj_type
-                potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
-                potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_nonbond%pot(i,j)%pot%lj%epsilon = 1.0_dp
-                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = gro_info%nonbond_c6(ii,jj)
-                potparm_nonbond%pot(i,j)%pot%lj%sigma12  = gro_info%nonbond_c12(ii,jj)
-                potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
-                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",&
-                     root_section,error)
-                found = .TRUE.
-             END IF
-          END IF
-
-          ! loop over params from CHARMM
-          IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-             ii = 0
-             jj = 0
-             DO k=1,SIZE(chm_info%nonbond_a)
-                IF((name_atm_a)==(chm_info%nonbond_a(k))) THEN
-                   ii = k
-                END IF
-             END DO
-             DO k=1,SIZE(chm_info%nonbond_a)
-                IF((name_atm_b)==(chm_info%nonbond_a(k))) THEN
-                   jj = k
-                END IF
-             END DO
-
-             IF(ii/=0 .AND. jj/=0) THEN
-                rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
-                epsilon0 = SQRT(chm_info%nonbond_eps(ii)*&
-                     chm_info%nonbond_eps(jj))
-                CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
-                potparm_nonbond%pot(i,j)%pot%type       = lj_charmm_type
-                potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
-                potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon0
-                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-                potparm_nonbond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-                potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
-                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",&
-                     root_section,error)
-                found = .TRUE.
-             END IF
-          END IF
-
-          ! always have the input param last to overwrite all the other ones
-          IF(ASSOCIATED(inp_info%nonbonded)) THEN
-             DO k=1,SIZE(inp_info%nonbonded%pot)
-                IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-                     " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
-                     TRIM(inp_info%nonbonded%pot(k)%pot%at2)
-                IF((((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                     ((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
-                     (((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                     ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
-                   CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
-                   IF (found) CALL Pwarning("Multiple non-bonded declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",&
-                        root_section,error)
-                   IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
-                   found = .TRUE.
-                   EXIT
-                END IF
-             END DO
-          END IF
-          ! at the very end we offer the possibility to overwrite the parameters for QM/MM
-          ! nonbonded interactions
-          IF (use_qmmm_ff) THEN
-             match_names = 0
-             IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names + 1
-             IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names + 1
-             IF (match_names == 1) THEN
-                IF (ASSOCIATED(qmmm_env%inp_info%nonbonded)) THEN
-                   DO k=1,SIZE(qmmm_env%inp_info%nonbonded%pot)
-                      IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-                           " with ",TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1),&
-                           TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)
-                      IF(( ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                           ((name_atm_b) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
-                           (((name_atm_b)==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                           ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
-                         CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,&
-                              potparm_nonbond%pot(i,j)%pot,error)
-                         IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              root_section,error)
-                         IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                              " ",TRIM(name_atm_b)
-                         found = .TRUE.
-                         EXIT
-                      END IF
-                   END DO
-                END IF
-             END IF
-          END IF
-          IF(.NOT.found) THEN
-             CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
-                                       atm2=TRIM(name_atm_b),&
-                                       type_name="Spline_Non_Bond_Env",&
-                                       fatal=fatal,&
-                                       array=Ainfo,&
-                                       error=error)
-          END IF
-          ! If defined global RCUT let's use it
-          IF(ff_type%rcut_nb>0.0_dp) THEN
-             potparm_nonbond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
-          END IF
-          IF((is_a_shell .AND. .NOT. is_b_shell) .OR. (is_b_shell .AND. .NOT. is_a_shell)) THEN
-             potparm_nonbond%pot(i,j)%pot%shell_type  = nosh_sh
-          ELSE IF (is_a_shell .AND. is_b_shell) THEN
-             potparm_nonbond%pot(i,j)%pot%shell_type  = sh_sh
-          ELSE
-             potparm_nonbond%pot(i,j)%pot%shell_type  = nosh_nosh
-          END IF
-          IF (only_qm) THEN
-             CALL pair_potential_single_clean( potparm_nonbond%pot(i,j)%pot ,error=error)
-          END IF
-       END DO  ! jkind
-    END DO   ! ikind
-    ! Give information and abort if any pair potential spline is missing..
-    CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
-    !---------------------------------------
-    ! create the pair potential spline environment
-    !---------------------------------------
-    NULLIFY(spline_nonbond_env,spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env)
-    IF(shell_present) THEN
-      CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
-           spline_c_coul_env=spline_c_coul_env, spline_cs_coul_env=spline_cs_coul_env,&
-           spline_sc_coul_env=spline_sc_coul_env, error=error)
-      CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
-           atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
-           max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
-           scale_cutoff=ff_type%scale_cutoff, spline_c_coul=spline_c_coul_env, &
-           spline_cs_coul=spline_cs_coul_env, spline_sc_coul=spline_sc_coul_env, error=error)
-    ELSE
-      CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
-           error=error)
-      NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env) 
-      CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
-           atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
-           max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
-           scale_cutoff=ff_type%scale_cutoff, error=error)
+       !--------------------------------------------------------------------------
+       ! 15.(a) create the pair potential spline environment
+       !--------------------------------------------------------------------------
+       NULLIFY(spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env, &
+            spline_sc_coul_env)
+       CALL force_field_pack_ppse (atomic_kind_set, ewald_env, ff_type, iw2, iw3,&
+            iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
+            spline_sc_coul_env, potparm_nonbond, error)
+       
+       !--------------------------------------------------------------------------
+       ! 15.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
+       !--------------------------------------------------------------------------
+       CALL force_field_pack_pp (atomic_kind_set, spline_nonbond_env, spline_c_coul_env,&
+            spline_cs_coul_env, spline_sc_coul_env, potparm_nonbond, shell_present,&
+            error)
+       !--------------------------------------------------------------------------
+       ! 16. create the manybody spline environment
+       !--------------------------------------------------------------------------
+       CALL  force_field_pack_mbse  (atomic_kind_set, ff_type, iw2, iw3, potparm_nonbond,&
+            spline_manybody_env, error)
     END IF
-    !---------------------------------------
-    ! create the manybody spline environment
-    !---------------------------------------
-    nkinds = SIZE(atomic_kind_set)
-    CALL spline_env_create(spline_manybody_env, nkinds, error=error)
-    CALL spline_manybody_control(spline_manybody_env, potparm_nonbond,&
-         eps_spline=ff_type%eps_spline,max_energy=ff_type%max_energy,&
-         rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
-
-    DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
-       DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
-          !---------------------------------------
-          ! 1st: The pair-potential contribution, 
-          !      if shell-model, it is ion-shell or shell-shell 
-          !---------------------------------------
-          n = spline_nonbond_env % spltab ( ikind, jkind )
-          spline_data => spline_nonbond_env % spline_data_p ( n ) % spline_data
-          CALL spline_data_retain ( spline_data, error )
-          CALL spline_data_release (  &
-               potparm_nonbond %pot( ikind, jkind )%pot % pair_spline_data, error )
-          potparm_nonbond%pot ( ikind, jkind )%pot % pair_spline_data => spline_data
-          !---------------------------------------
-          ! 2nd: The many-body contribution (only EAM)
-          !---------------------------------------
-          n = spline_manybody_env % spltab ( ikind, jkind )
-          IF (n>0) THEN
-             spline_data => spline_manybody_env % spline_data_p ( n ) % spline_data
-             ! do i,j
-             IF ( ASSOCIATED ( spline_data ) ) THEN
-                CALL spline_data_retain ( spline_data, error )
-                CALL spline_data_release (  &
-                     potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data, error )
-                potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spline_data
-             ENDIF
-          END IF
-          IF(shell_present) THEN
-            !---------------------------------------
-            ! 3nd: The ion-core or core-core contribution (only shell-model)
-            !---------------------------------------
-            n = spline_c_coul_env % spltab ( ikind, jkind )
-            IF (n>0) THEN
-               spline_data => spline_c_coul_env % spline_data_p ( n ) % spline_data
-                 ! do i,j
-               IF ( ASSOCIATED ( spline_data ) ) THEN
-                    CALL spline_data_retain ( spline_data, error )
-                  CALL spline_data_release (  &
-                       potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data, error )
-                    potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data => spline_data
-               ENDIF
-            END IF
-            !---------------------------------------
-            ! 4nd: The core-shell contribution (only shell-model)
-            !---------------------------------------
-            n = spline_cs_coul_env % spltab ( ikind, jkind )
-            IF (n>0) THEN
-               spline_data => spline_cs_coul_env % spline_data_p ( n ) % spline_data
-               ! do i,j
-               IF ( ASSOCIATED ( spline_data ) ) THEN
-                  CALL spline_data_retain ( spline_data, error )
-                  CALL spline_data_release (  &
-                       potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data, error )
-                  potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data => spline_data
-               ENDIF
-            END IF
-            !---------------------------------------
-            ! 5nd: The core-shell contribution (only shell-model)
-            !---------------------------------------
-            n = spline_sc_coul_env % spltab ( ikind, jkind )
-            IF (n>0) THEN
-               spline_data => spline_sc_coul_env % spline_data_p ( n ) % spline_data
-               ! do i,j
-               IF ( ASSOCIATED ( spline_data ) ) THEN
-                  CALL spline_data_retain ( spline_data, error )
-                  CALL spline_data_release (  &
-                       potparm_nonbond%pot ( ikind, jkind )%pot % sc_coul_spline_data, error )
-                  potparm_nonbond%pot ( ikind, jkind )%pot % sc_coul_spline_data => spline_data
-               ENDIF
-            END IF
-          END IF  ! shell_present
-
-       END DO
-    END DO
-    CALL fist_nonbond_env_create (  fist_nonbond_env, potparm_nonbond, error )
-    CALL timestop(handle2)
+    ! Create non bond environment
+    CALL fist_nonbond_env_create (fist_nonbond_env, potparm_nonbond, ff_type%nonbonded14, &
+         ff_type%nonbonded, error )
 
     ! Release all spline_environments
-    CALL spline_env_release (spline_manybody_env,error)
-    CALL spline_env_release (spline_nonbond_env,error)
-    CALL spline_env_release (spline_bond_env,error)
-    IF(shell_present) THEN
-      CALL spline_env_release (spline_c_coul_env,error)
-      CALL spline_env_release (spline_cs_coul_env,error)
-      CALL spline_env_release (spline_sc_coul_env,error)
+    IF (ff_type%nonbonded) THEN
+       CALL spline_env_release (spline_manybody_env,error)
+       CALL spline_env_release (spline_nonbond_env,error)
+       IF(shell_present) THEN
+          CALL spline_env_release (spline_c_coul_env, error)
+          CALL spline_env_release (spline_cs_coul_env,error)
+          CALL spline_env_release (spline_sc_coul_env,error)
+       END IF
+    END IF
+    IF (ff_type%nonbonded14) THEN
+       CALL spline_env_release (spline_bond_env,error)
     END IF
 
-    CALL cp_print_key_finished_output(iw4,logger,mm_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
-    CALL cp_print_key_finished_output(iw3,logger,mm_section,&
-         "PRINT%FF_INFO/SPLINE_DATA",error=error)
-    CALL cp_print_key_finished_output(iw2,logger,mm_section,&
-         "PRINT%FF_INFO/SPLINE_INFO",error=error)
-    CALL cp_print_key_finished_output(iw,logger,mm_section,&
-         "PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw4,logger,mm_section,"PRINT%PROGRAM_RUN_INFO",error=error)
+    CALL cp_print_key_finished_output(iw3,logger,mm_section,"PRINT%FF_INFO/SPLINE_DATA",error=error)
+    CALL cp_print_key_finished_output(iw2,logger,mm_section,"PRINT%FF_INFO/SPLINE_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE force_field_pack
 
 !******************************************************************************
@@ -2207,162 +396,6 @@ CONTAINS
     END IF
     IF (fatal) CALL stop_program(TRIM(routineN),"Missing critical ForceField parameters! Abort..")
   END SUBROUTINE release_FF_missing_par
-!******************************************************************************
-!!****** force_fields_util/store_FF_missing_par [1.0] *
-!!
-!!   NAME
-!!     store_FF_missing_par
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Store informations on possible missing ForceFields parameters
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-  SUBROUTINE store_FF_missing_par(atm1,atm2,atm3,atm4,type_name,fatal,array,error)
-    CHARACTER(LEN=*), INTENT(IN)             :: atm1
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: atm2, atm3, atm4
-    CHARACTER(LEN=*), INTENT(IN)             :: type_name
-    LOGICAL, INTENT(INOUT), OPTIONAL         :: fatal
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: array
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'store_FF_missing_par', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=10)                        :: sfmt
-    CHARACTER(LEN=4)                         :: my_atm1, my_atm2, my_atm3, &
-                                                my_atm4
-    CHARACTER(LEN=default_path_length)       :: my_format
-    INTEGER                                  :: fmt, i, nsize
-    LOGICAL                                  :: failure, found
-
-    failure = .FALSE.
-    nsize   = 0
-    fmt     = 1
-    my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)//&
-                '",T40,"(",A4,")")'
-    IF (PRESENT(atm2)) fmt = fmt+1
-    IF (PRESENT(atm3)) fmt = fmt+1
-    IF (PRESENT(atm4)) fmt = fmt+1
-    CALL integer_to_string(fmt-1,sfmt)
-    IF (fmt>1) &
-    my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)//&
-                '",T40,"(",A4,'//TRIM(sfmt)//'(",",A4),")")'
-    IF (.NOT.failure) THEN
-       IF (PRESENT(fatal)) fatal = .TRUE.
-       ! Check for previous already stored equal force fields
-       IF (ASSOCIATED(array)) nsize = SIZE(array)
-       found = .FALSE.
-       IF (nsize>=1) THEN
-          DO i = 1, nsize
-             SELECT CASE (type_name)
-             CASE("Bond")
-                IF (INDEX(array(i)(21:39),"Bond")==0)     CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2)).OR.&
-         ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
-             CASE("Angle")
-                IF (INDEX(array(i)(21:39),"Angle")==0)    CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3)).OR.&
-         ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
-         found = .TRUE.
-             CASE("Urey-Bradley")
-                IF (INDEX(array(i)(21:39),"Urey-Bradley")==0)    CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3)).OR.&
-         ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
-         found = .TRUE.
-             CASE("Torsion")
-                IF (INDEX(array(i)(21:39),"Torsion")==0)  CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                my_atm4 = array(i)(56:59)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-                CALL compress(my_atm4,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
-         ((atm1==my_atm4).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm1)))&
-         found = .TRUE.
-             CASE("Improper")
-                IF (INDEX(array(i)(21:39),"Improper")==0) CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                my_atm4 = array(i)(56:59)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-                CALL compress(my_atm4,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm4)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm4).AND.(atm4==my_atm3)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm4).AND.(atm3==my_atm3).AND.(atm4==my_atm2)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm4).AND.(atm3==my_atm2).AND.(atm4==my_atm3)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm4).AND.(atm4==my_atm3)))&
-         found = .TRUE.
-             CASE("Charge")
-                IF (INDEX(array(i)(21:39),"Charge")==0)   CYCLE
-                my_atm1 = array(i)(41:44)
-                CALL compress(my_atm1,.TRUE.)
-    IF  (atm1==my_atm1) found = .TRUE.
-             CASE("Spline_Bond_Env","Spline_Non_Bond_Env")
-                IF (INDEX(array(i)(21:39),"Spline_")==0)  CYCLE
-                fmt = 0
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2)).OR.&
-         ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
-             CASE DEFAULT
-                ! Should never reach this point
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
-             IF (found) EXIT
-          END DO
-       ENDIF
-       IF (.NOT.found) THEN
-          nsize = nsize + 1
-          CALL reallocate(array,1,nsize)
-          SELECT CASE(fmt)
-          CASE(1)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1
-          CASE(2)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2
-          CASE(3)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2,atm3
-          CASE(4)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2,atm3,atm4
-          END SELECT
-       END IF
-    END IF
-
-  END SUBROUTINE store_FF_missing_par
 
 !******************************************************************************
 !!****** force_fields_util/force_field_qeff_output [1.0] *
@@ -2384,7 +417,7 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
   SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,mm_section,error)
+       molecule_kind_set,molecule_set,mm_section,ff_type,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -2395,6 +428,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
@@ -2421,7 +455,7 @@ CONTAINS
     qeff_mol = 0.0_dp
     qeff_sum = 0.0_dp
     mass_sum = 0.0_dp
-
+    
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Sum of [qeff,mass] for each molecule_kind
@@ -2443,7 +477,7 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,charge=qeff_mol,mass=mass_mol)
        IF(iw>0) WRITE(iw,*) "    Mol Kind ",TRIM(molname)," charge = ",qeff_mol
     END DO
-
+    
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Sum of [qeff,mass] for particle_set
@@ -2459,7 +493,7 @@ CONTAINS
     END DO
     IF(iw>0) WRITE(iw,*) "    Total system charge = ",qeff_sum
     IF(iw>0) WRITE(iw,*) "    Total system mass   = ",mass_sum
-
+    
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)

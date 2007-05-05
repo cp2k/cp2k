@@ -308,18 +308,18 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   molecule_set => subsystem % molecules_new % els
   molecule_kind_set => subsystem % molecule_kinds_new % els
 
-! Create the fist_energy_type
+  ! Create the fist_energy_type
   CALL allocate_fist_energy( thermo )
 
-! Print the molecule kind set
+  ! Print the molecule kind set
   CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
-
-! Print the atomic coordinates
+  
+  ! Print the atomic coordinates
   CALL write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
   CALL write_particle_distances(particle_set,cell,subsys_section,error)
   CALL write_structure_data(particle_set, cell=cell, subsys_section=subsys_section, error=error)
 
-! Distribute molecules and atoms using the new data structures ***
+  ! Distribute molecules and atoms using the new data structures ***
   CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
                                  particle_set=particle_set,&
                                  local_particles=local_particles,&
@@ -329,26 +329,27 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
                                  force_env_section=force_env_section,&
                                  error=error )
 
-! Create ewald grids
+  ! Create ewald grids
   grid_print_section => section_vals_get_subs_vals(force_env_section,&
        "PRINT%GRID_INFORMATION",error=error)
   CALL ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, grid_print_section, error )
-
-! initialize ewald grids
+     
+  ! initialize ewald grids
   CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-
-! Initialize self-interaction and neutralizing background
+  
+  ! Initialize self-interaction and neutralizing background
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &
                     thermo % e_self, thermo % e_neut ,error=error)
 
-! set the fist_env
+  ! set the fist_env
   CALL set_fist_env ( fist_env = fist_env, subsys = subsystem, error = error )
   CALL set_fist_env ( fist_env=fist_env,&
                       cell=cell, cell_ref=cell_ref, &
                       local_molecules=local_molecules,&
                       local_particles=local_particles,&
                       ewald_env=ewald_env, ewald_pw=ewald_pw, &
-                      fist_nonbond_env=fist_nonbond_env, thermo=thermo ,error=error)
+                      fist_nonbond_env=fist_nonbond_env,&
+                      thermo=thermo ,error=error)
 
   CALL distribution_1d_release ( local_particles, error = error )
   CALL distribution_1d_release ( local_molecules, error = error )

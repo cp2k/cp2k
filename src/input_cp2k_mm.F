@@ -303,6 +303,20 @@ CONTAINS
             usage="SCALE_CUTOFF <LOGICAL>", default_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NONBONDED",&
+            description="Controls the computation of the nonbonded interactions.",&
+            usage="NONBONDED T",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NONBONDED14",&
+            description="Controls the computation of the nonbonded-14 interactions.",&
+            usage="NONBONDED14 T",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        !
        ! subsections
        !
@@ -904,7 +918,6 @@ CONTAINS
             error=error)
 
        NULLIFY(subsection)
-       
        CALL create_LJ_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -967,7 +980,6 @@ CONTAINS
             error=error)
 
        NULLIFY(subsection)
-       
        CALL create_LJ_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -1007,7 +1019,6 @@ CONTAINS
        CALL create_Tersoff_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-
 
     END IF
 

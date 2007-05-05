@@ -28,7 +28,8 @@ MODULE force_field_types
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_p_release,&
                                              pair_potential_p_type
-  USE shell_potential_types,           ONLY: shell_p_release, shell_p_type
+  USE shell_potential_types,           ONLY: shell_p_release,&
+                                             shell_p_type
   USE splines,                         ONLY: spline_data_release,&
                                              spline_data_type
 #include "cp_common_uses.h"
@@ -191,7 +192,10 @@ MODULE force_field_types
                                                  max_energy,&
                                                  emax_spline,&
                                                  rlow_nb
-    LOGICAL                                   :: scale_cutoff
+    LOGICAL                                   :: scale_cutoff,&
+                                                 nonbonded,&
+                                                 nonbonded14,&
+                                                 electrostatics
   END TYPE force_field_type
 
 ! *** Public subroutines ***

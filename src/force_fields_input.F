@@ -137,10 +137,10 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
        CALL section_vals_val_get(ff_section,"SCALE_CUTOFF",l_val=ff_type%scale_cutoff,error=error)
 
+       CALL section_vals_val_get(ff_section,"NONBONDED",l_val=ff_type%nonbonded,error=error)
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit) THEN
-
+       IF (explicit.AND.ff_type%nonbonded) THEN
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
           ntot = 0
@@ -221,9 +221,10 @@ CONTAINS
           END IF
        END IF
 
+       CALL section_vals_val_get(ff_section,"NONBONDED14",l_val=ff_type%nonbonded14,error=error)
        tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit) THEN
+       IF (explicit.AND.ff_type%nonbonded14) THEN
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
           ntot = 0
@@ -1167,8 +1168,6 @@ CONTAINS
        CALL section_vals_val_get(section,"_SECTION_PARAMETERS_",&
             c_val=atm_name,i_rep_section=i_rep,error=error)
        CALL uppercase(atm_name)
-!       CALL section_vals_val_get(section,"ATOM",i_rep_section=i_rep,c_val=atm_name,&
-!            error=error)
        shell_list(start+i_rep)%atm_name = atm_name
 
        CALL section_vals_val_get(section,"CORE_CHARGE",i_rep_section=i_rep,r_val=ccharge,&
@@ -1457,7 +1456,6 @@ CONTAINS
     CALL read_force_field_section1(ff_section, mm_section, ff_type, para_env, globenv, error)
   END SUBROUTINE read_force_field_section
 
-
 !******************************************************************************
 !!****** force_fields_input/read_force_field_gromos [1.0] *
 !!
@@ -1535,37 +1533,25 @@ CONTAINS
     gro_info => ff_type%gro_info
 
     NULLIFY(namearray)
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! ATOMTYPENAME SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'
     CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
     label = TRIM(avail_section(4))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype,error=error)
-      CALL reallocate(namearray,1,ntype)
-      !ALLOCATE(namearray(ntype),stat=stat)
-      !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DO itype=1,ntype
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.,error=error)
-        IF(iw>0) WRITE(iw,*) "GTOP_INFO|  ",TRIM(namearray(itype))
-      END DO
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,ntype,error=error)
+       CALL reallocate(namearray,1,ntype)
+       !ALLOCATE(namearray(ntype),stat=stat)
+       !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO itype=1,ntype
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.,error=error)
+          IF(iw>0) WRITE(iw,*) "GTOP_INFO|  ",TRIM(namearray(itype))
+       END DO
     END IF
     CALL parser_release(parser,error=error)
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! SOLVENTCONSTR SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'
     CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
@@ -1573,230 +1559,184 @@ CONTAINS
     label = TRIM(avail_section(21))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ncon,error=error)
-      CALL reallocate(gro_info%solvent_k,1,ncon)
-      CALL reallocate(gro_info%solvent_r0,1,ncon)
-      DO icon=1,ncon
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,itemp,error=error)
-        CALL parser_get_object(parser,itemp,error=error)
-        CALL parser_get_object(parser,gro_info%solvent_r0(icon),error=error)
-        gro_info%solvent_k(icon)=0.0_dp
-      END DO
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,ncon,error=error)
+       CALL reallocate(gro_info%solvent_k,1,ncon)
+       CALL reallocate(gro_info%solvent_r0,1,ncon)
+       DO icon=1,ncon
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,itemp,error=error)
+          CALL parser_get_object(parser,itemp,error=error)
+          CALL parser_get_object(parser,gro_info%solvent_r0(icon),error=error)
+          gro_info%solvent_k(icon)=0.0_dp
+       END DO
     END IF
     CALL parser_release(parser,error=error)
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! BONDTYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'
     label = TRIM(avail_section(7))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype,error=error)
-      CALL reallocate(gro_info%bond_k,1,ntype)
-      CALL reallocate(gro_info%bond_r0,1,ntype)
-      DO itype=1,ntype
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%bond_k(itype),error=error)
-        CALL parser_get_object(parser,gro_info%bond_r0(itype),error=error)
-        IF(ff_type%ff_type=="G96") THEN
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
-          CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
-          CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
-        ELSE ! Assume its G87
-          gro_info%bond_k(itype) = (2.0_dp) * gro_info%bond_k(itype) * gro_info%bond_r0(itype)**2
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
-          CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-2)
-          CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
-        END IF
-        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDTYPE INFO HERE!!!!"
-      END DO
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,ntype,error=error)
+       CALL reallocate(gro_info%bond_k,1,ntype)
+       CALL reallocate(gro_info%bond_r0,1,ntype)
+       DO itype=1,ntype
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,gro_info%bond_k(itype),error=error)
+          CALL parser_get_object(parser,gro_info%bond_r0(itype),error=error)
+          IF(ff_type%ff_type=="G96") THEN
+             CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
+             CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
+             CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+          ELSE ! Assume its G87
+             gro_info%bond_k(itype) = (2.0_dp) * gro_info%bond_k(itype) * gro_info%bond_r0(itype)**2
+             CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
+             CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-2)
+             CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+          END IF
+          IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDTYPE INFO HERE!!!!"
+       END DO
     END IF
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! BONDANGLETYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLETYPE section'
     label = TRIM(avail_section(10))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype,error=error)
-      CALL reallocate(gro_info%bend_k,1,ntype)
-      CALL reallocate(gro_info%bend_theta0,1,ntype)
-      DO itype=1,ntype
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%bend_k(itype),error=error)
-        CALL parser_get_object(parser,gro_info%bend_theta0(itype),error=error)
-        IF(ff_type%ff_type=="G96") THEN
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,ntype,error=error)
+       CALL reallocate(gro_info%bend_k,1,ntype)
+       CALL reallocate(gro_info%bend_theta0,1,ntype)
+       DO itype=1,ntype
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,gro_info%bend_k(itype),error=error)
+          CALL parser_get_object(parser,gro_info%bend_theta0(itype),error=error)
+          IF(ff_type%ff_type=="G96") THEN
 
-          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
-          gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
+             CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
+             gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))
+             CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
 
-        ELSE ! Assume its G87
+          ELSE ! Assume its G87
 
-          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
+             CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
 
-          cost2 = COS(gro_info%bend_theta0(itype))*COS(gro_info%bend_theta0(itype))
-          sdet = cost2*cost2 - (2.0_dp*cost2-1.0_dp)*(1.0_dp-ekt/gro_info%bend_k(itype))
-          csq = (cost2-SQRT(sdet))/(2.0_dp*cost2-1.0_dp)
-          gro_info%bend_k(itype) = ekt/ACOS(csq)**2
+             cost2 = COS(gro_info%bend_theta0(itype))*COS(gro_info%bend_theta0(itype))
+             sdet = cost2*cost2 - (2.0_dp*cost2-1.0_dp)*(1.0_dp-ekt/gro_info%bend_k(itype))
+             csq = (cost2-SQRT(sdet))/(2.0_dp*cost2-1.0_dp)
+             gro_info%bend_k(itype) = ekt/ACOS(csq)**2
 
-          CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
+             CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
 
-        END IF
+          END IF
 
-        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLETYPE INFO HERE!!!!"
-      END DO
+          IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLETYPE INFO HERE!!!!"
+       END DO
     END IF
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! IMPDIHEDRALTYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRALTYPE section'
     label = TRIM(avail_section(13))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype,error=error)
-      CALL reallocate(gro_info%impr_k,1,ntype)
-      CALL reallocate(gro_info%impr_phi0,1,ntype)
-      DO itype=1,ntype
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%impr_k(itype),error=error)
-        CALL parser_get_object(parser,gro_info%impr_phi0(itype),error=error)
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,ntype,error=error)
+       CALL reallocate(gro_info%impr_k,1,ntype)
+       CALL reallocate(gro_info%impr_phi0,1,ntype)
+       DO itype=1,ntype
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,gro_info%impr_k(itype),error=error)
+          CALL parser_get_object(parser,gro_info%impr_phi0(itype),error=error)
 
-        CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_phi0(itype))
+          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_phi0(itype))
 
-        CALL convert_to_cp2k_units("KJ",energy=gro_info%impr_k(itype))
-        CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_k(itype),l_power=-2)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%impr_k(itype))
+          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_k(itype),l_power=-2)
 
-        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
-      END DO
+          IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
+       END DO
     END IF
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! DIHEDRALTYPE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRALTYPE section'
     label = TRIM(avail_section(16))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
     IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,ntype,error=error)
-      CALL reallocate(gro_info%torsion_k,1,ntype)
-      CALL reallocate(gro_info%torsion_m,1,ntype)
-      CALL reallocate(gro_info%torsion_cosphi0,1,ntype)
-      DO itype=1,ntype
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,gro_info%torsion_k(itype),error=error)
-        CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype),error=error)
-        CALL parser_get_object(parser,gro_info%torsion_m(itype),error=error)
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,ntype,error=error)
+       CALL reallocate(gro_info%torsion_k,1,ntype)
+       CALL reallocate(gro_info%torsion_m,1,ntype)
+       CALL reallocate(gro_info%torsion_cosphi0,1,ntype)
+       DO itype=1,ntype
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,gro_info%torsion_k(itype),error=error)
+          CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype),error=error)
+          CALL parser_get_object(parser,gro_info%torsion_m(itype),error=error)
 
-        CALL convert_to_cp2k_units("KJ",energy=gro_info%torsion_k(itype))
-        !gro_info%torsion_cosphi0(itype)= -gro_info%torsion_cosphi0(itype)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%torsion_k(itype))
+          !gro_info%torsion_cosphi0(itype)= -gro_info%torsion_cosphi0(itype)
 
-        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
-      END DO
+          IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
+       END DO
     END IF
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     CALL parser_release(parser,error=error)
 
-!    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! LJPARAMETERS SECTION
-IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
-CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
-label = TRIM(avail_section(19))
-CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
-IF(found) THEN
-  CALL parser_get_next_line(parser,1,error=error)
-  CALL parser_get_object(parser,ntype,error=error)
-  offset = 0
-  IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
-  ntype=SIZE(namearray)
-  CALL reallocate(gro_info%nonbond_a,1,ntype)
-  CALL reallocate(gro_info%nonbond_a_14,1,ntype)
-  CALL reallocate(gro_info%nonbond_c6,1,ntype,1,ntype)
-  CALL reallocate(gro_info%nonbond_c12,1,ntype,1,ntype)
-  CALL reallocate(gro_info%nonbond_c6_14,1,ntype,1,ntype)
-  CALL reallocate(gro_info%nonbond_c12_14,1,ntype,1,ntype)
+    ! LJPARAMETERS SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env,error=error)
+    label = TRIM(avail_section(19))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.,error=error)
+    IF(found) THEN
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,ntype,error=error)
+       offset = 0
+       IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
+       ntype=SIZE(namearray)
+       CALL reallocate(gro_info%nonbond_a,1,ntype)
+       CALL reallocate(gro_info%nonbond_a_14,1,ntype)
+       CALL reallocate(gro_info%nonbond_c6,1,ntype,1,ntype)
+       CALL reallocate(gro_info%nonbond_c12,1,ntype,1,ntype)
+       CALL reallocate(gro_info%nonbond_c6_14,1,ntype,1,ntype)
+       CALL reallocate(gro_info%nonbond_c12_14,1,ntype,1,ntype)
 
-  gro_info%nonbond_c12 = 0._dp
-  gro_info%nonbond_c6  = 0._dp
-  gro_info%nonbond_c12_14 = 0._dp
-  gro_info%nonbond_c6_14  = 0._dp
+       gro_info%nonbond_c12 = 0._dp
+       gro_info%nonbond_c6  = 0._dp
+       gro_info%nonbond_c12_14 = 0._dp
+       gro_info%nonbond_c6_14  = 0._dp
 
 
-  DO itype=1,ntype*(ntype+1)/2
-    CALL parser_get_next_line(parser,1,error=error)
-    CALL parser_get_object(parser,iatom,error=error)
-    CALL parser_get_object(parser,jatom,error=error)
-    IF(iatom==jatom) THEN
-      gro_info%nonbond_a(iatom) = namearray(iatom)
-      gro_info%nonbond_a_14(iatom) = namearray(iatom)
+       DO itype=1,ntype*(ntype+1)/2
+          CALL parser_get_next_line(parser,1,error=error)
+          CALL parser_get_object(parser,iatom,error=error)
+          CALL parser_get_object(parser,jatom,error=error)
+          IF(iatom==jatom) THEN
+             gro_info%nonbond_a(iatom) = namearray(iatom)
+             gro_info%nonbond_a_14(iatom) = namearray(iatom)
+          END IF
+          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom,jatom),error=error)
+          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom,jatom),error=error)
+          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom,jatom),error=error)
+          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom,jatom),error=error)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom,jatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom,jatom),l_power=6)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12(iatom,jatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12(iatom,jatom),l_power=12)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6_14(iatom,jatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6_14(iatom,jatom),l_power=6)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12_14(iatom,jatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12_14(iatom,jatom),l_power=12)
+          gro_info%nonbond_c6_14(jatom,iatom)= gro_info%nonbond_c6_14(iatom,jatom)
+          gro_info%nonbond_c12_14(jatom,iatom)= gro_info%nonbond_c12_14(iatom,jatom)
+          gro_info%nonbond_c6(jatom,iatom)= gro_info%nonbond_c6(iatom,jatom)
+          gro_info%nonbond_c12(jatom,iatom)= gro_info%nonbond_c12(iatom,jatom)
+          IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
+       END DO
     END IF
-    CALL parser_get_object(parser,gro_info%nonbond_c12(iatom,jatom),error=error)
-    CALL parser_get_object(parser,gro_info%nonbond_c6(iatom,jatom),error=error)
-    CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom,jatom),error=error)
-    CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom,jatom),error=error)
-    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom,jatom))
-    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom,jatom),l_power=6)
-    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12(iatom,jatom))
-    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12(iatom,jatom),l_power=12)
-    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6_14(iatom,jatom))
-    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6_14(iatom,jatom),l_power=6)
-    CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12_14(iatom,jatom))
-    CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12_14(iatom,jatom),l_power=12)
-    gro_info%nonbond_c6_14(jatom,iatom)= gro_info%nonbond_c6_14(iatom,jatom)
-    gro_info%nonbond_c12_14(jatom,iatom)= gro_info%nonbond_c12_14(iatom,jatom)
-    gro_info%nonbond_c6(jatom,iatom)= gro_info%nonbond_c6(iatom,jatom)
-    gro_info%nonbond_c12(jatom,iatom)= gro_info%nonbond_c12(iatom,jatom)
-   IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
-  END DO
-END IF
-CALL parser_release(parser,error=error)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-
-
-
+    CALL parser_release(parser,error=error)
 
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)

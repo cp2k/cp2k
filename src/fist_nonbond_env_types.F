@@ -45,6 +45,7 @@ MODULE fist_nonbond_env_types
 
   TYPE fist_nonbond_env_type
     INTEGER :: ref_count, id_nr, natom_types
+    LOGICAL :: do_nonbonded14, do_nonbonded
     CHARACTER ( len = default_string_length ) :: unit_type
     TYPE ( fist_neighbor_type ), POINTER :: nonbonded
     TYPE ( pair_potential_pp_type ), POINTER :: potparm
@@ -253,9 +254,11 @@ END SUBROUTINE fist_nonbond_env_set
 !     12.2002 created [fawzi]
 !
 !*** **********************************************************************
-SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, error)
+SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, nonbonded14,&
+     nonbonded, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
+    LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
@@ -269,12 +272,14 @@ SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, error)
   ALLOCATE(fist_nonbond_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL init_fist_nonbond_env( fist_nonbond_env, potparm, error=error )
+     CALL init_fist_nonbond_env( fist_nonbond_env, potparm, nonbonded14,&
+     nonbonded, error)
   END IF
 END SUBROUTINE fist_nonbond_env_create
 ! *****************************************************************************
 
-  SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, potparm, error )
+  SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, potparm, nonbonded14,&
+     nonbonded, error)
 
 !   Purpose: Initialise the FIST nonbond environment.
 
@@ -282,6 +287,7 @@ END SUBROUTINE fist_nonbond_env_create
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
+    LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
@@ -291,20 +297,20 @@ END SUBROUTINE fist_nonbond_env_create
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rcut
 
-!   ---------------------------------------------------------------------------
-
     NULLIFY (fist_nonbond_env%nonbonded)
     NULLIFY (fist_nonbond_env%r_last_update)
     NULLIFY (fist_nonbond_env%r_last_update_pbc)
     NULLIFY (fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY (fist_nonbond_env%rcore_last_update_pbc)
     NULLIFY (fist_nonbond_env%cell_last_update)
-    NULLIFY (fist_nonbond_env% rlist_cutsq )
-    NULLIFY (fist_nonbond_env% rlist_lowsq )
+    NULLIFY (fist_nonbond_env%rlist_cutsq )
+    NULLIFY (fist_nonbond_env%rlist_lowsq )
     fist_nonbond_env % unit_type = "ANGSTROM"
     fist_nonbond_env % verlet_skin = 1.0_dp
     CALL convert_to_cp2k_units ( "ANGSTROM",  &
          length = fist_nonbond_env % verlet_skin )
+    fist_nonbond_env % do_nonbonded14 = nonbonded14
+    fist_nonbond_env % do_nonbonded = nonbonded
     fist_nonbond_env % lup = 0
     fist_nonbond_env % aup = 0
     fist_nonbond_env % counter = 0
@@ -314,23 +320,27 @@ END SUBROUTINE fist_nonbond_env_create
     fist_nonbond_env%ref_count=1
     fist_nonbond_env%id_nr=last_fist_nonbond_env_id_nr
     last_fist_nonbond_env_id_nr=last_fist_nonbond_env_id_nr+1
-
-    natom_types = SIZE ( potparm%pot, 1 )
-    ALLOCATE ( fist_nonbond_env % rlist_cutsq ( natom_types, natom_types ), stat = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE ( fist_nonbond_env % rlist_lowsq ( natom_types, natom_types ), stat = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO idim = 1, natom_types
-      DO jdim = 1, natom_types
-         rcut = SQRT ( potparm%pot ( idim, jdim )%pot % rcutsq ) + &
-                fist_nonbond_env % verlet_skin
-         fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut 
-         rcut = 1.0_dp / potparm%pot ( idim, jdim )%pot%pair_spline_data%xn
-         fist_nonbond_env % rlist_lowsq ( idim, jdim ) = rcut*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
-      END DO
-    END DO
-    fist_nonbond_env % potparm => potparm
-    fist_nonbond_env % natom_types = natom_types
+    
+    IF (nonbonded) THEN
+       natom_types = SIZE ( potparm%pot, 1 )
+       ALLOCATE ( fist_nonbond_env % rlist_cutsq ( natom_types, natom_types ), stat = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE ( fist_nonbond_env % rlist_lowsq ( natom_types, natom_types ), stat = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO idim = 1, natom_types
+          DO jdim = 1, natom_types
+             rcut = SQRT ( potparm%pot ( idim, jdim )%pot % rcutsq ) + &
+                  fist_nonbond_env % verlet_skin
+             fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut 
+             rcut = 1.0_dp / potparm%pot ( idim, jdim )%pot%pair_spline_data%xn
+             fist_nonbond_env % rlist_lowsq ( idim, jdim ) = rcut*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
+          END DO
+       END DO
+       fist_nonbond_env % potparm => potparm
+       fist_nonbond_env % natom_types = natom_types
+    ELSE
+       NULLIFY(fist_nonbond_env % potparm)
+    END IF
   END SUBROUTINE init_fist_nonbond_env
 !***************************************************************************
 

@@ -657,7 +657,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-
     IF ( ASSOCIATED ( potparm ) ) THEN
        IF (ASSOCIATED (potparm%pot)) THEN
           DO i = 1, SIZE ( potparm%pot, 1 )
@@ -844,17 +843,14 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
                                                 goodwin, eam, bmhft, ipbv, &
                                                 buck4r, buckmo, gp, tersoff
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ipot, lb1_old, ub1_old
-    LOGICAL                                  :: check, failure, lbmhft, &
-                                                lbuck4r, lbuckmo, leam, &
-                                                lgoodwin, lgp, lipbv, llj, &
-                                                llj_charmm, ltersoff, lwilliams
+    LOGICAL :: check, failure, lbmhft, lbuck4r, lbuckmo, leam, lgoodwin, lgp, &
+      lipbv, llj, llj_charmm, ltersoff, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
@@ -2457,8 +2453,7 @@ CONTAINS
   SUBROUTINE pair_potential_tersoff_create(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_tersoff_create', &
@@ -2496,14 +2491,12 @@ CONTAINS
   SUBROUTINE pair_potential_tersoff_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tersoff_copy', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: idim,stat
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -2548,11 +2541,9 @@ CONTAINS
   SUBROUTINE pair_potential_tersoff_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'pair_potential_tersoff_clean', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tersoff_clean', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -2596,8 +2587,7 @@ CONTAINS
   SUBROUTINE pair_potential_tersoff_release(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
-    TYPE(cp_error_type), INTENT(inout)  &
-                                             :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'pair_potential_tersoff_release', &
