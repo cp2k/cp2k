@@ -1235,7 +1235,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_ub (particle_set, molecule_kind_set, molecule_set, &
-      root_section, Ainfo, chm_info, inp_info, error)
+      root_section, Ainfo, chm_info, inp_info, iw, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1388,7 +1388,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE force_field_pack_tors (particle_set, molecule_kind_set, molecule_set, &
-       ff_type, Ainfo, chm_info, inp_info, gro_info, error)
+       ff_type, Ainfo, chm_info, inp_info, gro_info, iw, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1402,6 +1402,7 @@ CONTAINS
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_tors', &
@@ -1411,7 +1412,7 @@ CONTAINS
                                                 name_atm_c, name_atm_d
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 first, handle2, i, imul, &
-                                                itype, iw, j, k, last, natom, &
+                                                itype, j, k, last, natom, &
                                                 ntorsion
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     LOGICAL                                  :: failure, found, only_qm

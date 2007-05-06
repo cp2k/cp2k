@@ -234,13 +234,13 @@ CONTAINS
     ! 9. Urey-Bradley
     !-----------------------------------------------------------------------------
     CALL force_field_pack_ub (particle_set, molecule_kind_set, molecule_set,     &
-         root_section, Ainfo, chm_info, inp_info, error)
+         root_section, Ainfo, chm_info, inp_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 10. Torsions
     !-----------------------------------------------------------------------------
     CALL force_field_pack_tors (particle_set, molecule_kind_set, molecule_set,   &
-         ff_type, Ainfo, chm_info, inp_info, gro_info, error)
+         ff_type, Ainfo, chm_info, inp_info, gro_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. Impropers
