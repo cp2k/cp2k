@@ -1497,7 +1497,7 @@ CONTAINS
               cell(ibox)%cell%perd,cell(ibox)%cell%orthorhombic,error=error)
          cell_test(ibox)%cell%subcells=cell_old(ibox)%cell%subcells
          CALL force_env_set_cell(force_env(ibox)%force_env,&
-              cell_test(ibox)%cell,error=error)
+              cell_test(ibox)%cell,.FALSE.,error=error)
       ENDDO
 
 
@@ -1648,7 +1648,7 @@ CONTAINS
 ! reset the cell and particle positions
          DO ibox=1,2
             CALL force_env_set_cell(force_env(ibox)%force_env,&
-                 cell_old(ibox)%cell,error=error)
+                 cell_old(ibox)%cell,.FALSE.,error=error)
             DO iatom=1,nunits_tot(ibox)
                particles_old(ibox)%list%els(iatom)%r(1:3)=r_old(1:3,iatom,ibox)
             ENDDO

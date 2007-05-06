@@ -129,9 +129,6 @@ MODULE md
      INTEGER        :: ensemble
      LOGICAL :: constraint
      LOGICAL :: annealing
-     LOGICAL :: pv_numerical
-     LOGICAL :: pv_diagonal
-     LOGICAL :: pv_availability
      LOGICAL :: dump_lm 
      LOGICAL :: vshell_rescale
      INTEGER :: nfree
@@ -400,9 +397,6 @@ CONTAINS
        CALL section_vals_val_get(md_section,"COMVEL_TOL",r_val=simpar%comvel_tol,error=error)
        CALL section_vals_val_get(md_section,"TEMP_SHELL",r_val=simpar%temp_sh_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_SHELL_TOL",r_val=simpar%temp_sh_tol,error=error)
-       CALL section_vals_val_get(md_section,"PV_AVA",l_val=simpar%pv_availability,error=error)
-       CALL section_vals_val_get(md_section,"PV_NUM",l_val=simpar%pv_numerical,error=error)
-       CALL section_vals_val_get(md_section,"PV_DIA",l_val=simpar%pv_diagonal,error=error)
        CALL section_vals_val_get(md_section,"VSHELL_RESCALE",l_val=simpar%vshell_rescale,error=error)
 
        IF (simpar%ensemble == langevin_ensemble) THEN
@@ -499,9 +493,6 @@ CONTAINS
     simpar % f_annealing = 1.0_dp
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
-    simpar % pv_numerical=.FALSE.
-    simpar % pv_diagonal=.TRUE.
-    simpar % pv_availability=.FALSE.
     simpar % vshell_rescale=.FALSE.
     simpar % shake_tol = 1.0E-6_dp
     simpar % nhclen = 3
@@ -574,12 +565,12 @@ CONTAINS
                                                 imolecule_kind, istat, iw, &
                                                 natoms, nfixd, nshell, &
                                                 shell_index
-    LOGICAL :: comvel, explicit, explicit2, explicit3, failure, is_ok, &
-      is_shell, my_force_rescaling, shell_present
+    LOGICAL :: explicit, explicit2, explicit3, failure, is_ok, is_shell, &
+      my_force_rescaling, shell_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    REAL(KIND=dp)                            :: akin, akin0, denom, fac_massc, &
-                                                fac_masss, mass, mass_tot, &
-                                                sc, temp, temp0
+    REAL(KIND=dp)                            :: akin, akin0, denom, &
+                                                fac_massc, fac_masss, mass, &
+                                                mass_tot, sc, temp, temp0
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

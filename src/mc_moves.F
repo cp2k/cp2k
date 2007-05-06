@@ -1283,7 +1283,7 @@ END SUBROUTINE mc_conformation_change
       CALL cell_create(cell_test,hmat_test(:,:),cell%perd,cell%orthorhombic,&
            error=error)
       cell_test%subcells=cell_old%subcells
-      CALL force_env_set_cell(force_env,cell_test,error=error)
+      CALL force_env_set_cell(force_env,cell_test,.FALSE.,error=error)
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass, using the minimum image (not all molecules are in
@@ -1398,16 +1398,6 @@ END SUBROUTINE mc_conformation_change
 
       IF (rand .LT. w) THEN
 
-! write cell length, volume, density, and trial displacement to a file
-
-!            IF(ionode) WRITE(cl,*) nnstep,new_cell_length(1:3)*angstrom,&
-!               (new_energy-old_energy)/3.16682968E-6_dp,classical_energy_diff/3.16682968E-6_dp,&
-!               -REAL(nchain,dp)/&
-!               BETA*3.0E0_dp*LOG(new_cell_length(1)/&
-!               old_cell_length)/3.16682968E-6_dp, &
-!               pressure*(new_cell_length(1)**3-old_cell_length**3)/3.16682968E-6_dp,&
-!               vol_dis*(angstrom)**3,rand,new_energy/3.16682968E-6_dp,old_energy/3.16682968E-6_dp,w
-
 ! accept the move
          moves%volume%successes=moves%volume%successes+1
          move_updates%volume%successes=move_updates%volume%successes+1
@@ -1428,25 +1418,11 @@ END SUBROUTINE mc_conformation_change
 
       ELSE
 
-! reject the move
-
 ! reset the cell and particle positions
-         CALL force_env_set_cell(force_env,cell_old,error=error)
+         CALL force_env_set_cell(force_env,cell_old,.FALSE.,error=error)
          DO iatom=1,nunits_tot(box_number)
             particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
          ENDDO
-
-! write cell length, volume, density, and trial displacement to a file
-!            IF(ionode) WRITE(cl,*) nnstep,old_cell_length*angstrom,&
-!               (new_energy-old_energy)/3.16682968E-6_dp,classical_energy_diff/3.16682968E-6_dp,&
-!               -REAL(nchain,dp)/&
-!               BETA*3.0E0_dp*LOG(new_cell_length(1)/&
-!               old_cell_length)/3.16682968E-6_dp, &
-!               pressure*(new_cell_length(1)*new_cell_length(2)*&
-!               new_cell_length(3)-old_cell_length**3)/3.16682968E-6_dp,&
-!               vol_dis*(angstrom)**3,rand,new_energy/3.16682968E-6_dp,old_energy/3.16682968E-6_dp,w
-
-
 
       ENDIF
 

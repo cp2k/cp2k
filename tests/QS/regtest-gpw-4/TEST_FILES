@@ -30,3 +30,5 @@ spin_restraint.inp 1
 H2O-meta_g.inp     1
 #Colvar for hydronium
 H2O-meta_hydro.inp 1
+#NPT ensemble with QS
+H2O-7.inp          1

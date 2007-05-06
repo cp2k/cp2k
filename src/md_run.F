@@ -89,8 +89,6 @@ MODULE md_run
   USE util,                            ONLY: get_limit
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
-  USE virial_types,                    ONLY: virial_set,&
-                                             virial_type
   USE wiener_process,                  ONLY: create_wiener_process
 #include "cp_common_uses.h"
 
@@ -187,7 +185,6 @@ CONTAINS
       work3_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,"I","",handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -244,10 +241,10 @@ CONTAINS
     DO ibead = 1, nbeads
        CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                           dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
-                          cell=cell, cell_ref = cell_ref, virial = virial,&
+                          cell=cell, cell_ref = cell_ref,&
                           force_env_section=force_env_section, error=error )
-       ! Define a reference cell for compatibility with MD restarts
 
+       ! Define a reference cell for compatibility with MD restarts
        DO isubsys=1,SIZE(subsys)
           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",i_rep_section=isubsys,&
                error=error)
@@ -305,8 +302,6 @@ CONTAINS
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
        CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,&
             cell,work_section=work_section,error=error)
-       CALL virial_set ( virial,pv_availability=simpar%pv_availability,&
-                         pv_numer=simpar%pv_numerical,pv_diagonal=simpar%pv_diagonal)
        !
        ! Always initialize velocities
        ! and possibly restart them
@@ -460,7 +455,7 @@ CONTAINS
               error=error)
 
        CALL virial_evaluate(atomic_kinds%els, particles%els, &
-              local_particles, force_env_p(ibead)%force_env% virial,&
+              local_particles, force_env_p(ibead)%force_env%virial,&
               force_env_p(ibead)%force_env%para_env%group,&
               error=error)
 
@@ -593,15 +588,15 @@ END SUBROUTINE md_output
     CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, bo(2), handle, iatom, ikind, &
-                                                isubsys, iw, mepos, natom, &
-                                                nfree_shell, num_pe, shell_index
+    INTEGER                                  :: atom, bo(2), handle, iatom, &
+                                                ikind, isubsys, iw, mepos, &
+                                                natom, nfree_shell, num_pe, &
+                                                shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, is_shell, &
                                                 shell_adiabatic
     REAL(KIND=dp) :: e_kinetic, ekin_c, ekin_com, ekin_s, ekin_shell, &
-      fac_massc, fac_masss, mass, scale, temp_shell, temperature, &
-      total_mass, v2
+      fac_massc, fac_masss, mass, scale, temperature, total_mass, v2
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -923,16 +918,15 @@ END SUBROUTINE md_output
     CHARACTER(LEN=*), PARAMETER :: routineN = 'comvel_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, bo(2), handle, iatom, ikind, &
-                                                isubsys, iw, natom, &
-                                                mepos, num_pe, shell_index
+    INTEGER                                  :: atom, bo(2), handle, iatom, &
+                                                ikind, isubsys, iw, mepos, &
+                                                natom, num_pe, shell_index
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, is_shell, &
                                                 shell_adiabatic
-    REAL(KIND=dp)                            :: e_kinetic, &
-                                                fac_massc, &
+    REAL(KIND=dp)                            :: e_kinetic, fac_massc, &
                                                 fac_masss, mass, scale, &
-                                                temperature, temp_new, &
+                                                temp_new, temperature, &
                                                 total_mass, v2, vel_com
     REAL(KIND=dp), DIMENSION(3)              :: v, vc, vcom, vcom_new, vs
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1004,7 +998,7 @@ END SUBROUTINE md_output
 
       temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,KIND=dp)
       vcom = vcom / total_mass
-      vel_com = sqrt(vcom(1)*vcom(1)+vcom(2)*vcom(2)+vcom(3)*vcom(3))
+      vel_com = SQRT(vcom(1)*vcom(1)+vcom(2)*vcom(2)+vcom(3)*vcom(3))
 
       ! Subtract the velocity of the COM, if requested
 

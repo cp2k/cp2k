@@ -243,7 +243,6 @@ CONTAINS
        CALL virial_set(virial,pv_availability=.TRUE.,pv_numer=pvn,pv_diagonal=pvd)
     END IF
     IF (.NOT.failure) THEN
-
        SELECT CASE ( force_env%in_use )
        CASE ( use_fist_force )
           CALL fist_force_control( force_env%fist_env,virial, force_env%para_env, &
@@ -399,9 +398,12 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isubsys, stat
-    LOGICAL                                  :: failure, virial_in_use
+    LOGICAL                                  :: explicit, failure, &
+                                                pv_availability, pv_diagonal, &
+                                                pv_numerical, virial_in_use
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(section_vals_type), POINTER         :: md_section
 
   failure=.FALSE.
 
@@ -434,12 +436,27 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
      CALL section_vals_retain(force_env_section,error=error)
      force_env%force_env_section => force_env_section
 
+     ! For methods not still implementing the virial let's set using the keywords
+     ! in the MD section...
+     md_section => section_vals_get_subs_vals(force_env%root_section,"MOTION%MD",error=error)
+     CALL section_vals_get(md_section, explicit=explicit, error=error)
+     IF (explicit) THEN
+        CALL section_vals_val_get(md_section,"PV_AVA",l_val=pv_availability,error=error)
+        CALL section_vals_val_get(md_section,"PV_NUM",l_val=pv_numerical,error=error)
+        CALL section_vals_val_get(md_section,"PV_DIA",l_val=pv_diagonal,error=error)
+     ELSE
+        pv_availability=.FALSE.        
+        pv_numerical=.FALSE.
+        pv_diagonal=.FALSE.
+     END IF
+
      IF (PRESENT(fist_env)) THEN
         IF (ASSOCIATED(fist_env)) THEN
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
            force_env%in_use=use_fist_force
            force_env%fist_env => fist_env
            CALL fist_env_retain ( fist_env, error = error )
+           ! Virial  fully present for FIST
            CALL virial_create ( force_env % virial, error=error)
            CALL virial_set ( force_env % virial, pv_availability = .TRUE.)
         END IF
@@ -450,11 +467,11 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use=use_kg_force
            force_env%kg_env => kg_env
            CALL kg_env_retain(kg_env,error=error)
+           ! Virial not present for KG
            CALL virial_create ( force_env%virial, error=error)
            kg_env%virial => force_env%virial
            CALL virial_retain(kg_env%virial,error=error)
         END IF
-
      END IF
      IF (PRESENT(eip_env)) THEN
         IF (ASSOCIATED(eip_env)) THEN
@@ -462,6 +479,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use = use_eip_force
            force_env%eip_env => eip_env
            CALL eip_env_retain(eip_env, error=error)
+           ! Virial not present for EIP
            CALL virial_create(force_env%virial, error=error)
            eip_env%virial => force_env%virial
            CALL virial_retain(eip_env%virial,error=error)
@@ -480,6 +498,11 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
               CALL virial_set ( force_env % virial, pv_availability = virial_in_use)
            ELSE
               CALL virial_create(force_env%virial, error=error)
+              ! This call should be removed when virial will be fully implemented for QS
+              CALL virial_set ( virial=force_env%virial,&
+                                pv_availability=pv_availability,&
+                                pv_numer=pv_numerical,&
+                                pv_diagonal=pv_diagonal)
            END IF
            qs_env%virial => force_env%virial
            CALL virial_retain(qs_env%virial,error=error)
@@ -492,14 +515,23 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         CALL qmmm_env_qm_retain(qmmm_env,error=error)
         force_env%virial => sub_force_env(1)%force_env%virial
         CALL virial_retain(force_env%virial,error=error)
+        ! This call should be removed when virial will be implemented for QMMM
+        CALL virial_set ( virial=force_env%virial,&
+                          pv_availability=pv_availability,&
+                          pv_numer=pv_numerical,&
+                          pv_diagonal=pv_diagonal)        
      END IF
      IF (PRESENT(mixed_env)) THEN
         CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
         force_env%in_use=use_mixed_force
         force_env%mixed_env => mixed_env
         CALL mixed_env_retain ( mixed_env, error = error )
+        ! This is necessary as long as there are methods not implementing the virial
         CALL virial_create ( force_env % virial, error=error)
-        CALL virial_set ( force_env % virial, pv_availability = .TRUE.)
+        CALL virial_set ( virial=force_env%virial,&
+                          pv_availability=pv_availability,&
+                          pv_numer=pv_numerical,&
+                          pv_diagonal=pv_diagonal)
      END IF
      IF (PRESENT(ep_env)) THEN
         IF (ASSOCIATED(ep_env)) THEN
@@ -507,6 +539,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%in_use=use_ep_force
            force_env%ep_env => ep_env
            CALL ep_env_retain(ep_env,error=error)
+           ! Virial not present for EP
            CALL virial_create ( force_env%virial, error=error)
         END IF
      END IF
@@ -684,15 +717,16 @@ END SUBROUTINE ep_create_force_env
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
+RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, check_virial_defined, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                      :: check_virial_defined
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: check, failure
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(kg_rho_type), POINTER               :: kg_rho
@@ -704,6 +738,15 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
   CPPrecondition(cell%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (check_virial_defined) THEN
+     check = force_env%virial%pv_availability
+     CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
+          routineP,"Virial not implemented for this method! You may consider to force "//&
+          " the virial evaluation with the keyword: PV_AVA. Be sure the method you're "//&
+          " using can compute the virial! "//&
+ CPSourceFileRef,&
+          error,failure)
+  END IF
   IF (.NOT. failure) THEN
      SELECT CASE(force_env%in_use)
      CASE (use_qs_force)
@@ -737,7 +780,7 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
         CALL set_kg_env(force_env%kg_env,cell=cell, error=error)
         CALL get_kg_env ( force_env%kg_env, rspw = kg_rspw, rho=kg_rho ,error=error)
         CALL kg_rspw_rebuild( kg_rspw, force_env % kg_env, error=error)
-     ! allocate rho structures
+        ! allocate rho structures
         CALL kg_rho_create(kg_rho=kg_rho,kg_env=force_env % kg_env,error=error)
         CALL set_kg_env(force_env % kg_env,rho=kg_rho,error=error)
      CASE (use_eip_force)

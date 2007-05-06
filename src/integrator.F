@@ -993,16 +993,14 @@ CONTAINS
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
       nparticle_kind, nparticle_local, nshell, shell_index
-    LOGICAL :: is_shell, shell_adiabatic, shell_present
+    LOGICAL                                  :: is_shell, shell_adiabatic, &
+                                                shell_present
     REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
-                                                fac_massc, fac_masss, global_mass, &
-                                                mass
+                                                fac_massc, fac_masss, &
+                                                global_mass, mass
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pos, vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: shell_pos, shell_vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: core_pos, core_vel
+      DIMENSION(:, :)                        :: core_pos, core_vel, pos, &
+                                                shell_pos, shell_vel, vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1030,15 +1028,12 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
-    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -1451,20 +1446,16 @@ CONTAINS
       isubsys, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: is_shell, first, shell_adiabatic, shell_present
+    LOGICAL                                  :: first, is_shell, &
+                                                shell_adiabatic, shell_present
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
-    REAL(KIND=dp)                            :: arg_r, arg_v, dm, dmc, dms, dt, &
-                                                fac_massc, fac_masss,  infree, &
-                                                mass, poly_r, poly_v, &
-                                                roll_tol, scale_r, scale_v
+    REAL(KIND=dp) :: arg_r, arg_v, dm, dmc, dms, dt, fac_massc, fac_masss, &
+      infree, mass, poly_r, poly_v, roll_tol, scale_r, scale_v
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pos, vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: shell_pos, shell_vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: core_pos, core_vel
+      DIMENSION(:, :)                        :: core_pos, core_vel, pos, &
+                                                shell_pos, shell_vel, vel
     REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), SAVE                      :: eps_0
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -1488,15 +1479,12 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
-    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -1748,7 +1736,7 @@ CONTAINS
 
 !     *** Update forces ***
 
-      CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
+      CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -2208,7 +2196,7 @@ CONTAINS
 
 !     *** Update forces (and stress)***
 
-      CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
+      CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -2517,7 +2505,7 @@ CONTAINS
 
 !     *** Update forces ***
 
-      CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
+      CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -2873,18 +2861,17 @@ CONTAINS
       isubsys, j, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       nparticle_local, nshell, shell_index
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: is_shell, first, shell_adiabatic, shell_present
+    LOGICAL                                  :: first, is_shell, &
+                                                shell_adiabatic, shell_present
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp)                                 :: kin
     REAL(dp), DIMENSION(3, 3)                :: pv_kin
-    REAL(KIND=dp)                            :: dm, dmc, dms, dt, infree, fac_massc, fac_masss, mass, &
+    REAL(KIND=dp)                            :: dm, dmc, dms, dt, fac_massc, &
+                                                fac_masss, infree, mass, &
                                                 roll_tol, trvg
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pos, vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: shell_pos, shell_vel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: core_pos, core_vel
+      DIMENSION(:, :)                        :: core_pos, core_vel, pos, &
+                                                shell_pos, shell_vel, vel
     REAL(KIND=dp), DIMENSION(3)              :: arg_r, arg_v, e_val, poly_r, &
                                                 poly_v, scale_r, scale_v, uf, &
                                                 ur, uv, vector_v
@@ -2910,15 +2897,12 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_list_type), POINTER        :: shell_particles
-    TYPE(particle_list_type), POINTER        :: core_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set
+      POINTER                                :: core_particle_set, &
+                                                particle_set, &
+                                                shell_particle_set
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -3225,7 +3209,7 @@ CONTAINS
 
 !     *** Update forces ***
 
-       CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
+       CALL force_env_set_cell(force_env_p(1)%force_env, cell, .TRUE.,error)
        CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
