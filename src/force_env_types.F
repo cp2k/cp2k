@@ -88,18 +88,16 @@ MODULE force_env_types
   INTEGER, PARAMETER, PUBLIC :: use_fist_force = 501, &
                                 use_qs_force   = 502, &
                                 use_kg_force   = 503, &
-                                use_pol_force  = 504, &
-                                use_qmmm       = 505, &
-                                use_eip_force  = 506, &
-                                use_ep_force   = 507, &
-                                use_mixed_force= 508
+                                use_qmmm       = 504, &
+                                use_eip_force  = 505, &
+                                use_ep_force   = 506, &
+                                use_mixed_force= 507
 
-  CHARACTER(LEN=10), DIMENSION(501:508), PARAMETER, PUBLIC :: &
+  CHARACTER(LEN=10), DIMENSION(501:507), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
        "FIST  ", &
        "QS    ", &
        "KG    ", &
-       "KG-POL", &
        "QMMM  ", &
        "EIP   ", &
        "EP    ", &
@@ -899,7 +897,8 @@ SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nfor
     INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
     LOGICAL                                  :: failure
 
-  ! Let's treat the case of Multiple force_eval
+! Let's treat the case of Multiple force_eval
+
   CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
   CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
        i_vals=my_i_force_eval,ignore_required=.TRUE.,error=error)

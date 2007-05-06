@@ -78,7 +78,8 @@ MODULE cell_types
             cell_create,&
             cell_retain,&
             cell_release,&
-            cell_clone
+            cell_clone,&
+            compare_cells
 
 ! *** Public functions ***
 
@@ -102,6 +103,35 @@ MODULE cell_types
 ! *****************************************************************************
 
 CONTAINS
+
+  FUNCTION compare_cells (cell_1, cell_2, error) RESULT(compare)
+    TYPE(cell_type), POINTER                 :: cell_1, cell_2
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    LOGICAL                                  :: compare
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'compare_cells', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(cell_1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(cell_2),cp_failure_level,routineP,error,failure)
+
+    compare = (&
+    (cell_2%unit_of_length_name == cell_1%unit_of_length_name).AND.&
+    (cell_2%deth == cell_1%deth).AND.&
+    (cell_2%subcells == cell_1%subcells).AND.&
+    (cell_2%unit_of_length == cell_1%unit_of_length).AND.&
+    (ALL(cell_2%perd == cell_1%perd)).AND.&
+    (ALL(cell_2%hmat == cell_1%hmat)).AND.&
+    (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
+    (((.NOT.cell_2%orthorhombic) .OR.       cell_1%orthorhombic).AND.&
+           (cell_2%orthorhombic  .OR. (.NOT.cell_1%orthorhombic))).AND.&
+    (((.NOT.cell_2%scaled_coordinates) .OR.       cell_1%scaled_coordinates).AND.&
+           (cell_2%scaled_coordinates  .OR. (.NOT.cell_1%scaled_coordinates))))
+
+  END FUNCTION compare_cells
 
   SUBROUTINE cell_clone (cell_in, cell_out, error)
     TYPE(cell_type), POINTER                 :: cell_in, cell_out

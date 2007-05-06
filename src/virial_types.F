@@ -19,13 +19,12 @@
 MODULE virial_types
 
   USE kinds,                           ONLY: dp
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC:: virial_type, virial_set, virial_get, cp_virial,&
+  PUBLIC:: virial_type, virial_p_type, virial_set, virial_get, cp_virial,&
            virial_create, virial_retain, virial_release, zero_virial
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
@@ -44,6 +43,10 @@ MODULE virial_types
                                            pv_numer,&
                                            pv_diagonal
   END TYPE virial_type
+
+  TYPE virial_p_type
+     TYPE(virial_type),  POINTER        :: virial
+  END TYPE virial_p_type
 
 !!*****
 !******************************************************************************
@@ -77,24 +80,30 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE zero_virial ( virial )
+  SUBROUTINE zero_virial ( virial, reset )
 
     TYPE(virial_type), INTENT(OUT)           :: virial
+    LOGICAL, INTENT(IN), OPTIONAL            :: reset
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'zero_virial', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: my_reset
+
+    my_reset = .TRUE.
+    IF (PRESENT(reset)) my_reset = reset
 
     virial % pv_total = 0.0_dp 
     virial % pv_kinetic = 0.0_dp 
     virial % pv_virial = 0.0_dp 
     virial % pv_xc = 0.0_dp 
     virial % pv_constraint = 0.0_dp 
-
-    virial % pv_availability = .FALSE.
-    virial % pv_numer = .FALSE.
-    virial % pv_calculate = .FALSE.
-    virial % pv_diagonal = .FALSE.
-
+    IF ( my_reset ) THEN
+       virial % pv_availability = .FALSE.
+       virial % pv_numer = .FALSE.
+       virial % pv_calculate = .FALSE.
+       virial % pv_diagonal = .FALSE.
+    END IF
   END SUBROUTINE  zero_virial
 
 ! *****************************************************************************
@@ -105,8 +114,9 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
-    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer, &
-                                                pv_calculate, pv_diagonal
+    LOGICAL, OPTIONAL                        :: pv_availability, &
+                                                pv_calculate, pv_numer, &
+                                                pv_diagonal
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_set', &
       routineP = moduleN//':'//routineN
@@ -133,8 +143,9 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
                                                 pv_constraint, pv_kinetic
-    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer, &
-                                                pv_calculate, pv_diagonal
+    LOGICAL, OPTIONAL                        :: pv_availability, &
+                                                pv_calculate, pv_numer, &
+                                                pv_diagonal
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_get', &
       routineP = moduleN//':'//routineN
@@ -263,8 +274,8 @@ SUBROUTINE virial_release(virial, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   IF (ASSOCIATED(virial)) THEN
