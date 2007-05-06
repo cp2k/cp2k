@@ -617,7 +617,7 @@ MODULE four_center_integrals
       nsgfc, nsgfd
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
-    LOGICAL                                  :: failure, mem_flag
+    LOGICAL                                  :: failure
     REAL(dp) :: ene_x_aa, ene_x_bb, eps_schwarz, fac, hf_fraction, max_val1, &
       max_val2, max_val3, max_val4, memory_usage, prim, ra(3), rb(3), rc(3), &
       rd(3), sa, sb, sc, sd, tmp1, tmp11, tmp2, tmp21, tmp3, tmp31
@@ -838,85 +838,116 @@ MODULE four_center_integrals
                     
                     current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
                     total_integrals_to_store=total_integrals_to_store+current_counter
-                    mem_flag = .FALSE.
+
                     IF( integral_counter + current_counter<= number_of_precalc_integrals) THEN
-                      ALLOCATE(primitive_integrals(ncoa,ncob,ncoc,ncod),STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      mem_flag = .TRUE.
-                    END IF
-
-                    IF(.NOT.geometry_did_change .AND. integral_counter + current_counter &
-                                                                 <= number_of_precalc_integrals) THEN
-                      DO md = 1,nsgfd(lset)
-                        DO mc = 1,nsgfc(kset)
-                          DO mb = 1,nsgfb(jset)
-                            DO ma = 1,nsgfa(iset)
-                              primitive_integrals(ma,&
-                                                  mb,&
-                                                  mc,&
-                                                  md)=&
-                               qs_env%x_data%x_buffer(integral_counter)
-                               integral_counter = integral_counter + 1
+                      IF(.NOT.geometry_did_change) THEN
+                        DO md = 1,nsgfd(lset)
+                          pd2 = md+sgfd-1
+                          pd = pd1 + pd2
+                          DO mc = 1,nsgfc(kset)
+                            pc2 = mc+sgfc-1
+                            pc = pc1 + pc2
+                            DO mb = 1,nsgfb(jset)
+                              pb2 = mb+sgfb-1
+                              pb = pb1 + pb2
+                              tmp1 = fac*full_density(pb,pc)
+                              IF( nspins == 2 ) tmp11 = fac*full_density_beta(pb,pc)
+                              DO ma = 1,nsgfa(iset)
+                                pa2 = ma+sgfa-1
+                                pa = pa1 + pa2
+                                tmp2 = tmp1*qs_env%x_data%x_buffer(integral_counter)
+                                sparse_block(pa2,pd2) = sparse_block(pa2,pd2) - tmp2
+                                tmp2 = tmp3*full_density(pa,pd)*tmp2
+                                ene_x_aa = ene_x_aa - tmp2
+                                IF( nspins == 2 ) THEN
+                                  tmp21 = tmp11*qs_env%x_data%x_buffer(integral_counter)
+                                  sparse_block_beta(pa2,pd2) = sparse_block_beta(pa2,pd2) - tmp21
+                                  tmp21 = tmp31*full_density_beta(pa,pd)*tmp21
+                                  ene_x_bb = ene_x_bb -tmp21
+                                END IF
+                                integral_counter = integral_counter + 1
+                              END DO
                             END DO
                           END DO
                         END DO
-                      END DO
-                    END IF
-                    IF(geometry_did_change .AND. integral_counter + current_counter &
-                                              <= number_of_precalc_integrals) THEN
+                      ELSE
+                        ALLOCATE(primitive_integrals(ncoa,ncob,ncoc,ncod),STAT=stat)
+                        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                        ALLOCATE(T1(ncoa,ncob,ncoc,ncod),STAT=stat)
+                        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                      !Get primitive array into cache
-                      primitive_integrals = 0.0_dp
-                      ALLOCATE(T1(ncoa,ncob,ncoc,ncod),STAT=stat)
-                      CALL coulomb4(ra, rb, rc, rd,&
-                                    zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
-                                    la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                                    lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                                    npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                    primitive_integrals,screening2(iatom,jatom,iset,jset,:,:),&
-                                    screening2(katom,latom,kset,lset,:,:),eps_schwarz)
+                        !Get primitive array into cache
+                        primitive_integrals = 0.0_dp
+                        CALL coulomb4(ra, rb, rc, rd,&
+                                      zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
+                                      la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                                      lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                                      npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                                      primitive_integrals,screening2(iatom,jatom,iset,jset,:,:),&
+                                      screening2(katom,latom,kset,lset,:,:),eps_schwarz)
 
-                      CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
-                                 1.0_dp, primitive_integrals(1,1,1,1),ncoa,&
-                                 sphi_a(1,sgfa), SIZE(sphi_a,1),&
-                                 0.0_dp, T1(1,1,1,1),ncob*ncoc*ncod)
+                        CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
+                                   1.0_dp, primitive_integrals(1,1,1,1),ncoa,&
+                                   sphi_a(1,sgfa), SIZE(sphi_a,1),&
+                                   0.0_dp, T1(1,1,1,1),ncob*ncoc*ncod)
 
-                      CALL dgemm("T","N",ncoa*ncoc*ncod,nsgfb(jset),ncob,&
-                                 1.0_dp, T1(1,1,1,1),ncob,&
-                                 sphi_b(1,sgfb), SIZE(sphi_b,1),&
-                                 0.0_dp, primitive_integrals(1,1,1,1),ncoa*ncoc*ncod)
+                        CALL dgemm("T","N",ncoa*ncoc*ncod,nsgfb(jset),ncob,&
+                                   1.0_dp, T1(1,1,1,1),ncob,&
+                                   sphi_b(1,sgfb), SIZE(sphi_b,1),&
+                                   0.0_dp, primitive_integrals(1,1,1,1),ncoa*ncoc*ncod)
 
-                      CALL dgemm("T","N",ncoa*ncob*ncod,nsgfc(kset),ncoc,&
-                                 1.0_dp, primitive_integrals(1,1,1,1),ncoc,&
-                                 sphi_c(1,sgfc), SIZE(sphi_c,1),&
-                                 0.0_dp, T1(1,1,1,1),ncoa*ncob*ncod)
+                        CALL dgemm("T","N",ncoa*ncob*ncod,nsgfc(kset),ncoc,&
+                                   1.0_dp, primitive_integrals(1,1,1,1),ncoc,&
+                                   sphi_c(1,sgfc), SIZE(sphi_c,1),&
+                                   0.0_dp, T1(1,1,1,1),ncoa*ncob*ncod)
 
-                      CALL dgemm("T","N",ncoa*ncob*ncoc,nsgfd(lset),ncod,&
-                                 1.0_dp, T1(1,1,1,1),ncod,&
-                                 sphi_d(1,sgfd), SIZE(sphi_d,1),&
-                                 0.0_dp, primitive_integrals(1,1,1,1),ncoa*ncob*ncoc)
+                        CALL dgemm("T","N",ncoa*ncob*ncoc,nsgfd(lset),ncod,&
+                                   1.0_dp, T1(1,1,1,1),ncod,&
+                                   sphi_d(1,sgfd), SIZE(sphi_d,1),&
+                                   0.0_dp, primitive_integrals(1,1,1,1),ncoa*ncob*ncoc)
 
-                      DEALLOCATE(T1,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                        DEALLOCATE(T1,STAT=stat)
+                        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                      DO md = 1,nsgfd(lset)
-                        DO mc = 1,nsgfc(kset)
-                          DO mb = 1,nsgfb(jset)
-                            DO ma = 1,nsgfa(iset)
-                              qs_env%x_data%x_buffer(integral_counter) = &
-                                 primitive_integrals(ma,&
-                                                     mb,&
-                                                     mc,&
-                                                     md)
-                              integral_counter = integral_counter + 1
+                        DO md = 1,nsgfd(lset)
+                          pd2 = md+sgfd-1
+                          pd = pd1 + pd2
+                          DO mc = 1,nsgfc(kset)
+                            pc2 = mc+sgfc-1
+                            pc = pc1 + pc2
+                            DO mb = 1,nsgfb(jset)
+                              pb2 = mb+sgfb-1
+                              pb = pb1 + pb2
+                              tmp1 = fac*full_density(pb,pc)
+                              IF( nspins == 2 ) tmp11 = fac*full_density_beta(pb,pc)
+                              DO ma = 1,nsgfa(iset)
+                                pa2 = ma+sgfa-1
+                                pa = pa1 + pa2
+                                tmp2 = tmp1*primitive_integrals(ma,mb,mc,md)
+                                sparse_block(pa2,pd2) = sparse_block(pa2,pd2) - tmp2
+                                tmp2 = tmp3*full_density(pa,pd)*tmp2
+                                ene_x_aa = ene_x_aa - tmp2
+                                IF( nspins == 2 ) THEN
+                                  tmp21 = tmp11*primitive_integrals(ma,mb,mc,md)
+                                  sparse_block_beta(pa2,pd2) = sparse_block_beta(pa2,pd2) - tmp21
+                                  tmp21 = tmp31*full_density_beta(pa,pd)*tmp21
+                                  ene_x_bb = ene_x_bb -tmp21
+                                END IF
+                                qs_env%x_data%x_buffer(integral_counter) = &
+                                   primitive_integrals(ma,&
+                                                       mb,&
+                                                       mc,&
+                                                       md)
+                                integral_counter = integral_counter + 1
+                              END DO
                             END DO
                           END DO
                         END DO
-                      END DO
 
-                    END IF !geometry
-                    IF(integral_counter + current_counter > number_of_precalc_integrals ) THEN
-
+                        DEALLOCATE(primitive_integrals,STAT=stat)
+                        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      ENDIF
+                    ELSE
                       DO lpgf = 1,npgfd(lset)
                         offset_d1 = (lpgf-1)*ncoset(ld_max(lset))
                         cgfd_first = offset_d1 + ncoset(ld_min(lset)-1)+1
@@ -1008,38 +1039,6 @@ MODULE four_center_integrals
                       END DO !ipgf
                     END IF
 
-                    IF (mem_flag) THEN
-                      DO md = 1,nsgfd(lset)
-                        pd2 = md+sgfd-1
-                        pd = pd1 + pd2
-                        DO mc = 1,nsgfc(kset)
-                          pc2 = mc+sgfc-1
-                          pc = pc1 + pc2
-                          DO mb = 1,nsgfb(jset)
-                            pb2 = mb+sgfb-1
-                            pb = pb1 + pb2
-                            tmp1 = fac*full_density(pb,pc)
-                            IF( nspins == 2 ) tmp11 = fac*full_density_beta(pb,pc)
-                            DO ma = 1,nsgfa(iset)
-                              pa2 = ma+sgfa-1
-                              pa = pa1 + pa2
-                              tmp2 = tmp1*primitive_integrals(ma,mb,mc,md)
-                              sparse_block(pa2,pd2) = sparse_block(pa2,pd2) - tmp2
-                              tmp2 = tmp3*full_density(pa,pd)*tmp2
-                              ene_x_aa = ene_x_aa - tmp2
-                              IF( nspins == 2 ) THEN
-                                tmp21 = tmp11*primitive_integrals(ma,mb,mc,md)
-                                sparse_block_beta(pa2,pd2) = sparse_block_beta(pa2,pd2) - tmp21
-                                tmp21 = tmp31*full_density_beta(pa,pd)*tmp21
-                                ene_x_bb = ene_x_bb -tmp21
-                              END IF
-                            END DO
-                          END DO
-                        END DO
-                      END DO
-                      DEALLOCATE(primitive_integrals,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                    END IF
                   END DO !lset
                 END DO !kset
               END DO !jset
