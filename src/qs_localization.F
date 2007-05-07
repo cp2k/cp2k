@@ -56,7 +56,8 @@ MODULE qs_localization
                                              gth_potential_type
   USE input_constants,                 ONLY: do_loc_crazy,&
                                              do_loc_direct,&
-                                             do_loc_jacobi
+                                             do_loc_jacobi,&
+                                             do_loc_l1_norm_sd
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
@@ -84,7 +85,8 @@ MODULE qs_localization
   USE qs_localization_methods,         ONLY: crazy_rotations,&
                                              direct_mini,&
                                              initialize_weights,&
-                                             jacobi_rotations
+                                             jacobi_rotations,&
+                                             approx_l1_norm_sd
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
@@ -372,6 +374,9 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
           END IF
        CASE ( do_loc_direct )
           CALL direct_mini      ( qs_loc_env % weights, zij, vectors, sweeps )
+       CASE( do_loc_l1_norm_sd )
+          CALL approx_l1_norm_sd(vectors,qs_loc_env%max_iter,qs_loc_env%eps_localization,&
+               &                 converged,sweeps,error=error)
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT

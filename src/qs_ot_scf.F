@@ -36,6 +36,7 @@ MODULE qs_ot_scf
   USE input_constants,                 ONLY: &
        ot_ls_2pnt, ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_mini_cg, &
        ot_mini_diis, ot_mini_sd, ot_precond_full_all, &
+       ot_algo_taylor_or_diag,ot_algo_refine, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag
@@ -50,6 +51,7 @@ MODULE qs_ot_scf
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
                                              qs_ot_get_orbitals,&
+                                             qs_ot_get_orbitals_ref,&
                                              qs_ot_get_p,&
                                              qs_ot_init,&
                                              qs_ot_settings_init,&
@@ -84,7 +86,7 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &
-                                                nspin, ot_method, output_unit
+                                                nspin, ot_method, ot_algorithm, output_unit
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
@@ -103,6 +105,35 @@ CONTAINS
     ! use ot input new style
     ot_section=>section_vals_get_subs_vals(scf_section,"OT",error=error)
     CALL section_vals_get(ot_section,explicit=explicit,error=error)
+
+    ! choose algorithm
+    CALL section_vals_val_get(ot_section,"ALGORITHM",i_val=ot_algorithm,error=error)
+    SELECT CASE(ot_algorithm)
+    CASE (ot_algo_taylor_or_diag)
+       qs_ot_env(1)%settings%ot_algorithm="TOD"
+    CASE (ot_algo_refine)
+       qs_ot_env(1)%settings%ot_algorithm="REF"
+    CASE DEFAULT
+       CALL stop_program("READ OT ALGORITHM","VALUE UNKNOWN")
+    END SELECT
+
+    ! refinement input
+    CALL section_vals_val_get(ot_section,"REFINE_DEGREE",i_val=qs_ot_env(1)%settings%refinement_degree,&
+         &                    error=error)
+    IF(   qs_ot_env(1)%settings%refinement_degree.LT.2.OR.&
+         &qs_ot_env(1)%settings%refinement_degree.GT.4) THEN
+       CALL stop_program("READ OT REFINE_DEGREE","VALUE UNKNOWN")
+    ENDIF
+    CALL section_vals_val_get(ot_section,"MAX_REFINE",i_val=qs_ot_env(1)%settings%max_refinement,&
+         &                    error=error)
+    IF(qs_ot_env(1)%settings%max_refinement.LT.1) THEN
+       CALL stop_program("READ OT MAX_REFINE","VALUE MUST BE GREATER THAN ZERO")
+    ENDIF
+    CALL section_vals_val_get(ot_section,"EPS_REFINE_NORM",r_val=qs_ot_env(1)%settings%eps_refinement_norm,&
+         &                    error=error)
+    IF(qs_ot_env(1)%settings%eps_refinement_norm.LT.0.0_dp) THEN
+       CALL stop_program("READ OT EPS_REFINE_NORM","VALUE MUST BE GREATER THAN ZERO")
+    ENDIF
 
        CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method,error=error)
        ! compatibility
@@ -228,6 +259,12 @@ CONTAINS
     WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
     WRITE(output_unit,'(A,I14)')   "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
     WRITE(output_unit,'(A)') "  "
+    IF(qs_ot_env(1)%settings%ot_algorithm.EQ.'REF') THEN
+       WRITE(output_unit,'(A,I14)')"  refine_degree  :",qs_ot_env(1)%settings%refinement_degree
+       WRITE(output_unit,'(A,I14)')"  max_refine     :",qs_ot_env(1)%settings%max_refinement
+       WRITE(output_unit,'(A,E14.5)')"  eps_refine_norm:",qs_ot_env(1)%settings%eps_refinement_norm
+       WRITE(output_unit,'(A)') "  "
+    ENDIF
     WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
  END IF
 
@@ -298,14 +335,23 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
-       IF (ASSOCIATED(matrix_s)) THEN
-         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
+       SELECT CASE(qs_ot_env(1)%settings%ot_algorithm)
+       CASE("TOD")
+          IF (ASSOCIATED(matrix_s)) THEN
+             CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
                                        qs_ot_env(ispin)%matrix_sx, k,error=error)
-       ELSE
-         CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,error=error)
-       ENDIF
-       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),error=error)
-       CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),error=error)
+          ELSE
+             CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,error=error)
+          ENDIF
+          CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),error=error)
+          CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin),error=error)
+       CASE("REF")
+          CALL qs_ot_get_orbitals_ref(mo_coeff,matrix_s,qs_ot_env(ispin)%matrix_x,&
+               &           qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),qs_ot_env(1),&
+               &           error=error)
+       CASE DEFAULT
+          CALL stop_program("ot_scf_mini","ALGORITHM NYI")
+       END SELECT
     ENDDO
     IF (qs_ot_env(1)%restricted) THEN
        CALL mo_set_restrict(mo_array,error=error)
@@ -363,8 +409,18 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,error)
            CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp,error=error)
        ENDIF
 
-       ! get c
-       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),error=error)
+       SELECT CASE(qs_ot_env(1)%settings%ot_algorithm)
+       CASE("TOD")
+          ! get c
+          CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin),error=error)
+       CASE("REF")
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_c0,qs_ot_env(ispin)%matrix_x,&
+               &           error=error)
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%matrix_sx,&
+               &           error=error)
+       CASE DEFAULT
+          CALL stop_program("ot_scf_init","ALGORITHM NYI")
+       END SELECT
 
     END DO
     CALL timestop(0.0_dp,handle)

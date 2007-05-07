@@ -1109,14 +1109,16 @@ CONTAINS
 
        CALL keyword_create(keyword, name="LOC_TYPE",&
             description="Specify the method to use for the localization.",&
-            usage="LOC_TYPE (JACOBI|CRAZY|DIRECT|NONE)",&
-            enum_desc=s2a("No localization is applied",&
-            "Using 2 x 2 rotations of the orbitals, slow but robust",&
+            usage="LOC_TYPE (JACOBI|CRAZY|DIRECT|L1SD|NONE)",&
+            enum_desc=s2a("Using 2 x 2 rotations of the orbitals, slow but robust",&
             "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster",&
-            "Using a direct minimisation approach"),&
-            enum_c_vals=s2a("JACOBI","CRAZY","DIRECT","NONE"),&
-            enum_i_vals=(/ do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
+            "Using a direct minimisation approach",&
+            "Steepest descent minimization of an approximate l1 norm",&
+            "No localization is applied"),&
+            enum_c_vals=s2a("JACOBI","CRAZY","DIRECT","L1SD","NONE"),&
+            enum_i_vals=(/ do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_l1_norm_sd, do_loc_none/),&
             default_i_val=do_loc_crazy, error=error)
+
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1157,6 +1159,14 @@ CONTAINS
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key2,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+
+       CALL keyword_create(keyword, name="nhomo",&
+            description="If the printkey is activated controls the number of homos that dumped as a cube (-1=al\
+l).",&
+            default_i_val=1, error=error)
+       CALL section_add_keyword(print_key2,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(print_key,print_key2,error=error)
        CALL section_release(print_key2,error=error)       
 
@@ -4234,6 +4244,42 @@ CONTAINS
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALGORITHM",&
+            description="Algorithm to be used for OT",&
+            usage="ALGORITHM STRICT",&
+            default_i_val=ot_algo_taylor_or_diag,&
+            enum_c_vals=s2a( "STRICT", "REFINE" ),&
+            enum_desc=s2a("Strict orthogonality: Taylor or diagonalization based algorithm.",&
+                          "Refined orthogonality: constraints are imposed at convergence via a refinement algorithm."),&
+            enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_refine/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="REFINE_DEGREE",&
+            variants=(/"REF_DEGREE"/),&
+            description="The refinement polynomial degree (2, 3 or 4).",&
+            usage="REFINE_DEGREE 4",&
+            default_i_val=4,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_REFINE",&
+            variants=(/"MAX_REF"/),&
+            description="Maximum allowed refinement iteration.",&
+            usage="MAX_REFINE 5",&
+            default_i_val=15,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_REFINE_NORM",&
+            variants=(/"EPS_REF_NORM"/),&
+            description="Targeted accuracy during the refinement iteration.",&
+            usage="EPS_REFINE_NORM 1.0E-5",&
+            default_r_val=1.0E-10_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

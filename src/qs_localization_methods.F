@@ -42,25 +42,208 @@ MODULE qs_localization_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace,&
-                                             cp_fm_transpose
+                                             cp_fm_transpose,&
+                                             cp_fm_frobenius_norm,&
+                                             cp_fm_scale
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_maxabsval, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_get,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE message_passing,                 ONLY: mp_max
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations,&
-            direct_mini, rotate_orbitals
+            direct_mini, rotate_orbitals, approx_l1_norm_sd
   PRIVATE
 
 ! *****************************************************************************
 CONTAINS
+! *****************************************************************************
+  SUBROUTINE approx_l1_norm_sd( C, iterations, eps, converged, sweeps, error)
+    TYPE(cp_fm_type), POINTER                :: C
+    INTEGER, INTENT(IN)                      :: iterations
+    REAL(KIND=dp), INTENT(IN)                :: eps
+    LOGICAL, INTENT(INOUT)                   :: converged
+    INTEGER, INTENT(INOUT)                   :: sweeps
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: handle,n,k,output_unit,&
+         &                                      p,o,i,istep,nrow_local,ncol_local
+    LOGICAL                                  :: ionode
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    TYPE(cp_fm_type), POINTER                :: CTmp,U,G,Gp1,Gp2
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp)                            :: tnorm,gnorm,expfactor,f2,f2old
+    INTEGER, PARAMETER                       :: taylor_order=100
+    REAL(KIND=dp), PARAMETER                 :: grad_thresh=1.0E-1_dp!,f2_thresh=1.0E-5_dp
+    REAL(KIND=dp), PARAMETER                 :: f2_eps=0.01_dp,alpha=0.1_dp
+    REAL(KIND=dp), PARAMETER, DIMENSION(4)   :: thresh=(/1d-3,1d-5,1d-7,1d-9/)
+
+    CALL timeset("approx_l1_norm_sd","I",'',handle)
+
+    NULLIFY(logger,CTmp,U,G,Gp1,Gp2,context,para_env,fm_struct_k_k)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
+
+    CALL cp_fm_struct_get(C%matrix_struct, nrow_global=n, ncol_global=k, &
+         &                nrow_local = nrow_local, ncol_local = ncol_local, &
+         &                para_env=para_env, context=context,error=error)
+    CALL cp_fm_struct_create(fm_struct_k_k, para_env=para_env, context=context, &
+         &                   nrow_global=k, ncol_global=k, error=error)
+    CALL cp_fm_create(CTmp, C%matrix_struct, error=error)
+    CALL cp_fm_create(U   , fm_struct_k_k, error=error)
+    CALL cp_fm_create(G   , fm_struct_k_k, error=error)
+    CALL cp_fm_create(Gp1 , fm_struct_k_k, error=error)
+    CALL cp_fm_create(Gp2 , fm_struct_k_k, error=error)
+    !
+    ! printing
+    IF(output_unit.GT.0) THEN
+       WRITE(output_unit,'(1X)')
+       WRITE(output_unit,'(A)') '  ----------------------------------------------------------------------------\
+-'
+       WRITE(output_unit,'(A,I5)'   ) '      Nbr iterations =',iterations
+       WRITE(output_unit,'(A,E10.2)') '     eps convergence =',eps
+       WRITE(output_unit,'(A,I5)'   ) '    Max Taylor order =',taylor_order
+       WRITE(output_unit,'(A,E10.2)') '              f2 eps =',f2_eps
+       WRITE(output_unit,'(A,E10.2)') '               alpha =',alpha
+       WRITE(output_unit,'(A)') '     iteration    approx_l1_norm    g_norm   rel_err'
+    ENDIF
+    !
+    f2old = 0.0_dp
+    converged = .FALSE.
+    !
+    ! Start the steepest descent
+    DO istep=1,iterations
+       !
+       !-------------------------------------------------------------------
+       ! compute f_2
+       ! f_2(x)=(x^2+eps)^1/2
+       f2 = 0.0_dp
+       DO p=1,ncol_local   ! p
+          DO i=1,nrow_local! i
+             f2 = f2 + SQRT( C%local_data(i,p)**2 + f2_eps )
+          ENDDO
+       ENDDO
+       CALL mp_sum(f2,C%matrix_struct%para_env%group)
+       !write(*,*) 'qs_localize: f_2=',f2
+       !-------------------------------------------------------------------
+       ! compute the derivative of f_2
+       ! f_2(x)=(x^2+eps)^1/2
+       DO p=1,ncol_local   ! p
+          DO i=1,nrow_local! i
+             CTmp%local_data(i,p) = C%local_data(i,p) / SQRT( C%local_data(i,p)**2 + f2_eps )
+          ENDDO
+       ENDDO
+       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,CTmp,C,0.0_dp,G,error=error)
+       ! antisymmetrize
+       CALL cp_fm_transpose(G,U,error=error)
+       CALL cp_fm_scale_and_add(-0.5_dp,G,0.5_dp,U,error=error)
+       !
+       !-------------------------------------------------------------------
+       !
+       CALL cp_fm_frobenius_norm(G,gnorm,error=error)
+       !write(*,*) 'qs_localize: norm(G)=',gnorm
+       !
+       ! rescale for steepest descent
+       CALL cp_fm_scale(-alpha, G, error=error)
+       !
+       ! compute unitary transform
+       ! zeroth order
+       CALL cp_fm_set_all(U,0.0_dp,1.0_dp,error=error)
+       ! first order
+       expfactor = 1.0_dp
+       CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,G,error=error)
+       CALL cp_fm_frobenius_norm(G,tnorm,error=error)
+       !write(*,*) 'Taylor expansion i=',1,' norm(X^i)/i!=',tnorm
+       IF(tnorm.GT.1.0E-10_dp) THEN
+          ! other orders
+          CALL cp_fm_to_fm(G,Gp1,error=error)
+          DO i = 2,taylor_order
+             ! new power of G
+             CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,G,Gp1,0.0_dp,Gp2,error=error)
+             CALL cp_fm_to_fm(Gp2,Gp1,error=error)
+             ! add to the taylor expansion so far
+             expfactor = expfactor / REAL(i,KIND=dp)
+             CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,Gp1,error=error)
+             CALL cp_fm_frobenius_norm(Gp1,tnorm,error=error)
+             !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',tnorm*expfactor
+             IF(tnorm*expfactor.LT.1.0E-10_dp) EXIT
+          ENDDO
+       ENDIF
+       !
+       ! incrementaly rotate the MOs
+       CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,C,U,0.0_dp,CTmp,error=error)
+       CALL cp_fm_to_fm(CTmp,C,error=error)
+       !
+       ! printing
+       IF(output_unit.GT.0) THEN
+          WRITE(output_unit,'(10X,I4,E18.10,2E10.2)') istep,f2,gnorm,ABS((f2-f2old)/f2)
+       ENDIF
+       !
+       ! Are we done?
+       sweeps = istep
+       !IF(gnorm.LE.grad_thresh.AND.ABS((f2-f2old)/f2).LE.f2_thresh.AND.istep.GT.1) THEN
+       IF(ABS((f2-f2old)/f2).LE.eps.AND.istep.GT.1) THEN
+          converged = .TRUE.
+          EXIT
+       ENDIF
+       f2old = f2
+    ENDDO
+    !
+    ! here we should do one refine step to enforce C'*S*C=1 for any case
+    !
+    ! Print the final result
+    IF(output_unit.GT.0) WRITE(output_unit,'(A,E16.10)')' sparseness function f2 = ',f2
+    !
+    ! sparsity
+    !DO i=1,size(thresh,1)
+    !   gnorm = 0.0_dp
+    !   DO o=1,ncol_local
+    !      DO p=1,nrow_local
+    !         IF(ABS(C%local_data(p,o)).GT.thresh(i)) THEN
+    !            gnorm = gnorm + 1.0_dp
+    !         ENDIF
+    !      ENDDO
+    !   ENDDO
+    !   CALL mp_sum(gnorm,C%matrix_struct%para_env%group)
+    !   IF(output_unit.GT.0) THEN
+    !      WRITE(output_unit,*) 'qs_localize: ratio2=',gnorm / ( REAL(k,KIND=dp)*REAL(n,KIND=dp) ),thresh(i)
+    !   ENDIF
+    !ENDDO
+    !
+    ! deallocate
+    CALL cp_fm_struct_release(fm_struct_k_k,error=error)
+    CALL cp_fm_release(CTmp,error=error)
+    CALL cp_fm_release(U   ,error=error)
+    CALL cp_fm_release(G   ,error=error)
+    CALL cp_fm_release(Gp1 ,error=error)
+    CALL cp_fm_release(Gp2 ,error=error)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE approx_l1_norm_sd
 ! *****************************************************************************
   SUBROUTINE initialize_weights ( cell, weights )
     TYPE(cell_type), INTENT(IN)              :: cell

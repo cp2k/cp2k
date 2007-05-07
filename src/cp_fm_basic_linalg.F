@@ -57,7 +57,8 @@ MODULE cp_fm_basic_linalg
             cp_fm_symm, &                  ! multiply a symmetric with a non-symmetric matrix
             cp_fm_gemm, &                  ! multiply two matrices
             cp_fm_lu_decompose,&           ! computes determinant (and lu decomp)
-            cp_fm_invert                   ! computes the inverse and determinant 
+            cp_fm_invert,&                 ! computes the inverse and determinant 
+            cp_fm_frobenius_norm           ! frobenius norm
 
 !****************************************************************************
 CONTAINS
@@ -478,6 +479,49 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_symm
 
+!!****f* cp_fm_basic_linalg/cp_fm_frobenius_norm [1.0] *
+!!
+!!   NAME
+!!     cp_fm_frobenius_norm
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     computes the Frobenius norm of matrix_a 
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!     matrix_a :: m x n matrix 
+!!
+!!   AUTHOR
+!!     VW
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_fm_frobenius_norm(matrix_a,norm,error)
+    TYPE(cp_fm_type), POINTER                :: matrix_a
+    REAL(KIND=dp),INTENT(inout)              :: norm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: handle,group,size_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+    
+    REAL(KIND=dp), EXTERNAL                  :: DDOT
+!   ---------------------------------------------------------------------------
+    CALL timeset("cp_fm_frobenius_norm","I","",handle)
+    norm = 0.0_dp
+    a => matrix_a%local_data
+    size_a = SIZE(a,1)*SIZE(a,2)
+    norm = DDOT( size_a, a(1,1), 1, a(1,1), 1 )
+#if defined(__SCALAPACK)
+    group = matrix_a%matrix_struct%para_env%group
+    CALL mp_sum(norm,group)
+#endif
+    norm = SQRT(norm)
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE cp_fm_frobenius_norm
 
 !!****f* cp_fm_basic_linalg/cp_fm_syrk [1.0] *
 !!

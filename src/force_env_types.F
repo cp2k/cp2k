@@ -576,7 +576,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&
-CPSourceFileRef,&
+             CPSourceFileRef,&
              error,failure)
      END SELECT
 
@@ -782,10 +782,10 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
         END DO
         my_n_el=3*my_n_el
         CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
-             routineP,"wrong pos size ("//cp_to_string(n_el)//" vs"//&
-             cp_to_string(my_n_el)//&
-             CPSourceFileRef,&
-             error,failure)
+             & routineP,"wrong pos size ("//cp_to_string(n_el)&
+             & //" vs" // &
+             & cp_to_string(my_n_el) // &
+             & CPSourceFileRef,error,failure)
      END IF
      IF (.NOT.failure) THEN
         ii=0

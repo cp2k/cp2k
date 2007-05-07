@@ -31,6 +31,7 @@ MODULE qs_ot_minimizer
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
+                                             qs_ot_get_derivative_ref,&
                                              qs_ot_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -74,9 +75,18 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,error)
    IF (.NOT. qs_ot_env(1)%energy_only) THEN
       qs_ot_env(1)%gradient=0.0_dp
       DO ispin=1,nspin
-         CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix,qs_ot_env(ispin)%matrix_x, &
-                                     qs_ot_env(ispin)%matrix_sx, &
-                                     qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),error=error)
+         SELECT CASE(qs_ot_env(1)%settings%ot_algorithm)
+         CASE("TOD")
+            CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix,qs_ot_env(ispin)%matrix_x, &
+                                      qs_ot_env(ispin)%matrix_sx, &
+                                      qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),error=error)
+         CASE("REF")
+            CALL qs_ot_get_derivative_ref(matrix_hc(ispin)%matrix,&
+                 &  qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx, &
+                 &  qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),error=error)
+         CASE DEFAULT
+            CALL stop_program("ot_mini","ALGORITHM NYI")
+         END SELECT
         ! and also the gradient along the direction
         IF (qs_ot_env(1)%use_dx) THEN
            CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_dx,tmp,error=error)

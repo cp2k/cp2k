@@ -350,12 +350,15 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_loc_jacobi=0,&
                                 do_loc_crazy=1,&
                                 do_loc_direct=2,&
-                                do_loc_none=3
+                                do_loc_none=3,&
+                                do_loc_l1_norm_sd=4
+
   INTEGER, PARAMETER, PUBLIC :: do_loc_min=0,&
                                 do_loc_max=1,&
                                 op_loc_berry=0,&
                                 op_loc_boys=1,&
                                 op_loc_pipek=2,&
+                                op_loc_l1_norm=3,&
                                 state_loc_all=0,&
                                 state_loc_upton=1,&
                                 state_loc_fromitoj=2,&
@@ -363,6 +366,7 @@ MODULE input_constants
                                 state_loc_none=4
 
   INTEGER, PARAMETER, PUBLIC :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
+  INTEGER, PARAMETER, PUBLIC :: ot_algo_taylor_or_diag=1,ot_algo_refine=2
   INTEGER, PARAMETER, PUBLIC :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4
   INTEGER, PARAMETER, PUBLIC :: ot_precond_none=0, &
                         ot_precond_full_single=1, &
