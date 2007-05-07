@@ -415,14 +415,6 @@ MODULE four_center_integrals
         rc=particle_set(katom)%r(:)
         DO jset = 1,nsetb
           DO kset = 1,nsetc
-            max_val = 0.0_dp
-            CALL screen4(rb, rc, rb, rc,&
-                          zetb(:,jset), zetc(:,kset), zetb(:,jset), zetc(:,kset),&
-                          lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                          lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                          npgfb(jset), npgfc(kset), npgfb(jset), npgfc(kset),&
-                          max_val)
-            screen_set(jatom,katom,jset,kset) = max_val
             DO jpgf = 1,npgfb(jset)
               DO kpgf = 1,npgfc(kset)
                 max_val2=0.0_dp
@@ -434,8 +426,10 @@ MODULE four_center_integrals
                 screen_pgf(jatom,katom,jset,kset,jpgf,kpgf) = max_val2
               END DO
             END DO
+            screen_set(jatom,katom,jset,kset) = MAXVAL(screen_pgf(jatom,katom,jset,kset,1:npgfb(jset),1:npgfc(kset)))
           END DO
         END DO
+        screen_atom(jatom,katom)=MAXVAL(screen_set(jatom,katom,1:nsetb,1:nsetc))
       END DO
     END DO
 

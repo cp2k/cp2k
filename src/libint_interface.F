@@ -93,7 +93,7 @@ MODULE libint_interface
   TYPE(C_FUNPTR), DIMENSION(0:build_deriv1_eri_size,0:build_deriv1_eri_size,&
                             0:build_deriv1_eri_size,0:build_deriv1_eri_size), BIND(C) :: build_deriv1_eri
 
-  INTEGER                            :: global_m = 0
+  INTEGER                            :: global_m  = -HUGE(global_m)  
   REAL(KIND=C_DOUBLE), DIMENSION(17) :: global_Fm = 0.0_dp
   REAL(KIND=C_DOUBLE)                :: global_T  = 0.0_dp
 
@@ -1000,7 +1000,6 @@ MODULE libint_interface
     lib%CD=C1-D1
   
     mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
-     
     max_val = 0.0_dp
     IF(n_a+ n_b + n_c + n_d  /=0) THEN
       CALL C_F_PROCPOINTER(build_eri(config(4),config(3),config(2),config(1)),pbuild)
