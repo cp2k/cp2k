@@ -18,12 +18,15 @@
 # This file contains the molecularly optimised basis sets for the elements H , C , N , O , F , Si , P , S , Cl
 # as discussed in the paper (SZV-MOLOPT-GTH, DZVP-MOLOPT-GTH, TZVP-MOLOPT-GTH, TZV2P-MOLOPT-GTH, TZV2PX-MOLOPT-GTH).
 #
+# Usage hint : 'NGRIDS 5' (section &MGRID) will deal more efficiently (2x speedup) with the diffuse nature of the basis.
+#
 # In addition to the basis sets discussed in the paper above, we have generated with the same procedure
 # variants of these basis sets using one less and thus less diffuse primitives.
 # These are the  SZV-MOLOPT-SR-GTH and DZVP-MOLOPT-SR-GTH (Shorter Range) basis sets for H , C , N , O , F , Si , P , S , Cl.
 # These basis sets reduce the cost for medium size condensed phase systems, while most properties are only slighly affected.
 # Most affected is BSSE, which increases to 0.32, 0.16, 0.31, 0.24 from 0.23, 0.11, 0.41, 0.20 kcal/mol (DZVP-MOLOPT-SR-GTH vs. DZVP-MOLOPT-GTH),
 # while for a box with 64 molecules timings are 25 and 111 s respectively.
+#
 #
 # The 'FULL-MOLOPT-GTH' basis sets are only suitable and meaningful for reference calculations.
 #
