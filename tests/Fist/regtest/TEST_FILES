@@ -41,7 +41,6 @@ deca_ala2_xyz.inp         2
 deca_ala2_xyz_pdb.inp     2
 deca_ala3.inp             2
 h2po4.inp                 2
-argon_nph_plastic.inp     2
 #MOL_SET
 multi_psf.inp             2
 multi_frag.inp            2
@@ -49,3 +48,6 @@ multi_frag_check.inp      2
 #only internal force field
 deca_ala_intern.inp       2
 water_intern.inp          2
+#integrators for shocks
+argon_msst.inp            2
+argon_msst_damped.inp     2
