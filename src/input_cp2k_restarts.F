@@ -1039,9 +1039,7 @@ CONTAINS
 
     INTEGER                                  :: iforce_eval, myid, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: explicit, failure, &
-                                                skip_vel_section
-    TYPE(force_env_type), POINTER            :: my_force_env
+    LOGICAL                                  :: failure, skip_vel_section
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 rng_section, subsys_section
 
@@ -1056,17 +1054,14 @@ CONTAINS
     ! Go on updatig the force_env_section
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
-    DO iforce_eval=1,nforce_eval
-       subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-            i_rep_section=i_force_eval(iforce_eval),error=error)
-       CALL section_vals_get(subsys_section, explicit=explicit, error=error)
-       IF (.NOT.explicit) CYCLE ! Nothing to update...
-       rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
-       my_force_env => force_env
-       IF (iforce_eval>1) my_force_env => force_env%sub_force_env(iforce_eval-1)%force_env
-       CALL update_rng(rng_section,my_force_env,error)
-       CALL update_subsys(subsys_section,my_force_env,skip_vel_section,error)
-    END DO
+    ! The update of the input MUST be realized only on the main force_eval
+    ! All the others will be left not updated because there is no real need to update them...
+    iforce_eval=1
+    subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+         i_rep_section=i_force_eval(iforce_eval),error=error)
+    CALL update_subsys(subsys_section,force_env,skip_vel_section,error)
+    rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
+    CALL update_rng(rng_section,force_env,error)
     DEALLOCATE(i_force_eval)
     
   END SUBROUTINE update_force_eval
@@ -1211,8 +1206,7 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(particle_list_type), POINTER        :: core_particles, &
-                                                particles, &
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(section_vals_type), POINTER         :: work_section
 

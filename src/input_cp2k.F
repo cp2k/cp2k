@@ -1408,8 +1408,8 @@ END SUBROUTINE create_cpot_section
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: sub2section, sub3section, &
-                                                subsection
+    TYPE(section_type), POINTER              :: print_key, sub2section, &
+                                                sub3section, subsection
 
     failure=.FALSE.
 
@@ -1420,7 +1420,7 @@ END SUBROUTINE create_cpot_section
                         "defined by a mixing of force_evals",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-       NULLIFY(keyword, subsection)
+       NULLIFY(keyword, subsection, print_key)
 
        CALL keyword_create(keyword, name="MIXING_TYPE",&
             description="The type of mixing to be employed",&
@@ -1443,6 +1443,13 @@ END SUBROUTINE create_cpot_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="GROUP_PARTITION",&
+            description="gives the exact number of processors for each group."//&
+            " If not specified just one group will be used.",& 
+            usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        ! Double force_eval
        CALL section_create(subsection,name="LINEAR",&
             description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2",&
@@ -1627,6 +1634,13 @@ END SUBROUTINE create_cpot_section
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="controls the printing of ewald setup",&
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
     END IF
 
   END SUBROUTINE create_mix_section

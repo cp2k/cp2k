@@ -296,18 +296,17 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         force_env%ref_count=1
         SELECT CASE ( force_env%in_use )
         CASE ( use_fist_force )
-          CALL fist_env_release(force_env%fist_env,error=error)
+           CALL fist_env_release(force_env%fist_env,error=error)
         CASE ( use_qs_force )
-          CALL qs_env_release(force_env%qs_env,error=error)
+           CALL qs_env_release(force_env%qs_env,error=error)
         CASE ( use_kg_force )
-          CALL kg_env_release(force_env%kg_env,error=error)
-
+           CALL kg_env_release(force_env%kg_env,error=error)
         CASE ( use_eip_force )
-          CALL eip_env_release(force_env%eip_env, error=error)
+           CALL eip_env_release(force_env%eip_env, error=error)
         CASE ( use_ep_force )
-          CALL ep_env_release(force_env%ep_env, error=error)
-       CASE (use_mixed_force)
-          CALL mixed_env_release(force_env%mixed_env,error=error)
+           CALL ep_env_release(force_env%ep_env, error=error)
+        CASE (use_mixed_force)
+           CALL mixed_env_release(force_env%mixed_env,error=error)
         END SELECT
         IF (ASSOCIATED(force_env%subsys)) THEN
            DO i=1,SIZE(force_env%subsys)
@@ -325,6 +324,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         END IF
         IF (ASSOCIATED(force_env%sub_force_env)) THEN
            DO i=1,SIZE(force_env%sub_force_env)
+              IF (.NOT.ASSOCIATED(force_env%sub_force_env(i)%force_env)) CYCLE
               CALL force_env_release(force_env%sub_force_env(i)%force_env,&
                    error=error)
            END DO
@@ -339,9 +339,13 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
 
         CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
         CALL cp_para_env_release(force_env%para_env,error=error)
-        ! not deallocated
+        ! Not deallocated
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
+        CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,error,failure)
+        CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,error,failure)
+        CPAssert(.NOT.ASSOCIATED(force_env%ep_env),cp_warning_level,routineP,error,failure)
+        CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,error,failure)
         CALL meta_env_release(force_env%meta_env,error=error)
         CALL fp_env_release(force_env%fp_env,error=error)
         CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)

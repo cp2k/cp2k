@@ -32,9 +32,15 @@ MODULE mixed_energy_types
      REAL ( kind = dp ) :: kin     
   END TYPE mixed_energy_type
 
+
+  TYPE mixed_force_type
+     REAL(KIND=dp), DIMENSION(:,:), POINTER         :: forces
+  END TYPE mixed_force_type
+
 ! *** Public data types ***
 
-  PUBLIC :: mixed_energy_type
+  PUBLIC :: mixed_energy_type,&
+            mixed_force_type
 
 ! *** Public subroutines ***
 

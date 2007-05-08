@@ -115,17 +115,16 @@ CONTAINS
                                                 my_pos, remark1, remark2, &
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, isubsys, iw, nat, nshell, shcrd, shene, shfrc, shvel, &
-      str, vel, outformat
+      handle, i, iskip, isubsys, iw, nat, nshell, outformat, shcrd, shene, &
+      shfrc, shvel, str, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL :: init, init_coforce, init_cotraj, init_covel, init_force, &
       init_shforce, init_shtraj, init_shvel, init_traj, init_vel, is_mixed, &
       qmmm, shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
-    REAL(KIND=dp) :: cons, efone, eftwo, ekin, ekin_coefs, ekin_qm, &
-      ekin_shell, epot, harm_shell, hugoniot, temp, temp_baro, temp_coefs, &
-      temp_qm, temp_shell
+    REAL(KIND=dp) :: cons, ekin, ekin_coefs, ekin_qm, ekin_shell, epot, &
+      harm_shell, hugoniot, temp, temp_baro, temp_coefs, temp_qm, temp_shell
     REAL(KIND=dp), POINTER                   :: constant, t, used_time
     REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
     TYPE(average_quantities_type), SAVE      :: averages
@@ -743,12 +742,9 @@ CONTAINS
        ! Print MIXED Energy
        !------------------
        IF (ener_mix>0 .AND. is_mixed) THEN
-          CALL force_env_get(force_env_p ( 1 ) % force_env%sub_force_env(1)%force_env,&
-                             potential_energy=efone, error=error)
-          CALL force_env_get(force_env_p ( 1 ) % force_env%sub_force_env(2)%force_env,&
-                             potential_energy=eftwo, error=error)
-          WRITE (ener_mix,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9)")&
-               itimes,t*femtoseconds,epot,efone,eftwo,cons
+          WRITE (ener_mix,"(I8,F12.3,F20.9,"//&
+               cp_to_string(SIZE(force_env_p(1)%force_env%mixed_env%energies))//"F20.9,F20.9)")&
+               itimes,t*femtoseconds,epot,force_env_p(1)%force_env%mixed_env%energies,cons
           CALL m_flush(ener_mix)
        END IF
 
@@ -777,9 +773,8 @@ CONTAINS
           CALL m_flush(shene)
        END IF
 
-!###########################################################################
-!       Some additional printing for the shell-model
-!        (can be displaced in another routine)
+       !  Some additional printing for the shell-model
+       !   (can be displaced in another routine)
        !------------------
        ! Print Shell Coordinates
        !------------------
@@ -989,9 +984,6 @@ CONTAINS
           CALL m_flush(cofrc)
        END IF
 
-!###########################################################################
-
-
        CALL cp_print_key_finished_output(ene,logger,motion_section,&
             "MD%PRINT%ENERGY", error=error)
        CALL cp_print_key_finished_output(crd,logger,motion_section,&
@@ -1044,12 +1036,12 @@ CONTAINS
 
   SUBROUTINE get_output_format(section,path,my_form,my_ext,error)
     TYPE(section_vals_type), POINTER         :: section
-    CHARACTER(LEN=*), INTENT(OUT)            :: my_form, my_ext
     CHARACTER(LEN=*), INTENT(IN)             :: path
+    CHARACTER(LEN=*), INTENT(OUT)            :: my_form, my_ext
     TYPE(cp_error_type), INTENT(inout)       :: error
-   
-    INTEGER :: output_format
- 
+
+    INTEGER                                  :: output_format
+
     my_form = "FORMATTED"
     my_ext  = ".xyz"
     CALL section_vals_val_get(section,TRIM(path)//"%FORMAT",i_val=output_format,error=error)

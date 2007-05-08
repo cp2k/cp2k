@@ -27,7 +27,8 @@ MODULE mixed_environment_types
                                              cell_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_p_type,&
+                                             cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
@@ -59,11 +60,8 @@ MODULE mixed_environment_types
 
   IMPLICIT NONE
   PRIVATE
-!
-
 
   TYPE mixed_environment_type
-    PRIVATE
     INTEGER :: id_nr, ref_count
     TYPE ( cell_type ), POINTER                    :: cell
     TYPE ( cell_type ), POINTER                    :: cell_ref
@@ -71,6 +69,14 @@ MODULE mixed_environment_types
     TYPE ( cp_para_env_type ), POINTER             :: para_env
     TYPE ( cp_subsystem_type ), POINTER            :: subsys
     TYPE(section_vals_type), POINTER               :: input
+    REAL(KIND=dp), DIMENSION(:), POINTER           :: energies
+    ! Parallelization of multiple force_eval
+    INTEGER                                        :: new_group, ngroups
+    INTEGER, DIMENSION(:), POINTER                 :: group_distribution
+    TYPE ( cp_para_env_p_type),&
+         DIMENSION(:), POINTER                     :: sub_para_env
+    TYPE ( cp_error_type), &
+         DIMENSION(:), POINTER                     :: sub_error
  END TYPE mixed_environment_type
 
 ! *****************************************************************************
@@ -127,7 +133,7 @@ CONTAINS
   SUBROUTINE get_mixed_env( mixed_env, atomic_kind_set, particle_set,  &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, &
-                           mixed_energy, para_env, subsys,  &
+                           mixed_energy, para_env, sub_para_env, subsys,  &
                            input, error )
 
 !   Purpose: Get the MIXED environment.
@@ -149,6 +155,8 @@ CONTAINS
       POINTER                                :: mixed_energy
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    TYPE(cp_para_env_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sub_para_env
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(section_vals_type), OPTIONAL, &
@@ -176,6 +184,7 @@ CONTAINS
     IF ( PRESENT ( cell_ref ) ) cell_ref => mixed_env % cell_ref
     IF ( PRESENT ( mixed_energy ) ) mixed_energy => mixed_env % mixed_energy
     IF ( PRESENT ( para_env ) ) para_env => mixed_env % para_env
+    IF ( PRESENT ( sub_para_env ) ) sub_para_env => mixed_env % sub_para_env
     IF (PRESENT(subsys)) subsys => mixed_env%subsys
     CALL cp_subsys_get(mixed_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -212,6 +221,9 @@ CONTAINS
     NULLIFY (mixed_env%cell_ref)
     NULLIFY (mixed_env%mixed_energy)
     NULLIFY (mixed_env%subsys)
+    NULLIFY (mixed_env%sub_para_env)
+    NULLIFY (mixed_env%sub_error)
+    NULLIFY (mixed_env%energies)
     CALL cp_subsys_create(mixed_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     mixed_env%para_env => para_env
@@ -227,7 +239,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref,  &
                            mixed_energy, subsys, &
-                           input, error )
+                           input, sub_para_env, error )
 
 !   Purpose: Set the MIXED environment.
 
@@ -248,6 +260,8 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
+    TYPE(cp_para_env_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sub_para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mixed_env', &
@@ -283,6 +297,9 @@ CONTAINS
        CALL cp_subsys_retain(subsys,error=error)
        CALL cp_subsys_release(mixed_env%subsys,error=error)
        mixed_env%subsys => subsys
+    END IF
+    IF (PRESENT(sub_para_env)) THEN
+       mixed_env%sub_para_env => sub_para_env
     END IF
     IF (PRESENT(atomic_kind_set)) THEN
       CALL atomic_kind_list_create(atomic_kinds,&
@@ -419,7 +436,7 @@ SUBROUTINE mixed_env_retain(mixed_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-!!
+
   CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -462,7 +479,7 @@ SUBROUTINE mixed_env_release(mixed_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: i, ngroups, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -472,17 +489,34 @@ SUBROUTINE mixed_env_release(mixed_env,error)
      mixed_env%ref_count=mixed_env%ref_count-1
      IF (mixed_env%ref_count<1) THEN
         CALL cell_release(mixed_env%cell,error=error)
+        ngroups = SIZE(mixed_env%sub_para_env)
+        DO i = 1, ngroups
+           IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN
+              CALL cp_error_dealloc_ref(mixed_env%sub_error(i), error)
+              CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env,error=error)
+           END IF
+        END DO
+        DEALLOCATE(mixed_env%sub_para_env, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(mixed_env%sub_error, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(mixed_env%energies, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         CALL cell_release(mixed_env%cell_ref,error=error)
         CALL cp_para_env_release(mixed_env%para_env,error=error)
         CALL deallocate_mixed_energy(mixed_env%mixed_energy)
-
         CALL cp_subsys_release(mixed_env%subsys,error=error)
         CALL section_vals_release(mixed_env%input,error=error)
+        IF (ASSOCIATED(mixed_env%group_distribution)) THEN
+           DEALLOCATE(mixed_env%group_distribution, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         DEALLOCATE(mixed_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
   NULLIFY(mixed_env)
+
 END SUBROUTINE mixed_env_release
 !***************************************************************************
 END MODULE mixed_environment_types
