@@ -29,6 +29,7 @@
 MODULE ep_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_array_utils,                  ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -63,7 +64,6 @@ MODULE ep_methods
                                              sm_pool_create_matrix,&
                                              sm_pool_give_back_matrix,&
                                              sm_pools_create_matrix_vect
-  USE cp_array_utils, only: cp_2d_r_p_type
   USE distribution_2d_types,           ONLY: distribution_2d_get
 !  USE qs_overlap, only: write_sparse_matrix
   USE ep_qs_methods,                   ONLY: ep_qs_create
@@ -283,16 +283,18 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE calc_c0_tilde(ep_env,mol_pos,new_c,imol,error)
-    TYPE(ep_env_type), pointer :: ep_env
-    TYPE(cp_2d_r_p_type), DIMENSION(:), intent(inout) :: new_c
-    REAL(kind=dp), DIMENSION(:), intent(in) :: mol_pos
-    INTEGER, intent(in) :: imol
-    TYPE(cp_error_type), intent(inout) :: error
-    
-    INTEGER :: ispin, icol, irow
-    REAL(dp), DIMENSION(:), POINTER :: coeff_standard1d
+    TYPE(ep_env_type), POINTER               :: ep_env
+    REAL(kind=dp), DIMENSION(:), INTENT(in)  :: mol_pos
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      INTENT(inout)                          :: new_c
+    INTEGER, INTENT(in)                      :: imol
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    ! legge dall'input
+    INTEGER                                  :: icol, irow, ispin
+    REAL(dp), DIMENSION(:), POINTER          :: coeff_standard1d
+
+! legge dall'input
+
     CALL section_vals_val_get(ep_env%root_section,"FORCE_EVAL%EP%START_COEFFS",&
          r_vals=coeff_standard1d,error=error)
     
@@ -1687,46 +1689,48 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e0', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER :: flag, handle, i, iat, iatom, idir, ii, ikind, imol, ispin, iw, &
-         lfomo, natom, nkind, nmo, nspin, output_unit, stat, unit_nr
+      lfomo, natom, nkind, nmo, nspin, output_unit, stat, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
-         natom_of_kind
+                                                natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: at
-    LOGICAL                                  :: failure, e0_only,do_rotations
-    REAL(dp)                                 :: maxocc, eps_lin_solv, e_corr_s
+    LOGICAL                                  :: do_rotations, e0_only, failure
+    REAL(dp)                                 :: e_corr_s, eps_lin_solv, maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_2d_r_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: rotatedC0
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_p_type), ALLOCATABLE, &
-         DIMENSION(:)                           :: psi0
+      DIMENSION(:)                           :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                                :: mo_derivs
+      POINTER                                :: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                                :: mos
+      POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_force_type), DIMENSION(:), &
-         POINTER                                :: force
+      POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                                :: matrix_ks, matrix_s, matrix_w
+      POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: print_section, qs_env_input
-    TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:) :: rotatedC0
-    TYPE(cp_fm_type), POINTER                :: orbitals
-    !----------------
+
+!----------------
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -1848,7 +1852,7 @@ CONTAINS
             TRIM(ADJUSTL(cp_to_string(ep_env%energy%e_no_int))),error=error)
        ! ** transfer psi0
        CALL ep_env_transfer_psi0(ep_env,error=error)
-    else
+    ELSE
        ! matrix for rotated C
        ALLOCATE(rotatedC0(ep_env%nspins),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -2471,44 +2475,44 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_f_sub', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iat, idir, ierr, &
-         irep, irep_local, ispin, nat, &
-         stat
+                                                irep, irep_local, ispin, nat, &
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: fdiff(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                                :: aomo_work1, coeffs_cr, &
-         pi_Hrho_psi0d
+      POINTER                                :: aomo_work1, coeffs_cr, &
+                                                pi_Hrho_psi0d
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-         POINTER                                :: ao_mo_fm_pools
+      POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxao_fm_pool, &
-         maxao_maxmo_fm_pool, &
-         maxmo_maxmo_fm_pool
+                                                maxao_maxmo_fm_pool, &
+                                                maxmo_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: aoao_work1, psi0
     TYPE(ep_force_type), POINTER             :: ep_force
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(global_environment_type), POINTER   :: sub_globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                                :: mos
+      POINTER                                :: mos
     TYPE(qs_environment_type), POINTER       :: sub_qs_env
     TYPE(qs_force_type), DIMENSION(:), &
-         POINTER                                :: force
+      POINTER                                :: force
     TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot, tmp_snap
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                                :: matrix_s, matrix_w
+      POINTER                                :: matrix_s, matrix_w
     TYPE(real_matrix_p_type), &
-         DIMENSION(:, :), POINTER               :: local_P_H_pi
+      DIMENSION(:, :), POINTER               :: local_P_H_pi
     TYPE(real_matrix_type), POINTER          :: diag_P_H_pi
     TYPE(replica_env_type), POINTER          :: rep_env
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.

@@ -24,6 +24,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE ep_types
+  USE cp_array_utils,                  ONLY: cp_2d_r_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -50,7 +51,6 @@ MODULE ep_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_array_utils, only: cp_2d_r_p_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -185,7 +185,7 @@ MODULE ep_types
      INTEGER, DIMENSION(:), POINTER :: sub_nmo,sub_nao,full_nmo,full_nao,at2sub
      TYPE(ep_energy_type) :: energy
      TYPE(ep_force_type), POINTER :: force
-     TYPE(cp_2d_r_p_type), DIMENSION(:), pointer :: base_C0
+     TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: base_C0
   END TYPE ep_env_type
   !!***
   !****************************************************************************
