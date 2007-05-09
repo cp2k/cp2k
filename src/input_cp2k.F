@@ -1445,7 +1445,9 @@ END SUBROUTINE create_cpot_section
 
        CALL keyword_create(keyword, name="GROUP_PARTITION",&
             description="gives the exact number of processors for each group."//&
-            " If not specified just one group will be used.",& 
+            " If not specified processors allocated will be equally distributed for"//&
+            " the specified subforce_eval, trying to build a number of groups equal to the"//&
+            " number of subforce_eval specified.",&
             usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
