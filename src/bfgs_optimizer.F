@@ -211,7 +211,6 @@ CONTAINS
             gopt_env%force_env%para_env, force_env_section, error)
     !MK Hm, it seems that here only the root process has the correct gradient for all atoms
     CALL mp_bcast(g,para_env%source,para_env%group)
-    CALL apply_fixed_atom_constraint(force_env,g,error=error)
 
     ! Print info at time 0
     emin = etot
@@ -235,7 +234,8 @@ CONTAINS
        ! check for an external exit command
        CALL external_control(should_stop,"GEO",globenv,error)
        IF(should_stop) EXIT
-       CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section,error=error)
+       CALL write_restart(force_env=force_env,root_section=root_section,&
+            force_env_section=force_env_section,error=error)
 
        IF (ionode) THEN
          traj_unit = cp_print_key_unit_nr(logger,root_section,&
@@ -331,7 +331,6 @@ CONTAINS
             gopt_env%force_env%para_env, force_env_section, error)
        !MK Hm, it seems that here only the root process has the correct gradient for all atoms
        CALL mp_bcast(g,para_env%source,para_env%group)
-       CALL apply_fixed_atom_constraint(force_env,g,error=error)
        ediff = etot - eold
 
        IF(output_unit>0) CALL write_cycle_infos &
@@ -718,25 +717,7 @@ CONTAINS
      CALL DSPMV('U',ndf,one,hes,dr,1,zero,work,1)
      ener2 = DDOT(ndf,dr,1,work,1)
      pred  = ener1 + 0.5_dp * ener2
-
-!    ** Conv. in energy **
-
      conv = .FALSE.
-     !
-     ! do not stop on predictions, but on actually reached tolerances
-     ! 
-     ! IF( ((pred < 0.0_dp) .AND. (ABS(pred) < limit)) .OR. &
-     !     (ABS(pred) < 4.0E-10_dp) )THEN
-     !    IF(ionode)THEN
-     !      WRITE(UNIT=output_unit,FMT="(/,T2,A,F15.10)") &
-     !        " Predicted energy difference is too small: ", pred
-     !      WRITE(UNIT=output_unit,FMT="(/,T2,80('*'))")
-     !      WRITE(UNIT=output_unit,FMT="(T2,2('*'),21X,A,21X,2('*'))")&
-     !         "GEOMETRY OPTIMIZATION COMPLETED"
-     !      WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
-     !    END  IF
-     !    conv = .TRUE.
-     ! END IF
    CALL timestop(handle)
 
   END SUBROUTINE energy_predict
@@ -881,105 +862,100 @@ CONTAINS
     TYPE(gopt_param_type), POINTER           :: gopt_param
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: indf
     LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
-                                                conv_rg
+         conv_rg
     REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
-                                                rmsgcon, rmsxcon
-
-!    REAL(KIND=dp), PARAMETER                 :: dxcon = 0.0030_dp, &
-!                                                gcon = 0.00045_dp, &
-!                                                rmsgcon = 0.00030_dp, &
-!                                                rmsxcon = 0.0015_dp
+         rmsgcon, rmsxcon
 
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force
     rmsgcon = gopt_param%rms_force
     rmsxcon = gopt_param%rms_dr
 
-   conv     = .FALSE.
-   conv_dx  = .TRUE.
-   conv_rdx = .TRUE.
-   conv_g   = .TRUE.
-   conv_rg  = .TRUE.
+    conv     = .FALSE.
+    conv_dx  = .TRUE.
+    conv_rdx = .TRUE.
+    conv_g   = .TRUE.
+    conv_rg  = .TRUE.
 
-   dumm     = 0.0_dp
-   DO indf = 1, ndf
-      IF(indf == 1)maxdum(1) = dr(indf)
-      dumm = dumm + dr(indf)**2
-      IF(ABS(dr(indf)) > dxcon )conv_dx = .FALSE.
-      IF(ABS(dr(indf)) > maxdum(1) )maxdum(1) = ABS(dr(indf))
-   END DO
-   IF( SQRT(dumm/ndf) > rmsxcon )conv_rdx = .FALSE.
-   maxdum(2) = SQRT(dumm/ndf)
+    dumm     = 0.0_dp
+    DO indf = 1, ndf
+       IF(indf == 1)maxdum(1) = dr(indf)
+       dumm = dumm + dr(indf)**2
+       IF(ABS(dr(indf)) > dxcon )conv_dx = .FALSE.
+       IF(ABS(dr(indf)) > maxdum(1) )maxdum(1) = ABS(dr(indf))
+    END DO
+    IF( SQRT(dumm/ndf) > rmsxcon )conv_rdx = .FALSE.
+    maxdum(2) = SQRT(dumm/ndf)
 
-   dumm = 0.0_dp
-   DO indf = 1, ndf
-      IF(indf == 1)maxdum(3) = dr(indf)
-      dumm = dumm + g(indf)**2
-      IF(ABS(g(indf)) > gcon )conv_g = .FALSE.
-      IF(ABS(g(indf)) > maxdum(3) )maxdum(3) = ABS(g(indf))
-   END DO
-   IF( SQRT(dumm/ndf) > rmsgcon )conv_rg = .FALSE.
-   maxdum(4) = SQRT(dumm/ndf)
+    dumm = 0.0_dp
+    DO indf = 1, ndf
+       IF(indf == 1)maxdum(3) = dr(indf)
+       dumm = dumm + g(indf)**2
+       IF(ABS(g(indf)) > gcon )conv_g = .FALSE.
+       IF(ABS(g(indf)) > maxdum(3) )maxdum(3) = ABS(g(indf))
+    END DO
+    IF( SQRT(dumm/ndf) > rmsgcon )conv_rg = .FALSE.
+    maxdum(4) = SQRT(dumm/ndf)
 
     IF(ionode)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-          " Convergence check :"
-          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " Max. step size             = ",maxdum(1)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " Conv. limit for step size  = ",dxcon
+            " Convergence check :"
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Max. step size             = ",maxdum(1)
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Conv. limit for step size  = ",dxcon
        IF(conv_dx)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in step size   =     ",&
-          "             YES"
+               " Convergence in step size   =     ",&
+               "             YES"
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in step size   =     ",&
-          "              NO"
+               " Convergence in step size   =     ",&
+               "              NO"
        END IF
-          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " RMS step size              = ",maxdum(2)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " Conv. limit for RMS step   = ",rmsxcon
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " RMS step size              = ",maxdum(2)
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Conv. limit for RMS step   = ",rmsxcon
        IF(conv_rdx)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in RMS step    =     ",&
-          "             YES"
+               " Convergence in RMS step    =     ",&
+               "             YES"
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in RMS step    =     ",&
-          "              NO"
+               " Convergence in RMS step    =     ",&
+               "              NO"
        END IF
-         WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " Max. gradient              = ",maxdum(3)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " Conv. limit for gradients  = ",gcon
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Max. gradient              = ",maxdum(3)
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Conv. limit for gradients  = ",gcon
        IF(conv_g)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. in gradients         =     ",&
-          "             YES"
+               " Conv. in gradients         =     ",&
+               "             YES"
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. for gradients        =     ",&
-          "              NO"
+               " Conv. for gradients        =     ",&
+               "              NO"
        END IF
-         WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " RMS gradient               = ",maxdum(4)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-          " Conv. limit for RMS grad.  = ",rmsgcon
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " RMS gradient               = ",maxdum(4)
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+            " Conv. limit for RMS grad.  = ",rmsgcon
        IF(conv_rg)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. in RMS gradients     =     ",&
-          "             YES"
+               " Conv. in RMS gradients     =     ",&
+               "             YES"
 
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. for gradients        =     ",&
-          "              NO"
+               " Conv. for gradients        =     ",&
+               "              NO"
        END IF
        WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
 
@@ -988,76 +964,14 @@ CONTAINS
     IF(conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg)conv = .TRUE.
 
     IF(conv)THEN
-      IF(ionode)THEN
-        WRITE(UNIT=output_unit,FMT="(/,T2,80('*'))")
-        WRITE(UNIT=output_unit,FMT="(T2,2('*'),21X,A,21X,2('*'))")&
-           "GEOMETRY OPTIMIZATION COMPLETED"
-        WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
-      END IF
+       IF(ionode)THEN
+          WRITE(UNIT=output_unit,FMT="(/,T2,80('*'))")
+          WRITE(UNIT=output_unit,FMT="(T2,2('*'),21X,A,21X,2('*'))")&
+               "GEOMETRY OPTIMIZATION COMPLETED"
+          WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
+       END IF
     END IF
 
   END SUBROUTINE check_converg
-
-  ! ***************************************************************************
-
-  SUBROUTINE apply_fixed_atom_constraint(force_env,g,error)
-
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: g
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_fixed_atom_constraint', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, ifixd, &
-                                                imolecule_kind, isubsys, nfixd
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
-! -------------------------------------------------------------------------
-
-    CALL timeset(routineN,"I","",handle)
-
-    CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
-
-    DO isubsys=1,SIZE(subsys) ! Well, this loop is pretty ridiculous, since the
-                              ! stuff above works only for one subsystem, currently
-
-      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-                         molecule_kinds_new=molecule_kinds,error=error)
-
-      molecule_kind_set => molecule_kinds%els
-
-      DO imolecule_kind=1,molecule_kinds%n_els
-
-        molecule_kind => molecule_kind_set(imolecule_kind)
-
-        CALL get_molecule_kind(molecule_kind,&
-                               nfixd=nfixd,&
-                               fixd_list=fixd_list)
-
-        DO ifixd=1,nfixd
-          i = 3*(fixd_list(ifixd)%fixd - 1)
-          g(i+1) = 0.0_dp
-          g(i+2) = 0.0_dp
-          g(i+3) = 0.0_dp
-        END DO
-
-      END DO ! imolecule_kind
-
-    END DO ! isubsys
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE apply_fixed_atom_constraint
-
-  ! ***************************************************************************
 
 END MODULE bfgs_optimizer

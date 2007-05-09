@@ -42,3 +42,5 @@ gly_amber.inp             2
 mol_amber.inp             2
 #RESPA_TEST
 acn_respa.inp             2
+#BFGS optimizer with restraints
+nh3-restraint-fixd-2.inp  7
