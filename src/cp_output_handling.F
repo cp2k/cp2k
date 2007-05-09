@@ -895,27 +895,27 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
     TYPE(cp_error_type), INTENT(inout)       :: error
     CHARACTER(len=default_path_length)       :: filename
 
-    CHARACTER(len=default_path_length)       :: postfix, root, outPath
+    CHARACTER(len=default_path_length)       :: outPath, postfix, root
     CHARACTER(len=default_string_length)     :: my_middle_name, outName
     INTEGER                                  :: my_ind1, my_ind2
     LOGICAL                                  :: has_root
 
   CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
   IF (outPath(1:1)=='=') THEN
-     filename=outPath(2:len_trim(outPath))
-     return
+     filename=outPath(2:LEN_TRIM(outPath))
+     RETURN
   END IF
   IF (outPath=="__STD_OUT__") outPath=""
   outName=outPath
-  has_root=.false.
+  has_root=.FALSE.
   my_ind1=INDEX(outPath,"/")
-  my_ind2 = len_trim(outPath)
+  my_ind2 = LEN_TRIM(outPath)
   IF (my_ind1 /= 0) THEN
-     has_root = .true.
+     has_root = .TRUE.
      DO WHILE (INDEX(outPath(my_ind1+1:my_ind2),"/")/=0)
         my_ind1 = INDEX(outPath(my_ind1+1:my_ind2),"/") + my_ind1
      END DO
-     IF (my_ind1 == my_ind2) then
+     IF (my_ind1 == my_ind2) THEN
         outName=""
      ELSE
         outName = outPath(my_ind1+1:my_ind2)
@@ -941,7 +941,7 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
   ELSE IF (outName=="") THEN
      root=outPath(1:my_ind1)//TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
   ELSE
-     root=outPath(1:my_ind1)//my_middle_name(2:len_trim(my_middle_name))
+     root=outPath(1:my_ind1)//my_middle_name(2:LEN_TRIM(my_middle_name))
   END IF
 
   ! use the cp_iter_string as a postfix
@@ -1185,25 +1185,27 @@ END FUNCTION cp_print_key_unit_nr
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_local
 
     failure=.FALSE.
 
     IF (.NOT. failure) THEN
-
-       output_unit=cp_print_key_unit_nr(logger, basis_section=basis_section,&
-            print_key_path=print_key_path,extension=extension,&
-            middle_name=middle_name, local=local, log_filename=log_filename,&
-            ignore_should_output=ignore_should_output, &
-            on_file=on_file, error=error)
-       IF (output_unit>0) THEN
-          WRITE(output_unit,"(a)")message
-          CALL cp_print_key_finished_output(output_unit,logger,&
-               basis_section=basis_section,print_key_path=print_key_path,&
-               local=local,ignore_should_output=ignore_should_output,&
-               on_file=on_file,error=error)
+       my_local=.FALSE.
+       IF (PRESENT(local)) my_local=local
+       IF (my_local .OR. logger%para_env%mepos==logger%para_env%source) THEN
+          output_unit=cp_print_key_unit_nr(logger, basis_section=basis_section,&
+               print_key_path=print_key_path,extension=extension,&
+               middle_name=middle_name, local=local, log_filename=log_filename,&
+               ignore_should_output=ignore_should_output, &
+               on_file=on_file, error=error)
+          IF (output_unit>0) THEN
+             WRITE(output_unit,"(a)")message
+             CALL cp_print_key_finished_output(output_unit,logger,&
+                  basis_section=basis_section,print_key_path=print_key_path,&
+                  local=local,ignore_should_output=ignore_should_output,&
+                  on_file=on_file,error=error)
+          END IF
        END IF
-
     END IF
   END SUBROUTINE cp_print_key_log
 !***************************************************************************
