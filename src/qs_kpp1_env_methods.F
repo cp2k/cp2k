@@ -33,6 +33,7 @@ MODULE qs_kpp1_env_methods
                                              coeff_transform_space,&
                                              coeff_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -332,13 +333,14 @@ CONTAINS
        IF (gapw) &
             CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
 
-       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-            extension=".scfLog",error=error)
-       IF (output_unit>0) THEN
+       IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
+            error=error)/=0) THEN
+          output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+               extension=".scfLog",error=error)
           CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error=error)
+          CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+               "PRINT%TOTAL_DENSITIES", error=error)
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%TOTAL_DENSITIES", error=error)
 
        IF (.NOT.(nspins==1 .AND. excitations==tddfpt_excitations .AND. &
                  res_etype /= tddfpt_singlet )) THEN
@@ -964,11 +966,13 @@ CONTAINS
     REAL(KIND=dp)                            :: total_rho_gspace
 
     total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
-    WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-         "KPP1 total charge density (r-space):",&
-         accurate_sum(rho1%tot_rho_r),&
-         "KPP1 total charge density (g-space):",&
-               total_rho_gspace
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "KPP1 total charge density (r-space):",&
+            accurate_sum(rho1%tot_rho_r),&
+            "KPP1 total charge density (g-space):",&
+            total_rho_gspace
+    END IF
 
   END SUBROUTINE print_densities
 
