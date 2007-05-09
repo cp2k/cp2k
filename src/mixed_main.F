@@ -130,7 +130,14 @@ CONTAINS
        ngroup_wish_set=.TRUE.
        ngroup_wish=SIZE(i_vals)
     ELSE
-       ngroup_wish = n_subforce_eval
+       CALL section_vals_val_get(force_env_section,"MIXED%NGROUPS",n_rep_val=n_rep_val,&
+            error=error)
+       IF (n_rep_val>0) THEN
+          CALL section_vals_val_get(force_env_section,"MIXED%NGROUPS",i_val=ngroup_wish,&
+               error=error)
+       ELSE
+          ngroup_wish = n_subforce_eval
+       END IF
        group_size_wish_set=.TRUE.
        group_size_wish = MAX(1,para_env%num_pe/ ngroup_wish)
     END IF

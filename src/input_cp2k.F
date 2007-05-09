@@ -1451,6 +1451,13 @@ END SUBROUTINE create_cpot_section
             usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NGROUPS",variants=(/"NGROUP"/),&
+            description="Gives the wanted number of groups. If not specified the number"//&
+            " of groups is set to the number of subforce_eval defined.",&
+            usage="ngroups 4", type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        
        ! Double force_eval
        CALL section_create(subsection,name="LINEAR",&
