@@ -722,7 +722,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
                         file_status="UNKNOWN",&
                         file_position="APPEND",&
                         unit_number=output_unit)
-     WRITE(UNIT=output_unit,FMT='(A40)') "# molecule nr, charge, dipole vector, dipole (Debye) "
+     WRITE(UNIT=output_unit,FMT='(A80)') "# molecule nr, charge, dipole vector, dipole (Debye) "
      dipole_set=dipole_set*debye ! Debye
      DO I=1,SIZE(dipole_set,2)
         WRITE(UNIT=output_unit,FMT='(I6,5F12.6)') I,charge_set(I),dipole_set(1:3,I), &
