@@ -155,6 +155,7 @@ CONTAINS
    localized_wfn_control%print_cubes = .FALSE.
    localized_wfn_control%print_centers = .FALSE.
    localized_wfn_control%print_spreads = .FALSE.
+   localized_wfn_control%loc_rootfname=" "
    NULLIFY(localized_wfn_control%loc_states)
    NULLIFY(localized_wfn_control%centers_set(1)%array)
    NULLIFY(localized_wfn_control%centers_set(2)%array)
@@ -325,11 +326,6 @@ CONTAINS
       ELSE IF(localized_wfn_control%set_of_states==state_loc_none) THEN
          localized_wfn_control%nloc_states(:) = 0
       END IF
-
-      ! initialize to an empty string instead ??
-      localized_wfn_control%loc_rootfname=""
-!      CALL section_vals_val_get(loc_section,"FNAME",&
-!           c_val=localized_wfn_control%loc_rootfname,error=error)
 
       localized_wfn_control%print_centers = &
           BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
@@ -511,13 +507,6 @@ CONTAINS
       ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)), STAT = istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
-
-!    localized_wfn_control%print_centers = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-!         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
-!    localized_wfn_control%print_spreads = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-!         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
-!    localized_wfn_control%print_cubes =   BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-!         "DFT%PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)
 
   END SUBROUTINE set_loc_centers
  
