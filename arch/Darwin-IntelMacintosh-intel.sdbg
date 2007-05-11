@@ -1,0 +1,24 @@
+PERL     = /usr/bin/perl
+CC       = icc
+CPP      = cpp -xassembler-with-cpp
+FC       = ifort -FR
+LD       = ifort
+AR       = ar -r
+RANLIB   = ranlib
+
+DFLAGS   = -D__INTEL -D__FFTSG
+CPPFLAGS = -traditional -C $(DFLAGS) -P
+
+FCFLAGS  = $(DFLAGS) -O0 -g
+
+LDFLAGS  = $(FCFLAGS) 
+
+MKLPATH  = /Library/Frameworks/Intel_MKL.framework/Versions/9.0/lib/32
+
+LIBS     = $(MKLPATH)/libmkl_lapack.a\
+           $(MKLPATH)/libmkl_ia32.a\
+           $(MKLPATH)/libguide.a\
+           -lpthread
+
+OBJECTS_ARCHITECTURE = machine_intel.o
+
