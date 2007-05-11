@@ -33,18 +33,18 @@
 
     platform="${ostype}-${osversion}-${osrelease}-${machine}"
     case $platform in
-      Darwin-*I386-8.9.1-i386)
+      Darwin-*-*-i386)
         if [[ -n $FORT_C_NAME ]]; then
-          PLATFORM="Darwin-IntelMacintosh-$FORT_C_NAME";;
+          PLATFORM="Darwin-IntelMacintosh-$FORT_C_NAME"
         else
-          PLATFORM="Darwin-IntelMacintosh-g95";;
-	fi;;
+          PLATFORM="Darwin-IntelMacintosh-g95"
+        fi;;
       Darwin-*-*-Power\ Macintosh)
         if [[ -n $FORT_C_NAME ]]; then
-	  PLATFORM="Darwin-PowerMacintosh-$FORT_C_NAME"
+          PLATFORM="Darwin-PowerMacintosh-$FORT_C_NAME"
         else
-	  PLATFORM="Darwin-PowerMacintosh-absoft"
-	fi;;
+          PLATFORM="Darwin-PowerMacintosh-absoft"
+        fi;;
       AIX-*-*-*)
         proc=`lsdev -C -r name | grep proc | tail -1`
         arch=`lsattr -l $proc -a type -F value`
@@ -67,7 +67,7 @@
         PLATFORM="Cygwin-i686-g95";;
       Linux-*-*-i686)
         if [[ -n $FORT_C_NAME ]]; then
-     	  PLATFORM="Linux-i686-$FORT_C_NAME"
+          PLATFORM="Linux-i686-$FORT_C_NAME"
         elif [[ -n $G95 ]]; then
           PLATFORM="Linux-i686-g95"
         elif [[ -n $PGI ]]; then
@@ -79,16 +79,16 @@
         fi;;
       Linux-*-*-x86_64)
         if [[ -n $FORT_C_NAME ]]; then
-     	  PLATFORM="Linux-x86-64-$FORT_C_NAME"
+          PLATFORM="Linux-x86-64-$FORT_C_NAME"
         else
           PLATFORM="Linux-x86-64-pgi"
-		fi;;
+        fi;;
       Linux-*-*-ia64)
         if [[ -n $FORT_C_NAME ]]; then
-	  PLATFORM="Linux-ia64-$FORT_C_NAME"
+          PLATFORM="Linux-ia64-$FORT_C_NAME"
         else
-	  PLATFORM="Linux-ia64-intel"
-	fi;;
+          PLATFORM="Linux-ia64-intel"
+        fi;;
       *-unicosmk-*-CRAY*T3E)
         PLATFORM="CRAY-T3E";;
       SunOS-*-sun4u)
