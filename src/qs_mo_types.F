@@ -59,11 +59,16 @@ MODULE qs_mo_types
                                              dp_size,&
                                              int_size
   USE message_passing,                 ONLY: mp_bcast
-  USE orbital_pointers,                ONLY: nco,&
+  USE orbital_pointers,                ONLY: indco,&
+                                             nco,&
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
+  USE orbital_symbols,                 ONLY: cgf_symbol, &
+                                             sgf_symbol
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
+  USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
+  USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -609,7 +614,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
       lshell, max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin, &
-      restart_unit
+      restart_unit, lmax
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
@@ -617,10 +622,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
-!    TYPE(atomic_kind_type), DIMENSION(:), &
-!      POINTER                                :: atomic_kind_set
-!   *** Local paramters ***
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -654,14 +657,13 @@ CONTAINS
 
 !     *** create some info about the basis set first ***
       natom = SIZE(particle_set,1)
-!      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-!                               natom=natom)
       nset_max = 0
       nshell_max = 0
 
       DO iatom=1,natom
+        NULLIFY(orb_basis_set,dftb_parameter)
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             orb_basis_set=orb_basis_set)
+                orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
         IF (ASSOCIATED(orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                  nset=nset,&
@@ -671,6 +673,12 @@ CONTAINS
           DO iset=1,nset
             nshell_max = MAX(nshell_max,nshell(iset))
           END DO
+        ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+          CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+          nset_max = MAX(nset_max,1)
+          nshell_max = MAX(nshell_max,lmax+1)
+        ELSE
+          CALL stop_program(routine,"unknown basis type")
         END IF
       END DO
 
@@ -689,8 +697,9 @@ CONTAINS
       nset_info(:) = 0
 
       DO iatom=1,natom
+        NULLIFY(orb_basis_set,dftb_parameter)
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             orb_basis_set=orb_basis_set)
+                orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
         IF (ASSOCIATED(orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                  nset=nset,&
@@ -704,9 +713,16 @@ CONTAINS
               nso_info(ishell,iset,iatom) = nso(lshell)
             END DO
           END DO
+        ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+          CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+          nset_info(iatom) = 1
+          nshell_info(1,iatom)=lmax+1
+          DO ishell=1,lmax+1
+            lshell = ishell-1
+            nso_info(ishell,1,iatom) = nso(lshell)
+          END DO
         ELSE
-          nshell_info(:,iatom) = 0
-          nso_info(:,:,iatom) = 0
+          CALL stop_program(routine,"unknown basis type")
         END IF
       END DO
 
@@ -791,16 +807,16 @@ CONTAINS
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
       ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
       natom_read, nelectron, nmo, nmo_read, nset, nset_max, nshell_max, &
-      nspin, nspin_read, offset_read, restart_unit, source
+      nspin, nspin_read, offset_read, restart_unit, source, lmax, nnshell
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: did_change, use_this
+    LOGICAL                                  :: did_change, use_this, minbas
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
-!   *** Local paramters ***
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -813,8 +829,6 @@ CONTAINS
 
     IF (para_env%ionode) THEN
 
-!      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-!                               natom=natom)
       natom = SIZE(particle_set,1)
       CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
            c_val=file_name,error=error)
@@ -830,10 +844,11 @@ CONTAINS
                      unit_number=restart_unit)
 
       READ (restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
-
+!
       ! we should allow for restarting with different spin settings
       IF (nspin_read /= nspin) THEN
-        WRITE(cp_logger_get_default_unit_nr(logger),*)  "READ RESTART : WARNING : nspin is not equal "
+        WRITE(cp_logger_get_default_unit_nr(logger),*)  &
+          "READ RESTART : WARNING : nspin is not equal "
       END IF
 
       IF (natom_read /= natom) THEN
@@ -857,7 +872,8 @@ CONTAINS
                                        nshell_max*nset_max*natom_read*int_size)
 
       IF (nao_read /= nao) THEN
-        WRITE(cp_logger_get_default_unit_nr(logger),*) " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
+        WRITE(cp_logger_get_default_unit_nr(logger),*) &
+          " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
         did_change=.TRUE.
       END IF
 
@@ -936,19 +952,38 @@ CONTAINS
           ! in case the basis set changed this involves some guessing
           irow=1
           DO iatom=1,natom
+            NULLIFY(orb_basis_set,dftb_parameter)
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                                 orb_basis_set=orb_basis_set)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                   nset=nset,&
-                                   nshell=nshell,&
-                                   l=l)
+                   orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+            IF (ASSOCIATED(orb_basis_set)) THEN
+              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                     nset=nset,&
+                                     nshell=nshell,&
+                                     l=l)
+              minbas=.FALSE.
+            ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+              CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+              nset = 1
+              minbas=.TRUE.
+            ELSE
+              CALL stop_program(routine,"unknown basis set type")
+            END IF
 
             use_this = .TRUE.
             iset_read = 1
             DO iset=1,nset
               ishell_read = 1
-              DO ishell=1,nshell(iset)
-                lshell = l(ishell,iset)
+              IF(minbas) THEN
+                nnshell = lmax+1
+              ELSE
+                nnshell = nshell(iset)
+              END IF
+              DO ishell=1,nnshell
+                IF(minbas) THEN
+                  lshell = ishell-1
+                ELSE
+                  lshell = l(ishell,iset)
+                END IF
                 IF (iset_read > nset_info(iatom)) use_this = .FALSE.
                 IF (use_this) THEN ! avoids out of bound access of the lower line if false
                    IF (nso(lshell) == nso_info(ishell_read,iset_read,iatom)) THEN
@@ -986,7 +1021,8 @@ CONTAINS
         END IF
 
         CALL mp_bcast(vecbuffer,source,group)
-        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
+        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%mo_coeff,&
+               vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
         did_change=.FALSE.
 
       END DO
@@ -1006,7 +1042,6 @@ CONTAINS
 
         mo_array(ispin+1)%mo_set%homo = mo_array(ispin)%mo_set%homo
         mo_array(ispin+1)%mo_set%lfomo = mo_array(ispin)%mo_set%lfomo
-!        maxocc=1.0_dp
         nelectron = mo_array(ispin)%mo_set%nelectron
         IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1080,24 +1115,27 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit'
 
-    CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
+    CHARACTER(LEN=12), DIMENSION(:), POINTER :: bcgf_symbol
+    CHARACTER(LEN=12)                        :: symbol
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=2*default_string_length)   :: name
     CHARACTER(LEN=22)                        :: fmtstr2
     CHARACTER(LEN=25)                        :: fmtstr1
     CHARACTER(LEN=38)                        :: fmtstr3
-    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
+    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: bsgf_symbol
     INTEGER :: from, iatom, icgf, ico, icol, irow, iset, isgf, ishell, iso, &
       istat, iw, jcol, left, lshell, natom, ncgf, ncol, ncol_global, &
-      nrow_global, nset, nsgf, right, scf_step, to, width
+      nrow_global, nset, nsgf, right, scf_step, to, width, lmax
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
+    INTEGER, DIMENSION(3)                    :: mxyz
     LOGICAL                                  :: ionode, my_last, p_cart, &
                                                 p_eval, p_evec, p_occ, &
                                                 should_output
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
 ! -------------------------------------------------------------------------
 
@@ -1195,28 +1233,44 @@ CONTAINS
 
              cmatrix = 0.0_dp
 
-             ! Transform spherical MOs to Cartesian MOs
+!            ! Transform spherical MOs to Cartesian MOs
 
              icgf = 1
              isgf = 1
              DO iatom=1,natom
+                NULLIFY(orb_basis_set,dftb_parameter)
                 CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                     orb_basis_set=orb_basis_set)
-                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                     nset=nset,&
-                     nshell=nshell,&
-                     l=l)
-                DO iset=1,nset
-                   DO ishell=1,nshell(iset)
-                      lshell = l(ishell,iset)
-                      CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
-                           orbtramat(lshell)%s2c,nso(lshell),&
-                           smatrix(isgf,1),nsgf,0.0_dp,&
-                           cmatrix(icgf,1),ncgf)
-                      icgf = icgf + nco(lshell)
-                      isgf = isgf + nso(lshell)
-                   END DO
-                END DO
+                     orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+                IF (ASSOCIATED(orb_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                       nset=nset,&
+                       nshell=nshell,&
+                       l=l)
+                  DO iset=1,nset
+                     DO ishell=1,nshell(iset)
+                        lshell = l(ishell,iset)
+                        CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
+                             orbtramat(lshell)%s2c,nso(lshell),&
+                             smatrix(isgf,1),nsgf,0.0_dp,&
+                             cmatrix(icgf,1),ncgf)
+                        icgf = icgf + nco(lshell)
+                        isgf = isgf + nso(lshell)
+                     END DO
+                  END DO
+                ELSEIF (ASSOCIATED(dftb_parameter)) THEN
+                  CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+                  DO ishell=1,lmax+1
+                    lshell = ishell-1
+                    CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
+                         orbtramat(lshell)%s2c,nso(lshell),&
+                         smatrix(isgf,1),nsgf,0.0_dp,&
+                         cmatrix(icgf,1),ncgf)
+                    icgf = icgf + nco(lshell)
+                    isgf = isgf + nso(lshell)
+                  END DO
+                ELSE
+                  CALL stop_program(routineN,"unknown basis set type")
+                END IF
              END DO
 
           ELSE
@@ -1289,53 +1343,92 @@ CONTAINS
 
                 IF (iatom /= 1) WRITE (UNIT=iw,FMT="(A)") ""
 
+                NULLIFY(orb_basis_set,dftb_parameter)
                 CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                      element_symbol=element_symbol,&
-                     orb_basis_set=orb_basis_set)
+                     orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
 
                 IF (p_cart) THEN
 
-                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                        nset=nset,&
-                        nshell=nshell,&
-                        l=l,&
-                        cgf_symbol=cgf_symbol)
+                   IF (ASSOCIATED(orb_basis_set)) THEN
+                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                           nset=nset,&
+                           nshell=nshell,&
+                           l=l,&
+                           cgf_symbol=bcgf_symbol)
 
-                   icgf = 1
-                   DO iset=1,nset
-                      DO ishell=1,nshell(iset)
-                         lshell = l(ishell,iset)
+                      icgf = 1
+                      DO iset=1,nset
+                         DO ishell=1,nshell(iset)
+                            lshell = l(ishell,iset)
+                            DO ico=1,nco(lshell)
+                               WRITE (UNIT=iw,FMT=fmtstr3)&
+                                 irow,iatom,ADJUSTR(element_symbol),bcgf_symbol(icgf),&
+                                 (cmatrix(irow,jcol),jcol=from,to)
+                               icgf = icgf + 1
+                               irow = irow + 1
+                            END DO
+                         END DO
+                      END DO
+                   ELSE IF (ASSOCIATED(dftb_parameter)) THEN
+                      CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+                      icgf = 1
+                      DO ishell=1,lmax+1
+                         lshell = ishell-1
                          DO ico=1,nco(lshell)
+                            symbol = cgf_symbol(1,indco(1:3,icgf))
+                            symbol(1:2) = "  "
                             WRITE (UNIT=iw,FMT=fmtstr3)&
-                                 irow,iatom,ADJUSTR(element_symbol),cgf_symbol(icgf),&
+                                 irow,iatom,ADJUSTR(element_symbol),symbol,&
                                  (cmatrix(irow,jcol),jcol=from,to)
                             icgf = icgf + 1
                             irow = irow + 1
                          END DO
                       END DO
-                   END DO
+                   ELSE
+                      CALL stop_program(routineN,"unknown basis set type")
+                   END IF
 
                 ELSE
 
-                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                        nset=nset,&
-                        nshell=nshell,&
-                        l=l,&
-                        sgf_symbol=sgf_symbol)
+                   IF (ASSOCIATED(orb_basis_set)) THEN
+                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                           nset=nset,&
+                           nshell=nshell,&
+                           l=l,&
+                           sgf_symbol=bsgf_symbol)
 
-                   isgf = 1
-                   DO iset=1,nset
-                      DO ishell=1,nshell(iset)
-                         lshell = l(ishell,iset)
-                         DO iso=1,nso(lshell)
-                            WRITE (UNIT=iw,FMT=fmtstr3)&
-                                 irow,iatom,ADJUSTR(element_symbol),sgf_symbol(isgf),&
+                      isgf = 1
+                      DO iset=1,nset
+                         DO ishell=1,nshell(iset)
+                            lshell = l(ishell,iset)
+                            DO iso=1,nso(lshell)
+                               WRITE (UNIT=iw,FMT=fmtstr3)&
+                                 irow,iatom,ADJUSTR(element_symbol),bsgf_symbol(isgf),&
                                  (smatrix(irow,jcol),jcol=from,to)
+                               isgf = isgf + 1
+                               irow = irow + 1
+                            END DO
+                         END DO
+                      END DO
+                   ELSE IF (ASSOCIATED(dftb_parameter)) THEN
+                      CALL get_dftb_atom_param(dftb_parameter,lmax=lmax)
+                      isgf = 1
+                      DO ishell=1,lmax+1
+                         lshell = ishell-1
+                         DO iso=1,nso(lshell)
+                           symbol = sgf_symbol(1,lshell,-lshell+iso-1)
+                           symbol(1:2) = "  "
+                            WRITE (UNIT=iw,FMT=fmtstr3)&
+                              irow,iatom,ADJUSTR(element_symbol),symbol,&
+                              (smatrix(irow,jcol),jcol=from,to)
                             isgf = isgf + 1
                             irow = irow + 1
                          END DO
                       END DO
-                   END DO
+                   ELSE
+                      CALL stop_program(routineN,"unknown basis set type")
+                   END IF
 
                 END IF
 

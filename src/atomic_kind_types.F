@@ -398,6 +398,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atomic_kind'
 
     LOGICAL                                  :: softb_local
+    INTEGER                                  :: l
 
 !   ---------------------------------------------------------------------------
 
@@ -486,6 +487,9 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
                                  ncgf=ncgf)
+        ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+          l = atomic_kind%dftb_parameter%lmax
+          ncgf = ((l+1)*(l+2)*(l+3))/6
         ELSE
           ncgf = 0
         END IF
@@ -713,6 +717,11 @@ CONTAINS
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
             maxcgf = MAX(maxcgf,imax)
           END IF
+          IF (ASSOCIATED(dftb_parameter)) THEN
+            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
+            imax=((imax+1)*(imax+2)*(imax+3))/6
+            maxcgf = MAX(maxcgf,imax)
+          END IF
         END IF
         IF (PRESENT(maxco)) THEN
           IF (ASSOCIATED(aux_basis_set)) THEN
@@ -829,6 +838,11 @@ CONTAINS
         IF (PRESENT(ncgf)) THEN
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=n)
+            ncgf = ncgf + n*atomic_kind_set(ikind)%natom
+          END IF
+          IF (ASSOCIATED(dftb_parameter)) THEN
+            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
+            n=((imax+1)*(imax+2)*(imax+3))/6
             ncgf = ncgf + n*atomic_kind_set(ikind)%natom
           END IF
         END IF
