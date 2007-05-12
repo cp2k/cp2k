@@ -15,9 +15,17 @@
       &END DFTB
     &END QS
     &SCF
-      SCF_GUESS RESTART
+      SCF_GUESS CORE
       MAX_SCF  20
     &END SCF
+    &PRINT
+      &MO
+        CARTESIAN T
+        EIGENVALUES T
+        EIGENVECTORS T
+        OCCUPATION_NUMBERS T
+      &END MO
+   &END PRINT
   &END DFT
   &SUBSYS
     &CELL

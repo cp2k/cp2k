@@ -23,3 +23,7 @@ h2o-1.inp
 ch2o-5.inp
 #  
 h2o-3.inp
+# new tests
+ch2o-r.inp 
+ch2o-p.inp
+

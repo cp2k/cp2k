@@ -3,19 +3,19 @@
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    T
+        SELF_CONSISTENT    F
         DISPERSION         T
         ORTHOGONAL_BASIS   F   
-        DO_EWALD           F
         &PARAMETER
-          PARAM_FILE_PATH  ../scc
-          PARAM_FILE_NAME  scc_parameter
+          PARAM_FILE_PATH  ../nonscc
+          PARAM_FILE_NAME  nonscc_parameter
           UFF_FORCE_FIELD  ../uff_table
         &END PARAMETER
       &END DFTB
     &END QS
     &SCF
       SCF_GUESS RESTART
+      MIXING 1.
       MAX_SCF  20
     &END SCF
   &END DFT
@@ -34,7 +34,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT CH2O
-  RUN_TYPE ENERGY
+  PROJECT CH2O-1
+  RUN_TYPE GEO_OPT
   PRINT_LEVEL LOW
 &END GLOBAL
