@@ -1,0 +1,13 @@
+REMARK  ALA                                                         
+ATOM      1  N   ALA     1       3.326   1.548   0.000                       N
+ATOM      2  H   ALA     1       3.909   0.724   0.000                       H
+ATOM      3  CA  ALA     1       3.970   2.846   0.000                       C
+ATOM      4  HA  ALA     1       3.672   3.400  -0.890                       H
+ATOM      5  CB  ALA     1       3.577   3.654   1.232                       C
+ATOM      6 1HB  ALA     1       3.877   3.116   2.131                       H
+ATOM      7 2HB  ALA     1       4.075   4.623   1.206                       H
+ATOM      8 3HB  ALA     1       2.497   3.801   1.241                       H
+ATOM      9  C   ALA     1       5.486   2.705   0.000                       C
+ATOM     10  O   ALA     1       6.009   1.593   0.000                       O
+TER   
+END   

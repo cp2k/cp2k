@@ -1333,7 +1333,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
           my_par(SIZE(variables)+1:) = parameters(1:SIZE(parameters))
           my_val(SIZE(variables)+1:) = par_values(1:SIZE(parameters))
        END IF
-       CALL initf(1)
+       CALL initf(2)
        CALL parsef(1,TRIM(coupling_function),my_par)
        ! Now the hardest part.. map energy with corresponding force_eval
        mixed_energy%pot= evalf(1,my_val)
@@ -1414,13 +1414,18 @@ SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, err
     CHARACTER(len=*), PARAMETER :: routineN = 'dump_der_par', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: coupling_function
     CHARACTER(LEN=default_string_length)     :: par
-    INTEGER                                  :: i, iforce_eval, output_unit
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: data_function
+    INTEGER                                  :: i, iforce_eval, ipar, j, &
+                                                output_unit
     LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp)                            :: dedf, err
+    REAL(KIND=dp)                            :: d_ene_w, dedf, ene_w, err
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: fe_section
 
+    NULLIFY(data_function)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     fe_section => section_vals_get_subs_vals(root_section,&
@@ -1432,9 +1437,26 @@ SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, err
           IF (my_par(i)==par) EXIT
        END DO
        CPPrecondition(i<=SIZE(my_par),cp_failure_level,routineP,error,failure)
-       dedf = evalfd(1,i,my_val,dx,err)
+       ipar = i
+       dedf = evalfd(1,ipar,my_val,dx,err)
        CPPostconditionNoFail(ABS(err)<lerr,cp_warning_level,routineP,error)
 
+       ! We must print now the energy of the biased system, the weigthing energy 
+       ! and the derivative w.r.t.the coupling parameter of the biased energy
+       ! Retrieve the expression of the weighting function:
+       CALL section_vals_val_get(fe_section,"WEIGHTING_FUNCTION",&
+            c_vals=data_function,error=error)
+       ! Clean the function structure
+       coupling_function = ""
+       DO j = 1, SIZE(data_function)
+          coupling_function(LEN_TRIM(coupling_function)+1:) = TRIM(data_function(j))
+       END DO
+       CALL parsef(2,TRIM(coupling_function),my_par)       
+       ene_w   = evalf(2,my_val)
+       d_ene_w = evalfd(2,ipar,my_val,dx,err)
+       CPPostconditionNoFail(ABS(err)<lerr,cp_warning_level,routineP,error)
+
+       ! Print info
        output_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%FREE_ENERGY%FREE_ENERGY_INFO",&
                         extension=".free_energy",error=error)
        IF (output_unit>0) THEN
@@ -1443,8 +1465,12 @@ SUBROUTINE dump_der_par(my_val, my_par, dx, lerr, root_section, nforce_eval, err
              WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| FORCE_EVAL Nr.",I5,T48,"ENERGY (Hartree)= ",F15.9)')&
                   iforce_eval, my_val(iforce_eval)
           END DO
-          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF ENERGY w.r.t. PARAMETER (",A,")",T66,F15.9)')&
+          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF TOTAL ENERGY  [ PARAMETER (",A,") ]",T66,F15.9)')&
                TRIM(par),dedf
+          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| DERIVATIVE OF BIASED ENERGY [ PARAMETER (",A,") ]",T66,F15.9)')&
+               TRIM(par),dedf-d_ene_w
+          WRITE(output_unit,'(T2,"ALCHEMICAL CHANGE| BIASING UMBRELLA POTENTIAL  ",T66,F15.9)')&
+               ene_w
           WRITE(output_unit,'(T2,79("-"))')
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,root_section,&

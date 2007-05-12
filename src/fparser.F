@@ -94,20 +94,26 @@ CONTAINS
     INTEGER             :: i, istat
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     DO i = 1, SIZE(Comp)
-       DEALLOCATE ( Comp(i)%ByteCode, stat = istat) 
-       IF (istat /= 0) THEN
-          WRITE(*,*) '*** Parser error: Memmory deallocation for byte code failed'
-          STOP
+       IF (ASSOCIATED(Comp(i)%ByteCode)) THEN
+          DEALLOCATE ( Comp(i)%ByteCode, stat = istat) 
+          IF (istat /= 0) THEN
+             WRITE(*,*) '*** Parser error: Memmory deallocation for byte code failed'
+             STOP
+          END IF
        END IF
-       DEALLOCATE ( Comp(i)%Immed, stat=istat)
-       IF (istat /= 0) THEN
-          WRITE(*,*) '*** Parser error: Memmory deallocation for Immed Size failed'
-          STOP
+       IF (ASSOCIATED(Comp(i)%Immed)) THEN
+          DEALLOCATE ( Comp(i)%Immed, stat=istat)
+          IF (istat /= 0) THEN
+             WRITE(*,*) '*** Parser error: Memmory deallocation for Immed Size failed'
+             STOP
+          END IF
        END IF
-       DEALLOCATE ( Comp(i)%Stack, stat=istat)
-       IF (istat /= 0) THEN
-          WRITE(*,*) '*** Parser error: Memmory deallocation for Stack Size failed'
-          STOP
+       IF (ASSOCIATED(Comp(i)%Stack)) THEN
+          DEALLOCATE ( Comp(i)%Stack, stat=istat)
+          IF (istat /= 0) THEN
+             WRITE(*,*) '*** Parser error: Memmory deallocation for Stack Size failed'
+             STOP
+          END IF
        END IF
     END DO
     DEALLOCATE ( Comp, stat=istat)

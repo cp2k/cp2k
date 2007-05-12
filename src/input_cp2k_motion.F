@@ -453,7 +453,15 @@ CONTAINS
             usage="PARAMETERS k", required=.TRUE., type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHTING_FUNCTION",&
+            description="Specifies the weighting function (umbrella potential, part of the mixing function)",&
+            usage="WEIGHTING_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=char_t,&
+            n_var=-1, default_c_vals=(/"0"/),error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
     END IF
   END SUBROUTINE create_ac_section
