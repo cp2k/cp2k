@@ -4,7 +4,7 @@
 # the order will be regularly checked and modified...
 Fist/regtest-6
 QS/regtest-gpw-3
-###QS/regtest-hybrid
+QS/regtest-hybrid
 Fist/regtest-5
 QS/regtest-gpw-4
 QS/regtest-gapw
@@ -21,7 +21,7 @@ QMMM/QS/regtest-4
 EP
 QMMM/QS/regtest-gapw
 NEB/regtest-1
-###QS/regtest-hfx
+QS/regtest-hfx
 MC/regtest
 Fist/regtest-4
 KG/regtest
