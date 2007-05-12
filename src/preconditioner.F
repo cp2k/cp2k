@@ -1283,12 +1283,19 @@ SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
     REAL(KIND=dp)                            :: energy_homo, energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    LOGICAL                                  :: failure
     INTEGER                                  :: n
     REAL(KIND=dp)                            :: shift
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_work
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic', &
+      routineP = moduleN//':'//routineN
+
 ! ---
+  failure = .FALSE.
+  CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
 ! ---
 
   NULLIFY(fm_struct_tmp,fm_work)
