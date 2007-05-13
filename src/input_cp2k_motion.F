@@ -1923,7 +1923,9 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"COLVAR",&
             description="Controls the printing of COLVAR summary information during"//&
-            " metadynamics.", &
+            " metadynamics. The files contains: colvar value of the extended lagrangian, "//&
+            " instantaneous colvar value, force due to the armonic term of the extended "//&
+            " lagrangian and the force due to the previously spawned hills.", &
             print_level=high_print_level,each=(/1/),add_last=(/1/),filename="COLVAR",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -1931,7 +1933,9 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"HILLS",&
             description="Controls the printing of HILLS summary information during"//&
-            " metadynamics.", &
+            " metadynamics. The file contains: instantaneous colvar value, width of "//&
+            " the spawned gaussian and height of the gaussian. According the value of "//&
+            " the EACH keyword this file may not be synchronized with the COLVAR file.", &
             print_level=high_print_level,each=(/1/),add_last=(/1/),filename="HILLS",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)

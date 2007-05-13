@@ -277,22 +277,21 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     INTEGER                                  :: handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
-    LOGICAL                                  :: explicit1, explicit2, &
-                                                failure, flag, flag2, &
+    LOGICAL                                  :: failure, flag, flag2, &
                                                 subsys_check
     REAL(KIND=dp)                            :: myt
     TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER :: r_section, rep_sections, &
-      restart_input, section, section1, section2, sections1, sections2, &
-      work_section
+    TYPE(section_vals_type), POINTER         :: r_section, rep_sections, &
+                                                restart_input, section, &
+                                                section1, section2, &
+                                                sections1, sections2
 
   CALL timeset(routineN,handle)
 
   failure=.FALSE. 
-  NULLIFY(work_section)
   IF (.NOT. failure) THEN
      r_section => section_vals_get_subs_vals(input_file,&
           "EXT_RESTART",error=error)
@@ -405,26 +404,15 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&
              error=error)
         IF (flag) THEN
-           work_section => section_vals_get_subs_vals(input_file,"MOTION%MD",error=error)
-           CALL section_vals_get(work_section,explicit=explicit1,error=error)
-           work_section => section_vals_get_subs_vals(restart_input,"MOTION%MD",error=error)
-           CALL section_vals_get(work_section,explicit=explicit2,error=error)
-           IF (explicit1.AND.explicit2) THEN
+           IF (check_restart(input_file, restart_input, "MOTION%MD",error)) THEN
               CALL section_vals_val_get(restart_input,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
               CALL section_vals_val_get(restart_input,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
               CALL section_vals_val_set(input_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
               CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
            END IF
            !
-           work_section => section_vals_get_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN",&
-                error=error)
-           CALL section_vals_get(work_section,explicit=explicit1,error=error)
-           work_section => section_vals_get_subs_vals(restart_input,"MOTION%FREE_ENERGY%METADYN",&
-                error=error)
-           CALL section_vals_get(work_section,explicit=explicit2,error=error)
-           CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,&
-                error=error)
-           IF (explicit1.AND.explicit2.AND.flag2) THEN
+           CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,error=error)
+           IF (flag2.AND.check_restart(input_file, restart_input, "MOTION%FREE_ENERGY%METADYN",error)) THEN
               CALL section_vals_val_get(restart_input,&
                    "MOTION%FREE_ENERGY%METADYN%STEP_START_VAL",i_val=myi,error=error)
               CALL section_vals_val_set(input_file,&
@@ -436,13 +424,13 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            END IF
         END IF
         CALL section_vals_val_get(r_section,"RESTART_BAND",l_val=flag,error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%BAND",error)) THEN
            rep_sections => section_vals_get_subs_vals(restart_input,"MOTION%BAND%REPLICA",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%BAND%REPLICA",rep_sections,error=error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%BAROSTAT",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%BAROSTAT%MASS",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%MASS",&
@@ -454,7 +442,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_NOSE",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%BAROSTAT",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%BAROSTAT%NOSE%COORD",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%COORD",&
@@ -474,7 +462,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
@@ -486,7 +474,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_VEL",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
@@ -498,7 +486,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_KG_NOSE",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%KG_COEFF%NOSE",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%KG_COEFF%NOSE%COORD",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%COORD",&
@@ -518,7 +506,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_NOSE",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%MD%NOSE",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%NOSE%COORD",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%COORD",&
@@ -538,7 +526,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_CONSTRAINT",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%CONSTRAINT",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%CONSTRAINT",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%CONSTRAINT",&
@@ -546,7 +534,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag,&
              error=error)
-        IF (flag) THEN
+        IF (flag.AND.check_restart(input_file, restart_input, "MOTION%FREE_ENERGY%METADYN",error)) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",&
@@ -587,9 +575,57 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         CALL section_vals_release(restart_input,error=error)
      END IF
   END IF
-    CALL timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE handle_ext_restart
 !***************************************************************************
+
+!!****f* input_cp2k_check/check_restart *
+!!
+!!   NAME
+!!     check_restart
+!!
+!!   FUNCTION
+!!     Checks if there are the proper conditions to do a restart
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - input_file: the input file to initialize
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+FUNCTION check_restart(input_file, restart_input, tag_section, error) RESULT(do_restart)
+    TYPE(section_vals_type), POINTER         :: input_file, restart_input
+    CHARACTER(LEN=*), INTENT(IN)             :: tag_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: do_restart
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: explicit1, explicit2, failure
+    TYPE(section_vals_type), POINTER         :: work_section
+
+  CALL timeset(routineN,handle)
+
+  failure=.FALSE. 
+  NULLIFY(work_section)
+  IF (.NOT. failure) THEN  
+     work_section => section_vals_get_subs_vals(input_file,TRIM(tag_section),error=error)
+     CALL section_vals_get(work_section,explicit=explicit1,error=error)
+     work_section => section_vals_get_subs_vals(restart_input,TRIM(tag_section),error=error)
+     CALL section_vals_get(work_section,explicit=explicit2,error=error)
+
+     do_restart = explicit1.and.explicit2
+  END IF
+  CALL timestop(handle)
+END FUNCTION check_restart
 
 !!****f* input_cp2k_check/remove_restart_info *
 !!
