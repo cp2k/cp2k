@@ -430,6 +430,10 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL create_structure_data(print_key, error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)           
+
        CALL cp_print_key_section_create(print_key,"interatomic_distances",&
             description="controls the output of the interatomic distances when setting up the"//&
             "force environment",&
@@ -485,13 +489,6 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"subcell",&
-            description="controls the output of the subcell parameters"//&
-            " during the construction of the neighbouring lists.",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-     
        CALL cp_print_key_section_create(print_key,"kinds",&
             description="controls the output of information on the kinds",&
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
@@ -566,10 +563,6 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)       
-
-       CALL create_structure_data(print_key, error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)           
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
