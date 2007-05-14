@@ -54,7 +54,7 @@ MODULE qs_linres_nmr_shift
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: gaussi
+  USE mathconstants,                   ONLY: gaussi, twopi
   USE mathlib,                         ONLY: diamat_all
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -332,7 +332,8 @@ CONTAINS
 !     only one column of the chi tensor is computed here
       DO idir = 1,3
 !dbg
-   WRITE(*,*) ' chi istate ', istate, ' idir =', idir
+!   WRITE(*,*) ' chi istate ', istate, ' idir =', idir
+!dbg
   !     get ii and iii
         CALL set_vecp(idir,ii,iii)
 
@@ -345,8 +346,8 @@ CONTAINS
         chi(idir) = chi(idir) + 2.0_dp * contrib
 
 !dbg
-  WRITE(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term a r ',ii,' der ',&
-      iii, 2.0_dp * contrib, chi(idir)
+!  WRITE(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term a r ',ii,' der ',&
+!      iii, 2.0_dp * contrib, chi(idir)
 !dbg
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
@@ -354,8 +355,8 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
         chi(idir) = chi(idir) - 2.0_dp *contrib
 !dbg
-  WRITE(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term b r ',iii,' der ',&
-       ii,-2.0_dp *contrib, chi(idir)
+!  WRITE(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term b r ',iii,' der ',&
+!       ii,-2.0_dp *contrib, chi(idir)
 !dbg
 
 !       correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
@@ -372,8 +373,8 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
 !dbg
-  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 1st correction ab ',ii,' and ',&
-         iii,2.0_dp*dk(ii)*contrib,-2.0_dp*dk(iii)*contrib2, chi(idir)
+!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 1st correction ab ',ii,' and ',&
+!         iii,2.0_dp*dk(ii)*contrib,-2.0_dp*dk(iii)*contrib2, chi(idir)
 !dbg
 
 !       term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
@@ -394,8 +395,8 @@ CONTAINS
           chi(idir) = chi(idir) - contrib2
         END IF
 !dbg
-  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term a r ',ii,' der ',&
-      iii,-2.0_dp *contrib,-contrib2, chi(idir)
+!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term a r ',ii,' der ',&
+!      iii,-2.0_dp *contrib,-contrib2, chi(idir)
 !dbg
 
         contrib = 0.0_dp
@@ -413,8 +414,8 @@ CONTAINS
           chi(idir) = chi(idir) + contrib2
         END IF
 !dbg
-  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term b r ',iii,' der ',&
-       ii,2.0_dp *contrib,contrib2, chi(idir)
+!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term b r ',iii,' der ',&
+!       ii,2.0_dp *contrib,contrib2, chi(idir)
 !dbg
 
 !       correction: -dk_ii * 2[C0|(r-dk)_iiB | d_iii(C1(piiiB))] \
@@ -433,8 +434,8 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) + 2.0_dp*dk(iii)*contrib2
 !dbg
-  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
-       iii,-dk(ii)*contrib,dk(iii)*contrib2, chi(idir)
+!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
+!       iii,-dk(ii)*contrib,dk(iii)*contrib2, chi(idir)
 !dbg
 
 !       term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
@@ -455,8 +456,8 @@ CONTAINS
           chi(idir) = chi(idir) + contrib2
         END IF
 !dbg
-  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term a r ',ii,' der ',&
-        iii,2.0_dp*contrib,contrib2, chi(idir)
+!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term a r ',ii,' der ',&
+!        iii,2.0_dp*contrib,contrib2, chi(idir)
 !dbg
         contrib = 0.0_dp
         idir2 = ind_m2(iii,iiiB)
@@ -473,8 +474,8 @@ CONTAINS
           chi(idir) = chi(idir) - contrib2
         END IF
 !dbg
-  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term b r ',iii,' der ',&
-       ii,-2.0_dp*contrib,-contrib2, chi(idir)
+!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term b r ',iii,' der ',&
+!       ii,-2.0_dp*contrib,-contrib2, chi(idir)
 !dbg
 
 !       correction: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +\
@@ -492,8 +493,8 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
 !dbg
-  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
-       iii,+dk(ii)*contrib,-dk(iii)*contrib2, chi(idir)
+!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
+!       iii,+dk(ii)*contrib,-dk(iii)*contrib2, chi(idir)
 !dbg
 
       END DO  ! idir
@@ -895,7 +896,7 @@ CONTAINS
 
         ELSE
 
-           WRITE(unit_atoms,'(T30,A)') " CHI from J in 10^-30 J/T^2 units"
+           WRITE(unit_atoms,'(T30,A)') " CHI from J in atomic units"
            WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_tensor(1,1),&
                  ' XY=',chi_tensor(1,2),' XZ=',chi_tensor(1,3)
            WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_tensor(2,1),&
@@ -944,6 +945,10 @@ CONTAINS
 
       nat_print = SIZE(cs_atom_list,1)
       WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", nat_print
+
+      WRITE(unit_atoms,'(T2,A)') "WARNING! SHIFTS ARE MULTIPLIED BY MAGIC CONSTANT [4*Pi^2]!"
+      WRITE(unit_atoms,'(T2,A)') "WARNING! THE SHIFTS CONTAIN THE CHI CORRECTION!"
+
       IF(unit_atoms > 0) THEN
 
         WRITE(unit_atoms,'(T2,A)') title
@@ -955,9 +960,12 @@ CONTAINS
 
           DO i = 1,3
             DO j = 1,3
-              shift_nosym(i,j) = chi_tensor(i,j)+chemical_shift(i,j,iatom)
-              shift_sym(i,j) = chi_sym(i,j)+(chemical_shift(i,j,iatom)+&
-                               chemical_shift(j,i,iatom))/2.0_dp
+               ! here we need to multiply chi and the shift by some factors
+               shift_nosym(i,j) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
+                    & + chemical_shift(i,j,iatom) * twopi**2
+
+               shift_sym(i,j) = chi_sym(i,j)+(chemical_shift(i,j,iatom)+&
+                                chemical_shift(j,i,iatom))/2.0_dp
 
               IF(gapw) THEN
                 shift_nosym(i,j) = shift_nosym(i,j)+chemical_shift_loc(i,j,iatom)
@@ -972,9 +980,10 @@ CONTAINS
           eigenv_chi(1:3, iatom) = eigenv_tmp(1:3)
 
           WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,name,element_symbol,rpos(1:3)
-          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_x = ',shift_nosym(1, 1:3), eigenv_tmp(1)
-          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_y = ',shift_nosym(2, 1:3), eigenv_tmp(2)
-          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_z = ',shift_nosym(3, 1:3), eigenv_tmp(3)
+          ! here we set eigenv_tmp to huge... need to be consistent with the units used above.
+          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_x = ',shift_nosym(1, 1:3), HUGE(0.0_dp)!eigenv_tmp(1)
+          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_y = ',shift_nosym(2, 1:3), HUGE(0.0_dp)!eigenv_tmp(2)
+          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_z = ',shift_nosym(3, 1:3), HUGE(0.0_dp)!eigenv_tmp(3)
         END DO  ! ir
 
       END IF

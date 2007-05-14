@@ -61,7 +61,8 @@ MODULE qs_linres_nmr_op
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rmc_x_p_xyz_ao
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             checksum_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -167,8 +168,6 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "Calculation of the p and (r-d)xp operators applied to psi0"
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                     dft_control=dft_control, linres_control=linres_control,&
@@ -182,6 +181,16 @@ CONTAINS
 
     ! Calculate the px py pz operators
     CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.TRUE.,error=error)
+
+    ! print checksums
+    IF(output_unit>0) THEN
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_x =', &
+            & checksum_matrix(op_p_ao(1)%matrix)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_y =', &
+            & checksum_matrix(op_p_ao(2)%matrix)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_z =', &
+            & checksum_matrix(op_p_ao(3)%matrix)
+    ENDIF
     ! Apply the p operator to the psi0
     DO idir = 1,3
       DO ispin = 1, dft_control%nspins
@@ -211,7 +220,20 @@ CONTAINS
 
     !First term: operator matrix elements
     CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.TRUE.,error=error)
-
+    !
+    ! print checksums
+    IF(output_unit>0) THEN
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =', &
+            & checksum_matrix(op_rmd_ao(1)%matrix)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =', &
+            & checksum_matrix(op_rmd_ao(2)%matrix)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =', &
+            & checksum_matrix(op_rmd_ao(3)%matrix)
+    ENDIF
+    !
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
+    !
     ! Apply the (r-c)xp operator to the psi0
     DO ispin = 1, dft_control%nspins
       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)

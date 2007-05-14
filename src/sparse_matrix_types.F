@@ -101,6 +101,7 @@ MODULE sparse_matrix_types
             allocate_matrix,&
             allocate_matrix_set,&
             copy_matrix, transfer_matrix, & ! what is the difference ?
+            checksum_matrix, &
             copy_local_sm_to_replicated_fm,&
             deallocate_matrix,&
             deallocate_matrix_set,&
@@ -152,6 +153,10 @@ MODULE sparse_matrix_types
 
   INTERFACE copy_matrix
     MODULE PROCEDURE copy_real_matrix
+  END INTERFACE
+
+  INTERFACE checksum_matrix
+     MODULE PROCEDURE checksum_real_matrix
   END INTERFACE
 
   INTERFACE deallocate_matrix
@@ -2110,6 +2115,34 @@ END SUBROUTINE cp_sm_scale_and_add
 
   END SUBROUTINE scale_real_matrix
 
+! *****************************************************************************
+
+  FUNCTION checksum_real_matrix(a)
+    TYPE(real_matrix_type), POINTER          :: a
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE checksum_real_matrix (MODULE sparse_matrix_types)"
+    INTEGER                                  :: iblock_row,n
+    REAL(KIND=dp)                            :: checksum_real_matrix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
+    REAL(KIND=dp), EXTERNAL                  :: DDOT
+    TYPE(real_block_node_type), POINTER      :: block_node
+!   ---------------------------------------------------------------------------
+!   *** Check the association status of the matrices ***
+    checksum_real_matrix = 0.0_dp
+    IF (.NOT.ASSOCIATED(a)) THEN
+       CALL stop_program(routine,"The matrix pointer a is not associated")
+    END IF
+    DO iblock_row=1,a%nblock_row
+       block_node => first_block_node(a,iblock_row)
+       DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,&
+                              BLOCK=BLOCK)
+          n = SIZE(BLOCK,1)*SIZE(BLOCK,2)
+          checksum_real_matrix = checksum_real_matrix + DDOT(n,BLOCK(1,1),1,BLOCK(1,1),1)
+          block_node => block_node%next_block_node
+       END DO
+    END DO
+  END FUNCTION checksum_real_matrix
 ! *****************************************************************************
 
   SUBROUTINE set_real_matrix(matrix,value)

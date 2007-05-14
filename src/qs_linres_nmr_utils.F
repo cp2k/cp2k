@@ -221,7 +221,7 @@ CONTAINS
     DO idir = 1,3
        CALL cp_fm_set_all(psi1_p(1,idir)%matrix,0.0_dp,error=error)
     END DO
-    DO idir = 1,-3  !3
+    DO idir = 1,3
       IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
 
          IF(output_unit>0) THEN
@@ -245,6 +245,11 @@ CONTAINS
          END DO
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+
+         IF(output_unit>0) THEN
+            WRITE(output_unit,'(T10,A,E24.16)') 'Second order energy P_'//ACHAR(idir+119)//'=',&
+                 & p_env%etotal
+         END IF
 
 ! debug routine
 !         CALL test_func(qs_env,psi1,nmr_env,error)
@@ -323,6 +328,11 @@ CONTAINS
          ! Optimize the response wavefunctions
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+
+         IF(output_unit>0) THEN
+            WRITE(output_unit,'(T10,A,E24.16)') 'Second order energy L_'//ACHAR(idir+119)//'=',&
+                 & p_env%etotal
+         END IF
 
          IF(linres_control%converged) THEN
 
@@ -435,7 +445,6 @@ CONTAINS
              ! Copy in h1_psi1
              CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,&
                   -1.0_dp,fm_work_ii,error=error)
- STOP 'pippo2'
              ! Optimize the response wavefunctions
              CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
@@ -483,7 +492,6 @@ CONTAINS
 
     ! Print Results
      CALL nmr_print_shift(nmr_env,qs_env,nmr_section,error=error)
- STOP 'wait'
 
     !----------!
     ! clean up !
@@ -714,9 +722,6 @@ CONTAINS
      END DO  ! idir
      DEALLOCATE(state_done,STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
- !dbg
-!   stop 'pippo'
- !dbg
 
 !    Conversion factors
 !    factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.

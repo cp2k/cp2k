@@ -487,7 +487,6 @@ CONTAINS
 
      END DO  iteration
 
-
 !    Scaling output
 !     max_input_norm = 1._dp/max_input_norm
 !     IF(output_unit>0) THEN
