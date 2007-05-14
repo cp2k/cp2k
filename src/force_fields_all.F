@@ -2269,7 +2269,8 @@ CONTAINS
           END IF
           IF(ii/=0 .AND. jj/=0) THEN
              rmin = rmin2_a + rmin2_b
-             epsilon0 = SQRT(epsilon_a*epsilon_b)
+             ! ABS to allow for mixing the two different sign conventions for epsilon
+             epsilon0 = SQRT(ABS(epsilon_a*epsilon_b))
              CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
              potparm_bond%pot(i,j)%pot%type       = lj_charmm_type
              potparm_bond%pot(i,j)%pot%at1        = name_atm_a
