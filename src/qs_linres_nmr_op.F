@@ -62,7 +62,7 @@ MODULE qs_linres_nmr_op
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rmc_x_p_xyz_ao
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             checksum_matrix
+                                             checksum_matrix, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -146,6 +146,7 @@ CONTAINS
       POINTER                                :: op_p_ao, op_rmd_ao
     TYPE(section_vals_type), POINTER         :: lr_section
 
+    real*8,allocatable,dimension(:,:)::buffer1,buffer2,buffer3
 !dbg
 !dbg
 
@@ -179,8 +180,68 @@ CONTAINS
                      p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
                      op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao,error=error)
 
+    NULLIFY(vecbuf_c0)
+    ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idir = 1,3
+      NULLIFY(vecbuf_Rmdc0(idir)%array)
+      ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END DO
+
+    ! Calculate the (r - dk)xp operator applied to psi0k
+    ! We use the distributive property of the vector product and calculatr
+    ! (r-c)xp + (c-d)xp
+    ! where c depends on the contracted functions and not on the states
+    ! d is the center of a specific state and a loop over states is needed
+    ! the second term can be added in a second moment as a correction
+    ! notice: (r-c) and p are operators, whereas (c-d) is a multiplicative factor
+
+!!$    !First term: operator matrix elements
+!!$    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
+!************************************************************
+    write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    write(*,*) 'rmc_x_p_xyz_ao is computed in a different way'
+    write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+
+    DO ispin=1,dft_control%nspins
+       p_psi0(ispin,1)%matrix%local_data=0d0
+       p_psi0(ispin,2)%matrix%local_data=0d0
+       p_psi0(ispin,3)%matrix%local_data=0d0
+       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
+       DO istate = 1,homo    
+          CALL set_matrix(op_rmd_ao(1)%matrix,0.0_dp)
+          CALL set_matrix(op_rmd_ao(2)%matrix,0.0_dp)
+          CALL set_matrix(op_rmd_ao(3)%matrix,0.0_dp)
+
+          CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,&
+               & wancen=centers_set(ispin)%array(1:3,istate),error=error)
+
+          DO idir = 1,3
+             CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
+             CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
+                  rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+             p_psi0(ispin,idir)%matrix%local_data(:,istate)=rxp_psi0(ispin,idir)%matrix%local_data(:,istate)
+          END DO
+       ENDDO
+       rxp_psi0(ispin,1)%matrix%local_data = p_psi0(ispin,1)%matrix%local_data
+       rxp_psi0(ispin,2)%matrix%local_data = p_psi0(ispin,2)%matrix%local_data
+       rxp_psi0(ispin,3)%matrix%local_data = p_psi0(ispin,3)%matrix%local_data
+    ENDDO
+    !
+    ! print checksums
+    IF(output_unit>0) THEN
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =', &
+            & checksum_matrix(op_rmd_ao(1)%matrix)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =', &
+            & checksum_matrix(op_rmd_ao(2)%matrix)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =', &
+            & checksum_matrix(op_rmd_ao(3)%matrix)
+    ENDIF
+!************************************************************
+    !
     ! Calculate the px py pz operators
-    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.TRUE.,error=error)
+    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
 
     ! print checksums
     IF(output_unit>0) THEN
@@ -200,36 +261,7 @@ CONTAINS
                 p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
       END DO
     END DO
-
-    NULLIFY(vecbuf_c0)
-    ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DO idir = 1,3
-      NULLIFY(vecbuf_Rmdc0(idir)%array)
-      ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END DO
-
-    ! Calculate the (r - dk)xp operator applied to psi0k
-    ! We use the distributive property of the vector product and calculatr
-    ! (r-c)xp + (c-d)xp
-    ! where c depends on the contracted functions and not on the states
-    ! d is the center of a specific state and a loop over states is needed
-    ! the second term can be added in a second moment as a correction
-    ! notice: (r-c) and p are operators, whereas (c-d) is a multiplicative factor
-
-    !First term: operator matrix elements
-    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.TRUE.,error=error)
-    !
-    ! print checksums
-    IF(output_unit>0) THEN
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =', &
-            & checksum_matrix(op_rmd_ao(1)%matrix)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =', &
-            & checksum_matrix(op_rmd_ao(2)%matrix)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =', &
-            & checksum_matrix(op_rmd_ao(3)%matrix)
-    ENDIF
+    !************************************************************
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -268,7 +300,7 @@ CONTAINS
 
 
     !Calculate the second term of the operator state by state
-    DO ispin = 1, dft_control%nspins
+    DO ispin = 1, -1!dft_control%nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
 
       !   Allocate full matrices as working storage in the calculation

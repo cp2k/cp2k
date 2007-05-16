@@ -476,12 +476,13 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE rmc_x_p_xyz_ao(op_sm,qs_env,minimum_image,error)
+  SUBROUTINE rmc_x_p_xyz_ao(op_sm,qs_env,minimum_image,wancen,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: op_sm
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
+    REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: wancen
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rmc_x_p_xyz_ao', &
@@ -724,9 +725,16 @@ CONTAINS
                 IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
 
 !            *** Calculate the primitive overlap integrals (iatom jatom)***
-                  rc(1:3) = rb(1:3)
-                  rac(1:3) = -rab(1:3)
-                  rbc(1:3) = 0.0_dp
+                   IF(PRESENT(wancen)) THEN
+                      rc = wancen
+                      rac = pbc(rc,ra,cell)
+                      rbc = rac + rab
+                   ELSE
+                      rc(1:3) = rb(1:3)
+                      rac(1:3) = -rab(1:3)
+                      rbc(1:3) = 0.0_dp
+                   END IF
+
 !                  rc(1:3) = 0.5_dp
 !                  rac = pbc(rc,ra,cell)
 !!                  rac(1:3) = ra(1:3)-0.5_dp
@@ -747,6 +755,13 @@ CONTAINS
                           1.0_dp,op_angij(i)%block(sgfa,sgfb),&
                           SIZE(op_angij(i)%block,1))
                   END DO
+
+
+
+
+
+
+
 
                 END IF  !  >= dab
 
@@ -1485,8 +1500,10 @@ CONTAINS
 
                 IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
 
-                  rac = pbc(rc,ra,cell)
-                  rbc = pbc(rc,rb,cell)
+                   rac = pbc(rc,ra,cell)
+                   rbc = rac + rab
+!                  rac = pbc(rc,ra,cell)
+!                  rbc = pbc(rc,rb,cell)
 
                   ALLOCATE(mab_tmp(npgfa(iset)*ncoset(la_max(iset)+1),&
                            npgfb(jset)*ncoset(lb_max(jset)+1),ncoset(order)-1),STAT=istat)

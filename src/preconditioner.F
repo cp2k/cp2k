@@ -307,8 +307,8 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
 
   CASE (lr_precond_h0_inverse)
 
-    preconditioner_env(1)%in_use=lr_precond_h0_inverse
     DO ispin = 1,nspins
+       preconditioner_env(ispin)%in_use=lr_precond_h0_inverse
       CALL get_matrix_info(matrix_h(ispin)%matrix,nrow=n)
       ALLOCATE(evals(n))
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
@@ -348,8 +348,8 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
     CPPrecondition(ASSOCIATED(ev_h0),cp_failure_level,routineP,error,failure)
     CPPrecondition(nspins==SIZE(ev_h0,1),cp_failure_level,routineP,error,failure)
 
-    preconditioner_env(1)%in_use=lr_precond_full_all
     DO ispin = 1,nspins
+       preconditioner_env(ispin)%in_use=lr_precond_full_all
       CALL cp_fm_get_info(ev_h0(ispin)%matrix,nrow_global=n,ncol_global=k,error=error)
       !1) create vectors spanning the subspace orthogonal to ev_h0
       CALL cp_fm_create(matrix_sc0,ev_h0(ispin)%matrix%matrix_struct,name="sc0",error=error)
@@ -462,17 +462,17 @@ SUBROUTINE apply_preconditioner_lr(preconditioner_env, matrix_in, matrix_out,err
 
 !----
 
-  CALL timeset("apply_preconditioner","I","",handle)
+  CALL timeset("apply_preconditioner_lr","I","",handle)
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
-    CALL stop_program("apply preconditioner","No preconditioner in use")
+    CALL stop_program("apply_preconditioner_lr","No preconditioner in use")
   CASE (lr_precond_s_inverse,lr_precond_h0_inverse)
     CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (lr_precond_full_all)
     CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE DEFAULT
-    CALL stop_program("apply preconditioner","implemented")
+    CALL stop_program("apply_preconditioner_lr","implemented")
   END SELECT
 
   CALL timestop(0.0_dp,handle)

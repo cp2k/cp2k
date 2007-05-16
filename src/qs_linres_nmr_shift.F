@@ -263,7 +263,7 @@ CONTAINS
 !  dk(1:3) = 15.11_dp
   WRITE(*,*) ' state ', istate, dk(1:3)
       CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
-           minimum_image=.TRUE.,soft=gapw,error=error)
+           minimum_image=.FALSE.,soft=gapw,error=error)
 !  stop 'check mom'
 !dbg
 !dbg
