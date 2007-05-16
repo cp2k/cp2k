@@ -377,6 +377,15 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
        CASE( do_loc_l1_norm_sd )
           CALL approx_l1_norm_sd(vectors,qs_loc_env%max_iter,qs_loc_env%eps_localization,&
                &                 converged,sweeps,error=error)
+          ! here we need to set zij for the computation of the centers and spreads
+          DO i=1,SIZE ( ZIJ, 2 )
+             DO j=1,SIZE ( ZIJ, 1 )
+                CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
+                     vectors,opvec,ncol=k ,error=error)
+                CALL cp_fm_gemm("T","N",k,k,n,1.0_dp,vectors,opvec,&
+                     &          0.0_dp,ZIJ(j,i)%matrix,error=error)
+             ENDDO
+          ENDDO
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
