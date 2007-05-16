@@ -97,9 +97,9 @@ MODULE qs_integrate_potential
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
-                                             rs_get_loop_vars,&
-                                             rs_get_my_tasks,&
                                              rs_pw_transfer
+  USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
+                                             rs_get_my_tasks
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
        cp_sm_get_block_list, cp_sm_scale_and_add, deallocate_matrix, &

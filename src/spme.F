@@ -24,13 +24,15 @@ MODULE spme
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_3d
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE input_constants,                 ONLY: do_rsgrid_distributed
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -53,10 +55,13 @@ MODULE spme
                                              pw_p_type,&
                                              pw_transfer,&
                                              pw_type
-  USE realspace_grid_types,            ONLY: &
-       pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-       rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
-       rs_pw_transfer
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
+                                             rs2pw,&
+                                             rs_grid_set_box,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -111,21 +116,22 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
       INTENT(OUT)                            :: pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: core_particle_set
+      OPTIONAL, POINTER                      :: shell_particle_set, &
+                                                core_particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT), OPTIONAL                  :: fgshell_coulomb
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT), OPTIONAL                  :: fgcore_coulomb
+      INTENT(OUT), OPTIONAL                  :: fgshell_coulomb, &
+                                                fgcore_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, handle, i, ierr, ipart, j, jpart, n, ndim( 3 ), npart, &
-      nshell, nsmax, o_spline, p1, p1_shell, rs_distributed_id
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, shell_center
+    INTEGER                                  :: group, handle, i, ierr, &
+                                                ipart, j, jpart, n, npart, &
+                                                nshell, o_spline, p1, &
+                                                p1_shell, rs_distributed_id
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
+                                                shell_center
     LOGICAL                                  :: failure, is_core, is_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
                                                 inv_fourpi_eps0
@@ -133,6 +139,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
+    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
@@ -154,7 +161,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
                        o_spline = o_spline, group = group, &
                        rs_distributed_id = rs_distributed_id, error=error)
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, &
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool,&
        poisson_env=poisson_env)
   CALL pw_poisson_rebuild(poisson_env,error=error)
   green => poisson_env%green_fft
@@ -166,14 +173,9 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
   n = o_spline
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
-  ndim = n
-  IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-    nsmax = MAXVAL ( ndim(1:3) )
-  ELSE
-    nsmax = -1
-  END IF
-  CALL rs_grid_create ( rden, grid_spme, nsmax, error=error)
-  rden % r = 0.0_dp
+  CALL rs_pool_create_rs ( rs_pool, rden, error=error )
+  CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+  CALL rs_grid_zero ( rden )
 
   ALLOCATE ( center ( 3, npart ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "center", 3*npart )
@@ -295,8 +297,11 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
   ! move derivative of potential to real space grid and
   ! multiply by charge function in g-space
-  CALL rs_grid_p_create ( drpot, 3, grid_spme, nsmax, error=error)
+  ALLOCATE ( drpot(1:3), STAT=ierr )
+  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
   DO i = 1, 3
+     CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
+     CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               green % p3m_charge % cr
      CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
@@ -382,19 +387,24 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
 
 !------------------CLEANING UP ----------------------
 
-  CALL rs_grid_release ( rden ,error=error)
-  CALL rs_grid_p_release ( drpot ,error=error)
+  CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
+  DO i = 1, 3
+    CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
+  END DO
+  DEALLOCATE ( drpot, STAT = ierr )
+  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
   DEALLOCATE ( rhos, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
+  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
   DEALLOCATE ( center, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "center" )
+  CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
   IF(ALLOCATED(shell_center)) THEN
     DEALLOCATE ( shell_center, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "shell_center" )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ALLOCATED(core_center)) THEN
     DEALLOCATE ( core_center, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "core_center" )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
   END IF
 
   CALL timestop ( 0.0_dp, handle )

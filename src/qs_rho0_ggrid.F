@@ -74,9 +74,10 @@ MODULE qs_rho0_ggrid
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_type,&
                                              rs2pw,&
-                                             rs_get_my_tasks,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
+  USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
+                                             rs_get_my_tasks
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop

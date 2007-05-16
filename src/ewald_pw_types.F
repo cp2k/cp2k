@@ -23,6 +23,10 @@ MODULE ewald_pw_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             rs_pool_create,&
+                                             rs_pool_retain,&
+                                             rs_pool_release
   USE dg_types,                        ONLY: dg_create,&
                                              dg_release,&
                                              dg_retain,&
@@ -33,7 +37,8 @@ MODULE ewald_pw_types
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
-                                             do_ewald_spme
+                                             do_ewald_spme,&
+                                             do_rsgrid_distributed
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -75,6 +80,7 @@ MODULE ewald_pw_types
      INTEGER :: ref_count, id_nr
      TYPE ( pw_pool_type ), POINTER       :: pw_small_pool
      TYPE ( pw_pool_type ), POINTER       :: pw_big_pool
+     TYPE ( cp_rs_pool_type ), POINTER    :: rs_pool
      TYPE ( pw_poisson_type ), POINTER    :: poisson_env
      TYPE ( dg_type ), POINTER            :: dg
   END TYPE ewald_pw_type
@@ -146,6 +152,7 @@ SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, print_section,
   IF (.NOT. failure) THEN
      NULLIFY ( ewald_pw % pw_big_pool )
      NULLIFY ( ewald_pw % pw_small_pool )
+     NULLIFY ( ewald_pw % rs_pool )
      NULLIFY ( ewald_pw % poisson_env )
      CALL dg_create ( dg, error )
      ewald_pw % dg => dg
@@ -190,6 +197,7 @@ END SUBROUTINE ewald_pw_create
      IF (ewald_pw%ref_count<1) THEN
       CALL pw_pool_release ( ewald_pw % pw_small_pool, error = error )
       CALL pw_pool_release ( ewald_pw % pw_big_pool, error = error )
+      CALL rs_pool_release ( ewald_pw % rs_pool, error = error )
       CALL pw_poisson_release ( ewald_pw % poisson_env, error = error )
       CALL dg_release ( ewald_pw % dg, error )
       DEALLOCATE (  ewald_pw , stat = stat )
@@ -232,9 +240,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ewald_type, gmax, handle, &
-                                                npts_s( 3 ), ns_max, &
-                                                o_spline, output_unit, stat
+    INTEGER :: ewald_type, gmax, handle, nsmax, &
+      npts_s( 3 ), ns_max, o_spline, output_unit, stat, rs_distributed_id
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, cutoff, &
                                                 cutoff_radius, ecut, epsilon, &
@@ -245,6 +252,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(section_vals_type), POINTER         :: poisson_section
 
 !------------------------------------------------------------------------------
@@ -267,6 +275,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
                          ewald_type = ewald_type, &
                          o_spline=o_spline,&
                          poisson_section=poisson_section,&
+                         rs_distributed_id = rs_distributed_id,&
                          epsilon = epsilon ,error=error)
     SELECT CASE ( ewald_type )
     CASE ( do_ewald_ewald )
@@ -304,7 +313,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
           CALL stop_program ( "initialize_ewalds", "ns_max has to be odd" )
        END IF
        npts_s ( : ) = ns_max
-! compute cut-off radius
+       ! compute cut-off radius
        alphasq = alpha ** 2
        norm = ( 2.0_dp * alphasq / pi ) ** ( 1.5_dp )
        cutoff_radius = exp_radius ( 0, 2.0_dp * alphasq, epsilon , norm )
@@ -314,7 +323,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
                                 para_env,rs_dims=(/para_env%num_pe,1/),&
                                 print_section=print_section, &
                                 error = error )
-! Write some useful info
+       ! Write some useful info
        logger => cp_error_get_logger ( error )
        output_unit = cp_print_key_unit_nr(logger,print_section,"",&
                                        extension=".Log",error=error)
@@ -341,6 +350,18 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
        ewald_pw%pw_small_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_small_pool ,error=error)
        CALL pw_pool_release ( pw_pool ,error=error)
+
+       NULLIFY ( rs_pool )
+       IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
+         nsmax = MAXVAL ( pw_big_grid % npts(1:3) )
+       ELSE
+         nsmax = -1
+       END IF
+       CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,nsmax=nsmax,error=error)
+       ewald_pw%rs_pool => rs_pool
+       CALL rs_pool_retain ( ewald_pw % rs_pool ,error=error)
+       CALL rs_pool_release ( rs_pool ,error=error)
+
        CALL pw_grid_release ( pw_small_grid, error )
        CALL pw_grid_release ( pw_big_grid, error )
     CASE ( do_ewald_spme )
@@ -362,11 +383,23 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
             fft_usage = .TRUE., rs_dims=(/para_env%num_pe,1/),error=error)
 
      ! pw pools initialized
-       NULLIFY (pw_pool)
+       NULLIFY ( pw_pool )
        CALL pw_pool_create(pw_pool, pw_grid=pw_big_grid,error=error)
        ewald_pw%pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
        CALL pw_pool_release ( pw_pool ,error=error)
+
+       NULLIFY ( rs_pool )
+       IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
+         nsmax = MAXVAL ( pw_big_grid % npts(1:3) )
+       ELSE
+         nsmax = -1
+       END IF
+       CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,nsmax=nsmax,error=error)
+       ewald_pw%rs_pool => rs_pool
+       CALL rs_pool_retain ( ewald_pw % rs_pool ,error=error)
+       CALL rs_pool_release ( rs_pool ,error=error)
+
        CALL pw_grid_release ( pw_big_grid, error )
     CASE ( do_ewald_none )
     CASE default
@@ -389,7 +422,7 @@ END SUBROUTINE ewald_pw_init
 
 ! *****************************************************************************
   SUBROUTINE ewald_pw_get (ewald_pw, pw_big_pool,  &
-                            pw_small_pool, poisson_env, dg )
+                            pw_small_pool, rs_pool, poisson_env, dg )
 !
 !   Purpose: get the ewald_pw environment to the correct program.
 !
@@ -397,6 +430,7 @@ END SUBROUTINE ewald_pw_init
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
+    TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: rs_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
 
@@ -406,13 +440,14 @@ END SUBROUTINE ewald_pw_init
     IF ( PRESENT ( poisson_env ) ) poisson_env => ewald_pw % poisson_env
     IF ( PRESENT ( pw_big_pool ) )  pw_big_pool => ewald_pw % pw_big_pool
     IF ( PRESENT ( pw_small_pool ) )  pw_small_pool => ewald_pw % pw_small_pool
+    IF ( PRESENT ( rs_pool ) )  rs_pool => ewald_pw % rs_pool
     IF ( PRESENT ( dg ) )  dg => ewald_pw % dg
 
   END SUBROUTINE ewald_pw_get
 
 ! *****************************************************************************
   SUBROUTINE ewald_pw_set (ewald_pw, pw_big_pool,  &
-                           pw_small_pool, dg, poisson_env, error )
+                           pw_small_pool, rs_pool, dg, poisson_env, error )
 
 !!   Purpose: Set the ewald_pw environment to the correct program.
 
@@ -420,6 +455,7 @@ END SUBROUTINE ewald_pw_init
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
+    TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: rs_pool
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -436,6 +472,11 @@ END SUBROUTINE ewald_pw_init
         CALL pw_pool_retain ( pw_small_pool ,error=error)
         CALL pw_pool_release ( ewald_pw % pw_small_pool ,error=error)
         ewald_pw % pw_small_pool => pw_small_pool
+    ENDIF
+    IF ( PRESENT ( rs_pool ) )  THEN
+        CALL rs_pool_retain ( rs_pool ,error=error)
+        CALL rs_pool_release ( ewald_pw % rs_pool ,error=error)
+        ewald_pw % rs_pool => rs_pool
     ENDIF
     IF ( PRESENT ( dg ) )  THEN
         CALL dg_retain ( dg ,error=error)

@@ -429,6 +429,7 @@ OBJECTS_GENERIC =\
  real_space_test.o\
  realspace_grid_cube.o\
  realspace_grid_types.o\
+ realspace_task_selection.o\
  replica_methods.o\
  replica_types.o\
  restraint.o\

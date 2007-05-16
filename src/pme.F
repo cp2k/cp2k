@@ -26,6 +26,9 @@ MODULE pme
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
   USE dg_rho0_types,                   ONLY: dg_rho0_type
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
@@ -63,7 +66,7 @@ MODULE pme
   USE realspace_grid_types,            ONLY: &
        pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
        rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
-       rs_pw_transfer
+       rs_pw_transfer, rs_grid_zero, rs_grid_set_box
   USE shell_potential_types,           ONLY: shell_kind_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
@@ -132,7 +135,7 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, ipart, j, &
                                                 jpart, npart, nshell, nsmax, &
-                                                p1, p2, rs_distributed_id
+                                                p1, p2, rs_distributed_id, ierr
     LOGICAL                                  :: failure, is1_core, is1_shell, &
                                                 is2_core, is2_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
@@ -146,6 +149,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
+    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(pw_type), POINTER                   :: phi_r, rhob_r
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
@@ -160,7 +164,7 @@ CONTAINS
     CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, &
          rs_distributed_id = rs_distributed_id, group = group ,error=error)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
-                       pw_small_pool=pw_small_pool, &
+                       pw_small_pool=pw_small_pool, rs_pool=rs_pool,&
                        poisson_env=poisson_env, dg = dg )
 
     grid_b => pw_big_pool % pw_grid
@@ -190,13 +194,9 @@ CONTAINS
     CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
                               use_data = REALDATA3D ,error=error)
 
-    IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-      nsmax = MAXVAL ( grid_s % npts(1:3) )
-    ELSE
-      nsmax = -1
-    END IF
-    CALL rs_grid_create ( rden, grid_b, nsmax, error=error)
-    rden % r = 0.0_dp
+    CALL rs_pool_create_rs ( rs_pool, rden, error=error )
+    CALL rs_grid_set_box ( grid_b, rs=rden, error=error )
+    CALL rs_grid_zero ( rden )
 
     IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
        CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts, 1 )
@@ -306,9 +306,11 @@ CONTAINS
 
     !--------END OF STRESS TENSOR CALCULATION -----------
 
-    CALL rs_grid_p_create ( drpot, 3, grid_b , nsmax, error=error )
-
+    ALLOCATE ( drpot(1:3), STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     DO i = 1, 3
+       CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
+       CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid, error=error )
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
        CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw ,error=error)
        CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs )
@@ -410,8 +412,13 @@ CONTAINS
 
     !------------------CLEANING UP ----------------------
 
-    CALL rs_grid_release ( rden, error)
-    CALL rs_grid_p_release ( drpot, error)
+    CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
+    DO i = 1, 3
+      CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
+    END DO
+    DEALLOCATE ( drpot, STAT = ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
     CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 ,error=error)
     CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 ,error=error)
     CALL structure_factor_deallocate ( exp_igr )

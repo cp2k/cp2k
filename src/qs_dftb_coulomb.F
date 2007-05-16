@@ -25,6 +25,9 @@ MODULE qs_dftb_coulomb
                                              real_to_scaled
   USE cp_control_types,                ONLY: dftb_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&
                                              dg_sum_patch_force_3d
@@ -37,11 +40,11 @@ MODULE qs_dftb_coulomb
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
-                                             do_ewald_spme,&
-                                             do_rsgrid_distributed
+                                             do_ewald_spme
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: oorootpi,&
-                                             pi, fourpi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             oorootpi,&
+                                             pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pme_tools,                       ONLY: get_center,&
@@ -58,9 +61,9 @@ MODULE qs_dftb_coulomb
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
+                                             pw_integral_a2b,&
                                              pw_p_type,&
                                              pw_transfer,&
-                                             pw_integral_a2b,&
                                              pw_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -72,10 +75,13 @@ MODULE qs_dftb_coulomb
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_types,            ONLY: &
-       pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-       rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
-       rs_pw_transfer
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
+                                             rs2pw,&
+                                             rs_grid_set_box,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              first_block_node,&
                                              get_block_node,&
@@ -87,7 +93,6 @@ MODULE qs_dftb_coulomb
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -128,9 +133,10 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     LOGICAL                                  :: do_ewald, failure, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij
-    REAL(KIND=dp), DIMENSION(3)              :: rij, fij
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, gmcharge, ksblock, &
-       mcin, mcout, pblock, sblock, gblock
+    REAL(KIND=dp), DIMENSION(3)              :: fij, rij
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, gblock, gmcharge, &
+                                                ksblock, mcin, mcout, pblock, &
+                                                sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -378,21 +384,24 @@ CONTAINS
       INTENT(inout)                          :: mcharge
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL, INTENT(IN)                      :: use_virial
+    LOGICAL, INTENT(in)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, j, ierr, &
-      ipart, jpart, n, npart, nsmax, o_spline, p1, rs_distributed_id
+    INTEGER                                  :: group, handle, i, ierr, &
+                                                ipart, j, jpart, n, npart, &
+                                                o_spline, p1, &
+                                                rs_distributed_id
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
-    INTEGER, DIMENSION(3)                    :: ndim
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, dvols, fat(3), fint, &
-                                                vgc, ffa
+    REAL(KIND=dp)                            :: alpha, dvols, fat(3), ffa, &
+                                                fint, vgc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
+    REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
+    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
@@ -402,7 +411,6 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
-    REAL(KIND=dp), DIMENSION(3,3)            :: h_stress, f_stress
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
@@ -415,7 +423,8 @@ CONTAINS
                        o_spline = o_spline, group = group, &
                        rs_distributed_id = rs_distributed_id, error=error)
   NULLIFY(green, poisson_env, pw_pool)
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, poisson_env=poisson_env)
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, rs_pool=rs_pool, &
+       poisson_env=poisson_env)
   CALL pw_poisson_rebuild(poisson_env,error=error)
   green => poisson_env%green_fft
   grid_spme => pw_pool % pw_grid
@@ -425,14 +434,10 @@ CONTAINS
   n = o_spline
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-  ndim = n
-  IF ( rs_distributed_id == do_rsgrid_distributed ) THEN
-    nsmax = MAXVAL ( ndim(1:3) )
-  ELSE
-    nsmax = -1
-  END IF
-  CALL rs_grid_create ( rden, grid_spme, nsmax, error=error)
-  rden % r = 0.0_dp
+
+  CALL rs_pool_create_rs ( rs_pool, rden, error=error )
+  CALL rs_grid_set_box ( grid_spme, rs=rden, error=error )
+  CALL rs_grid_zero ( rden )
 
   ALLOCATE ( center ( 3, npart ), STAT = ierr )
   CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -493,8 +498,9 @@ CONTAINS
 
   CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
 
-  CALL rs_grid_create ( rpot, grid_spme, nsmax, error=error)
-  rpot % r = 0.0_dp
+  CALL rs_pool_create_rs( rs_pool, rpot, error=error )
+  CALL rs_grid_set_box ( grid_spme, rs=rpot, error=error )
+  CALL rs_grid_zero ( rpot )
   phi_g%cc = phi_g%cc * green%p3m_charge%cr
   CALL pw_transfer ( phi_g, rhob_r )
   CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
@@ -520,8 +526,11 @@ CONTAINS
   IF ( calculate_forces ) THEN
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space
-    CALL rs_grid_p_create ( drpot, 3, grid_spme, nsmax, error=error)
+    ALLOCATE ( drpot(1:3), STAT=ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     DO i = 1, 3
+       CALL rs_pool_create_rs( rs_pool, drpot(i)%rs_grid, error=error )
+       CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid, error=error )
        dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                                 green % p3m_charge % cr
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
@@ -565,9 +574,15 @@ CONTAINS
 
 !------------------CLEANING UP ----------------------
 
-  CALL rs_grid_release ( rden ,error=error)
-  CALL rs_grid_release ( rpot ,error=error)
-  IF ( calculate_forces ) CALL rs_grid_p_release ( drpot ,error=error)
+  CALL rs_pool_give_back_rs ( rs_pool, rden, error=error)
+  CALL rs_pool_give_back_rs ( rs_pool, rpot, error=error)
+  IF ( calculate_forces ) THEN
+    DO i = 1, 3
+      CALL rs_pool_give_back_rs ( rs_pool, drpot(i)%rs_grid, error=error)
+    END DO
+    DEALLOCATE ( drpot, STAT = ierr )
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+  END IF
   DEALLOCATE ( rhos, STAT = ierr )
   CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
   DEALLOCATE ( center, STAT = ierr )
@@ -722,7 +737,7 @@ END SUBROUTINE get_delta
     INTEGER                                  :: handle, i, iab, iatom, ilist, &
                                                 inode, jatom, nlist, nmat, &
                                                 nnode
-    REAL(KIND=dp)                            :: dfr, dr, fr, rij(3), pfr
+    REAL(KIND=dp)                            :: dfr, dr, fr, pfr, rij(3)
     TYPE(neighbor_list_type), POINTER        :: n_list_ab, n_list_local
     TYPE(neighbor_node_type), POINTER        :: n_list_node
 
