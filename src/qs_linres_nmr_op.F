@@ -267,14 +267,14 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
     !
     ! Apply the (r-c)xp operator to the psi0
-    DO ispin = 1, dft_control%nspins
-      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)
-      DO idir = 1,3
-         CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
-                rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-      END DO
-    END DO
+    !DO ispin = 1, dft_control%nspins
+    !  CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+    !  DO idir = 1,3
+    !     CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
+    !     CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
+    !            rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+    !  END DO
+    !END DO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
