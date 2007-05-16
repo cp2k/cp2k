@@ -259,7 +259,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_s","I","Mflops",handle)
+  CALL timeset("fft3d_s","I","Gflops",handle)
 
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
@@ -352,7 +352,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   END IF
 
   ! definition used with FFTW
-  nx = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
+  nx = 5.e-9_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
   flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp )
   CALL timestop(flops,handle)
 
@@ -926,7 +926,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 ! distribution is not covered.
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_pb","I","Mflops",handle)
+  CALL timeset("fft3d_pb","I","Gflops",handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, my_pos )
@@ -1412,7 +1412,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     END IF
   END IF
 
-  nx = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
+  nx = 5.e-9_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
   flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG (2.0_dp)
   CALL timestop(flops,handle)
 
