@@ -432,12 +432,6 @@ CONTAINS
 
     failure = .FALSE.
 
-!deb   logger => cp_error_get_logger(error)
-!deb   iounit = cp_print_key_unit_nr(logger,pw_grid%print_section,"",&
-!deb          extension=".Log",error=error)
-!deb   should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
-!deb          pw_grid%print_section,"",error=error),cp_p_file)
-
     IF ( rs % parallel ) THEN
        IF ( iounit>0) THEN
           WRITE ( iounit, '(/,A,T71,I10)' ) &
@@ -461,21 +455,23 @@ CONTAINS
                   " RS_GRID: Border size ", rs % border
           END IF
        END IF
-       nn = rs % npts_local ( rs % direction )
-       CALL mp_sum ( nn, rs % group )
-       pp ( 1 ) = REAL ( nn, KIND=dp ) / REAL ( PRODUCT ( rs % group_dim ), KIND=dp )
-       nn = rs % npts_local ( rs % direction )
-             CALL mp_max ( nn, rs % group )
-       pp ( 2 ) = REAL ( nn, KIND=dp )
-             nn = rs % npts_local ( rs % direction )
-       CALL mp_min ( nn, rs % group )
-             pp ( 3 ) = REAL ( nn, KIND=dp )
-       IF ( iounit > 0) THEN
-          WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
+       IF ( rs % direction > 0 ) THEN
+         nn = rs % npts_local ( rs % direction )
+         CALL mp_sum ( nn, rs % group )
+         pp ( 1 ) = REAL ( nn, KIND=dp ) / REAL ( PRODUCT ( rs % group_dim ), KIND=dp )
+         nn = rs % npts_local ( rs % direction )
+         CALL mp_max ( nn, rs % group )
+         pp ( 2 ) = REAL ( nn, KIND=dp )
+         nn = rs % npts_local ( rs % direction )
+         CALL mp_min ( nn, rs % group )
+         pp ( 3 ) = REAL ( nn, KIND=dp )
+         IF ( iounit > 0) THEN
+            WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
                "  Average         Max         Min"
-          WRITE ( iounit, '(A,T45,F12.1,2I12)' ) " RS_GRID:   Planes   ", &
+            WRITE ( iounit, '(A,T45,F12.1,2I12)' ) " RS_GRID:   Planes   ", &
                pp ( 1 ), NINT ( pp ( 2 ) ), NINT ( pp ( 3 ) )
-          WRITE ( iounit, '(/)' )
+            WRITE ( iounit, '(/)' )
+         END IF
        END IF
     ELSE
        IF (iounit>0) THEN
@@ -488,9 +484,6 @@ CONTAINS
          WRITE ( iounit, '(/)' )
        ENDIF
     END IF
-
-!deb    CALL cp_print_key_finished_output(iounit,logger,pw_grid%print_section,&
-!deb          "",error=error)
 
   END SUBROUTINE rs_grid_print
 
