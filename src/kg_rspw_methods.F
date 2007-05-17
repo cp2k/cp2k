@@ -27,9 +27,15 @@ MODULE kg_rspw_methods
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
+                                             rs_pools_create_rs_vect,&
+                                             rs_pools_give_back_rs_vect,&
                                              rs_pools_dealloc
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info
@@ -57,6 +63,8 @@ MODULE kg_rspw_methods
                                              pw_pool_p_type,&
                                              pw_pools_dealloc
   USE qs_util,                         ONLY: exp_radius
+  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             rs_grid_print
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -133,11 +141,12 @@ END SUBROUTINE kg_rspw_create
 
     INTEGER ::  handle, i, igrid_level, ikind, ipgf, iset, &
       ishell, la, lgrid_level, maxlgto, ncommensurate, ngrid_level, nkind, &
-      nseta, nsmax, stat
+      nseta, nsmax, stat, iounit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
-    LOGICAL                                  :: failure, use_ref_cell
+    LOGICAL                                  :: failure, use_ref_cell,&
+                                                should_output
     REAL(dp)                                 :: alpha, cutilev, drmin, &
                                                 maxradius, my_cut, &
                                                 rel_cutoff, zetp
@@ -157,6 +166,9 @@ END SUBROUTINE kg_rspw_create
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(section_vals_type), POINTER         :: poisson_section, print_section
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !   INTEGER, PARAMETER                       :: maxgridpoints = 100
 !   ---------------------------------------------------------------------------
@@ -403,6 +415,25 @@ END SUBROUTINE kg_rspw_create
             el_struct=pw_grid,nsmax=nsmax,error=error)
       ENDDO
       kg_rspw%rs_pools => rs_pools
+
+!
+!    Print grid information
+!
+     logger => cp_error_get_logger(error)
+     iounit = cp_print_key_unit_nr(logger,print_section,"",&
+          extension=".Log",error=error)
+     should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
+          print_section,"",error=error),cp_p_file)
+
+     IF ( should_output ) THEN
+       CALL rs_pools_create_rs_vect(rs_pools,rs,error=error)
+       DO igrid_level=1,ngrid_level
+          CALL rs_grid_print(rs(igrid_level)%rs_grid,iounit,error=error)
+       END DO
+       CALL rs_pools_give_back_rs_vect(rs_pools,rs,error=error)
+     END IF
+     CALL cp_print_key_finished_output(iounit,logger,print_section,&
+         "",error=error)
 
 !
 !

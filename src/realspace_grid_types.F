@@ -27,10 +27,6 @@
 !******************************************************************************
 
 MODULE realspace_grid_types
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: &
        mp_bcast, mp_cart_create, mp_cart_shift, mp_cart_sub, mp_comm_dup, &
@@ -62,6 +58,7 @@ MODULE realspace_grid_types
             rs_grid_release,&
             rs_grid_p_create,&
             rs_grid_p_release, &
+            rs_grid_print, &
             rs_total_sum
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
@@ -108,10 +105,6 @@ MODULE realspace_grid_types
      MODULE PROCEDURE rs_grid_setup_1, rs_grid_setup_n
   END INTERFACE
 
-  !keep track of grid types output
-  INTEGER, PARAMETER        :: nomax=100
-  INTEGER                   :: noc=0
-  INTEGER, DIMENSION(nomax) :: printed
 !-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -267,12 +260,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, i, iounit, ip, lb( 2 ), &
-                                                n_slices, ngmax, nmin, nn, &
-                                                pos( 2 )
-    LOGICAL                                  :: failure, isnew, should_output
-    REAL(KIND=dp)                            :: pp( 3 )
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: dir, ip, lb( 2 ), n_slices, &
+                                                ngmax, nmin, pos( 2 )
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -382,76 +372,6 @@ CONTAINS
 
     END IF
 
-   logger => cp_error_get_logger(error)
-   iounit = cp_print_key_unit_nr(logger,pw_grid%print_section,"",&
-          extension=".Log",error=error)
-   should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
-          pw_grid%print_section,"",error=error),cp_p_file)
-
-    IF ( should_output ) THEN
-      isnew = .TRUE.
-      DO i=1,noc
-        IF(printed(i)==rs%grid_id) isnew = .FALSE.
-      END DO
-      IF ( isnew ) THEN
-        noc = MIN(noc + 1, nomax)
-        printed(noc) = rs%grid_id
-          IF ( rs % parallel ) THEN
-             IF ( iounit>0) THEN
-                WRITE ( iounit, '(/,A,T71,I10)' ) &
-                     " RS_GRID: Information for grid number ", rs % grid_id
-                DO i = 1, 3
-                   WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
-                        i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
-                END DO
-                IF ( rs % group_dim ( 1 ) == 1 ) THEN
-                   WRITE ( iounit, '(A)' ) " RS_GRID: Real space fully replicated"
-                   WRITE ( iounit, '(A,T71,I10)' ) &
-                        " RS_GRID: Group size ", rs % group_dim ( 2 )
-                ELSE
-                   WRITE ( iounit, '(A,T71,I3,A)' ) &
-                        " RS_GRID: Real space distribution over ", rs % group_dim ( 1 ), " groups"
-                   WRITE ( iounit, '(A,T71,I10)' ) &
-                        " RS_GRID: Group size ", rs % group_dim ( 2 )
-                   WRITE ( iounit, '(A,T71,I10)' ) &
-                        " RS_GRID: Real space distribution along direction ", rs % direction
-                   WRITE ( iounit, '(A,T71,I10)' ) &
-                        " RS_GRID: Border size ", rs % border
-                END IF
-             END IF
-             nn = rs % npts_local ( dir )
-             CALL mp_sum ( nn, rs % group )
-             pp ( 1 ) = REAL ( nn, KIND=dp ) / REAL ( PRODUCT ( rs % group_dim ), KIND=dp )
-             nn = rs % npts_local ( dir )
-             CALL mp_max ( nn, rs % group )
-             pp ( 2 ) = REAL ( nn, KIND=dp )
-             nn = rs % npts_local ( dir )
-             CALL mp_min ( nn, rs % group )
-             pp ( 3 ) = REAL ( nn, KIND=dp )
-             IF ( iounit > 0) THEN
-                WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
-                     "  Average         Max         Min"
-                WRITE ( iounit, '(A,T45,F12.1,2I12)' ) " RS_GRID:   Planes   ", &
-                     pp ( 1 ), NINT ( pp ( 2 ) ), NINT ( pp ( 3 ) )
-                WRITE ( iounit, '(/)' )
-             END IF
-          ELSE
-             IF (iounit>0) THEN
-               WRITE ( iounit, '(/,A,T71,I10)' ) &
-                    " RS_GRID: Information for grid number ", rs % grid_id
-               DO i = 1, 3
-                  WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
-                       i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
-               END DO
-               WRITE ( iounit, '(/)' )
-             ENDIF
-          END IF
-      END IF
-    END IF
-
-    CALL cp_print_key_finished_output(iounit,logger,pw_grid%print_section,&
-          "",error=error)
-
     CALL rs_grid_allocate_1 ( rs, error )
 
   END SUBROUTINE rs_grid_setup_1
@@ -481,6 +401,100 @@ CONTAINS
 
   END SUBROUTINE rs_grid_setup_n
 
+!******************************************************************************
+!!****** realspace_grid_types/rs_grid_print [1.0] *
+!!
+!!   NAME
+!!     rs_grid_print
+!!
+!!   FUNCTION
+!!     Print information on grids to output
+!!
+!!   AUTHOR
+!!     JGH (17-May-2007)
+!!
+!!   MODIFICATION HISTORY
+!!     earlier version was part of rs_grid_setup
+!*****
+!******************************************************************************
+
+  SUBROUTINE rs_grid_print ( rs, iounit, error)
+    TYPE(realspace_grid_type), POINTER       :: rs
+    INTEGER, INTENT(in)                      :: iounit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_print', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, nn
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: pp( 3 )
+
+    failure = .FALSE.
+
+!deb   logger => cp_error_get_logger(error)
+!deb   iounit = cp_print_key_unit_nr(logger,pw_grid%print_section,"",&
+!deb          extension=".Log",error=error)
+!deb   should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
+!deb          pw_grid%print_section,"",error=error),cp_p_file)
+
+    IF ( rs % parallel ) THEN
+       IF ( iounit>0) THEN
+          WRITE ( iounit, '(/,A,T71,I10)' ) &
+               " RS_GRID: Information for grid number ", rs % grid_id
+          DO i = 1, 3
+             WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
+                  i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
+          END DO
+          IF ( rs % group_dim ( 1 ) == 1 ) THEN
+             WRITE ( iounit, '(A)' ) " RS_GRID: Real space fully replicated"
+             WRITE ( iounit, '(A,T71,I10)' ) &
+                  " RS_GRID: Group size ", rs % group_dim ( 2 )
+          ELSE
+             WRITE ( iounit, '(A,T71,I3,A)' ) &
+                        " RS_GRID: Real space distribution over ", rs % group_dim ( 1 ), " groups"
+             WRITE ( iounit, '(A,T71,I10)' ) &
+                        " RS_GRID: Group size ", rs % group_dim ( 2 )
+             WRITE ( iounit, '(A,T71,I10)' ) &
+                  " RS_GRID: Real space distribution along direction ", rs % direction
+             WRITE ( iounit, '(A,T71,I10)' ) &
+                  " RS_GRID: Border size ", rs % border
+          END IF
+       END IF
+       nn = rs % npts_local ( rs % direction )
+       CALL mp_sum ( nn, rs % group )
+       pp ( 1 ) = REAL ( nn, KIND=dp ) / REAL ( PRODUCT ( rs % group_dim ), KIND=dp )
+       nn = rs % npts_local ( rs % direction )
+             CALL mp_max ( nn, rs % group )
+       pp ( 2 ) = REAL ( nn, KIND=dp )
+             nn = rs % npts_local ( rs % direction )
+       CALL mp_min ( nn, rs % group )
+             pp ( 3 ) = REAL ( nn, KIND=dp )
+       IF ( iounit > 0) THEN
+          WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
+               "  Average         Max         Min"
+          WRITE ( iounit, '(A,T45,F12.1,2I12)' ) " RS_GRID:   Planes   ", &
+               pp ( 1 ), NINT ( pp ( 2 ) ), NINT ( pp ( 3 ) )
+          WRITE ( iounit, '(/)' )
+       END IF
+    ELSE
+       IF (iounit>0) THEN
+         WRITE ( iounit, '(/,A,T71,I10)' ) &
+              " RS_GRID: Information for grid number ", rs % grid_id
+         DO i = 1, 3
+            WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
+                 i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
+         END DO
+         WRITE ( iounit, '(/)' )
+       ENDIF
+    END IF
+
+!deb    CALL cp_print_key_finished_output(iounit,logger,pw_grid%print_section,&
+!deb          "",error=error)
+
+  END SUBROUTINE rs_grid_print
+
+!******************************************************************************
 !!****** realspace_grid_types/rs_pw_transfer [1.0] *
 !!
 !!   NAME
@@ -969,10 +983,11 @@ END SUBROUTINE rs_grid_zero
 !!     rs_grid_set_box
 !!
 !!   FUNCTION
-!!     Initialize grid to zero
+!!     Set box matrix info for real space grid
+!!     This is needed for variable cell simulations
 !!
 !!   AUTHOR
-!!     JGH (23-Mar-2002)
+!!     JGH (15-May-2007)
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -1024,9 +1039,6 @@ END SUBROUTINE rs_grid_set_box
 !!
 !!   FUNCTION
 !!     allocates and initialize an rs grid
-!!
-!!   NOTES
-!!     nsmax removed
 !!
 !!   ARGUMENTS
 !!     - rs_grid: the rs grid that is created
@@ -1167,9 +1179,6 @@ END SUBROUTINE rs_grid_release
 !!
 !!   FUNCTION
 !!     allocates and initialize an rs_grid_p_type
-!!
-!!   NOTES
-!!     nsmax removed
 !!
 !!   ARGUMENTS
 !!     - rs_grid: the rs grid that is created

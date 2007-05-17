@@ -38,9 +38,15 @@ MODULE kg_gpw_pw_env_methods
                                              pbc
   USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
+                                             rs_pools_create_rs_vect,&
+                                             rs_pools_give_back_rs_vect,&
                                              rs_pools_dealloc
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
@@ -98,6 +104,8 @@ MODULE kg_gpw_pw_env_methods
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
+  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             rs_grid_print
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -381,9 +389,9 @@ CONTAINS
 
     INTEGER :: auxbas_grid, cmax, cmaxl, i, igrid_level, istat, maxlgto, &
       my_icommensurate, my_ncommensurate, ncommensurate, ngrid_level, &
-      nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
+      nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax, iounit
     LOGICAL                                  :: blocking, failure, fft, &
-                                                symmetry
+                                                symmetry, should_output
     REAL(dp)                                 :: cutilev, dr_g(3), drmin, &
                                                 ecut, hmat(3,3), maxradius, &
                                                 rel_cutoff
@@ -398,6 +406,9 @@ CONTAINS
       POINTER                                :: pw_pools_mol
     TYPE(pw_pool_type), POINTER              :: pw_pool_g
     TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
 
@@ -828,6 +839,25 @@ CONTAINS
          END DO  ! igrid_level
 
       END IF  ! ngrid_level > 1
+
+
+!    Print grid information
+!
+      logger => cp_error_get_logger(error)
+      iounit = cp_print_key_unit_nr(logger,print_section,"",&
+           extension=".Log",error=error)
+      should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
+           print_section,"",error=error),cp_p_file)
+ 
+      IF ( should_output ) THEN
+        CALL rs_pools_create_rs_vect(rs_pools_mol,rs,error=error)
+        DO igrid_level=1,ngrid_level
+           CALL rs_grid_print(rs(igrid_level)%rs_grid,iounit,error=error)
+       END DO
+        CALL rs_pools_give_back_rs_vect(rs_pools_mol,rs,error=error)
+      END IF
+      CALL cp_print_key_finished_output(iounit,logger,print_section,&
+          "",error=error)
 
       pw_mol%pw_pools => pw_pools_mol
       pw_mol%rs_pools => rs_pools_mol

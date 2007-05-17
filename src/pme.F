@@ -40,7 +40,6 @@ MODULE pme
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE input_constants,                 ONLY: do_rsgrid_distributed
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -63,10 +62,13 @@ MODULE pme
                                              pw_p_type,&
                                              pw_transfer,&
                                              pw_type
-  USE realspace_grid_types,            ONLY: &
-       pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-       rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
-       rs_pw_transfer, rs_grid_zero, rs_grid_set_box
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
+                                             rs2pw,&
+                                             rs_grid_set_box,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE shell_potential_types,           ONLY: shell_kind_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
@@ -121,21 +123,20 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: shell_particle_set
-    TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: core_particle_set
+      OPTIONAL, POINTER                      :: shell_particle_set, &
+                                                core_particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT), OPTIONAL                  :: fgshell_coulomb
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT), OPTIONAL                  :: fgcore_coulomb
+      INTENT(OUT), OPTIONAL                  :: fgshell_coulomb, &
+                                                fgcore_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ipart, j, &
-                                                jpart, npart, nshell, nsmax, &
-                                                p1, p2, rs_distributed_id, ierr
+    INTEGER                                  :: group, handle, i, ierr, &
+                                                ipart, j, jpart, npart, &
+                                                nshell, p1, p2, &
+                                                rs_distributed_id
     LOGICAL                                  :: failure, is1_core, is1_shell, &
                                                 is2_core, is2_shell
     REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
@@ -143,13 +144,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
     TYPE(coeff_type)                         :: rhos1, rhos2
+    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
-    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
     TYPE(pw_type), POINTER                   :: phi_r, rhob_r
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
@@ -462,7 +463,7 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     LOGICAL, OPTIONAL                        :: is1_core, is2_core, &
                                                 is1_shell, is2_shell
     TYPE(particle_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: core_particle_set
+      OPTIONAL, POINTER                      :: core_particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch', &
@@ -470,8 +471,9 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    LOGICAL                                  :: failure, my_is1_core, my_is1_shell, &
-                                                my_is2_core, my_is2_shell
+    LOGICAL                                  :: failure, my_is1_core, &
+                                                my_is1_shell, my_is2_core, &
+                                                my_is2_shell
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -600,7 +602,6 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_patch_again', &
       routineP = moduleN//':'//routineN
-
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     LOGICAL                                  :: my_is1_core, my_is1_shell, &

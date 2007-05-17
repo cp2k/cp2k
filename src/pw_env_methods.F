@@ -34,9 +34,15 @@ MODULE pw_env_methods
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
+                                             rs_pools_create_rs_vect,&
+                                             rs_pools_give_back_rs_vect,&
                                              rs_pools_dealloc
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info
@@ -70,6 +76,8 @@ MODULE pw_env_methods
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
+  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             rs_grid_print
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -176,11 +184,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, ikind, &
       ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, &
       lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, nseta, nsetb, &
-      nsmax, stat
+      nsmax, stat, iounit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure, uf_grid, use_ref_cell
+    LOGICAL                                  :: failure, uf_grid, use_ref_cell,&
+                                                should_output
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0_s, &
@@ -206,6 +215,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(section_vals_type), POINTER         :: input, poisson_section, &
                                                 print_section
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs
+    TYPE(cp_logger_type), POINTER            :: logger
+
 
   CALL timeset(routineN,"I","",handle)
 
@@ -525,6 +538,24 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END DO
      pw_env%rs_pools => rs_pools
 
+!
+!    Print grid information
+!
+     logger => cp_error_get_logger(error)
+     iounit = cp_print_key_unit_nr(logger,print_section,"",&
+          extension=".Log",error=error)
+     should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
+          print_section,"",error=error),cp_p_file)
+
+     IF ( should_output ) THEN
+       CALL rs_pools_create_rs_vect(rs_pools,rs,error=error)
+       DO igrid_level=1,ngrid_level
+          CALL rs_grid_print(rs(igrid_level)%rs_grid,iounit,error=error)
+       END DO
+       CALL rs_pools_give_back_rs_vect(rs_pools,rs,error=error)
+     END IF
+     CALL cp_print_key_finished_output(iounit,logger,print_section,&
+         "",error=error)
 !
 !
 ! set up the cube info and the cmaxl array

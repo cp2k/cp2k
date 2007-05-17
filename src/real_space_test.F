@@ -51,6 +51,7 @@ MODULE real_space_test
                                              rs2pw,&
                                              rs_grid_create,&
                                              rs_grid_release,&
+                                             rs_grid_print,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
@@ -80,7 +81,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     INTEGER, PARAMETER                       :: nparticle = 5000
 
     INTEGER                                  :: dir, i, ierr, j, me, memory1, &
-                                                memory2, memory3, n, npme
+                                                memory2, memory3, n, npme, iounit
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(3)                    :: no, np, pt
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
@@ -156,6 +157,8 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
   CALL pw_grid_setup ( box, grid,print_section &
                        , rs_dims=(/para_env%num_pe,1/) ,error=error)
 
+  iounit = -1
+  IF ( para_env%ionode ) iounit = iw
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 1, replicated calculation
 
@@ -163,6 +166,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     WRITE(iw,'(///,A,/)') " Start Test 1: Replicated grid, replicated calculation"
   tstart = m_cputime ( )
   CALL rs_grid_create ( rden, grid, -1, error=error)
+  CALL rs_grid_print ( rden, iounit, error=error)
   CALL rs_grid_zero ( rden )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
@@ -195,6 +199,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     WRITE(iw,'(/,A,/)') " Start Test 2: Replicated grid, parallel calculation"
   tstart = m_cputime ( )
   CALL rs_grid_create ( rden, grid, -1,  error=error)
+  CALL rs_grid_print ( rden, iounit, error=error)
   CALL rs_grid_zero ( rden )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
@@ -235,6 +240,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
   tstart = m_cputime ( )
   CALL rs_grid_create ( rden, grid, MAXVAL ( bsize(1:nparticle) ), &
        error=error)
+  CALL rs_grid_print ( rden, iounit, error=error)
   CALL rs_grid_zero ( rden )
   dir = rden%direction
   IF (dir /= 0) THEN
