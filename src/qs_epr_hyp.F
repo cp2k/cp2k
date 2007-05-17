@@ -289,23 +289,23 @@ CONTAINS
                         rtemp**5
                   END DO  ! iso
                   hypaniso(1,1,jatom) = hypaniso(1,1,jatom) + hypanisotemp*&
-                     (3._dp*(rab(1) + rtemp*grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia))*&
-                     (rab(1) + grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia)) - rtemp**2)
+                     (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia))*&
+                     (rab(1) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia)) - rtemp**2)
                   hypaniso(1,2,jatom) = hypaniso(1,2,jatom) + hypanisotemp*&
-                     (3._dp*(rab(1) + grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia))*&
-                     (rab(2) + grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia)) - 0._dp)
+                     (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia))*&
+                     (rab(2) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia)) - 0._dp)
                   hypaniso(1,3,jatom) = hypaniso(1,3,jatom) + hypanisotemp*&
-                     (3._dp*(rab(1) + grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia))*&
-                     (rab(3) + grid_atom%cos_phi(ia)) - 0._dp)
+                     (3._dp*(rab(1) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%cos_theta(ia))*&
+                     (rab(3) + grid_atom%rad(ir)*grid_atom%cos_phi(ia)) - 0._dp)
                   hypaniso(2,2,jatom) = hypaniso(2,2,jatom) + hypanisotemp*&
-                     (3._dp*(rab(2) + grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia))*&
-                     (rab(2) + grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia)) - rtemp**2)
+                     (3._dp*(rab(2) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia))*&
+                     (rab(2) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia)) - rtemp**2)
                   hypaniso(2,3,jatom) = hypaniso(2,3,jatom) + hypanisotemp*&
-                     (3._dp*(rab(2) + grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia))*&
-                     (rab(3) + grid_atom%cos_phi(ia)) - 0._dp)
+                     (3._dp*(rab(2) + grid_atom%rad(ir)*grid_atom%sin_phi(ia)*grid_atom%sin_theta(ia))*&
+                     (rab(3) + grid_atom%rad(ir)*grid_atom%cos_phi(ia)) - 0._dp)
                   hypaniso(3,3,jatom) = hypaniso(3,3,jatom) + hypanisotemp*&
-                     (3._dp*(rab(3) + grid_atom%cos_phi(ia))*&
-                     (rab(3) + grid_atom%cos_phi(ia)) - rtemp**2)
+                     (3._dp*(rab(3) + grid_atom%rad(ir)*grid_atom%cos_phi(ia))*&
+                     (rab(3) + grid_atom%rad(ir)*grid_atom%cos_phi(ia)) - rtemp**2)
                 END DO  ! ia
               END IF ! hard_radius
             END DO  ! ir
