@@ -730,8 +730,7 @@ CONTAINS
     INTEGER                                  :: my_log_unit
     LOGICAL                                  :: ionode
     TYPE(cp_logger_type), POINTER            :: logger
-
-! Dump info..
+    CHARACTER(LEN=default_string_length)     :: line
 
     IF (log_unit>0) THEN 
        WRITE(log_unit,'("SHAKE_INFO|",2X,2(A,I6),A,F15.9)')&
@@ -744,13 +743,17 @@ CONTAINS
        ionode = logger%para_env%mepos==logger%para_env%source
        my_log_unit = -1
        IF (ionode) my_log_unit= cp_logger_get_default_unit_nr(logger)
-       WRITE(my_log_unit,'("SHAKE_INFO|",2X,A)')"WARNING! Shake NOT converged in "//&
-            cp_to_string(Max_Shake_Iter)//" iterations !"
-       WRITE(my_log_unit,'("SHAKE_INFO|",2X,A)')"WARNING! Shake NOT converged for molecule Nr. "//&
-            cp_to_string(i)//" !"
-       WRITE(my_log_unit,'("SHAKE_INFO|",2X,A)')"WARNING! CP2K GOES but results could be"//&
-            " meaningless!"
-       WRITE(my_log_unit,FMT='(80("*"))')
+       IF (my_log_unit>0) THEN
+          line = cp_to_string(Max_Shake_Iter)
+          WRITE(my_log_unit,'("SHAKE_INFO|",2X,A)')"WARNING! Shake NOT converged in "//&
+               TRIM(line)//" iterations !"
+          line = cp_to_string(i)
+          WRITE(my_log_unit,'("SHAKE_INFO|",2X,A)')"WARNING! Shake NOT converged for molecule Nr. "//&
+               TRIM(line)//" !"
+          WRITE(my_log_unit,'("SHAKE_INFO|",2X,A)')"WARNING! CP2K GOES but results could be"//&
+               " meaningless!"
+          WRITE(my_log_unit,FMT='(80("*"))')
+       END IF
     END IF
   END SUBROUTINE shake_int_info
 
