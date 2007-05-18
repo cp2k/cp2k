@@ -132,12 +132,12 @@ MODULE four_center_integrals
       offset_a1 = (ipgf-1)*ncoset(la_max)
       DO jpgf = 1,npgfb
         offset_b1 = (jpgf-1)*ncoset(lb_max)
-        max_val1 = SQRT(screenij(ipgf,jpgf))
+        max_val1 = screenij(ipgf,jpgf)
         DO kpgf = 1,npgfc
           offset_c1 = (kpgf-1)*ncoset(lc_max)
           DO lpgf = 1,npgfd
             offset_d1 = (lpgf-1)*ncoset(ld_max)
-            max_val2 = max_val1*SQRT(screenkl(kpgf,lpgf))
+            max_val2 = max_val1*screenkl(kpgf,lpgf)
             IF(max_val2<eps_schwarz) CYCLE
             DO la = la_min,la_max
               offset_a = offset_a1 + ncoset(la-1)
@@ -312,11 +312,12 @@ MODULE four_center_integrals
 !!     compute_screening_matrices
 !!
 !!   FUNCTION
-!!     calculates the screening matrices
+!!     calculates the screening matrices 
 !!
 !!   NOTES
-!!     -
-!!
+!!     - already computes the square root
+!!     - also takes the primitive to sgf transformation into account
+!!     - in this way all stored contracted integrals are smaller or equal to their estimate
 !!   INPUTS
 !!
 !!   AUTHOR
@@ -343,16 +344,18 @@ MODULE four_center_integrals
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iatom, iset, jatom, jpgf, jset, katom, kpgf, kset, &
-      max_pgf, max_set, natom, nseta, nsetb, nsetc, stat
+      max_pgf, max_set, natom, nseta, nsetb, nsetc, stat, ncob,ncoc,sgfb,sgfc,k
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
-                                                lc_min, npgfa, npgfb, npgfc
+                                                lc_min, npgfa, npgfb, npgfc,nsgfb,nsgfc
     LOGICAL                                  :: failure
-    REAL(dp), DIMENSION(:, :), POINTER       :: zetb, zetc
+    REAL(dp), DIMENSION(:, :), POINTER       :: zetb, zetc, sphi_b, sphi_c
     REAL(KIND=dp)                            :: max_val, max_val2, rb(3), &
-                                                rc(3)
+                                                rc(3),p2s_b,p2s_c
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b, &
                                                 orb_basis_c
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
+
 
     CALL timeset(routineN,handle)
 
@@ -399,7 +402,10 @@ MODULE four_center_integrals
                              lmax=lb_max,&
                              lmin=lb_min,&
                              npgf=npgfb,&
-                             nset=nsetb,&
+                             nset=nsetb,& 
+                             first_sgf=first_sgfb,&
+                             sphi=sphi_b,&
+                             nsgf_set=nsgfb,&
                              zet=zetb)
       rb=particle_set(jatom)%r(:)
       DO katom = 1,natom
@@ -411,10 +417,25 @@ MODULE four_center_integrals
                                lmin=lc_min,&
                                npgf=npgfc,&
                                nset=nsetc,&
+                               sphi=sphi_c,&
+                               first_sgf=first_sgfc,&
+                               nsgf_set=nsgfc,&
                                zet=zetc)
         rc=particle_set(katom)%r(:)
         DO jset = 1,nsetb
+          ! takes the primitive to contracted transformation into account
+          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          sgfb = first_sgfb(1,jset)
+          ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
+          ! the maximum value after multiplication with sphi_b
+          p2s_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,k))),k=sgfb,sgfb+nsgfb(jset)-1)/))
+
           DO kset = 1,nsetc
+            ! takes the primitive to contracted transformation into account
+            ncoc = npgfc(kset)*ncoset(lc_max(kset))
+            sgfc = first_sgfc(1,kset)
+            p2s_c = MAXVAL((/(SUM(ABS(sphi_c(1:ncoc,k))),k=sgfc,sgfc+nsgfc(kset)-1)/))
+
             DO jpgf = 1,npgfb(jset)
               DO kpgf = 1,npgfc(kset)
                 max_val2=0.0_dp
@@ -423,7 +444,7 @@ MODULE four_center_integrals
                               lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
                               lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
                               max_val2)
-                screen_pgf(jatom,katom,jset,kset,jpgf,kpgf) = max_val2
+                screen_pgf(jatom,katom,jset,kset,jpgf,kpgf) = SQRT(max_val2)*p2s_b*p2s_c
               END DO
             END DO
             screen_set(jatom,katom,jset,kset) = MAXVAL(screen_pgf(jatom,katom,jset,kset,1:npgfb(jset),1:npgfc(kset)))
@@ -432,7 +453,6 @@ MODULE four_center_integrals
         screen_atom(jatom,katom)=MAXVAL(screen_set(jatom,katom,1:nsetb,1:nsetc))
       END DO
     END DO
-
 
     CALL timestop(handle)
 
@@ -525,10 +545,10 @@ MODULE four_center_integrals
 
             DO iset = 1, nseta
               DO jset = 1,nsetb
-                max_val1 = SQRT(schwarz_screening(iatom,jatom,iset,jset))
+                max_val1 = schwarz_screening(iatom,jatom,iset,jset)
                 DO kset = 1,nsetc
                   DO lset = 1,nsetd
-                    max_val2 = max_val1 * SQRT(schwarz_screening(katom,latom,kset,lset))
+                    max_val2 = max_val1 * schwarz_screening(katom,latom,kset,lset)
                     IF(max_val2<eps_schwarz) CYCLE
                     memory_blocks_ab(iatom,latom)=memory_blocks_ab(iatom,latom) + &
                                                   nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -614,7 +634,7 @@ MODULE four_center_integrals
     LOGICAL                                  :: failure
     REAL(dp) :: ene_x_aa, ene_x_bb, eps_schwarz, fac, hf_fraction, max_val1, &
       max_val2, max_val3, max_val4, memory_usage, prim, ra(3), rb(3), rc(3), &
-      rd(3), sa, sb, sc, sd, tmp1, tmp11, tmp2, tmp21, tmp3, tmp31
+      rd(3), sa, sb, sc, sd, tmp1, tmp11, tmp2, tmp21, tmp3, tmp31, max_int_val
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom, sphi_a, sphi_b, &
                                                 sphi_c, sphi_d, zeta, zetb, &
                                                 zetc, zetd
@@ -820,14 +840,14 @@ MODULE four_center_integrals
               DO jset = 1,nsetb
                 ncob = npgfb(jset)*ncoset(lb_max(jset))
                 sgfb = first_sgfb(1,jset)
-                max_val1 = SQRT(schwarz_screening(iatom,jatom,iset,jset))
+                max_val1 = schwarz_screening(iatom,jatom,iset,jset)
                 DO kset = 1,nsetc
                   ncoc = npgfc(kset)*ncoset(lc_max(kset))
                   sgfc = first_sgfc(1,kset)
                   DO lset = 1,nsetd
                     ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                     sgfd = first_sgfd(1,lset)
-                    max_val2 = max_val1 * SQRT(schwarz_screening(katom,latom,kset,lset))
+                    max_val2 = max_val1 * schwarz_screening(katom,latom,kset,lset)
                     IF(max_val2<eps_schwarz) CYCLE
                     
                     current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -900,6 +920,10 @@ MODULE four_center_integrals
                                    sphi_d(1,sgfd), SIZE(sphi_d,1),&
                                    0.0_dp, primitive_integrals(1,1,1,1),ncoa*ncob*ncoc)
 
+                        ! max_int_val=MAXVAL(ABS(primitive_integrals(1:nsgfa(iset),1:nsgfb(jset),1:nsgfc(kset),1:nsgfd(lset))))
+                        ! max_int_val should be smaller equal max_val2
+                        ! write(2000+para_env%mepos,*) max_int_val,max_val2,max_int_val/max_val2
+
                         DEALLOCATE(T1,STAT=stat)
                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -950,13 +974,13 @@ MODULE four_center_integrals
                          offset_c1 = (kpgf-1)*ncoset(lc_max(kset))
                          cgfc_first = offset_c1 + ncoset(lc_min(kset)-1)+1
                          cgfc_last = offset_c1 + ncoset(lc_max(kset))
-                         max_val3 = SQRT(screening2(katom,latom,kset,lset,kpgf,lpgf))
+                         max_val3 = screening2(katom,latom,kset,lset,kpgf,lpgf)
                           DO jpgf = 1,npgfb(jset)
                             offset_b1 = (jpgf-1)*ncoset(lb_max(jset))
                             cgfb_first = offset_b1 + ncoset(lb_min(jset)-1)+1
                             cgfb_last = offset_b1 + ncoset(lb_max(jset))
                             DO ipgf = 1,npgfa(iset)
-                              max_val4 = max_val3*SQRT( screening2(iatom,jatom,iset,jset,ipgf,jpgf))
+                              max_val4 = max_val3* screening2(iatom,jatom,iset,jset,ipgf,jpgf)
                               IF(max_val4<eps_schwarz) CYCLE
                               offset_a1 = (ipgf-1)*ncoset(la_max(iset))
                               cgfa_first = offset_a1 + ncoset(la_min(iset)-1)+1
@@ -1157,12 +1181,12 @@ MODULE four_center_integrals
       offset_a1 = (ipgf-1)*ncoset(la_max)
       DO jpgf = 1,npgfb
         offset_b1 = (jpgf-1)*ncoset(lb_max)
-        max_val1 = SQRT(screenij(ipgf,jpgf))
+        max_val1 = screenij(ipgf,jpgf)
         DO kpgf = 1,npgfc
           offset_c1 = (kpgf-1)*ncoset(lc_max)
           DO lpgf = 1,npgfd
             offset_d1 = (lpgf-1)*ncoset(ld_max)
-            max_val2 = max_val1*SQRT(screenkl(kpgf,lpgf))
+            max_val2 = max_val1*screenkl(kpgf,lpgf)
             IF(max_val2<eps_schwarz) CYCLE
             DO la = la_min,la_max
               offset_a = offset_a1 + ncoset(la-1)
@@ -1447,7 +1471,7 @@ MODULE four_center_integrals
               DO jset = 1,nsetb
                 ncob = npgfb(jset)*ncoset(lb_max(jset))
                 sgfb = first_sgfb(1,jset)
-                max_val1 = SQRT(schwarz_screening(iatom,jatom,iset,jset))
+                max_val1 = schwarz_screening(iatom,jatom,iset,jset)
                 DO kset = 1,nsetc
                   ncoc = npgfc(kset)*ncoset(lc_max(kset))
                   sgfc = first_sgfc(1,kset)
@@ -1455,7 +1479,7 @@ MODULE four_center_integrals
                     ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                     sgfd = first_sgfd(1,lset)
 
-                    max_val2 = max_val1 * SQRT(schwarz_screening(katom,latom,kset,lset))
+                    max_val2 = max_val1 * schwarz_screening(katom,latom,kset,lset)
                     IF(max_val2<eps_schwarz) CYCLE
                     
                     ALLOCATE(primitive_forces(ncoa,ncob,ncoc,ncod,12),STAT=stat)

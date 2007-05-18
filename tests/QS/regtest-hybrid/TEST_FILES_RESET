@@ -56,3 +56,6 @@ H2O-hybrid-b3lyp-g03.inp
 CH3-hybrid-b3lyp-lsd-g03.inp
 #  
 CH3-hybrid-handhlyp-lsd.inp
+H2O-hybrid-pbe0.inp
+H2O-hybrid-b3lyp.inp
+H2O-hybrid-b3lyp-g03.inp
