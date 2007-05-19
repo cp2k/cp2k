@@ -21,8 +21,7 @@
 
 MODULE kg_rspw_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
@@ -35,8 +34,8 @@ MODULE kg_rspw_methods
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
                                              rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect,&
-                                             rs_pools_dealloc
+                                             rs_pools_dealloc,&
+                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
@@ -139,24 +138,24 @@ END SUBROUTINE kg_rspw_create
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
 
-    INTEGER ::  handle, i, igrid_level, ikind, ipgf, iset, &
-      ishell, la, lgrid_level, maxlgto, ncommensurate, ngrid_level, nkind, &
-      nseta, nsmax, stat, iounit
+    INTEGER :: handle, i, igrid_level, ikind, iounit, ipgf, iset, ishell, la, &
+      lgrid_level, ncommensurate, ngrid_level, nkind, nseta, nsmax, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
-    LOGICAL                                  :: failure, use_ref_cell,&
-                                                should_output
+    LOGICAL                                  :: failure, should_output, &
+                                                use_ref_cell
     REAL(dp)                                 :: alpha, cutilev, drmin, &
                                                 maxradius, my_cut, &
                                                 rel_cutoff, zetp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -165,10 +164,9 @@ END SUBROUTINE kg_rspw_create
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(section_vals_type), POINTER         :: poisson_section, print_section
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: poisson_section, print_section
 
 !   INTEGER, PARAMETER                       :: maxgridpoints = 100
 !   ---------------------------------------------------------------------------
@@ -250,6 +248,9 @@ END SUBROUTINE kg_rspw_create
        ncommensurate=0
      ENDIF
 
+     logger => cp_error_get_logger(error)
+     iounit = cp_print_key_unit_nr(logger,print_section,"",&
+          extension=".Log",error=error)
      DO igrid_level=1,ngrid_level
         CALL pw_grid_create(pw_grid,para_env%group,error=error)
 
@@ -266,21 +267,24 @@ END SUBROUTINE kg_rspw_create
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-             CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
+             CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
                   ref_grid=old_pw_grid, &
                   blocked=.FALSE., ncommensurate=ncommensurate, &
-                  icommensurate=igrid_level,rs_dims=(/para_env%num_pe,1/),error=error)
+                  icommensurate=igrid_level,rs_dims=(/para_env%num_pe,1/),&
+                  iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(my_cell,pw_grid,print_section, cutilev,&
+              CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),error=error)
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),&
+                  iounit=iounit,error=error)
               old_pw_grid => pw_grid
            END IF
         ELSE
-           CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
+           CALL pw_grid_setup(my_cell,pw_grid, cutilev,&
                 blocked=.FALSE.,ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
-                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),error=error)
+                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/),&
+                iounit=iounit,error=error)
         ENDIF
 
       ! init pw_pools
@@ -289,7 +293,10 @@ END SUBROUTINE kg_rspw_create
               pw_grid=pw_grid,error=error)
          CALL pw_grid_release(pw_grid,error=error)
 
-       END DO
+     END DO
+     CALL cp_print_key_finished_output(iounit,logger,print_section,&
+         "",error=error)
+
 
        kg_rspw%pw_pools => pw_pools
 

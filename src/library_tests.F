@@ -153,11 +153,11 @@ CONTAINS
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw,globenv )
     !
-    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, para_env, iw,globenv, error )
+    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( para_env, iw,globenv, error )
     !
     IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( error )
     !
-    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( root_section, para_env, iw, error )
+    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( para_env, iw, error )
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
 
@@ -727,9 +727,8 @@ END SUBROUTINE fft_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv, error )
+SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
@@ -744,7 +743,6 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv, error )
     TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: ca, cb, cc
     TYPE(pw_grid_type), POINTER              :: grid
-    TYPE(section_vals_type), POINTER         :: print_section
 
 !..the unit cell
 
@@ -771,10 +769,8 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv, error )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  print_section=>section_vals_get_subs_vals(root_section, &
-                        "TEST%PRINT%GRID_INFORMATION",error=error)
-  CALL pw_grid_setup ( box, grid, print_section, &
-                       rs_dims=(/para_env%num_pe,1/) ,error=error)
+  CALL pw_grid_setup ( box, grid, &
+                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
@@ -836,8 +832,8 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv, error )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  CALL pw_grid_setup ( box, grid, print_section, &
-                       rs_dims=(/para_env%num_pe,1/) ,error=error)
+  CALL pw_grid_setup ( box, grid, &
+                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
@@ -901,8 +897,8 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv, error )
   cutoff = 0.5_dp * cutoff * cutoff
  ! CALL pw_find_cutoff ( grid % bounds, box % h_inv, cutoff )
 
-  CALL pw_grid_setup ( box, grid, print_section, cutoff = cutoff, &
-                       rs_dims=(/para_env%num_pe,1/) ,error=error)
+  CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
+                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)
@@ -965,8 +961,8 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv, error )
   cutoff = cutoff * cutoff
 !  CALL pw_find_cutoff ( grid%bounds, box%h_inv, cutoff )
 
-  CALL pw_grid_setup ( box, grid, print_section,  &
-                       rs_dims=(/para_env%num_pe,1/) ,error=error)
+  CALL pw_grid_setup ( box, grid, &
+                       rs_dims=(/para_env%num_pe,1/) , iounit=iw, error=error)
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D ,error=error)

@@ -30,8 +30,6 @@ MODULE real_space_test
                                              cell_type,&
                                              get_hinv
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -50,12 +48,11 @@ MODULE real_space_test
                                              realspace_grid_type,&
                                              rs2pw,&
                                              rs_grid_create,&
-                                             rs_grid_release,&
                                              rs_grid_print,&
+                                             rs_grid_release,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
-  USE realspace_task_selection,        ONLY: rs_get_loop_vars,&
-                                             rs_get_my_tasks
+  USE realspace_task_selection,        ONLY: rs_get_my_tasks
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: get_limit
@@ -69,9 +66,8 @@ MODULE real_space_test
 CONTAINS
 
 !******************************************************************************
-SUBROUTINE rs_test ( root_section, para_env, iw, error )
+SUBROUTINE rs_test ( para_env, iw, error )
 
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -80,8 +76,9 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nparticle = 5000
 
-    INTEGER                                  :: dir, i, ierr, j, me, memory1, &
-                                                memory2, memory3, n, npme, iounit
+    INTEGER                                  :: dir, i, ierr, iounit, j, me, &
+                                                memory1, memory2, memory3, n, &
+                                                npme
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(3)                    :: no, np, pt
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
@@ -97,7 +94,6 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: pw_a, pw_b, pw_c
     TYPE(realspace_grid_type), POINTER       :: rden
-    TYPE(section_vals_type), POINTER         :: print_section
 
   NULLIFY(pw_a,pw_b,pw_c)
   NULLIFY(box)
@@ -152,13 +148,12 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  print_section=>section_vals_get_subs_vals(root_section, &
-                        "TEST%PRINT%GRID_INFORMATION",error=error)
-  CALL pw_grid_setup ( box, grid,print_section &
-                       , rs_dims=(/para_env%num_pe,1/) ,error=error)
-
   iounit = -1
   IF ( para_env%ionode ) iounit = iw
+
+  CALL pw_grid_setup ( box, grid, rs_dims=(/para_env%num_pe,1/), &
+     iounit=iounit, error=error)
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 1, replicated calculation
 

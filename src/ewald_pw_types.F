@@ -284,6 +284,9 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
                          epsilon = epsilon ,error=error)
     SELECT CASE ( ewald_type )
     CASE ( do_ewald_ewald )
+       logger => cp_error_get_logger ( error )
+       output_unit = cp_print_key_unit_nr(logger,print_section,"",&
+                                       extension=".Log",error=error)
        CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF ,error=error)
        ! set up EWALD "Classic"
        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
@@ -296,18 +299,21 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
 
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff ,error=error)
        ecut = 0.5_dp * cutoff * cutoff
-      ! CALL pw_find_cutoff ( pw_big_grid % bounds, cell_ref % h_inv, cutoff )
-      ! ecut = cutoff
 
-       CALL pw_grid_setup ( cell_ref, pw_big_grid, print_section, cutoff = ecut, &
-                           fft_usage = .FALSE. ,error=error)
+       CALL pw_grid_setup ( cell_ref, pw_big_grid, cutoff = ecut, &
+                           fft_usage = .FALSE. ,iounit=output_unit, error=error)
        NULLIFY ( pw_pool )
        CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid ,error=error)
        ewald_pw % pw_big_pool => pw_pool
        CALL pw_pool_retain ( ewald_pw % pw_big_pool ,error=error)
        CALL pw_pool_release ( pw_pool ,error=error)
        CALL pw_grid_release ( pw_big_grid, error )
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,&
+                                         "",error=error)
     CASE ( do_ewald_pme )
+       logger => cp_error_get_logger ( error )
+       output_unit = cp_print_key_unit_nr(logger,print_section,"",&
+                                       extension=".Log",error=error)
        IF (.NOT.ASSOCIATED(ewald_pw%poisson_env)) THEN
           CALL pw_poisson_create(ewald_pw%poisson_env,error=error)
        END IF
@@ -326,12 +332,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
        CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
                                 pw_small_grid, pw_big_grid,   &
                                 para_env,rs_dims=(/para_env%num_pe,1/),&
-                                print_section=print_section, &
-                                error = error )
+                                iounit=output_unit, error = error )
        ! Write some useful info
-       logger => cp_error_get_logger ( error )
-       output_unit = cp_print_key_unit_nr(logger,print_section,"",&
-                                       extension=".Log",error=error)
        IF ( output_unit > 0 ) THEN
          WRITE ( output_unit, '( A,T71,E10.4 )' ) &
             ' EWALD| Gaussian tolerance (effective) ', epsilon
@@ -377,6 +379,9 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
        CALL pw_grid_release ( pw_big_grid, error )
     CASE ( do_ewald_spme )
        ! set up SPME
+       logger => cp_error_get_logger ( error )
+       output_unit = cp_print_key_unit_nr(logger,print_section,"",&
+                                       extension=".Log",error=error)
        IF (.NOT.ASSOCIATED(ewald_pw%poisson_env)) THEN
           CALL pw_poisson_create(ewald_pw%poisson_env,error=error)
        END IF
@@ -388,8 +393,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
 
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff ,error=error)
        ecut = 0.5_dp * cutoff * cutoff
-       CALL pw_grid_setup( cell_ref, pw_big_grid, print_section, cutoff = ecut, &
-            fft_usage = .TRUE., rs_dims=(/para_env%num_pe,1/),error=error)
+       CALL pw_grid_setup( cell_ref, pw_big_grid, cutoff = ecut, &
+            fft_usage = .TRUE., rs_dims=(/para_env%num_pe,1/),iounit=output_unit,error=error)
 
        ! pw pools initialized
        NULLIFY ( pw_pool )
@@ -406,9 +411,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
        END IF
        CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,nsmax=nsmax,error=error)
 
-       logger => cp_error_get_logger ( error )
-       output_unit = cp_print_key_unit_nr(logger,print_section,"",&
-                                       extension=".Log",error=error)
        CALL rs_pool_create_rs(rs_pool,rs,error=error)
        CALL rs_grid_print(rs,output_unit,error=error)
        CALL rs_pool_give_back_rs(rs_pool,rs,error=error)

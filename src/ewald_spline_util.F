@@ -103,9 +103,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: iounit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cutoff, ecut
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: pw
 
     failure = .FALSE.
@@ -125,10 +127,14 @@ CONTAINS
        pw_grid % bounds ( 2, 1:3 ) = npts(1:3) - 1
        CALL pw_find_cutoff ( npts, cell, cutoff ,error=error)
        ecut = 0.5_dp * cutoff * cutoff
-      ! CALL pw_find_cutoff ( pw_grid % bounds , cell % h_inv, cutoff )
-      ! ecut =  cutoff
        ! pw_grid initialized NOT DISTRIBUTED
-       CALL pw_grid_setup(cell, pw_grid, print_section, cutoff = ecut, fft_usage = .TRUE.,error=error)
+       logger => cp_error_get_logger(error)
+       iounit = cp_print_key_unit_nr(logger,print_section,"",&
+            extension=".Log",error=error)
+       CALL pw_grid_setup(cell, pw_grid, cutoff = ecut, &
+            fft_usage = .TRUE.,iounit=iounit,error=error)
+       CALL cp_print_key_finished_output(iounit,logger,print_section,&
+           "",error=error)
        ! pw_pool initialized
        CALL pw_pool_create(pw_pool, pw_grid=pw_grid, error=error)
        CALL pw_pool_create_pw ( pw_pool, pw, use_data = REALDATA3D, in_space = REALSPACE,&

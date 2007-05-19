@@ -39,7 +39,6 @@ MODULE pw_poisson_types
                                              bessk1
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
        PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
@@ -55,16 +54,8 @@ MODULE pw_poisson_types
                                              pi,&
                                              twopi
   USE mt_util,                         ONLY: MTin_create_screen_fn
-  USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             pw_grid_type
-  USE pw_grids,                        ONLY: pw_cutoff_from_n,&
-                                             pw_grid_bounds_from_n,&
-                                             pw_grid_create,&
-                                             pw_grid_find_n,&
-                                             pw_grid_n_for_fft,&
-                                             pw_grid_n_from_cutoff,&
-                                             pw_grid_release,&
-                                             pw_grid_setup1
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_release
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -90,11 +81,7 @@ MODULE pw_poisson_types
        pw_poisson_release
   PUBLIC :: greens_fn_type,pw_green_create,&
             pw_green_retain,&
-            pw_green_release,&
-            setup_super_ref_grid
-!FM            influence_factor
-
-
+            pw_green_release
 
   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr=0
   INTEGER, SAVE, PRIVATE :: last_poisson_id=0
@@ -180,110 +167,6 @@ MODULE pw_poisson_types
 
 CONTAINS
 
-
-  !!****** pw_poisson_types/setup_super_ref_grid [1.0] *
-  !!
-  !!   NAME
-  !!     setup_super_ref_grid
-  !!
-  !!   FUNCTION
-  !!     Initialize the super-reference grid for Tuckerman or xc
-  !!
-  !!   AUTHOR
-  !!     03-2005 Teodoro Laino [teo]
-  !!
-  !!   NOTE
-  !!     move somewere else?
-  !!
-  !!*** ***********************************************************************
-  SUBROUTINE setup_super_ref_grid(super_ref_pw_grid,mt_super_ref_pw_grid,&
-       xc_super_ref_pw_grid, cutilev, grid_span,&
-       cell_ref, para_env, input, my_ncommensurate, uf_grid,print_section, &
-       symm_usage, error)
-    TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid, &
-                                                mt_super_ref_pw_grid, &
-                                                xc_super_ref_pw_grid
-    REAL(KIND=dp), INTENT(IN)                :: cutilev
-    INTEGER, INTENT(IN)                      :: grid_span
-    TYPE(cell_type), POINTER                 :: cell_ref
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: input
-    INTEGER, INTENT(IN)                      :: my_ncommensurate
-    LOGICAL, INTENT(in)                      :: uf_grid
-    TYPE(section_vals_type), POINTER         :: print_section
-    LOGICAL, INTENT(in), OPTIONAL            :: symm_usage
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: my_val, n_new(3), n_orig(3)
-    LOGICAL                                  :: failure, mt_s_grid, symmetry
-    REAL(KIND=dp)                            :: mt_rel_cutoff, my_cutilev, &
-                                                xc_cut
-    TYPE(section_vals_type), POINTER         :: poisson_section
-
-    failure = .FALSE.
-    NULLIFY(poisson_section)
-    CPPrecondition(.NOT.ASSOCIATED(mt_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(xc_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    symmetry=.FALSE.
-    IF (PRESENT(symm_usage)) symmetry=symm_usage
-    IF (.NOT. failure) THEN
-       poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)
-       CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
-       !
-       ! Check if grids will be the same... In this case we don't use a super-reference grid
-       !
-       mt_s_grid=.FALSE.
-       IF (my_val==use_mt) THEN
-          CALL section_vals_val_get(poisson_section,"MT%REL_CUTOFF",&
-               r_val=mt_rel_cutoff,error=error)
-          IF (mt_rel_cutoff>1._dp) mt_s_grid=.TRUE.
-       END IF
-
-       n_orig=pw_grid_find_n( cell=cell_ref, cutoff=ABS(cutilev),&
-            fft_usage=.TRUE., grid_span=grid_span,&
-            symm_usage=symm_usage, spherical=cutilev>0._dp,&
-            ncommensurate=my_ncommensurate, error=error)
-       my_cutilev=pw_cutoff_from_n(n_orig,cell_ref,error=error)
-
-       IF (uf_grid) THEN
-          CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group,error=error)
-          xc_super_ref_pw_grid%grid_span = grid_span
-          xc_cut=pw_cutoff_from_n(2*n_orig,cell_ref,error=error)
-          CALL pw_grid_setup1(cell_ref, xc_super_ref_pw_grid, print_section=print_section,&
-               bounds=pw_grid_bounds_from_n(2*n_orig,error=error),&
-               grid_span=grid_span, spherical_cutoff=SIGN(xc_cut,cutilev),&
-               blocked=.FALSE., rs_dims=(/para_env%num_pe,1/),&
-               error=error)
-          super_ref_pw_grid => xc_super_ref_pw_grid
-       END IF
-       IF (mt_s_grid) THEN
-          CALL pw_grid_create(mt_super_ref_pw_grid,para_env%group,error=error)
-
-          IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
-             CALL cp_unimplemented_error(routineP,&
-                  "special grid for mt and fine xc grid not compatible",&
-                  error=error)
-          ELSE
-             my_cutilev=my_cutilev*mt_rel_cutoff
-             n_new= pw_grid_n_for_fft(&
-                  pw_grid_n_from_cutoff(cell_ref%hmat,my_cutilev,error=error),&
-                  odd=(grid_span==HALFSPACE .and.symmetry),error=error)
-             IF (ALL(n_new>n_orig)) THEN
-                CALL pw_grid_setup1(cell=cell_ref, pw_grid=mt_super_ref_pw_grid,&
-                     print_section=print_section, bounds=pw_grid_bounds_from_n(n_new,error=error), &
-                     grid_span=grid_span,&
-                     spherical_cutoff=SIGN(my_cutilev,cutilev),blocked=.FALSE.,&
-                     rs_dims=(/para_env%num_pe,1/), error=error )
-                super_ref_pw_grid => mt_super_ref_pw_grid
-             END IF
-          END IF
-       END IF
-    END IF
-  END SUBROUTINE setup_super_ref_grid
   !******************************************************************************
 
   !!****** pw_poisson_types/pw_green_create [1.0] *

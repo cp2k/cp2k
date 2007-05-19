@@ -46,8 +46,8 @@ MODULE kg_gpw_pw_env_methods
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
                                              rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect,&
-                                             rs_pools_dealloc
+                                             rs_pools_dealloc,&
+                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
                                              init_cube_info
@@ -57,7 +57,6 @@ MODULE kg_gpw_pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              init_gaussian_gridlevel
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_retain,&
                                              section_vals_type
   USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
@@ -387,15 +386,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, cmax, cmaxl, i, igrid_level, istat, maxlgto, &
+    INTEGER :: auxbas_grid, cmax, cmaxl, i, igrid_level, iounit, istat, &
       my_icommensurate, my_ncommensurate, ncommensurate, ngrid_level, &
-      nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax, iounit
+      nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
     LOGICAL                                  :: blocking, failure, fft, &
-                                                symmetry, should_output
+                                                should_output, symmetry
     REAL(dp)                                 :: cutilev, dr_g(3), drmin, &
                                                 ecut, hmat(3,3), maxradius, &
                                                 rel_cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutoff
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools_mol
     TYPE(cube_info_type), DIMENSION(:), &
@@ -405,10 +405,9 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools_mol
     TYPE(pw_pool_type), POINTER              :: pw_pool_g
-    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_section
 
     failure = .FALSE.
 
@@ -491,11 +490,8 @@ CONTAINS
 
 
       CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
-      pw_grid_mol%print_section=>print_section
-      CALL section_vals_retain(print_section,error=error)
 
       ! the following code duplication really sucks ........
-
 
 !FM       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM       pw_grid_mol%para%rs_dims ( 2 ) = 1
@@ -658,8 +654,6 @@ CONTAINS
          DO igrid_level = 2,ngrid_level
 
            CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
-           pw_grid_mol%print_section=>print_section
-           CALL section_vals_retain(print_section,error=error)
 !FM           pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM           pw_grid_mol%para%rs_dims ( 2 ) = 1
            IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN

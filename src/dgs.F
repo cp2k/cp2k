@@ -33,7 +33,6 @@ MODULE dgs
                                              FFT_RADIX_NEXT_ODD,&
                                              fft3d,&
                                              fft_radix_operations
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
@@ -90,17 +89,17 @@ CONTAINS
 
 !******************************************************************************
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
-                               para_env, print_section, grid_ref, rs_dims, error )
+                               para_env, grid_ref, rs_dims, iounit, error )
 
     TYPE(cell_type), POINTER                 :: box_b
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims
+    INTEGER, INTENT(IN), OPTIONAL            :: iounit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     REAL(KIND=dp)                            :: cutoff, ecut
@@ -113,21 +112,21 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff ,error=error)
 
   ecut = 0.5_dp * cutoff * cutoff
-!  ecut = cutoff
 
   IF ( PRESENT ( grid_ref ) ) THEN
-     CALL pw_grid_setup ( box_b, grid_b, print_section, cutoff = ecut, &
-          fft_usage = .TRUE.,  ref_grid = grid_ref, rs_dims=rs_dims, error=error )
+     CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, fft_usage = .TRUE., &
+          ref_grid = grid_ref, rs_dims=rs_dims, iounit=iounit, error=error )
   ELSE
-     CALL pw_grid_setup ( box_b, grid_b, print_section, cutoff = ecut, &
-          fft_usage = .TRUE., rs_dims=rs_dims , error=error )
+     CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
+          fft_usage = .TRUE., rs_dims=rs_dims , iounit=iounit, error=error )
   ENDIF
 
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
 
   CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
 
-  CALL pw_grid_setup ( box_s, grid_s, print_section, symm_usage=.FALSE. , error=error )
+  CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. , &
+       iounit=iounit, error=error )
   CALL cell_release(box_s,error=error)
   CALL cell_release(unit_box,error=error)
 END SUBROUTINE dg_pme_grid_setup
