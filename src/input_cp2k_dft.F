@@ -3008,8 +3008,19 @@ l).",&
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_SCHWARZ",&
-            description="Screens the 4-center integrals using the schwarz inequality",&
-            usage="EPS_SCHWARZ 1.0E-6", default_r_val=1.0E-10_dp,error=error)
+            description="Screens the 4-center integrals for the energy and the fock matrix using"//&
+                        " the Schwarz inequality and the given threshold. "//&
+                        "This will be approximately the accuracy in the total energy.",&
+            usage="EPS_SCHWARZ 1.0E-6", default_r_val=1.0E-8_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="EPS_SCHWARZ_FORCES",&
+            description="Screens the 4-center integrals for the forces using"//&
+                        " the Schwarz inequality and the given threshold. "//&
+                        " This will be approximately the accuracy of the forces, "//&
+                        " and should normally be similar to EPS_SCF.",&
+            usage="EPS_SCHWARZ_FORCES 1.0E-5", default_r_val=1.0E-6_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        

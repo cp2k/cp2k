@@ -26,3 +26,5 @@ H2O-hfx-2.inp
 H2O-hfx-3.inp          
 CH-hfx-md.inp          
 H2O-hfx-dist.inp       
+# forces screening
+CH-hfx-md.inp

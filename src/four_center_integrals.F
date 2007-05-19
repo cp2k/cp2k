@@ -1280,7 +1280,7 @@ MODULE four_center_integrals
     CALL timeset(routineN,"I",'',handle)
 
     CALL section_vals_val_get(hf_section,"FRACTION",r_val=hf_fraction,error=error)
-    CALL section_vals_val_get(hf_section,"EPS_SCHWARZ",r_val=eps_schwarz,error=error)
+    CALL section_vals_val_get(hf_section,"EPS_SCHWARZ_FORCES",r_val=eps_schwarz,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -1340,6 +1340,9 @@ MODULE four_center_integrals
       CALL mp_sum(full_density_beta,para_env%group)
     END IF
 
+    ! 
+    ! notice that we use eps_schwarz == EPS_SCHWARZ_FORCES
+    !
     CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
   
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
