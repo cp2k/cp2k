@@ -327,13 +327,14 @@ MODULE four_center_integrals
 !!    05.2007 refactored [Joost VandeVondele]
 !!
 !!****************************************************************************
-  SUBROUTINE compute_screening_matrices(screen_pgf,screen_set,screen_atom,particle_set,atomic_kind_set,error)
+  SUBROUTINE compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
 
     REAL(kind=dp), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: screen_pgf
     REAL(kind=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: screen_set
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: screen_atom
+    REAL(KIND=dp)                            :: screen_max
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -377,8 +378,6 @@ MODULE four_center_integrals
         max_pgf = MAX(max_pgf,npgfa(iset))
       END DO
     END DO
-
-    ! write(6,*) "screen mem",natom,max_set,max_pgf,natom*natom*max_set*max_set*max_pgf*max_pgf
 
     ALLOCATE(screen_pgf(natom,natom,max_set,max_set,max_pgf, max_pgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -454,6 +453,8 @@ MODULE four_center_integrals
       END DO
     END DO
 
+    screen_max=MAXVAL(screen_atom)
+
     CALL timestop(handle)
 
   END SUBROUTINE compute_screening_matrices
@@ -494,10 +495,10 @@ MODULE four_center_integrals
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_memory_needs', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp), DIMENSION(:,:,:,:,:,:), POINTER :: screening2
-    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER :: schwarz_screening
+    REAL(KIND=dp), DIMENSION(:,:,:,:,:,:), POINTER :: screen_pgf
+    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER :: screen_set
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: screen_atom
-    REAL(KIND=dp)                          :: max_val1,max_val2
+    REAL(KIND=dp)                          :: max_val1,max_val2,screen_max
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     INTEGER :: stat,handle,iatom,jatom,katom,latom,natom,iset,jset,kset,lset
     INTEGER :: nseta,nsetb,nsetc,nsetd,iblock, max_am
@@ -513,7 +514,7 @@ MODULE four_center_integrals
     memory_blocks_ab = 0
 
     ! set up screening matrices
-    CALL compute_screening_matrices(screening2,schwarz_screening,screen_atom,particle_set,atomic_kind_set,error)
+    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
 
     ! loop over this CPU's share of the atoms and compute the memory cost of the atomic blocks
     ! do not compute this for blocks that will not be associated
@@ -545,10 +546,10 @@ MODULE four_center_integrals
 
             DO iset = 1, nseta
               DO jset = 1,nsetb
-                max_val1 = schwarz_screening(iatom,jatom,iset,jset)
+                max_val1 = screen_set(iatom,jatom,iset,jset)
                 DO kset = 1,nsetc
                   DO lset = 1,nsetd
-                    max_val2 = max_val1 * schwarz_screening(katom,latom,kset,lset)
+                    max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
                     IF(max_val2<eps_schwarz) CYCLE
                     memory_blocks_ab(iatom,latom)=memory_blocks_ab(iatom,latom) + &
                                                   nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -561,7 +562,7 @@ MODULE four_center_integrals
       ENDDO
     ENDDO
 
-    DEALLOCATE(schwarz_screening,screening2,screen_atom,STAT=stat)
+    DEALLOCATE(screen_set,screen_pgf,screen_atom,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL mp_sum(memory_blocks_ab,para_env%group)
@@ -634,14 +635,15 @@ MODULE four_center_integrals
     LOGICAL                                  :: failure
     REAL(dp) :: ene_x_aa, ene_x_bb, eps_schwarz, fac, hf_fraction, max_val1, &
       max_val2, max_val3, max_val4, memory_usage, prim, ra(3), rb(3), rc(3), &
-      rd(3), sa, sb, sc, sd, tmp1, tmp11, tmp2, tmp21, tmp3, tmp31, max_int_val
+      rd(3), sa, sb, sc, sd, tmp1, tmp11, tmp2, tmp21, tmp3, tmp31, max_int_val, &
+      screen_max
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom, sphi_a, sphi_b, &
                                                 sphi_c, sphi_d, zeta, zetb, &
                                                 zetc, zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: primitive_integrals, &
-                                                schwarz_screening, T, T1
+                                                screen_set, T, T1
     REAL(dp), DIMENSION(:, :, :, :, :, :), &
-      POINTER                                :: screening2
+      POINTER                                :: screen_pgf
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
                                                 full_density_beta, &
                                                 sparse_block, &
@@ -717,7 +719,7 @@ MODULE four_center_integrals
 
     CALL timestop(handle_getP)
 
-    CALL compute_screening_matrices(screening2,schwarz_screening,screen_atom,particle_set,atomic_kind_set,error)
+    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
     
     CALL timeset(routineN//"_main",handle_main)
 
@@ -740,39 +742,29 @@ MODULE four_center_integrals
 
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
       IF(nspins == 2) block_node_beta => first_block_node(ks_matrix(2)%matrix,iatom)
+
+      ! parallel distribution might mean that there won't be an associated latom
+      IF (.NOT. ASSOCIATED(block_node)) CYCLE
  
       atom_kind => particle_set(iatom)%atomic_kind
-
       CALL get_atomic_kind(atomic_kind=atom_kind,&
                            orb_basis_set=orb_basis_a)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             zet=zeta,&
-                             nsgf_set=nsgfa,&
-                             first_sgf=first_sgfa,&
-                             sphi=sphi_a,&
-                             nsgf=nsgfa_total)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_a, lmax=la_max, lmin=la_min,&
+                             npgf=npgfa, nset=nseta, zet=zeta, nsgf_set=nsgfa,&
+                             first_sgf=first_sgfa, sphi=sphi_a, nsgf=nsgfa_total)
       ra=particle_set(iatom)%r(:)
       pa1 = last_sgf_global(iatom) - nsgfa_total
 
       DO jatom = 1,natom
 
+        IF (screen_atom(iatom,jatom) * screen_max < eps_schwarz) CYCLE
+
         atom_kind => particle_set(jatom)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atom_kind,&
                              orb_basis_set=orb_basis_b)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               zet=zetb,&
-                               nsgf_set=nsgfb,&
-                               first_sgf=first_sgfb,&
-                               sphi=sphi_b,&
-                               nsgf=nsgfb_total)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_b, lmax=lb_max, lmin=lb_min,&
+                               npgf=npgfb, nset=nsetb, zet=zetb, nsgf_set=nsgfb,&
+                               first_sgf=first_sgfb, sphi=sphi_b, nsgf=nsgfb_total)
         rb=particle_set(jatom)%r(:)
         pb1 = last_sgf_global(jatom) - nsgfb_total
 
@@ -780,16 +772,9 @@ MODULE four_center_integrals
           atom_kind => particle_set(katom)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atom_kind,&
                                orb_basis_set=orb_basis_c)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
-                                 lmax=lc_max,&
-                                 lmin=lc_min,&
-                                 npgf=npgfc,&
-                                 nset=nsetc,&
-                                 zet=zetc,&
-                                 nsgf_set=nsgfc,&
-                                 first_sgf=first_sgfc,&
-                                 sphi=sphi_c,&
-                                 nsgf=nsgfc_total)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_c, lmax=lc_max, lmin=lc_min,&
+                                 npgf=npgfc, nset=nsetc, zet=zetc, nsgf_set=nsgfc,&
+                                 first_sgf=first_sgfc, sphi=sphi_c, nsgf=nsgfc_total)
           rc=particle_set(katom)%r(:)
           pc1 = last_sgf_global(katom) - nsgfc_total
 
@@ -808,21 +793,14 @@ MODULE four_center_integrals
               block_node_beta => next_block_node(block_node_beta)
             END IF
 
+            IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
 
             atom_kind => particle_set(latom)%atomic_kind
             CALL get_atomic_kind(atomic_kind=atom_kind,&
                                  orb_basis_set=orb_basis_d)
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_d,&
-                                   lmax=ld_max,&
-                                   lmin=ld_min,&
-                                   npgf=npgfd,&
-                                   nset=nsetd,&
-                                   zet=zetd,&
-                                   nsgf_set=nsgfd,&
-                                   first_sgf=first_sgfd,&
-                                   sphi=sphi_d,&
-                                   nsgf=nsgfd_total)
- 
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_d, lmax=ld_max, lmin=ld_min,&
+                                   npgf=npgfd, nset=nsetd, zet=zetd, nsgf_set=nsgfd,&
+                                   first_sgf=first_sgfd, sphi=sphi_d, nsgf=nsgfd_total)
             rd=particle_set(latom)%r(:)
             pd1 = last_sgf_global(latom) - nsgfd_total
            
@@ -840,14 +818,15 @@ MODULE four_center_integrals
               DO jset = 1,nsetb
                 ncob = npgfb(jset)*ncoset(lb_max(jset))
                 sgfb = first_sgfb(1,jset)
-                max_val1 = schwarz_screening(iatom,jatom,iset,jset)
+                max_val1 = screen_set(iatom,jatom,iset,jset)
+                IF (max_val1 * screen_atom(katom,latom) < eps_schwarz) CYCLE
                 DO kset = 1,nsetc
                   ncoc = npgfc(kset)*ncoset(lc_max(kset))
                   sgfc = first_sgfc(1,kset)
                   DO lset = 1,nsetd
                     ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                     sgfd = first_sgfd(1,lset)
-                    max_val2 = max_val1 * schwarz_screening(katom,latom,kset,lset)
+                    max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
                     IF(max_val2<eps_schwarz) CYCLE
                     
                     current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
@@ -897,8 +876,8 @@ MODULE four_center_integrals
                                       la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
                                       lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
                                       npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                      primitive_integrals,screening2(iatom,jatom,iset,jset,:,:),&
-                                      screening2(katom,latom,kset,lset,:,:),eps_schwarz)
+                                      primitive_integrals,screen_pgf(iatom,jatom,iset,jset,:,:),&
+                                      screen_pgf(katom,latom,kset,lset,:,:),eps_schwarz)
 
                         CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                    1.0_dp, primitive_integrals(1,1,1,1),ncoa,&
@@ -974,13 +953,13 @@ MODULE four_center_integrals
                          offset_c1 = (kpgf-1)*ncoset(lc_max(kset))
                          cgfc_first = offset_c1 + ncoset(lc_min(kset)-1)+1
                          cgfc_last = offset_c1 + ncoset(lc_max(kset))
-                         max_val3 = screening2(katom,latom,kset,lset,kpgf,lpgf)
+                         max_val3 = screen_pgf(katom,latom,kset,lset,kpgf,lpgf)
                           DO jpgf = 1,npgfb(jset)
                             offset_b1 = (jpgf-1)*ncoset(lb_max(jset))
                             cgfb_first = offset_b1 + ncoset(lb_min(jset)-1)+1
                             cgfb_last = offset_b1 + ncoset(lb_max(jset))
                             DO ipgf = 1,npgfa(iset)
-                              max_val4 = max_val3* screening2(iatom,jatom,iset,jset,ipgf,jpgf)
+                              max_val4 = max_val3* screen_pgf(iatom,jatom,iset,jset,ipgf,jpgf)
                               IF(max_val4<eps_schwarz) CYCLE
                               offset_a1 = (ipgf-1)*ncoset(la_max(iset))
                               cgfa_first = offset_a1 + ncoset(la_min(iset)-1)+1
@@ -1099,7 +1078,7 @@ MODULE four_center_integrals
 
     DEALLOCATE(last_sgf_global,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(schwarz_screening,screening2,screen_atom,STAT=stat)
+    DEALLOCATE(screen_set,screen_pgf,screen_atom,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(full_density,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1275,15 +1254,15 @@ MODULE four_center_integrals
                                                 first_sgfc, first_sgfd
     LOGICAL                                  :: failure
     REAL(dp) :: eps_schwarz, fac, hf_fraction, max_val1, max_val2, ra(3), &
-      rb(3), rc(3), rd(3), temp1, temp1b, temp2
+      rb(3), rc(3), rd(3), temp1, temp1b, temp2, screen_max
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a, sphi_b, sphi_c, &
                                                 sphi_d, work_forces, zeta, &
                                                 zetb, zetc, zetd
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: schwarz_screening, T1
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set, T1
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: primitive_forces
     REAL(dp), DIMENSION(:, :, :, :, :, :), &
-      POINTER                                :: screening2
+      POINTER                                :: screen_pgf
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
                                                 full_density_beta, &
                                                 screen_atom, sparse_block
@@ -1361,7 +1340,7 @@ MODULE four_center_integrals
       CALL mp_sum(full_density_beta,para_env%group)
     END IF
 
-    CALL compute_screening_matrices(screening2,schwarz_screening,screen_atom,particle_set,atomic_kind_set,error)
+    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
   
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
@@ -1471,7 +1450,7 @@ MODULE four_center_integrals
               DO jset = 1,nsetb
                 ncob = npgfb(jset)*ncoset(lb_max(jset))
                 sgfb = first_sgfb(1,jset)
-                max_val1 = schwarz_screening(iatom,jatom,iset,jset)
+                max_val1 = screen_set(iatom,jatom,iset,jset)
                 DO kset = 1,nsetc
                   ncoc = npgfc(kset)*ncoset(lc_max(kset))
                   sgfc = first_sgfc(1,kset)
@@ -1479,7 +1458,7 @@ MODULE four_center_integrals
                     ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                     sgfd = first_sgfd(1,lset)
 
-                    max_val2 = max_val1 * schwarz_screening(katom,latom,kset,lset)
+                    max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
                     IF(max_val2<eps_schwarz) CYCLE
                     
                     ALLOCATE(primitive_forces(ncoa,ncob,ncoc,ncod,12),STAT=stat)
@@ -1495,8 +1474,8 @@ MODULE four_center_integrals
                                  lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
                                  npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                                  primitive_forces,&
-                                 work_forces, screening2(iatom,jatom,iset,jset,:,:),&
-                                 screening2(katom,latom,kset,lset,:,:), eps_schwarz)
+                                 work_forces, screen_pgf(iatom,jatom,iset,jset,:,:),&
+                                 screen_pgf(katom,latom,kset,lset,:,:), eps_schwarz)
                     DO coord = 1,12
                       CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                  1.0_dp, primitive_forces(1,1,1,1,coord),ncoa,&
@@ -1614,7 +1593,7 @@ MODULE four_center_integrals
       END DO !jatom
     END DO !iatom
 
-    DEALLOCATE(last_sgf_global,schwarz_screening, screening2, screen_atom, STAT=stat)
+    DEALLOCATE(last_sgf_global,screen_set, screen_pgf, screen_atom, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(full_density,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
