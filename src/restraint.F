@@ -709,8 +709,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: k, tab, targ
 
-    NULLIFY(fixd_list)    
-
     failure = .FALSE.
     DO iconst = 1, SIZE(colv_list)
        IF (.NOT.colv_list(iconst)%restraint%active) CYCLE

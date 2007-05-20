@@ -26,16 +26,10 @@ MODULE molecule_kind_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE colvar_types,                    ONLY: angle_colvar_id,&
-                                             colvar_counters,&
-                                             coord_colvar_id,&
-                                             ddiff_colvar_id,&
-                                             dist_colvar_id,&
-                                             hydronium_colvar_id,&
-                                             plane_distance_colvar_id,&
-                                             qparm_colvar_id,&
-                                             rotation_colvar_id,&
-                                             torsion_colvar_id
+  USE colvar_types,                    ONLY: &
+       angle_colvar_id, colvar_counters, coord_colvar_id, ddiff_colvar_id, &
+       dist_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
+       qparm_colvar_id, rotation_colvar_id, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -116,6 +110,7 @@ MODULE molecule_kind_types
 
   TYPE colvar_constraint_type
      INTEGER                        :: type_id
+     INTEGER                        :: inp_seq_num
      LOGICAL                        :: use_points
      REAL(KIND = dp)                :: expected_value
      INTEGER, POINTER, DIMENSION(:) :: i_atoms

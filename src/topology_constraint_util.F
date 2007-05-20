@@ -25,13 +25,10 @@ MODULE topology_constraint_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
-  USE colvar_types,                    ONLY: colvar_clone,&
-                                             colvar_counters,&
-                                             colvar_create,&
-                                             colvar_p_reallocate,&
-                                             colvar_setup,&
-                                             dist_colvar_id,&
-                                             torsion_colvar_id
+  USE colvar_types,                    ONLY: &
+       colvar_clone, colvar_counters, colvar_create, colvar_p_reallocate, &
+       colvar_release, colvar_setup, colvar_type, dist_colvar_id, &
+       torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -418,13 +415,19 @@ CONTAINS
        DO ii = 1, SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               nmolecule=nmolecule,molecule_list=molecule_list)
+               nmolecule=nmolecule, molecule_list=molecule_list)
           ncolv_mol = SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(colv_list(ncolv_mol),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! Starting index of the first molecule of this kind. 
+          ! We need the index if no target is provided in the input file
+          ! for the collective variable.. The target will be computed on the
+          ! first molecule of the kind...
+          molecule => molecule_set(molecule_list(1))
+          CALL get_molecule ( molecule, first_atom = first_atom)
           CALL setup_colv_list(colv_list, constr_x_mol(ii)%constr, gind,&
                cons_info, topology, particle_set, restart_restraint_clv,&
-               colvar_rest, error)
+               colvar_rest, first_atom, error)
           CALL setup_colvar_counters(colv_list,ncolv)
           CALL set_molecule_kind(molecule_kind,colv_list=colv_list,ncolv=ncolv)
           DO j=1,nmolecule
@@ -451,7 +454,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL setup_colv_list(colv_list, constr_x_glob, gind, cons_info,&
                topology, particle_set, restart_restraint_clv, colvar_rest,&
-               error)
+               first_atom=1, error=error)
           CALL setup_colvar_counters(colv_list,ncolv)
           ALLOCATE(lcolv(ncolv_glob),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -789,7 +792,7 @@ CONTAINS
 !!   INPUTS
 !!*** *************************************************************************
   SUBROUTINE setup_colv_list(colv_list, ilist, gind, cons_info, topology,&
-       particle_set, restart_restraint_clv, colvar_rest, error)
+       particle_set, restart_restraint_clv, colvar_rest, first_atom, error)
 
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
@@ -802,6 +805,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: particle_set
     LOGICAL, INTENT(IN)                      :: restart_restraint_clv
     TYPE(section_vals_type), POINTER         :: colvar_rest
+    INTEGER, INTENT(IN)                      :: first_atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_colv_list', &
@@ -810,6 +814,7 @@ CONTAINS
     INTEGER                                  :: j, kdim, kk, ncolv_mol, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rmod
+    TYPE(colvar_type), POINTER               :: local_colvar
 
     failure = .FALSE.
     ncolv_mol = 0
@@ -820,6 +825,7 @@ CONTAINS
        kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
        ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       colv_list(ncolv_mol)%inp_seq_num    = j
        colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(j)%colvar%type_id
        colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(j)%colvar%i_atom
        colv_list(ncolv_mol)%use_points     = cons_info%colvar_set(j)%colvar%use_points
@@ -827,9 +833,13 @@ CONTAINS
        colv_list(ncolv_mol)%restraint%active = cons_info%colv_restraint(j)
        colv_list(ncolv_mol)%restraint%k0     = cons_info%colv_k0(j)
        IF (cons_info%const_colv_target(j)==-HUGE(0.0_dp)) THEN
-          CALL colvar_eval_mol_f(cons_info%colvar_set(j)%colvar, topology%cell,&
-               particle_set, error=error)
-          colv_list(ncolv_mol)%expected_value = cons_info%colvar_set(j)%colvar%ss
+          ! Let's compute the value..
+          NULLIFY(local_colvar)
+          CALL colvar_clone(local_colvar, cons_info%colvar_set(j)%colvar,&
+               i_atom_offset=first_atom-1, error=error)
+          CALL colvar_eval_mol_f(local_colvar, topology%cell, particle_set, error=error)
+          colv_list(ncolv_mol)%expected_value = local_colvar%ss
+          CALL colvar_release(local_colvar, error=error)
        ELSE
           colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
        END IF
