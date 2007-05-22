@@ -22,4 +22,4 @@ machine_g95.int: machine_g95.o kinds.o
 libint_interface.dep:
 	touch -a libint_interface.dep libint_interface.int
 libint_interface.int: libint_interface.o
-libint_interface.o: gamma.o mathconstants.o orbital_pointers.o timings.o kinds.o
+libint_interface.o: gamma.o mathconstants.o orbital_pointers.o timings.o kinds.o x_hf.o

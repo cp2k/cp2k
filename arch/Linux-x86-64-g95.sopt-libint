@@ -23,8 +23,4 @@ machine_g95.int: machine_g95.o kinds.o
 libint_interface.dep:
 	touch -a libint_interface.dep libint_interface.int
 libint_interface.int: libint_interface.o
-libint_interface.o: gamma.o mathconstants.o orbital_pointers.o timings.o kinds.o
-
-#right now g95 ICEs on this file with optimisation
-libint_interface.o: libint_interface.f90
-	$(FC) -c $(FCFLAGS2) $<
+libint_interface.o: gamma.o mathconstants.o orbital_pointers.o timings.o kinds.o x_hf.o
