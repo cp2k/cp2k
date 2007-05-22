@@ -2573,6 +2573,33 @@ l).",&
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
+      
+       CALL section_create(subsection,name="XWPBE",&
+            description="Uses the short range PBE functional",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x0",&
+            description="scales the exchange part of the original hole PBE-functional",&
+            default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"omega",&
+            description="screening parameter",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_xc_fun_section
@@ -3002,16 +3029,14 @@ l).",&
 
        CALL keyword_create(keyword, name="FRACTION",&
             description="The fraction of Hartree-Fock to add to the total energy. "//&
-                        "1.0 implies standard Hartree-Fock if used with XC_FUNCTION NONE.",&
+                        "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE.",&
             usage="FRACTION 1.0", default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_SCHWARZ",&
-            description="Screens the 4-center integrals for the energy and the fock matrix using"//&
-                        " the Schwarz inequality and the given threshold. "//&
-                        "This will be approximately the accuracy in the total energy.",&
-            usage="EPS_SCHWARZ 1.0E-6", default_r_val=1.0E-8_dp,error=error)
+            description="Screens the 4-center integrals using the schwarz inequality",&
+            usage="EPS_SCHWARZ 1.0E-6", default_r_val=1.0E-10_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
@@ -3023,14 +3048,32 @@ l).",&
             usage="EPS_SCHWARZ_FORCES 1.0E-5", default_r_val=1.0E-6_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
+       CALL keyword_create(keyword, name="OMEGA",&
+            description="Parameter for screening via erfc/erf",&
+            usage="OMEGA 0.5", default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAX_MEMORY",&
             description="Defines the maximum amount of memory [MB] used to store precomputed "//&
                          "four-center integrals",&
             usage="MAX_MEMORY 512", default_i_val=512,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
- 
+
+       CALL keyword_create(keyword, name="SCREENING_TYPE",&
+         description="Which screening should be used (longrange or shortrange). ",&
+         usage="SCREENING_TYPE SHORTRANGE",&
+         enum_c_vals=s2a("NONE","SHORTRANGE","LONGRANGE"),&
+         enum_i_vals=(/do_hf_screening_none, do_hf_screening_short, do_hf_screening_long/),&
+         enum_desc=s2a("No screening", &
+                       "Shortrange screening. Potential: erfc(omega*r)/r",&
+                       "Longrange screening. Potential: erf(omega*r)/r"),&
+         default_i_val=do_hf_screening_none, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL cp_print_key_section_create(print_key,"HF_INFO",&
             description="Controls the printing basic info about hf method", &
             print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
@@ -3038,6 +3081,7 @@ l).",&
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
     END IF
+ 
   END SUBROUTINE create_hf_section
 !***************************************************************************
 

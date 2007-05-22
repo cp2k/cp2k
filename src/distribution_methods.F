@@ -58,6 +58,7 @@ MODULE distribution_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: model_block_count,model_block_surface, model_block_lmax, model_block_hfx
+  USE x_hf,                            ONLY: x_hf_screening_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -508,7 +509,9 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(section_vals_type), POINTER         :: distribution_section, &
                                                 mc_section, hf_section
-    REAL(KIND=dp)                            :: eps_schwarz
+    REAL(KIND=dp)                            :: eps_schwarz, omega
+    INTEGER                                  :: screening_type
+    TYPE(x_hf_screening_type)                :: screening_parameter
 
 !   ---------------------------------------------------------------------------
 
@@ -525,8 +528,14 @@ CONTAINS
     IF (cost_model==model_block_hfx) THEN
        hf_section => section_vals_get_subs_vals(force_env_section,"DFT%XC%HF",error=error)
        CALL section_vals_val_get(hf_section,"EPS_SCHWARZ",r_val=eps_schwarz,error=error)
+       CALL section_vals_val_get(hf_section,"OMEGA",r_val=omega,error=error)
+       CALL section_vals_val_get(hf_section,"SCREENING_TYPE", i_val=screening_type,error=error)
+       screening_parameter%screening_type=screening_type
+       screening_parameter%omega = omega
     ELSE
        eps_schwarz=0.0_dp
+       screening_parameter%screening_type = 0
+       screening_parameter%omega = 0.0_dp
     ENDIF
 
     group = blacs_env%para_env%group
@@ -620,7 +629,8 @@ CONTAINS
        output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
                                                             extension=".Log",error=error)
        CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                         molecule_kind_set,molecule_set,eps_schwarz,output_unit,blacs_env%para_env,error=error)
+                                     molecule_kind_set,molecule_set,eps_schwarz,output_unit,blacs_env%para_env,&
+                                     screening_parameter,error=error)
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
                                              "PRINT%DISTRIBUTION",error=error)
 
@@ -824,7 +834,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
-                                                molecule_kind_set,molecule_set,eps_schwarz,output_unit,para_env,error)
+                                      molecule_kind_set,molecule_set,eps_schwarz,output_unit,para_env,&
+                                      screening_parameter, error)
 
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: cost_ele_pair
     TYPE(section_vals_type), POINTER         :: distribution_section
@@ -839,6 +850,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_schwarz
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(x_hf_screening_type)                :: screening_parameter
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_2d_cost_model', &
@@ -913,7 +925,8 @@ CONTAINS
         ENDDO
     CASE(model_block_hfx)
        ALLOCATE(memory_blocks_ab(natom,natom))
-       CALL compute_memory_needs(memory_blocks_ab,eps_schwarz,particle_set,particle_kind_set,para_env,error)
+       CALL compute_memory_needs(memory_blocks_ab,eps_schwarz,particle_set,particle_kind_set,para_env,&
+                                 screening_parameter,error)
     END SELECT
 
     !

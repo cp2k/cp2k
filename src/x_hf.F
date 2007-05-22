@@ -25,11 +25,14 @@ MODULE x_hf
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size
+  USE input_constants,                 ONLY: do_hf_screening_none,&
+                                             do_hf_screening_short,&
+                                             do_hf_screening_long
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  x_hf_type, x_hf_create, x_hf_release 
+  PUBLIC  x_hf_type, x_hf_create, x_hf_release, x_hf_screening_type 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
 
 !***
@@ -50,6 +53,7 @@ MODULE x_hf
 !!   ATTRIBUTES
 !!     - x_buffer: stores four-center-integrals
 !!     - number_of_elements: according to memory usage parameter in input file
+!!     - x_hf_screening_type: stores information for screening
 !!
 !!   AUTHOR
 !!     Manuel Guidon
@@ -58,10 +62,15 @@ MODULE x_hf
 !!     11.2006 created [Manuel Guidon]
 !!
 !***************************************************************************
-
+  TYPE x_hf_screening_type
+    REAL(dp)                                 :: omega
+    INTEGER                                  :: screening_type
+  END TYPE
+  
   TYPE x_hf_type
     REAL(dp), DIMENSION(:), POINTER          :: x_buffer
     INTEGER                                  :: number_of_elements
+    TYPE(x_hf_screening_type)                :: screening_parameter
   END TYPE
 
   CONTAINS
@@ -76,13 +85,19 @@ MODULE x_hf
 
     INTEGER                                  :: max_memory, &
                                                 number_of_precalc_integrals, &
-                                                stat
+                                                stat, type
+    REAL(dp)                                 :: omega
 
     CALL section_vals_val_get(hf_section,"MAX_MEMORY",i_val=max_memory,error=error)
     number_of_precalc_integrals = max_memory * 1024*1024/dp_size
     ALLOCATE(x_data,STAT=stat)
     ALLOCATE(x_data%x_buffer(number_of_precalc_integrals),STAT=stat)
     x_data%number_of_elements = number_of_precalc_integrals
+    CALL section_vals_val_get(hf_section,"screening_type",i_val=type,error=error)
+    CALL section_vals_val_get(hf_section,"omega",r_val=omega,error=error)
+    
+    x_data%screening_parameter%screening_type = type
+    x_data%screening_parameter%omega = omega
 
   END SUBROUTINE x_hf_create 
 

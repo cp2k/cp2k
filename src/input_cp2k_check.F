@@ -32,7 +32,8 @@ MODULE input_cp2k_check
                                              cp_unit_set_type
   USE input_constants,                 ONLY: &
        xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_none
+       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_none, &
+       xc_funct_xwpbe
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
@@ -211,6 +212,11 @@ SUBROUTINE xc_functionals_expand(functionals,error)
              i_val=xc_funct_no_shortcut,error=error)
      CASE(xc_funct_pbe)
         CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+     CASE(xc_funct_xwpbe)
+        CALL section_vals_val_set(functionals,"XWPBE%_SECTION_PARAMETERS_",&
              l_val=.TRUE.,error=error)
         CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
              i_val=xc_funct_no_shortcut,error=error)

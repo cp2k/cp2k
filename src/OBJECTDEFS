@@ -507,4 +507,5 @@ OBJECTS_GENERIC =\
  xc_vwn.o\
  xc_xalpha.o\
  xc_xbecke88.o\
+ xc_xwpbe.o\
  xray_diffraction.o

@@ -27,9 +27,13 @@ MODULE libint_interface
   USE, INTRINSIC :: ISO_C_BINDING
 #endif
   USE gamma,                           ONLY: fgamma
+  USE input_constants,                 ONLY: do_hf_screening_none, &
+                                             do_hf_screening_short, &
+                                             do_hf_screening_long
   USE mathconstants
   USE orbital_pointers
   USE kinds,                           ONLY: dp
+  USE x_hf,                            ONLY: x_hf_screening_type
 
 #include "cp_common_uses.h"      
  
@@ -357,15 +361,15 @@ MODULE libint_interface
 
   SUBROUTINE evaluate_eri(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                           n_a,n_b,n_c,n_d,&
-                          primitives,omega)
+                          primitives,screening_parameter)
     
     TYPE(lib_int)                           :: lib
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
     REAL(dp), DIMENSION(:,:,:,:)            :: primitives
-    REAL(dp), INTENT(IN), OPTIONAL          :: omega
-
+    TYPE(x_hf_screening_type)               :: screening_parameter
+ 
 #if defined(__LIBINT)
     INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,p_index,temp
     TYPE(prim_data),TARGET                   :: prim
@@ -433,11 +437,8 @@ MODULE libint_interface
     m_max = Config(1) + Config(2) + Config(3) + Config(4)
 
 
-    IF(PRESENT(omega)) THEN
-      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, omega=omega)
-    ELSE
-      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max)
-    END IF
+    prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
+                              screening_parameter)
 
     lib%PrimQuartet = C_LOC(prim)
 
@@ -516,21 +517,22 @@ MODULE libint_interface
 !!****************************************************************************
 
 #if defined(__LIBINT)
-  FUNCTION build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, omega)
+  FUNCTION build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
+                              screening_parameter)
      
     TYPE(prim_data)                    :: build_quartet_data
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
-    REAL(KIND=C_DOUBLE), INTENT(IN),&
-                         OPTIONAL      :: omega
-     
+    TYPE(x_hf_screening_type)          :: screening_parameter 
+
     TYPE(prim_data)                    :: prim
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
-    REAL(KIND=C_DOUBLE)                :: S12, S34, T, omega_corr
+    REAL(KIND=C_DOUBLE)                :: S12, S34, T, omega_corr2, omega_corr, omega2
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
+    INTEGER                            :: i
     
     Zeta = Zeta_A + Zeta_B
     Eta  = Zeta_C + Zeta_D
@@ -550,24 +552,34 @@ MODULE libint_interface
     S34  = EXP(-Zeta_C*Zeta_D/Eta*CD2)
     T = Rho*PQ2
 
-    IF( T == global_T .AND. m_max == global_m) THEN
-      prim%F = global_Fm
-    ELSE 
-      CALL fgamma(m_max,T,prim%F)
-      global_Fm = prim%F
-      global_T = T
-      global_m = m_max
-    END IF
-    IF(PRESENT(omega)) THEN
-      omega_corr = omega**2.0_dp/(omega**2.0_dp+Rho)
-      T = T*omega_corr
-      CALL fgamma(m_max,T,Fm)
-      prim%F = prim%F - 2.0_dp*Pi/Rho*SQRT(omega_corr)*Fm
-    END IF
+    SELECT CASE(screening_parameter%screening_type)
+      CASE(do_hf_screening_none)
+        CALL fgamma(m_max,T,prim%F)
+      CASE(do_hf_screening_short)
+        CALL fgamma(m_max,T,prim%F)
+        omega2 = screening_parameter%omega**2
+        omega_corr2 = omega2/(omega2+Rho)
+        omega_corr = SQRT(omega_corr2)
+        T = T*omega_corr2
+        CALL fgamma(m_max,T,Fm)
+        DO i=1,m_max+1
+          prim%F(i)=prim%F(i) - omega_corr*Fm(i)*omega_corr2**(i-1)
+        END DO
+      CASE(do_hf_screening_long)
+        omega2 = screening_parameter%omega**2
+        omega_corr2 = omega2/(omega2+Rho)
+        omega_corr = SQRT(omega_corr2)
+        T = T*omega_corr2
+        CALL fgamma(m_max,T,prim%F)
+        DO i=1,m_max+1
+          prim%F(i)= omega_corr*prim%F(i)*omega_corr2**(i-1)
+        END DO
+    END SELECT
+
     factor = 2.0_dp*Pi/Rho 
     factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**(3.0_dp))
 
-    CALL dscal(17,factor,prim%F,1)
+    CALL dscal(m_max+1,factor,prim%F,1)
     prim%U(:,1) = P-A
     prim%U(:,2) = P-B                 !Not used in libint
     prim%U(:,3) = Q-C
@@ -912,14 +924,14 @@ MODULE libint_interface
 
   SUBROUTINE evaluate_eri_screen(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                  n_a,n_b,n_c,n_d,&
-                                 max_val, omega)
+                                 max_val, screening_parameter)
     
     TYPE(lib_int)                           :: lib
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
     REAL(dp), INTENT(INOUT)                 :: max_val
-    REAL(dp), INTENT(IN), OPTIONAL          :: omega
+    TYPE(x_hf_screening_type)               :: screening_parameter
 
 #if defined(__LIBINT)
     INTEGER                                  :: i
@@ -988,11 +1000,7 @@ MODULE libint_interface
     m_max = Config(1) + Config(2) + Config(3) + Config(4)
 
 
-    IF(PRESENT(omega)) THEN
-      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, omega=omega)
-    ELSE
-      prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max)
-    END IF
+    prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, screening_parameter)
 
     lib%PrimQuartet = C_LOC(prim)
 

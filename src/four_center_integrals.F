@@ -61,6 +61,7 @@ MODULE four_center_integrals
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE x_hf,                            ONLY: x_hf_screening_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -112,7 +113,8 @@ MODULE four_center_integrals
                       la_min, la_max, lb_min, lb_max,&
                       lc_min, lc_max, ld_min, ld_max,&
                       npgfa, npgfb, npgfc, npgfd,&
-                      primitive_integrals,screenij,screenkl, eps_schwarz)
+                      primitive_integrals,screenij,screenkl, eps_schwarz,&
+                      screening_parameter)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
@@ -123,6 +125,7 @@ MODULE four_center_integrals
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: primitive_integrals
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: screenij, screenkl
     REAL(dp), INTENT(IN)                     :: eps_schwarz
+    TYPE(x_hf_screening_type)                :: screening_parameter
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
       offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
@@ -151,10 +154,11 @@ MODULE four_center_integrals
                     CALL evaluate_eri(lib, ra, rb, rc, rd,&
                                       zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
                                       la, lb, lc ,ld,&
-                                      primitive_integrals(offset_a+1:,&
-                                                          offset_b+1:,&
-                                                          offset_c+1:,&
-                                                          offset_d+1:))
+                                      primitive_integrals(offset_a+1:, &
+                                                          offset_b+1:, &
+                                                          offset_c+1:, &
+                                                          offset_d+1:),&
+                                      screening_parameter)
                   END DO !ld
                 END DO !lc
               END DO !lb
@@ -167,86 +171,10 @@ MODULE four_center_integrals
   END SUBROUTINE coulomb4
 !***************************************************************************
 
-!!***** four_center_integrals/screen4 [1.0] *
-!!
-!!   NAME
-!!     screen4
-!!
-!!   FUNCTION
-!!     calculates max values of two-electron integrals in a quartet/shell
-!!     w.r.t. to different sets using the library lib_int
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - r: position
-!!     - z: zeta
-!!     - l: angular momentum
-!!     - npgf: number of primitive cartesian gaussian in actual shell
-!!     - max_val: schwarz screening value
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!    03.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
-  SUBROUTINE screen4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
-                      la_min, la_max, lb_min, lb_max,&
-                      lc_min, lc_max, ld_min, ld_max,&
-                      npgfa, npgfb, npgfc, npgfd,&
-                      max_val)
-  
-    REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
-    INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, &
-                                                lb_max, lc_min, lc_max, &
-                                                ld_min, ld_max, npgfa, npgfb, &
-                                                npgfc, npgfd
-    REAL(dp), INTENT(INOUT)                  :: max_val
-
-    INTEGER                                  :: ipgf, jpgf, kpgf, la, lb, lc, &
-                                                ld, lpgf
-    REAL(dp)                                 :: max_val_temp
-
-    max_val_temp = max_val
-    DO ipgf = 1,npgfa
-      DO jpgf = 1,npgfb
-        DO kpgf = 1,npgfc
-          DO lpgf = 1,npgfd
-
-            DO la = la_min,la_max
-              DO lb = lb_min, lb_max
-                DO lc = lc_min, lc_max
-                  DO ld = ld_min, ld_max
-                    !Build primitives
-                    CALL evaluate_eri_screen(lib, ra, rb, rc, rd,&
-                                             zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                             la, lb, lc ,ld,&
-                                             max_val_temp)
-                    max_val = MAX(max_val, max_val_temp)
-                  END DO !ld
-                END DO !lc
-              END DO !lb
-            END DO !la
-
-          END DO !lpgf
-        END DO !kpgf
-      END DO !jpgf
-    END DO !ipgf
-  
-  END SUBROUTINE screen4
-!***************************************************************************
-
 !!***** four_center_integrals/screen41 [1.0] *
 !!
 !!   NAME
-!!     screen4
+!!     screen41
 !!
 !!   FUNCTION
 !!     calculates max values of two-electron integrals in a quartet/shell
@@ -275,7 +203,7 @@ MODULE four_center_integrals
   SUBROUTINE screen41(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
                       la_min, la_max, lb_min, lb_max,&
                       lc_min, lc_max, ld_min, ld_max,&
-                      max_val)
+                      max_val, screening_parameter)
 
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3), &
                                                 zeta, zetb, zetc, zetd
@@ -283,6 +211,7 @@ MODULE four_center_integrals
                                                 lb_max, lc_min, lc_max, &
                                                 ld_min, ld_max
     REAL(dp), INTENT(INOUT)                  :: max_val
+    TYPE(x_hf_screening_type)                :: screening_parameter
 
     INTEGER                                  :: la, lb, lc, ld
     REAL(dp)                                 :: max_val_temp
@@ -297,7 +226,7 @@ MODULE four_center_integrals
             CALL evaluate_eri_screen(lib, ra, rb, rc, rd,&
                                      zeta, zetb, zetc, zetd,&
                                      la, lb, lc ,ld,&
-                                     max_val_temp)
+                                     max_val_temp, screening_parameter)
             max_val = MAX(max_val, max_val_temp)
           END DO !ld
         END DO !lc
@@ -327,7 +256,8 @@ MODULE four_center_integrals
 !!    05.2007 refactored [Joost VandeVondele]
 !!
 !!****************************************************************************
-  SUBROUTINE compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
+  SUBROUTINE compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,&
+                                        atomic_kind_set,screening_parameter,error)
 
     REAL(kind=dp), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: screen_pgf
@@ -339,6 +269,7 @@ MODULE four_center_integrals
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(x_hf_screening_type)                :: screening_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_screening_matrices', &
@@ -350,7 +281,7 @@ MODULE four_center_integrals
                                                 lc_min, npgfa, npgfb, npgfc,nsgfb,nsgfc
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: zetb, zetc, sphi_b, sphi_c
-    REAL(KIND=dp)                            :: max_val, max_val2, rb(3), &
+    REAL(KIND=dp)                            :: max_val2, rb(3), &
                                                 rc(3),p2s_b,p2s_c
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b, &
@@ -442,7 +373,7 @@ MODULE four_center_integrals
                               zetb(jpgf,jset), zetc(kpgf,kset), zetb(jpgf,jset), zetc(kpgf,kset),&
                               lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
                               lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                              max_val2)
+                              max_val2, screening_parameter)
                 screen_pgf(jatom,katom,jset,kset,jpgf,kpgf) = SQRT(max_val2)*p2s_b*p2s_c
               END DO
             END DO
@@ -482,24 +413,26 @@ MODULE four_center_integrals
 !!    05.2007 created [Joost VandeVondele]
 !!
 !!****************************************************************************
-  SUBROUTINE compute_memory_needs(memory_blocks_ab,eps_schwarz,particle_set,atomic_kind_set,para_env,error)
-    INTEGER, DIMENSION(:,:), INTENT(OUT) :: memory_blocks_ab
-    REAL(KIND=dp), INTENT(IN)            :: eps_schwarz
+  SUBROUTINE compute_memory_needs(memory_blocks_ab,eps_schwarz,particle_set,atomic_kind_set,para_env,&
+                                  screening_parameter,error)
+    INTEGER, DIMENSION(:,:), INTENT(OUT)      :: memory_blocks_ab
+    REAL(KIND=dp), INTENT(IN)                 :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
        POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
        POINTER                                :: atomic_kind_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_para_env_type), POINTER           :: para_env
+    TYPE(x_hf_screening_type)                 :: screening_parameter
+    TYPE(cp_error_type), INTENT(inout)        :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_memory_needs', &
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp), DIMENSION(:,:,:,:,:,:), POINTER :: screen_pgf
-    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER :: screen_set
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: screen_atom
-    REAL(KIND=dp)                          :: max_val1,max_val2,screen_max
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER     :: screen_set
+    REAL(KIND=dp), DIMENSION(:,:), POINTER         :: screen_atom
+    REAL(KIND=dp)                                  :: max_val1,max_val2,screen_max
+    TYPE(gto_basis_set_type), POINTER              :: orb_basis
     INTEGER :: stat,handle,iatom,jatom,katom,latom,natom,iset,jset,kset,lset
     INTEGER :: nseta,nsetb,nsetc,nsetd,iblock, max_am
     INTEGER, DIMENSION(:), POINTER :: nsgfa, nsgfb, nsgfc, nsgfd
@@ -514,7 +447,8 @@ MODULE four_center_integrals
     memory_blocks_ab = 0
 
     ! set up screening matrices
-    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
+    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,&
+                                    atomic_kind_set,screening_parameter,error)
 
     ! loop over this CPU's share of the atoms and compute the memory cost of the atomic blocks
     ! do not compute this for blocks that will not be associated
@@ -657,6 +591,8 @@ MODULE four_center_integrals
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
+    TYPE(x_hf_screening_type)                :: screening_parameter
+
 
 ! many timings somewhat more clear
 
@@ -667,6 +603,7 @@ MODULE four_center_integrals
     CALL section_vals_val_get(hf_section,"EPS_SCHWARZ",r_val=eps_schwarz,error=error)
    
     number_of_precalc_integrals = qs_env%x_data%number_of_elements
+    screening_parameter = qs_env%x_data%screening_parameter
     integral_counter = 1
     memory_usage = 0.0_dp
     NULLIFY(logger)
@@ -719,7 +656,8 @@ MODULE four_center_integrals
 
     CALL timestop(handle_getP)
 
-    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
+    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
+                                    screening_parameter,error)
     
     CALL timeset(routineN//"_main",handle_main)
 
@@ -877,7 +815,7 @@ MODULE four_center_integrals
                                       lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
                                       npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                                       primitive_integrals,screen_pgf(iatom,jatom,iset,jset,:,:),&
-                                      screen_pgf(katom,latom,kset,lset,:,:),eps_schwarz)
+                                      screen_pgf(katom,latom,kset,lset,:,:),eps_schwarz,screening_parameter)
 
                         CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                    1.0_dp, primitive_integrals(1,1,1,1),ncoa,&
@@ -974,10 +912,11 @@ MODULE four_center_integrals
                                                         zeta(ipgf,iset), zetb(jpgf,jset),&
                                                         zetc(kpgf,kset), zetd(lpgf,lset),&
                                                         la, lb, lc ,ld,&
-                                                        T(ncoset(la-1)+1:,&
-                                                          ncoset(lb-1)+1:,&
-                                                          ncoset(lc-1)+1:,&
-                                                          ncoset(ld-1)+1:))
+                                                        T(ncoset(la-1)+1:, &
+                                                          ncoset(lb-1)+1:, &
+                                                          ncoset(lc-1)+1:, &
+                                                          ncoset(ld-1)+1:),&
+                                                        screening_parameter)
                                     END DO !ld
                                   END DO !lc
                                 END DO !lb
@@ -1343,7 +1282,8 @@ MODULE four_center_integrals
     ! 
     ! notice that we use eps_schwarz == EPS_SCHWARZ_FORCES
     !
-    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,error)
+    CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
+                                    qs_env%x_data%screening_parameter, error)
   
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)

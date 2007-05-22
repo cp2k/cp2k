@@ -66,7 +66,8 @@ MODULE mathlib
        matmul_3x3,&
        matvec_3x3,&
        dotprod_3d,&
-       transpose_3d
+       transpose_3d,&
+       expint
 
   ! *****************************************************************************
 
@@ -1250,5 +1251,89 @@ CONTAINS
        END DO
     END DO
   END FUNCTION transpose_3d
+
+
+  ! *****************************************************************************
+  !****f* mathlib/expint [1.0] *
+  !!
+  !!   NAME
+  !!     expint
+  !!
+  !!   FUNCTION
+  !!     computes the exponential integral
+  !!     En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
+  !!     Note: Ei(-x) = -E1(x)
+  !!
+  !!   AUTHOR
+  !!     Manuel Guidon (adapted from Numerical recipies)
+  !!
+  !!   MODIFICATION HISTORY
+  !!     05.2007 Created
+  !!
+  !!*** *********************************************************************
+  FUNCTION expint(n,x)
+    REAL(dp)                                 :: expint
+    INTEGER                                  :: n
+    REAL(dp)                                 :: x
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'expint'
+    INTEGER, PARAMETER                       :: maxit = 100
+    REAL(dp), PARAMETER                      :: eps = 6.e-14_dp, &
+                                                fpmin = 1.e-100_dp,&
+                                                euler = 0.5772156649015328606065120_dp
+    INTEGER                                  :: i,ii,nm1
+    REAL(dp)                                 :: a,b,c,d,del,fact,h,psi
+
+    nm1=n-1
+
+    IF(n.lt.0.OR.x.lt.0.0_dp.OR.(x.eq.0.0_dp.AND.(n.EQ.0.or.n.EQ.1))) THEN
+      CALL stop_program(moduleN,routineN,__LINE__,"Invalid argument")
+    ELSE IF(n.EQ.0) THEN       !Special case.
+      expint=exp(-x)/x
+    ELSE IF(x.EQ.0.0_dp) THEN  !Another special case.
+      expint=1.0_dp/nm1
+    ELSE IF(x.GT.1.0_dp) THEN  !Lentz’s algorithm (§5.2).
+      b=x+n
+      c=1.0_dp/FPMIN
+      d=1.0_dp/b
+      h=d
+      DO i = 1,MAXIT
+        a=-i*(nm1+i)
+        b=b+2.0_dp
+        d=1.0_dp/(a*d+b) 
+        c=b+a/c
+        del=c*d
+        h=h*del
+        IF(ABS(del-1.0_dp).LT.EPS) THEN
+          expint=h*EXP(-x)
+          RETURN
+        END IF
+      END DO
+      CALL stop_program(moduleN,routineN,__LINE__,"continued fraction failed in expint")
+    ELSE !Evaluate series.
+      IF(nm1.NE.0)THEN  !Set first term.
+        expint=1.0_dp/nm1
+      ELSE
+        expint=-LOG(x)-euler
+      END IF
+      fact=1.0_dp
+      DO i=1,MAXIT
+        fact=-fact*x/i
+        IF(i.NE.nm1) THEN
+          del=-fact/(i-nm1)
+        ELSE
+          psi=-euler !Compute ψ(n).
+          DO ii=1,nm1
+            psi=psi+1.0_dp/ii
+          END DO
+          del=fact*(-LOG(x)+psi)
+        END IF
+        expint=expint+del
+        IF(ABS(del).LT.ABS(expint)*EPS) RETURN
+      END DO
+       CALL stop_program(moduleN,routineN,__LINE__,"series failed in expint")
+    END IF
+    RETURN
+  END FUNCTION expint
 
 END MODULE mathlib
