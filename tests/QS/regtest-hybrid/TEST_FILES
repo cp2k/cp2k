@@ -10,3 +10,5 @@ CH3-hybrid-b3lyp-lsd-g03.inp  1
 CH3-hybrid-handh-lsd.inp      1
 CH3-hybrid-handhlyp-lsd.inp   1
 CH3-hybrid-pbe0-lsd.inp       1 
+NE-hybrid-HSE03-lda.inp       1
+NE-hybrid-HSE06-lda.inp       1
