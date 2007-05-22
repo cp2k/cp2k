@@ -275,20 +275,20 @@ MODULE four_center_integrals
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_screening_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, iset, jatom, jpgf, jset, katom, kpgf, kset, &
-      max_pgf, max_set, natom, nseta, nsetb, nsetc, stat, ncob,ncoc,sgfb,sgfc,k
+    INTEGER :: handle, iatom, iset, jatom, jpgf, jset, k, katom, kpgf, kset, &
+      max_pgf, max_set, natom, ncob, nseta, nsetb, nsetc, sgfb, stat
     INTEGER, DIMENSION(:), POINTER           :: lb_max, lb_min, lc_max, &
-                                                lc_min, npgfa, npgfb, npgfc,nsgfb,nsgfc
+                                                lc_min, npgfa, npgfb, npgfc, &
+                                                nsgfb, nsgfc
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
     LOGICAL                                  :: failure
-    REAL(dp), DIMENSION(:, :), POINTER       :: zetb, zetc, sphi_b, sphi_c
-    REAL(KIND=dp)                            :: max_val2, rb(3), &
-                                                rc(3),p2s_b,p2s_c
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
+    REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, sphi_c, zetb, zetc
+    REAL(KIND=dp)                            :: max_val2, p2s_b, p2s_c, &
+                                                rb(3), rc(3)
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b, &
                                                 orb_basis_c
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
-    REAL(dp), DIMENSION(:, :), ALLOCATABLE   :: contraction_max
-
 
     CALL timeset(routineN,handle)
 
@@ -577,28 +577,30 @@ MODULE four_center_integrals
 !!****************************************************************************
   SUBROUTINE compute_memory_needs(memory_blocks_ab,eps_schwarz,particle_set,atomic_kind_set,para_env,&
                                   screening_parameter,error)
-    INTEGER, DIMENSION(:,:), INTENT(OUT)      :: memory_blocks_ab
-    REAL(KIND=dp), INTENT(IN)                 :: eps_schwarz
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: memory_blocks_ab
+    REAL(KIND=dp), INTENT(IN)                :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
-       POINTER                                :: particle_set
+      POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
-       POINTER                                :: atomic_kind_set
-    TYPE(cp_para_env_type), POINTER           :: para_env
-    TYPE(x_hf_screening_type)                 :: screening_parameter
-    TYPE(cp_error_type), INTENT(inout)        :: error
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(x_hf_screening_type)                :: screening_parameter
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_memory_needs', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp), DIMENSION(:,:,:,:,:,:), POINTER :: screen_pgf
-    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER     :: screen_set
-    REAL(KIND=dp), DIMENSION(:,:), POINTER         :: screen_atom
-    REAL(KIND=dp)                                  :: max_val1,max_val2,screen_max
-    TYPE(gto_basis_set_type), POINTER              :: orb_basis
-    INTEGER :: stat,handle,iatom,jatom,katom,latom,natom,iset,jset,kset,lset
-    INTEGER :: nseta,nsetb,nsetc,nsetd,iblock, max_am
-    INTEGER, DIMENSION(:), POINTER :: nsgfa, nsgfb, nsgfc, nsgfd
-    LOGICAL :: failure, include_ab
+    INTEGER :: handle, iatom, iblock, iset, jatom, jset, katom, kset, latom, &
+      lset, max_am, natom, nseta, nsetb, nsetc, nsetd, stat
+    INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb, nsgfc, nsgfd
+    LOGICAL                                  :: failure, include_ab
+    REAL(KIND=dp)                            :: max_val1, max_val2, screen_max
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: screen_atom
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: screen_set
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :, :), POINTER   :: screen_pgf
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -731,8 +733,7 @@ MODULE four_center_integrals
     LOGICAL                                  :: failure
     REAL(dp) :: ene_x_aa, ene_x_bb, eps_schwarz, fac, hf_fraction, max_val1, &
       max_val2, max_val3, max_val4, memory_usage, prim, ra(3), rb(3), rc(3), &
-      rd(3), sa, sb, sc, sd, tmp1, tmp11, tmp2, tmp21, tmp3, tmp31, max_int_val, &
-      screen_max
+      rd(3), sa, sb, sc, screen_max, sd, tmp1, tmp11, tmp2, tmp21, tmp3, tmp31
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom, sphi_a, sphi_b, &
                                                 sphi_c, sphi_d, zeta, zetb, &
                                                 zetc, zetd
@@ -754,7 +755,6 @@ MODULE four_center_integrals
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node, block_node_beta
     TYPE(x_hf_screening_type)                :: screening_parameter
-
 
 ! many timings somewhat more clear
 
@@ -1353,9 +1353,9 @@ MODULE four_center_integrals
       npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfc, first_sgfd
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, screen_pmat_forces
     REAL(dp) :: eps_schwarz, fac, hf_fraction, max_val1, max_val2, ra(3), &
-      rb(3), rc(3), rd(3), temp1, temp1b, temp2, screen_max
+      rb(3), rc(3), rd(3), screen_max, temp1, temp1b, temp2
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a, sphi_b, sphi_c, &
                                                 sphi_d, work_forces, zeta, &
                                                 zetb, zetc, zetd
@@ -1364,9 +1364,12 @@ MODULE four_center_integrals
       POINTER                                :: primitive_forces
     REAL(dp), DIMENSION(:, :, :, :, :, :), &
       POINTER                                :: screen_pgf
+    REAL(KIND=dp)                            :: pmax_max
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
-                                                full_density_beta, &
+                                                full_density_beta, pmax_atom, &
                                                 screen_atom, sparse_block
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: pmax_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -1377,12 +1380,9 @@ MODULE four_center_integrals
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_block_node_type), POINTER      :: block_node
-    REAL(KIND=dp)                            :: pmax_max
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pmax_atom
-    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER :: pmax_set
-    LOGICAL                                  :: screen_pmat_forces
 
-    ! many timings somewhat more clear
+! many timings somewhat more clear
+
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
