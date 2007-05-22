@@ -3049,6 +3049,14 @@ l).",&
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SCREEN_PMAT_FORCES",&
+            description="Screens the 4-center integrals for the forces using the density matrix. "//&
+                        "This results in a significant speedup for large systems, "//&
+                        " but might require a somewhat tigher EPS_SCHWARZ_FORCES. ",&
+           usage="SCREEN_PMAT_FORCES TRUE", default_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        CALL keyword_create(keyword, name="OMEGA",&
             description="Parameter for screening via erfc/erf",&
             usage="OMEGA 0.5", default_r_val=0.0_dp,error=error)

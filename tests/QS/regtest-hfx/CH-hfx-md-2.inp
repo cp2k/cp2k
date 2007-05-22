@@ -22,7 +22,7 @@
        &HF
         EPS_SCHWARZ 1.0E-10
         MAX_MEMORY  10
-        SCREEN_PMAT_FORCES FALSE
+        SCREEN_PMAT_FORCES TRUE
        &END
     &END XC
   &END DFT

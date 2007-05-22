@@ -287,6 +287,7 @@ MODULE four_center_integrals
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b, &
                                                 orb_basis_c
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
+    REAL(dp), DIMENSION(:, :), ALLOCATABLE   :: contraction_max
 
 
     CALL timeset(routineN,handle)
@@ -319,9 +320,36 @@ MODULE four_center_integrals
     ALLOCATE(screen_atom(natom,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    ALLOCATE(contraction_max(max_set,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     screen_pgf=0.0_dp
     screen_set=0.0_dp
     screen_atom=0.0_dp
+    contraction_max=0.0_dp
+
+    DO jatom=1,natom
+
+      atom_kind => particle_set(jatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_b)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                             lmax=lb_max,&
+                             npgf=npgfb,&
+                             nset=nsetb,&
+                             first_sgf=first_sgfb,&
+                             sphi=sphi_b,&
+                             nsgf_set=nsgfb)
+      DO jset = 1,nsetb
+        ! takes the primitive to contracted transformation into account
+        ncob = npgfb(jset)*ncoset(lb_max(jset))
+        sgfb = first_sgfb(1,jset)
+        ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
+        ! the maximum value after multiplication with sphi_b
+        contraction_max(jset,jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,k))),k=sgfb,sgfb+nsgfb(jset)-1)/))
+      ENDDO
+    ENDDO
+
 
     DO jatom=1,natom
 
@@ -353,18 +381,10 @@ MODULE four_center_integrals
                                zet=zetc)
         rc=particle_set(katom)%r(:)
         DO jset = 1,nsetb
-          ! takes the primitive to contracted transformation into account
-          ncob = npgfb(jset)*ncoset(lb_max(jset))
-          sgfb = first_sgfb(1,jset)
-          ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
-          ! the maximum value after multiplication with sphi_b
-          p2s_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob,k))),k=sgfb,sgfb+nsgfb(jset)-1)/))
+          p2s_b = contraction_max(jset,jatom) 
 
           DO kset = 1,nsetc
-            ! takes the primitive to contracted transformation into account
-            ncoc = npgfc(kset)*ncoset(lc_max(kset))
-            sgfc = first_sgfc(1,kset)
-            p2s_c = MAXVAL((/(SUM(ABS(sphi_c(1:ncoc,k))),k=sgfc,sgfc+nsgfc(kset)-1)/))
+            p2s_c = contraction_max(kset,katom)
 
             DO jpgf = 1,npgfb(jset)
               DO kpgf = 1,npgfc(kset)
@@ -389,6 +409,148 @@ MODULE four_center_integrals
     CALL timestop(handle)
 
   END SUBROUTINE compute_screening_matrices
+!!***** four_center_integrals/compute_pmax_matrices [1.0] *
+!!
+!!   NAME
+!!     compute_pmax_matrices
+!!
+!!   FUNCTION
+!!     calculates the maximum of the density matrix in compressed form for screening purposes 
+!!
+!!   NOTES
+!!     - computes for each pair of shells the maximum absolute value of p
+!!
+!!   INPUTS
+!!     - screen_pmat_forces: if false just returns a matrix of 1.0_dp
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!    05.2007 created [Joost VandeVondele]
+!!
+!!****************************************************************************
+  SUBROUTINE compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
+              full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,error)
+
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: pmax_set
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: pmax_atom
+    REAL(KIND=dp)                            :: pmax_max
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: full_density, &
+                                                full_density_beta
+    LOGICAL, INTENT(IN)                      :: screen_pmat_forces
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_pmax_matrices', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, jatom, jset, katom, kset, max_set, mb, mc, natom, &
+      nsetb, nsetc, nsgfb_total, nsgfc_total, pb, pb1, pb2, pc, pc1, pc2, &
+      sgfb, sgfc, stat
+    INTEGER, DIMENSION(:), POINTER           :: last_sgf_global, nsgfb, nsgfc
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb, first_sgfc
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: pmax_tmp
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+
+    natom=SIZE(particle_set)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
+
+    ! create a mapping array of easy access to the density matrix elements
+    ALLOCATE(last_sgf_global(0:natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    last_sgf_global(0)=0
+    DO jatom=1,natom
+      atom_kind => particle_set(jatom)%atomic_kind
+ 
+      CALL get_atomic_kind(atomic_kind=atom_kind,&
+                           orb_basis_set=orb_basis_b)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                             nsgf=nsgfb_total)
+      last_sgf_global(jatom) = last_sgf_global(jatom-1)+nsgfb_total
+    END DO
+
+    ! allocate and compute pmax
+    ALLOCATE(pmax_set(max_set,max_set,natom,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(pmax_atom(natom,natom),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF (screen_pmat_forces) THEN
+
+       pmax_set=0.0_dp
+       pmax_atom=0.0_dp
+
+       DO jatom=1,natom
+
+         atom_kind => particle_set(jatom)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atom_kind,&
+                              orb_basis_set=orb_basis_b)
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_b,&
+                                nsgf=nsgfb_total,&
+                                nset=nsetb,& 
+                                first_sgf=first_sgfb,&
+                                nsgf_set=nsgfb)
+         pb1 = last_sgf_global(jatom) - nsgfb_total
+
+         DO katom = 1,natom
+           atom_kind => particle_set(katom)%atomic_kind
+           CALL get_atomic_kind(atomic_kind=atom_kind,&
+                                orb_basis_set=orb_basis_c)
+           CALL get_gto_basis_set(gto_basis_set=orb_basis_c,&
+                                  nsgf=nsgfc_total,&
+                                  nset=nsetc,&
+                                  first_sgf=first_sgfc,&
+                                  nsgf_set=nsgfc)
+           pc1 = last_sgf_global(katom) - nsgfc_total
+
+           DO jset = 1,nsetb
+             sgfb = first_sgfb(1,jset)
+             DO kset = 1,nsetc
+               sgfc = first_sgfc(1,kset)
+               pmax_tmp = 0.0_dp
+               DO mc = 1,nsgfc(kset)
+                  pc2 = mc+sgfc-1
+                  pc = pc1 + pc2
+                  DO mb = 1,nsgfb(jset)
+                     pb2 = mb+sgfb-1
+                     pb = pb1 + pb2
+                     pmax_tmp=MAX(pmax_tmp,ABS(full_density(pb,pc)))
+                     IF( ASSOCIATED(full_density_beta) ) pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(pb,pc)))
+                  ENDDO
+               ENDDO
+               pmax_set(jset,kset,jatom,katom) = pmax_tmp
+             END DO
+           END DO
+           pmax_atom(jatom,katom)=MAXVAL(pmax_set(1:nsetb,1:nsetc,jatom,katom))
+         END DO
+       END DO
+
+    ELSE
+
+       pmax_set=1.0_dp
+       pmax_atom=1.0_dp
+
+    ENDIF
+
+    pmax_max=MAXVAL(pmax_atom)
+
+    DEALLOCATE(last_sgf_global,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE compute_pmax_matrices
 !!***** four_center_integrals/compute_memory_needs [1.0] *
 !!
 !!   NAME
@@ -1215,11 +1377,18 @@ MODULE four_center_integrals
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_block_node_type), POINTER      :: block_node
+    REAL(KIND=dp)                            :: pmax_max
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pmax_atom
+    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER :: pmax_set
+    LOGICAL                                  :: screen_pmat_forces
 
+    ! many timings somewhat more clear
+    CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
     CALL section_vals_val_get(hf_section,"FRACTION",r_val=hf_fraction,error=error)
     CALL section_vals_val_get(hf_section,"EPS_SCHWARZ_FORCES",r_val=eps_schwarz,error=error)
+    CALL section_vals_val_get(hf_section,"SCREEN_PMAT_FORCES",l_val=screen_pmat_forces,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -1231,7 +1400,7 @@ MODULE four_center_integrals
                              maxsgf=maxsgf,&
                              maxnset=max_set,&
                              maxlgto=max_am)
-    
+
    
     CALL initialize_libderiv(deriv, max_am, error)
     
@@ -1277,7 +1446,12 @@ MODULE four_center_integrals
       CALL copy_local_sm_to_replicated_fm(rho%rho_ao(2)%matrix,full_density_beta)
       CALL symmetrize_matrix(full_density_beta,"upper_to_lower")
       CALL mp_sum(full_density_beta,para_env%group)
+    ELSE
+      NULLIFY(full_density_beta)
     END IF
+
+    CALL compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
+                  full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,error)
 
     ! 
     ! notice that we use eps_schwarz == EPS_SCHWARZ_FORCES
@@ -1401,8 +1575,9 @@ MODULE four_center_integrals
                     ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                     sgfd = first_sgfd(1,lset)
 
-                    max_val2 = max_val1 * screen_set(katom,latom,kset,lset)
-                    IF(max_val2<eps_schwarz) CYCLE
+                    max_val2 = max_val1 * screen_set(katom,latom,kset,lset) * &
+                               pmax_set(jset,kset,jatom,katom) * pmax_set(iset,lset,iatom,latom)
+                    IF(max_val2<eps_schwarz)  CYCLE
                     
                     ALLOCATE(primitive_forces(ncoa,ncob,ncoc,ncod,12),STAT=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1536,6 +1711,7 @@ MODULE four_center_integrals
       END DO !jatom
     END DO !iatom
 
+
     DEALLOCATE(last_sgf_global,screen_set, screen_pgf, screen_atom, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(full_density,STAT=stat)
@@ -1546,12 +1722,16 @@ MODULE four_center_integrals
     END IF
     DEALLOCATE(work_forces, atom_of_kind,kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pmax_set,pmax_atom,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     !
     ! this wraps to free_libint, but currently causes a segfault
     ! as a result, we don't call it, but some memory remains allocated
     !  
     ! CALL terminate_libderiv(deriv)
+
+    CALL mp_sync(para_env%group)
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE derivatives_four_center
