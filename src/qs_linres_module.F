@@ -178,8 +178,6 @@ CONTAINS
 
          CALL nmr_operators(nmr_env,qs_env,error=error)
          CALL nmr_do_nmr(nmr_env,p_env,qs_env,error=error)
-
-     STOP 'lr_calculation'
          CALL nmr_env_cleanup(nmr_env,error=error)
 
        END IF
@@ -224,7 +222,7 @@ CONTAINS
        IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
             REPEAT("=",77),&
-            "END LINRES CALCULATION",&
+            "ENDED LINRES CALCULATION",&
             REPEAT("=",77)
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,lr_section,&

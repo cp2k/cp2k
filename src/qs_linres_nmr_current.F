@@ -146,7 +146,7 @@ MODULE qs_linres_nmr_current
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: nmr_response_current,test_func
+  PUBLIC :: nmr_response_current
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_current'
 
@@ -209,13 +209,13 @@ CONTAINS
 
     DATA labels /'x','y','z'/
     INTEGER :: handle, homo, i_B, iao, iatom, idir, idir2, idir3, ii_B, &
-      iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr
+      iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr, output_unit
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
     REAL(dp)                                 :: alpha, dk(3), jrho_tot, &
                                                 maxocc, my_chi,&
                                                 rmu(3), rmu_dk(3), &
                                                 scale_fac, &
-                                                jrho_tot_G, jrho_tot_R
+                                                jrho_tot_G(3,3), jrho_tot_R(3,3)
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     TYPE(cell_type), POINTER                 :: cell
@@ -247,11 +247,7 @@ CONTAINS
                                                 density_matrix_iii
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: nmr_section
-!dbg
-    INTEGER :: num, numj, ig, output_unit
-    TYPE(pw_grid_type), POINTER              :: grid
-    INTEGER :: bo(2,3), i, k, j
-    REAL(dp) :: dr(3), rgrid(3)
+    REAL(dp), EXTERNAL                       :: DDOT
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -333,6 +329,8 @@ CONTAINS
       END IF
       nmr_env%chi_tensor = 0.0_dp
       nmr_env%chi_tensor_loc = 0.0_dp
+      jrho_tot_G = 0.0_dp
+      jrho_tot_R = 0.0_dp
 !-----------------------------------------------------------------------!
 
 ! Loop on the field direction
@@ -482,48 +480,15 @@ CONTAINS
                CALL coeff_scale(rho_rspace,scale_fac)
                CALL coeff_scale(rho_gspace,scale_fac)
 
-
-               jrho_tot_G = calculate_total_rho(rho_gspace)
-               jrho_tot_R = calculate_total_rho(rho_rspace)
+               jrho_tot_G(idir,i_B) = calculate_total_rho(rho_gspace)
+               jrho_tot_R(idir,i_B) = calculate_total_rho(rho_rspace)
 
                IF(output_unit>0) THEN
-                  WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j''(r):'&
-                       &//ACHAR(idir+119)//ACHAR(i_B+119)//' G-space=',&
-                       &jrho_tot_G,' R-space=',jrho_tot_R
+                  WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j_'&
+                       &//ACHAR(idir+119)//ACHAR(i_B+119)//'(r): G-space=',&
+                       &jrho_tot_G(idir,i_B),' R-space=',jrho_tot_R(idir,i_B)
                END IF
-
-!dbg
-!       numj = 300+i_B*10+idir
-!      bo = rho_rspace%pw%pw_grid%bounds_local
-!      dr = rho_rspace%pw%pw_grid%dr
-!      ig = 0
-!      DO k =  bo(1,3),bo(2,3)
-!        rgrid(3) = REAL(k-bo(1,3))*dr(3)
-!        DO j = bo(1,2), bo(2,2)
-!          rgrid(2) = REAL(j-bo(1,2))*dr(2)
-!          DO i =  bo(1,1), bo(2,1)
-!            rgrid(1) = REAL(i-bo(1,1))*dr(1)
-!            write(numj,'(3f12.6,f20.10)')  rgrid(1:3), &
-!                rho_rspace%pw%cr3d(i,j,k)
-!          END DO
-!        END DO
-!      END DO
-!dbg
-
-
-
-!dbg
-!      numj=100+i_B*10+idir
-!      write(numj,*)  ' CURRENT in G space ', i_B, idir
-!      grid => rho_gspace%pw%pw_grid
-!      DO ig = grid % first_gne0, grid % ngpts_cut_local
-!        write(numj,'(4f12.6,2f16.8)') grid%g(1,ig),grid%g(2,ig),&
-!                        grid%g(3,ig), grid%gsq(ig), rho_gspace%pw%cc(ig)
-!      END DO
-!dbg
-
-
-!  IF(.FALSE.,) THEN
+               !
                !Field gradient
                ! loop over the Gvec  components: x,y,z
                DO idir2 = 1,3
@@ -543,15 +508,8 @@ CONTAINS
                      CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3))
                   END IF
                END DO
-
-!dbg
-!   END IF  !false
-!dbg
             END DO  ! idir
-
-!dbg
-!   END IF  !false
-!dbg
+            !
             ! Deallocate buffer vectors
             DO idir = 1,3
                DEALLOCATE(vecbuf(idir)%array,STAT=istat)
@@ -595,17 +553,12 @@ CONTAINS
          ! this can be done by interpolation of the values of the grid
          ! on the required positions in real space
 
-!dbg
-!  IF(.FALSE.) THEN
-!dbg
          DO idir = 1,3
             CALL coeff_transform_space(shift_pw_gspace(idir),shift_pw_rspace)
             CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
                  i_B,idir,nmr_section,error=error)
          END DO
-!dbg
-!  ENDIF  !FALSE
-!dbg
+
          IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
               "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
 
@@ -642,6 +595,12 @@ CONTAINS
 
          END IF
       END DO  ! i_B
+      !
+      ! Integrated current response checksum
+      IF(output_unit>0) THEN
+         WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum R-integrated j=',&
+              SQRT(DDOT(9,jrho_tot_R(1,1),1,jrho_tot_R(1,1),1))
+      ENDIF
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
@@ -1349,57 +1308,6 @@ CONTAINS
                        idir=idir,ir=iiB,&
                        map_consistent=map_consistent,error=error)
                 END IF
-      ! The last term if idir=iiB or idir=iiiB
-      ! Either the decontracted mat_jp_rii{ab} or the decontracted mat_jp_riii{ab}
-      ! is multiplied by f_{ab} = g_{a} g_{b} (mind the sign)
-!dbg
- !               IF(idir==iiiB) THEN
-  IF(.FALSE.) THEN
-!dbg
-                  scale = 1.0_dp
-                  IF ( nthread > 1 ) THEN
-                     CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
-                          la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          eps_rho_rspace,&
-                          ga_gb_function=FUNC_AB,&
-                          lgrid=lgrid,ithread=ithread, &
-                          map_consistent=map_consistent,error=error)
-                  ELSE
-                     CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
-                          la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          eps_rho_rspace,&
-                          ga_gb_function=FUNC_AB,&
-                          map_consistent=map_consistent,error=error)
-                  END IF
-!dbg
-   ELSEIF(.FALSE.) THEN
- !               ELSEIF(idir==iiB) THEN
-!dbg
-                  scale = -1.0_dp
-                  IF ( nthread > 1 ) THEN
-                     CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
-                          la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          eps_rho_rspace,&
-                          ga_gb_function=FUNC_AB,&
-                          lgrid=lgrid,ithread=ithread, &
-                          map_consistent=map_consistent,error=error)
-                  ELSE
-                     CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
-                          la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
-                          rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          eps_rho_rspace,&
-                          ga_gb_function=FUNC_AB,&
-                          map_consistent=map_consistent,error=error)
-                  END IF
-
-                END IF   ! idir = iiB or iiiB
 
              END DO
 
@@ -1420,7 +1328,7 @@ CONTAINS
                   rs_rho(igrid_level)%rs_grid%r(lb(1),lb(2),j),1)
               END DO
             END DO
-          END IF
+           END IF
 
         END DO
 
@@ -1453,335 +1361,5 @@ CONTAINS
 
   END SUBROUTINE calculate_jrho_resp
 
-
-  SUBROUTINE test_func(qs_env,psi1,nmr_env,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: psi1
-    TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'test_func', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: cubecenter(3), homo, iao, &
-                                                idir, igrid_level, istat, &
-                                                istate, ix, iy, iz, lb(3), &
-                                                nao, ng(3), nmo, ub(3)
-    LOGICAL                                  :: failure, wavefunction
-    REAL(KIND=dp)                            :: dk(3), dr(3), mom(3), rdk(3), &
-                                                roffset(3), rpos(3), ry, rz, &
-                                                shift(3), sumr, sumrm(9)
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: grid
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: wf_g, wf_r
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
-    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work, mo_coeff
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, op_mom_ao
-    TYPE(REALSPACE_GRID_P_TYPE), &
-      DIMENSION(:), POINTER                  :: rs_rho
-
-    NULLIFY(auxbas_pw_pool, atomic_kind_set, cell, dft_control)
-    NULLIFY(mo_coeff, mos, particle_set, para_env, pw_env)
-    NULLIFY(matrix_s,op_mom_ao,fm_work)
-     CALL get_qs_env(qs_env=qs_env,&
-                     atomic_kind_set=atomic_kind_set,&
-                     cell=cell,&
-                     dft_control=dft_control,&
-                     matrix_s=matrix_s,mos=mos,&
-                     para_env=para_env,&
-                     particle_set=particle_set,&
-                     pw_env=pw_env,rho=rho,error=error)
-     CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=mo_coeff,&
-                     homo=homo, nmo=nmo, nao=nao)
-
-     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-     CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
-          use_data = REALDATA3D,&
-          in_space = REALSPACE, error=error)
-     CALL pw_pool_init_coeff(auxbas_pw_pool,wf_g,&
-          use_data = COMPLEXDATA1D,&
-          in_space = RECIPROCALSPACE, error=error)
-
-   ! *** set up the pw multi-grids
-     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
-     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, &
-          cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
-     CPPrecondition((gridlevel_info%ngrid_levels==1),cp_failure_level,routineN,error,failure)
-
-     ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
-              stat=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-     CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-                use_data = COMPLEXDATA1D,&
-                in_space = RECIPROCALSPACE, error=error)
-     CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
-                use_data = REALDATA3D,&
-                in_space = REALSPACE, error=error)
-
-     ! *** set up rs multi-grids
-     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
-
-     DO igrid_level=1,gridlevel_info%ngrid_levels
-        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-     END DO
-
-
-     grid = rs_rho(1)%rs_grid%r
-     dr(:) = rs_rho(1)%rs_grid%dr(:)
-     ng(:) = rs_rho(1)%rs_grid%npts(:)
-     lb(:) =  rs_rho(1)%rs_grid%lb(:)
-     ub(:) =  rs_rho(1)%rs_grid%ub(:)
-     shift(:) = -REAL(MODULO(ng,2),dp)*dr/2.0_dp
-
-     wavefunction = .FALSE.
-     IF(wavefunction) THEN
-     DO istate = 1,homo
-       WRITE(*,*) 'istate ', istate
-        CALL calculate_wavefunction(mo_coeff, istate,&
-                  wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
-                  pw_env, error=error)
-
-
-!       write(*,*) 'npoints ',  ng(1:3)
-!       write(*,*) 'dr      ',  dr(1:3)
-!       write(*,*) 'lb      ',  lb(1:3)
-!       write(*,*) 'ub      ',  ub(1:3)
-!       write(*,*) 'shift   ',  shift(1:3)
-!       write(*,*) 'size    ',  size(wf_r%pw%cr3d,1),size(wf_r%pw%cr3d,2),&
-!                               size(wf_r%pw%cr3d,3)
-!       write(*,*) 'vol ', wf_r%pw%pw_grid%dvol
-
-       dk(1:3) = nmr_env%centers_set(1)%array(1:3,istate)
-       dk(:) = pbc(dk,cell)
-
-       cubecenter(:) = FLOOR(dk(:)/dr(:))
-       roffset(:)    = dk(:) - REAL(cubecenter(:),dp)*dr(:)
-
-
-!       write(*,*) ' cubecenter ', cubecenter
-!       write(*,*) ' roffset    ', roffset
-       dk(1:3) = 10.0_dp
-       WRITE(*,*) ' dk ', dk
-       sumr  = 0.0_dp
-       sumrm = 0.0_dp
-       DO iz = lb(3),ub(3)
-          rz = REAL(iz,dp)*dr(3)
-          rpos(3) = rz + shift(3)
-          rdk(3) =MODULO(rpos(3)-dk(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
-
-          DO iy = lb(2),ub(2)
-             ry = REAL(iy,dp)*dr(2)
-             rpos(2) = ry + shift(2)
-             rdk(2) =MODULO(rpos(2)-dk(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
-
-            rpos(1) =  lb(1)*dr(1)+ shift(1)
-            rdk(1) =MODULO(rpos(1)-dk(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-            DO ix = lb(1),ub(1)
-!               rx = REAL(ix,dp)*dr(1)
-!               rpos(1) = rx + shift(1)
-!               rdk(1) =MODULO(rpos(1)-dk(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-!               rdk = pbc(dk,rpos,cell)
-
-!              write(1001,'(3f10.5,1PE10.5)') rx,ry,rz,wf_r%pw%cr3d(ix,iy,iz)
-!              write(1002,'(6f10.5,1PE10.5)') rx,ry,rz,rdk(1),rdk(2),rdk(3)
-               sumr = sumr + wf_r%pw%cr3d(ix,iy,iz)*wf_r%pw%cr3d(ix,iy,iz)
-               DO idir = 1,3
-                 sumrm(idir) = sumrm(idir) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(idir)* wf_r%pw%cr3d(ix,iy,iz)
-               END DO
-               sumrm(4) = sumrm(4) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(1)*rdk(1)* wf_r%pw%cr3d(ix,iy,iz)
-               sumrm(5) = sumrm(5) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(1)*rdk(2) * wf_r%pw%cr3d(ix,iy,iz)
-               sumrm(6) = sumrm(6) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(1)*rdk(3) * wf_r%pw%cr3d(ix,iy,iz)
-               sumrm(7) = sumrm(7) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(2)*rdk(2)* wf_r%pw%cr3d(ix,iy,iz)
-               sumrm(8) = sumrm(8) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(1)*rdk(3) * wf_r%pw%cr3d(ix,iy,iz)
-               sumrm(9) = sumrm(9) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(3)*rdk(3)* wf_r%pw%cr3d(ix,iy,iz)
-               rpos(1) = rpos(1) + dr(1)
-               rdk(1) =MODULO(rpos(1)-dk(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-
-            END DO
-
-          END DO
-
-       END DO
-       sumr = sumr*wf_r%pw%pw_grid%dvol
-       sumrm(1:9) = sumrm(1:9)*wf_r%pw%pw_grid%dvol
-        WRITE(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
-
-     END DO  ! istate
-    ELSE
-
-       CALL coeff_copy(rho%rho_r(1),wf_r)
-!       CALL pw_transfer(qs_env%rho_core%pw,wf_r%pw)
-       dk(1:3) = 10.0_dp
-       WRITE(*,*) ' dk ', dk
-       sumr  = 0.0_dp
-       sumrm = 0.0_dp
-       DO iz = lb(3),ub(3)
-          rz = REAL(iz,dp)*dr(3)
-          rpos(3) = rz + shift(3)
-          rdk(3) =MODULO(rpos(3)-dk(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
-
-          DO iy = lb(2),ub(2)
-             ry = REAL(iy,dp)*dr(2)
-             rpos(2) = ry + shift(2)
-             rdk(2) =MODULO(rpos(2)-dk(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
-
-            rpos(1) =  lb(1)*dr(1)+ shift(1)
-            rdk(1) =MODULO(rpos(1)-dk(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-            DO ix = lb(1),ub(1)
-!               rx = REAL(ix,dp)*dr(1)
-!               rpos(1) = rx + shift(1)
-!               rdk(1) =MODULO(rpos(1)-dk(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-!               rdk = pbc(dk,rpos,cell)
-
-!              write(1001,'(3f10.5,1PE10.5)') rx,ry,rz,wf_r%pw%cr3d(ix,iy,iz)
-!              write(1002,'(6f10.5,1PE10.5)') rx,ry,rz,rdk(1),rdk(2),rdk(3)
-               sumr = sumr + wf_r%pw%cr3d(ix,iy,iz)
-               DO idir = 1,3
-                 sumrm(idir) = sumrm(idir) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(idir)
-               END DO
-               sumrm(4) = sumrm(4) + &
-                     ABS(wf_r%pw%cr3d(ix,iy,iz))*rdk(1)*rdk(1)
-               sumrm(5) = sumrm(5) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(1)*rdk(2)
-               sumrm(6) = sumrm(6) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(1)*rdk(3)
-               sumrm(7) = sumrm(7) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(2)*rdk(2)
-               sumrm(8) = sumrm(8) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(2)*rdk(3)
-               sumrm(9) = sumrm(9) + &
-                     wf_r%pw%cr3d(ix,iy,iz)*rdk(3)*rdk(3)
-               rpos(1) = rpos(1) + dr(1)
-               rdk(1) =MODULO(rpos(1)-dk(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-
-            END DO
-
-          END DO
-
-       END DO
-       sumr = sumr*wf_r%pw%pw_grid%dvol
-       sumrm(1:9) = sumrm(1:9)*wf_r%pw%pw_grid%dvol/2.0_dp
-        WRITE(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
-
-    END IF
-
-!    CALL calc_stupid_dipole(qs_env%subsys,rho%rho_r,qs_env%rho_core%pw,&
-!               aux_bas_pool=auxbas_pw_pool,cell=cell,&
-!               unit_nr=6, error=error)
-
-     CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
-     CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g, error=error)
-
-
-     ! x  y z   x2 xy xz y2 yz z2 operators (in this order)
-     CALL allocate_matrix_set(op_mom_ao,9,error=error)
-     DO idir = 1,SIZE(op_mom_ao,1)
-       CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-            op_mom_ao(idir)%matrix,&
-            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            target_symmetry="symmetric",error=error)
-       CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
-     END DO
-     DO idir = 1,3
-       ALLOCATE(vecbuf(idir)%array(1,nao),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     END DO
-     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-           ncol_global=homo,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
-     CALL cp_fm_create (fm_work, tmp_fm_struct ,error=error)
-     CALL cp_fm_set_all(fm_work,0.0_dp,error=error)
-
-
-     CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,&
-                psi1(1)%matrix,ncol=homo,alpha=1.0_dp,error=error)
-     CALL cp_fm_gemm(transa='T',transb='N',n=homo,&
-                  m=homo,k=nao,alpha=1.0_dp,&
-                  matrix_a=mo_coeff, &
-                  matrix_b=psi1(1)%matrix,&
-                  beta=0.0_dp,matrix_c=fm_work,&
-                  error=error)
-
-
-     DO istate = 1,homo
-     sumr = 0.0_dp
-       DO iao = 1,nao
-          sumr = sumr + mo_coeff%local_data(iao,istate)*psi1(1)%matrix%local_data(iao,istate)
-       END DO
-       WRITE(*,*) 'istate ' , istate, sumr
-       WRITE(*,*) 'istate  ', istate,  fm_work%local_data(istate,istate)
-     END DO
-
-     DO istate = 1,homo
-       dk =  nmr_env%centers_set(1)%array(1:3,istate)
-       dk(:) = pbc(dk,cell)
-       dk = 10.0_dp
-       CALL rRc_xyz_ao(op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
-       mom(3)  = 0.0_dp
-       DO idir = 1,9
-         CALL cp_sm_fm_multiply(op_mom_ao(idir)%matrix,mo_coeff,&
-                psi1(1)%matrix,ncol=homo,alpha=1.0_dp,error=error)
-         CALL cp_fm_gemm(transa='T',transb='N',n=homo,&
-                  m=homo,k=nao,alpha=1.0_dp,&
-                  matrix_a=mo_coeff, &
-                  matrix_b=psi1(1)%matrix,&
-                  beta=0.0_dp,matrix_c=fm_work,&
-                  error=error)
-
-          WRITE(*,'(A,I4,A,I4,2f12.6)') 'istate  ', istate,' idir ', idir,  fm_work%local_data(istate,istate), sumrm(idir)
-!         CALL cp_fm_get_submatrix(psi1(1)%matrix,vecbuf(idir)%array,&
-!                1,istate,nao,1,transpose=.TRUE.,error=error)
-!         DO iao = 1,nao
-!           mom(idir) = mom(idir) + vecbuf(idir)%array(1,iao)
-!         END DO
-       END DO
-      STOP 'pippo'
-
-!       write(*,*) mom(1), mom(2), mom(3)
-      STOP 'pippo'
-     END DO  ! istate
-
-     DO idir = 1,3
-       DEALLOCATE(vecbuf(idir)%array,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     END DO
-     CALL deallocate_matrix_set(op_mom_ao,error=error)
-
-  END SUBROUTINE test_func
-
-
-!dbg
-!  *****************************************************************************************
 END MODULE qs_linres_nmr_current
 

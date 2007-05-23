@@ -1,9 +1,7 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
 
 !!****m* cp2k/qs_linres_methods *
 !!
@@ -28,7 +26,8 @@ MODULE qs_linres_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
-                                             cp_fm_trace
+                                             cp_fm_trace,&
+                                             cp_fm_frobenius_norm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -84,7 +83,6 @@ MODULE qs_linres_methods
 
   IMPLICIT NONE
 
-
   PRIVATE
 
   ! *** Public subroutines ***
@@ -118,39 +116,37 @@ CONTAINS
 !****************************************************************************
 
   SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,globenv,&
-             centers_only,error)
-
+                             centers_only,error)
+    !
     TYPE(localized_wfn_control_type), &
-      POINTER                                :: localized_wfn_control
+         POINTER                             :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: centers_only
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-
+    !
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, istate, n_mo(2), &
                                                 nelectron, nmoloc(2), &
                                                 output_unit
-    LOGICAL                                  :: failure, ionode, &
-                                                my_centers_only
+    LOGICAL                                  :: failure,my_centers_only
     REAL(dp)                                 :: maxocc
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+         POINTER                             :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section, lr_section
 
     failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%source==logger%para_env%mepos
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    lr_section  => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     loc_section => section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+                                       extension=".linresLog",error=error)
     my_centers_only = .FALSE.
     IF(PRESENT(centers_only)) my_centers_only = centers_only
     nmoloc(1:2) = 0
@@ -159,23 +155,22 @@ CONTAINS
        localized_wfn_control%set_of_states = state_loc_all
        localized_wfn_control%localization_method = do_loc_none
        localized_wfn_control%operator_type = op_loc_berry
-    END IF
+    ENDIF
 
-    CALL get_qs_env(qs_env=qs_env, mos=mos,error=error)
+    CALL get_qs_env(qs_env=qs_env,mos=mos,error=error)
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),&
-            nelectron=nelectron,maxocc=maxocc)
+                       nelectron=nelectron,maxocc=maxocc)
        IF(localized_wfn_control%set_of_states == state_loc_all) THEN
-         nmoloc(ispin) = NINT(nelectron/maxocc)
+          nmoloc(ispin) = NINT(nelectron/maxocc)
        ELSE
-         nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))
-       END IF
-    END DO  ! ispin
+          nmoloc(ispin) = MIN(localized_wfn_control%nloc_states(1) ,n_mo(ispin))
+       ENDIF
+    ENDDO  ! ispin
     CALL set_loc_wfn_lists(localized_wfn_control,&
-         nmoloc,n_mo,nspins,error=error)
+                           nmoloc,n_mo,nspins,error=error)
     CALL set_loc_centers(localized_wfn_control,nmoloc,&
-         nspins,globenv,qs_env%input,error=error)
-
+                         nspins,globenv,qs_env%input,error=error)
     CALL qs_loc_env_create(qs_loc_env,error=error)
     CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,error=error)
     ! The localized orbitals are copied in the mos,
@@ -183,21 +178,14 @@ CONTAINS
     CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,error=error)
     CALL qs_loc_env_release(qs_loc_env, error=error)
 
-!dbg
-! Set all centers to zero just to try
-!    DO ispin = 1,nspins
-!    DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
-!      localized_wfn_control%centers_set(ispin)%array(1:3,istate) = 15.11_dp
-!    END DO
-!    END DO
-!dbg
-
     ! Write Centers and Spreads on std out
     IF(output_unit > 0) THEN
       DO ispin = 1,nspins
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,I2)")&
+           "WANNIER CENTERS for spin ",ispin
         WRITE (UNIT=output_unit,FMT="(/,T18,A,3X,A)")&
-           "--------   WANNIER  CENTERS  --------- ",&
-           "-------- Spread  <X^2>-<X><X> --------- "
+           "--------------- Centers --------------- ",&
+           "--------------- Spreads --------------- "
         DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
           WRITE(UNIT=output_unit,FMT="(T5,A6,I6,2X,3f12.6,5X,3f12.6)")&
            'state ', istate,localized_wfn_control%centers_set(ispin)%array(1:3,istate),&
@@ -229,292 +217,212 @@ CONTAINS
 !!     07.2005 created [MI]
 !!
 !****************************************************************************
-
   SUBROUTINE linres_scf(p_env, qs_env, psi1, h1_psi0, error)
-
+    !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: psi1, h1_psi0
+         POINTER                             :: psi1, h1_psi0
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-
+    !
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, homo, i, ik, ispin, &
-                                                istat, iter, last_ik, nao, &
-                                                nvectors, output_unit
-    LOGICAL                                  :: energy_only, failure, ionode, &
-                                                vec_zero
-    REAL(dp)                                 :: eps_perturbation, &
-                                                max_input_norm, out_of_ortho, &
-                                                tmp
-    REAL(dp), DIMENSION(:), POINTER          :: occupations, vectorsnorm
-    REAL(KIND=dp)                            :: tmp1, tmp2
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+         routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle,homo,i,ispin, &
+                                                istat,iter,nao,&
+                                                nvectors,output_unit
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: out_of_ortho,tmp,tmp1,&
+                                                tmp2,norm,norm_max
+    REAL(dp), DIMENSION(:), POINTER          :: occupations
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: Ab, b, R, X
+         POINTER                             :: Ab,b,R,X
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: ao_mo_fm_pools
+         POINTER                             :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+         POINTER                             :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+         POINTER                             :: matrix_s
     TYPE(section_vals_type), POINTER         :: lr_section
+    !
+    failure = .FALSE.
+    CALL timeset(routineN,"I","",handle)
+   
+    NULLIFY(ao_mo_fm_pools,dft_control,linres_control)
+    NULLIFY(matrix_s,mos,mpools,para_env)
+    NULLIFY(Ab,b,logger,R,X,lr_section)
 
-     failure   = .FALSE.
-     energy_only = .FALSE.
-     CALL timeset(routineN,"I","",handle)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
-     NULLIFY(ao_mo_fm_pools, blacs_env, dft_control, linres_control)
-     NULLIFY(matrix_s, mos, mpools, para_env)
-     NULLIFY(Ab, b, logger,  R, X, lr_section)
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
+                    linres_control=linres_control,&
+                    matrix_s=matrix_s,&
+                    mpools=mpools,&
+                    mos=mos,&
+                    para_env=para_env,&
+                    error=error)
 
-     logger    => cp_error_get_logger(error)
-     ionode    = (logger%para_env%mepos==logger%para_env%source)
-     output_unit  = cp_logger_get_default_unit_nr(logger)
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+                                       extension=".linresLog",error=error)
+    !
+    ! Reset the stepsize linres_control%ds_min, this value changes in linres_scf_mini
+    CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min,error=error)
+    !
+    CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
+    !
+    ! allocate the vectors
+    CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools,error=error)
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X",error=error)
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R",error=error)
+    !
+    ! The storage of older vectors and residues depends on the optimization algorithm (DIIS,PCG..)
+    ALLOCATE(b(dft_control%nspins),Ab(dft_control%nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    DO ispin=1,dft_control%nspins
+       NULLIFY(b(ispin)%matrix,Ab(ispin)%matrix)
+    ENDDO
+    DO ispin=1, dft_control%nspins
+       b(ispin)%matrix => psi1(ispin)%matrix
+       CALL fm_pool_create_fm(ao_mo_fm_pools(ispin)%pool,&
+                              Ab(ispin)%matrix,&
+                              name="Ab"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                              error=error)
+    ENDDO
+    !
+    !Orthogonalize with respect to the psi0 if needed
+    norm_max = 0.0_dp
+    DO ispin = 1,dft_control%nspins
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nao=nao )
+       CALL cp_fm_set_all(Ab(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_sm_fm_multiply(matrix_s(1)%matrix,b(ispin)%matrix,&
+                              X(ispin)%matrix,ncol=homo,alpha=1.0_dp,& ! X a buffer
+                              error=error)
+       CALL cp_fm_gemm(transa='T',transb='N',n=homo,&
+                       m=homo,k=nao,alpha=1.0_dp,&
+                       matrix_a=mos(ispin)%mo_set%mo_coeff, &
+                       matrix_b=X(ispin)%matrix,&
+                       beta=0.0_dp,matrix_c=Ab(ispin)%matrix,& ! Ab a buffer
+                       error=error)
+       CALL cp_fm_frobenius_norm(Ab(ispin)%matrix,norm,error)
+       norm_max = MAX(norm_max,norm)
+    ENDDO
+    IF(norm_max.GT.1.0E-10_dp) THEN
+       CALL p_preortho(p_env,qs_env,b(:),error=error)
+       IF(output_unit>0) WRITE(output_unit,'(T3,A)') 'WARNING: the psi1_guess '//&
+            & 'has been re-orthogonalized.'
+    ENDIF
+    !
+    IF(output_unit>0) THEN
+       WRITE(UNIT=output_unit,&
+             FMT="(/,T3,A,T10,A,T20,A,T38,A,T57,A,T82,A,/,T3,A)")&
+             "Iter.","Method","Stepsize","G-norm","Convergence","Total energy",&
+             REPEAT("-",77)
+    ENDIF
+    ! Multiply the right part of the equation by the occupation numbers
+    !DO ispin = 1, dft_control%nspins
+    !   CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+    !                   occupation_numbers=occupations )
+    !   !CALL cp_fm_column_scale(h1_psi0(ispin)%matrix, occupations)
+    !ENDDO
 
-     CALL get_qs_env(qs_env=qs_env,  blacs_env=blacs_env, &
-                     dft_control= dft_control, &
-                     linres_control=linres_control,&
-                     matrix_s=matrix_s,&
-                     mpools=mpools, mos=mos,&
-                     para_env=para_env,error=error)
-     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
-     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-          extension=".linresLog",error=error)
-
-     !----------------------!
-     ! allocate the vectors !
-     !----------------------!
-     CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools,error=error)
-     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X",error=error)
-     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R",error=error)
-
-
-     ! The storage of older vectors and residues depends on the optimization algorithm (DIIS,PCG..)
-     nvectors = 1
-     ALLOCATE(b(dft_control%nspins), Ab(dft_control%nspins), STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-     DO ispin=1,dft_control%nspins
-        NULLIFY(b(ispin)%matrix, Ab(ispin)%matrix )
-     END DO
-     DO ispin=1, dft_control%nspins
-
-        b(ispin)%matrix => psi1(ispin)%matrix
-
-        CALL fm_pool_create_fm(ao_mo_fm_pools(ispin)%pool,&
-               Ab(ispin)%matrix,&
-               name="Ab"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
-     END DO
-
-!    Scaling input for conditioning
-     IF(.NOT.  linres_control%do_kernel) THEN
-     ! Check the max size of the perturbation operator matrix elements
-       max_input_norm = 0.0_dp
-       eps_perturbation = 1.0E-10_dp
-       DO ispin = 1,dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nao=nao )
-         CALL cp_sm_fm_multiply(matrix_s(1)%matrix,h1_psi0(ispin)%matrix,&
-              X(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
-         CALL cp_fm_gemm(transa='T',transb='N',n=homo,&
-                  m=homo,k=nao,alpha=1.0_dp,&
-                  matrix_a=h1_psi0(ispin)%matrix, &
-                  matrix_b=X(ispin)%matrix,&
-                  beta=0.0_dp,matrix_c=Ab(ispin)%matrix,&
-                  error=error)
-
-         ALLOCATE(vectorsnorm(homo), STAT=istat)
-         DO i=1,homo
-           CALL cp_fm_get_element(Ab(ispin)%matrix,i,i,vectorsnorm(i))
-!           write(*,*) i , vectorsnorm(i),sqrt(vectorsnorm(i))
-           max_input_norm = MAX(max_input_norm,SQRT(vectorsnorm(i)))
-         END DO
-         DEALLOCATE(vectorsnorm,STAT=istat)
-       END DO
-
-       ! If too small set solution to zero and return
-       IF(max_input_norm .LT. eps_perturbation) THEN
-         DO ispin = 1,dft_control%nspins
-           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-         END DO
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(T10,A/)")&
-           "The Perturbation is too small, psi1 remain zero. "
-         END IF
-         RETURN
-       END IF
-!      max_input_norm = 1.0_dp / max_input_norm
-!       DO ispin = 1,dft_control%nspins
-!         CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
-!       END DO
-!       IF(output_unit>0) THEN
-!          WRITE (UNIT=output_unit,FMT="(T10,A,f16.8/)")&
-!            "Scaling factor applied to H1 :",max_input_norm
-!       ENDIF
-
-     END IF
-
-!    Reset the stepsize linres_control%ds_min,
-     CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min,error=error)
-
-     CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
-
-    !Orthogonalize with respect to the psi0
-     vec_zero = .FALSE.
-     DO ispin = 1, dft_control%nspins
-       CALL cp_fm_maxabsval(b(ispin)%matrix,tmp,error=error)
-       IF(tmp<=EPSILON(1.0_dp)) THEN
-         vec_zero = .TRUE.
-       END IF
-     END DO
-     IF(.NOT. vec_zero) THEN
-       CALL p_preortho(p_env, qs_env, b(:),error=error)
-       CALL normalize(b(:), R, matrix_s,error=error) ! R is temp
-     END IF
-
-     IF(output_unit>0) THEN
-       WRITE (UNIT=output_unit,&
-            FMT="(/,T3,A,T10,A,T20,A,T38,A,T57,A,T82,A,/,T3,A)")&
-            "Iter.","Method","Stepsize","G-norm","Convergence","Total energy",&
-            REPEAT("-",77)
-     END IF
-
-     ! Multiply the right part of the equation by the occupation numbers
-     DO ispin = 1, dft_control%nspins
-       CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-                       occupation_numbers=occupations )
-!       CALL cp_fm_column_scale(h1_psi0(ispin)%matrix, occupations)
-     END DO
-
-     ik = 1
-     last_ik = 1
-     iteration: DO  iter = 1,linres_control%max_scf
-
-       p_env%etotal = 0.0_dp
-       p_env%gnorm = 0.0_dp
+    iteration: DO iter = 1,linres_control%max_scf
+       !
+       p_env%etotal   = 0.0_dp
+       p_env%gnorm    = 0.0_dp
        p_env%gradient = 0.0_dp
-
+       !
        ! Apply the operators that do not depend on the perturbation
-       CALL apply_op(b, Ab(:), p_env, qs_env, linres_control%do_kernel,error=error)
-
+       CALL apply_op(b,Ab(:),p_env,qs_env,linres_control%do_kernel,error=error)
+       !
        ! Apply the perturbative operator
        DO ispin=1, dft_control%nspins
-         ! Multiply the left part of the equation by the occupation numbers
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-                          occupation_numbers=occupations )
-!          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
+          ! Multiply the left part of the equation by the occupation numbers
+          !CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+          !                occupation_numbers=occupations )
+          ! CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
           CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp1,error)
-          CALL cp_fm_trace(psi1(ispin)%matrix, h1_psi0(ispin)%matrix,tmp2,error)
-! dbg
-!          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,Ab(ispin)%matrix,&
-!                X(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
-!          CALL cp_fm_trace(psi1(ispin)%matrix,X(ispin)%matrix,tmp1,error)
-!          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,h1_psi0(ispin)%matrix,&
-!               X(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
-!          CALL cp_fm_trace(psi1(ispin)%matrix,X(ispin)%matrix,tmp2,error)
-!dbg
-          CALL cp_fm_scale_and_add(+1.0_dp, Ab(ispin)%matrix, &
-                                   +1.0_dp, h1_psi0(ispin)%matrix,error=error) ! add h1_psi0 to Ab
-!        Total perturbation energy :
-!                \sum_kl <psi1_k|H_0 d_kl-lambda_kl|psi1_l> +
-!                 sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
-!        Since H_1 and psi1_k are purely imaginary the second term is
-!                        2*\sum_k <psi1_k|H_1|psi0_k>
-! write(*,*) 'ene ', tmp1,tmp2
+          CALL cp_fm_trace(psi1(ispin)%matrix,h1_psi0(ispin)%matrix,tmp2,error)
+          ! add h1_psi0 to Ab
+          CALL cp_fm_scale_and_add(1.0_dp,Ab(ispin)%matrix, &
+                                   1.0_dp,h1_psi0(ispin)%matrix,error=error)
+          ! Total perturbation energy :
+          !         \sum_kl <psi1_k|H_0 d_kl-lambda_kl|psi1_l> +
+          !          sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
+          ! Since H_1 and psi1_k are purely imaginary the second term is
+          !                 2*\sum_k <psi1_k|H_1|psi0_k>
           p_env%etotal = p_env%etotal + tmp1+2.0_dp*tmp2
-       END DO
-
+       ENDDO
+       !
        !minimization
        CALL linres_scf_mini(p_env,qs_env,linres_control,b,Ab,&
-            dft_control%nspins,iter,error=error)
+                            dft_control%nspins,iter,error=error)
 
        IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,&
-            FMT="(T2,I5,T11,A,T20,1E8.2,T30,3F20.10)")&
-            iter, linres_control%flag,linres_control%ds_min, &
-            p_env%gnorm,  p_env%delta, p_env%etotal
-       END IF
-
-    !  Check ortho
+          WRITE(output_unit,"(T2,I5,T11,A,T20,1E8.2,T30,3F20.10)")&
+                iter,linres_control%flag,linres_control%ds_min, &
+                p_env%gnorm,p_env%delta,p_env%etotal
+       ENDIF
+       !
+       ! Check ortho
        IF(linres_control%check_ortho) THEN
-         DO ispin=1, dft_control%nspins
-           CALL  cp_fm_gemm('T','N',p_env%n_mo(ispin),p_env%n_mo(ispin),p_env%n_ao(ispin),&
-                1.0_dp,p_env%S_psi0(ispin)%matrix,&
-                b(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix,error=error)
-           out_of_ortho = 0.0_dp
-           CALL cp_fm_maxabsval(p_env%buf2(ispin)%matrix,out_of_ortho,error=error)
-           IF(out_of_ortho .GT. 1.0E-10_dp) THEN
-             IF(output_unit>0) THEN
-               WRITE (UNIT=output_unit,FMT="(T3,A,E15.5)")&
-               "WARNING: orthogonality not satisfied, max val |<psi1_k | psi0_l>|= ", out_of_ortho
-                WRITE (UNIT=output_unit,FMT="(T3,A,/)") "The orthogonalization should be refined"
-             END IF
-            !Refine the orthogonalization constraint
-  !           CALL p_postortho
-          END IF
-         END DO
-       END IF
-
+          DO ispin=1, dft_control%nspins
+             CALL cp_fm_gemm('T','N',p_env%n_mo(ispin),p_env%n_mo(ispin),p_env%n_ao(ispin),&
+                             1.0_dp,p_env%S_psi0(ispin)%matrix,&
+                             b(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix,error=error)
+             out_of_ortho = 0.0_dp
+             CALL cp_fm_frobenius_norm(p_env%buf2(ispin)%matrix,out_of_ortho,error)
+             IF(out_of_ortho.GT.1.0E-10_dp) THEN
+                IF(output_unit>0) THEN
+                   WRITE(output_unit,'(T3,A,E15.5)')&
+                        "WARNING: orthogonality not satisfied, |psi1*S*psi0|_f=", out_of_ortho
+                ENDIF
+             ENDIF
+          ENDDO
+       ENDIF
+       !
        !Check Convergence
        IF(iter /= 1) THEN
-         IF(p_env%delta .LT. 1.E-5_dp) THEN !linres_control%eps_scf
-           ! The opt has converged to a min.
-           IF(output_unit>0) THEN
-              WRITE (UNIT=output_unit,FMT="(T10,A,I4,A,/)")&
-             "The SCF has converged in ", iter, " iterations"
-           END IF
-           linres_control%converged = .TRUE.
-           EXIT iteration
-         END IF
-       END IF
-
+          IF(p_env%delta.LT.linres_control%eps_scf) THEN
+             ! The opt has converged to a min.
+             IF(output_unit>0) THEN
+                WRITE(output_unit,"(T10,A,I4,A,/)")&
+                     "The SCF has converged in ", iter, " iterations"
+             ENDIF
+             linres_control%converged = .TRUE.
+             EXIT iteration
+          ENDIF
+       ENDIF
+       !
        ! Max number of iteration reached, write restart and exit
        IF(iter == linres_control%max_scf) THEN
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(T10,A/)")&
-           "SCF has not converged: the max. number of iterations has been reached "
-         END IF
+          IF(output_unit>0) THEN
+             WRITE (output_unit,"(T10,A/)")&
+                  "SCF has not converged: the max. number of iterations has been reached "
+          ENDIF
           linres_control%converged = .FALSE.
        ENDIF
-
-     END DO  iteration
-
-!    Scaling output
-!     max_input_norm = 1._dp/max_input_norm
-!     IF(output_unit>0) THEN
-!        WRITE (UNIT=output_unit,FMT="(T10,A,f16.8/)")&
-!            "Scaling factor applied to c1 :",max_input_norm
-!     ENDIF
-!     DO ispin = 1,dft_control%nspins
-!       CALL cp_fm_scale(max_input_norm,psi1(ispin)%matrix,error=error)
-!     END DO
-!     IF(output_unit>0) THEN
-!        WRITE (UNIT=output_unit,FMT="(T10,A,f16.8/)")&
-!           "Total energy correction :",p_env%etotal*max_input_norm*max_input_norm
-!     ENDIF
-
-    !----------!
-    ! clean up !
-    !----------!
-     DO ispin=1, dft_control%nspins
-        NULLIFY(b(ispin)%matrix)
-        IF (ASSOCIATED(Ab(ispin)%matrix)) CALL cp_fm_release(Ab(ispin)%matrix,error=error)
-     END DO
-     DEALLOCATE(b, Ab, STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X,error=error)
-     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R,error=error)
-     NULLIFY(X, R, b, Ab)
-     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-          "PRINT%PROGRAM_RUN_INFO",error=error)
+    ENDDO  iteration
+    !
+    ! clean up
+    DO ispin=1, dft_control%nspins
+       NULLIFY(b(ispin)%matrix)
+       IF(ASSOCIATED(Ab(ispin)%matrix)) CALL cp_fm_release(Ab(ispin)%matrix,error=error)
+    END DO
+    DEALLOCATE(b,Ab,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X,error=error)
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R,error=error)
+    NULLIFY(X, R, b, Ab)
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+                                      "PRINT%PROGRAM_RUN_INFO",error=error)
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE linres_scf

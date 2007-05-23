@@ -131,17 +131,19 @@ MODULE qs_linres_nmr_utils
 CONTAINS
 
   SUBROUTINE nmr_do_nmr(nmr_env,p_env,qs_env,error)
-
+    !
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-
+    !
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, idir, ii, iii, ispin, ist_true, istat, istate, &
-      istate2, nao, ncubes, nmo, nstates(2), output_unit
+    INTEGER                                  :: handle, homo, idir, ii, iii, &
+                                                ispin, ist_true, istat, istate, &
+                                                istate2, nao, ncubes, nmo, &
+                                                nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
     INTEGER, DIMENSION(:, :), POINTER        :: statetrueindex
     LOGICAL                                  :: failure, ionode
@@ -150,14 +152,14 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
-      POINTER                                :: centers_set
+         POINTER                             :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: h1_psi0, psi1
+         POINTER                             :: h1_psi0, psi1
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: p_psi0, psi1_D, psi1_p, &
+         POINTER                             :: p_psi0, psi1_D, psi1_p, &
                                                 psi1_rxp, rxp_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: ao_mo_fm_pools
+         POINTER                             :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii, &
                                                 mo_coeff
@@ -166,13 +168,13 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+         POINTER                             :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
 
     failure   = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
-
+    
     NULLIFY(ao_mo_fm_pools, cell, dft_control, linres_control, lr_section, nmr_section)
     NULLIFY(logger, mpools, psi1,h1_psi0, vecbuf_dklxp0, mos, mo_coeff,para_env )
     NULLIFY(fm_work_ii, fm_work_iii, tmp_fm_struct, dkl_vec_ii,dkl_vec_iii )
@@ -208,8 +210,8 @@ CONTAINS
 
     !Check if restart and from where
     IF(nmr_env%restart_nmr) THEN
-!       CALL nmr_restart_nmr(nmr_env,qs_env,action="read",error=error)
-    END IF
+       !CALL nmr_restart_nmr(nmr_env,qs_env,action="read",error=error)
+    ENDIF
 
     CALL get_nmr_env(nmr_env=nmr_env, nao=nao, nstates=nstates, &
                      centers_set=centers_set, list_cubes=list_cubes,&
@@ -222,285 +224,264 @@ CONTAINS
        CALL cp_fm_set_all(psi1_p(1,idir)%matrix,0.0_dp,error=error)
     END DO
     DO idir = 1,3
-      IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
+       IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
 
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(T10,A,I4/)")&
-           "Response to the perturbation operator p in dir. ", idir
-         END IF
+          IF(output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT="(T10,A)")&
+                  "Response to the perturbation operator P_"//ACHAR(idir+119)
+          END IF
 
-        !Initial guess for psi1
-        !Maybe it could be better than this
-      !   IF(idir==1) THEN
-           DO ispin = 1,dft_control%nspins
+          !Initial guess for psi1
+          DO ispin = 1,dft_control%nspins
              CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-      !       CALL cp_fm_to_fm(p_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
-      !       CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
-           END DO
-      !   END IF
+             !CALL cp_fm_to_fm(p_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
+             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+          ENDDO
 
-         !DO scf cycle to optimize psi1
-         DO ispin = 1,dft_control%nspins
-           CALL cp_fm_to_fm(p_psi0(ispin,idir)%matrix, h1_psi0(ispin)%matrix,error=error)
-         END DO
-         linres_control%converged = .FALSE.
-         CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+          !DO scf cycle to optimize psi1
+          DO ispin = 1,dft_control%nspins
+             CALL cp_fm_to_fm(p_psi0(ispin,idir)%matrix, h1_psi0(ispin)%matrix,error=error)
+          END DO
 
-         IF(output_unit>0) THEN
-            WRITE(output_unit,'(T10,A,E24.16)') 'Second order energy P_'//ACHAR(idir+119)//'=',&
-                 & p_env%etotal
-         END IF
+          linres_control%converged = .FALSE.
+          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
-! debug routine
-!         CALL test_func(qs_env,psi1,nmr_env,error)
+          IF(output_unit>0) THEN
+             WRITE(output_unit,'(T10,A,E24.16)') 'Second order energy P_'//ACHAR(idir+119)//'=',&
+                  & p_env%etotal
+          ENDIF
 
-         IF(linres_control%converged) THEN
+          IF(linres_control%converged) THEN
 
-          ! the optimized wfns are copied in the  fm
-           IF(output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-             "Store the psi1 for the calculation of the response current density "
-           END IF
-           DO ispin=1, dft_control%nspins
-             CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_p(ispin,idir)%matrix,error=error)
-           END DO
+             ! the optimized wfns are copied in the  fm
+             IF(output_unit>0) THEN
+                WRITE (UNIT=output_unit,FMT="(T10,A)")&
+                     "Store the psi1 for the calculation of the response current density "
+             ENDIF
+             DO ispin=1, dft_control%nspins
+                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_p(ispin,idir)%matrix,error=error)
+             ENDDO
 
-         ! print response functions
-           IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-              "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
-              ncubes = SIZE(list_cubes,1)
-              DO ispin = 1,dft_control%nspins
-                CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                     centers_set(ispin)%array,ionode,'psi1_p',&
-                     idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
-                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),error=error)
-              END DO  ! ispin
-           END IF  ! print response functions
-         END IF
+             ! print response functions
+             IF(BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+                  "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+                ncubes = SIZE(list_cubes,1)
+                DO ispin = 1,dft_control%nspins
+                   CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
+                                       centers_set(ispin)%array,ionode,'psi1_p',&
+                                       idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
+                                       "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),error=error)
+                ENDDO  ! ispin
+             ENDIF  ! print response functions
+          ENDIF
 
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-            "Write the resulting psi1 in restart file "
-         END IF
-         ! Write the result inthe restart file
-         nmr_env%simplenmr_done(idir) = .TRUE.
-         nmr_env%simplenmr_converged(idir) = linres_control%converged
-!        CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir,error=error)
-
-      END IF
-    END DO ! idir
+          IF(output_unit>0) THEN
+             WRITE (output_unit,"(T10,A)")&
+                  "Write the resulting psi1 in restart file "
+          ENDIF
+          ! Write the result in the restart file
+          nmr_env%simplenmr_done(idir) = .TRUE.
+          nmr_env%simplenmr_converged(idir) = linres_control%converged
+          !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir,error=error)
+       ENDIF
+    ENDDO ! idir
 
     ! operator rxp
     DO idir = 1,3
        CALL cp_fm_set_all(psi1_rxp(1,idir)%matrix,0.0_dp,error=error)
     END DO
 
-    DO idir = 1,3 !-3
+    DO idir = 1,3
 
-      IF(.NOT. nmr_env%simplenmr_done(idir+3)) THEN
+       IF(.NOT. nmr_env%simplenmr_done(idir+3)) THEN
 
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(T10,A,I4/)")&
-           "Response to the perturbation operator rxp in dir. ", idir
-         END IF
+          IF(output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT="(T10,A)")&
+                  "Response to the perturbation operator L_"//ACHAR(idir+119)
+          END IF
 
-         !Initial guess for psi1
-         !Maybe it could be better than this
-         DO ispin = 1,dft_control%nspins
-           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-!             CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
-!             CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
-         END DO
+          !Initial guess for psi1
+          DO ispin = 1,dft_control%nspins
+             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+             !CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
+             !CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+          END DO
 
-         !DO scf cycle to optimize psi1
-         DO ispin = 1,dft_control%nspins
-            CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, h1_psi0(ispin)%matrix,error=error)
-!dpg
-            ! print perturbation operator
-!            ncubes = SIZE(list_cubes,1)
-!            CALL qs_print_cubes(qs_env,h1_psi0(ispin)%matrix,ncubes,list_cubes,&
-!                     centers_set(ispin)%array,ionode,'pert_rxp',&
-!                     idir=idir,ispin=ispin, stride=section_get_ival(nmr_section,&
-!                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
-!dpg
-         END DO
+          !DO scf cycle to optimize psi1
+          DO ispin = 1,dft_control%nspins
+             CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, h1_psi0(ispin)%matrix,error=error)
+          END DO
 
-         ! Optimize the response wavefunctions
-         linres_control%converged = .FALSE.
-         CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+          linres_control%converged = .FALSE.
+          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
-         IF(output_unit>0) THEN
-            WRITE(output_unit,'(T10,A,E24.16)') 'Second order energy L_'//ACHAR(idir+119)//'=',&
-                 & p_env%etotal
-         END IF
+          IF(output_unit>0) THEN
+             WRITE(output_unit,'(T10,A,E24.16)') 'Second order energy L_'//ACHAR(idir+119)//'=',&
+                  & p_env%etotal
+          END IF
 
-         IF(linres_control%converged) THEN
+          IF(linres_control%converged) THEN
 
-           !   the optimized wfns are copied in the  fm
-           IF(output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-             "Store the psi1 for the calculation of the response current density "
-           END IF
-           DO ispin=1, dft_control%nspins
-             CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_rxp(ispin,idir)%matrix,error=error)
-           END DO
-           ! print response functions
-           IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-              "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
-              ncubes = SIZE(list_cubes,1)
-              DO ispin = 1,dft_control%nspins
-                CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                     centers_set(ispin)%array,ionode,'psi1_rxp',&
-                     idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
-                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),error=error)
-              END DO  ! ispin
-           END IF  ! print response functions
+             !   the optimized wfns are copied in the  fm
+             IF(output_unit>0) THEN
+                WRITE(output_unit,"(T10,A)")&
+                     "Store the psi1 for the calculation of the response current density "
+             ENDIF
+             DO ispin=1, dft_control%nspins
+                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_rxp(ispin,idir)%matrix,error=error)
+             ENDDO
+             ! print response functions
+             IF(BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+                  "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+                ncubes = SIZE(list_cubes,1)
+                DO ispin = 1,dft_control%nspins
+                   CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
+                                       centers_set(ispin)%array,ionode,'psi1_rxp',&
+                                       idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
+                                       "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),error=error)
+                ENDDO  ! ispin
+             ENDIF  ! print response functions
+          ENDIF
 
-         END IF
+          IF(output_unit>0) THEN
+             WRITE(output_unit,"(T10,A)")&
+                  "Write the resulting psi1 in restart file "
+          ENDIF
+          ! Write the result inthe restart file
+          nmr_env%simplenmr_done(idir+3) = .TRUE.
+          !CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+3,error=error)
+       ENDIF
+    ENDDO ! idir
 
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-            "Write the resulting psi1 in restart file "
-         END IF
-         ! Write the result inthe restart file
-         nmr_env%simplenmr_done(idir+3) = .TRUE.
-!        CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+3,error=error)
-        END IF
-     END DO ! idir
-
-
-     ! operator D
-     IF(nmr_env%full_nmr) THEN
+    ! operator D
+    IF(nmr_env%full_nmr) THEN
        DO ispin = 1,dft_control%nspins
-         CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-         DO idir = 1,3
-           CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
-         END DO
-       END DO
+          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+          DO idir = 1,3
+             CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
+          ENDDO
+       ENDDO
 
-!      The correction is state depedent a loop over the states is necessary
+       ! The correction is state depedent a loop over the states is necessary
        ALLOCATE(vecbuf_dklxp0(1,nao),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        vecbuf_dklxp0(1,nao) = 0.0_dp
 
        DO ispin=1, dft_control%nspins
 
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo,mo_coeff=mo_coeff)
-         NULLIFY(tmp_fm_struct,fm_work_ii,fm_work_iii)
-         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-               ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
-         CALL cp_fm_create (fm_work_ii, tmp_fm_struct ,error=error)
-         CALL cp_fm_set_all(fm_work_ii,0.0_dp,error=error)
-         CALL cp_fm_create (fm_work_iii, tmp_fm_struct ,error=error)
-         CALL cp_fm_set_all(fm_work_iii,0.0_dp,error=error)
-         CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo,mo_coeff=mo_coeff)
+          NULLIFY(tmp_fm_struct,fm_work_ii,fm_work_iii)
+          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+                                   ncol_global=nmo,para_env=para_env,&
+                                   context=mo_coeff%matrix_struct%context,error=error)
+          CALL cp_fm_create (fm_work_ii, tmp_fm_struct ,error=error)
+          CALL cp_fm_set_all(fm_work_ii,0.0_dp,error=error)
+          CALL cp_fm_create (fm_work_iii, tmp_fm_struct ,error=error)
+          CALL cp_fm_set_all(fm_work_iii,0.0_dp,error=error)
+          CALL cp_fm_struct_release( tmp_fm_struct ,error=error)
 
-         ALLOCATE(dkl_vec_ii(nstates(ispin)),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         ALLOCATE(dkl_vec_iii(nstates(ispin)),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO idir = 1,3
-           DO istate = 1,nstates(ispin)
-             ist_true = statetrueindex(idir,istate)
-             !the initial guess is the previous set of psi1, just optimized
-             CALL set_vecp(idir,ii,iii)
-             dk(1:3) = centers_set(ispin)%array(1:3,ist_true)
+          ALLOCATE(dkl_vec_ii(nstates(ispin)),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(dkl_vec_iii(nstates(ispin)),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO idir = 1,3
+             DO istate = 1,nstates(ispin)
+                ist_true = statetrueindex(idir,istate)
+                !the initial guess is the previous set of psi1, just optimized
+                CALL set_vecp(idir,ii,iii)
+                dk(1:3) = centers_set(ispin)%array(1:3,ist_true)
 
-             IF(output_unit>0) THEN
-                WRITE (UNIT=output_unit,FMT="(T10,A,I4,A,I4/)")&
-               "Response to the perturbation operator (dk-dl)xp for the k state ",&
-                ist_true, " in dir. ", idir
-             END IF
- !dbg
-   WRITE(*,*) ' D idir ', idir, ' state ', ist_true, ' iter ', istate
- !dbg
-             DO istate2 = 1,nstates(ispin)
-                dl(1:3)  = centers_set(ispin)%array(1:3,istate2)
-                dkl = pbc(dl,dk,cell)
-                dkl_vec_ii(istate2)  = dkl(ii)
-                dkl_vec_iii(istate2) = dkl(iii)
- !dbg
-   WRITE(*,*) ' dist ', istate2, dkl(ii), dkl(iii)
- !dbg
-             END DO
+                IF(output_unit>0) THEN
+                   WRITE(output_unit,"(T10,A,I4,A)")&
+                        "Response to the perturbation operator (dk-dl)xp for the k state ",&
+                        ist_true, " in dir. "//ACHAR(idir+119)
+                ENDIF
 
-         ! First term
-             ! Rescale the ground state orbitals by (dk-dl)_ii
-             CALL cp_fm_to_fm(mo_coeff,fm_work_ii,error=error)
-             CALL cp_fm_column_scale(fm_work_ii,dkl_vec_ii(1:homo))
-             ! Apply the p_iii operator
-             CALL cp_sm_fm_multiply(nmr_env%op_p_ao(iii)%matrix,fm_work_ii,&
-                   fm_work_iii,ncol=nmo,alpha=-1.0_dp,error=error)
-             ! Copy in h1_psi1
-             CALL cp_fm_to_fm(fm_work_iii,h1_psi0(ispin)%matrix,error=error)
+                DO istate2 = 1,nstates(ispin)
+                   dl(1:3)  = centers_set(ispin)%array(1:3,istate2)
+                   dkl = pbc(dl,dk,cell)
+                   dkl_vec_ii(istate2)  = dkl(ii)
+                   dkl_vec_iii(istate2) = dkl(iii)
+                ENDDO
 
+                ! First term
+                ! Rescale the ground state orbitals by (dk-dl)_ii
+                CALL cp_fm_to_fm(mo_coeff,fm_work_ii,error=error)
+                CALL cp_fm_column_scale(fm_work_ii,dkl_vec_ii(1:homo))
+                ! Apply the p_iii operator
+                CALL cp_sm_fm_multiply(nmr_env%op_p_ao(iii)%matrix,fm_work_ii,&
+                                       fm_work_iii,ncol=nmo,alpha=-1.0_dp,error=error)
+                ! Copy in h1_psi1
+                CALL cp_fm_to_fm(fm_work_iii,h1_psi0(ispin)%matrix,error=error)
+                ! Second term
+                ! Rescale the ground state orbitals by (dk-dl)_iii
+                CALL cp_fm_to_fm(mo_coeff,fm_work_iii,error=error)
+                CALL cp_fm_column_scale(fm_work_iii,dkl_vec_iii(1:homo))
+                ! Apply the p_ii operator
+                CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_work_iii,&
+                                       fm_work_ii,ncol=nmo,alpha=-1.0_dp,error=error)
+                ! Copy in h1_psi1
+                CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,&
+                                        -1.0_dp,fm_work_ii,error=error)
+                ! Optimize the response wavefunctions
+                CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
-         ! Second term
-             ! Rescale the ground state orbitals by (dk-dl)_iii
-             CALL cp_fm_to_fm(mo_coeff,fm_work_iii,error=error)
-             CALL cp_fm_column_scale(fm_work_iii,dkl_vec_iii(1:homo))
-             ! Apply the p_ii operator
-             CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_work_iii,&
-                   fm_work_ii,ncol=nmo,alpha=-1.0_dp,error=error)
-             ! Copy in h1_psi1
-             CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,&
-                  -1.0_dp,fm_work_ii,error=error)
-             ! Optimize the response wavefunctions
-             CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+                IF(output_unit>0) THEN
+                   WRITE(output_unit,'(T10,A,I4,A,E24.16)') 'Second order energy D_'//ACHAR(idir+119)//&
+                        & ' for state ',ist_true,'=',p_env%etotal
+                   WRITE(output_unit,"(T10,A,/)")&
+                        "Store the psi1 vector for the calculation of the response current density "
+                ENDIF
+                ! the optimized wfns are copied in the  fm
+                CALL cp_fm_get_submatrix(psi1(ispin)%matrix,vecbuf_dklxp0 ,&
+                                         1,ist_true,nao,1,transpose=.TRUE.,&
+                                         error=error)
+                CALL cp_fm_set_submatrix(psi1_D(ispin,idir)%matrix, vecbuf_dklxp0,&
+                                         1,ist_true,nao,1,transpose=.TRUE.,&
+                                         error=error)
+                nmr_env%fullnmr_done(idir*ispin,istate) = .TRUE.
 
-             IF(output_unit>0) THEN
-               WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-               "Store the psi1 vector for the calculation of the response current density "
-             END IF
-             ! the optimized wfns are copied in the  fm
-             CALL cp_fm_get_submatrix(psi1(ispin)%matrix,vecbuf_dklxp0 ,&
-                    1,ist_true,nao,1,transpose=.TRUE.,error=error)
-             CALL cp_fm_set_submatrix(psi1_D(ispin,idir)%matrix, vecbuf_dklxp0,&
-                    1,ist_true,nao,1,transpose=.TRUE.,error=error)
-             nmr_env%fullnmr_done(idir*ispin,istate) = .TRUE.
+             ENDDO  ! istate
+             ! print response functions
+             IF(BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+                  "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+                ncubes = SIZE(list_cubes,1)
+                CALL qs_print_cubes(qs_env,psi1_D(ispin,idir)%matrix,&
+                                    ncubes,list_cubes,&
+                                    centers_set(ispin)%array,ionode,'psi1_D',&
+                                    idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
+                                    "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),error=error)
+             ENDIF  ! print response functions
+             ! CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+6,error=error)
+          ENDDO  ! idir
+         
+          CALL cp_fm_release(fm_work_ii,error=error)
+          CALL cp_fm_release(fm_work_iii,error=error)
+          DEALLOCATE(dkl_vec_ii,dkl_vec_iii,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDDO  ! ispin
 
-           END DO  ! istate
-           ! print response functions
-           IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-              "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
-              ncubes = SIZE(list_cubes,1)
-               CALL qs_print_cubes(qs_env,psi1_D(ispin,idir)%matrix,&
-                    ncubes,list_cubes,&
-                    centers_set(ispin)%array,ionode,'psi1_D',&
-                    idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
-                    "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE",error=error),error=error)
-           END IF  ! print response functions
-
-!          CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+6,error=error)
-
-         END DO  ! idir
-
-         CALL cp_fm_release(fm_work_ii,error=error)
-         CALL cp_fm_release(fm_work_iii,error=error)
-         DEALLOCATE(dkl_vec_ii,dkl_vec_iii,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END DO  ! ispin
-     END IF
+       DEALLOCATE(vecbuf_dklxp0,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
 
     !If current density and shift are calculated here
     ! probably a lot of memory is required
     ! Better to free what is not anymore necessary in p_env
-     CALL p_env_release(p_env,error=error)
-
+    CALL p_env_release(p_env,error=error)
+    !
     !Calculate current density and induced field
-     CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
-
+    CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
+    !
     ! Print Results
-     CALL nmr_print_shift(nmr_env,qs_env,nmr_section,error=error)
-
-    !----------!
-    ! clean up !
-    !----------!
-     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
-     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, h1_psi0,error=error)
-     NULLIFY(psi1,h1_psi0)
-     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-          "PRINT%PROGRAM_RUN_INFO",error=error)
+    CALL nmr_print_shift(nmr_env,qs_env,nmr_section,error=error)
+    !
+    ! clean up
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1,error=error)
+    CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, h1_psi0,error=error)
+    NULLIFY(psi1,h1_psi0)
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+                                      "PRINT%PROGRAM_RUN_INFO",error=error)
 
     CALL timestop(0.0_dp, handle)
 

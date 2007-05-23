@@ -94,6 +94,7 @@ MODULE qs_linres_nmr_shift
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -220,13 +221,6 @@ CONTAINS
     CALL cp_fm_create (psi_p2_istate, tmp_fm_struct ,error=error)
     CALL cp_fm_create (momxpsi_istate, tmp_fm_struct ,error=error)
     CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-!dbg
-!    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-!          ncol_global=nao,para_env=para_env,context=mo_coeff%matrix_struct%context)
-!    CALL cp_fm_create (fm_work2, tmp_fm_struct )
-!    CALL cp_fm_struct_release ( tmp_fm_struct )
-!dbg
-
 
 !   Allocate buffer vectors
     NULLIFY(vecbuf_0,vecbuf_1_rxp,vecbuf_1_d)
@@ -259,56 +253,32 @@ CONTAINS
            CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix, 0.0_dp)
          END DO
       END DO
-!dbg
-!  dk(1:3) = 15.11_dp
-  WRITE(*,*) ' state ', istate, dk(1:3)
+
+      !WRITE(*,*) ' state ', istate, dk(1:3)
       CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
-           minimum_image=.FALSE.,soft=gapw,error=error)
-!  stop 'check mom'
-!dbg
-!dbg
-!       DO idir= 1,9
-!         fnum = 100+idir
-!         CALL copy_sm_to_fm(op_mom_ao(idir)%matrix,fm_work2,error=error)
-!         write(fnum,*) ' op_mom_ao', idir
-!         DO  i=1,nao
-!           write(fnum,'(i5,50f10.6)') i, (fm_work2%local_data(i,j),j=1,nao)
-!         END DO
-!         DO idir2 = 1,3
-!           fnum = 200+idir
-!           CALL copy_sm_to_fm(op_mom_der_ao(idir,idir2)%matrix,fm_work2,error=error)
-!           write(fnum,*) ' op_mom_der_ao', idir, idir2
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (fm_work2%local_data(i,j),j=1,nao)
-!           END DO
-!         END DO
-!       END DO
-!       stop 'check operators'
-!dbg
-!     EXTRACT from the ground state full MOS matrix the coefficients of istate
-      CALL cp_fm_get_submatrix(mo_coeff,&
-           vecbuf_0,1,istate,nao,1,transpose=.TRUE.,error=error)
+                          minimum_image=.FALSE.,soft=gapw,error=error)
+      !
+      ! EXTRACT from the ground state full MOS matrix the coefficients of istate
+      CALL cp_fm_get_submatrix(mo_coeff,vecbuf_0,1,istate,nao,1,&
+           &                   transpose=.TRUE.,error=error)
       vecbuf_0(1,1:nao) = vecbuf_0(1,1:nao) * occupation(istate)
-      CALL cp_fm_set_submatrix(psi0_istate,vecbuf_0,1,1,&
-           nao,1,transpose=.TRUE.,error=error)
-
-
-!     Extract from the full MOS matrices of the response functions the coefficients
-!     referring to istate
-!     psi1_rxp_iB_istate
-      CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,&
-           vecbuf_1_rxp,1,istate,nao,1,transpose=.TRUE.,&
-           error=error)
+      CALL cp_fm_set_submatrix(psi0_istate,vecbuf_0,1,1,nao,1,&
+           &                   transpose=.TRUE.,error=error)
+      !
+      ! Extract from the full MOS matrices of the response functions the coefficients
+      ! referring to istate
+      ! psi1_rxp_iB_istate
+      CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,vecbuf_1_rxp,1,&
+           &                   istate,nao,1,transpose=.TRUE.,error=error)
 
       IF(nmr_env%full_nmr) THEN
-!     psi1_d_iB_istate
-        CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,&
-             vecbuf_1_d,1,istate,nao,1,transpose=.TRUE.,&
-             error=error)
-        vecbuf_1_rxp(1,1:nao) = vecbuf_1_rxp(1,1:nao) - vecbuf_1_d(1,1:nao)
+         ! psi1_d_iB_istate
+         CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,vecbuf_1_d,1,istate,&
+         &                        nao,1,transpose=.TRUE.,error=error)
+         vecbuf_1_rxp(1,1:nao) = vecbuf_1_rxp(1,1:nao) - vecbuf_1_d(1,1:nao)
       END IF
-      CALL cp_fm_set_submatrix(psi_rxp_istate,vecbuf_1_rxp,1,1,&
-           nao,1,transpose=.TRUE.,error=error)
+      CALL cp_fm_set_submatrix(psi_rxp_istate,vecbuf_1_rxp,1,1,nao,1,&
+           &                   transpose=.TRUE.,error=error)
 
 
 !     psi1_p_iiB_istate and psi1_p_iiiB_istate
@@ -331,58 +301,42 @@ CONTAINS
 !     The loop over the components of the external field is external, thereby
 !     only one column of the chi tensor is computed here
       DO idir = 1,3
-!dbg
-!   WRITE(*,*) ' chi istate ', istate, ' idir =', idir
-!dbg
-  !     get ii and iii
-        CALL set_vecp(idir,ii,iii)
+         ! get ii and iii
+         CALL set_vecp(idir,ii,iii)
 
-!       term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
-!       the factor 2 should be already included in the matrix elements
-        contrib = 0.0_dp
-        CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
-             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
-        chi(idir) = chi(idir) + 2.0_dp * contrib
+         ! term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
+         ! the factor 2 should be already included in the matrix elements
+         contrib = 0.0_dp
+         CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
+              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+         chi(idir) = chi(idir) + 2.0_dp * contrib
 
-!dbg
-!  WRITE(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term a r ',ii,' der ',&
-!      iii, 2.0_dp * contrib, chi(idir)
-!dbg
-        contrib = 0.0_dp
-        CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
-             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
-        chi(idir) = chi(idir) - 2.0_dp *contrib
-!dbg
-!  WRITE(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term b r ',iii,' der ',&
-!       ii,-2.0_dp *contrib, chi(idir)
-!dbg
+         contrib = 0.0_dp
+         CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
+              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+         chi(idir) = chi(idir) - 2.0_dp *contrib
 
-!       correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
-!       factor 2 not included in the matrix elements
-        contrib = 0.0_dp
-        CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,psi_rxp_istate,&
-             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
-        chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
+         ! correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
+         ! factor 2 not included in the matrix elements
+         contrib = 0.0_dp
+         CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,psi_rxp_istate,&
+              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
+         chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
 !
-        contrib2 = 0.0_dp
-        CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,psi_rxp_istate,&
-             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
-        chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
-!dbg
-!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 1st correction ab ',ii,' and ',&
-!         iii,2.0_dp*dk(ii)*contrib,-2.0_dp*dk(iii)*contrib2, chi(idir)
-!dbg
+         contrib2 = 0.0_dp
+         CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,psi_rxp_istate,&
+              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
+         chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
 
 !       term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
 !             +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))]
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         idir2 = ind_m2(ii,iiB)
-!        write(*,*) 'imom ', ii, iiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
@@ -394,14 +348,9 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) - contrib2
         END IF
-!dbg
-!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term a r ',ii,' der ',&
-!      iii,-2.0_dp *contrib,-contrib2, chi(idir)
-!dbg
 
         contrib = 0.0_dp
         idir2 = ind_m2(iii,iiB)
-!        write(*,*) 'imom ', iii, iiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
@@ -413,10 +362,6 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) + contrib2
         END IF
-!dbg
-!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term b r ',iii,' der ',&
-!       ii,2.0_dp *contrib,contrib2, chi(idir)
-!dbg
 
 !       correction: -dk_ii * 2[C0|(r-dk)_iiB | d_iii(C1(piiiB))] \
 !                   +dk_iii * 2[C0|(r-dk)_iiB | d_ii(C1(piiiB))]
@@ -433,17 +378,12 @@ CONTAINS
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) + 2.0_dp*dk(iii)*contrib2
-!dbg
-!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
-!       iii,-dk(ii)*contrib,dk(iii)*contrib2, chi(idir)
-!dbg
 
 !       term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
 !             -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         idir2 = ind_m2(ii,iiiB)
-!        write(*,*) 'imom ', ii, iiiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
@@ -455,13 +395,9 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) + contrib2
         END IF
-!dbg
-!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term a r ',ii,' der ',&
-!        iii,2.0_dp*contrib,contrib2, chi(idir)
-!dbg
+
         contrib = 0.0_dp
         idir2 = ind_m2(iii,iiiB)
-!        write(*,*) 'imom ', iii, iiiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib,error=error)
@@ -473,10 +409,6 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
           chi(idir) = chi(idir) - contrib2
         END IF
-!dbg
-!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term b r ',iii,' der ',&
-!       ii,-2.0_dp*contrib,-contrib2, chi(idir)
-!dbg
 
 !       correction: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +\
 !                   -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
@@ -492,20 +424,16 @@ CONTAINS
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2,error=error)
         chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
-!dbg
-!  WRITE(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
-!       iii,+dk(ii)*contrib,-dk(iii)*contrib2, chi(idir)
-!dbg
 
       END DO  ! idir
 
-
     END DO  ! istate
-    WRITE(*,*) "CHI TENSOR : iB =", iB
+
+    !WRITE(*,*) "CHI TENSOR : iB =", iB
     DO idir = 1,3
-      nmr_env%chi_tensor(idir,iB) =  nmr_env%chi_tensor(idir,iB)+&
-                                     chi(idir)*nmr_env%chi_factor
-      WRITE(*,*)  idir, nmr_env%chi_tensor(idir,iB)
+      nmr_env%chi_tensor(idir,iB) = nmr_env%chi_tensor(idir,iB)+&
+                                    chi(idir)*nmr_env%chi_factor
+      !WRITE(*,*) idir, nmr_env%chi_tensor(idir,iB)
     END DO
 
 !   deallocate the sparse matrices
@@ -605,10 +533,6 @@ CONTAINS
       CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
       CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
 
-!dbg
-!  write(*,*) precond_kind, max_iter, eps_r, eps_x
-!dbg
-
       ! calculate spline coefficients
       CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool,error=error)
       CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=shiftspl, &
@@ -637,9 +561,6 @@ CONTAINS
       ELSE
         natom = -1
       ENDIF
-  !dbg
-    WRITE(*,*) "natom ", natom, " idir ", idir , " i_B " , i_B
-  !dbg
 
       DO iat = 1,natom
         iatom = cs_atom_list(iat)
@@ -647,32 +568,9 @@ CONTAINS
         shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error=error)
         chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
                                         nmr_env%shift_factor*shift_val
-  !dbg
-    WRITE(*,*) " CS iatom ", iatom, chemical_shift(idir,i_B,iatom)
-  !dbg
       END DO
-!dbg check interpolation
-!      bo = shift_pw_rspace%pw%pw_grid%bounds_local
-!      dr = shift_pw_rspace%pw%pw_grid%dr
-!      ig = 0
-!      DO k =  bo(1,3),bo(2,3)
-!        rgrid(3) = REAL(k-bo(1,3))*dr(3)
-!        DO j = bo(1,2), bo(2,2)
-!          rgrid(2) = REAL(j-bo(1,2))*dr(2)
-!          DO i =  bo(1,1), bo(2,1)
-!            rgrid(1) = REAL(i-bo(1,1))*dr(1)
-!            val_grid = shift_pw_rspace%pw%cr3d(i,j,k)
-!            val_inter = Eval_Interp_Spl3_pbc(rgrid,shiftspl%pw,error=error)
-!            ig = ig + 1
-!            write(200,'(I10,3f12.6,2f16.8,ES12.4)') ig , rgrid(1:3), &
-!                  val_grid, val_inter, (val_grid-val_inter)
-!          END DO
-!        END DO
-!      END DO
-!dbg
 
       IF(nmr_env%do_nics) THEN
-
         DO iatom = 1,n_nics
           ra(1:3) = r_nics(1:3,iatom)
           R_iatom = pbc(ra,cell)
@@ -785,22 +683,21 @@ CONTAINS
 
 
   SUBROUTINE nmr_print_shift(nmr_env,qs_env,nmr_section,error)
-
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: nmr_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_print_shift', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: name, title
     INTEGER                                  :: i, iatom, ir, istat, j, &
                                                 n_nics, nat_print, natom, &
-                                                unit_atoms, unit_nics
+                                                unit_atoms, output_unit, unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: gapw
+    LOGICAL                                  :: gapw,failure
     REAL(dp) :: chi_aniso, chi_iso, chi_sym(3,3), chi_sym_tot(3,3), &
       chi_tensor(3,3), chi_tensor_loc(3,3), chi_tmp(3,3), eigenv(3), &
       eigenv_tmp(3), rpos(3), shift_nosym(3,3), shift_sym(3,3), shift_tmp(3,3)
@@ -808,19 +705,23 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_loc, &
                                                 chemical_shift_loc_nics, &
-                                                chemical_shift_nics
+                                                chemical_shift_nics, &
+                                                chemical_shift_tot
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    REAL(dp), EXTERNAL                       :: DDOT
+
+    failure = .FALSE.
 
     NULLIFY (chemical_shift, chemical_shift_nics, r_nics)
     NULLIFY (chemical_shift_loc, chemical_shift_loc_nics)
     NULLIFY (logger, particle_set,atom_kind,dft_control)
     NULLIFY (eigenv_chi)
-!    ionode = logger%para_env%mepos==logger%para_env%source
     logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_nmr_env(nmr_env, chemical_shift=chemical_shift, &
          chemical_shift_nics=chemical_shift_nics, &
@@ -832,200 +733,206 @@ CONTAINS
     CALL get_qs_env(qs_env, dft_control=dft_control, particle_set=particle_set,error=error)
     natom = SIZE(particle_set,1)
     gapw = dft_control%qs_control%gapw
+    nat_print=SIZE(cs_atom_list,1)
 
-    ALLOCATE (eigenv_chi(3,natom), STAT=istat)
-
+    ALLOCATE(eigenv_chi(3,natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(chemical_shift_tot(3,3,nat_print), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! Finalize Chi calculation
     IF(gapw) THEN
-      ! Symmetrize
-      DO i = 1,3
-        DO j = 1,3
-          chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
-          chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i)+&
-                          chi_tensor_loc(i,j)+chi_tensor_loc(j,i))/2.0_dp
-        END DO
-      END DO
+       ! Symmetrize
+       DO i = 1,3
+          DO j = 1,3
+             chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
+             chi_sym_tot(i,j) = (chi_tensor(i,j)+chi_tensor(j,i)+&
+                                 chi_tensor_loc(i,j)+chi_tensor_loc(j,i))/2.0_dp
+          END DO
+       END DO
 
     ELSE
-
-      ! Symmetrize
-      DO i = 1,3
-        DO j = 1,3
-          chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
-        END DO
-      END DO
-
-      CALL  dcopy(9,chi_sym,1,chi_sym_tot,1)
-
+       ! Symmetrize
+       DO i = 1,3
+          DO j = 1,3
+             chi_sym(i,j) = (chi_tensor(i,j)+chi_tensor(j,i))/2.0_dp
+          END DO
+       END DO
+       CALL  dcopy(9,chi_sym,1,chi_sym_tot,1)
     END IF
-
     CALL  dcopy(9,chi_sym_tot,1,chi_tmp,1)
     CALL  diamat_all(chi_tmp,eigenv)
-
     chi_iso   = (eigenv(1)+ eigenv(2)+eigenv(3))/3.d0
     chi_aniso =  eigenv(3)-(eigenv(2)+eigenv(1))/2.d0
-
     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
               "PRINT%CHI_TENSOR",error=error),cp_p_file)) THEN
 
-      unit_atoms=cp_print_key_unit_nr(logger,nmr_section,"PRINT%CHI_TENSOR",&
-               extension=".data",middle_name="",log_filename=.FALSE.,&
-               error=error)
+       unit_atoms=cp_print_key_unit_nr(logger,nmr_section,"PRINT%CHI_TENSOR",&
+                  extension=".data",middle_name="CHI",log_filename=.FALSE.,&
+                  error=error)
 
-      WRITE(title,'(A)') "Magnetic Susceptibility Tensor "
-      IF(unit_atoms > 0) THEN
-
-        WRITE(unit_atoms,'(T2,A)') title
-        IF(gapw) THEN
-
-           WRITE(unit_atoms,'(T30,A)') " CHI from SOFT J in 10^-30 J/T^2 units"
-           WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor(1,1),&
-                 ' XY=',chi_tensor(1,2),' XZ=',chi_tensor(1,3)
-           WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor(2,1),&
-                 ' YY=',chi_tensor(2,2),' YZ=',chi_tensor(2,3)
-           WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor(3,1),&
-                 ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3)
-           WRITE(unit_atoms,'(T30,A)') " CHI from LOCAL J in 10^-30 J/T^2 units"
-           WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor_loc(1,1),&
-                 ' XY=',chi_tensor_loc(1,2),' XZ=',chi_tensor_loc(1,3)
-           WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor_loc(2,1),&
-                 ' YY=',chi_tensor_loc(2,2),' YZ=',chi_tensor_loc(2,3)
-           WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor_loc(3,1),&
+       WRITE(title,'(A)') "Magnetic Susceptibility Tensor "
+       IF(unit_atoms > 0) THEN
+          WRITE(unit_atoms,'(T2,A)') title
+          IF(gapw) THEN
+             WRITE(unit_atoms,'(T30,A)') " CHI from SOFT J in 10^-30 J/T^2 units"
+             WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor(1,1),&
+                  ' XY=',chi_tensor(1,2),' XZ=',chi_tensor(1,3)
+             WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor(2,1),&
+                  ' YY=',chi_tensor(2,2),' YZ=',chi_tensor(2,3)
+             WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor(3,1),&
+                  ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3)
+             WRITE(unit_atoms,'(T30,A)') " CHI from LOCAL J in 10^-30 J/T^2 units"
+             WRITE(unit_atoms,'(3(A,f15.6))') ' XX=',chi_tensor_loc(1,1),&
+                  ' XY=',chi_tensor_loc(1,2),' XZ=',chi_tensor_loc(1,3)
+             WRITE(unit_atoms,'(3(A,f15.6))') ' YX=',chi_tensor_loc(2,1),&
+                  ' YY=',chi_tensor_loc(2,2),' YZ=',chi_tensor_loc(2,3)
+             WRITE(unit_atoms,'(3(A,f15.6))') ' ZX=',chi_tensor_loc(3,1),&
                  ' ZY=',chi_tensor_loc(3,2),' ZZ=',chi_tensor_loc(3,3)
-
-        ELSE
-
-           WRITE(unit_atoms,'(T30,A)') " CHI from J in atomic units"
-           WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_tensor(1,1),&
-                 ' XY=',chi_tensor(1,2),' XZ=',chi_tensor(1,3)
-           WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_tensor(2,1),&
-                 ' YY=',chi_tensor(2,2),' YZ=',chi_tensor(2,3)
-           WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_tensor(3,1),&
-                 ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3)
-
-        END IF
-
-        WRITE (unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
-                 ' PV2=',eigenv(2),' PV3=',eigenv(3)
-        WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
-                 '  iso=',chi_iso,  'aniso=',chi_aniso
-
-        CALL dscal(3*3,nmr_env%chi_SI2ppmcgs,chi_sym_tot,1)
-        WRITE(unit_atoms,'(T30,A)') " Total CHI in ppm-cgs units"
-        WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_sym_tot(1,1),&
-                 ' XY=',chi_sym_tot(1,2),' XZ=',chi_sym_tot(1,3)
-        WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_sym_tot(2,1),&
-                 ' YY=',chi_sym_tot(2,2),' YZ=',chi_sym_tot(2,3)
-        WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_sym_tot(3,1),&
-                 ' ZY=',chi_sym_tot(3,2),' ZZ=',chi_sym_tot(3,3)
-        WRITE (unit_atoms, '(/T2,3(A,F15.5))') &
-                 ' PV1=',nmr_env%chi_SI2ppmcgs*eigenv(1),&
-                 ' PV2=',nmr_env%chi_SI2ppmcgs*eigenv(2),&
-                 ' PV3=',nmr_env%chi_SI2ppmcgs*eigenv(3)
-        WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
-                 '  iso=',nmr_env%chi_SI2ppmcgs*chi_iso, &
-                 'aniso=',nmr_env%chi_SI2ppmcgs*chi_aniso
-      END IF
-
-      CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
-               "PRINT%CHI_TENSOR", error=error)
-
-    END IF  ! print chi
-
-
-    !Finalize the Shift calculation
-
+          ELSE
+             WRITE(unit_atoms,'(T30,A)') " CHI from J in atomic units"
+             WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_tensor(1,1),&
+                  ' XY=',chi_tensor(1,2),' XZ=',chi_tensor(1,3)
+             WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_tensor(2,1),&
+                  ' YY=',chi_tensor(2,2),' YZ=',chi_tensor(2,3)
+             WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_tensor(3,1),&
+                  ' ZY=',chi_tensor(3,2),' ZZ=',chi_tensor(3,3)
+          ENDIF
+          WRITE (unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
+               ' PV2=',eigenv(2),' PV3=',eigenv(3)
+          WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
+               '  iso=',chi_iso,  'aniso=',chi_aniso
+          CALL dscal(3*3,nmr_env%chi_SI2ppmcgs,chi_sym_tot,1)
+          WRITE(unit_atoms,'(T30,A)') " Total CHI in ppm-cgs units"
+          WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_sym_tot(1,1),&
+               ' XY=',chi_sym_tot(1,2),' XZ=',chi_sym_tot(1,3)
+          WRITE(unit_atoms,'(3(A,f15.6))')' YX=',chi_sym_tot(2,1),&
+               ' YY=',chi_sym_tot(2,2),' YZ=',chi_sym_tot(2,3)
+          WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_sym_tot(3,1),&
+               ' ZY=',chi_sym_tot(3,2),' ZZ=',chi_sym_tot(3,3)
+          WRITE (unit_atoms, '(/T2,3(A,F15.5))') &
+               ' PV1=',nmr_env%chi_SI2ppmcgs*eigenv(1),&
+               ' PV2=',nmr_env%chi_SI2ppmcgs*eigenv(2),&
+               ' PV3=',nmr_env%chi_SI2ppmcgs*eigenv(3)
+          WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
+               '  iso=',nmr_env%chi_SI2ppmcgs*chi_iso, &
+               'aniso=',nmr_env%chi_SI2ppmcgs*chi_aniso
+       ENDIF
+       
+       CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
+            "PRINT%CHI_TENSOR", error=error)
+    ENDIF  ! print chi
+    !
+    ! Add the chi part to the shifts
+    chemical_shift_tot = 0.0_dp
+    DO ir = 1,nat_print
+       iatom = cs_atom_list(ir)
+       rpos(1:3) = particle_set(iatom)%r(1:3)
+       atom_kind => particle_set(iatom)%atomic_kind
+       CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
+       DO i = 1,3
+          DO j = 1,3
+             ! here we need to multiply chi and the shift by some factors
+             chemical_shift_tot(i,j,ir) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
+                  & + chemical_shift(i,j,iatom) * twopi**2
+             IF(gapw) THEN
+                chemical_shift_tot(i,j,ir) = chemical_shift_tot(i,j,ir)+chemical_shift_loc(i,j,iatom)
+             ENDIF
+          ENDDO
+       ENDDO
+    END DO  ! ir
+    IF(output_unit > 0) THEN
+       WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum Shifts =',&
+            & SQRT(DDOT(9*SIZE(chemical_shift_tot,3),chemical_shift_tot(1,1,1),1,&
+            &           chemical_shift_tot(1,1,1),1))
+    ENDIF
+    !
+    ! print shifts
     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
               "PRINT%SHIELDING_TENSOR",error=error),cp_p_file)) THEN
 
-      unit_atoms=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
-               extension=".data",middle_name="CS",log_filename=.FALSE.,&
+       unit_atoms=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
+            &                          extension=".data",middle_name="SHIFT",&
+            &                          log_filename=.FALSE.,error=error)
+
+       nat_print = SIZE(cs_atom_list,1)
+       WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", nat_print
+       WRITE(unit_atoms,'(T2,A)') "WARNING! SHIFTS ARE MULTIPLIED BY A MAGIC CONSTANT [4*Pi^2]!"
+       WRITE(unit_atoms,'(T2,A)') "WARNING! THE SHIFTS CONTAIN THE CHI CORRECTION!"
+
+       IF(unit_atoms > 0) THEN
+
+          WRITE(unit_atoms,'(T2,A)') title
+          DO ir = 1,nat_print
+             iatom = cs_atom_list(ir)
+             rpos(1:3) = particle_set(iatom)%r(1:3)
+             atom_kind => particle_set(iatom)%atomic_kind
+             CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
+             DO i = 1,3
+                DO j = 1,3
+                   ! here we need to multiply chi and the shift by some factors
+                   shift_nosym(i,j) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
+                        &           + chemical_shift(i,j,iatom) * twopi**2
+                   shift_sym(i,j) = chi_sym(i,j)+(chemical_shift(i,j,iatom)+&
+                        chemical_shift(j,i,iatom))/2.0_dp
+                   IF(gapw) THEN
+                      shift_nosym(i,j) = shift_nosym(i,j)+chemical_shift_loc(i,j,iatom)
+                      shift_sym(i,j) = shift_sym(i,j)+(chemical_shift_loc(i,j,iatom)+&
+                                       chemical_shift_loc(j,i,iatom))/2.0_dp
+                   ENDIF
+                ENDDO
+             ENDDO
+             CALL  dcopy(9,shift_sym,1,shift_tmp,1)
+             CALL  diamat_all(shift_tmp,eigenv_tmp)
+             eigenv_chi(1:3, iatom) = eigenv_tmp(1:3)
+             WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,name,element_symbol,rpos(1:3)
+             ! here we set eigenv_tmp to huge... need to be consistent with the units used above.
+             WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_x = ',shift_nosym(1, 1:3), HUGE(0.0_dp)!eigenv_tmp(1)
+             WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_y = ',shift_nosym(2, 1:3), HUGE(0.0_dp)!eigenv_tmp(2)
+             WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_z = ',shift_nosym(3, 1:3), HUGE(0.0_dp)!eigenv_tmp(3)
+          ENDDO  ! ir
+       ENDIF
+       CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
+            "PRINT%SHIELDING_TENSOR", error=error)
+
+       IF(nmr_env%do_nics) THEN
+          unit_nics=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
+               extension=".data",middle_name="NICS",log_filename=.FALSE.,&
                error=error)
 
-      nat_print = SIZE(cs_atom_list,1)
-      WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", nat_print
+          CALL stop_program(routineP,"NICS doesnt work yet")
 
-      WRITE(unit_atoms,'(T2,A)') "WARNING! SHIFTS ARE MULTIPLIED BY MAGIC CONSTANT [4*Pi^2]!"
-      WRITE(unit_atoms,'(T2,A)') "WARNING! THE SHIFTS CONTAIN THE CHI CORRECTION!"
-
-      IF(unit_atoms > 0) THEN
-
-        WRITE(unit_atoms,'(T2,A)') title
-        DO ir = 1,nat_print
-          iatom = cs_atom_list(ir)
-          rpos(1:3) = particle_set(iatom)%r(1:3)
-          atom_kind => particle_set(iatom)%atomic_kind
-          CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
-
-          DO i = 1,3
-            DO j = 1,3
-               ! here we need to multiply chi and the shift by some factors
-               shift_nosym(i,j) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
-                    & + chemical_shift(i,j,iatom) * twopi**2
-
-               shift_sym(i,j) = chi_sym(i,j)+(chemical_shift(i,j,iatom)+&
-                                chemical_shift(j,i,iatom))/2.0_dp
-
-              IF(gapw) THEN
-                shift_nosym(i,j) = shift_nosym(i,j)+chemical_shift_loc(i,j,iatom)
-                shift_sym(i,j) = shift_sym(i,j)+(chemical_shift_loc(i,j,iatom)+&
-                                 chemical_shift_loc(j,i,iatom))/2.0_dp
-              END IF
-            END DO
-          END DO
-
-          CALL  dcopy(9,shift_sym,1,shift_tmp,1)
-          CALL  diamat_all(shift_tmp,eigenv_tmp)
-          eigenv_chi(1:3, iatom) = eigenv_tmp(1:3)
-
-          WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,name,element_symbol,rpos(1:3)
-          ! here we set eigenv_tmp to huge... need to be consistent with the units used above.
-          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_x = ',shift_nosym(1, 1:3), HUGE(0.0_dp)!eigenv_tmp(1)
-          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_y = ',shift_nosym(2, 1:3), HUGE(0.0_dp)!eigenv_tmp(2)
-          WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_z = ',shift_nosym(3, 1:3), HUGE(0.0_dp)!eigenv_tmp(3)
-        END DO  ! ir
-
-      END IF
-
-      CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
+          WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", n_nics
+          IF(unit_nics > 0) THEN
+             WRITE(unit_nics,'(T2,A)') title
+             DO ir = 1,nat_print
+                rpos(1:3) = r_nics(1:3,iatom)
+                WRITE(unit_nics,'(T2,I5,2X,3f15.6)') iatom,rpos(1:3)
+                IF(gapw) THEN
+                   WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(1, 1:3, iatom),&
+                        chemical_shift_loc_nics(1,1:3, iatom)
+                   WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(2, 1:3, iatom),&
+                        chemical_shift_loc_nics(2,1:3, iatom)
+                   WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(3, 1:3, iatom),&
+                        chemical_shift_loc_nics(3,1:3, iatom)
+                ELSE
+                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(1, 1:3, iatom)
+                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(2, 1:3, iatom)
+                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(3, 1:3, iatom)
+                ENDIF
+             ENDDO
+          ENDIF
+          CALL cp_print_key_finished_output(unit_nics, logger,nmr_section,&
                "PRINT%SHIELDING_TENSOR", error=error)
-
-      IF(nmr_env%do_nics) THEN
-        unit_nics=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
-                 extension=".data",middle_name="NICS",log_filename=.FALSE.,&
-                 error=error)
-
-        WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", n_nics
-        IF(unit_nics > 0) THEN
-          WRITE(unit_nics,'(T2,A)') title
-          DO ir = 1,nat_print
-            rpos(1:3) = r_nics(1:3,iatom)
-
-            WRITE(unit_nics,'(T2,I5,2X,3f15.6)') iatom,rpos(1:3)
-            IF(gapw) THEN
-              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(1, 1:3, iatom),&
-                    chemical_shift_loc_nics(1,1:3, iatom)
-              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(2, 1:3, iatom),&
-                    chemical_shift_loc_nics(2,1:3, iatom)
-              WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(3, 1:3, iatom),&
-                    chemical_shift_loc_nics(3,1:3, iatom)
-            ELSE
-              WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(1, 1:3, iatom)
-              WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(2, 1:3, iatom)
-              WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(3, 1:3, iatom)
-            END  IF
-          END DO
-        END IF
-
-        CALL cp_print_key_finished_output(unit_nics, logger,nmr_section,&
-                 "PRINT%SHIELDING_TENSOR", error=error)
-      END IF
-
-    END IF  ! print shift
-
-
-
+       ENDIF
+    ENDIF  ! print shift
+    !
+    ! clean up
+    DEALLOCATE(eigenv_chi,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(chemical_shift_tot, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
   END SUBROUTINE nmr_print_shift
 
 END MODULE qs_linres_nmr_shift
