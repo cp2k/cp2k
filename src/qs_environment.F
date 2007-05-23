@@ -31,12 +31,15 @@ MODULE qs_environment
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              check_atomic_kind_set,&
+                                             get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
                                              init_gapw_basis_set,&
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
@@ -229,6 +232,11 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hf_section, kind_section
+    INTEGER                                  :: iatom, natom, nseta, iset,&
+                                                max_set, max_pgf
+    INTEGER, DIMENSION(:), POINTER           :: npgfa
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -321,8 +329,26 @@ CONTAINS
     do_hf =.FALSE.
     hf_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hf_section,explicit=do_hf,error=error)
-    IF (do_hf) CALL x_hf_create(qs_env%x_data,hf_section,error=error)
+    IF (do_hf) THEN
+      natom=SIZE(particle_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
+      max_pgf = 0
+      DO iatom=1,natom
+
+        atom_kind => particle_set(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atom_kind,&
+                             orb_basis_set=orb_basis_a)
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
+                               npgf=npgfa,&
+                               nset=nseta)
+        DO iset=1,nseta
+          max_pgf = MAX(max_pgf,npgfa(iset))
+        END DO
+      END DO
+
+      CALL x_hf_create(qs_env%x_data,hf_section,natom,max_set,max_pgf,error=error)
+    END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)
     CALL section_vals_get(et_coupling_section,explicit=do_et,error=error)

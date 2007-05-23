@@ -257,7 +257,7 @@ MODULE four_center_integrals
 !!
 !!****************************************************************************
   SUBROUTINE compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,&
-                                        atomic_kind_set,screening_parameter,error)
+                                        atomic_kind_set,screening_parameter,read_from_memory,buffer,error)
 
     REAL(kind=dp), &
       DIMENSION(:, :, :, :, :, :), POINTER   :: screen_pgf
@@ -270,6 +270,9 @@ MODULE four_center_integrals
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(x_hf_screening_type)                :: screening_parameter
+    LOGICAL                                  :: read_from_memory
+    REAL(KIND=dp), DIMENSION(:,:,:,:,:,:), &
+      POINTER, OPTIONAL                      :: buffer
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_screening_matrices', &
@@ -389,12 +392,17 @@ MODULE four_center_integrals
             DO jpgf = 1,npgfb(jset)
               DO kpgf = 1,npgfc(kset)
                 max_val2=0.0_dp
-                CALL screen41(rb, rc, rb, rc,&
-                              zetb(jpgf,jset), zetc(kpgf,kset), zetb(jpgf,jset), zetc(kpgf,kset),&
-                              lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                              lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                              max_val2, screening_parameter)
-                screen_pgf(jatom,katom,jset,kset,jpgf,kpgf) = SQRT(max_val2)*p2s_b*p2s_c
+                IF( read_from_memory ) THEN
+                  screen_pgf(jatom,katom,jset,kset,jpgf,kpgf) = buffer(jatom,katom,jset,kset,jpgf,kpgf)
+                ELSE
+                  CALL screen41(rb, rc, rb, rc,&
+                                zetb(jpgf,jset), zetc(kpgf,kset), zetb(jpgf,jset), zetc(kpgf,kset),&
+                                lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
+                                lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
+                                max_val2, screening_parameter)
+                  screen_pgf(jatom,katom,jset,kset,jpgf,kpgf) = SQRT(max_val2)*p2s_b*p2s_c
+                  IF( PRESENT(buffer) ) buffer(jatom,katom,jset,kset,jpgf,kpgf) = screen_pgf(jatom,katom,jset,kset,jpgf,kpgf)
+                END IF
               END DO
             END DO
             screen_set(jatom,katom,jset,kset) = MAXVAL(screen_pgf(jatom,katom,jset,kset,1:npgfb(jset),1:npgfc(kset)))
@@ -612,7 +620,7 @@ MODULE four_center_integrals
 
     ! set up screening matrices
     CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,&
-                                    atomic_kind_set,screening_parameter,error)
+                                    atomic_kind_set,screening_parameter,.FALSE.,error=error)
 
     ! loop over this CPU's share of the atoms and compute the memory cost of the atomic blocks
     ! do not compute this for blocks that will not be associated
@@ -819,7 +827,7 @@ MODULE four_center_integrals
     CALL timestop(handle_getP)
 
     CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
-                                    screening_parameter,error)
+                                    screening_parameter,.NOT.geometry_did_change,qs_env%x_data%x_screening_buffer, error)
     
     CALL timeset(routineN//"_main",handle_main)
 
@@ -1237,7 +1245,8 @@ MODULE four_center_integrals
                     la_min, la_max, lb_min, lb_max,&
                     lc_min, lc_max, ld_min, ld_max,&
                     npgfa, npgfb, npgfc, npgfd,&
-                    primitive_forces, work_forces, screenij, screenkl, eps_schwarz )
+                    primitive_forces, work_forces, screenij, screenkl, eps_schwarz,&
+                    screening_parameter )
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
@@ -1250,6 +1259,7 @@ MODULE four_center_integrals
     REAL(dp), DIMENSION(:, :), POINTER       :: work_forces
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: screenij, screenkl
     REAL(dp), INTENT(IN)                     :: eps_schwarz
+    TYPE(x_hf_screening_type)                :: screening_parameter
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4'
 
@@ -1281,7 +1291,8 @@ MODULE four_center_integrals
                                            zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
                                            la, lb, lc ,ld,&
                                            work_forces, primitive_forces,&
-                                           offset_a, offset_b, offset_c, offset_d)
+                                           offset_a, offset_b, offset_c, offset_d,&
+                                           screening_parameter)
 
                   END DO !ld
                 END DO !lc
@@ -1380,6 +1391,7 @@ MODULE four_center_integrals
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(x_hf_screening_type)                :: screening_parameter
 
 ! many timings somewhat more clear
 
@@ -1403,7 +1415,9 @@ MODULE four_center_integrals
 
    
     CALL initialize_libderiv(deriv, max_am, error)
-    
+
+    screening_parameter = qs_env%x_data%screening_parameter
+
     ALLOCATE(work_forces(((max_am+1)*(max_am+2)/2)**4,12),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -1457,7 +1471,7 @@ MODULE four_center_integrals
     ! notice that we use eps_schwarz == EPS_SCHWARZ_FORCES
     !
     CALL compute_screening_matrices(screen_pgf,screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
-                                    qs_env%x_data%screening_parameter, error)
+                                    qs_env%x_data%screening_parameter,.FALSE.,error=error)
   
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
       block_node => first_block_node(ks_matrix(1)%matrix,iatom)
@@ -1593,7 +1607,8 @@ MODULE four_center_integrals
                                  npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
                                  primitive_forces,&
                                  work_forces, screen_pgf(iatom,jatom,iset,jset,:,:),&
-                                 screen_pgf(katom,latom,kset,lset,:,:), eps_schwarz)
+                                 screen_pgf(katom,latom,kset,lset,:,:), eps_schwarz,&
+                                 screening_parameter)
                     DO coord = 1,12
                       CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                  1.0_dp, primitive_forces(1,1,1,1,coord),ncoa,&

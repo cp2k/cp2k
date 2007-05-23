@@ -69,15 +69,18 @@ MODULE x_hf
   
   TYPE x_hf_type
     REAL(dp), DIMENSION(:), POINTER          :: x_buffer
+    REAL(dp), DIMENSION(:,:,:,:,:,:), &
+              POINTER                        :: x_screening_buffer
     INTEGER                                  :: number_of_elements
     TYPE(x_hf_screening_type)                :: screening_parameter
   END TYPE
 
   CONTAINS
 
-  SUBROUTINE x_hf_create(x_data,hf_section,error)
+  SUBROUTINE x_hf_create(x_data,hf_section,natom,max_set,max_pgf,error)
     TYPE(x_hf_type), POINTER                 :: x_data
     TYPE(section_vals_type), POINTER         :: hf_section
+    INTEGER, INTENT(IN)                      :: natom, max_set, max_pgf
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
@@ -95,7 +98,8 @@ MODULE x_hf
     x_data%number_of_elements = number_of_precalc_integrals
     CALL section_vals_val_get(hf_section,"screening_type",i_val=type,error=error)
     CALL section_vals_val_get(hf_section,"omega",r_val=omega,error=error)
-    
+    ALLOCATE(x_data%x_screening_buffer(natom,natom,max_set,max_set,max_pgf,max_pgf))
+ 
     x_data%screening_parameter%screening_type = type
     x_data%screening_parameter%omega = omega
 
@@ -112,6 +116,8 @@ MODULE x_hf
     LOGICAL                                  :: failure
 
     DEALLOCATE(x_data%x_buffer,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(x_data%x_screening_buffer,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
