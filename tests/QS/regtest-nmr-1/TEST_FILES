@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+H2O-NMR-1.inp 14
+H2O-NMR-2.inp 14
+H2O-NMR-3.inp 14
+H2O-NMR-4.inp 14
+H2O-NMR-5.inp 14
+H2O-NMR-6.inp 14
+H2O-NMR-7.inp 14
+H2O-NMR-8.inp 14
+H2O-NMR-9.inp 14
+H2O-NMR-10.inp 14
+H2O-NMR-11.inp 14
+H2O-NMR-12.inp 14
