@@ -1,0 +1,75 @@
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT HE-1
+  PRINT_LEVEL LOW
+  RUN_TYPE LINEAR_RESPONSE
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      MAX_SCF 5
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &LINRES
+       MAX_SCF 100
+       LOCALIZE_PSI0
+       OPT_METHOD CG
+       LINESEARCH 2PNT
+       PRECONDITIONER FULL_ALL
+       &NMR
+         FULL
+       &END
+    &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC 7.5 7.5 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ He  0.0 0.0 0.0 
+ He  1.5 0.0 0.0 
+ He  3.0 0.0 0.0 
+ He  4.5 0.0 0.0 
+ He  6.0 0.0 0.0 
+ He  0.0 1.5 0.0 
+ He  1.5 1.5 0.0 
+ He  3.0 1.5 0.0 
+ He  4.5 1.5 0.0 
+ He  6.0 1.5 0.0 
+ He  0.0 3.0 0.0 
+ He  1.5 3.0 0.0 
+ He  3.0 3.0 0.0 
+ He  4.5 3.0 0.0 
+ He  6.0 3.0 0.0 
+ He  0.0 4.5 0.0 
+ He  1.5 4.5 0.0 
+ He  3.0 4.5 0.0 
+ He  4.5 4.5 0.0 
+ He  6.0 4.5 0.0 
+ He  0.0 6.0 0.0 
+ He  1.5 6.0 0.0 
+ He  3.0 6.0 0.0 
+ He  4.5 6.0 0.0 
+ He  6.0 6.0 0.0 
+    &END COORD
+    &KIND He
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q2
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
