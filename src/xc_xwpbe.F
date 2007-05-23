@@ -28,6 +28,7 @@ MODULE xc_xwpbe
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: expint
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -88,8 +89,7 @@ MODULE xc_xwpbe
                               g2 = -0.07117647788_dp/E, &
                               g3 = 0.08534541323_dp/E, &
                               g4 = 0.0_dp
-  REAL(KIND=dp), PARAMETER :: wcutoff = 14.0_dp,&
-                              pi = ACOS(-1.0_dp)
+  REAL(KIND=dp), PARAMETER :: wcutoff = 14.0_dp
   REAL(KIND=dp), PARAMETER :: f12 = 0.5_dp, f14 = 0.25_dp, f158 = 15.0_dp/8.0_dp, &
                               f1516 = 15.0_dp/16.0_dp, f24364 = 243.0_dp/64.0_dp, &
                               f2716 = 27.0_dp/16.0_dp, f2732 = 27.0_dp/32.0_dp, &
