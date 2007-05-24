@@ -856,12 +856,10 @@ CONTAINS
             &                          log_filename=.FALSE.,error=error)
 
        nat_print = SIZE(cs_atom_list,1)
-       WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", nat_print
-       WRITE(unit_atoms,'(T2,A)') "WARNING! SHIFTS ARE MULTIPLIED BY A MAGIC CONSTANT [4*Pi^2]!"
-       WRITE(unit_atoms,'(T2,A)') "WARNING! THE SHIFTS CONTAIN THE CHI CORRECTION!"
-
        IF(unit_atoms > 0) THEN
-
+          WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", nat_print
+          WRITE(unit_atoms,'(T2,A)') "WARNING! SHIFTS ARE MULTIPLIED BY A MAGIC CONSTANT [4*Pi^2]!"
+          WRITE(unit_atoms,'(T2,A)') "WARNING! THE SHIFTS CONTAIN THE CHI CORRECTION!"
           WRITE(unit_atoms,'(T2,A)') title
           DO ir = 1,nat_print
              iatom = cs_atom_list(ir)

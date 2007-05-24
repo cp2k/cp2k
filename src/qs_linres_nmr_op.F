@@ -41,7 +41,8 @@ MODULE qs_linres_nmr_op
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_to_fm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -221,7 +222,8 @@ CONTAINS
              CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
              CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
                   rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-             p_psi0(ispin,idir)%matrix%local_data(:,istate)=rxp_psi0(ispin,idir)%matrix%local_data(:,istate)
+             CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,&
+                  &           p_psi0(ispin,idir)%matrix,1,istate,istate)
           END DO
        ENDDO
        rxp_psi0(ispin,1)%matrix%local_data = p_psi0(ispin,1)%matrix%local_data
