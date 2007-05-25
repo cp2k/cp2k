@@ -94,18 +94,20 @@ MODULE qs_linres_nmr_shift
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
+  USE message_passing,                 ONLY: mp_sum 
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
-
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: chi_soft_analytic, interpolate_shift_pwgrid, mult_G_ov_G2_grid, nmr_print_shift
+  PUBLIC :: chi_soft_analytic, interpolate_shift_pwgrid, &
+       &    gsum_shift_pwgrid, mult_G_ov_G2_grid, nmr_print_shift
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
 
@@ -151,12 +153,9 @@ CONTAINS
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
-!dbg
-!     TYPE(cp_fm_type), POINTER :: fm_work2
-!dbg
 
     CALL timeset(routineN,"I"," ",handle)
-
+    
     failure = .FALSE.
 
     NULLIFY(dft_control,matrix_s,mos,para_env)
@@ -483,12 +482,12 @@ CONTAINS
 !!*** **********************************************************************
 
   SUBROUTINE interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
-             i_B,idir,nmr_section,error)
+       &                              i_B,idir,nmr_section,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: shift_pw_rspace
     INTEGER, INTENT(IN)                      :: i_B, idir
@@ -496,8 +495,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
-      routineP = moduleN//':'//routineN
-
+         routineP = moduleN//':'//routineN
     INTEGER                                  :: aint_precond, iat, iatom, &
                                                 max_iter, n_nics, natom, &
                                                 precond_kind
@@ -513,8 +511,9 @@ CONTAINS
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
 
-!dbg
-!dbg
+#ifdef __parallel
+    CALL stop_program(routineP,"Doesnt support parallel yet.")
+#endif
 
     failure = .FALSE.
     NULLIFY (interp_section)
@@ -563,11 +562,11 @@ CONTAINS
       ENDIF
 
       DO iat = 1,natom
-        iatom = cs_atom_list(iat)
-        R_iatom = pbc(particle_set(iatom)%r,cell)
-        shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error=error)
-        chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
-                                        nmr_env%shift_factor*shift_val
+         iatom = cs_atom_list(iat)
+         R_iatom = pbc(particle_set(iatom)%r,cell)
+         shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error=error)
+         chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
+                                         nmr_env%shift_factor*shift_val
       END DO
 
       IF(nmr_env%do_nics) THEN
@@ -585,6 +584,81 @@ CONTAINS
     END IF
 
   END SUBROUTINE interpolate_shift_pwgrid
+
+  SUBROUTINE gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_gspace,&
+       &                       i_B,idir,nmr_section,error)
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: shift_pw_gspace
+    INTEGER, INTENT(IN)                      :: i_B, idir
+    TYPE(section_vals_type), POINTER         :: nmr_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'gsum_shift_pwgrid', &
+         routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iat, iatom, n_nics, natom
+    INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: R_iatom(3), &
+                                                ra(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
+                                                chemical_shift_nics
+    !
+    failure = .FALSE.
+    NULLIFY(cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
+    CPPrecondition(ASSOCIATED(shift_pw_gspace%pw),cp_failure_level,routineP,error,failure)
+    IF(.NOT. failure) THEN
+       !
+       CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
+            &           chemical_shift=chemical_shift,&
+            &           chemical_shift_nics=chemical_shift_nics,&
+            &           n_nics=n_nics,r_nics=r_nics,error=error)
+       !
+       IF(ASSOCIATED(cs_atom_list)) THEN
+          natom = SIZE(cs_atom_list,1)
+       ELSE
+          natom = -1
+       ENDIF
+       !
+       ! compute the chemical shift
+       DO iat = 1,natom
+          iatom = cs_atom_list(iat)
+          R_iatom = pbc(particle_set(iatom)%r,cell)
+          chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
+               & nmr_env%shift_factor*REAL(gsumr(R_iatom,shift_pw_gspace%pw),dp)
+       ENDDO
+       !
+       ! compute nics
+       IF(nmr_env%do_nics) THEN
+          DO iat = 1,n_nics
+             ra = pbc(r_nics(:,iat),cell)
+             chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
+                  & nmr_env%shift_factor*REAL(gsumr(ra,shift_pw_gspace%pw),dp)
+          ENDDO
+       ENDIF
+    ENDIF
+  END SUBROUTINE gsum_shift_pwgrid
+
+  FUNCTION gsumr(r,pw)
+    REAL(dp), INTENT(IN)        :: r(3)
+    TYPE(pw_type), POINTER      :: pw
+    TYPE(pw_grid_type), POINTER :: grid
+    COMPLEX(dp)                 :: gsumr,rg
+    INTEGER                     :: ig
+    grid => pw%pw_grid
+    gsumr = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+    DO ig = grid%first_gne0,grid%ngpts_cut_local
+       rg = ( grid%g(1,ig)*r(1) + grid%g(2,ig)*r(2) + grid%g(3,ig)*r(3) ) * gaussi
+       gsumr = gsumr + pw%cc(ig)*EXP(rg)
+    ENDDO
+    IF(grid%have_g0) gsumr = gsumr + pw%cc(1)
+    CALL mp_sum(gsumr,grid%para%group)
+  END FUNCTION gsumr
 
 !!****f* qs_linres_nmr_shift%mult_G_ov_G2_grid
 !!

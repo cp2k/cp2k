@@ -122,7 +122,7 @@ CONTAINS
                                                 nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, ionode
-    REAL(dp)                                 :: ck(3), ckdk(3), dk(3)
+    REAL(dp)                                 :: ck(3), ckdk(3), dk(3), chk(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: basisfun_center, vecbuf_c0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -146,10 +146,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: op_p_ao, op_rmd_ao
     TYPE(section_vals_type), POINTER         :: lr_section
-
-    real*8,allocatable,dimension(:,:)::buffer1,buffer2,buffer3
-!dbg
-!dbg
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -201,9 +197,11 @@ CONTAINS
 !!$    !First term: operator matrix elements
 !!$    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
 !************************************************************
-    write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-    write(*,*) 'rmc_x_p_xyz_ao is computed in a different way'
-    write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    IF(output_unit>0) THEN
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+       WRITE(output_unit,*) 'rmc_x_p_xyz_ao: L is computed for each states'
+       WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+    ENDIF
 
     DO ispin=1,dft_control%nspins
        p_psi0(ispin,1)%matrix%local_data=0d0
@@ -232,27 +230,27 @@ CONTAINS
     ENDDO
     !
     ! print checksums
+    chk(1) = checksum_matrix(op_rmd_ao(1)%matrix,para_env)
+    chk(2) = checksum_matrix(op_rmd_ao(2)%matrix,para_env)
+    chk(3) = checksum_matrix(op_rmd_ao(3)%matrix,para_env)
     IF(output_unit>0) THEN
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =', &
-            & checksum_matrix(op_rmd_ao(1)%matrix)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =', &
-            & checksum_matrix(op_rmd_ao(2)%matrix)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =', &
-            & checksum_matrix(op_rmd_ao(3)%matrix)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =',chk(1)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =',chk(2)
+       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =',chk(3)
     ENDIF
 !************************************************************
     !
     ! Calculate the px py pz operators
     CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
-
+    !
     ! print checksums
+    chk(1) = checksum_matrix(op_p_ao(1)%matrix,para_env)
+    chk(2) = checksum_matrix(op_p_ao(2)%matrix,para_env)
+    chk(3) = checksum_matrix(op_p_ao(3)%matrix,para_env)
     IF(output_unit>0) THEN
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_x =', &
-            & checksum_matrix(op_p_ao(1)%matrix)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_y =', &
-            & checksum_matrix(op_p_ao(2)%matrix)
-       write(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_z =', &
-            & checksum_matrix(op_p_ao(3)%matrix)
+       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_x =',chk(1)
+       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_y =',chk(2)
+       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_z =',chk(3)
     ENDIF
     ! Apply the p operator to the psi0
     DO idir = 1,3

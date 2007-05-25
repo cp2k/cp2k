@@ -2117,8 +2117,9 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  FUNCTION checksum_real_matrix(a)
+  FUNCTION checksum_real_matrix(a,para_env)
     TYPE(real_matrix_type), POINTER          :: a
+    TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE checksum_real_matrix (MODULE sparse_matrix_types)"
     INTEGER                                  :: iblock_row,n
@@ -2132,6 +2133,9 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (.NOT.ASSOCIATED(a)) THEN
        CALL stop_program(routine,"The matrix pointer a is not associated")
     END IF
+    IF (.NOT.ASSOCIATED(para_env)) THEN
+       CALL stop_program(routine,"The para_env pointer a is not associated")
+    END IF
     DO iblock_row=1,a%nblock_row
        block_node => first_block_node(a,iblock_row)
        DO WHILE (ASSOCIATED(block_node))
@@ -2142,6 +2146,7 @@ END SUBROUTINE cp_sm_scale_and_add
           block_node => block_node%next_block_node
        END DO
     END DO
+    CALL mp_sum(checksum_real_matrix,para_env%group)
   END FUNCTION checksum_real_matrix
 ! *****************************************************************************
 
