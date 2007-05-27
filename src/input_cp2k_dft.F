@@ -1104,8 +1104,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"LOCALIZATION",&
             Description="Controls the printing of the Wannier centers.", &
-            print_level=high_print_level,each=(/1/),common_iter_levels=1,&
-            filename="__STD_OUT__", error=error)
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__", error=error)
 
        CALL keyword_create(keyword, name="LOC_TYPE",&
             description="Specify the method to use for the localization.",&
@@ -1125,6 +1124,13 @@ CONTAINS
        CALL keyword_create(keyword, name="TOTAL_DIPOLE",&
             description="prints out the total dipole of the wannier centers.",&
             usage="TOTAL_DIPOLE", default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLECULAR_DIPOLES",&
+            description="prints out the  dipoles of the several molecules",&
+            usage="MOLECULAR_DIPOLES", default_l_val=.TRUE., &
             lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)

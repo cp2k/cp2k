@@ -64,10 +64,10 @@ MODULE qs_scf_post
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_lval,&
                                              section_get_rval,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
@@ -124,8 +124,8 @@ MODULE qs_scf_post
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE realspace_grid_cube,             ONLY: rs_pw_to_cube
   USE realspace_grid_types,            ONLY: realspace_grid_type
-  USE realspace_grid_cube,             ONLY: rs_pw_to_cube 
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
@@ -190,9 +190,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, first_time, ionode, &
-                                                my_localized_wfn, p_loc, &
-                                                p_molstates,do_et
+    LOGICAL                                  :: do_et, failure, first_time, &
+                                                ionode, my_localized_wfn, &
+                                                p_loc, p_molstates
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -242,7 +242,7 @@ CONTAINS
     REAL(KIND = dp)           :: q_max
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
     TYPE(section_vals_type), POINTER :: print_key, input, loc_section,&
-         density_fit_section,et_section
+         density_fit_section,et_section, loc_print_key
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     CHARACTER(len=default_string_length)     :: iter
@@ -520,7 +520,9 @@ CONTAINS
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
                   extension=".data",middle_name=TRIM(filename),&
                   log_filename=.FALSE.,on_file=.TRUE.,error=error)
-             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,unit_nr,error=error)
+             loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
+             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,unit_nr,&
+                  loc_print_key,error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
              IF (ionode) WRITE(output_unit,*) "Results in ",filename
@@ -662,9 +664,10 @@ CONTAINS
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
                 unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
                      extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+                loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error)
                 ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
                 CALL qs_loc_compute_properties(qs_loc_env,molecule_set,unoccupied_orbs(ispin)%matrix,&
-                                center,ionode,unit_nr,error=error)
+                                center,ionode,unit_nr,loc_print_key,error=error)
                 DEALLOCATE(center)
                 CALL cp_print_key_finished_output(unit_nr,logger,input,&
                      "DFT%PRINT%LOCALIZATION",error=error)

@@ -24,7 +24,7 @@
 !******************************************************************************
 
 MODULE qs_localization
-! *****************************************************************************
+  ! *****************************************************************************
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -34,8 +34,6 @@ MODULE qs_localization
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -46,7 +44,9 @@ MODULE qs_localization
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_iter_string
+  USE cp_output_handling,              ONLY: cp_iter_string,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -58,6 +58,7 @@ MODULE qs_localization
                                              do_loc_direct,&
                                              do_loc_jacobi,&
                                              do_loc_l1_norm_sd
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
@@ -82,11 +83,11 @@ MODULE qs_localization
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
-  USE qs_localization_methods,         ONLY: crazy_rotations,&
+  USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
+                                             crazy_rotations,&
                                              direct_mini,&
                                              initialize_weights,&
-                                             jacobi_rotations,&
-                                             approx_l1_norm_sd
+                                             jacobi_rotations
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
@@ -99,43 +100,43 @@ MODULE qs_localization
 
   IMPLICIT NONE
 
-! *** Public ***
+  ! *** Public ***
   PUBLIC :: qs_loc_init
   PUBLIC :: qs_loc_env_type, PIPEK_MEZEY, POSITION_OPERATOR
   PUBLIC :: qs_loc_compute_properties
   PUBLIC :: qs_loc_destroy
 
-! *** Localization Data Type ***
+  ! *** Localization Data Type ***
   TYPE qs_loc_env_type
-       INTEGER :: operator_type
-       INTEGER :: localization_method
-       LOGICAL :: wannier
-       LOGICAL :: molecular_states
-       LOGICAL :: jacobi_fallback
-       INTEGER :: max_iter
-       REAL(KIND=dp) :: eps_localization
-       INTEGER :: is_initialized
-       TYPE ( real_matrix_p_type ),POINTER :: OPERATOR(:,:)
-       TYPE ( cp_para_env_type ), POINTER :: para_env
-       TYPE ( cell_type ), POINTER :: cell
-       TYPE ( particle_type ), POINTER :: particle_set ( : )
-       TYPE(distribution_1d_type), POINTER         :: local_molecules
+     INTEGER :: operator_type
+     INTEGER :: localization_method
+     LOGICAL :: wannier
+     LOGICAL :: molecular_states
+     LOGICAL :: jacobi_fallback
+     INTEGER :: max_iter
+     REAL(KIND=dp) :: eps_localization
+     INTEGER :: is_initialized
+     TYPE ( real_matrix_p_type ),POINTER :: OPERATOR(:,:)
+     TYPE ( cp_para_env_type ), POINTER :: para_env
+     TYPE ( cell_type ), POINTER :: cell
+     TYPE ( particle_type ), POINTER :: particle_set ( : )
+     TYPE(distribution_1d_type), POINTER         :: local_molecules
 
-       REAL (KIND = dp) :: weights ( 3 )
+     REAL (KIND = dp) :: weights ( 3 )
   END TYPE qs_loc_env_type
 
   INTEGER, PARAMETER :: PIPEK_MEZEY=301, POSITION_OPERATOR=302
 
-! *****************************************************************************
+  ! *****************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!
-! allocates the data, and initializes the operators
-!
-!******************************************************************************
-SUBROUTINE qs_loc_init(qs_loc_env,qs_env,error)
+  !******************************************************************************
+  !
+  ! allocates the data, and initializes the operators
+  !
+  !******************************************************************************
+  SUBROUTINE qs_loc_init(qs_loc_env,qs_env,error)
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -145,68 +146,64 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-  CALL timeset("qs_loc_init","I",'',handle)
-  NULLIFY(qs_loc_env%para_env)
-  NULLIFY(qs_loc_env%cell)
-  NULLIFY(qs_loc_env%particle_set)
+    CALL timeset("qs_loc_init","I",'',handle)
+    NULLIFY(qs_loc_env%para_env)
+    NULLIFY(qs_loc_env%cell)
+    NULLIFY(qs_loc_env%particle_set)
+    !
+    ! start replicating the s structure, we do have
+    ! 6 operators (x,y,z)*(real,imag) for POSITION_OPERATOR
+    ! and we have NATOMS operators for PIPEK_MEZEY
+    ! notice that the operator should have the same structure as S
+    ! borrow para env from S
+    !
+    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,cell=qs_loc_env%cell, &
+         local_molecules=qs_loc_env%local_molecules,&
+         particle_set = qs_loc_env % particle_set, &
+         para_env=qs_loc_env%para_env,error=error)
+    CALL cp_para_env_retain(qs_loc_env%para_env,error=error)
+
+    qs_loc_env % operator_type = POSITION_OPERATOR
+    IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
+       ALLOCATE ( qs_loc_env % operator ( 2, 3 ), stat = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
+    ELSEIF ( qs_loc_env % operator_type == PIPEK_MEZEY ) THEN
+       natoms = SIZE ( qs_loc_env % particle_set )
+       ALLOCATE ( qs_loc_env % operator ( 1, natoms ), stat = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
+    ENDIF
+
+    DO i=1, SIZE ( qs_loc_env % operator, 2 )
+       DO j=1, SIZE ( qs_loc_env % operator, 1 )
+          NULLIFY(qs_loc_env%operator(j,i)%matrix)
+          CALL replicate_matrix_structure(matrix_s(1)%matrix, &
+               qs_loc_env%operator(j,i)%matrix,"operator",error=error)
+          CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
+       ENDDO
+    END DO
+
+
+    IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
+       CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights )
+       CALL get_boys_foster_operator ( qs_loc_env, qs_env ,error=error)
+    ENDIF
+
+    IF ( qs_loc_env % operator_type == PIPEK_MEZEY ) &
+         CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
+
+    qs_loc_env%molecular_states = .FALSE.
+    qs_loc_env%is_initialized = 777
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE qs_loc_init
+
+  !******************************************************************************
   !
-  ! start replicating the s structure, we do have
-  ! 6 operators (x,y,z)*(real,imag) for POSITION_OPERATOR
-  ! and we have NATOMS operators for PIPEK_MEZEY
-  ! notice that the operator should have the same structure as S
-  ! borrow para env from S
+  ! Computes the Boys-Foster operator for periodic systems
   !
-  CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,cell=qs_loc_env%cell, &
-                   local_molecules=qs_loc_env%local_molecules,&
-                   particle_set = qs_loc_env % particle_set, &
-                   para_env=qs_loc_env%para_env,error=error)
-  CALL cp_para_env_retain(qs_loc_env%para_env,error=error)
+  !******************************************************************************
+  SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env, error )
 
-! dbg
-  qs_loc_env % operator_type = POSITION_OPERATOR
-! dbg
-  IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
-    ALLOCATE ( qs_loc_env % operator ( 2, 3 ), stat = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
-  ELSEIF ( qs_loc_env % operator_type == PIPEK_MEZEY ) THEN
-    natoms = SIZE ( qs_loc_env % particle_set )
-    ALLOCATE ( qs_loc_env % operator ( 1, natoms ), stat = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
-  ENDIF
-
-  DO i=1, SIZE ( qs_loc_env % operator, 2 )
-     DO j=1, SIZE ( qs_loc_env % operator, 1 )
-       NULLIFY(qs_loc_env%operator(j,i)%matrix)
-       CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-            qs_loc_env%operator(j,i)%matrix,"operator",error=error)
-       CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
-     ENDDO
-  END DO
-
-
-  IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
-    CALL initialize_weights ( qs_loc_env % cell, qs_loc_env % weights )
-    CALL get_boys_foster_operator ( qs_loc_env, qs_env ,error=error)
-  ENDIF
-
-  IF ( qs_loc_env % operator_type == PIPEK_MEZEY ) &
-  CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
-
-  qs_loc_env%molecular_states = .FALSE.
-
-! done
-  qs_loc_env%is_initialized = 777
-  CALL timestop(0.0_dp,handle)
-END SUBROUTINE qs_loc_init
-
-!******************************************************************************
-!
-! Computes the Boys-Foster operator for periodic systems
-!
-!******************************************************************************
-SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env, error )
-
-! globals
+    ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -217,77 +214,78 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env, error )
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-  NULLIFY ( pw_env, auxbas_pw_pool )
-!
-! OK, now we construct these operators the easy way, put them on the pw grid and integrate
-! analytical construction should be faster.
-!
-! get a pw grid
-  CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-  CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-  CALL pw_pool_init_coeff(auxbas_pw_pool,op_rspace,&
-                          use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    NULLIFY ( pw_env, auxbas_pw_pool )
+    !
+    ! OK, now we construct these operators the easy way, put them on the pw grid and integrate
+    ! analytical construction should be faster.
+    !
+    ! get a pw grid
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool,op_rspace,&
+         use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
-  DO i=1,3
-   DO j=1,2
-      ! CALL coeff_zero(op_rspace)
-      ! the definition of the position on the PW grid has to be
-      ! compatible with the one used in the integration procedure / collocation procedure
-      ! integrate_v_rspace calculate_rho_elec
-      DO iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
-      DO iy=op_rspace%pw%pw_grid%bounds_local(1,2),op_rspace%pw%pw_grid%bounds_local(2,2)
-      DO ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
-         x=REAL(ix-op_rspace%pw%pw_grid%bounds(1,1),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(1),dp)
-         y=REAL(iy-op_rspace%pw%pw_grid%bounds(1,2),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(2),dp)
-         z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),dp)
-         SELECT CASE (i)
-         CASE (1)
-            thearg=x
-         CASE (2)
-            thearg=y
-         CASE (3)
-            thearg=z
-         END SELECT
-         SELECT CASE (j)
-         CASE (1)
-            theval=COS(thearg)
-         CASE (2)
-            theval=SIN(thearg)
-         END SELECT
-         ! notice the volume element, slightly ugly I think
-         op_rspace%pw%cr3d(ix,iy,iz)=theval*op_rspace%pw%pw_grid%dvol
-      ENDDO
-      ENDDO
-      ENDDO
-! do the actual integration
-      CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
-      CALL integrate_v_rspace(op_rspace,h=qs_loc_env%operator(j,i),qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-   ENDDO
-  ENDDO
+    DO i=1,3
+       DO j=1,2
+          ! CALL coeff_zero(op_rspace)
+          ! the definition of the position on the PW grid has to be
+          ! compatible with the one used in the integration procedure / collocation procedure
+          ! integrate_v_rspace calculate_rho_elec
+          DO iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
+             DO iy=op_rspace%pw%pw_grid%bounds_local(1,2),op_rspace%pw%pw_grid%bounds_local(2,2)
+                DO ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
+                   x=REAL(ix-op_rspace%pw%pw_grid%bounds(1,1),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(1),dp)
+                   y=REAL(iy-op_rspace%pw%pw_grid%bounds(1,2),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(2),dp)
+                   z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),dp)
+                   SELECT CASE (i)
+                   CASE (1)
+                      thearg=x
+                   CASE (2)
+                      thearg=y
+                   CASE (3)
+                      thearg=z
+                   END SELECT
+                   SELECT CASE (j)
+                   CASE (1)
+                      theval=COS(thearg)
+                   CASE (2)
+                      theval=SIN(thearg)
+                   END SELECT
+                   ! notice the volume element, slightly ugly I think
+                   op_rspace%pw%cr3d(ix,iy,iz)=theval*op_rspace%pw%pw_grid%dvol
+                ENDDO
+             ENDDO
+          ENDDO
+          ! do the actual integration
+          CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
+          CALL integrate_v_rspace(op_rspace,h=qs_loc_env%operator(j,i),qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+       ENDDO
+    ENDDO
 
-  CALL pw_pool_give_back_coeff ( auxbas_pw_pool, op_rspace ,error=error)
+    CALL pw_pool_give_back_coeff ( auxbas_pw_pool, op_rspace ,error=error)
 
-END SUBROUTINE get_boys_foster_operator
+  END SUBROUTINE get_boys_foster_operator
 
-!******************************************************************************
-!
-! Computes the Pipek-Mezey operator for periodic systems
-!
-!******************************************************************************
-SUBROUTINE get_pipek_mezey_operator ( qs_loc_env, qs_env )
-! globals
+  !******************************************************************************
+  !
+  ! Computes the Pipek-Mezey operator for periodic systems
+  !
+  !******************************************************************************
+  SUBROUTINE get_pipek_mezey_operator ( qs_loc_env, qs_env )
+    ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-  CALL stop_program("qs_localization","PIPEK-MEZEY not implemented")
-END SUBROUTINE get_pipek_mezey_operator
+    CALL stop_program("qs_localization","PIPEK-MEZEY not implemented")
+  END SUBROUTINE get_pipek_mezey_operator
 
-!******************************************************************************
-!
-! applies the operators to obtain the necessary data
-!
-!******************************************************************************
-SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, ionode, iunit, error)
+  !******************************************************************************
+  !
+  ! applies the operators to obtain the necessary data
+  !
+  !******************************************************************************
+  SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, ionode,&
+       iunit, loc_print_key, error)
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -295,6 +293,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     LOGICAL                                  :: ionode
     INTEGER                                  :: iunit
+    TYPE(section_vals_type), POINTER         :: loc_print_key
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: handle, i, isos, j, k, n, &
@@ -305,56 +304,56 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
 
-  CALL timeset("qs_loc_compute_properties","I",'',handle)
-  NULLIFY(tmp_fm_struct,opvec)
-  logger => cp_error_get_logger(error)
+    CALL timeset("qs_loc_compute_properties","I",'',handle)
+    NULLIFY(tmp_fm_struct,opvec)
+    logger => cp_error_get_logger(error)
 
-  ! get rows and cols of the input
-  CALL cp_fm_get_info(vectors,nrow_global=n,ncol_global=k,error=error)
-  ! replicate the input kind of matrix
-  CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
-  ! create a new matrix structure k x k in size, borrowing most of info
-  CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k, &
-            ncol_global=k,para_env=vectors%matrix_struct%para_env, &
-            context=vectors%matrix_struct%context,error=error)
+    ! get rows and cols of the input
+    CALL cp_fm_get_info(vectors,nrow_global=n,ncol_global=k,error=error)
+    ! replicate the input kind of matrix
+    CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
+    ! create a new matrix structure k x k in size, borrowing most of info
+    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k, &
+         ncol_global=k,para_env=vectors%matrix_struct%para_env, &
+         context=vectors%matrix_struct%context,error=error)
 
-  IF (ANY(SHAPE(center).NE.(/k,6/))) CALL stop_program('centers_and_spreads','center')
+    IF (ANY(SHAPE(center).NE.(/k,6/))) CALL stop_program('centers_and_spreads','center')
 
-! Allocating ZIJ
-  IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
-    ALLOCATE ( ZIJ ( 2, 3 ), stat = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )
-  ELSEIF ( qs_loc_env % operator_type == PIPEK_MEZEY ) THEN
-    natoms = SIZE ( qs_loc_env % operator, 2 )
-    ALLOCATE ( ZIJ ( 1, natoms ), stat = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )
-  ENDIF
-! make the actual matrices
-  DO i=1,SIZE ( ZIJ, 2 )
-    DO j=1, SIZE ( ZIJ, 1 )
-        NULLIFY ( ZIJ ( j, i ) % matrix )
-        CALL cp_fm_create ( ZIJ ( j, i ) % matrix, tmp_fm_struct ,error=error)
+    ! Allocating ZIJ
+    IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
+       ALLOCATE ( ZIJ ( 2, 3 ), stat = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )
+    ELSEIF ( qs_loc_env % operator_type == PIPEK_MEZEY ) THEN
+       natoms = SIZE ( qs_loc_env % operator, 2 )
+       ALLOCATE ( ZIJ ( 1, natoms ), stat = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )
+    ENDIF
+    ! make the actual matrices
+    DO i=1,SIZE ( ZIJ, 2 )
+       DO j=1, SIZE ( ZIJ, 1 )
+          NULLIFY ( ZIJ ( j, i ) % matrix )
+          CALL cp_fm_create ( ZIJ ( j, i ) % matrix, tmp_fm_struct ,error=error)
+       ENDDO
     ENDDO
-  ENDDO
 
-! release one instance of the fm_struct
-  CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
+    ! release one instance of the fm_struct
+    CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 
-! Compute zij here
-  DO i=1,SIZE ( ZIJ, 2 )
-    DO j=1,SIZE ( ZIJ, 1 )
-       CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
-                            vectors,opvec,ncol=k ,error=error)
-       CALL cp_fm_gemm("T","N",k,k,n,1.0_dp,vectors,opvec,0.0_dp,ZIJ(j,i)%matrix,error=error)
+    ! Compute zij here
+    DO i=1,SIZE ( ZIJ, 2 )
+       DO j=1,SIZE ( ZIJ, 1 )
+          CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
+               vectors,opvec,ncol=k ,error=error)
+          CALL cp_fm_gemm("T","N",k,k,n,1.0_dp,vectors,opvec,0.0_dp,ZIJ(j,i)%matrix,error=error)
+       ENDDO
     ENDDO
-  ENDDO
 
-  IF ( qs_loc_env % wannier ) THEN
+    IF ( qs_loc_env % wannier ) THEN
        SELECT CASE (qs_loc_env % localization_method)
        CASE ( do_loc_jacobi )
           CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, &
                max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, &
-                                 sweeps=sweeps )
+               sweeps=sweeps )
        CASE ( do_loc_crazy )
           CALL crazy_rotations  ( qs_loc_env % weights, zij, vectors, &
                max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, &
@@ -362,14 +361,14 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
           IF ( .NOT.converged ) THEN
              IF (qs_loc_env % jacobi_fallback) THEN
                 WRITE (cp_logger_get_default_unit_nr(logger,local=.FALSE.),"(A,I6,A)")&
-                  " Crazy Wannier localization not converged after ",sweeps,&
-                  " iterations, switching to jacobi rotations"
+                     " Crazy Wannier localization not converged after ",sweeps,&
+                     " iterations, switching to jacobi rotations"
                 CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors,&
                      max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, sweeps = sweeps )
              ELSE
                 WRITE (cp_logger_get_default_unit_nr(logger,local=.FALSE.),"(A,I6,A)")&
-                  " Crazy Wannier localization not converged after ",sweeps,&
-                  " iterations, and jacobi_fallback switched off "
+                     " Crazy Wannier localization not converged after ",sweeps,&
+                     " iterations, and jacobi_fallback switched off "
              ENDIF
           END IF
        CASE ( do_loc_direct )
@@ -390,46 +389,46 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
        IF (ionode) THEN
-           scr=cp_logger_get_default_unit_nr(logger,.FALSE.)
-           WRITE(scr,'(A,I6,A)') " Wannier localization finished in ",sweeps," iterations"
+          scr=cp_logger_get_default_unit_nr(logger,.FALSE.)
+          WRITE(scr,'(A,I6,A)') " Wannier localization finished in ",sweeps," iterations"
        ENDIF
-  ELSE
+    ELSE
        IF (ionode) THEN
-           scr=cp_logger_get_default_unit_nr(logger,.FALSE.)
-           WRITE(scr,'(A,I6,A)') " No Wannier localization applied "
+          scr=cp_logger_get_default_unit_nr(logger,.FALSE.)
+          WRITE(scr,'(A,I6,A)') " No Wannier localization applied "
        ENDIF
-  ENDIF
+    ENDIF
 
-  IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
-    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
-    IF (qs_loc_env % molecular_states ) &
-    CALL wfc_to_molecule ( qs_loc_env, center, molecule_set )
-  ENDIF
+    IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
+       CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
+       IF (qs_loc_env % molecular_states ) &
+            CALL wfc_to_molecule ( qs_loc_env, loc_print_key,center, molecule_set,error )
+    ENDIF
 
 
-! release results
-  DO i=1,SIZE ( ZIJ, 2 )
-    DO j=1, SIZE ( ZIJ, 1 )
-       CALL cp_fm_release(ZIJ(j,i)%matrix,error=error)
+    ! release results
+    DO i=1,SIZE ( ZIJ, 2 )
+       DO j=1, SIZE ( ZIJ, 1 )
+          CALL cp_fm_release(ZIJ(j,i)%matrix,error=error)
+       ENDDO
     ENDDO
-  ENDDO
 
-  DEALLOCATE(zij, STAT = isos)
-  IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','zij')
-  CALL cp_fm_release(opvec,error=error)
+    DEALLOCATE(zij, STAT = isos)
+    IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','zij')
+    CALL cp_fm_release(opvec,error=error)
 
-  CALL timestop(0.0_dp,handle)
+    CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE qs_loc_compute_properties
+  END SUBROUTINE qs_loc_compute_properties
 
-!******************************************************************************
-!
-! computes spread and centers
-!
-!******************************************************************************
+  !******************************************************************************
+  !
+  ! computes spread and centers
+  !
+  !******************************************************************************
 
-SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
-! globals
+  SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
+    ! globals
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: iunit
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
@@ -447,80 +446,82 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
 
 ! get nstates
 
-  CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates ,error=error)
+    CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates ,error=error)
 
-! initialize complexresult for boys-foster
-  NULLIFY ( complexresult )
-  logger => cp_error_get_logger(error)
-  CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
-!
+    ! initialize complexresult for boys-foster
+    NULLIFY ( complexresult )
+    logger => cp_error_get_logger(error)
+    CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
+    !
 
-! OK print out the centers ( center ( 1:3) )  and spreads ( center ( 4:6 ) ) of these friends
-  cell => qs_loc_env % cell
-  IF (ionode) THEN
-     iter=cp_iter_string(logger%iter_info,error=error)
-     WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
-  END IF
-  DO l=1,nstates
-    DO i=1,3
-       CALL cp_fm_get_element(zij(1,i)%matrix,l,l,realpart)
-       CALL cp_fm_get_element(zij(2,i)%matrix,l,l,imagpart)
-       z=CMPLX(realpart,imagpart,dp)
-       center (l ,i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
-       center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
+    ! OK print out the centers ( center ( 1:3) )  and spreads ( center ( 4:6 ) ) of these friends
+    cell => qs_loc_env % cell
+    IF (ionode) THEN
+       iter=cp_iter_string(logger%iter_info,error=error)
+       WRITE(iunit,'(i6,/,a)') nstates,TRIM(iter)
+    END IF
+    DO l=1,nstates
+       DO i=1,3
+          CALL cp_fm_get_element(zij(1,i)%matrix,l,l,realpart)
+          CALL cp_fm_get_element(zij(2,i)%matrix,l,l,imagpart)
+          z=CMPLX(realpart,imagpart,dp)
+          center (l ,i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
+          center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
+       ENDDO
+       IF (ionode) WRITE(iunit,'(A,6F16.8)') "He", angstrom*center(l, 1 : 6 )
     ENDDO
-    IF (ionode) WRITE(iunit,'(A,6F16.8)') "He", angstrom*center(l, 1 : 6 )
-  ENDDO
 
-  ! now, find the spread of the orbitals
-  DO i=1,3
-     complexresult%local_data ( :, : ) = CMPLX (ZIJ(1,i)%matrix%local_data(:,:), &
-                                         ZIJ(2,i)%matrix%local_data(:,:),dp)
-     CALL cp_cfm_lu_decompose ( complexresult, almost_determinant )
-     IF (ionode) THEN
-         scr=cp_logger_get_default_unit_nr()
-         WRITE(scr,'(A,I6,F16.10)') " D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
-     ENDIF
-  ENDDO
+    ! now, find the spread of the orbitals
+    DO i=1,3
+       complexresult%local_data ( :, : ) = CMPLX (ZIJ(1,i)%matrix%local_data(:,:), &
+            ZIJ(2,i)%matrix%local_data(:,:),dp)
+       CALL cp_cfm_lu_decompose ( complexresult, almost_determinant )
+       IF (ionode) THEN
+          scr=cp_logger_get_default_unit_nr()
+          WRITE(scr,'(A,I6,F16.10)') " D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
+       ENDIF
+    ENDDO
 
-  CALL cp_cfm_release(complexresult,error=error)
+    CALL cp_cfm_release(complexresult,error=error)
 
-END SUBROUTINE centers_and_spreads
+  END SUBROUTINE centers_and_spreads
 
-!******************************************************************************
-!
-! deallocates all data
-!
-!******************************************************************************
-SUBROUTINE qs_loc_destroy ( qs_loc_env, error )
+  !******************************************************************************
+  !
+  ! deallocates all data
+  !
+  !******************************************************************************
+  SUBROUTINE qs_loc_destroy ( qs_loc_env, error )
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, j
 
-  IF (qs_loc_env%is_initialized.ne.777) CALL stop_program("qs_localization","problems")
+    IF (qs_loc_env%is_initialized.ne.777) CALL stop_program("qs_localization","problems")
 
-  DO i=1,SIZE ( qs_loc_env % operator, 2 )
-   DO j=1,SIZE ( qs_loc_env % operator, 1 )
-     CALL deallocate_matrix(qs_loc_env%operator(j,i)%matrix,error=error)
-   ENDDO
-  END DO
-  DEALLOCATE(qs_loc_env%operator)
+    DO i=1,SIZE ( qs_loc_env % operator, 2 )
+       DO j=1,SIZE ( qs_loc_env % operator, 1 )
+          CALL deallocate_matrix(qs_loc_env%operator(j,i)%matrix,error=error)
+       ENDDO
+    END DO
+    DEALLOCATE(qs_loc_env%operator)
 
-  CALL cp_para_env_release(qs_loc_env%para_env,error=error)
+    CALL cp_para_env_release(qs_loc_env%para_env,error=error)
 
-END SUBROUTINE qs_loc_destroy
+  END SUBROUTINE qs_loc_destroy
 
-!******************************************************************************
-!
-! maps wfc's to molecules
-!
-!******************************************************************************
-SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
+  !******************************************************************************
+  !
+  ! maps wfc's to molecules
+  !
+  !******************************************************************************
+  SUBROUTINE wfc_to_molecule ( qs_loc_env, loc_print_key, center, molecule_set, error )
     TYPE(qs_loc_env_type), INTENT(IN)        :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: loc_print_key
     REAL(KIND=dp), INTENT(IN)                :: center( :, : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=default_string_length)     :: mol_name
     INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, isos, &
@@ -535,239 +536,212 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
     REAL(KIND=dp), POINTER                   :: distance( : ), r( :, : )
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_type), POINTER             :: particle_set( : )
 
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
+    logger => cp_error_get_logger(error)
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
 
-  particle_set => qs_loc_env % particle_set
-  para_env => qs_loc_env % para_env
-  local_molecules => qs_loc_env % local_molecules
-  nstate = SIZE ( center, 1 )
-
-
-  ALLOCATE(wfc_to_atom_map(nstate),STAT=isos)
-  IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
-  nkind = SIZE (local_molecules%n_el)
-  natom = 0
-  natom_max = 0
-  DO ikind=1,nkind
-    nmol = SIZE ( local_molecules%list(ikind)%array )
-    DO imol=1,nmol
-      i = local_molecules%list(ikind)%array(imol)
-!      WRITE(*,*) para_env%mepos,"ABC",ikind,imol,i
-      molecule_kind => molecule_set(i)%molecule_kind
-      CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                             natom=natom)
-      natom_max = natom_max + natom
-      molecule_set(i)%lmi%nstates=0
-      IF(ASSOCIATED(molecule_set(i)%lmi%states)) THEN
-        DEALLOCATE(molecule_set(i)%lmi%states,STAT=isos)
-        IF(isos/=0) CALL stop_memory('wfc_to_molecule','states')
-      END IF
+    particle_set => qs_loc_env % particle_set
+    para_env => qs_loc_env % para_env
+    local_molecules => qs_loc_env % local_molecules
+    nstate = SIZE ( center, 1 )
+    ALLOCATE(wfc_to_atom_map(nstate),STAT=isos)
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    nkind = SIZE (local_molecules%n_el)
+    natom = 0
+    natom_max = 0
+    DO ikind=1,nkind
+       nmol = SIZE ( local_molecules%list(ikind)%array )
+       DO imol=1,nmol
+          i = local_molecules%list(ikind)%array(imol)
+          molecule_kind => molecule_set(i)%molecule_kind
+          CALL get_molecule_kind(molecule_kind=molecule_kind,&
+               natom=natom)
+          natom_max = natom_max + natom
+          molecule_set(i)%lmi%nstates=0
+          IF(ASSOCIATED(molecule_set(i)%lmi%states)) THEN
+             DEALLOCATE(molecule_set(i)%lmi%states,STAT=isos)
+             IF(isos/=0) CALL stop_memory('wfc_to_molecule','states')
+          END IF
+       END DO
     END DO
-  END DO
-  natom_loc = natom_max
-  natom = natom_max
+    natom_loc = natom_max
+    natom = natom_max
 
-  CALL mp_max(natom_max,para_env%group)
+    CALL mp_max(natom_max,para_env%group)
 
-!  WRITE(*,*) para_env%mepos,"nkind  = ",nkind
-!  WRITE(*,*) para_env%mepos,"natom_loc  = ",natom_loc
-!  WRITE(*,*) para_env%mepos,"natom_max  = ",natom_max
-!  WRITE(*,*) para_env%mepos,"nstate = ",nstate
+    ALLOCATE(r(3,natom_max),STAT=isos)
+    IF(isos/=0) CALL stop_memory('centers_and_spreads','r')
 
-  ALLOCATE(r(3,natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','r')
+    ALLOCATE(distance(natom_max),STAT=isos)
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
 
-  ALLOCATE(distance(natom_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
-
-  !Zero all the stuff
-  r(:,:) = 0.0_dp
-  distance(:) = 1.E10_dp
-
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
-  counter = 0
-  nkind = SIZE (local_molecules%n_el)
-  DO ikind=1,nkind
-    nmol = SIZE ( local_molecules%list(ikind)%array )
-    DO imol=1,nmol
-      i = local_molecules%list(ikind)%array(imol)
-      molecule_kind => molecule_set(i)%molecule_kind
-      first_atom = molecule_set(i)%first_atom
-      CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                             natom=natom,&
-                             name=mol_name,&
-                             atom_list=atom_list)
-      DO iatom=1,natom
-        counter = counter + 1
-        r ( :, counter ) = particle_set(first_atom+iatom-1) % r ( : )
-      END DO
-    END DO
-  END DO
-
-  !DO iatom=1,natom_loc
-  !  WRITE(*,*) iatom,r(:,iatom)
-  !END DO
-
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
-  DO istate=1,nstate
+    !Zero all the stuff
+    r(:,:) = 0.0_dp
     distance(:) = 1.E10_dp
-    DO iatom=1,natom_loc
-      dr(1) = r(1,iatom) - center(istate,1)
-      dr(2) = r(2,iatom) - center(istate,2)
-      dr(3) = r(3,iatom) - center(istate,3)
-      r_pbc = pbc ( dr, qs_loc_env%cell )
-      distance(iatom) = SQRT ( DOT_PRODUCT ( r_pbc, r_pbc ) )
-    END DO
 
-    !combine distance() from all procs
-    local_location = MINLOC(distance,DIM=1)
-
-    mydist(1) = distance(local_location)
-    mydist(2) = para_env%mepos
-
-    CALL mp_minloc(mydist,para_env%group)
-
-    IF(mydist(2)==para_env%mepos) THEN
-      wfc_to_atom_map(istate)  =  local_location
-    ELSE
-      wfc_to_atom_map(istate)  =  0
-    END IF
-  END DO
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
-  IF(natom_loc/=0) THEN
-    DO istate = 1,nstate
-      iatom = wfc_to_atom_map(istate)
-      IF(iatom/=0) THEN
-        counter = 0
-        nkind = SIZE (local_molecules%n_el)
-        DO ikind=1,nkind
-          nmol = SIZE ( local_molecules%list(ikind)%array )
-          DO imol=1,nmol
-            imol_now = local_molecules%list(ikind)%array(imol)
-            molecule_kind => molecule_set(imol_now)%molecule_kind
-            CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                                   natom=natom)
-            counter = counter + natom
-            IF(counter>=iatom) EXIT
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    counter = 0
+    nkind = SIZE (local_molecules%n_el)
+    DO ikind=1,nkind
+       nmol = SIZE ( local_molecules%list(ikind)%array )
+       DO imol=1,nmol
+          i = local_molecules%list(ikind)%array(imol)
+          molecule_kind => molecule_set(i)%molecule_kind
+          first_atom = molecule_set(i)%first_atom
+          CALL get_molecule_kind(molecule_kind=molecule_kind,&
+               natom=natom,&
+               name=mol_name,&
+               atom_list=atom_list)
+          DO iatom=1,natom
+             counter = counter + 1
+             r ( :, counter ) = particle_set(first_atom+iatom-1) % r ( : )
           END DO
-          IF(counter>=iatom) EXIT
-        END DO
-
-!        WRITE(*,*) "PP",para_env%mepos,istate,iatom,imol_now
-
-        i = molecule_set(imol_now)%lmi%nstates
-        i = i + 1
-        molecule_set(imol_now)%lmi%nstates = i
-        CALL reallocate(molecule_set(imol_now)%lmi%states,1,i)
-        molecule_set(imol_now)%lmi%states(i) = istate
-      END IF
+       END DO
     END DO
-  END IF
 
-!---------------------------------------------------------------------------
-! figure out dipole of the molecule.
-! Assume it is neutral (so origin doesn't matter, we take the first atom)
-! if the molecule is larger than half the box there might be a problem folding stuff
-! FIXME this should be moved out of this place
-!---------------------------------------------------------------------------
-  particle_set => qs_loc_env % particle_set
-  para_env => qs_loc_env % para_env
-  local_molecules => qs_loc_env % local_molecules
-  nstate = SIZE ( center, 1 )
-  ALLOCATE(dipole_set(3,SIZE(molecule_set)))
-  ALLOCATE(charge_set(SIZE(molecule_set)))
-  dipole_set=0.0_dp
-  charge_set=0.0_dp
-  nkind = SIZE (local_molecules%n_el)
-  DO ikind=1,nkind ! loop over different molecules
-     nmol = SIZE ( local_molecules%list(ikind)%array )
-     DO imol=1,nmol ! all the molecules of the kind
-        imol_now = local_molecules%list(ikind)%array(imol) ! index in the global array
-        IF (.NOT.ASSOCIATED(molecule_set(imol_now)%lmi%states)) CYCLE
-        molecule_kind => molecule_set(imol_now)%molecule_kind
-        first_atom = molecule_set(imol_now)%first_atom
-        CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                               natom=natom,atom_list=atom_list)
-        dipole=0.0_dp
-        ! charges of the atoms involved
-        DO iatom=1,natom
-            i=first_atom+iatom-1
-            atomic_kind=>particle_set(i)%atomic_kind
-            CALL get_atomic_kind(atomic_kind,gth_potential=gth_potential)
-            CALL get_potential(gth_potential,zeff=zeff)
-            r_pbc = particle_set(i) % r - particle_set(first_atom) % r
-            r_pbc = pbc ( r_pbc , qs_loc_env%cell )
-            dipole=dipole + zeff*r_pbc
-            charge_set(imol_now)=charge_set(imol_now)+zeff
-        END DO
-        ! charges of the wfc involved
-        DO istate=1,SIZE(molecule_set(imol_now)%lmi%states)
-           i = molecule_set(imol_now)%lmi%states(istate)
-           r_pbc = center(i,1:3) - particle_set(first_atom) % r
-           r_pbc = pbc ( r_pbc , qs_loc_env%cell )
-           dipole=dipole - 2.0_dp * r_pbc ! XXXXXXXXXXXXXXXXXXXX double occupation FIXME XXXXXXXXX (where are the spins?)
-           charge_set(imol_now)=charge_set(imol_now)-2.0_dp
-        ENDDO
-        dipole_set(:,imol_now)=dipole ! a.u.
-     ENDDO
-  ENDDO
-  CALL mp_sum(dipole_set,para_env%group)
-  CALL mp_sum(charge_set,para_env%group)
-  IF (para_env%mepos==para_env%source) THEN
-     CALL open_file(file_name="MOLECULAR_DIPOLES",&
-                        file_action="WRITE",&
-                        file_status="UNKNOWN",&
-                        file_position="APPEND",&
-                        unit_number=output_unit)
-     WRITE(UNIT=output_unit,FMT='(A80)') "# molecule nr, charge, dipole vector, dipole (Debye) "
-     dipole_set=dipole_set*debye ! Debye
-     DO I=1,SIZE(dipole_set,2)
-        WRITE(UNIT=output_unit,FMT='(I6,5F12.6)') I,charge_set(I),dipole_set(1:3,I), &
-                                              SQRT(DOT_PRODUCT(dipole_set(1:3,I),dipole_set(1:3,I)))
-     ENDDO
-     CALL close_file(output_unit)
-  ENDIF
-  DEALLOCATE(dipole_set,charge_set)
-!---------------------------------------------------------------------------
-! end of molecular dipole calculation
-!---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    DO istate=1,nstate
+       distance(:) = 1.E10_dp
+       DO iatom=1,natom_loc
+          dr(1) = r(1,iatom) - center(istate,1)
+          dr(2) = r(2,iatom) - center(istate,2)
+          dr(3) = r(3,iatom) - center(istate,3)
+          r_pbc = pbc ( dr, qs_loc_env%cell )
+          distance(iatom) = SQRT ( DOT_PRODUCT ( r_pbc, r_pbc ) )
+       END DO
 
-!  nkind = SIZE (local_molecules%n_el)
-!  DO ikind=1,nkind
-!    nmol = SIZE ( local_molecules%list(ikind)%array )
-!    DO imol=1,nmol
-!      i = local_molecules%list(ikind)%array(imol)
-!      WRITE(*,*)"XX",para_env%mepos,i,molecule_set(i)%lmi%states
-!    END DO
-!  END DO
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
-  DEALLOCATE(distance,STAT=isos)
-  IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
-  DEALLOCATE(r,STAT=isos)
-  IF(isos/=0) CALL stop_memory('wfc_to_molecule','r')
+       !combine distance() from all procs
+       local_location = MINLOC(distance,DIM=1)
 
-  DEALLOCATE(wfc_to_atom_map,STAT=isos)
-  IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
-!---------------------------------------------------------------------------
-!---------------------------------------------------------------------------
+       mydist(1) = distance(local_location)
+       mydist(2) = para_env%mepos
 
-  !CALL stop_program("wfc_to_atom","checkpoint")
+       CALL mp_minloc(mydist,para_env%group)
 
-END SUBROUTINE wfc_to_molecule
-!------------------------------------------------------------------------------
+       IF(mydist(2)==para_env%mepos) THEN
+          wfc_to_atom_map(istate)  =  local_location
+       ELSE
+          wfc_to_atom_map(istate)  =  0
+       END IF
+    END DO
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    IF(natom_loc/=0) THEN
+       DO istate = 1,nstate
+          iatom = wfc_to_atom_map(istate)
+          IF(iatom/=0) THEN
+             counter = 0
+             nkind = SIZE (local_molecules%n_el)
+             DO ikind=1,nkind
+                nmol = SIZE ( local_molecules%list(ikind)%array )
+                DO imol=1,nmol
+                   imol_now = local_molecules%list(ikind)%array(imol)
+                   molecule_kind => molecule_set(imol_now)%molecule_kind
+                   CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                        natom=natom)
+                   counter = counter + natom
+                   IF(counter>=iatom) EXIT
+                END DO
+                IF(counter>=iatom) EXIT
+             END DO
+             i = molecule_set(imol_now)%lmi%nstates
+             i = i + 1
+             molecule_set(imol_now)%lmi%nstates = i
+             CALL reallocate(molecule_set(imol_now)%lmi%states,1,i)
+             molecule_set(imol_now)%lmi%states(i) = istate
+          END IF
+       END DO
+    END IF
+
+    !---------------------------------------------------------------------------
+    ! figure out dipole of the molecule.
+    ! Assume it is neutral (so origin doesn't matter, we take the first atom)
+    ! if the molecule is larger than half the box there might be a problem folding stuff
+    ! FIXME this should be moved out of this place
+    !---------------------------------------------------------------------------
+    particle_set => qs_loc_env % particle_set
+    para_env => qs_loc_env % para_env
+    local_molecules => qs_loc_env % local_molecules
+    nstate = SIZE ( center, 1 )
+    ALLOCATE(dipole_set(3,SIZE(molecule_set)))
+    ALLOCATE(charge_set(SIZE(molecule_set)))
+    dipole_set=0.0_dp
+    charge_set=0.0_dp
+    nkind = SIZE (local_molecules%n_el)
+    DO ikind=1,nkind ! loop over different molecules
+       nmol = SIZE ( local_molecules%list(ikind)%array )
+       DO imol=1,nmol ! all the molecules of the kind
+          imol_now = local_molecules%list(ikind)%array(imol) ! index in the global array
+          IF (.NOT.ASSOCIATED(molecule_set(imol_now)%lmi%states)) CYCLE
+          molecule_kind => molecule_set(imol_now)%molecule_kind
+          first_atom = molecule_set(imol_now)%first_atom
+          CALL get_molecule_kind(molecule_kind=molecule_kind,&
+               natom=natom,atom_list=atom_list)
+          dipole=0.0_dp
+          ! charges of the atoms involved
+          DO iatom=1,natom
+             i=first_atom+iatom-1
+             atomic_kind=>particle_set(i)%atomic_kind
+             CALL get_atomic_kind(atomic_kind,gth_potential=gth_potential)
+             CALL get_potential(gth_potential,zeff=zeff)
+             r_pbc = particle_set(i) % r - particle_set(first_atom) % r
+             r_pbc = pbc ( r_pbc , qs_loc_env%cell )
+             dipole=dipole + zeff*r_pbc
+             charge_set(imol_now)=charge_set(imol_now)+zeff
+          END DO
+          ! charges of the wfc involved
+          DO istate=1,SIZE(molecule_set(imol_now)%lmi%states)
+             i = molecule_set(imol_now)%lmi%states(istate)
+             r_pbc = center(i,1:3) - particle_set(first_atom) % r
+             r_pbc = pbc ( r_pbc , qs_loc_env%cell )
+             ! XXXXXXXXXXXXXXXXXXXX double occupation FIXME XXXXXXXXX (where are the spins?)
+             dipole=dipole - 2.0_dp * r_pbc 
+             charge_set(imol_now)=charge_set(imol_now)-2.0_dp
+          ENDDO
+          dipole_set(:,imol_now)=dipole ! a.u.
+       ENDDO
+    ENDDO
+    CALL mp_sum(dipole_set,para_env%group)
+    CALL mp_sum(charge_set,para_env%group)
+    
+    output_unit=cp_print_key_unit_nr(logger,loc_print_key,"/MOLECULAR_DIPOLES",&
+         extension=".data",middle_name="MOLECULAR_DIPOLES",error=error)
+    IF (output_unit>0) THEN
+       WRITE(UNIT=output_unit,FMT='(A80)') "# molecule nr, charge, dipole vector, dipole (Debye) "
+       dipole_set=dipole_set*debye ! Debye
+       DO I=1,SIZE(dipole_set,2)
+          WRITE(UNIT=output_unit,FMT='(I6,5F12.6)') I,charge_set(I),dipole_set(1:3,I), &
+               SQRT(DOT_PRODUCT(dipole_set(1:3,I),dipole_set(1:3,I)))
+       ENDDO
+    ENDIF
+    CALL cp_print_key_finished_output(output_unit,logger,loc_print_key,&
+         "/MOLECULAR_DIPOLES",error=error)
+    DEALLOCATE(dipole_set,charge_set)
+    !---------------------------------------------------------------------------
+    ! end of molecular dipole calculation
+    !---------------------------------------------------------------------------
+
+    DEALLOCATE(distance,STAT=isos)
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
+    DEALLOCATE(r,STAT=isos)
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','r')
+
+    DEALLOCATE(wfc_to_atom_map,STAT=isos)
+    IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
+
+  END SUBROUTINE wfc_to_molecule
+  !------------------------------------------------------------------------------
 
 END MODULE qs_localization
 
