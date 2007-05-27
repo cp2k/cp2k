@@ -5,4 +5,10 @@
 #      for details see cp2k/tools/do_regtest
 h2o_ot_refine_1.inp 1
 h2o_ot_refine_2.inp 1
+h2o_ot_refine_diis_1.inp 1
+h2o_ot_refine_diis_2.inp 1
+o2_ot_refine_1.inp 1
+o2_ot_refine_2.inp 1
+o2_ot_refine_diis_1.inp 1
+o2_ot_refine_diis_2.inp 1
 ethylene_l1_loc.inp 13
