@@ -87,6 +87,9 @@ SUBROUTINE velocity_verlet ( md_env, error )
 ! get in_use
   CALL force_env_get ( force_env=force_env_p ( 1 ) % force_env, in_use=in_use ,error=error)
 
+  IF(simpar%do_respa .AND. nve_ensemble.NE.simpar % ensemble)THEN
+        CALL stop_program ( 'velocity_verlet','respa integrator not implemented for this ensemble')
+  END IF
   SELECT CASE ( in_use )
   CASE ( use_fist_force )
      SELECT CASE ( simpar % ensemble  )

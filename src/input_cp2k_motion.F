@@ -2643,10 +2643,11 @@ SUBROUTINE create_respa_section(section, error)
   IF (.NOT. failure) THEN  
 
      CALL section_create(section,name="RESPA",&
-          description="RESPA specific parameters. RESPA exploits multiple force_eval."//&
+          description="Multiple timestep integration based on RESPA (implemented for NVE only)."//&
+          " RESPA exploits multiple force_eval."//&
           " In this case the order of the force_eval maps "//&
           " the order of the respa shells from the slowest to the fastest force evaluation."//&
-          " Most of the times force_evals share the same subsys. It's enough then to specify the "//&
+          " If force_evals share the same subsys, it's enough then to specify the "//&
           " subsys in the force_eval corresponding at the first index in the multiple_force_eval list",&
           n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
