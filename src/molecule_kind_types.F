@@ -726,7 +726,6 @@ CONTAINS
                                nfixd_restraint=nfixd_restraint,&
                                nrestraints=nrestraints_tot,&
                                nmolecule=nm)
-        IF (nfixd/=0) WRITE(*,*)imolecule_kind, nfixd, nfixd_restraint, nc, nrestraints_tot
         IF (PRESENT(maxatom)) maxatom = MAX(maxatom,na)
         IF (PRESENT(natom)) natom = natom + na*nm
         IF (PRESENT(nbond)) nbond = nbond + ibond*nm
