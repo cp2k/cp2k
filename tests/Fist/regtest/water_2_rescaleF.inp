@@ -1,0 +1,70 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/water.pot
+      parmtype CHM
+      &spline
+        emax_spline 10000.0
+      &ENd
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/water_2.pdb
+      COORDINATE pdb
+      CONN_FILE_NAME ../sample_psf/water_2.psf
+      CONNECTIVITY PSF
+    &END TOPOLOGY
+    &COORD
+O      0.000   0.000   0.000 WAT
+H      1.000   0.000   0.000 WAT
+H      0.000   1.000   0.000 WAT
+O      0.000   0.000   1.000 WAT
+H      0.000   0.000   2.000 WAT
+H      1.000   1.000   1.000 WAT
+    &END
+  &END SUBSYS
+  &RESCALE_FORCES
+    MAX_FORCE 0.001
+  &END
+  &PRINT
+    &FORCES
+    &END
+  &END
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+
+  PROJECT water_2
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TIMESTEP 1.0
+    TEMPERATURE 298
+  &END MD
+&END MOTION

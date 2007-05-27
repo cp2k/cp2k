@@ -310,6 +310,8 @@ CONTAINS
           CALL fix_atom_control(force_env, error=error)
           ! All Restraints
           CALL restraint_control(force_env, error=error)
+          ! Rescale forces if requested
+          CALL rescale_forces(force_env, error=error)
        END IF
        IF (ASSOCIATED(force_env%cpot_env)) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
@@ -1230,7 +1232,8 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
              ! Forces
              DO iparticle = 1, glob_natoms(iforce_eval)
-                global_forces(iforce_eval)%forces(:,iparticle) = particles(iforce_eval)%list%els(iparticle)%f
+                global_forces(iforce_eval)%forces(:,iparticle) = &
+                     particles(iforce_eval)%list%els(iparticle)%f
              END DO
           END IF
        END IF
@@ -1936,5 +1939,67 @@ SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_l
   CALL timestop(handle)
 END SUBROUTINE force_env_rattle
 !***************************************************************************
+
+!!****f* force_env_types/rescale_forces *
+!!
+!!   NAME
+!!     rescale_forces
+!!
+!!   FUNCTION
+!!     Rescale forces if requested
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - force_env: the force env to shake
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     tlaino
+!!
+!!*** **********************************************************************
+SUBROUTINE rescale_forces (force_env, error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rescale_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iparticle, &
+                                                isub
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp)                            :: max_value, force(3), mod_force
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: rescale_force_section
+
+  failure=.FALSE.
+  CALL timeset(routineN,handle)
+  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  rescale_force_section => section_vals_get_subs_vals(force_env%force_env_section,"RESCALE_FORCES",error=error)
+  CALL section_vals_get(rescale_force_section, explicit=explicit, error=error)
+  IF (.NOT.failure.AND.explicit) THEN
+     CALL section_vals_val_get(rescale_force_section,"MAX_FORCE",r_val=max_value,error=error)
+     CALL force_env_get(force_env,subsys=subsys,error=error)
+     DO isub=1,SIZE(subsys)
+        CALL cp_subsys_get(subsys(isub)%subsys, & 
+             particles=particles,& 
+             error=error) 
+        DO iparticle = 1, SIZE(particles%els)
+           force = particles%els(iparticle)%f(:)
+           mod_force = SQRT(DOT_PRODUCT(force,force))
+           IF ((mod_force > max_value).AND.(mod_force /= 0.0_dp)) THEN
+              force = force / mod_force * max_value 
+              particles%els(iparticle)%f(:) = force
+           END IF
+        END DO
+     END DO
+  END IF
+  CALL timestop(handle)
+END SUBROUTINE rescale_forces
 
 END MODULE force_env_methods

@@ -1,0 +1,37 @@
+PSF EXT
+
+         1 !NTITLE
+   CP2K generated DUMP of connectivity
+
+         6 !NATOM
+         1 WAT      1        TIP      OT      OT     -0.847600        15.999           0
+         2 WAT      1        TIP      HT      HT      0.423800         1.008           0
+         3 WAT      1        TIP      HT      HT      0.423800         1.008           0
+         4 WAT      2        TIP      OT      OT     -0.847600        15.999           0
+         5 WAT      2        TIP      HT      HT      0.423800         1.008           0
+         6 WAT      2        TIP      HT      HT      0.423800         1.008           0
+
+
+         4 !NBOND
+         1         2         1         3         4         5         4         6
+
+
+         2 !NTHETA
+         2         1         3         5         4         6
+
+
+         0 !NPHI
+
+
+         0 !NIMPHI
+
+
+         0 !NDON
+
+
+         0 !NACC
+
+
+         0 !NNB
+
+

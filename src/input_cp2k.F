@@ -33,7 +33,8 @@ MODULE input_cp2k
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
-                                             cp_unit_set_type
+                                             cp_unit_set_type,&
+                                             cp_unit_to_cp2k
   USE input_constants
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
@@ -842,6 +843,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL create_rescale_force_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_ep_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -1112,6 +1117,63 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        
     END IF
   END SUBROUTINE create_vib_section
+!***************************************************************************
+
+!!****f* input_cp2k/create_rescale_force_section [1.0] *
+!!
+!!   NAME
+!!     create_rescale_force_section
+!!
+!!   FUNCTION
+!!     Creates the section controlling the rescaling of forces
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_rescale_force_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_rescale_force_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="RESCALE_FORCES",&
+            description="Section controlling the rescaling of forces. Useful when"//&
+            " starting from quite bad geometries with unphysically large forces.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="MAX_FORCE",&
+            description="Specify the Maximum Values of the force. If the force"//&
+            " of one atom exceed this value it's rescaled to the MAX_FORCE"//&
+            " value.",&
+            default_r_val=cp_unit_to_cp2k(value=50.0_dp,&
+                                          unit_str="kcalmol*angstrom^-1",&
+                                          error=error),&
+             unit_str="hartree*bohr^-1",&
+             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+    END IF
+  END SUBROUTINE create_rescale_force_section
 !***************************************************************************
 
 !!****f* input_cp2k/create_farming_section *
