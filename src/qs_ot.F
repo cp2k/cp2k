@@ -101,7 +101,7 @@ MODULE qs_ot
        INTEGER           :: refinement_degree  ! this is used to control the refinement polynomial degree
        INTEGER           :: max_refinement     ! maximum number of iteration for the refinement
        REAL(KIND = dp)   :: eps_refinement_norm! target accuracy for the refinement
-
+       REAL(KIND = dp)   :: min_eps_refinement_norm
   END TYPE qs_ot_settings_type
 
   TYPE qs_ot_type
@@ -230,6 +230,7 @@ CONTAINS
     settings%refinement_degree=4
     settings%max_refinement=15
     settings%eps_refinement_norm=1.0E-10_dp
+    settings%min_eps_refinement_norm=1.0E-2_dp
   END SUBROUTINE qs_ot_settings_init
 
 !*******************************************************************************
@@ -521,22 +522,24 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,error)
 
 END SUBROUTINE qs_ot_destroy
 
-SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, qs_ot_env, qs_ot_env1, error)
+SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
+     &                            qs_ot_env, qs_ot_env1, error)
   !----------------------------------------------------------------------
   ! matrix_sx needs to be updated in output, matrix_x is updated here 
   ! after the last LS step.
   !----------------------------------------------------------------------
-  TYPE(cp_fm_type), POINTER                :: matrix_c,matrix_x,matrix_sx
-  TYPE(real_matrix_type), POINTER          :: matrix_s
-  TYPE(qs_ot_type)                         :: qs_ot_env,qs_ot_env1
-  TYPE(cp_error_type), INTENT(inout)       :: error
-  REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
-  TYPE(cp_fm_type), POINTER                :: SC,P,Y,C_NEW,C_OLD,C_TMP
-  TYPE(real_matrix_type), POINTER          :: S
-  TYPE(cp_logger_type), POINTER            :: logger
-  INTEGER                                  :: handle,k,n,irefine,output_unit
-  REAL(dp)                                 :: norm,norm_gct,norm_fro
-  LOGICAL                                  :: update
+  TYPE(cp_fm_type), POINTER          :: matrix_c,matrix_x,matrix_sx
+  TYPE(real_matrix_type), POINTER    :: matrix_s
+  TYPE(qs_ot_type)                   :: qs_ot_env,qs_ot_env1
+  TYPE(cp_error_type), INTENT(INOUT) :: error
+  REAL(KIND=dp), PARAMETER           :: rone = 1.0_dp, rzero = 0.0_dp
+  TYPE(cp_fm_type), POINTER          :: SC,P,Y,C_NEW,C_OLD,C_TMP
+  TYPE(real_matrix_type), POINTER    :: S
+  TYPE(cp_logger_type), POINTER      :: logger
+  INTEGER                            :: handle,k,n,irefine,output_unit,&
+       &                                max_refinement
+  REAL(dp)                           :: norm,norm_gct,norm_fro
+  LOGICAL                            :: update
   !
   CALL timeset("qs_ot_get_orbitals_ref","I","",handle)
   NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP)  
@@ -586,6 +589,11 @@ SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, qs_ot
      ! C_NEW = Refine(C_TMP) such that C_NEW'*S*C_NEW \approx 1
      CALL qs_ot_refine(qs_ot_env,C_TMP,C_NEW,P,error)
      !
+     ! decide if quick exit
+     !IF(norm.LT.qs_ot_env1%settings%min_eps_refinement_norm) THEN
+     !ELSE
+     !ENDIF
+     !
      ! compute SC = S*C
      IF(ASSOCIATED(S)) THEN
         CALL cp_sm_fm_multiply(S,C_NEW,SC,k,error=error)
@@ -618,8 +626,8 @@ SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, qs_ot
      !
      IF(norm_fro.GT.1.0E10_dp) THEN
         CALL stop_program("qs_ot_get_orbitals_ref","... refinement blows up! "//&
-          & "... we need you to improve the code, please post your input at "//&
-          & "the help forum http://cp2k.berlios.de/")
+          & "... we need you to improve the code, please post your input on "//&
+          & "the forum http://cp2k.berlios.de/")
      ENDIF
      IF(norm_fro.LT.qs_ot_env1%settings%eps_refinement_norm) EXIT
      !
@@ -629,20 +637,25 @@ SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, qs_ot
   !
   ! We update the C_i+1
   update = .FALSE.
-  SELECT CASE(qs_ot_env1%settings%line_search_method)
-  CASE("2PNT")
-     IF(qs_ot_env1%line_search_count.EQ.2) update = .TRUE.
-     !CASE("3PNT")
-     !   IF(qs_ot_env1%line_search_count.EQ.3) update = .TRUE.
-     !CASE("NONE")
-     !   IF(qs_ot_env1%line_search_count.EQ.1) update = .TRUE.
+  SELECT CASE(qs_ot_env1%settings%ot_method)
+  CASE("CG")
+     SELECT CASE(qs_ot_env1%settings%line_search_method)
+     CASE("2PNT")
+        IF(qs_ot_env1%line_search_count.EQ.2) update = .TRUE.
+        !CASE("3PNT")
+        !IF(qs_ot_env1%line_search_count.EQ.3) update = .TRUE.
+        !CASE("NONE")
+        !   IF(qs_ot_env1%line_search_count.EQ.1) update = .TRUE.
+     CASE DEFAULT
+        CALL stop_program("qs_ot_get_orbitals_ref","NYI")
+     END SELECT
+  CASE("DIIS")
+     update = .TRUE.
   CASE DEFAULT
      CALL stop_program("qs_ot_get_orbitals_ref","NYI")
   END SELECT
-  IF(update) THEN
-     !write(*,*) 'qs_ot_get_orbitals_ref: update matrix_x'
-     CALL cp_fm_to_fm(C_NEW,C_OLD,error=error)
-  ENDIF
+  !
+  IF(update) CALL cp_fm_to_fm(C_NEW,C_OLD,error=error)
   !
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_ot_get_orbitals_ref
