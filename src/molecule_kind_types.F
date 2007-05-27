@@ -704,6 +704,7 @@ CONTAINS
       IF (PRESENT(nimpr)) nimpr = 0
       IF (PRESENT(nonfo)) nonfo = 0
       IF (PRESENT(nconstraint)) nconstraint = 0
+      IF (PRESENT(nrestraints)) nrestraints = 0
       IF (PRESENT(nmolecule)) nmolecule = 0
 
       nmolecule_kind = SIZE(molecule_kind_set)
@@ -725,7 +726,7 @@ CONTAINS
                                nfixd_restraint=nfixd_restraint,&
                                nrestraints=nrestraints_tot,&
                                nmolecule=nm)
-
+        IF (nfixd/=0) WRITE(*,*)imolecule_kind, nfixd, nfixd_restraint, nc, nrestraints_tot
         IF (PRESENT(maxatom)) maxatom = MAX(maxatom,na)
         IF (PRESENT(natom)) natom = natom + na*nm
         IF (PRESENT(nbond)) nbond = nbond + ibond*nm
@@ -736,7 +737,7 @@ CONTAINS
         IF (PRESENT(nonfo)) nonfo = nonfo + ionfo*nm
         IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + 3*(nfixd-nfixd_restraint)
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
-        IF (PRESENT(nrestraints)) nrestraints = nrestraints_tot + nfixd_restraint
+        IF (PRESENT(nrestraints)) nrestraints = nrestraints + nm*nrestraints_tot + nfixd_restraint
 
       END DO
 

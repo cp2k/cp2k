@@ -44,8 +44,8 @@ MODULE init_extended_system_types
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: get_molecule_kind_set,&
                                              molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type,&
-                                             global_constraint_type
+  USE molecule_types_new,              ONLY: global_constraint_type,&
+                                             molecule_type
   USE nhc_mapping,                     ONLY: nhc_to_barostat_mapping,&
                                              nhc_to_coef_mapping,&
                                              nhc_to_particle_mapping
@@ -329,7 +329,6 @@ CONTAINS
        molecule_kind_set, para_env, globenv, nhc, print_section, nose_section,&
        gci, error)
 
-    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -341,14 +340,16 @@ CONTAINS
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: print_section, nose_section
+    TYPE(global_constraint_type), POINTER    :: gci
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, isos, iw, j, natom, &
-                                                nconstraint_int, nfree,&
-                                                nconstraint_ext
+                                                nconstraint_ext, &
+                                                nconstraint_int, nfree, &
+                                                nrestraints_int
     LOGICAL                                  :: explicit, restart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -449,7 +450,7 @@ CONTAINS
 
     ! compute the total number of degrees of freedom for temperature
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
-         natom=natom, nconstraint=nconstraint_int)
+         natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
     nconstraint_ext = gci%ntot - gci%nrestraint
     nfree = 3*natom - nconstraint_int - nconstraint_ext - simpar%nfree
 
@@ -469,7 +470,7 @@ CONTAINS
        WRITE ( iw, '()' )
        WRITE ( iw, '( /, A )' ) ' Restraints Information'
        WRITE ( iw, '( T33, A, T71, I10 )' ) &
-            '  Number of Intramolecular restraints:', nconstraint_int
+            '  Number of Intramolecular restraints:', nrestraints_int
        WRITE ( iw, '( T33, A, T71, I10 )' ) &
             '  Number of Intermolecular restraints:', gci%nrestraint
     END IF

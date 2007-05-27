@@ -175,8 +175,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER :: freeze_mm, freeze_qm, icolvar, ig, isize, isize_old, j, jj, &
-      msize, msize_old, n_rep, ncons, nrep, stat
+    INTEGER :: freeze_mm, freeze_qm, icolvar, ig, isize, isize_old, j, jg, &
+      jj, msize, msize_old, n_rep, ncons, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
@@ -393,20 +393,20 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
            msize_old  = msize
            CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig,&
                 n_rep_val=n_rep, error=error)
-           IF (n_rep /= 0) THEN
+           DO jg = 1, n_rep
               CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, &
-                   i_vals=tmplist, error=error)
+                   i_rep_val=jg,i_vals=tmplist, error=error)
               CALL reallocate(cons_info%fixed_atoms,1,isize+SIZE(tmplist))
               cons_info%fixed_atoms(isize+1:isize+SIZE(tmplist)) = tmplist
               CALL reallocate(cons_info%fixed_restraint,1,isize+SIZE(tmplist))
               CALL reallocate(cons_info%fixed_k0,1,isize+SIZE(tmplist))
               isize = SIZE(cons_info%fixed_atoms)
-           END IF
+           END DO
            CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig,&
                 n_rep_val=n_rep, error=error)
-           IF (n_rep /= 0) THEN
+           DO jg = 1, n_rep
               CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, &
-                   i_vals=tmplist, error=error)
+                   i_rep_val=jg,i_vals=tmplist, error=error)
               CALL reallocate(cons_info%fixed_atoms,1,isize+tmplist(2)-tmplist(1)+1)
               CALL reallocate(cons_info%fixed_restraint,1,isize+tmplist(2)-tmplist(1)+1)
               CALL reallocate(cons_info%fixed_k0,1,isize+tmplist(2)-tmplist(1)+1)
@@ -416,7 +416,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
                  cons_info%fixed_atoms(isize+jj:isize+jj) = j
               END DO
               isize = SIZE(cons_info%fixed_atoms)
-           END IF
+           END DO
            !Check for restraints
            IF ((isize-isize_old)>0) THEN
               CALL check_restraint(fix_atom_section,&

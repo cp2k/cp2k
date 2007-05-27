@@ -594,7 +594,6 @@ CONTAINS
        ALLOCATE(missed_molname(SIZE(cons_info%fixed_molnames,1)),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        missed_molname=.TRUE.
-       nfixd_restraint = 0
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -604,7 +603,7 @@ CONTAINS
             missed_molname=.FALSE.
           END WHERE
           ! Try to figure out how many atoms of the list belong to this molecule_kind
-          nfixed_atoms = 0
+          nfixed_atoms    = 0
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
@@ -635,7 +634,8 @@ CONTAINS
           END DO
           ALLOCATE(fixd_list(nfixed_atoms),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          kk = 0
+          kk              = 0
+          nfixd_restraint = 0
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
@@ -741,13 +741,16 @@ CONTAINS
              END DO
           END DO
           IF (iw>0) THEN 
-             WRITE(iw,*)"FIXED ATOMIC CONSTRAINT INFORMATION::",fixd_list(:)%fixd
+             WRITE(iw,*)"MOLECULE KIND:",i," NR. FIXED ATOMS:",SIZE(fixd_list(:)%fixd)," LIST::",fixd_list(:)%fixd
           END IF
           CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, nfixd_restraint=nfixd_restraint,&
                fixd_list=fixd_list)
           fixd_list_gci(nfixd_list_gci+1:nfixd_list_gci+nfixed_atoms) = fixd_list
           nfixd_list_gci = nfixd_list_gci + nfixed_atoms
        END DO
+       IF (iw>0) THEN
+          WRITE(iw,*)"TOTAL NUMBER OF FIXED ATOMS:",nfixd_list_gci
+       END IF
        CPPostcondition(COUNT(missed_molname)==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(missed_molname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
