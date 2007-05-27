@@ -82,10 +82,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
-                                   mo_coeff, mo_eigenvalues, &
-                                   Hks,matrix_S,qs_env,wf_r,wf_g,&
-                                   force_env_section, error)
+  SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
+       mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
+       force_env_section, error)
 
 
     TYPE(molecule_type), DIMENSION(:), &
@@ -124,196 +123,190 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------
-!-----------------------------------------------------------------------------
-! 1.
-!-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 1.
+    !-----------------------------------------------------------------------------
+    para_env => qs_env % para_env
+    nproc = para_env%num_pe
+    output_unit = -1
+    IF (para_env%ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
-  para_env => qs_env % para_env
-  nproc = para_env%num_pe
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2.
-  !-----------------------------------------------------------------------------
-  IF (para_env%ionode) THEN
-     unit_report=171
-     OPEN(unit_report,FILE="Molecular_DOS")
-     WRITE(unit_report,*) SIZE(mo_eigenvalues)," number of states "
-     DO i=1,SIZE(mo_eigenvalues)
-        WRITE(unit_report,*) mo_eigenvalues(i)
-     ENDDO
-  ENDIF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 3.
-  !-----------------------------------------------------------------------------
-  CALL cp_fm_get_info(mo_localized, &
-                      ncol_global=ncol_global, &
-                      nrow_global=nrow_global ,error=error)
-  NULLIFY(smo)
-  CALL cp_fm_create(smo,mo_coeff%matrix_struct,error=error)
-  CALL cp_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,error=error)
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 4.
-  !-----------------------------------------------------------------------------
-  ALLOCATE(nstates(2),STAT=isos)
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
-
-  DO imol = 1, SIZE(molecule_set)
-    nstates(1) = molecule_set(imol)%lmi%nstates
-    nstates(2) = para_env%mepos
-
-    CALL mp_maxloc(nstates,para_env%group)
-
-    NULLIFY(states)
-    ALLOCATE(states(nstates(1)),STAT=isos)
-    IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
-    states(:) = 0
-
-    iproc=nstates(2)
-    IF(iproc == para_env%mepos) THEN
-      states(:) = molecule_set(imol)%lmi%states(:)
-    END IF
-    !!BCAST from here root = iproc
-    CALL mp_bcast(states,iproc,para_env%group)
-
-    ns = nstates(1)
-    ind => states( : )
-    ALLOCATE ( evals ( ns ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
-                                        "eval", ns )
-
-    NULLIFY(b,c,d,fm_struct_tmp,e_vectors,rot_e_vectors)
-
-
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
-                             ncol_global=ns, &
-                             para_env=mo_localized%matrix_struct%para_env, &
-                             context=mo_localized%matrix_struct%context,error=error)
-
-    CALL cp_fm_create(b,fm_struct_tmp, name="b",error=error)
-    CALL cp_fm_create(c,fm_struct_tmp, name="c",error=error)
-    CALL cp_fm_create(rot_e_vectors,fm_struct_tmp, name="rot_e_vectors",error=error)
-
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns,  ncol_global=ns, &
-                             para_env=mo_localized%matrix_struct%para_env, &
-                             context=mo_localized%matrix_struct%context,error=error)
-
-    CALL cp_fm_create(d,fm_struct_tmp, name="d",error=error)
-    CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e_vectors",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-    DO i=1,ns
-      CALL cp_fm_to_fm ( mo_localized, b, 1, ind ( i ), i)
-    END DO
-
-    CALL cp_sm_fm_multiply(Hks,b,c,ns,error=error)
-
-    CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
-                         b,c,0.0_dp,d,error=error)
-
-    CALL cp_fm_syevd ( d, e_vectors, evals ,error=error)
-
-    IF (para_env%ionode) WRITE(output_unit,*)""
-    IF (para_env%ionode) WRITE(output_unit,*)"MOLECULE ",imol
-    IF (para_env%ionode) WRITE(output_unit,*)"NUMBER OF STATES  ", ns
-    IF (para_env%ionode) WRITE(output_unit,*)"EIGENVALUES"
-    IF (para_env%ionode) WRITE(output_unit,*)""
-
-    DO k=1,ns
-      IF (para_env%ionode) WRITE(output_unit,*) evals(k)
-    END DO
-    IF (para_env%ionode) THEN
-       WRITE(unit_report,*) imol,ns, " imol, number of states"
-       DO k=1,ns
-          WRITE(unit_report,*) evals(k)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 2.
+    !-----------------------------------------------------------------------------
+    unit_report=cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%MOLECULAR_STATES",&
+         extension=".data",middle_name="Molecular_DOS",log_filename=.FALSE.,error=error)
+    IF (unit_report>0) THEN
+       WRITE(unit_report,*) SIZE(mo_eigenvalues)," number of states "
+       DO i=1,SIZE(mo_eigenvalues)
+          WRITE(unit_report,*) mo_eigenvalues(i)
        ENDDO
     ENDIF
 
-    CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
-                    b,e_vectors,0.0_dp,rot_e_vectors,error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 3.
+    !-----------------------------------------------------------------------------
+    CALL cp_fm_get_info(mo_localized, &
+                        ncol_global=ncol_global, &
+                        nrow_global=nrow_global ,error=error)
+    NULLIFY(smo)
+    CALL cp_fm_create(smo,mo_coeff%matrix_struct,error=error)
+    CALL cp_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,error=error)
 
-    DEALLOCATE ( evals,  STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
-                                        "eval", ns )
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 4.
+    !-----------------------------------------------------------------------------
+    ALLOCATE(nstates(2),STAT=isos)
+    IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
 
-    ! compute Eq. 6 from P. Hunt et al. (CPL 376, p. 68-74)
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns, &
-                             ncol_global=ncol_global, &
-                             para_env=mo_localized%matrix_struct%para_env, &
-                             context=mo_localized%matrix_struct%context,error=error)
-    CALL cp_fm_create(D_igk,fm_struct_tmp,error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
-                         rot_e_vectors,smo,0.0_dp,D_igk,error=error)
-    DO i=1,ns
-       DO k=1,ncol_global
-          CALL cp_fm_get_element(D_igk,i,k,tmp)
-          IF (para_env%ionode) THEN
-             WRITE(unit_report,*) tmp**2
-          ENDIF
-       ENDDO
-    ENDDO
-    CALL cp_fm_release(D_igk,error=error)
+    DO imol = 1, SIZE(molecule_set)
+       nstates(1) = molecule_set(imol)%lmi%nstates
+       nstates(2) = para_env%mepos
 
-    IF ( BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
+       CALL mp_maxloc(nstates,para_env%group)
+
+       NULLIFY(states)
+       ALLOCATE(states(nstates(1)),STAT=isos)
+       IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
+       states(:) = 0
+
+       iproc=nstates(2)
+       IF(iproc == para_env%mepos) THEN
+          states(:) = molecule_set(imol)%lmi%states(:)
+       END IF
+       !!BCAST from here root = iproc
+       CALL mp_bcast(states,iproc,para_env%group)
+
+       ns = nstates(1)
+       ind => states( : )
+       ALLOCATE ( evals ( ns ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
+            "eval", ns )
+
+       NULLIFY(b,c,d,fm_struct_tmp,e_vectors,rot_e_vectors)
+
+
+       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
+            ncol_global=ns, &
+            para_env=mo_localized%matrix_struct%para_env, &
+            context=mo_localized%matrix_struct%context,error=error)
+
+       CALL cp_fm_create(b,fm_struct_tmp, name="b",error=error)
+       CALL cp_fm_create(c,fm_struct_tmp, name="c",error=error)
+       CALL cp_fm_create(rot_e_vectors,fm_struct_tmp, name="rot_e_vectors",error=error)
+
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns,  ncol_global=ns, &
+            para_env=mo_localized%matrix_struct%para_env, &
+            context=mo_localized%matrix_struct%context,error=error)
+
+       CALL cp_fm_create(d,fm_struct_tmp, name="d",error=error)
+       CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e_vectors",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
        DO i=1,ns
-          j=ind(i)
-
-          CALL get_qs_env(qs_env=qs_env,&
-                          atomic_kind_set=atomic_kind_set,&
-                          cell=cell,&
-                          dft_control=dft_control,&
-                          particle_set=particle_set,&
-                          pw_env=pw_env,error=error)
-
-          CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
-                                      wf_g, atomic_kind_set,cell,dft_control,particle_set, &
-                                      pw_env, error = error )
-
-          WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",j
-          unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
-               "DFT%PRINT%MOLECULAR_STATES%CUBES",&
-               extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-          CALL rs_pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,filename,&
-               stride=section_get_ival(force_env_section,&
-               "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
-          CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
-               "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
-          IF (para_env%ionode) WRITE(output_unit,*) filename
+          CALL cp_fm_to_fm ( mo_localized, b, 1, ind ( i ), i)
        END DO
-    ENDIF
 
-    CALL cp_fm_release ( b ,error=error)
-    CALL cp_fm_release ( c ,error=error)
-    CALL cp_fm_release ( d ,error=error)
-    CALL cp_fm_release ( e_vectors ,error=error)
-    CALL cp_fm_release ( rot_e_vectors ,error=error)
+       CALL cp_sm_fm_multiply(Hks,b,c,ns,error=error)
 
-    DEALLOCATE(states,STAT=isos)
-    IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
+       CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
+            b,c,0.0_dp,d,error=error)
 
-  END DO
-  CALL cp_fm_release(smo,error=error)
-  DEALLOCATE(nstates,STAT=isos)
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
-  IF (para_env%ionode) CLOSE(unit_report)
-  !CALL stop_program("molecular_states","checkpoint")
-!------------------------------------------------------------------------------
-END SUBROUTINE construct_molecular_states
+       CALL cp_fm_syevd ( d, e_vectors, evals ,error=error)
+
+       IF (output_unit>0) WRITE(output_unit,*)""
+       IF (output_unit>0) WRITE(output_unit,*)"MOLECULE ",imol
+       IF (output_unit>0) WRITE(output_unit,*)"NUMBER OF STATES  ", ns
+       IF (output_unit>0) WRITE(output_unit,*)"EIGENVALUES"
+       IF (output_unit>0) WRITE(output_unit,*)""
+
+       DO k=1,ns
+          IF (output_unit>0) WRITE(output_unit,*) evals(k)
+       END DO
+       IF (unit_report>0) THEN
+          WRITE(unit_report,*) imol,ns, " imol, number of states"
+          DO k=1,ns
+             WRITE(unit_report,*) evals(k)
+          ENDDO
+       ENDIF
+
+       CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
+            b,e_vectors,0.0_dp,rot_e_vectors,error=error)
+
+       DEALLOCATE ( evals,  STAT = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
+            "eval", ns )
+
+       ! compute Eq. 6 from P. Hunt et al. (CPL 376, p. 68-74)
+       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns, &
+            ncol_global=ncol_global, &
+            para_env=mo_localized%matrix_struct%para_env, &
+            context=mo_localized%matrix_struct%context,error=error)
+       CALL cp_fm_create(D_igk,fm_struct_tmp,error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
+            rot_e_vectors,smo,0.0_dp,D_igk,error=error)
+       DO i=1,ns
+          DO k=1,ncol_global
+             CALL cp_fm_get_element(D_igk,i,k,tmp)
+             IF (unit_report>0) THEN
+                WRITE(unit_report,*) tmp**2
+             ENDIF
+          ENDDO
+       ENDDO
+       CALL cp_fm_release(D_igk,error=error)
+
+       IF ( BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+            "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
+          DO i=1,ns
+             j=ind(i)
+
+             CALL get_qs_env(qs_env=qs_env,&
+                  atomic_kind_set=atomic_kind_set,&
+                  cell=cell,&
+                  dft_control=dft_control,&
+                  particle_set=particle_set,&
+                  pw_env=pw_env,error=error)
+
+             CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
+                  wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                  pw_env, error = error )
+
+             WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",j
+             unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
+                  "DFT%PRINT%MOLECULAR_STATES%CUBES",&
+                  extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+             CALL rs_pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,filename,&
+                  stride=section_get_ival(force_env_section,&
+                  "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
+             CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
+                  "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
+             IF (output_unit>0) WRITE(output_unit,*) filename
+          END DO
+       ENDIF
+
+       CALL cp_fm_release ( b ,error=error)
+       CALL cp_fm_release ( c ,error=error)
+       CALL cp_fm_release ( d ,error=error)
+       CALL cp_fm_release ( e_vectors ,error=error)
+       CALL cp_fm_release ( rot_e_vectors ,error=error)
+
+       DEALLOCATE(states,STAT=isos)
+       IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
+
+    END DO
+    CALL cp_fm_release(smo,error=error)
+    DEALLOCATE(nstates,STAT=isos)
+    IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
+    CALL cp_print_key_finished_output(unit_report,logger,force_env_section,&
+         "DFT%PRINT%MOLECULAR_STATES",error=error)
+    !------------------------------------------------------------------------------
+  END SUBROUTINE construct_molecular_states
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------

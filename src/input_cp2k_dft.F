@@ -26,9 +26,9 @@ MODULE input_cp2k_dft
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
+  USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
-  USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -1161,8 +1161,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
 
        CALL keyword_create(keyword, name="nhomo",&
-            description="If the printkey is activated controls the number of homos that dumped as a cube (-1=al\
-l).",&
+            description="If the printkey is activated controls the number of homos that "//&
+            "dumped as a cube (-1=all).",&
             default_i_val=1, error=error)
        CALL section_add_keyword(print_key2,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1175,7 +1175,7 @@ l).",&
 
        CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
             description="Controls the printing of the molecular states (requires the LOCALIZATION keyword)", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,each=(/1/),filename=" ",&
             error=error)
 
        CALL cp_print_key_section_create(print_key2,"cubes",&
