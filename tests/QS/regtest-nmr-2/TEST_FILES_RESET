@@ -1,3 +1,1 @@
 # Enter input files to reset
-# Making the test faster.. too slow for nag and memcheck regtests
-He_nmr_full.inp
