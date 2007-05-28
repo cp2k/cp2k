@@ -4851,7 +4851,8 @@ CONTAINS
             usage="OPT_METHOD CG",&
             default_i_val=lr_cg,&
             enum_c_vals=s2a( "CG", "DIIS", "SD"),&
-            enum_desc=s2a("Conjugate Gradients", "DIIS", "Steepesst Descent"),&
+            enum_desc=s2a("Conjugate Gradients", "DIIS (WARNING this option doesnt work yet)",&
+            "Steepesst Descent"),&
             enum_i_vals=(/lr_cg,lr_diis,lr_sd/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -4859,7 +4860,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="N_DIIS",&
             variants=(/"NDIIS"/),&
-            description="Number of history vectors to be used with DIIS",&
+            description="Number of history vectors to be used with DIIS "//&
+            "(WARNING this option doesnt work yet)",&
             usage="N_DIIS 4",&
             default_i_val=7,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -4873,7 +4875,8 @@ CONTAINS
             default_i_val=ot_ls_none,&
             enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
             enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
-            "... or on 3 points","perform 1D golden section search of the minimum"),&
+            "... or on 3 points","perform 1D golden section search of the minimum "//&
+            "(WARNING this option doesnt work yet)"),&
             enum_i_vals=(/lr_ls_none,lr_ls_2pnt,lr_ls_3pnt,lr_ls_gold/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

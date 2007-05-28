@@ -637,7 +637,7 @@ CONTAINS
        IF(nmr_env%do_nics) THEN
           DO iat = 1,n_nics
              ra = pbc(r_nics(:,iat),cell)
-             chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
+             chemical_shift_nics(idir,i_B,iat)= chemical_shift_nics(idir,i_B,iat)+&
                   & nmr_env%shift_factor*REAL(gsumr(ra,shift_pw_gspace%pw),dp)
           ENDDO
        ENDIF
@@ -780,7 +780,8 @@ CONTAINS
                                                 chemical_shift_loc, &
                                                 chemical_shift_loc_nics, &
                                                 chemical_shift_nics, &
-                                                chemical_shift_tot
+                                                chemical_shift_tot, &
+                                                chemical_shift_nics_tot
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -811,9 +812,12 @@ CONTAINS
 
     ALLOCATE(eigenv_chi(3,natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(chemical_shift_tot(3,3,nat_print), STAT=istat)
+    ALLOCATE(chemical_shift_tot(3,3,nat_print),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+    IF(nmr_env%do_nics) THEN
+       ALLOCATE(chemical_shift_nics_tot(3,3,n_nics),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     ! Finalize Chi calculation
     IF(gapw) THEN
        ! Symmetrize
@@ -894,7 +898,7 @@ CONTAINS
        ENDIF
        
        CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
-            "PRINT%CHI_TENSOR", error=error)
+            &                            "PRINT%CHI_TENSOR", error=error)
     ENDIF  ! print chi
     !
     ! Add the chi part to the shifts
@@ -946,7 +950,7 @@ CONTAINS
                    shift_nosym(i,j) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
                         &           + chemical_shift(i,j,iatom) * twopi**2
                    shift_sym(i,j) = chi_sym(i,j)+(chemical_shift(i,j,iatom)+&
-                        chemical_shift(j,i,iatom))/2.0_dp
+                        &                         chemical_shift(j,i,iatom))/2.0_dp
                    IF(gapw) THEN
                       shift_nosym(i,j) = shift_nosym(i,j)+chemical_shift_loc(i,j,iatom)
                       shift_sym(i,j) = shift_sym(i,j)+(chemical_shift_loc(i,j,iatom)+&
@@ -964,38 +968,56 @@ CONTAINS
              WRITE(unit_atoms,'(A,3f15.6,5x,f15.6)') 'S_z = ',shift_nosym(3, 1:3), HUGE(0.0_dp)!eigenv_tmp(3)
           ENDDO  ! ir
        ENDIF
-       CALL cp_print_key_finished_output(unit_atoms, logger,nmr_section,&
-            "PRINT%SHIELDING_TENSOR", error=error)
+       CALL cp_print_key_finished_output(unit_atoms,logger,nmr_section,&
+            &                            "PRINT%SHIELDING_TENSOR",error=error)
 
        IF(nmr_env%do_nics) THEN
+          !
+          ! Add the chi part to the nics
+          chemical_shift_nics_tot = 0.0_dp
+          DO ir = 1,n_nics
+             DO i = 1,3
+                DO j = 1,3
+                   ! here we need to multiply chi and the shift by some factors
+                   chemical_shift_nics_tot(i,j,ir) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
+                        &                          + chemical_shift_nics(i,j,ir) * twopi**2
+                   IF(gapw) THEN
+                      CALL stop_program(routineP,"GAPW and NICS doesnt work yet.")
+                   ENDIF
+                ENDDO
+             ENDDO
+          END DO  ! ir
+          IF(output_unit > 0) THEN
+             WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum NICS =',&
+                  & SQRT(DDOT(9*SIZE(chemical_shift_nics_tot,3),chemical_shift_nics_tot(1,1,1),&
+                  &           1,chemical_shift_nics_tot(1,1,1),1))
+          ENDIF
+          !
           unit_nics=cp_print_key_unit_nr(logger,nmr_section,"PRINT%SHIELDING_TENSOR",&
-               extension=".data",middle_name="NICS",log_filename=.FALSE.,&
-               error=error)
-
-          CALL stop_program(routineP,"NICS doesnt work yet")
-
-          WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", n_nics
+               &                         extension=".data",middle_name="NICS",&
+               &                         log_filename=.FALSE.,error=error)
           IF(unit_nics > 0) THEN
+             WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", n_nics
              WRITE(unit_nics,'(T2,A)') title
-             DO ir = 1,nat_print
-                rpos(1:3) = r_nics(1:3,iatom)
-                WRITE(unit_nics,'(T2,I5,2X,3f15.6)') iatom,rpos(1:3)
+             DO ir = 1,n_nics
+                WRITE(unit_nics,'(T2,I5,2X,3f15.6)') ir,r_nics(1:3,ir)
                 IF(gapw) THEN
-                   WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(1, 1:3, iatom),&
-                        chemical_shift_loc_nics(1,1:3, iatom)
-                   WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(2, 1:3, iatom),&
-                        chemical_shift_loc_nics(2,1:3, iatom)
-                   WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(3, 1:3, iatom),&
-                        chemical_shift_loc_nics(3,1:3, iatom)
+                   CALL stop_program(routineP,"GAPW and NICS doesnt work yet.")
+                   !WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(1, 1:3, iatom),&
+                   !     chemical_shift_loc_nics(1,1:3, iatom)
+                   !WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(2, 1:3, iatom),&
+                   !     chemical_shift_loc_nics(2,1:3, iatom)
+                   !WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(3, 1:3, iatom),&
+                   !     chemical_shift_loc_nics(3,1:3, iatom)
                 ELSE
-                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(1, 1:3, iatom)
-                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(2, 1:3, iatom)
-                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics(3, 1:3, iatom)
+                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics_tot(1, 1:3, ir)
+                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics_tot(2, 1:3, ir)
+                   WRITE(unit_nics,'(3f15.6)') chemical_shift_nics_tot(3, 1:3, ir)
                 ENDIF
              ENDDO
           ENDIF
-          CALL cp_print_key_finished_output(unit_nics, logger,nmr_section,&
-               "PRINT%SHIELDING_TENSOR", error=error)
+          CALL cp_print_key_finished_output(unit_nics,logger,nmr_section,&
+               &                            "PRINT%SHIELDING_TENSOR",error=error)
        ENDIF
     ENDIF  ! print shift
     !
@@ -1004,6 +1026,10 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(chemical_shift_tot, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF(nmr_env%do_nics) THEN
+       DEALLOCATE(chemical_shift_nics_tot,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     !
   END SUBROUTINE nmr_print_shift
 

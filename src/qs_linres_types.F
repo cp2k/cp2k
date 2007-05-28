@@ -505,36 +505,37 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
+    failure =.FALSE.
 
-     CPPrecondition(nmr_env%ref_count>0, cp_failure_level,routineP,error,failure)
+    CPPrecondition(nmr_env%ref_count>0, cp_failure_level,routineP,error,failure)
 
-     IF(PRESENT(n_nics)) n_nics=nmr_env%n_nics
-     IF(PRESENT(nao)) nao=nmr_env%nao
-     IF(PRESENT(nstates)) nstates(1:2)=nmr_env%nstates(1:2)
-     IF(PRESENT(list_cubes)) list_cubes => nmr_env%list_cubes
-     IF(PRESENT(cs_atom_list)) cs_atom_list => nmr_env%cs_atom_list
-     IF(PRESENT(do_calc_cs_atom)) do_calc_cs_atom => nmr_env%do_calc_cs_atom
-     IF(PRESENT(statetrueindex)) statetrueindex => nmr_env%statetrueindex
-     IF(PRESENT(centers_set)) centers_set => nmr_env%centers_set
-     IF(PRESENT(chi_tensor)) chi_tensor = nmr_env%chi_tensor
-     IF(PRESENT(chi_tensor_loc)) chi_tensor_loc = nmr_env%chi_tensor_loc
-     IF(PRESENT(chemical_shift)) chemical_shift => nmr_env%chemical_shift
-     IF(PRESENT(r_nics)) r_nics => nmr_env%r_nics
-     IF(PRESENT(basisfun_center)) basisfun_center => nmr_env%basisfun_center
-     IF(PRESENT(centers_set)) centers_set => nmr_env%centers_set
-     IF(PRESENT(psi1_p)) psi1_p => nmr_env%psi1_p
-     IF(PRESENT(psi1_rxp)) psi1_rxp => nmr_env%psi1_rxp
-     IF(PRESENT(psi1_D)) psi1_D => nmr_env%psi1_D
-     IF(PRESENT(p_psi0)) p_psi0 => nmr_env%p_psi0
-     IF(PRESENT(rxp_psi0)) rxp_psi0 => nmr_env%rxp_psi0
-     IF(PRESENT(jrho1_atom_set)) jrho1_atom_set => nmr_env%jrho1_atom_set
-     IF(PRESENT(jrho1_set)) jrho1_set => nmr_env%jrho1_set
-     IF(PRESENT(op_rmd_ao)) op_rmd_ao => nmr_env%op_rmd_ao
-     IF(PRESENT(op_p_ao)) op_p_ao => nmr_env%op_p_ao
-     IF(PRESENT(jp2_ao)) jp2_ao => nmr_env%jp2_ao
-     IF(PRESENT(jp1_ao)) jp1_ao => nmr_env%jp1_ao
-     
+    IF(PRESENT(n_nics             )) n_nics              =  nmr_env%n_nics
+    IF(PRESENT(nao                )) nao                 =  nmr_env%nao
+    IF(PRESENT(nstates            )) nstates(1:2)        =  nmr_env%nstates(1:2)
+    IF(PRESENT(list_cubes         )) list_cubes          => nmr_env%list_cubes
+    IF(PRESENT(cs_atom_list       )) cs_atom_list        => nmr_env%cs_atom_list
+    IF(PRESENT(do_calc_cs_atom    )) do_calc_cs_atom     => nmr_env%do_calc_cs_atom
+    IF(PRESENT(statetrueindex     )) statetrueindex      => nmr_env%statetrueindex
+    IF(PRESENT(centers_set        )) centers_set         => nmr_env%centers_set
+    IF(PRESENT(chi_tensor         )) chi_tensor          =  nmr_env%chi_tensor
+    IF(PRESENT(chi_tensor_loc     )) chi_tensor_loc      =  nmr_env%chi_tensor_loc
+    IF(PRESENT(chemical_shift     )) chemical_shift      => nmr_env%chemical_shift
+    IF(PRESENT(chemical_shift_nics)) chemical_shift_nics => nmr_env%chemical_shift_nics
+    IF(PRESENT(r_nics             )) r_nics              => nmr_env%r_nics
+    IF(PRESENT(basisfun_center    )) basisfun_center     => nmr_env%basisfun_center
+    IF(PRESENT(centers_set        )) centers_set         => nmr_env%centers_set
+    IF(PRESENT(psi1_p             )) psi1_p              => nmr_env%psi1_p
+    IF(PRESENT(psi1_rxp           )) psi1_rxp            => nmr_env%psi1_rxp
+    IF(PRESENT(psi1_D             )) psi1_D              => nmr_env%psi1_D
+    IF(PRESENT(p_psi0             )) p_psi0              => nmr_env%p_psi0
+    IF(PRESENT(rxp_psi0           )) rxp_psi0            => nmr_env%rxp_psi0
+    IF(PRESENT(jrho1_atom_set     )) jrho1_atom_set      => nmr_env%jrho1_atom_set
+    IF(PRESENT(jrho1_set          )) jrho1_set           => nmr_env%jrho1_set
+    IF(PRESENT(op_rmd_ao          )) op_rmd_ao           => nmr_env%op_rmd_ao
+    IF(PRESENT(op_p_ao            )) op_p_ao             => nmr_env%op_p_ao
+    IF(PRESENT(jp2_ao             )) jp2_ao              => nmr_env%jp2_ao
+    IF(PRESENT(jp1_ao             )) jp1_ao              => nmr_env%jp1_ao
+    
   END SUBROUTINE get_nmr_env
 
   SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,chi_SI2shiftppm,chi_SI2ppmcgs,&

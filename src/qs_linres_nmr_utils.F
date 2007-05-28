@@ -552,7 +552,7 @@ CONTAINS
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, matrix_s, mos, mpools, nmr_section, particle_set)
-    NULLIFY(auxbas_pw_pool,pw_env)
+    NULLIFY(auxbas_pw_pool,pw_env,parser)
     n_mo(1:2) = 0
     nao = 0
     nmoloc = 0
@@ -591,7 +591,7 @@ CONTAINS
            c_val=nics_file_name,error=error)
       CALL parser_create(parser,nics_file_name,error=error)
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object  (parser,nmr_env%n_nics,error=error)
+      CALL parser_get_object(parser,nmr_env%n_nics,error=error)
       ALLOCATE(nmr_env%r_nics(3,nmr_env%n_nics),STAT=istat)
       CALL parser_get_next_line(parser,2,error=error)
       DO j = 1,nmr_env%n_nics
@@ -1187,10 +1187,12 @@ CONTAINS
           DEALLOCATE(nmr_env%r_nics,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
+
         IF(ASSOCIATED(nmr_env%chemical_shift_nics)) THEN
           DEALLOCATE(nmr_env%chemical_shift_nics,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
+
         IF(ASSOCIATED(nmr_env%chemical_shift_loc_nics)) THEN
           DEALLOCATE(nmr_env%chemical_shift_loc_nics,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -735,9 +735,8 @@ CONTAINS
     REAL(dp)                                 :: ds
 
     SELECT CASE(linres_control%ls_method)
-
       CASE(lr_ls_gold)
-        ! to do
+         CALL stop_program("do_lr_line_search","GOLD NYI")
       CASE(lr_ls_3pnt)
          CALL do_lr_ls_3pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
       CASE(lr_ls_2pnt)
