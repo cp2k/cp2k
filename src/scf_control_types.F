@@ -624,8 +624,8 @@ CONTAINS
           CALL keyword_get(keyword,enum=enum,error=error)
 
           WRITE (UNIT=output_unit,&
-                 FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),4(/,T25,A,T76,I5),"//&
-                     "T25,56('-'),6(/,T25,A,T72,ES9.2),T25,56('-'),"//&
+                 FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),4(/,T25,A,T76,I5),/,"//&
+                     "T25,56('-'),6(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
                      "6(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
             "SCF PARAMETERS",&
             "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess,error=error))),&
