@@ -128,7 +128,7 @@ CONTAINS
       k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, ncolv_glob, &
       ncolv_mol, nfixd_list_gci, nfixd_restraint, nfixed_atoms, ng3x3, &
       ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, nmolecule, nrep, &
-      offset, output_unit, stat
+      offset, output_unit, stat, nfixd_restart
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
     LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
@@ -594,6 +594,7 @@ CONTAINS
        ALLOCATE(missed_molname(SIZE(cons_info%fixed_molnames,1)),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        missed_molname=.TRUE.
+       nfixd_restart = 0
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -723,10 +724,11 @@ CONTAINS
                    END IF
                    IF (fixd_list(kk)%restraint%active) THEN 
                       nfixd_restraint = nfixd_restraint+ 1
+                      nfixd_restart   = nfixd_restart  + 1
                       IF (restart_restraint_pos) THEN
                          ! Read  coord0 value for restraint
                          CALL section_vals_val_get(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
-                              i_rep_val=nfixd_restraint, r_vals=r, error=error)
+                              i_rep_val=nfixd_restart, r_vals=r, error=error)
                          fixd_list(kk)%coord = r
                       ELSE
                          ! Write coord0 value for restraint
@@ -734,7 +736,7 @@ CONTAINS
                          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                          r = fixd_list(kk)%coord
                          CALL section_vals_val_set(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
-                              i_rep_val=nfixd_restraint, r_vals_ptr=r, error=error)                         
+                              i_rep_val=nfixd_restart, r_vals_ptr=r, error=error)                         
                       END IF
                    END IF
                 END IF
