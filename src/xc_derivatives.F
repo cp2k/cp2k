@@ -86,7 +86,9 @@ MODULE xc_derivatives
                                              xb88_lsd_eval,&
                                              xb88_lsd_info
   USE xc_xwpbe,                        ONLY: xwpbe_lda_eval,&
-                                             xwpbe_lda_info
+                                             xwpbe_lda_info,&
+                                             xwpbe_lsd_eval,&
+                                             xwpbe_lsd_info     
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -250,8 +252,8 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         END IF
      CASE("XWPBE")
         IF (lsd) THEN
-        !   CALL pbe_lsd_info(functional,reference,shortform,needs,max_deriv,&
-        !        error=error)
+           CALL xwpbe_lsd_info(reference,shortform,needs,max_deriv,&
+                error=error)
         ELSE
            CALL xwpbe_lda_info(reference,shortform,needs,max_deriv,&
                 error=error)
@@ -447,7 +449,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         END IF
      CASE("XWPBE")
         IF (lsd) THEN
-           !CALL pbe_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+           CALL xwpbe_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
            CALL xwpbe_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         END IF

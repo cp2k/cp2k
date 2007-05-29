@@ -51,7 +51,8 @@ MODULE xc_xwpbe
 
 ! *** Global parameters ***
 
-  PUBLIC :: xwpbe_lda_info, xwpbe_lda_eval
+  PUBLIC :: xwpbe_lda_info, xwpbe_lda_eval, xwpbe_lsd_info, &
+            xwpbe_lsd_eval
 
   REAL(KIND=dp), PARAMETER :: alpha1 = -1.128223946706117_dp, &
                               alpha2 =  1.452736265762971_dp,&
@@ -423,8 +424,6 @@ MODULE xc_xwpbe
   !!     - rho, ndrho: density and norm of the density gradient
   !!     - sx0: scaling factor
   !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Manuel Guidon
@@ -1057,8 +1056,6 @@ MODULE xc_xwpbe
   !!     - rho, ndrho: density and norm of the density gradient
   !!     - sx0: scaling factor
   !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Manuel Guidon
@@ -1558,8 +1555,6 @@ MODULE xc_xwpbe
   !!     - sx: scaling factor
   !!     - sscale: scaling factor to enforce Lieb-Oxford bound
   !!     - omega: scaling factor
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Manuel Guidon
@@ -2744,8 +2739,6 @@ MODULE xc_xwpbe
   !!     - sx: scaling factor
   !!     - sscale: scaling factor to enforce Lieb-Oxford bound
   !!     - omega: scaling factor
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Manuel Guidon
@@ -3760,8 +3753,6 @@ MODULE xc_xwpbe
   !!     - sx: scaling factor
   !!     - sscale: scaling factor to enforce Lieb-Oxford bound
   !!     - omega: screening parameter
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Manuel Guidon
@@ -4656,8 +4647,6 @@ MODULE xc_xwpbe
   !!     - sx: scaling factor
   !!     - sscale: scaling factor to enforce Lieb-Oxford bound
   !!     - omega: screening parameter 
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
   !!
   !!   AUTHOR
   !!     Manuel Guidon
@@ -5350,14 +5339,381 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lda_calc_4
 
+  !!***** xc_xwpbe/xwpbe_lsd_info [1.0] **************************************
+  !!
+  !!   NAME
+  !!     xwpbe_lsd_info
+  !!
+  !!   FUNCTION
+  !!     return various information on the functional
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - reference: string with the reference of the actual functional
+  !!     - shortform: string with the shortform of the functional name
+  !!     - needs: the components needed by this functional are set to
+  !!       true (does not set the unneeded components to false)
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
+  !!
+  !!   AUTHOR
+  !!     Manuel Guidon
+  !!
+  !!   MODIFICATION HISTORY
+  !!     05.2007 created [Manuel Guidon]
+  !!
+  !!**************************************************************************
+
+
+  SUBROUTINE xwpbe_lsd_info ( reference, shortform, needs, max_deriv, error)
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), OPTIONAL                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    TYPE(cp_error_type), INTENT(inout)       :: error 
+
+    IF ( PRESENT ( reference ) ) THEN
+      reference = "Jochen Heyd and Gustavo E. Scuseria, J. Chem. Phys., 120, 7274 {LSD version}"
+    END IF
+    IF ( PRESENT ( shortform ) ) THEN
+      shortform = "shortrange part of PBE exchange {LSD}"
+    END IF
+    IF ( PRESENT(needs) ) THEN
+       needs%rho_spin=.TRUE.
+       needs%norm_drho_spin=.TRUE.
+    END IF
+    IF (PRESENT(max_deriv)) max_deriv=2
+  END SUBROUTINE xwpbe_lsd_info
+
+
+  !!***** xc_xwpbe/xwpbe_lsd_eval [1.0] **************************************
+  !!
+  !!   NAME
+  !!     xwpbe_lsd_eval
+  !!
+  !!   FUNCTION
+  !!     evaluates the screened hole averaged PBE exchange functional for lsd
+  !!
+  !!   NOTES
+  !!     The current version provides code for derivatives up to second order.
+  !!     Using the maple sheet in cp2k/doc it is straightforward to produce routines
+  !!     for higher derivatives. 
+  !!
+  !!   ARGUMENTS
+  !!     - rho_set: the density where you want to evaluate the functional
+  !!     - deriv_set: place where to store the functional derivatives (they are
+  !!       added to the derivatives)
+  !!     - order: degree of the derivative that should be evalated,
+  !!       if positive all the derivatives up to the given degree are evaluated,
+  !!       if negative only the given degree is calculated
+  !!     - xwpbe_params: input parameters (scaling,omega)
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
+  !!
+  !!   AUTHOR
+  !!     Manuel Guidon
+  !!
+  !!   MODIFICATION HISTORY
+  !!     05.2007 created [Manuel Guidon]
+  !!
+  !!**************************************************************************
+
+  SUBROUTINE xwpbe_lsd_eval ( rho_set, deriv_set, order, xwpbe_params, error )
+
+
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(IN)                      :: order
+    TYPE(section_vals_type), POINTER         :: xwpbe_params
+    TYPE(cp_error_type), INTENT(inout)       :: error 
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lsd_eval', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, npoints, stat
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho,&
+                                                sx, sx0, omega
+    REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrhoa, &
+            e_ndrhob, e_ndrhoa_ndrhoa, e_ndrhob_ndrhob, e_ndrhoa_rhoa, &
+            e_ndrhob_rhob, e_rhoa, e_rhob, e_rhoa_rhoa, e_rhob_rhob,&
+            norm_drhoa, norm_drhob, rhoa, rhob
+    TYPE(xc_derivative_type), POINTER        :: deriv
+
+    INTEGER::i
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+
+    NULLIFY(bo)
+
+    CALL section_vals_val_get(xwpbe_params,"SCALE_X",r_val=sx,error=error)
+    CALL section_vals_val_get(xwpbe_params,"SCALE_X0",r_val=sx0,error=error)
+    CALL section_vals_val_get(xwpbe_params,"OMEGA",r_val=omega,error=error)
+
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    
+    IF (.NOT.failure) THEN
+      CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,norm_drhoa=norm_drhoa,&
+           norm_drhob=norm_drhob,local_bounds=bo,rho_cutoff=epsilon_rho,&
+           drho_cutoff=epsilon_norm_drho,error=error)
+      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+      
+      ! meaningful default for the arrays we don't need: let us make compiler
+      ! and debugger happy...
+      IF (cp_debug) THEN
+        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ELSE
+        dummy=> rhoa
+      END IF
+
+      e_0 => dummy
+      e_rhoa => dummy
+      e_rhob => dummy
+      e_ndrhoa => dummy
+      e_ndrhob => dummy
+      e_rhoa_rhoa => dummy
+      e_rhob_rhob => dummy
+      e_ndrhoa_rhoa => dummy
+      e_ndrhob_rhob => dummy
+      e_ndrhoa_ndrhoa => dummy
+      e_ndrhob_ndrhob => dummy
+      
+      IF (order>=0) THEN
+        deriv => xc_dset_get_derivative(deriv_set,"",&
+              allocate_deriv=.TRUE., error=error)
+        CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+      END IF
+      IF (order>=1.OR.order==-1) THEN
+        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+              allocate_deriv=.TRUE.,error=error)
+        CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
+        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+              allocate_deriv=.TRUE.,error=error)
+        CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
+        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+              allocate_deriv=.TRUE.,error=error)
+        CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
+        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+              allocate_deriv=.TRUE.,error=error)
+        CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
+      END IF
+     IF (order>=2.OR.order==-2) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
+             allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhoa_rhoa,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
+             allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhob_rhob,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhoa)",&
+             allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_rhoa,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhob)",&
+             allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_rhob,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+             "(norm_drhoa)(norm_drha)", allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_ndrhoa,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+             "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_ndrhob,error=error)
+     END IF
+      IF (order>2.OR.order<-2) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="derivatives bigger than 2 not implemented", &
+              error=error, error_level=cp_failure_level)
+      END IF
+     
+      !Call lsd_calc for alpha - and beta - spins
+      CALL xwpbe_lsd_calc(npoints,order, rho=rhoa, norm_drho=norm_drhoa, &
+           e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,e_rho_rho=e_rhoa_rhoa, &
+           e_ndrho_rho=e_ndrhoa_rhoa, e_ndrho_ndrho=e_ndrhoa_ndrhoa, &
+           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho, &
+           sx=sx,sx0=sx0,omega=omega,error=error)
+      CALL xwpbe_lsd_calc(npoints,order, rho=rhob, norm_drho=norm_drhob, &
+           e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,e_rho_rho=e_rhob_rhob, &
+           e_ndrho_rho=e_ndrhob_rhob, e_ndrho_ndrho=e_ndrhob_ndrhob, &
+           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho, &
+           sx=sx,sx0=sx0,omega=omega,error=error)
+      
+      IF (cp_debug) THEN
+        DEALLOCATE(dummy,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ELSE
+        NULLIFY(dummy)
+      END IF
+    END IF
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE xwpbe_lsd_eval
+  
+  
+  !!***** xc_xwpbe/xwpbe_lsd_calc [1.0] **************************************
+  !!
+  !!   NAME
+  !!     xwpbe_lsd_calc
+  !!
+  !!   FUNCTION
+  !!     evaluates the screened hole averaged PBE exchange functional for lsd. 
+  !!     
+  !!   NOTES
+  !!     - The lsd part is calculated using the spin-scaling relations for the
+  !!       exchange energy:
+  !!
+  !!              Ex[na,nb] = 0.5 * Ex[2*na] + 0.5 * Ex[2*nb].
+  !!
+  !!     - In order to avoid numerical instabilities, this routine calls different
+  !!       subroutines. There are 4 routines for the case omega!=0 and 2 routines
+  !!       for omega=0.
+  !!
+  !!   ARGUMENTS
+  !!     - order: degree of the derivative that should be evalated,
+  !!       if positive all the derivatives up to the given degree are evaluated,
+  !!       if negative only the given degree is calculated
+  !!     - rho, ndrho: density and norm of the density gradient
+  !!     - sx, sx0: scaling factor for omega!=0 and omega=0
+  !!     - omega: screening parameter
+  !!     - error: variable to control error logging, stopping,...
+  !!       see module cp_error_handling
+  !!
+  !!   AUTHOR
+  !!     Manuel Guidon
+  !!
+  !!   MODIFICATION HISTORY
+  !!     05.2007 created [Manuel Guidon]
+  !!
+  !!**************************************************************************
+
+  SUBROUTINE xwpbe_lsd_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho, &
+                            e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, &
+                            epsilon_rho, epsilon_norm_drho,sx, sx0, omega, &
+                            error)
+
+    INTEGER, INTENT(in)                      :: npoints, order
+    REAL(kind=dp), DIMENSION(1:npoints),& 
+                               INTENT(inout) :: rho, norm_drho,e_0, e_rho, e_ndrho, e_rho_rho,&
+                                                e_ndrho_rho, e_ndrho_ndrho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho, sx, sx0,&
+                                                omega
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lsd_calc', &
+      routineP = moduleN//':'//routineN
+    
+    REAL(dp)                                 :: my_ndrho, my_rho, my_rho_tot, my_ndrho_tot,e_0_temp
+    INTEGER                                  :: ip 
+
+    REAL(KIND=dp) :: sscale, ss, ss2, ww
+    REAL(KIND=dp) :: t1,t2,t3,t4,t5,t6,t7,t8
+    
+    DO ip =1,npoints
+      !According to spin-scaling relation, we need twice the density and its gradient
+      my_rho = 2.0_dp*MAX(rho(ip),0.0_dp)
+      IF(my_rho > epsilon_rho) THEN
+        my_ndrho = 2.0_dp*MAX(norm_drho(ip),0.0_dp)
+
+        !Do some precalculation in order to catch the correct branch afterwards
+        sscale = 1.0_dp
+        t1 = pi ** 2
+        t2 = t1 * my_rho
+        t3 = t2 ** (0.1D1 / 0.3D1)
+        t4 = 0.1D1 / t3
+        t5 = omega * t4
+        ww = 0.6933612743506347048433524D0 * t5
+        t6 = my_ndrho * t4
+        t7 = 0.1D1 / my_rho
+        t8 = t7 * sscale
+        ss = 0.3466806371753173524216762D0 * t6 * t8
+        IF( ss > scutoff) THEN
+          ss2 = ss*ss
+          sscale = ((smax)*ss2-(sconst))/(ss2*ss)
+        END IF
+        e_0_temp = 0.0_dp
+        IF(sx0/=0.0_dp) THEN
+          !original PBE hole
+           IF(ss*sscale>gcutoff) THEN
+             CALL xwpbe_lda_calc_0(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                   e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                   my_ndrho, sscale, sx0, order)
+           ELSE
+             CALL xwpbe_lda_calc_01(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                   e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                   my_ndrho, sscale, sx0, order)
+           END IF
+           !According to spin-scaling relation, we need only half of the energy
+           e_0(ip) = e_0(ip) + 0.5_dp * e_0_temp
+        END IF
+        e_0_temp = 0.0_dp
+        IF(ww<wcutoff .AND. ss*sscale>gcutoff) THEN
+          CALL xwpbe_lda_calc_1(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                my_ndrho, omega, sscale, sx, order)
+        ELSE IF(ww<wcutoff .AND. ss*sscale<=gcutoff) THEN
+          CALL xwpbe_lda_calc_2(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip), &
+                                e_ndrho_rho(ip), e_ndrho_ndrho(ip),my_rho,&
+                                my_ndrho, omega, sscale, sx, order)
+        ELSE IF(ww>=wcutoff .AND. ss*sscale>gcutoff) THEN
+          CALL xwpbe_lda_calc_3(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                my_ndrho, omega, sscale, sx, order)
+        ELSE
+          CALL xwpbe_lda_calc_4(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),& 
+                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                my_ndrho, omega, sscale, sx, order)
+        END IF
+        !According to spin-scaling relation, we need only half of the energy
+        e_0(ip) = e_0(ip) + 0.5_dp * e_0_temp
+      END IF
+    END DO
+  END SUBROUTINE xwpbe_lsd_calc
+
+
+  !!***** xc_xwpbe/xwpbe_exei, _exer, _dexerrho... [1.0] *********************
+  !!
+  !!   NAME
+  !!     xwpbe_exei, _exer, _dexerrho...
+  !!
+  !!   FUNCTION
+  !!     These functions evaluate products exp(x)*Ei(x) and pi*exp(x)*erfc(sqrt(x)),
+  !!     as well as their derivatives with respect to various combinations of
+  !!     rho and norm_drho.
+  !!
+  !!   NOTES
+  !!    - In order to avoid numerical instabilities, these routines use Taylor-
+  !!      expansions for the above core-products for large arguments.
+  !!    - When adapting this module for higher order derivatives, appropriate
+  !!      functions have to be provided!
+  !!
+  !!   ARGUMENTS
+  !!     - Q, dQrho, dQndrho, d2Qrhondrho.... : 
+  !!       Argument Q and derivatives with respect to various combinations of
+  !!       rho and norm_drho
+  !!
+  !!   AUTHOR
+  !!     Manuel Guidon
+  !!
+  !!   MODIFICATION HISTORY
+  !!     05.2007 created [Manuel Guidon]
+  !!
+  !!**************************************************************************
+
+
   FUNCTION exei(Q)
     REAL(dp)                 :: exei
     REAL(dp), INTENT(IN)     :: Q
 
     exei = 0.0_dp
     IF( Q<expcutoff ) THEN
+      !Use exact product
       exei = exp(Q)*expint(1,Q)
     ELSE
+      !Use approximation
       exei = (1/Q)*(Q*Q+exei1*Q+exei2)/(Q*Q+exei3*Q+exei4)
     END IF
   END FUNCTION exei
@@ -5369,8 +5725,10 @@ MODULE xc_xwpbe
 
     exer = 0.0_dp
     IF( Q<expcutoff ) THEN
+      !Use exact expression
       exer = pi*exp(Q)*erfc(sqrt(Q))
     ELSE
+      !Use approximation
       Q3 = Q*Q*Q
       Q5 = Q3*Q*Q
       exer = pi* (1.0_dp/sqrt(Q*pi) - 1.0_dp/(2.0_dp*sqrt(pi*Q3)) + 3.0_dp/(4.0_dp*(sqrt(pi*Q5))))
