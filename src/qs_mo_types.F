@@ -1028,11 +1028,13 @@ CONTAINS
       END DO
 
       ! Skip extra MOs if there any
-
       IF (para_env%ionode) THEN
-        DO i=nmo+1,nmo_read
-          READ (restart_unit) vecbuffer_read
-        END DO
+        !ignore nmo = 0
+        IF(nmo>0) THEN 
+          DO i=nmo+1,nmo_read
+            READ (restart_unit) vecbuffer_read
+          END DO
+        END IF
       END IF
 
       CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
