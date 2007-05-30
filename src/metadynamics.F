@@ -118,8 +118,9 @@ CONTAINS
        CALL cp_para_env_retain(para_env,error=error)
 
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       meta_env%ekin_s=HUGE(0.0_dp)
-       meta_env%cv_energy=-HUGE(0.0_dp)
+       meta_env%ekin_s=0.0_dp
+       meta_env%cv_energy=0.0_dp
+
        meta_env%n_steps=0
        meta_env%dt = dt
        meta_env%tempcontrol=.FALSE.
