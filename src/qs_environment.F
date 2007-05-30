@@ -233,10 +233,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
       et_coupling_section, harris_section, hf_section, kind_section
     INTEGER                                  :: iatom, natom, nseta, iset,&
-                                                max_set, max_pgf
-    INTEGER, DIMENSION(:), POINTER           :: npgfa
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
+                                                max_set
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -333,21 +330,7 @@ CONTAINS
       natom=SIZE(particle_set)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
-      max_pgf = 0
-      DO iatom=1,natom
-
-        atom_kind => particle_set(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atom_kind,&
-                             orb_basis_set=orb_basis_a)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_a,&
-                               npgf=npgfa,&
-                               nset=nseta)
-        DO iset=1,nseta
-          max_pgf = MAX(max_pgf,npgfa(iset))
-        END DO
-      END DO
-
-      CALL x_hf_create(qs_env%x_data,hf_section,natom,max_set,max_pgf,error=error)
+      CALL x_hf_create(qs_env%x_data,hf_section,natom,max_set,error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)
