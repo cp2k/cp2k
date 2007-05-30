@@ -28,3 +28,10 @@ CH-hfx-md.inp
 H2O-hfx-dist.inp       
 # forces screening
 CH-hfx-md.inp
+#reset due to screening
+H2O-hfx-1.inp
+H2O-hfx-2.inp
+H2O-hfx-3.inp
+H2O-hfx-dist.inp
+CH-hfx-md.inp
+CH-hfx-md-2.inp
