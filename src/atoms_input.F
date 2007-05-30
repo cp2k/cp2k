@@ -104,7 +104,7 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, ionode, &
                                                 is_ok, my_overwrite, &
                                                 scaled_coordinates
-    REAL(KIND=dp)                            :: unit_of_length
+    REAL(KIND=dp)                            :: unit_of_length, r0(3)
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -256,7 +256,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     DO iatom=1,natom
        IF (scaled_coordinates) THEN
-          CALL scaled_to_real(atom_info%r(:,iatom),atom_info%r(:,iatom),cell)
+          r0 = atom_info%r(:,iatom)
+          CALL scaled_to_real(atom_info%r(:,iatom),r0,cell)
        ELSE
           atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
        END IF
