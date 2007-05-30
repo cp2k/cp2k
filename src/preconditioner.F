@@ -183,9 +183,11 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
 
 !----
 
+
   CALL timeset("make_preconditioner","I","",handle)
 
   CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
+
   ALLOCATE(eigenvalues_ot(k))
 
 
@@ -199,7 +201,12 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
           eigenvalues_ot,para_env=preconditioner_env%para_env, &
                          do_rotation = .FALSE.,error=error)
 
-  energy_homo=eigenvalues_ot(k)
+  ! deal with zero occupied orbitals
+  IF (k>0) THEN
+     energy_homo=eigenvalues_ot(k)
+  ELSE
+     energy_homo=0.0_dp
+  ENDIF
 
   SELECT CASE (precon_type)
   CASE (ot_precond_sparse_diag)
