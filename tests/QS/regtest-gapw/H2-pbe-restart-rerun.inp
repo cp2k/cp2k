@@ -1,0 +1,52 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    CHARGE +1
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    RESTART_FILE_NAME H2-pbe.restart
+    &MGRID
+      CUTOFF 250
+      REL_CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS RESTART 
+      MAX_SCF 10
+    &END SCF
+#These are the coefficients used for PBE0
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    H 0.0 0.0 0.0
+    H 0.0 0.0 1.0
+    &END COORD
+    &KIND H
+      BASIS_SET aug-cc-pVTZ
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROJECT H2
+  PRINT_LEVEL MEDIUM 
+  RUN_TYPE ENERGY
+&END GLOBAL

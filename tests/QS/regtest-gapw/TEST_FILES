@@ -30,3 +30,6 @@ Li-ROKS.inp        1
 NO2-ROKS.inp       1
 # Level-shifting for ROKS
 C-levelshift.inp   1
+# Check restart for nmo = 0
+H2-pbe-restart-run.inp  1
+H2-pbe-restart-rerun.inp 1
