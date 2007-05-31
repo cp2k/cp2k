@@ -674,9 +674,9 @@ MODULE qs_harmonics_atom
                                             ind_cg_b_d(1:incg_d)
             harmonics%ncg_dxyz(iso,is1,is2) = incg_d
             IF(do_dxyz_asym) THEN
-               harmonics%ind_cg_a_dxyz_asym(1:incg_d,iso,is1,is2) = &
+               harmonics%ind_cg_a_dxyz_asym(1:incg_da,iso,is1,is2) = &
                                             ind_cg_a_da(1:incg_da)
-               harmonics%ind_cg_b_dxyz_asym(1:incg_d,iso,is1,is2) = &
+               harmonics%ind_cg_b_dxyz_asym(1:incg_da,iso,is1,is2) = &
                                             ind_cg_b_da(1:incg_da)
                harmonics%ncg_dxyz_asym(iso,is1,is2) = incg_da
             END IF
