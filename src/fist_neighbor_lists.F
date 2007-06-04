@@ -637,7 +637,7 @@ CONTAINS
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b,&
                         exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
                         particle_set=particle_set, rab=rab, added=added,&
-                        is_tersoff_pot=is_tersoff_pot,error=error)
+                        is_tersoff_pot=is_tersoff_pot,cell=cell,error=error)
                    ! Check for too close hits
                    IF (added) THEN
                       rab2_min = r_minsq(ikind,jkind)

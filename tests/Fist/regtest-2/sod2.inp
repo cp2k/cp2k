@@ -92,7 +92,7 @@
     &END CELL
     &TOPOLOGY
         COORDINATE XYZ
-        COORD_FILE_NAME ../sample_xyz/sod.xyz
+        COORD_FILE_NAME ../sample_xyz/sod_1.xyz
         CONNECTIVITY UPSF
         CONN_FILE_NAME ../sample_psf/sod.psf
         #&GENERATE

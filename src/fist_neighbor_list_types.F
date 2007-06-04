@@ -21,6 +21,8 @@
 
 MODULE fist_neighbor_list_types
 
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
 #include "cp_common_uses.h"
@@ -202,7 +204,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list,&
-       particle_set, rab, added, is_tersoff_pot, error)
+       particle_set, rab, added, is_tersoff_pot, cell, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     INTEGER, DIMENSION(:), POINTER           :: exclusion_list
@@ -211,6 +213,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: added
     LOGICAL, INTENT(IN)                      :: is_tersoff_pot
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
@@ -221,15 +224,12 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: rabc
-    REAL(KIND=dp) :: dist1, dist2
 
     IF (ANY(exclusion_list==atom_b).AND.(.NOT.is_tersoff_pot)) THEN
        ! Given an exclusion list only atoms connected within the shortest
        ! periodic replica are assumed to be connected...
-       rabc  = particle_set(atom_b)%r - particle_set(atom_a)%r
-       dist1 = DOT_PRODUCT(rabc,rabc)
-       dist2 = DOT_PRODUCT(rab, rab )
-       IF ((ALL(ABS(rab-rabc)<eps_default)).OR.(dist2<dist1)) THEN
+       rabc  = pbc(particle_set(atom_b)%r - particle_set(atom_a)%r, cell)
+       IF ((ALL(ABS(rab-rabc)<eps_default))) THEN
           added = .FALSE.
           RETURN
        END IF

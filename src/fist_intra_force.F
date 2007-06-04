@@ -211,12 +211,10 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3)  +rij(3) * fscalar
 
 ! computing the pressure tensor
-        k2 =  rij * fscalar
-        k1 = -k2
-        CALL get_pv_bond ( k1, k2, &
-                           particle_set ( index_a ) % r,  &
-                           particle_set ( index_b ) % r,  &
-                           pv_bond )
+        k2 =  - rij * fscalar
+        CALL get_pv_bond  ( k2, &
+                            rij,&
+                            pv_bond )
 
 ! the contribution from the bonds. ONLY FOR DEBUG
        IF ( PRESENT ( f_bond ) ) THEN
@@ -270,19 +268,15 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3)  + rij(3) * fscalar
 
         ! computing the pressure tensor
-        k2 =  rij * fscalar
-        k1 = -k2
-        CALL get_pv_bond ( k1, k2, &
-                           particle_set ( index_a ) % r,  &
-                           particle_set ( index_b ) % r,  &
+        k2 =  - rij * fscalar
+        CALL get_pv_bond ( k2, &
+                           rij,&
                            pv_urey_bradley )
 
         ! the contribution from the ub. ONLY FOR DEBUG
        IF ( PRESENT ( f_ub ) ) THEN
-           f_ub(:,index_a) = f_ub(:,index_a) - &
-                rij*fscalar
-           f_ub(:,index_b) = f_ub(:,index_b) + &
-                rij*fscalar
+           f_ub(:,index_a) = f_ub(:,index_a) - rij*fscalar
+           f_ub(:,index_b) = f_ub(:,index_b) + rij*fscalar
         END IF
 
      END DO UREY_BRADLEY
@@ -322,22 +316,17 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 
 ! computing the pressure tensor
         k1 = fscalar*g1
-        k2 = fscalar*g2
         k3 = fscalar*g3
-        CALL get_pv_bend(k1,k2,k3, &
-                         particle_set ( index_a ) % r,    & 
-                         particle_set ( index_b ) % r,    & 
-                         particle_set ( index_c ) % r,    & 
+        CALL get_pv_bend(k1,k3,&
+                         b12,& 
+                         b32,& 
                          pv_bend)
 
 ! the contribution from the bends. ONLY FOR DEBUG
         IF ( PRESENT ( f_bend)) THEN
-           f_bend(:,index_a) = f_bend(:,index_a) + &
-                fscalar*g1
-           f_bend(:,index_b) = f_bend(:,index_b) + &
-                fscalar*g2
-           f_bend(:,index_c) = f_bend(:,index_c) + &
-                fscalar*g3
+           f_bend(:,index_a) = f_bend(:,index_a) + fscalar*g1
+           f_bend(:,index_b) = f_bend(:,index_b) + fscalar*g2
+           f_bend(:,index_c) = f_bend(:,index_c) + fscalar*g3
         END IF
 
      END DO BEND
@@ -387,26 +376,20 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 
 ! computing the pressure tensor
           k1 = fscalar*gt1
-          k2 = fscalar*gt2
           k3 = fscalar*gt3
           k4 = fscalar*gt4
-          CALL get_pv_torsion(k1,k2,k3,k4,&
-                           particle_set ( index_a ) % r,    & 
-                           particle_set ( index_b ) % r,    & 
-                           particle_set ( index_c ) % r,    & 
-                           particle_set ( index_d ) % r,    & 
+          CALL get_pv_torsion(k1,k3,k4,&
+                           t12,    & 
+                           t32,    & 
+                           t43,    & 
                            pv_torsion)
   
 ! the contribution from the torsions. ONLY FOR DEBUG
          IF ( PRESENT ( f_torsion)) THEN
-             f_torsion(:,index_a) = f_torsion(:,index_a) + &
-                  fscalar*gt1
-             f_torsion(:,index_b) = f_torsion(:,index_b) + &
-                  fscalar*gt2
-             f_torsion(:,index_c) = f_torsion(:,index_c) + &
-                  fscalar*gt3
-             f_torsion(:,index_d) = f_torsion(:,index_d) + &
-                  fscalar*gt4
+             f_torsion(:,index_a) = f_torsion(:,index_a) + fscalar*gt1
+             f_torsion(:,index_b) = f_torsion(:,index_b) + fscalar*gt2
+             f_torsion(:,index_c) = f_torsion(:,index_c) + fscalar*gt3
+             f_torsion(:,index_d) = f_torsion(:,index_d) + fscalar*gt4
           END IF
         END DO
 
@@ -420,6 +403,11 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
+        t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
+        t12 = pbc(t12,cell)
+        t32 = pbc(t32,cell)
+        t34 = pbc(t34,cell)
+        t43 = pbc(t43,cell)
         ! t12 x t32
         tm(1) = t12(2)*t32(3)-t32(2)*t12(3)
         tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
@@ -457,26 +445,20 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 
 ! computing the pressure tensor
         k1 = fscalar*gt1
-        k2 = fscalar*gt2
         k3 = fscalar*gt3
         k4 = fscalar*gt4
-        CALL get_pv_torsion(k1,k2,k3,k4,&
-                         particle_set ( index_a ) % r,    & 
-                         particle_set ( index_b ) % r,    & 
-                         particle_set ( index_c ) % r,    & 
-                         particle_set ( index_d ) % r,    & 
-                         pv_imp_torsion)
+        CALL get_pv_torsion(k1,k3,k4,&
+                           t12,    & 
+                           t32,    & 
+                           t43,    & 
+                           pv_imp_torsion)
 
 ! the contribution from the torsions. ONLY FOR DEBUG
         IF ( PRESENT ( f_imptor)) THEN
-           f_imptor(:,index_a) = f_imptor(:,index_a) + &
-                fscalar*gt1
-           f_imptor(:,index_b) = f_imptor(:,index_b) + &
-                fscalar*gt2
-           f_imptor(:,index_c) = f_imptor(:,index_c) + &
-                fscalar*gt3
-           f_imptor(:,index_d) = f_imptor(:,index_d) + &
-                fscalar*gt4
+           f_imptor(:,index_a) = f_imptor(:,index_a) + fscalar*gt1
+           f_imptor(:,index_b) = f_imptor(:,index_b) + fscalar*gt2
+           f_imptor(:,index_c) = f_imptor(:,index_c) + fscalar*gt3
+           f_imptor(:,index_d) = f_imptor(:,index_d) + fscalar*gt4
         END IF
      END DO IMP_TORSION
 
@@ -484,6 +466,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_a = onef_list ( ionef ) % a + first_atom - 1
         index_b = onef_list ( ionef ) % b + first_atom - 1
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
+        rij = pbc(rij,cell)
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_data => onef_list ( ionef ) % onfo_kind % spline_data
         IF (.NOT.ASSOCIATED(spline_data)) CYCLE
@@ -503,19 +486,15 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) +rij(3) * fscalar
 
 ! computing the pressure tensor
-        k2=rij * fscalar
-        k1=-k2
-        CALL get_pv_bond ( k1,k2,&
-                           particle_set ( index_a ) % r,  &
-                           particle_set ( index_b ) % r,  &
+        k2 = rij * fscalar
+        CALL get_pv_bond ( k2,&
+                           rij,&
                            pv_onef )
 
 ! the contribution from the bonds. ONLY FOR DEBUG
        IF ( PRESENT ( f_onef ) ) THEN
-           f_onef(:,index_a) = f_onef(:,index_a) - &
-                rij*fscalar
-           f_onef(:,index_b) = f_onef(:,index_b) + &
-                rij*fscalar
+           f_onef(:,index_a) = f_onef(:,index_a) - rij*fscalar
+           f_onef(:,index_b) = f_onef(:,index_b) + rij*fscalar
         END IF
 
      END DO ONEF
