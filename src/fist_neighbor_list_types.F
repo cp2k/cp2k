@@ -221,11 +221,15 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: rabc
+    REAL(KIND=dp) :: dist1, dist2
 
     IF (ANY(exclusion_list==atom_b).AND.(.NOT.is_tersoff_pot)) THEN
-       ! Only atoms really connected (not the periodic images) need to be excluded..
-       rabc  = particle_set(atom_b)%r - particle_set(atom_a)%r 
-       IF (ALL(ABS(rab-rabc)<eps_default)) THEN
+       ! Given an exclusion list only atoms connected within the shortest
+       ! periodic replica are assumed to be connected...
+       rabc  = particle_set(atom_b)%r - particle_set(atom_a)%r
+       dist1 = DOT_PRODUCT(rabc,rabc)
+       dist2 = DOT_PRODUCT(rab, rab )
+       IF ((ALL(ABS(rab-rabc)<eps_default)).OR.(dist2<dist1)) THEN
           added = .FALSE.
           RETURN
        END IF

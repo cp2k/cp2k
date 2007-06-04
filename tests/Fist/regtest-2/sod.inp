@@ -1,0 +1,142 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &BOND
+        ATOMS Si O
+        KIND HARMONIC
+        K 0.5
+        R0 [angstrom] 1.59
+      &END BOND
+      
+      &BEND
+        ATOMS Si O Si
+        KIND HARMONIC
+        K 0.0
+        THETA0 0.0
+      &END BEND
+      &BEND
+        ATOMS O Si O
+        KIND HARMONIC
+        K 0.0
+        THETA0 0.0
+      &END BEND
+      
+      &CHARGE
+        ATOM Si
+        CHARGE 1
+      &END CHARGE
+      &CHARGE
+        ATOM O
+        CHARGE -0.5
+      &END CHARGE
+
+      &SPLINE
+        EMAX_SPLINE 1.0
+        EMAX_ACCURACY 1.0
+        R0_NB 3.5
+      &END SPLINE
+
+      &NONBONDED
+        &GENPOT
+          ATOMS Si Si 
+          FUNCTION 1*exp(-r/2.0)
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          ATOMS Si O
+          FUNCTION 1*exp(-r/2.0)
+          VARIABLES r
+        &END GENPOT
+        &GENPOT
+          ATOMS O O
+          FUNCTION 1*exp(-r/2.0)
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED
+      &NONBONDED14
+        &GENPOT
+          ATOMS Si O
+          FUNCTION 1*exp(-r/2.0)
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED14
+    &END FORCEFIELD
+
+    
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+
+    &PRINT
+      &SUBCELL
+          EACH 1
+      &END SUBCELL
+      #&NEIGHBOR_LISTS
+      #    EACH 1
+      #&END NEIGHBOR_LISTS
+      &FF_INFO  DEBUG
+          EACH 1
+      &END FF_INFO
+    &END PRINT
+
+
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 8.965 8.965 8.965
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+        COORDINATE XYZ
+        COORD_FILE_NAME ../sample_xyz/sod.xyz
+        CONNECTIVITY UPSF
+        CONN_FILE_NAME ../sample_psf/sod.psf
+        #&GENERATE
+        #    CREATE_MOLECULES T
+        #&END GENERATE
+    &END TOPOLOGY
+
+    &PRINT
+        #&INTERATOMIC_DISTANCES
+        #    EACH 1
+        #&END INTERATOMIC_DISTANCES
+        #&TOPOLOGY_INFO
+        #    EACH 1
+        #    XYZ_INFO T
+        #    GENERATE_INFO F
+        #&END TOPOLOGY_INFO
+        #&KINDS
+        #    EACH 1
+        #&END KINDS
+    &END PRINT
+
+
+  &END SUBSYS
+  &PRINT
+    &FORCES
+        EACH 1
+    &END FORCES
+  &END PRINT
+&END FORCE_EVAL
+&GLOBAL
+  FFT_LIB FFTW3
+  PROJECT sod
+  RUN_TYPE MD
+&END GLOBAL
+
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    TIMESTEP 1.0
+    TEMPERATURE 300
+    STEPS 10
+    TEMP_TOL 50
+    PV_AVA T
+  &END MD
+&END
+
