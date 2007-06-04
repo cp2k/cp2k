@@ -3063,6 +3063,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
+       CALL keyword_create(keyword, name="USE_ERI_SYMMETRIES",&
+            description="Uses all 8 symmetries in calculation of four center integrals."//&
+                        "This results in a significant speedup (factor 4)  "//&
+                        " and less memory requirements (factor 4). ",&
+            usage="USE_ERI_SYMMETRIES TRUE", default_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       
        CALL keyword_create(keyword, name="OMEGA",&
             description="Parameter for screening via erfc/erf",&
             usage="OMEGA 0.5", default_r_val=0.0_dp,error=error)

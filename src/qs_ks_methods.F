@@ -69,7 +69,9 @@ MODULE qs_ks_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_constraint
   USE four_center_integrals,           ONLY: derivatives_four_center,&
-                                             integrate_four_center
+                                             integrate_four_center,&
+                                             integrate_four_center_symm,&
+                                             derivatives_four_center_symm
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -324,7 +326,7 @@ CONTAINS
                                                 output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_ep, do_hf, et_coupling_calc, &
       explicit_potential, failure, gapw, gapw_xc, ionode, my_diis_step, &
-      my_kg_gpw, use_virial
+      my_kg_gpw, use_virial, use_eri_symmetry
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p,inv_vol
@@ -703,17 +705,29 @@ CONTAINS
        
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hf ) THEN
-
+         CALL section_vals_val_get(hf_section,"USE_ERI_SYMMETRIES",l_val=use_eri_symmetry,error=error)
+ 
          DO ispin = 1,nspins
            CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
-         CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                    para_env,ks_env%s_mstruct_changed,error)
-         IF ( calculate_forces ) THEN
-           CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-           CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+         IF( use_eri_symmetry ) THEN
+           CALL integrate_four_center_symm(qs_env, ks_matrix,energy,rho,hf_section,&
+                                      para_env,ks_env%s_mstruct_changed,error)
+           IF ( calculate_forces ) THEN
+             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+             CALL derivatives_four_center_symm(qs_env, ks_matrix,energy,rho,hf_section,&
                                         para_env,error)
+           END IF
+         ELSE
+           CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                      para_env,ks_env%s_mstruct_changed,error)
+           IF ( calculate_forces ) THEN
+             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+             CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                          para_env,error)
+           END IF
          END IF
+
          ! *** Add Core-Hamiltonian-Matrix ***
          DO ispin=1,nspins
             CALL cp_sm_scale_and_add(ks_matrix(ispin)%matrix,matrix_b=matrix_h(1)%matrix,error=error)
