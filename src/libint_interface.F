@@ -375,7 +375,7 @@ MODULE libint_interface
     TYPE(prim_data),TARGET                   :: prim
     INTEGER(KIND=C_INT)                      :: Config(4)
     INTEGER(KIND=C_INT)                      :: m_max
-    INTEGER(KIND=C_INT)                      :: mysize
+    INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
     INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
    
     REAL(dp),DIMENSION(:),POINTER            :: A1,B1,C1,D1,X
@@ -446,11 +446,12 @@ MODULE libint_interface
     lib%CD=C1-D1
   
     mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
+    a_mysize = mysize
      
     IF(n_a+ n_b + n_c + n_d  /=0) THEN
       CALL C_F_PROCPOINTER(build_eri(config(4),config(3),config(2),config(1)),pbuild)
       pc_result = pbuild(lib,1)
-      CALL C_F_POINTER(pc_result, p_work, (/mysize/))
+      CALL C_F_POINTER(pc_result, p_work, a_mysize)
       DO l = 1,nco(n_d)
         DO k = 1,nco(n_c)     
           DO j = 1,nco(n_b)
@@ -577,9 +578,11 @@ MODULE libint_interface
     END SELECT
 
     factor = 2.0_dp*Pi/Rho 
-    factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**(3.0_dp))
+    factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**3)
 
-    CALL dscal(m_max+1,factor,prim%F,1)
+    DO i=1,m_max+1
+       prim%F(i)=prim%F(i)*factor
+    ENDDO
     prim%U(:,1) = P-A
     prim%U(:,2) = P-B                 !Not used in libint
     prim%U(:,3) = Q-C
@@ -683,9 +686,11 @@ MODULE libint_interface
     END SELECT
 
     factor = 2.0_dp*Pi/Rho
-    factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**(3.0_dp))
+    factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**3)
 
-    CALL dscal(m_max+1,factor,prim%F,1)
+    DO i=1,m_max+1
+       prim%F(i)=prim%F(i)*factor
+    ENDDO
     prim%U(:,1) = P-A
     prim%U(:,2) = P-B
     prim%U(:,3) = Q-C
@@ -747,7 +752,7 @@ MODULE libint_interface
     TYPE(prim_data),TARGET                  :: prim
     INTEGER(KIND=C_INT)                     :: Config(4)
     INTEGER(KIND=C_INT)                     :: m_max
-    INTEGER(KIND=C_INT)                     :: mysize
+    INTEGER(KIND=C_INT)                     :: mysize,a_mysize(1)
     INTEGER(KIND=C_INT)                     :: n1, n2, n3, n4, n
    
     REAL(dp),DIMENSION(:),POINTER           :: A1,B1,C1,D1,X
@@ -847,6 +852,7 @@ MODULE libint_interface
     prim = build_deriv_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, screening_parameter)
 
     mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
+    a_mysize=mysize
   
 
     deriv%PrimQuartet = C_LOC(prim)
@@ -857,7 +863,7 @@ MODULE libint_interface
     DO k=1,12
       IF(k==4 .OR. k==5 .OR. k==6) CYCLE
       pc_result = deriv%ABCD(k)
-      CALL C_F_POINTER(pc_result, tmp_data ,(/mysize/))
+      CALL C_F_POINTER(pc_result, tmp_data , a_mysize)
       work_forces(1:mysize,k) = tmp_data
     END DO
 
@@ -945,7 +951,7 @@ MODULE libint_interface
     TYPE(prim_data),TARGET                   :: prim
     INTEGER(KIND=C_INT)                      :: Config(4)
     INTEGER(KIND=C_INT)                      :: m_max
-    INTEGER(KIND=C_INT)                      :: mysize
+    INTEGER(KIND=C_INT)                      :: mysize, a_mysize(1)
     INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
    
     REAL(dp),DIMENSION(:),POINTER            :: A1,B1,C1,D1,X
@@ -1015,11 +1021,12 @@ MODULE libint_interface
     lib%CD=C1-D1
   
     mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
+    a_mysize = mysize
     max_val = 0.0_dp
     IF(n_a+ n_b + n_c + n_d  /=0) THEN
       CALL C_F_PROCPOINTER(build_eri(config(4),config(3),config(2),config(1)),pbuild)
       pc_result = pbuild(lib,1)
-      CALL C_F_POINTER(pc_result, p_work, (/mysize/))
+      CALL C_F_POINTER(pc_result, p_work, a_mysize)
       DO i=1,mysize
         max_val = MAX(max_val, ABS(p_work(i)))
       END DO

@@ -203,7 +203,7 @@ CONTAINS
       INTENT(OUT)                            :: f
 
     INTEGER                                  :: itab, k, n
-    REAL(KIND=dp)                            :: expt, g, tdelta, ttab
+    REAL(KIND=dp)                            :: expt, g, tdelta, ttab, tmp
 
 !   ---------------------------------------------------------------------------
 !   *** Calculate F(t) ***
@@ -232,8 +232,10 @@ CONTAINS
 
       f(nmax) = ftable(nmax,itab)
 
+      tmp = 1.0_dp
       DO k=1,6
-        f(nmax) = f(nmax) + ftable(nmax+k,itab)*(ttab - t)**k/fac(k)
+        tmp = tmp * (ttab - t)
+        f(nmax) = f(nmax) + ftable(nmax+k,itab)*tmp/fac(k)
       END DO
 
       expt = EXP(-t)
@@ -330,7 +332,7 @@ CONTAINS
       INTENT(OUT)                            :: f
 
     INTEGER                                  :: i, itab, k, n
-    REAL(KIND=dp)                            :: expt, g, tdelta, ttab
+    REAL(KIND=dp)                            :: expt, g, tdelta, ttab, tmp
 
 !   ---------------------------------------------------------------------------
 
@@ -362,8 +364,10 @@ CONTAINS
 
         f(i,nmax) = ftable(nmax,itab)
 
+        tmp = 1.0_dp
         DO k=1,6
-          f(i,nmax) = f(i,nmax) + ftable(nmax+k,itab)*(ttab - t(i))**k/fac(k)
+          tmp = tmp * (ttab - t(i))
+          f(i,nmax) = f(i,nmax) + ftable(nmax+k,itab)*tmp/fac(k)
         END DO
 
         expt = EXP(-t(i))
