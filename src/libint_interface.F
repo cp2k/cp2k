@@ -530,7 +530,7 @@ MODULE libint_interface
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho, tmp
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
-    REAL(KIND=C_DOUBLE)                :: S12, S34, T, omega_corr2, omega_corr, omega2
+    REAL(KIND=C_DOUBLE)                :: S1234, T, omega_corr2, omega_corr, omega2
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
     
@@ -548,8 +548,7 @@ MODULE libint_interface
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
 
-    S12  = EXP(-Zeta_A*Zeta_B/Zeta*AB2)
-    S34  = EXP(-Zeta_C*Zeta_D/Eta*CD2)
+    S1234= EXP((-Zeta_A*Zeta_B/Zeta*AB2)+(-Zeta_C*Zeta_D/Eta*CD2))
     T = Rho*PQ2
 
     SELECT CASE(screening_parameter%screening_type)
@@ -578,7 +577,7 @@ MODULE libint_interface
 
     factor = 2.0_dp*Pi/Rho 
     tmp    = (Pi/(Eta+Zeta))**3
-    factor = factor*S12*S34*SQRT(tmp)
+    factor = factor*S1234*SQRT(tmp)
 
     DO i=1,m_max+1
        prim%F(i)=prim%F(i)*factor
@@ -637,7 +636,7 @@ MODULE libint_interface
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho, tmp
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
-    REAL(KIND=C_DOUBLE)                :: S12, S34, T, omega_corr2, omega_corr, omega2
+    REAL(KIND=C_DOUBLE)                :: T, omega_corr2, omega_corr, omega2, S1234
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
     
@@ -655,8 +654,7 @@ MODULE libint_interface
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
 
-    S12  = EXP(-Zeta_A*Zeta_B/Zeta*AB2)
-    S34  = EXP(-Zeta_C*Zeta_D/Eta*CD2)
+    S1234= EXP((-Zeta_A*Zeta_B/Zeta*AB2)+(-Zeta_C*Zeta_D/Eta*CD2))
     T = Rho*PQ2
 
     SELECT CASE(screening_parameter%screening_type)
@@ -685,7 +683,7 @@ MODULE libint_interface
 
     factor = 2.0_dp*Pi/Rho
     tmp = (Pi/(Eta+Zeta))**3
-    factor = factor*S12*S34*SQRT(tmp)
+    factor = factor*S1234*SQRT(tmp)
 
     DO i=1,m_max+1
        prim%F(i)=prim%F(i)*factor
