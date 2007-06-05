@@ -437,8 +437,8 @@ MODULE libint_interface
     m_max = Config(1) + Config(2) + Config(3) + Config(4)
 
 
-    prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
-                              screening_parameter)
+    CALL build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
+                            screening_parameter, prim)
 
     lib%PrimQuartet = C_LOC(prim)
 
@@ -518,16 +518,15 @@ MODULE libint_interface
 !!****************************************************************************
 
 #if defined(__LIBINT)
-  FUNCTION build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
-                              screening_parameter)
+  SUBROUTINE build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
+                              screening_parameter, prim)
      
-    TYPE(prim_data)                    :: build_quartet_data
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_screening_type)          :: screening_parameter 
-
     TYPE(prim_data)                    :: prim
+
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
@@ -601,8 +600,7 @@ MODULE libint_interface
     prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
     prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
 
-    build_quartet_data = prim
-  END FUNCTION build_quartet_data
+  END SUBROUTINE build_quartet_data
 #endif 
 !***************************************************************************
 
@@ -626,16 +624,15 @@ MODULE libint_interface
 !!****************************************************************************
 
 #if defined(__LIBINT)
-  FUNCTION build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
-                            screening_parameter)
+  SUBROUTINE build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
+                            screening_parameter, prim)
      
-    TYPE(prim_data)                    :: build_deriv_data
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: A(3), B(3), C(3), D(3)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_screening_type)          :: screening_parameter
-   
     TYPE(prim_data)                    :: prim
+
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
     REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
@@ -709,8 +706,7 @@ MODULE libint_interface
     prim%oo2p      = 1.0_dp/(2.0_dp*Rho)
     prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
 
-    build_deriv_data = prim
-  END FUNCTION build_deriv_data
+  END SUBROUTINE build_deriv_data
 #endif 
 !***************************************************************************
 
@@ -849,7 +845,8 @@ MODULE libint_interface
     m_max = Config(1) + Config(2) + Config(3) + Config(4)
 
     m_max = m_max + 1
-    prim = build_deriv_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, screening_parameter)
+    CALL build_deriv_data(A1, B1, C1, D1, Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, &
+                          screening_parameter, prim)
 
     mysize = nco(n1)*nco(n2)*nco(n3)*nco(n4)
     a_mysize=mysize
@@ -1013,7 +1010,8 @@ MODULE libint_interface
     m_max = Config(1) + Config(2) + Config(3) + Config(4)
 
 
-    prim = build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, screening_parameter)
+    CALL build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, &
+                            screening_parameter, prim)
 
     lib%PrimQuartet = C_LOC(prim)
 
