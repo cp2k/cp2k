@@ -32,8 +32,7 @@ MODULE colvar_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -194,6 +193,7 @@ MODULE colvar_types
   TYPE point_type
      INTEGER :: type_id
      INTEGER, DIMENSION (:), POINTER          :: atoms
+     REAL(KIND=dp), DIMENSION (:), POINTER          :: weights
      REAL(KIND=dp), DIMENSION(3)              :: r
   END TYPE point_type
 
@@ -340,11 +340,13 @@ CONTAINS
     INTEGER                                  :: i, natoms, npoints, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: atoms
     LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r, weights
     TYPE(section_vals_type), POINTER         :: point_sections
 
     failure=.FALSE.
     NULLIFY(point_sections)
+    NULLIFY(atoms)
+    NULLIFY(weights)
     CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
     point_sections => section_vals_get_subs_vals(section,"POINT",error=error)
     CALL section_vals_get(point_sections, explicit=explicit, error=error)
@@ -355,25 +357,33 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Read points definition
        DO i = 1, npoints
-          NULLIFY(colvar%points(i)%atoms)
-          CALL section_vals_val_get(point_sections,"TYPE",i_rep_section=i,i_val=colvar%points(i)%type_id,error=error)
-          CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,n_rep_val=nrep,error=error)
           natoms = 0
-          IF (nrep==1) THEN
+          NULLIFY(colvar%points(i)%atoms)
+          NULLIFY(colvar%points(i)%weights)
+          CALL section_vals_val_get(point_sections,"TYPE",i_rep_section=i,i_val=colvar%points(i)%type_id,error=error)
+          SELECT CASE(colvar%points(i)%type_id)
+          CASE(do_clv_geo_center)
+             ! Define a point through a list of atoms..
              CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_vals=atoms,error=error)
              natoms = SIZE(atoms)
              ALLOCATE(colvar%points(i)%atoms(natoms),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              colvar%points(i)%atoms = atoms
-          END IF
-          CALL section_vals_val_get(point_sections,"XYZ",i_rep_section=i,n_rep_val=nrep,error=error)
-          IF (nrep==1) THEN
+             ! Define weights of the list
+             ALLOCATE(colvar%points(i)%weights(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             colvar%points(i)%weights = 1.0_dp/REAL(natoms,KIND=dp)
+             CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,n_rep_val=nrep,error=error)
+             IF (nrep==1) THEN
+                CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,r_vals=weights,error=error)
+                CPPostcondition(SIZE(weights)==natoms,cp_failure_level,routineP,error,failure)
+                colvar%points(i)%weights = weights
+             END IF
+          CASE(do_clv_fix_point )
+             ! Define the point as a fixed point in space..
              CALL section_vals_val_get(point_sections,"XYZ",i_rep_section=i,r_vals=r,error=error)
              colvar%points(i)%r = r
-             IF (natoms /=0 ) THEN
-                CALL stop_program(routineP,"COLVAR section: Specify only ATOMS or XYZ. Not allowed to specify both!")
-             END IF
-          END IF
+          END SELECT
        END DO
     END IF
     
@@ -714,6 +724,10 @@ CONTAINS
              DEALLOCATE(colvar%points(i)%atoms, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
           END IF
+          IF (ASSOCIATED(colvar%points(i)%weights)) THEN
+             DEALLOCATE(colvar%points(i)%weights, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          END IF
        END DO
        DEALLOCATE(colvar%points, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
@@ -925,6 +939,14 @@ CONTAINS
           ELSE
              NULLIFY(colvar_out%points(i)%atoms)
           END IF
+          IF (ASSOCIATED(colvar_in%points(i)%weights)) THEN
+             natoms = SIZE(colvar_in%points(i)%weights)
+             ALLOCATE(colvar_out%points(i)%weights(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             colvar_out%points(i)%weights = colvar_in%points(i)%weights
+          ELSE
+             NULLIFY(colvar_out%points(i)%weights)
+          END IF
           colvar_out%points(i)%type_id = colvar_in%points(i)%type_id
           colvar_out%points(i)%r       = colvar_in%points(i)%r
        END DO
@@ -1043,9 +1065,8 @@ CONTAINS
     CASE(do_clv_geo_center)
        r = 0.0_dp
        DO i = 1,SIZE(point%atoms)
-          r = r + particles(point%atoms(i))%r
+          r = r + particles(point%atoms(i))%r*point%weights(i)
        END DO
-       r = r/REAL(SIZE(point%atoms),KIND=dp)
     CASE(do_clv_fix_point )
        r = point%r
     END SELECT
@@ -1080,7 +1101,6 @@ CONTAINS
 
     SELECT CASE(points(i)%type_id)
     CASE(do_clv_geo_center)
-       fac = REAL(SIZE(points(i)%atoms),KIND=dp)
        ind = 0
        DO j = 1, i-1
           IF (ASSOCIATED(points(j)%atoms)) THEN
@@ -1088,7 +1108,8 @@ CONTAINS
           END IF
        END DO
        DO j = 1,SIZE(points(i)%atoms)
-          dsdr(:,ind+j) = dsdr(:,ind+j) + f / fac 
+          fac = points(i)%weights(j)
+          dsdr(:,ind+j) = dsdr(:,ind+j) + f * fac 
        END DO
     CASE(do_clv_fix_point )
        ! Do nothing if it's a fixed point in space

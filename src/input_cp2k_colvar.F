@@ -753,14 +753,21 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the indexes of atoms defining the geometrical center",&
             usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
+            n_var=-1, type_of_var=integer_t, repeats=.FALSE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHTS",&
+            description="Specifies the weights for a weighted geometrical center. Default is 1/natoms for every atom",&
+            usage="WEIGHTS {real} {real} {real} {real}",required=.FALSE.,&
+            n_var=-1, type_of_var=real_t, repeats=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="XYZ",&
             description="Specifies the xyz of the fixed point (if the case)",&
             usage="XYZ {real} {real} {real}",required=.TRUE.,&
-            n_var=3, type_of_var=real_t, error=error)
+            n_var=3, type_of_var=real_t, repeats=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error) 
    
@@ -880,7 +887,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_colvar_hydronium_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
