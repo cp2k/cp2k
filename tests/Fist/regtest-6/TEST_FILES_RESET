@@ -13,3 +13,8 @@ uo2_shell_npt300.inp
 C_tersoff.inp
 #numerics only for online regtest
 water_3_dist_centers2.inp
+# faster bonded correct gaussian and bug fix for stress tensor in shell model
+uo2_shell_npt300.inp
+uo2_shell_npti_b.inp
+uo2_shell_npti.inp
+water_3_dist_g.inp

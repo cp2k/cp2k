@@ -273,3 +273,5 @@ water_3_rg3x3_ext.inp
 C_tersoff.inp
 # reduce the number of steps to keep runtime reasonable
 C_tersoff.inp
+# faster bonded correct gaussian and bug fix for stress tensor in shell model
+water_3_dist.inp

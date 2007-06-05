@@ -31,3 +31,6 @@ water_3_dist_g.inp        2
 water_3_dist_centers.inp  2
 water_3_dist_centers2.inp 2
 water_3_dist_centers3.inp 2
+# more on pbc
+cubane_15.inp             7
+cubane_0.inp              7

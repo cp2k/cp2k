@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2007  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****** cp2k/fist_nonbond_force [1.0] *
 !!
 !!   NAME
@@ -26,7 +27,8 @@ MODULE fist_nonbond_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -61,20 +63,30 @@ MODULE fist_nonbond_force
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_force'
 
   PUBLIC :: force_nonbond,&
-       bonded_correct_gaussian
+            bonded_correct_gaussian
 
-  !!***
-  !******************************************************************************
+
 CONTAINS
-  !******************************************************************************
-
+!!****** fist_nonbond_force/force_nonbond [1.0] *
+!!
+!!   NAME
+!!     force_nonbond
+!!
+!!   FUNCTION
+!!     Calculates the force and the potential of the minimum image, and
+!!     the pressure tensor
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
        pot_nonbond, f_nonbond, ptens_nonbond, &
        fshell_nonbond, fcore_nonbond,  error )
-
-    ! Calculates the force and the potential of the minimum image, and
-    ! the pressure tensor
-    !
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
@@ -90,8 +102,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, handle, &
-                                                i, ikind, ilist, ipair, jkind, &
+    INTEGER                                  :: atom_a, atom_b, handle, i, &
+                                                ikind, ilist, ipair, jkind, &
                                                 nkinds, npairs, shell_a, &
                                                 shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
@@ -429,7 +441,7 @@ CONTAINS
                       pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1) 
                       pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2) 
                       pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3) 
-!                      
+
                 END IF  ! shell_type
              END IF  ! do_shell
              ptens11 = ptens11 + pv_com(1,1)
@@ -458,11 +470,26 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
 
-  !******************************************************************************
-
+!!****** fist_nonbond_force/bonded_correct_gaussian [1.0] *
+!!
+!!   NAME
+!!     bonded_correct_gaussian
+!!
+!!   FUNCTION
+!!     corrects electrostatics for bonded terms
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     Splitted routines to clean and to fix a bug with the tensor whose 
+!!     original definition was not correct for PBC.. [Teodoro Laino -06/2007]
+!!
+!!   SOURCE
+!******************************************************************************
   SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
              particle_set, ewald_env, v_bonded_corr, pv_bc, shell_particle_set, &
-             core_particle_set, error )
+             core_particle_set, cell, error )
 
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -474,12 +501,10 @@ CONTAINS
       INTENT(OUT)                            :: pv_bc
     TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set( : ), &
                                                 core_particle_set( : )
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian'
-    REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
-      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
-      pc = 0.3275911_dp
 
     INTEGER                                  :: group, handle, i, iatom, &
                                                 iexl, ikind, j, &
@@ -487,294 +512,101 @@ CONTAINS
                                                 shell_i_index, shell_j_index
     LOGICAL                                  :: do_shell, i_is_shell, &
                                                 j_is_shell, shell_adiabatic
-    REAL(KIND=dp) :: alpha, arg, const, dij, e_arg_arg, efac, eps0, errf, &
-      ffac, flops, fscalar, idij, ifourpieps0, qci, qcj, qi, qj, qsi, qsj, &
-      rijsq, tc, tc2
-    REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, ri, rij, &
-                                                rj, rsi, rsj
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(shell_kind_type), POINTER           :: shell_i, shell_j
-
-! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
-!------------------------------------------------------------------------------
+    REAL(KIND=dp)                            :: alpha, const, eps0, flops, &
+                                                ifourpieps0, qci, qcj, qsi, &
+                                                qsj
+    REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, rsi, rsj
 
     CALL timeset ( routineN, 'I', 'Mflops', handle )
     flops = 0.0_dp
 
-    NULLIFY(atomic_kind, shell_i, shell_j)
-    ! defining the constants
-    pv_bc = 0.0_dp
+    ! Initializing values
+    pv_bc         = 0.0_dp
     v_bonded_corr = 0.0_dp
-
+    ! Defining the constants
     CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group ,error=error)
     const = 2.0_dp * alpha / SQRT( pi )
     ifourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_adiabatic=shell_adiabatic)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             shell_adiabatic=shell_adiabatic)
     nkind = SIZE ( atomic_kind_set )
     DO ikind = 1, nkind
        natoms_per_kind = local_particles % n_el ( ikind )
        DO iatom = 1, natoms_per_kind
           i = local_particles % list ( ikind ) % array ( iatom )
-          atomic_kind => particle_set ( i ) % atomic_kind
-          ri ( : ) = particle_set ( i ) % r ( : )
-          CALL get_atomic_kind ( atomic_kind,qeff = qi,&
-               shell_active=i_is_shell,&
-               shell=shell_i )
-          IF(i_is_shell) THEN
-             shell_i_index = particle_set(i)%shell_index
-             rsi = shell_particle_set(shell_i_index)%r
-             rci = core_particle_set(shell_i_index)%r
-             qci = shell_i%charge_core
-             qsi = shell_i%charge_shell
-             qi = qci
-          ELSE
-             qsi = 0.0_dp
-             qci = qi
-             rci = ri
-          END IF
+          CALL get_atom_info(i, particle_set, shell_particle_set, core_particle_set,&
+               shell_i_index, i_is_shell, rsi, rci, qci, qsi)
+
           DO iexl = 1, SIZE(particle_set(i)%list_exclude_ei)
-             j = particle_set(i)%list_exclude_ei(iexl)
-             IF ( j==i ) CYCLE
              fij_com = 0.0_dp
-             atomic_kind => particle_set ( j ) % atomic_kind
-             rj ( : ) = particle_set ( j ) % r ( : )
-             CALL get_atomic_kind ( atomic_kind,qeff = qj,&
-                  shell_active=j_is_shell, &
-                  shell=shell_j )
-             IF(j_is_shell) THEN
-               shell_j_index = particle_set(j)%shell_index
-               rsj = shell_particle_set(shell_j_index)%r
-               rcj = core_particle_set(shell_j_index)%r
-               qcj = shell_j%charge_core
-               qsj = shell_j%charge_shell
-               qj = qcj
-             ELSE
-               qsj = 0.0_dp
-               qcj = qj
-               rcj = rj
-             END IF
+             j = particle_set(i)%list_exclude_ei(iexl)
+             IF ( j>=i ) CYCLE
+
+             CALL get_atom_info(j, particle_set, shell_particle_set, core_particle_set,&
+               shell_j_index, j_is_shell, rsj, rcj, qcj, qsj)
              do_shell = .FALSE.
              IF (i_is_shell.OR.j_is_shell) do_shell = .TRUE.
-             ! shell-model: exclude core-core, core-ion, or ion-core interactions
-             ! if not shell-model: exclude ion-ion interactions
-             rij(1) = rci(1) - rcj(1)
-             rij(2) = rci(2) - rcj(2)
-             rij(3) = rci(3) - rcj(3)
-             rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-             idij = 1.0_dp / SQRT ( rijsq )
-             dij = rijsq * idij
-             arg = alpha * dij
-             e_arg_arg = EXP ( -arg ** 2 )
-             tc = 1.0_dp / ( 1.0_dp + pc * arg )
-
-             ! defining errf=1-erfc
-             errf = 1.0_dp &
-                  - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-
-             ! getting the potential
-             v_bonded_corr = v_bonded_corr - qci*qcj*idij*errf
-
-             ! subtracting the force from the total force
-             fscalar = ifourpieps0 * qci * qcj * idij ** 2 &
-                  * ( idij * errf - const * e_arg_arg  )
-
+             !
+             ! This term excludes always ION-ION interactions
              IF(i_is_shell) THEN
-               core_particle_set ( shell_i_index ) % f(1) = &
-                    core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-               core_particle_set ( shell_i_index ) % f(2) = &
-                    core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-               core_particle_set ( shell_i_index ) % f(3) = &
-                    core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
+                CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
+                                                 core_particle_set, core_particle_set, &
+                                                 shell_i_index, shell_j_index, .TRUE., &
+                                                 alpha, qci, qcj, ifourpieps0, const, pv_bc)
              ELSE
-               particle_set ( i ) % f(1) = particle_set ( i ) % f(1) - fscalar*rij(1)
-               particle_set ( i ) % f(2) = particle_set ( i ) % f(2) - fscalar*rij(2)
-               particle_set ( i ) % f(3) = particle_set ( i ) % f(3) - fscalar*rij(3)
+                CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr,&
+                                                 particle_set, particle_set, i, j, .TRUE.,&
+                                                 alpha, qci, qcj, ifourpieps0, const, pv_bc)
              END IF
 
-             fij_com = fscalar*rij
-             ! shell-model: exclude shell-shell interactions
+             ! Shell-Model
              IF (do_shell) THEN
+                ! shell-model: exclude shell_i-shell_j interactions
                 IF(i_is_shell .AND. j_is_shell) THEN
-                   rij(1) = rsi(1) - rsj(1)
-                   rij(2) = rsi(2) - rsj(2)
-                   rij(3) = rsi(3) - rsj(3)
-                   rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-                   idij = 1.0_dp / SQRT ( rijsq )
-                   dij = rijsq * idij
-                   arg = alpha * dij
-                   e_arg_arg = EXP ( -arg ** 2 )
-                   tc = 1.0_dp / ( 1.0_dp + pc * arg )
-                   
-                   ! defining errf=1-erfc
-                   errf = 1.0_dp &
-                        - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-                   
-                   ! getting the potential
-                   v_bonded_corr = v_bonded_corr - qsi*qsj*idij*errf
-                   
-                   ! subtracting the force from the total force
-                   fscalar = ifourpieps0 * qsi * qsj * idij ** 2 &
-                        * ( idij * errf - const * e_arg_arg  )
-                   
-                   shell_particle_set ( shell_i_index) % f(1) = &
-                        shell_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-                   shell_particle_set ( shell_i_index ) % f(2) = &
-                        shell_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-                   shell_particle_set ( shell_i_index ) % f(3) = &
-                        shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
-                   
-                   IF(shell_adiabatic) THEN
-                      fij_com = fij_com + fscalar*rij
-                   END IF
-                   
+                   CALL bonded_correct_gaussian_low(rsi, rsj, cell, v_bonded_corr,&
+                        shell_particle_set, shell_particle_set, shell_i_index, shell_j_index,&
+                        shell_adiabatic, alpha, qsi, qsj, ifourpieps0, const, pv_bc)
                 END IF
-                ! shell-model: exclude shell_i-core interactions
+                ! shell-model: exclude shell_i-core_j interactions
                 IF(i_is_shell ) THEN
-                   rij(1) = rsi(1) - rcj(1)
-                   rij(2) = rsi(2) - rcj(2)
-                   rij(3) = rsi(3) - rcj(3)
-                   rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-                   idij = 1.0_dp / SQRT ( rijsq )
-                   dij = rijsq * idij
-                   arg = alpha * dij
-                   e_arg_arg = EXP ( -arg ** 2 )
-                   tc = 1.0_dp / ( 1.0_dp + pc * arg )
-                   
-                   ! defining errf=1-erfc
-                   errf = 1.0_dp &
-                        - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-                   
-                   ! getting the potential
-                   v_bonded_corr = v_bonded_corr - qsi*qcj*idij*errf
-                   
-                   ! subtracting the force from the total force
-                   fscalar = ifourpieps0 * qsi * qcj * idij ** 2 &
-                        * ( idij * errf - const * e_arg_arg  )
-                   
-                   shell_particle_set ( shell_i_index) % f(1) = &
-                        shell_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-                   shell_particle_set ( shell_i_index ) % f(2) = &
-                        shell_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-                   shell_particle_set ( shell_i_index ) % f(3) = &
-                        shell_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
-                   
-                   IF(shell_adiabatic) THEN
-                      fij_com = fij_com + fscalar*rij
-                   END IF
-                   
-                END IF
-                IF(j_is_shell ) THEN
-                   rij(1) = rci(1) - rsj(1)
-                   rij(2) = rci(2) - rsj(2)
-                   rij(3) = rci(3) - rsj(3)
-                   rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-                   idij = 1.0_dp / SQRT ( rijsq )
-                   dij = rijsq * idij
-                   arg = alpha * dij
-                   e_arg_arg = EXP ( -arg ** 2 )
-                   tc = 1.0_dp / ( 1.0_dp + pc * arg )
-                   
-                   ! defining errf=1-erfc
-                   errf = 1.0_dp &
-                        - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-                   
-                   ! getting the potential
-                   v_bonded_corr = v_bonded_corr - qci*qsj*idij*errf
-                   
-                   ! subtracting the force from the total force
-                   fscalar = ifourpieps0 * qci * qsj * idij ** 2 &
-                        * ( idij * errf - const * e_arg_arg  )
-                   
-                   IF(i_is_shell) THEN
-                      core_particle_set ( shell_i_index) % f(1) = &
-                           core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-                      core_particle_set ( i) % f(2) = &
-                           core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-                      core_particle_set (i) % f(3) = &
-                           core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
+                   IF (j_is_shell) THEN
+                      CALL bonded_correct_gaussian_low(rsi, rcj, cell, v_bonded_corr,&
+                           shell_particle_set, core_particle_set, shell_i_index, shell_j_index,&
+                           shell_adiabatic, alpha, qsi, qcj, ifourpieps0, const, pv_bc)
                    ELSE
-                      particle_set ( i) % f(1) = &
-                           particle_set ( i ) % f(1) - fscalar*rij(1)
-                      particle_set ( i) % f(2) = &
-                           particle_set ( i ) % f(2) - fscalar*rij(2)
-                      particle_set (i) % f(3) = &
-                           particle_set ( i ) % f(3) - fscalar*rij(3)
+                      CALL bonded_correct_gaussian_low(rsi, rcj, cell, v_bonded_corr,&
+                           shell_particle_set, particle_set, shell_i_index, j, shell_adiabatic,&
+                           alpha, qsi, qcj, ifourpieps0, const, pv_bc)
                    END IF
-                   
-                   IF(shell_adiabatic) THEN
-                      fij_com = fij_com + fscalar*rij
+                END IF
+                ! shell-model: exclude shell_j-core_i interactions
+                IF(j_is_shell ) THEN
+                   IF (i_is_shell) THEN
+                      CALL bonded_correct_gaussian_low(rci, rsj, cell, v_bonded_corr,&
+                           core_particle_set, shell_particle_set, shell_i_index, shell_j_index,&
+                           shell_adiabatic, alpha, qci, qsj, ifourpieps0, const, pv_bc)
+                   ELSE
+                      CALL bonded_correct_gaussian_low(rci, rsj, cell, v_bonded_corr,&
+                           particle_set, shell_particle_set, i, shell_j_index, shell_adiabatic,&
+                           alpha, qci, qsj, ifourpieps0, const, pv_bc)
                    END IF
-                   
                 END IF
              END IF
-             pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * particle_set ( i ) % r(1)
-             pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * particle_set ( i ) % r(2)
-             pv_bc(1,3) = pv_bc(1,3) - fij_com(1) * particle_set ( i ) % r(3)
-             pv_bc(2,1) = pv_bc(2,1) - fij_com(2) * particle_set ( i ) % r(1)
-             pv_bc(2,2) = pv_bc(2,2) - fij_com(2) * particle_set ( i ) % r(2)
-             pv_bc(2,3) = pv_bc(2,3) - fij_com(2) * particle_set ( i ) % r(3)
-             pv_bc(3,1) = pv_bc(3,1) - fij_com(3) * particle_set ( i ) % r(1)
-             pv_bc(3,2) = pv_bc(3,2) - fij_com(3) * particle_set ( i ) % r(2)
-             pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * particle_set ( i ) % r(3)
+
              flops = flops + 62.0_dp
           ENDDO
 
-          ! Exclusion of shell-core interaction
+          ! Always Exclude  shell_i-core_i interaction
           IF(i_is_shell ) THEN
-             rij(1) = rci(1) - rsi(1)
-             rij(2) = rci(2) - rsi(2)
-             rij(3) = rci(3) - rsi(3)
-             rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-             dij = SQRT(rijsq)
-             ! Two possible limiting cases according the value of dij
-             arg = alpha * dij
-             ! and this is a magic number.. it is related to the order expansion
-             ! and to the value of the polynomial coefficients
-             IF(arg > 0.355_dp) THEN
-                idij = 1.0_dp / dij
-                e_arg_arg = EXP ( -arg ** 2 )
-                tc = 1.0_dp / ( 1.0_dp + pc * arg )
-                ! defining errf=1-erfc
-                errf = 1.0_dp &
-                     - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
-                efac = idij*errf
-                ffac = idij**2 * (idij*errf - const*e_arg_arg)
-             ELSE
-                tc  = arg*arg
-                tc2 = tc*tc
-                efac = 1.0_dp - tc/3.0_dp + tc2/10.0_dp - tc*tc2/42.0_dp + tc2*tc2/216.0_dp
-                efac = efac * const
-                ffac = - 2.0_dp/3.0_dp + 2.0_dp/5.0_dp*tc - 1.0_dp/7.0_dp*tc2 + 1.0_dp/27.0_dp*tc2*tc
-                ffac = const*alpha**2*ffac
-             ENDIF
-             ! getting the potential
-             ! th factor 2 comes to compensate for the factor 0.5 
-             ! introduced later to avoid double counting
-             v_bonded_corr = v_bonded_corr - 2.0_dp * qci*qsi*efac
-
-             ! subtracting the force from the total force
-             fscalar = ifourpieps0 * qci * qsi * ffac
-
-             core_particle_set ( shell_i_index) % f(1) = &
-                          core_particle_set ( shell_i_index ) % f(1) - fscalar*rij(1)
-             core_particle_set ( shell_i_index) % f(2) = &
-                          core_particle_set ( shell_i_index ) % f(2) - fscalar*rij(2)
-             core_particle_set (shell_i_index) % f(3) = &
-                          core_particle_set ( shell_i_index ) % f(3) - fscalar*rij(3)
-
-             shell_particle_set (shell_i_index) % f(1) = &
-                          shell_particle_set ( shell_i_index ) % f(1) + fscalar*rij(1)
-             shell_particle_set ( shell_i_index) % f(2) = &
-                          shell_particle_set ( shell_i_index ) % f(2) + fscalar*rij(2)
-             shell_particle_set (shell_i_index) % f(3) = &
-                          shell_particle_set ( shell_i_index ) % f(3) + fscalar*rij(3)
+             CALL bonded_correct_gaussian_low_sh(rci, rsi, cell, v_bonded_corr,&
+                  core_particle_set, shell_particle_set, shell_i_index, shell_adiabatic,&
+                  alpha, qci, qsi, ifourpieps0, const, pv_bc)
           END IF
 
        END DO
     ENDDO
-    ! the factor of 1/2 comes from double counting in the exclusion list
-    v_bonded_corr = v_bonded_corr * ifourpieps0 * 0.5_dp
+    v_bonded_corr = v_bonded_corr * ifourpieps0
     CALL mp_sum ( v_bonded_corr, group )
 
     flops = flops * 1.0E-6_dp
@@ -782,6 +614,237 @@ CONTAINS
 
   END SUBROUTINE bonded_correct_gaussian
 
-  !******************************************************************************
+!!****** fist_nonbond_force/bonded_correct_gaussian_low [1.0] *
+!!
+!!   NAME
+!!     bonded_correct_gaussian_low
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     Splitted routines to clean and to fix a bug with the tensor whose 
+!!     original definition was not correct for PBC..
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE bonded_correct_gaussian_low(r1, r2, cell, v_bonded_corr,&
+       particle_set1, particle_set2, i, j, shell_adiabatic, alpha, q1, q2, &
+       ifourpieps0, const, pv_bc)
+    REAL(KIND=dp), DIMENSION(3)              :: r1, r2
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(INOUT)             :: v_bonded_corr
+    TYPE(particle_type), POINTER             :: particle_set1(:), &
+                                                particle_set2(:)
+    INTEGER, INTENT(IN)                      :: i, j
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, ifourpieps0, &
+                                                const
+    REAL(KIND=dp), INTENT(INOUT)             :: pv_bc(3,3)
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian_low'
+    REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
+      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
+      pc = 0.3275911_dp
+
+    REAL(KIND=dp)                            :: arg, dij, e_arg_arg, errf, &
+                                                fscalar, idij, rijsq, tc
+    REAL(KIND=dp), DIMENSION(3)              :: fij_com, rij
+
+    rij = r1 - r2
+    rij = pbc(rij, cell)
+    rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+    idij = 1.0_dp / SQRT ( rijsq )
+    dij = rijsq * idij
+    arg = alpha * dij
+    e_arg_arg = EXP ( -arg ** 2 )
+    tc = 1.0_dp / ( 1.0_dp + pc * arg )
+
+    ! Defining errf=1-erfc
+    errf = 1.0_dp &
+         - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+
+    ! Getting the potential
+    v_bonded_corr = v_bonded_corr - q1*q2*idij*errf
+
+    ! Subtracting the force from the total force
+    fscalar = ifourpieps0 * q1 * q2 * idij**2 * (idij*errf-const*e_arg_arg)
+
+    particle_set1(i)%f(1) = particle_set1(i)%f(1) - fscalar*rij(1)
+    particle_set1(i)%f(2) = particle_set1(i)%f(2) - fscalar*rij(2)
+    particle_set1(i)%f(3) = particle_set1(i)%f(3) - fscalar*rij(3)
+
+    particle_set2(j)%f(1) = particle_set2(j)%f(1) + fscalar*rij(1)
+    particle_set2(j)%f(2) = particle_set2(j)%f(2) + fscalar*rij(2)
+    particle_set2(j)%f(3) = particle_set2(j)%f(3) + fscalar*rij(3)
+
+    IF(shell_adiabatic) THEN
+       fij_com = fscalar*rij
+       pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * rij(1)
+       pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * rij(2)
+       pv_bc(1,3) = pv_bc(1,3) - fij_com(1) * rij(3)
+       pv_bc(2,1) = pv_bc(2,1) - fij_com(2) * rij(1)
+       pv_bc(2,2) = pv_bc(2,2) - fij_com(2) * rij(2)
+       pv_bc(2,3) = pv_bc(2,3) - fij_com(2) * rij(3)
+       pv_bc(3,1) = pv_bc(3,1) - fij_com(3) * rij(1)
+       pv_bc(3,2) = pv_bc(3,2) - fij_com(3) * rij(2)
+       pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * rij(3)
+    END IF
+
+  END SUBROUTINE bonded_correct_gaussian_low
+
+!!****** fist_nonbond_force/bonded_correct_gaussian_low_sh [1.0] *
+!!
+!!   NAME
+!!     bonded_correct_gaussian_low_sh
+!!
+!!   FUNCTION
+!!     specific for shell models cleans the interaction core-shell on the same
+!!     atom
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     Splitted routines to clean and to fix a bug with the tensor whose 
+!!     original definition was not correct for PBC..
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE bonded_correct_gaussian_low_sh(r1, r2, cell, v_bonded_corr, &
+       core_particle_set, shell_particle_set, i, shell_adiabatic, alpha, q1, q2,&
+       ifourpieps0, const, pv_bc)
+    REAL(KIND=dp), DIMENSION(3)              :: r1, r2
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(INOUT)             :: v_bonded_corr
+    TYPE(particle_type), POINTER             :: core_particle_set(:), &
+                                                shell_particle_set(:)
+    INTEGER, INTENT(IN)                      :: i
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    REAL(KIND=dp), INTENT(IN)                :: alpha, q1, q2, ifourpieps0, &
+                                                const
+    REAL(KIND=dp), INTENT(INOUT)             :: pv_bc(3,3)
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian_low_sh'
+    REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
+      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
+      pc = 0.3275911_dp
+
+    REAL(KIND=dp)                            :: arg, dij, e_arg_arg, efac, &
+                                                errf, ffac, fscalar, idij, &
+                                                rijsq, tc, tc2
+    REAL(KIND=dp), DIMENSION(3)              :: fij_com, rij
+
+    rij = r1 - r2
+    rij = pbc(rij, cell)
+    rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+    dij = SQRT(rijsq)
+    ! Two possible limiting cases according the value of dij
+    arg = alpha * dij
+    ! and this is a magic number.. it is related to the order expansion
+    ! and to the value of the polynomial coefficients
+    IF(arg > 0.355_dp) THEN
+       idij = 1.0_dp / dij
+       e_arg_arg = EXP ( -arg ** 2 )
+       tc = 1.0_dp / ( 1.0_dp + pc * arg )
+       ! defining errf=1-erfc
+       errf = 1.0_dp &
+            - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+       efac = idij*errf
+       ffac = idij**2 * (idij*errf - const*e_arg_arg)
+    ELSE
+       tc  = arg*arg
+       tc2 = tc*tc
+       efac = 1.0_dp - tc/3.0_dp + tc2/10.0_dp - tc*tc2/42.0_dp + tc2*tc2/216.0_dp
+       efac = efac * const
+       ffac = - 2.0_dp/3.0_dp + 2.0_dp/5.0_dp*tc - 1.0_dp/7.0_dp*tc2 + 1.0_dp/27.0_dp*tc2*tc
+       ffac = const*alpha**2*ffac
+    ENDIF
+    ! getting the potential
+    v_bonded_corr = v_bonded_corr - q1*q2*efac
+    
+    ! subtracting the force from the total force
+    fscalar = ifourpieps0 * q1 * q2 * ffac
+    
+    core_particle_set(i)%f(1)=core_particle_set(i)%f(1)-fscalar*rij(1)
+    core_particle_set(i)%f(2)=core_particle_set(i)%f(2)-fscalar*rij(2)
+    core_particle_set(i)%f(3)=core_particle_set(i)%f(3)-fscalar*rij(3)
+    
+    shell_particle_set(i)%f(1)=shell_particle_set(i)%f(1)+fscalar*rij(1)
+    shell_particle_set(i)%f(2)=shell_particle_set(i)%f(2)+fscalar*rij(2)
+    shell_particle_set(i)%f(3)=shell_particle_set(i)%f(3)+fscalar*rij(3)
+    
+    IF(shell_adiabatic) THEN
+       fij_com = fscalar*rij
+       pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * rij(1)
+       pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * rij(2)
+       pv_bc(1,3) = pv_bc(1,3) - fij_com(1) * rij(3)
+       pv_bc(2,1) = pv_bc(2,1) - fij_com(2) * rij(1)
+       pv_bc(2,2) = pv_bc(2,2) - fij_com(2) * rij(2)
+       pv_bc(2,3) = pv_bc(2,3) - fij_com(2) * rij(3)
+       pv_bc(3,1) = pv_bc(3,1) - fij_com(3) * rij(1)
+       pv_bc(3,2) = pv_bc(3,2) - fij_com(3) * rij(2)
+       pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * rij(3)
+    END IF
+
+  END SUBROUTINE bonded_correct_gaussian_low_sh
+
+!!****** fist_nonbond_force/get_atom_info [1.0] *
+!!
+!!   NAME
+!!    get_atom_info 
+!!
+!!   FUNCTION
+!!    gives back information on atoms.. specific for bonded correct gaussian
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     Splitted routines to clean and to fix a bug with the tensor whose 
+!!     original definition was not correct for PBC..
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE get_atom_info(i, particle_set, shell_particle_set, core_particle_set,&
+       shell_i_index, i_is_shell, rsi, rci, qci, qsi)
+
+    INTEGER, INTENT(IN)                      :: i
+    TYPE(particle_type), POINTER             :: particle_set(:)
+    TYPE(particle_type), OPTIONAL, POINTER   :: shell_particle_set(:), &
+                                                core_particle_set(:)
+    INTEGER, INTENT(OUT)                     :: shell_i_index
+    LOGICAL, INTENT(OUT)                     :: i_is_shell
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: rsi, rci
+    REAL(KIND=dp), INTENT(OUT)               :: qci, qsi
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atom_info'
+
+    REAL(KIND=dp)                            :: qi
+    REAL(KIND=dp), DIMENSION(3)              :: ri
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_kind_type), POINTER           :: shell_i
+
+    NULLIFY(atomic_kind, shell_i)
+    atomic_kind => particle_set ( i ) % atomic_kind
+    ri (:) = particle_set ( i ) % r (:)
+    CALL get_atomic_kind ( atomic_kind,qeff = qi,&
+                           shell_active=i_is_shell,&
+                           shell=shell_i )
+    IF(i_is_shell) THEN
+       shell_i_index = particle_set(i)%shell_index
+       rsi = shell_particle_set(shell_i_index)%r
+       rci = core_particle_set(shell_i_index)%r
+       qci = shell_i%charge_core
+       qsi = shell_i%charge_shell
+    ELSE
+       qsi = 0.0_dp
+       qci = qi
+       rci = ri
+    END IF
+
+  END SUBROUTINE get_atom_info
 
 END MODULE fist_nonbond_force

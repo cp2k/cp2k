@@ -5,3 +5,10 @@
 argon_GENPOT_fcc-ql.inp
 # reset for smearing
 argon_GENPOT_fcc-ql.inp
+# faster bonded correct gaussian and bug fix for stress tensor in shell model
+water_3_dist_2.inp
+# faster bonded correct gaussian and bug fix for stress tensor in shell model
+water_3_dist_3.inp
+water_3_dist_inter2.inp
+# faster bonded correct gaussian and bug fix for stress tensor in shell model
+water_3_dist_startC.inp

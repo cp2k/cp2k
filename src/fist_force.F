@@ -378,16 +378,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
 
      IF(shell_present) THEN
        CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
-                                    particle_set, ewald_env, &
-                                    thermo % e_bonded, pv_bc ,&
-                                    shell_particle_set=shell_particle_set,&
-                                    core_particle_set=core_particle_set,&
-                                    error=error)
+                                      particle_set, ewald_env, &
+                                      thermo % e_bonded, pv_bc ,&
+                                      shell_particle_set=shell_particle_set,&
+                                      core_particle_set=core_particle_set,&
+                                      cell=cell, error=error)
 
      ELSE
        CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
-                                    particle_set, ewald_env, &
-                                    thermo % e_bonded, pv_bc ,error=error)
+                                      particle_set, ewald_env, thermo % e_bonded,&
+                                      pv_bc=pv_bc , cell=cell, error=error)
      END IF 
      IF (  first_time ) THEN
            IF (iw > 0 )  CALL ewald_print ( iw , cell, vg_coulomb, &
