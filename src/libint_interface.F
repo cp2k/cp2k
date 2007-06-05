@@ -521,7 +521,7 @@ MODULE libint_interface
   SUBROUTINE build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
                               screening_parameter, prim)
      
-    REAL(KIND=C_DOUBLE), INTENT(IN)    :: A(3), B(3), C(3), D(3)
+    REAL(KIND=C_DOUBLE), POINTER       :: A(:), B(:), C(:), D(:)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_screening_type)          :: screening_parameter 
@@ -627,7 +627,7 @@ MODULE libint_interface
   SUBROUTINE build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
                             screening_parameter, prim)
      
-    REAL(KIND=C_DOUBLE), INTENT(IN)    :: A(3), B(3), C(3), D(3)
+    REAL(KIND=C_DOUBLE), POINTER       :: A(:), B(:), C(:), D(:)
     REAL(KIND=C_DOUBLE), INTENT(IN)    :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER(KIND=C_INT), INTENT(IN)    :: m_max
     TYPE(x_hf_screening_type)          :: screening_parameter

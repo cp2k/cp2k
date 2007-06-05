@@ -1815,7 +1815,7 @@ MODULE four_center_integrals
     ELSE
       fac = 1.0_dp * hf_fraction
     END IF
-
+    
     ALLOCATE(T(ncoset(max_am),&
                ncoset(max_am),&
                ncoset(max_am),&
@@ -1881,13 +1881,13 @@ MODULE four_center_integrals
               IF (screen_atom(iatom,jatom) * screen_atom(katom,latom) < eps_schwarz) CYCLE
 
               !calculate symmetry_factor
-              symm_fac = 1.0_dp
+              symm_fac = 0.5_dp
               IF(iatom==jatom) symm_fac = symm_fac*2.0_dp
               IF(katom==latom) symm_fac = symm_fac*2.0_dp
               IF(iatom==katom .AND. jatom==latom .AND. iatom/=jatom .AND. katom/=latom) symm_fac = symm_fac*2.0_dp
               IF(iatom==katom .AND. iatom==jatom .AND. katom==latom) symm_fac = symm_fac*2.0_dp
-
-              symm_fac = 1.0_dp/symm_fac
+              
+              symm_fac = 1.0_dp / symm_fac
 
               atom_kind => particle_set(latom)%atomic_kind
               CALL get_atomic_kind(atomic_kind=atom_kind,&
@@ -1931,34 +1931,24 @@ MODULE four_center_integrals
                               DO ma = 1,nsgfa(iset)
                                 pa2 = ma+sgfa-1
                                 pa = pa1 + pa2
-                                tmp1 = symm_fac*fac*qs_env%x_data%x_buffer(integral_counter)
+                                tmp1 = fac*symm_fac*qs_env%x_data%x_buffer(integral_counter)
                                 
                                 full_ks(pa,pd) = full_ks(pa,pd)-tmp1*full_density(pb,pc)
-                                full_ks(pd,pa) = full_ks(pd,pa)-tmp1*full_density(pb,pc)
    
                                 full_ks(pa,pc) = full_ks(pa,pc)-tmp1*full_density(pb,pd)
-                                full_ks(pc,pa) = full_ks(pc,pa)-tmp1*full_density(pb,pd)
 
                                 full_ks(pb,pc) = full_ks(pb,pc)-tmp1*full_density(pa,pd)
-                                full_ks(pc,pb) = full_ks(pc,pb)-tmp1*full_density(pa,pd)
   
                                 full_ks(pb,pd) = full_ks(pb,pd)-tmp1*full_density(pa,pc)
-                                full_ks(pd,pb) = full_ks(pd,pb)-tmp1*full_density(pa,pc)
   
                                 IF( nspins == 2 ) THEN
-                                  tmp1 = symm_fac*fac*qs_env%x_data%x_buffer(integral_counter)
-
                                   full_ks_beta(pa,pd) = full_ks_beta(pa,pd)-tmp1*full_density_beta(pb,pc)
-                                  full_ks_beta(pd,pa) = full_ks_beta(pd,pa)-tmp1*full_density_beta(pb,pc)
 
                                   full_ks_beta(pa,pc) = full_ks_beta(pa,pc)-tmp1*full_density_beta(pb,pd)
-                                  full_ks_beta(pc,pa) = full_ks_beta(pc,pa)-tmp1*full_density_beta(pb,pd)
 
                                   full_ks_beta(pb,pc) = full_ks_beta(pb,pc)-tmp1*full_density_beta(pa,pd)
-                                  full_ks_beta(pc,pb) = full_ks_beta(pc,pb)-tmp1*full_density_beta(pa,pd)
 
                                   full_ks_beta(pb,pd) = full_ks_beta(pb,pd)-tmp1*full_density_beta(pa,pc)
-                                  full_ks_beta(pd,pb) = full_ks_beta(pd,pb)-tmp1*full_density_beta(pa,pc)
                                 END IF
                                 integral_counter = integral_counter + 1
                               END DO
@@ -2021,34 +2011,24 @@ MODULE four_center_integrals
                               DO ma = 1,nsgfa(iset)
                                 pa2 = ma+sgfa-1
                                 pa = pa1 + pa2
-                                tmp1 = symm_fac*fac*primitive_integrals(ma,mb,mc,md)
+                                tmp1 = fac*symm_fac*primitive_integrals(ma,mb,mc,md)
                                 
                                 full_ks(pa,pd) = full_ks(pa,pd)-tmp1*full_density(pb,pc)
-                                full_ks(pd,pa) = full_ks(pd,pa)-tmp1*full_density(pb,pc)
    
                                 full_ks(pa,pc) = full_ks(pa,pc)-tmp1*full_density(pb,pd)
-                                full_ks(pc,pa) = full_ks(pc,pa)-tmp1*full_density(pb,pd)
 
                                 full_ks(pb,pc) = full_ks(pb,pc)-tmp1*full_density(pa,pd)
-                                full_ks(pc,pb) = full_ks(pc,pb)-tmp1*full_density(pa,pd)
   
                                 full_ks(pb,pd) = full_ks(pb,pd)-tmp1*full_density(pa,pc)
-                                full_ks(pd,pb) = full_ks(pd,pb)-tmp1*full_density(pa,pc)
   
                                 IF( nspins == 2 ) THEN
-                                  tmp1 = symm_fac*fac*primitive_integrals(ma,mb,mc,md)
-
                                   full_ks_beta(pa,pd) = full_ks_beta(pa,pd)-tmp1*full_density_beta(pb,pc)
-                                  full_ks_beta(pd,pa) = full_ks_beta(pd,pa)-tmp1*full_density_beta(pb,pc)
 
                                   full_ks_beta(pa,pc) = full_ks_beta(pa,pc)-tmp1*full_density_beta(pb,pd)
-                                  full_ks_beta(pc,pa) = full_ks_beta(pc,pa)-tmp1*full_density_beta(pb,pd)
 
                                   full_ks_beta(pb,pc) = full_ks_beta(pb,pc)-tmp1*full_density_beta(pa,pd)
-                                  full_ks_beta(pc,pb) = full_ks_beta(pc,pb)-tmp1*full_density_beta(pa,pd)
 
                                   full_ks_beta(pb,pd) = full_ks_beta(pb,pd)-tmp1*full_density_beta(pa,pc)
-                                  full_ks_beta(pd,pb) = full_ks_beta(pd,pb)-tmp1*full_density_beta(pa,pc)
                                 END IF
                                 IF(geometry_did_change .AND. (.NOT.buffer_overflow)) THEN
                                   qs_env%x_data%x_buffer(integral_counter) = &
@@ -2079,15 +2059,31 @@ MODULE four_center_integrals
     
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
-    CALL mp_sum(full_ks,para_env%group)
-    IF(nspins==2) CALL mp_sum(full_ks_beta,para_env%group)
-
+   
+    ! symmetrize ks_matrix, calculate energies 
     DO pa=1,size(full_ks,1)
-      DO pd=1,size(full_ks,2)
-        ene_x_aa = ene_x_aa + full_density(pa,pd)*full_ks(pa,pd)
-        IF(nspins==2) ene_x_bb = ene_x_bb + full_density_beta(pa,pd)*full_ks_beta(pa,pd)
+      DO pd=pa,size(full_ks,2)
+        IF(pa/=pd) THEN
+          full_ks(pa,pd) = (full_ks(pa,pd) + full_ks(pd,pa))*0.5_dp
+          full_ks(pd,pa) = full_ks(pa,pd)
+          ene_x_aa = ene_x_aa + 2.0_dp * full_density(pa,pd)*full_ks(pa,pd)
+          IF(nspins==2) THEN
+            full_ks_beta(pa,pd) = (full_ks_beta(pa,pd) + &
+                                   full_ks_beta(pd,pa)) * 0.5_dp
+            full_ks_beta(pd,pa) = full_ks_beta(pa,pd) 
+            ene_x_bb = ene_x_bb + 2.0_dp * full_density_beta(pa,pd)*full_ks_beta(pa,pd)
+          END IF
+        ELSE
+          ene_x_aa = ene_x_aa + full_density(pa,pd)*full_ks(pa,pd)
+          IF(nspins==2) ene_x_bb = ene_x_bb + full_density_beta(pa,pd)*full_ks_beta(pa,pd)
+        END IF
       END DO
     END DO
+
+    CALL mp_sum(full_ks,para_env%group)
+    IF(nspins==2) CALL mp_sum(full_ks_beta,para_env%group)
+    CALL mp_sum(ene_x_aa, para_env%group)
+    IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
 
     CALL timeset(routineN//"_dist_KS",handle_dist_ks)
 
