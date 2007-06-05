@@ -528,7 +528,7 @@ MODULE libint_interface
     TYPE(prim_data)                    :: prim
 
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
-    REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
+    REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho, tmp
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
     REAL(KIND=C_DOUBLE)                :: S12, S34, T, omega_corr2, omega_corr, omega2
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
@@ -577,7 +577,8 @@ MODULE libint_interface
     END SELECT
 
     factor = 2.0_dp*Pi/Rho 
-    factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**3)
+    tmp    = (Pi/(Eta+Zeta))**3
+    factor = factor*S12*S34*SQRT(tmp)
 
     DO i=1,m_max+1
        prim%F(i)=prim%F(i)*factor
@@ -634,7 +635,7 @@ MODULE libint_interface
     TYPE(prim_data)                    :: prim
 
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
-    REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
+    REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho, tmp
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
     REAL(KIND=C_DOUBLE)                :: S12, S34, T, omega_corr2, omega_corr, omega2
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
@@ -683,7 +684,8 @@ MODULE libint_interface
     END SELECT
 
     factor = 2.0_dp*Pi/Rho
-    factor = factor*S12*S34*SQRT((Pi/(Eta+Zeta))**3)
+    tmp = (Pi/(Eta+Zeta))**3
+    factor = factor*S12*S34*SQRT(tmp)
 
     DO i=1,m_max+1
        prim%F(i)=prim%F(i)*factor
