@@ -434,7 +434,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_next_token', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, length
+    INTEGER                                  :: i, length, len_inputline, len_trim_inputline
     LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
@@ -477,6 +477,10 @@ SUBROUTINE parser_next_token(parser,string_length,error)
 
         !     *** Search for the beginning of the next input string ***
 
+        ! we precompute those, they are expensive to get
+        len_inputline =      LEN(parser%input_line)
+        len_trim_inputline = LEN_TRIM(parser%input_line)
+
         DO
 
            !       *** Increment the column counter ***
@@ -485,7 +489,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
 
            !       *** Quick return, if the end of line is found ***
 
-           IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
+           IF ((parser%icol > len_trim_inputline).OR.&
                 ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
               parser%icol1 = 1
               parser%icol2 = -1
@@ -561,9 +565,9 @@ SUBROUTINE parser_next_token(parser,string_length,error)
         !     *** Search for the end of the next input string ***
         IF(.NOT.failure) THEN
            DO
-              IF (parser%icol > LEN_TRIM(parser%input_line).or.parser%icol==LEN(parser%input_line)) EXIT
+              IF (parser%icol > len_trim_inputline .or.parser%icol==len_inputline) EXIT
               parser%icol = parser%icol + 1
-              IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
+              IF ((parser%icol > len_trim_inputline).OR.&
                    (parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
                    (parser%input_line(parser%icol:parser%icol) == horizontal_tab).OR.&
                    ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character).OR.&
