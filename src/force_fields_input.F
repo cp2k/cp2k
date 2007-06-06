@@ -1778,7 +1778,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(1)                           :: bond_section
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(18)                          :: avail_section
+      DIMENSION(19)                          :: avail_section
     CHARACTER(LEN=default_string_length), &
       DIMENSION(2)                           :: angl_section, impr_section, &
                                                 nbon_section, thet_section
@@ -1798,7 +1798,7 @@ CONTAINS
          extension=".mmLog",error=error)
 
 
-    avail_section(1) = "BOND"     ; bond_section(1) = "BOND"
+    avail_section(1) = "BOND"     ; bond_section(1) = avail_section(1)
     avail_section(11)= "BONDS"
     avail_section(2) = "ANGL"     ; angl_section(1) = avail_section(2)
     avail_section(3) = "THETA"    ; angl_section(2) = avail_section(3)
@@ -1815,7 +1815,8 @@ CONTAINS
     avail_section(9) = "NBOND"    ; nbon_section(2) = avail_section(9)
     avail_section(10)= "HBOND"
     avail_section(17)= "NBFIX"
-    avail_section(18)= "END"
+    avail_section(18)= "CMAP"
+    avail_section(19)= "END"
 
     chm_info => ff_type%chm_info
     !-----------------------------------------------------------------------------
@@ -1834,7 +1835,7 @@ CONTAINS
           IF (found) THEN
              CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
@@ -1861,7 +1862,7 @@ CONTAINS
                 CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
                 CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
                 chm_info%bond_k(nbond) = 2.0_dp * chm_info%bond_k(nbond)
-                CALL parser_get_next_line(parser,1,error=error)
+                CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -1889,7 +1890,7 @@ CONTAINS
           IF (found) THEN
              CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
@@ -1944,7 +1945,7 @@ CONTAINS
                    CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
                    chm_info%ub_k(nub) = 2.0_dp * chm_info%ub_k(nub)
                 END IF
-                CALL parser_get_next_line(parser,1,error=error)
+                CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -1967,7 +1968,7 @@ CONTAINS
           IF (found) THEN
              CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
@@ -2007,7 +2008,7 @@ CONTAINS
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
                 chm_info%torsion_cosphi0(ntorsion)=&
                      COS(chm_info%torsion_cosphi0(ntorsion))
-                CALL parser_get_next_line(parser,1,error=error)
+                CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -2031,7 +2032,7 @@ CONTAINS
           IF (found) THEN
              CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
@@ -2067,7 +2068,7 @@ CONTAINS
                 CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
                 chm_info%impr_k(nimpr) = 2.0_dp * chm_info%impr_k(nimpr)
-                CALL parser_get_next_line(parser,1,error=error)
+                CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -2089,7 +2090,7 @@ CONTAINS
           IF (found) THEN
              CALL parser_get_object(parser,string,error=error)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_get_next_line(parser,1,error=error)
+             CALL charmm_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string,error=error)
                 CALL uppercase ( string )
@@ -2128,7 +2129,7 @@ CONTAINS
                    CALL convert_to_cp2k_units("KCAL",&
                         energy=chm_info%nonbond_eps_14(nonfo))
                 END IF
-                CALL parser_get_next_line(parser,1,error=error)
+                CALL charmm_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -2141,6 +2142,53 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_force_field_charmm
+
+!******************************************************************************
+!!****** force_fields/charmm_get_next_line [1.0] *
+!!
+!!   NAME
+!!     charmm_get_next_line
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     This function is simply a wrap to the parser_get_next_line..
+!!     Comments: This routine would not be necessary if the continuation
+!!               char for CHARMM would not be the "-".. How can you choose this
+!!               character in a file of numbers as a continuation char????
+!!               This sounds simply crazy....
+!!
+!!   AUTHOR
+!!     Teodoro Laino - Zurich University - 06.2007
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*****************************************************************************
+  SUBROUTINE charmm_get_next_line(parser, nline, error)
+    TYPE(cp_parser_type), POINTER            :: parser
+    INTEGER, INTENT(IN)                      :: nline
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'charmm_get_next_line', &
+      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=1), PARAMETER              :: continuation_char = "-"
+
+    INTEGER                                  :: i, len_line
+
+
+    DO i = 1, nline
+       len_line = LEN_TRIM(parser%input_line)
+       DO WHILE (parser%input_line(len_line:len_line)==continuation_char)
+          CALL parser_get_next_line(parser,1,error=error)
+          len_line = LEN_TRIM(parser%input_line)
+       END DO
+       CALL parser_get_next_line(parser,1,error=error)
+    END DO
+
+  END SUBROUTINE charmm_get_next_line
 
 !******************************************************************************
 !!****** force_fields/read_eam_data [1.0] *
