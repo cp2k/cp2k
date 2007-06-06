@@ -1714,7 +1714,7 @@ MODULE four_center_integrals
                                                 sphi_c, sphi_d, zeta, zetb, &
                                                 zetc, zetd
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: primitive_integrals, &
-                                                screen_set, T, T1
+                                                screen_set, T1
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_density, &
                                                 full_density_beta, &
                                                 sparse_block, &
@@ -1816,10 +1816,6 @@ MODULE four_center_integrals
       fac = 1.0_dp * hf_fraction
     END IF
     
-    ALLOCATE(T(ncoset(max_am),&
-               ncoset(max_am),&
-               ncoset(max_am),&
-               ncoset(max_am)),STAT=stat)
     tmp11 = 0.0_dp
     DO iatom=1,ks_matrix(1)%matrix%nblock_row
 
@@ -2175,8 +2171,6 @@ MODULE four_center_integrals
     DEALLOCATE(last_sgf_global,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(full_density,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(T,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF(nspins==2) THEN
       DEALLOCATE(full_density_beta,STAT=stat)
