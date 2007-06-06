@@ -528,9 +528,9 @@ MODULE libint_interface
     TYPE(prim_data)                    :: prim
 
     REAL(KIND=C_DOUBLE)                :: P(3), Q(3), W(3), AB(3), CD(3), PQ(3)
-    REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho, tmp
+    REAL(KIND=C_DOUBLE)                :: Zeta, Eta, Rho
     REAL(KIND=C_DOUBLE)                :: AB2, CD2, PQ2,factor
-    REAL(KIND=C_DOUBLE)                :: S1234, T, omega_corr2, omega_corr, omega2
+    REAL(KIND=C_DOUBLE)                :: S1234, T, omega_corr2, omega_corr, omega2, tmp
     REAL(KIND=C_DOUBLE), DIMENSION(17) :: Fm
     INTEGER                            :: i
     
@@ -561,8 +561,10 @@ MODULE libint_interface
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
         CALL fgamma(m_max,T,Fm)
+        tmp = - omega_corr
         DO i=1,m_max+1
-          prim%F(i)=prim%F(i) - omega_corr*Fm(i)*omega_corr2**(i-1)
+          prim%F(i)=prim%F(i) + Fm(i)*tmp
+          tmp = tmp * omega_corr2 
         END DO
       CASE(do_hf_screening_long)
         omega2 = screening_parameter%omega**2
@@ -570,8 +572,10 @@ MODULE libint_interface
         omega_corr = SQRT(omega_corr2)
         T = T*omega_corr2
         CALL fgamma(m_max,T,prim%F)
+        tmp = omega_corr
         DO i=1,m_max+1
-          prim%F(i)= omega_corr*prim%F(i)*omega_corr2**(i-1)
+          prim%F(i)= prim%F(i)*tmp
+          tmp = tmp * omega_corr2
         END DO
     END SELECT
 
