@@ -215,7 +215,7 @@ MODULE four_center_integrals
     TYPE(x_hf_screening_type)                :: screening_parameter
     REAL(dp), INTENT(INOUT)                  :: max_val
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'coulomb4'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'screen4'
 
     INTEGER                                  :: ipgf, jpgf, kpgf, lpgf, &
                                                 la, lb,lc, ld
