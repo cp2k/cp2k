@@ -75,9 +75,10 @@ MODULE pw_grids
   PRIVATE
   PUBLIC :: pw_grid_create, pw_grid_compare
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
-  PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_create_copy_no_pbc
+  PUBLIC :: pw_grid_retain, pw_grid_release
   PUBLIC :: create_gvectors, pw_grid_find_n, pw_grid_n_from_cutoff,&
        pw_grid_n_for_fft, pw_grid_bounds_from_n, pw_grid_setup1,pw_cutoff_from_n
+!deb  PUBLIC :: pw_grid_create_copy_no_pbc
 
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
@@ -2649,130 +2650,6 @@ SUBROUTINE pw_grid_release(pw_grid, error)
   END IF
   NULLIFY(pw_grid)
 END SUBROUTINE pw_grid_release
-!***************************************************************************
-!!****f* pw_grids/pw_grid_create_copy_no_pbc [1.0] *
-!!
-!!   NAME
-!!     pw_grid_create_copy_no_pbc
-!!
-!!   FUNCTION
-!!     creates a copy of pw_grid_in in which the pbc have been removed
-!!     (by adding a point for the upper boundary)
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - pw_grid_in: the pw grid to duplicate
-!!     - pw_grid_out: the output pw_grid_type
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi, Teo
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!     04.2005 completly rewritten the duplicate routine, fixed parallel
-!!             behaviour, narrowed scope to copy to non pbc and renamed
-!!             accordingly [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, pw_mode, error)
-    TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER, INTENT(IN), OPTIONAL            :: pw_mode
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: pw_mode_loc, stat
-    INTEGER, DIMENSION(:), POINTER           :: pos_of_x
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
-    CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       pw_mode_loc = pw_grid_in%para%mode
-       IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
-       CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group,error=error)
-       grid_tag = grid_tag + 1
-       pw_grid_out %id_nr = grid_tag
-       pw_grid_out % ref_count  = 1
-       pw_grid_out % reference  = 0
-       pw_grid_out%bounds=pw_grid_in%bounds
-       pw_grid_out%bounds(2,:)=pw_grid_out%bounds(2,:) + 1
-       IF (pw_mode_loc==PW_MODE_DISTRIBUTED) THEN
-          pw_grid_out%bounds_local=pw_grid_in%bounds_local
-          IF ( pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1).AND.&
-               pw_grid_in%bounds_local(1,1)<=pw_grid_in%bounds(2,1)) THEN
-             pw_grid_out%bounds_local(2,1)=pw_grid_out%bounds_local(2,1)+1
-          END IF
-          pw_grid_out%bounds_local(2,2)=pw_grid_out%bounds_local(2,2)+1
-          pw_grid_out%bounds_local(2,3)=pw_grid_out%bounds_local(2,3)+1
-       ELSE
-          pw_grid_out%bounds_local = pw_grid_out%bounds
-       END IF
-       pw_grid_out%npts            =  pw_grid_in%npts  + 1
-       pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
-       pw_grid_out%ngpts_cut=0
-       pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(1,:)+1
-       pw_grid_out%ngpts_local=PRODUCT(pw_grid_out%npts_local)
-       pw_grid_out%ngpts_cut_local=0
-       pw_grid_out%dr              =  pw_grid_in%dr
-       pw_grid_out%dh              =  pw_grid_in%dh
-       pw_grid_out%orthorhombic    =  pw_grid_in%orthorhombic
-       pw_grid_out%dvol            =  pw_grid_in%dvol
-       pw_grid_out%vol             =  pw_grid_in%vol*REAL(pw_grid_out%ngpts,dp)&
-            /REAL(pw_grid_in%ngpts,dp) !FM do not modify?
-       pw_grid_out%cutoff          =  pw_grid_in%cutoff
-       NULLIFY(pw_grid_out%mapl%pos, pw_grid_out%mapl%neg,&
-            pw_grid_out%mapm%pos,pw_grid_out%mapm%neg,&
-            pw_grid_out%mapn%pos,pw_grid_out%mapn%neg)
-
-       !para
-       CALL mp_comm_dup ( pw_grid_in % para % group, pw_grid_out % para % group )
-       CALL mp_environ ( pw_grid_out % para % group_size, &
-                         pw_grid_out % para % my_pos, &
-                         pw_grid_out % para % group )
-       pw_grid_out % para % group_head_id = pw_grid_in % para % group_head_id
-       pw_grid_out % para % group_head = &
-            ( pw_grid_out % para % group_head_id == pw_grid_out % para % my_pos )
-       pw_grid_out % para % mode = pw_mode_loc
-       NULLIFY(pw_grid_out % para % yzp,&
-               pw_grid_out % para % yzq,&
-               pw_grid_out % para % nyzray,&
-               pw_grid_out % para % bo)
-       ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
-       pos_of_x(pw_grid_out%bounds(2,1))=pos_of_x(pw_grid_out%bounds(2,1)-1)
-       pw_grid_out%para%pos_of_x => pos_of_x
-       pw_grid_out % para % rs_dims = pw_grid_in % para % rs_dims
-       IF (PRODUCT(pw_grid_in % para % rs_dims)/=0) THEN
-          CALL mp_comm_dup  ( pw_grid_in  % para % rs_group, &
-                              pw_grid_out % para % rs_group )
-          CALL mp_cart_rank ( pw_grid_out % para % rs_group, &
-                              pw_grid_out % para % rs_pos, &
-                              pw_grid_out % para % rs_mpo )
-       ELSE
-          pw_grid_out % para % rs_mpo=HUGE(0) !FM copy also from pw_grid_in?
-          pw_grid_out % para % rs_pos=HUGE(0)
-       END IF
-
-       NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
-       CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
-       pw_grid_out%grid_span=pw_grid_in%grid_span
-       pw_grid_out%have_g0=.FALSE.
-       pw_grid_out%first_gne0=HUGE(0)
-       pw_grid_out%nglengths=HUGE(0)
-       NULLIFY(pw_grid_out%gidx)
-       pw_grid_out%spherical                 = .FALSE.
-       pw_grid_out % para % ray_distribution = .FALSE.
-    END IF
-  END SUBROUTINE pw_grid_create_copy_no_pbc
 
 END MODULE pw_grids
 
