@@ -18,3 +18,5 @@ uo2_shell_npt300.inp
 uo2_shell_npti_b.inp
 uo2_shell_npti.inp
 water_3_dist_g.inp
+# heavy cleaning of pair_potential and bug fix in the 0 of the coulomb for shell model
+uo2_shell_npti_b.inp

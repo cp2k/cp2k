@@ -187,8 +187,6 @@ MODULE pair_potential_types
 
   TYPE pair_potential_single_type
      REAL (KIND=dp) :: rcutsq
-     REAL (KIND=dp) :: energy_cutoff
-     REAL (KIND=dp) :: e_cutoff_coul
      LOGICAL        :: undef
      INTEGER        :: TYPE
      INTEGER        :: shell_type
@@ -390,8 +388,6 @@ CONTAINS
     potparm % at1           = 'NULL'
     potparm % at2           = 'NULL'
     potparm % rcutsq        = 0.0_dp
-    potparm % energy_cutoff = 0.0_dp
-    potparm % e_cutoff_coul = 0.0_dp
     IF (ASSOCIATED( potparm % pair_spline_data ))&
          CALL spline_data_release ( potparm % pair_spline_data ,error=error)
     IF (ASSOCIATED( potparm % rho_spline_data )) &
@@ -455,8 +451,6 @@ CONTAINS
        potparm_dest % at1           = potparm_source % at1
        potparm_dest % at2           = potparm_source % at2
        potparm_dest % rcutsq        = potparm_source % rcutsq
-       potparm_dest % energy_cutoff = potparm_source % energy_cutoff
-       potparm_dest % e_cutoff_coul = potparm_source % e_cutoff_coul
 
        IF (ASSOCIATED( potparm_source % pair_spline_data )) THEN
           CALL spline_data_copy ( potparm_source % pair_spline_data, potparm_dest % pair_spline_data, error=error  )

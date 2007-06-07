@@ -46,6 +46,7 @@ MODULE pair_potential
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              potential_s,&
+                                             spline_data_type,&
                                              spline_env_create,&
                                              spline_environment_type
   USE string_table,                    ONLY: str2id
@@ -58,10 +59,15 @@ MODULE pair_potential
   IMPLICIT NONE
 
   PRIVATE
-  REAL(KIND=dp), PARAMETER :: ifourpi = 1.0_dp / ( 4.0_dp * pi )
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential'
+  REAL(KIND=dp), PARAMETER, PRIVATE    :: ifourpi = 1.0_dp / ( 4.0_dp * pi ),&
+                                          MIN_HICUT_VALUE=1.0E-15_dp,&
+                                          DEFAULT_HICUT_VALUE=1.0E3_dp
+  INTEGER, PARAMETER, PRIVATE          :: MAX_POINTS=50000
+
   PUBLIC :: potential_f, potential_s
   PUBLIC :: spline_nonbond_control, get_nonbond_storage
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential'
+
 
 CONTAINS
 
@@ -83,43 +89,43 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  FUNCTION ener_pot ( pot, r, vdw_scale14 )
+  FUNCTION ener_pot ( pot, r, energy_cutoff, vdw_scale14 ) RESULT(value)
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
-    REAL(KIND=dp), INTENT(IN)                :: r
-    REAL(KIND=dp)                            :: vdw_scale14, ener_pot
+    REAL(KIND=dp), INTENT(IN)                :: r, energy_cutoff, vdw_scale14
+    REAL(KIND=dp)                            :: value
 
     INTEGER                                  :: i, index, n
     REAL(KIND=dp)                            :: pp, qq, scale
 
     IF (pot%type==lj_charmm_type) THEN
-       ener_pot = vdw_scale14 * &
+       value = vdw_scale14 * &
             4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
-            sigma6*r**(-6)) - pot%energy_cutoff
+            sigma6*r**(-6)) - energy_cutoff
     ELSE IF (pot%type==lj_type) THEN
-       ener_pot = vdw_scale14 * pot%lj%epsilon* &
-            (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - pot%energy_cutoff
+       value = vdw_scale14 * pot%lj%epsilon* &
+            (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - energy_cutoff
     ELSE IF (pot%type==ip_type) THEN
-       ener_pot = 0._dp
+       value = 0._dp
        IF ( r > pot % ipbv % rcore ) THEN
           DO i = 2, 15
-             ener_pot = ener_pot + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp))
+             value = value + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp))
           END DO
        ELSE
           ! use a linear potential
-          ener_pot = pot % ipbv % m * r + pot % ipbv % b
+          value = pot % ipbv % m * r + pot % ipbv % b
        ENDIF
-       ener_pot=ener_pot - pot % energy_cutoff
+       value=value - energy_cutoff
     ELSE IF (pot%type==wl_type) THEN
-       ener_pot = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
-            - pot%energy_cutoff
+       value = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
+            - energy_cutoff
     ELSE IF (pot%type==gw_type) THEN
        scale = EXP(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
             goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
-       ener_pot = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
+       value = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
     ELSE IF (pot%type==ft_type) THEN
-       ener_pot = pot%ft%a*EXP(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
-            - pot%energy_cutoff
+       value = pot%ft%a*EXP(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
+            - energy_cutoff
     ELSE IF (pot%type==ea_type) THEN
        index = INT ( r / pot % eam % drar ) + 1
        IF ( index > 5000 ) THEN
@@ -130,7 +136,7 @@ CONTAINS
        qq = r - pot % eam % rval (index)
        pp =  pot % eam % phi ( index ) + &
             qq * pot % eam % phip ( index )
-       ener_pot = pp - pot % energy_cutoff
+       value = pp - energy_cutoff
     ELSE IF (pot%type==b4_type) THEN
       IF(r<=pot%buck4r%r1) THEN
         pp = pot%buck4r%a*EXP(-pot%buck4r%b*r)
@@ -147,21 +153,21 @@ CONTAINS
       ELSEIF(r>pot%buck4r%r3)THEN
         pp = -pot%buck4r%c/r**6
       END IF
-      ener_pot = pp - pot % energy_cutoff
+      value = pp - energy_cutoff
     ELSE IF (pot%type==bm_type) THEN
-      ener_pot = pot%buckmo%f0*(pot%buckmo%b1+pot%buckmo%b2)*&
+      value = pot%buckmo%f0*(pot%buckmo%b1+pot%buckmo%b2)*&
                EXP((pot%buckmo%a1+pot%buckmo%a2-r)/(pot%buckmo%b1+pot%buckmo%b2))&
                - pot%buckmo%c/r**6  &
                + pot%buckmo%d*(EXP(-2._dp*pot%buckmo%beta*(r-pot%buckmo%r0))- &
                                2.0_dp*EXP(-pot%buckmo%beta*(r-pot%buckmo%r0))) &
-               - pot%energy_cutoff
+               - energy_cutoff
     ELSE IF (pot%type==gp_type) THEN
        pot%gp%values(1)=r
-       ener_pot = evalf(pot%gp%myid,pot%gp%values) - pot%energy_cutoff
+       value = evalf(pot%gp%myid,pot%gp%values) - energy_cutoff
        IF (EvalErrType > 0) &
             CALL stop_program("ener_pot","Error evaluating generic potential energy function")
     ELSE
-       ener_pot = 0.0_dp
+       value = 0.0_dp
     END IF
   END FUNCTION ener_pot
 
@@ -185,8 +191,6 @@ CONTAINS
   !******************************************************************************
   FUNCTION ener_coul ( e_cutoff_coul, qi, qj, r, ewald_type,alpha,eps0, ei_scale14, my_do_14 )
 
-!    TYPE(pair_potential_single_type), &
-!      POINTER                                :: pot
     REAL(KIND=dp), INTENT(IN)                :: e_cutoff_coul, qi, qj, r
     INTEGER, INTENT(IN)                      :: ewald_type
     REAL(KIND=dp), INTENT(IN)                :: alpha, eps0, ei_scale14
@@ -252,17 +256,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ewald_type, handle, i, &
-                                                ilevel, j, jx, n, ncount, &
-                                                ngp, npoints, ntype
-    LOGICAL                                  :: failure, found_locut, &
-                                                is_i_shell, is_j_shell, &
-                                                my_do_14
-    REAL(KIND=dp) :: alpha, diffmax, dx2, e, e_cutoff_tmp, eps0, hicut, &
-      locut, locut_found, my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qci, &
-      qcj, qi, qj, qsi, qsj, x, x2, xdum, xdum1, xsav
+    INTEGER                                  :: ewald_type, handle, i, j, n, &
+                                                ncount, ngp, npoints, ntype
+    LOGICAL                                  :: do_i_shell_model, &
+                                                do_j_shell_model, &
+                                                do_shell_model, failure, &
+                                                found_locut, my_do_14
+    REAL(KIND=dp) :: alpha, e_cutoff_coul, ec_cc, ec_cs, ec_sc, &
+      energy_cutoff, eps0, hicut, locut, my_ei_scale14, my_vdw_scale14, qci, &
+      qcj, qi, qj, qsi, qsj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(shell_kind_type), POINTER           :: shell_i, shell_j
 
     failure     = .FALSE.
     n      = 0
@@ -278,14 +281,14 @@ CONTAINS
             (ntype*(ntype+1))/2,' splines due to ',ntype,' different atomic kinds'
     ENDIF
     ! Prescreen for general potential type
-    DO i = 1, ntype ! i:  first atom type
+    DO i = 1, ntype ! i:  first  atom type
        DO j = 1, i  ! j:  second atom type
           IF ((potparm%pot(i,j)%pot%type==gp_type).AND.(potparm%pot(i,j)%pot%undef)) ngp = ngp + 1
        END DO
     END DO
     CALL initf(ngp)
     ngp = 0
-    DO i = 1, ntype ! i:  first atom type
+    DO i = 1, ntype ! i:  first  atom type
        DO j = 1, i  ! j:  second atom type
           IF ((potparm%pot(i,j)%pot%type==gp_type).AND.(potparm%pot(i,j)%pot%undef)) THEN 
              ngp = ngp + 1
@@ -294,400 +297,95 @@ CONTAINS
           END IF
        END DO
     END DO
-    ! real computation of splines
-    DO i = 1, ntype ! i:  first atom type
+    ! Real computation of splines
+    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
+    DO i = 1, ntype
+       ! First Atom
        atomic_kind=> atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi,shell_active=is_i_shell,shell=shell_i)
-       IF(is_i_shell .AND. .NOT. my_do_14) THEN
-         CALL get_shell(shell=shell_i, charge_core=qci, charge_shell=qsi, error=error) 
-       ELSE
-         qsi = qi
-         qci = 0.0_dp
-       END IF
-       DO j = 1, i  ! j:  second atom type
+       CALL get_atom_info(atomic_kind, qi, qci, qsi, do_i_shell_model, my_do_14, error)
+       DO j = 1, i 
+          ! Second Atom
           IF (iw3>0 .AND. iw<=0) THEN
              IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
           ENDIF
           IF (.NOT.potparm%pot(i,j)%pot%undef) CYCLE
-          CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
           ncount = ncount + 1
           potparm%pot(i,j)%pot%undef = .FALSE.
           atomic_kind=> atomic_kind_set(j)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qj,shell_active=is_j_shell,shell=shell_j)
-          IF(is_j_shell .AND. .NOT. my_do_14) THEN
-            CALL get_shell(shell=shell_j, charge_core=qcj, charge_shell=qsj, error=error) 
-          ELSE
-            qsj = qj
-            qcj = 0.0_dp
-          END IF
+          CALL get_atom_info(atomic_kind, qj, qcj, qsj, do_j_shell_model, my_do_14, error)
+
+          do_shell_model   = do_i_shell_model .OR. do_j_shell_model
+
           n = spline_env % spltab(i,j)
           locut = rlow_nb
           hicut = SQRT ( potparm %pot ( i, j ) %pot % rcutsq )
-          IF (ABS(hicut) <= 1.0E-15_dp) hicut = 1.0E3_dp
+          IF (ABS(hicut) <= MIN_HICUT_VALUE) hicut = DEFAULT_HICUT_VALUE
 
-          potparm%pot(i,j)%pot %energy_cutoff = 0.0_dp
-          potparm%pot(i,j)%pot %e_cutoff_coul = 0.0_dp
+          energy_cutoff = 0.0_dp
+          e_cutoff_coul = 0.0_dp
 
           IF (scale_cutoff) THEN
-             potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,hicut,my_vdw_scale14)
-             IF((is_i_shell .OR. is_j_shell) .AND. .NOT. my_do_14) THEN
-                e_cutoff_tmp &
-                      = ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qsi, qsj, hicut, ewald_type,alpha,eps0,&
-                        my_ei_scale14, my_do_14 )+ &
-                        ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qsi, qcj, hicut, ewald_type,alpha,eps0,&
-                        my_ei_scale14, my_do_14 )+ &
-                        ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qci, qsj, hicut, ewald_type,alpha,eps0,&
-                        my_ei_scale14, my_do_14 )+ &
-                        ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qci, qcj, hicut, ewald_type,alpha,eps0,&
-                        my_ei_scale14, my_do_14 )
-             ELSE
-               e_cutoff_tmp &
-                    = ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qi, qj, hicut, ewald_type,alpha,eps0,&
-                    my_ei_scale14, my_do_14 )
+             energy_cutoff = ener_pot(potparm%pot(i,j)%pot,hicut,0.0_dp,my_vdw_scale14)
+             e_cutoff_coul = ener_coul(0.0_dp, qsi, qsj, hicut, ewald_type, alpha, eps0, my_ei_scale14, my_do_14 )
+             IF(do_shell_model) THEN
+                ec_cc = ener_coul(0.0_dp, qci, qcj, hicut, ewald_type, alpha, eps0, my_ei_scale14, my_do_14 )
+                ec_sc = ener_coul(0.0_dp, qsi, qcj, hicut, ewald_type, alpha, eps0, my_ei_scale14, my_do_14 )
+                ec_cs = ener_coul(0.0_dp, qci, qsj, hicut, ewald_type, alpha, eps0, my_ei_scale14, my_do_14 )
              END IF
-             potparm%pot( i, j )%pot%e_cutoff_coul = e_cutoff_tmp
           END IF
 
           ! Find the real locut according emax_spline
-          ! two pass approach, first with low resolution, refine in a second iteration
-          dx2 = (hicut-locut)
-          x   = hicut
-          locut_found = locut
-          found_locut = .FALSE.
+          CALL get_spline_cutoff(hicut, locut, found_locut, do_shell_model, potparm%pot(i,j)%pot,&
+               my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, alpha, eps0, qsi, qsj, qci, qcj,&
+               e_cutoff_coul, energy_cutoff, emax_spline)
+          
+          ! Real Generation of the Spline
+          CALL generate_spline_low(spline_env%spline_data_p(n)%spline_data, npoints, locut, hicut,&
+                                   my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, alpha, eps0,&
+                                   qsi, qsj, scale_cutoff, eps_spline, iw, iw2, i, j, n, ncount,&
+                                   max_energy, e_cutoff_coul, potparm%pot(i,j)%pot,energy_cutoff,&
+                                   label='', found_locut=found_locut, error=error)
 
-          IF((is_i_shell .OR. is_j_shell) .AND. .NOT. my_do_14) THEN
-            DO ilevel=1,2
-               dx2 = dx2 / 100.0_dp
-               DO jx = 1, 100
-                  e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                    + ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qsi, qsj, x, ewald_type,alpha,eps0,&
-                                  my_ei_scale14, my_do_14 )
-                  e = e + ener_coul ( 0.0_dp, qsi, qcj, x, ewald_type,alpha,eps0, 1.0_dp, .FALSE. ) + &
-                    ener_coul ( 0.0_dp, qci, qsj, x, ewald_type,alpha,eps0, 1.0_dp, .FALSE. ) +&
-                    ener_coul ( 0.0_dp, qci, qcj, x, ewald_type,alpha,eps0, 1.0_dp, .FALSE. )  
-                  IF (ABS(e) > emax_spline) THEN
-                     locut_found = x
-                     found_locut = .TRUE.
-                     EXIT
-                  END IF
-                  x = x - dx2
-               END DO
-               x= x + dx2
-            ENDDO
-          ELSE
-            DO ilevel=1,2
-               dx2 = dx2 / 100.0_dp
-               DO jx = 1, 100
-                  e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                    + ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qsi, qsj, &
-                      x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
-                  IF (ABS(e) > emax_spline) THEN
-                     locut_found = x
-                     found_locut = .TRUE.
-                     EXIT
-                  END IF
-                  x = x - dx2
-               END DO
-               x= x + dx2
-            ENDDO
-          END IF
-          locut = locut_found
-
-          npoints = 20
-          IF (.NOT. found_locut) npoints = 2  ! Zero spline
-
-          DO WHILE (.TRUE.)
-             CALL init_splinexy ( spline_env % spline_data_p ( n ) % spline_data, npoints+1)
-             dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
-             x2  = 1.0_dp/hicut**2
-             DO jx = 1, npoints + 1     ! jx: loop over 1/distance**2
-                x = SQRT ( 1.0_dp/x2 )
-                e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qsi, qsj, &
-                       x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
-                spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
-                spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
-                x2 = x2 + dx2
-             END DO ! jx: loop over distance
-             IF (my_do_14) THEN
-                myfac1 = my_ei_scale14 * ifourpi / eps0 * qsi * qsj
-                myfac2 = 0.0_dp
-                IF (scale_cutoff) THEN
-                   myfac2 = my_ei_scale14 * ifourpi / eps0 * qi * qj / hicut
-                END IF
-                CALL init_spline(spline_env%spline_data_p(n)%spline_data,dx=dx2,&
-                     ei_scale14=myfac1, ei_cutoff14=myfac2)
-             ELSE
-                CALL init_spline(spline_env%spline_data_p(n)%spline_data,dx=dx2)
+          ! This is Specific for Shell-Model (Only Coulomb terms in the splines)
+          IF(do_shell_model) THEN
+             CPPostcondition(PRESENT(spline_c_coul),cp_failure_level,routineP,error,failure)
+             CPPostcondition(PRESENT(spline_cs_coul),cp_failure_level,routineP,error,failure)
+             CPPostcondition(PRESENT(spline_sc_coul),cp_failure_level,routineP,error,failure) 
+             ! If not shell let's catch the bare charge
+             IF(.NOT. do_i_shell_model ) THEN
+                qci=qsi
              END IF
-
-             ! This is the check for required accuracy on spline setup
-             dx2 = (hicut - locut)/REAL(5*npoints+1,KIND=dp)
-             x2  = locut + dx2
-             diffmax = 0.0_dp
-             xsav = hicut
-             DO jx = 1, 5*npoints
-                x = x2
-                e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qsi, qsj, &
-                       x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
-                IF (e<max_energy) THEN
-                   xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
-                   diffmax = MAX(diffmax,xdum1)
-                   xsav = MIN(x,xsav)
-                END IF
-                x2 = x2 + dx2
-             END DO
-
-             IF (npoints > 5E4) THEN
-                IF (iw>0) THEN
-                   WRITE(iw,'(A,I5,A,F15.9)') "SPLINE_INFO| Number of points: ",npoints,&
-                        " obtained accuracy ",diffmax
-                END IF
-                WRITE(*,'(A)')"MM SPLINE: no convergence on required accuracy (adjust EPS_SPLINE and rerun)"
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             ! If not shell let's catch the bare charge
+             IF(.NOT. do_j_shell_model ) THEN
+                qcj=qsj
              END IF
-             IF (diffmax > eps_spline ) THEN
-                npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
-             ELSE
-                EXIT
+             
+             ! Real Generation of the Spline Core-Core
+             CALL generate_spline_low(spline_c_coul%spline_data_p(n)%spline_data, npoints, locut, hicut,&
+                                      0.0_dp, 1.0_dp, .FALSE., ewald_type, alpha, eps0, qci, qcj, &
+                                      .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cc,&
+                                      label='Core-Core Coulomb term in Shell-Model', found_locut=found_locut,&
+                                      error=error)
+
+             ! Both are shell
+             IF (do_i_shell_model.AND.do_j_shell_model) THEN
+                ! Real Generation of the Spline Core-Shell
+                CALL generate_spline_low(spline_cs_coul%spline_data_p(n)%spline_data, npoints, locut, hicut,&
+                                         0.0_dp, 1.0_dp, .FALSE., ewald_type, alpha, eps0, qci, qsj, &
+                                         .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cs,&
+                                         label='Core-Shell Coulomb term in Shell-Model', found_locut=found_locut,&
+                                         error=error)
+
+                ! Real Generation of the Spline Shell-Core
+                CALL generate_spline_low(spline_sc_coul%spline_data_p(n)%spline_data, npoints, locut, hicut,&
+                                         0.0_dp, 1.0_dp, .FALSE., ewald_type, alpha, eps0, qsi, qcj, &
+                                         .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_sc,&
+                                         label='Shell-Core Coulomb term in Shell-Model', found_locut=found_locut,&
+                                         error=error)
              END IF
-          END DO
-          IF (iw>0) THEN
-             WRITE(iw,*)
-             WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Spline number:",i*(i-1)/2+j
-             WRITE(iw,'("SPLINE_INFO|",5X,2(A,I7,2X),A,2I7)')"Spline number",ncount,&
-                  "Unique number",n," Kinds involved:",i,j
-             WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
-             WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline
-             WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy achieved: ",diffmax
-             WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX  used for spline (bohr):               ",&
-                  locut,hicut
-             WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
-                  xsav,hicut
           END IF
-
-          ! print spline data on file
-          IF (iw2>0) THEN
-             dx2 = (hicut - locut)/REAL(5000+1,KIND=dp)
-             x2  = locut + dx2
-             DO jx = 1, 5000
-                x = x2
-                e = ener_pot ( potparm%pot( i, j )%pot, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot%e_cutoff_coul, qsi, qsj, &
-                       x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
-                WRITE(1000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
-                x2 = x2 + dx2
-             END DO
-             WRITE(1000+n,*)
-          END IF
-
-!shell-model missing coulomb parts
-          IF(.NOT. my_do_14) THEN
-            IF(.NOT. is_i_shell ) THEN
-              qci=qsi
-            END IF
-            IF(.NOT. is_j_shell ) THEN
-              qcj=qsj
-            END IF
-
-            IF((is_i_shell .OR. is_j_shell)) THEN
-!  core-core
-              CPPostcondition(PRESENT(spline_c_coul),cp_failure_level,routineP,error,failure) 
-              npoints = 20
-              IF (.NOT. found_locut) npoints = 2  ! Zero spline
-
-              DO WHILE (.TRUE.)
-                 CALL init_splinexy ( spline_c_coul % spline_data_p ( n ) % spline_data, npoints+1)
-                 dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
-                 x2  = 1.0_dp/hicut**2
-                 DO jx = 1, npoints + 1     ! jx: loop over 1/distance**2
-                    x = SQRT ( 1.0_dp/x2 )
-                    e =  ener_coul ( 0.0_dp, qci, qcj, x, ewald_type,alpha,eps0,&
-                                     1.0_dp, .FALSE. )
-                    spline_c_coul % spline_data_p ( n ) % spline_data % x(jx) = x2
-                    spline_c_coul % spline_data_p ( n ) % spline_data % y(jx) = e
-                    x2 = x2 + dx2
-                 END DO ! jx: loop over distance
-                 CALL init_spline(spline_c_coul%spline_data_p(n)%spline_data,dx=dx2)
-
-               ! This is the check for required accuracy on spline setup
-                 dx2 = (hicut - locut)/REAL(5*npoints+1,KIND=dp)
-                 x2  = locut + dx2
-                 diffmax = 0.0_dp
-                 xsav = hicut
-                 DO jx = 1, 5*npoints
-                    x = x2
-                    e = ener_coul ( 0.0_dp, qci, qcj, x, ewald_type,alpha,eps0,&
-                                    1.0_dp, .FALSE. )
-                    IF (e<max_energy) THEN
-                       xdum1   = ABS(e-potential_s(spline_c_coul%spline_data_p(n)%spline_data,x*x,xdum))
-                       diffmax = MAX(diffmax,xdum1)
-                       xsav = MIN(x,xsav)
-                    END IF
-                    x2 = x2 + dx2
-                 END DO
-
-                 IF (npoints > 5E4) THEN
-                    IF (iw>0) THEN
-                       WRITE(iw,'(A,I5,A,F15.9)') "SPLINE_INFO| Number of points: ",npoints,&
-                            " obtained accuracy ",diffmax
-                    END IF
-                    WRITE(*,'(A)')"MM SPLINE: no convergence on required accuracy (adjust EPS_SPLINE and rerun)"
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                 END IF
-                 IF (diffmax > eps_spline ) THEN
-                    npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
-                 ELSE
-                    EXIT
-                 END IF
-              END DO
-              IF (iw>0) THEN
-                 WRITE(iw,*)
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7,5X, A)')"Spline number:",i*(i-1)/2+j, ' Core-Core Coulomb term in Shell-Model'
-                 WRITE(iw,'("SPLINE_INFO|",5X,2(A,I7,2X),A,2I7)')"Spline number",ncount,&
-                      "Unique number",n," Kinds involved:",i,j
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy achieved: ",diffmax
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX  used for spline (bohr):               ",&
-                      locut,hicut
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
-                      xsav,hicut
-              END IF
-
-            END IF ! if at least one is shell
-
-            IF((is_i_shell .AND. is_j_shell) ) THEN
-!  core-shell
-              CPPostcondition(PRESENT(spline_cs_coul),cp_failure_level,routineP,error,failure) 
-              npoints = 20
-              IF (.NOT. found_locut) npoints = 2  ! Zero spline
- 
-              DO WHILE (.TRUE.)
-                 CALL init_splinexy ( spline_cs_coul % spline_data_p ( n ) % spline_data, npoints+1)
-                 dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
-                 x2  = 1.0_dp/hicut**2
-                 DO jx = 1, npoints + 1     ! jx: loop over 1/distance**2
-                    x = SQRT ( 1.0_dp/x2 )
-                    e =  ener_coul ( 0.0_dp, qci, qsj, x, ewald_type,alpha,eps0,&
-                                     1.0_dp, .FALSE. )
-                    spline_cs_coul % spline_data_p ( n ) % spline_data % x(jx) = x2
-                    spline_cs_coul % spline_data_p ( n ) % spline_data % y(jx) = e
-                    x2 = x2 + dx2
-                 END DO ! jx: loop over distance
-                 CALL init_spline(spline_cs_coul%spline_data_p(n)%spline_data,dx=dx2)
-               ! This is the check for required accuracy on spline setup
-                 dx2 = (hicut - locut)/REAL(5*npoints+1,KIND=dp)
-                 x2  = locut + dx2
-                 diffmax = 0.0_dp
-                 xsav = hicut
-                 DO jx = 1, 5*npoints
-                    x = x2
-                    e = ener_coul ( 0.0_dp, qci, qsj, x, ewald_type,alpha,eps0,&
-                                    1.0_dp, .FALSE. )
-                    IF (e<max_energy) THEN
-                       xdum1   = ABS(e-potential_s(spline_cs_coul%spline_data_p(n)%spline_data,x*x,xdum))
-                       diffmax = MAX(diffmax,xdum1)
-                       xsav = MIN(x,xsav)
-                    END IF
-                    x2 = x2 + dx2
-                 END DO
-                 IF (npoints > 5E4) THEN
-                    IF (iw>0) THEN
-                       WRITE(iw,'(A,I5,A,F15.9)') "SPLINE_INFO| Number of points: ",npoints,&
-                            " obtained accuracy ",diffmax
-                    END IF
-                    WRITE(*,'(A)')"MM SPLINE: no convergence on required accuracy (adjust EPS_SPLINE and rerun)"
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                 END IF
-                 IF (diffmax > eps_spline ) THEN
-                    npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
-                 ELSE
-                    EXIT
-                 END IF
-              END DO
-
-              IF (iw>0) THEN
-                 WRITE(iw,*)
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7,5X, A)')"Spline number:",i*(i-1)/2+j, ' Core-Shell Coulomb term in Shell-Model'
-                 WRITE(iw,'("SPLINE_INFO|",5X,2(A,I7,2X),A,2I7)')"Spline number",ncount,&
-                      "Unique number",n," Kinds involved:",i,j
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy achieved: ",diffmax
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX  used for spline (bohr):               ",&
-                      locut,hicut
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
-                      xsav,hicut
-              END IF
-!  shell-core
-              CPPostcondition(PRESENT(spline_sc_coul),cp_failure_level,routineP,error,failure) 
-              npoints = 20
-              IF (.NOT. found_locut) npoints = 2  ! Zero spline
-
-              DO WHILE (.TRUE.)
-                 CALL init_splinexy ( spline_sc_coul % spline_data_p ( n ) % spline_data, npoints+1)
-                 dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
-                 x2  = 1.0_dp/hicut**2
-                 DO jx = 1, npoints + 1     ! jx: loop over 1/distance**2
-                    x = SQRT ( 1.0_dp/x2 )
-                    e =  ener_coul ( 0.0_dp, qsi, qcj, x, ewald_type,alpha,eps0,&
-                                     1.0_dp, .FALSE. )
-                    spline_sc_coul % spline_data_p ( n ) % spline_data % x(jx) = x2
-                    spline_sc_coul % spline_data_p ( n ) % spline_data % y(jx) = e
-                    x2 = x2 + dx2
-                 END DO ! jx: loop over distance
-                 CALL init_spline(spline_sc_coul%spline_data_p(n)%spline_data,dx=dx2)
-               ! This is the check for required accuracy on spline setup
-                 dx2 = (hicut - locut)/REAL(5*npoints+1,KIND=dp)
-                 x2  = locut + dx2
-                 diffmax = 0.0_dp
-                 xsav = hicut
-                 DO jx = 1, 5*npoints
-                    x = x2
-                    e = ener_coul ( 0.0_dp, qsi, qcj, x, ewald_type,alpha,eps0,&
-                                    1.0_dp, .FALSE. )
-                    IF (e<max_energy) THEN
-                       xdum1   = ABS(e-potential_s(spline_sc_coul%spline_data_p(n)%spline_data,x*x,xdum))
-                       diffmax = MAX(diffmax,xdum1)
-                       xsav = MIN(x,xsav)
-                    END IF
-                    x2 = x2 + dx2
-                 END DO
-                 IF (npoints > 5E4) THEN
-                    IF (iw>0) THEN
-                       WRITE(iw,'(A,I5,A,F15.9)') "SPLINE_INFO| Number of points: ",npoints,&
-                            " obtained accuracy ",diffmax
-                    END IF
-                    WRITE(*,'(A)')"MM SPLINE: no convergence on required accuracy (adjust EPS_SPLINE and rerun)"
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                 END IF
-                 IF (diffmax > eps_spline ) THEN
-                    npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
-                 ELSE
-                    EXIT
-                 END IF
-              END DO
-              IF (iw>0) THEN
-                 WRITE(iw,*)
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7,5X, A)')"Spline number:",i*(i-1)/2+j, ' Shell-Core Coulomb term in Shell-Model'
-                 WRITE(iw,'("SPLINE_INFO|",5X,2(A,I7,2X),A,2I7)')"Spline number",ncount,&
-                      "Unique number",n," Kinds involved:",i,j
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy achieved: ",diffmax
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX  used for spline (bohr):               ",&
-                      locut,hicut
-                 WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
-                      xsav,hicut
-              END IF
-            END IF  ! if both are shell
-
-          END IF  ! my_do_14
-
-       END DO  ! jkind
-    END DO   !ikind
+       END DO
+    END DO
     CALL finalizef()
     IF (iw3>0) THEN
        WRITE(iw3,'()')
@@ -705,7 +403,283 @@ CONTAINS
   END SUBROUTINE spline_nonbond_control
 
   !******************************************************************************
-  !!****
+  !!****s* pair_potential/get_atom_info [1.0] *
+  !!
+  !!   NAME
+  !!     get_atom_info
+  !! 
+  !!   FUNCTION
+  !!     Gather atom info for the evaluation of the splines
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] 2007.06
+  !!
+  !!   MODIFICATION HISTORY
+  !!     Splitting in order to make some season cleaning..
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE get_atom_info(atomic_kind, qi, qci, qsi, do_i_shell_model, my_do_14, error)
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp), INTENT(OUT)               :: qi, qci, qsi
+    LOGICAL, INTENT(OUT)                     :: do_i_shell_model
+    LOGICAL, INTENT(IN)                      :: my_do_14
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_info', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: is_i_shell
+    TYPE(shell_kind_type), POINTER           :: shell_i
+
+    NULLIFY(shell_i)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi,shell_active=is_i_shell,shell=shell_i)
+    do_i_shell_model = is_i_shell .AND.(.NOT. my_do_14)
+    IF(do_i_shell_model) THEN
+       CALL get_shell(shell=shell_i, charge_core=qci, charge_shell=qsi, error=error) 
+    ELSE
+       qsi = qi
+       qci = 0.0_dp
+    END IF
+  END SUBROUTINE get_atom_info
+
+  !******************************************************************************
+  !!****s* pair_potential/get_spline_cutoff [1.0] *
+  !!
+  !!   NAME
+  !!     get_spline_cutoff
+  !! 
+  !!   FUNCTION
+  !!     Finds the cutoff for the generation of the spline
+  !!     In a two pass approach, first with low resolution, refine in a second iteration
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] 2007.06
+  !!
+  !!   MODIFICATION HISTORY
+  !!     Splitting in order to make some season cleaning..
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE  get_spline_cutoff(hicut, locut, found_locut, do_shell_model, pot,&
+       my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, alpha, eps0, qsi, qsj,&
+       qci, qcj, e_cutoff_coul, energy_cutoff, emax_spline)
+
+    REAL(KIND=dp), INTENT(IN)                :: hicut
+    REAL(KIND=dp), INTENT(INOUT)             :: locut
+    LOGICAL, INTENT(OUT)                     :: found_locut
+    LOGICAL, INTENT(IN)                      :: do_shell_model
+    TYPE(pair_potential_single_type), &
+      OPTIONAL, POINTER                      :: pot
+    REAL(KIND=dp), INTENT(IN)                :: my_vdw_scale14, my_ei_scale14
+    LOGICAL, INTENT(IN)                      :: my_do_14
+    INTEGER, INTENT(IN)                      :: ewald_type
+    REAL(KIND=dp), INTENT(IN)                :: alpha, eps0, qsi, qsj, qci, &
+                                                qcj, e_cutoff_coul, &
+                                                energy_cutoff, emax_spline
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_spline_cutoff', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilevel, jx
+    REAL(KIND=dp)                            :: dx2, e, locut_found, x
+
+    dx2 = (hicut-locut)
+    x   = hicut
+    locut_found = locut
+    found_locut = .FALSE.
+
+    IF(do_shell_model) THEN
+       DO ilevel=1,2
+          dx2 = dx2 / 100.0_dp
+          DO jx = 1, 100
+             e = ener_pot( pot, x , energy_cutoff, my_vdw_scale14 )
+             e = e + ener_coul ( e_cutoff_coul, qsi, qsj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
+             e = e + ener_coul ( 0.0_dp, qsi, qcj, x, ewald_type,alpha, eps0, 1.0_dp, .FALSE. )
+             e = e + ener_coul ( 0.0_dp, qci, qsj, x, ewald_type,alpha, eps0, 1.0_dp, .FALSE. )
+             e = e + ener_coul ( 0.0_dp, qci, qcj, x, ewald_type,alpha, eps0, 1.0_dp, .FALSE. )  
+             IF (ABS(e) > emax_spline) THEN
+                locut_found = x
+                found_locut = .TRUE.
+                EXIT
+             END IF
+             x = x - dx2
+          END DO
+          x= x + dx2
+       ENDDO
+    ELSE
+       DO ilevel=1,2
+          dx2 = dx2 / 100.0_dp
+          DO jx = 1, 100
+             e = ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
+             e = e + ener_coul (e_cutoff_coul, qsi, qsj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
+             IF (ABS(e) > emax_spline) THEN
+                locut_found = x
+                found_locut = .TRUE.
+                EXIT
+             END IF
+             x = x - dx2
+          END DO
+          x= x + dx2
+       ENDDO
+    END IF
+    locut = locut_found
+
+  END SUBROUTINE get_spline_cutoff
+
+  !******************************************************************************
+  !!****s* pair_potential/generate_spline_low [1.0] *
+  !!
+  !!   NAME
+  !!     generate_spline_low
+  !! 
+  !!   FUNCTION
+  !!     Real Generation of spline.. 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] 2007.06
+  !!
+  !!   MODIFICATION HISTORY
+  !!     Splitting in order to make some season cleaning..
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE generate_spline_low(spline_data, npoints, locut, hicut, my_vdw_scale14,&
+       my_ei_scale14, my_do_14, ewald_type, alpha, eps0, qi, qj, scale_cutoff, eps_spline,&
+       iw, iw2, i, j, n, ncount, max_energy, e_cutoff_coul, pot, energy_cutoff, label,&
+       found_locut, error)
+
+    TYPE(spline_data_type), POINTER          :: spline_data
+    INTEGER, INTENT(INOUT)                   :: npoints
+    REAL(KIND=dp), INTENT(IN)                :: locut, hicut, my_vdw_scale14, &
+                                                my_ei_scale14
+    LOGICAL, INTENT(IN)                      :: my_do_14
+    INTEGER, INTENT(IN)                      :: ewald_type
+    REAL(KIND=dp), INTENT(IN)                :: alpha, eps0, qi, qj
+    LOGICAL, INTENT(IN)                      :: scale_cutoff
+    REAL(KIND=dp), INTENT(IN)                :: eps_spline
+    INTEGER, INTENT(IN)                      :: iw, iw2, i, j, n, ncount
+    REAL(KIND=dp), INTENT(IN)                :: max_energy, e_cutoff_coul
+    TYPE(pair_potential_single_type), &
+      OPTIONAL, POINTER                      :: pot
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: energy_cutoff
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+    LOGICAL, INTENT(IN)                      :: found_locut
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: jx
+    LOGICAL                                  :: do_nonbonded, failure
+    REAL(KIND=dp)                            :: diffmax, dx2, e, myfac1, &
+                                                myfac2, x, x2, xdum, xdum1, &
+                                                xsav
+
+    failure = .FALSE.
+    do_nonbonded = .TRUE.
+    IF (.NOT.(PRESENT(pot))) do_nonbonded = .FALSE.
+    IF (PRESENT(pot)) THEN
+       CPPostcondition(PRESENT(energy_cutoff),cp_failure_level,routineP,error,failure)
+    END IF
+    npoints = 20
+    IF (.NOT. found_locut) npoints = 2
+    DO WHILE (.TRUE.)
+       CALL init_splinexy ( spline_data, npoints+1)
+       dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
+       x2  = 1.0_dp/hicut**2
+       DO jx = 1, npoints + 1
+          ! jx: loop over 1/distance**2
+          x = SQRT ( 1.0_dp/x2 )
+          e = ener_coul(e_cutoff_coul, qi, qj, x, ewald_type, alpha, eps0, my_ei_scale14, my_do_14 )
+          IF (do_nonbonded) THEN
+             e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
+          END IF
+          spline_data % x(jx) = x2
+          spline_data % y(jx) = e
+          x2 = x2 + dx2
+       END DO
+       IF (my_do_14) THEN
+          myfac1 = my_ei_scale14 * ifourpi / eps0 * qi * qj
+          myfac2 = 0.0_dp
+          IF (scale_cutoff) THEN
+             myfac2 = my_ei_scale14 * ifourpi / eps0 * qi * qj / hicut
+          END IF
+          CALL init_spline(spline_data,dx=dx2,&
+                           ei_scale14=myfac1,&
+                           ei_cutoff14=myfac2)
+       ELSE
+          CALL init_spline(spline_data,dx=dx2)
+       END IF
+
+       ! This is the check for required accuracy on spline setup
+       dx2 = (hicut - locut)/REAL(5*npoints+1,KIND=dp)
+       x2  = locut + dx2
+       diffmax = 0.0_dp
+       xsav = hicut
+       DO jx = 1, 5*npoints
+          x = x2
+          e = ener_coul(e_cutoff_coul, qi, qj, x, ewald_type, alpha, eps0, my_ei_scale14, my_do_14 )
+          IF (do_nonbonded) THEN
+             e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
+          END IF
+          IF (e<max_energy) THEN
+             xdum1   = ABS(e-potential_s(spline_data,x*x,xdum))
+             diffmax = MAX(diffmax,xdum1)
+             xsav = MIN(x,xsav)
+          END IF
+          x2 = x2 + dx2
+       END DO
+
+       IF (npoints > MAX_POINTS) THEN
+          IF (iw>0) THEN
+             WRITE(iw,'(A,I5,A,F15.9)') "SPLINE_INFO| Number of points: ",npoints,&
+                  " obtained accuracy ",diffmax
+          END IF
+          WRITE(*,'(A)')"MM SPLINE: no convergence on required accuracy (adjust EPS_SPLINE and rerun)"
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (diffmax > eps_spline ) THEN
+          npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
+       ELSE
+          EXIT
+       END IF
+    END DO
+
+    ! Print Spline info
+    IF (iw>0) THEN
+       WRITE(iw,*)
+       WRITE(iw,'("SPLINE_INFO|",5X,A,I7,A)')"Spline number:",i*(i-1)/2+j,TRIM(label)
+       WRITE(iw,'("SPLINE_INFO|",5X,2(A,I7,2X),A,2I7)')"Spline number",ncount,&
+            "Unique number",n," Kinds involved:",i,j
+       WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
+       WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline
+       WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy achieved: ",diffmax
+       WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX  used for spline (bohr):               ",&
+            locut,hicut
+       WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
+            xsav,hicut
+    END IF
+
+    ! Print spline data on file if requested
+    IF (iw2>0) THEN
+       dx2 = (hicut - locut)/REAL(5000+1,KIND=dp)
+       x2  = locut + dx2
+       DO jx = 1, 5000
+          x = x2
+          e =  ener_coul(e_cutoff_coul, qi, qj, x, ewald_type, alpha,eps0, my_ei_scale14, my_do_14 )
+          IF (do_nonbonded) THEN
+             e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
+          END IF
+          WRITE(1000+n,*) x, e, potential_s(spline_data,x*x,xdum)
+          x2 = x2 + dx2
+       END DO
+       WRITE(1000+n,*)
+    END IF
+
+  END SUBROUTINE generate_spline_low
+
+  !******************************************************************************
   !!****s* pair_potential/get_nonbond_storage [1.0] *
   !!
   !!   NAME
@@ -1147,19 +1121,24 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ewald_type
-    REAL(KIND=dp)                            :: alpha, eps0, rij
+    REAL(KIND=dp)                            :: alpha, e_cutoff_coul, &
+                                                energy_cutoff, eps0, hicut, &
+                                                rij
 
     rij = SQRT ( rijsq )
+    hicut = SQRT ( potparm %pot(iatom, jatom) %pot % rcutsq )
+    IF (ABS(hicut) <= MIN_HICUT_VALUE) hicut = DEFAULT_HICUT_VALUE
+    e_cutoff_coul = ener_coul ( 0.0_dp, qi, qj, hicut, ewald_type, alpha, eps0, 1.0_dp, my_do_14=.FALSE.)
+    energy_cutoff = ener_pot ( potparm%pot(iatom,jatom)%pot, hicut, 0.0_dp, 1.0_dp)
 
     ! non-bond energy
-    energy = ener_pot ( potparm%pot(iatom,jatom)%pot, rij, 1.0_dp)
+    energy = ener_pot ( potparm%pot(iatom,jatom)%pot, rij, energy_cutoff, 1.0_dp)
 
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
        CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
        energy = energy &
-            + ener_coul ( potparm%pot(iatom,jatom )%pot%e_cutoff_coul, qi, qj, rij, ewald_type,alpha,eps0, 1.0_dp,&
-            my_do_14=.FALSE.)
+            + ener_coul (e_cutoff_coul, qi, qj, rij, ewald_type,alpha,eps0, 1.0_dp, my_do_14=.FALSE.)
     END IF
 
   END SUBROUTINE potential_f
