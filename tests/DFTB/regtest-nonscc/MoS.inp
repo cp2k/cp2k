@@ -17,8 +17,7 @@
       &END DFTB
     &END QS
     &SCF
-      SCF_GUESS CORE
-      MAX_SCF 10
+      SCF_GUESS NONE
       MIXING 1
     &END SCF
   &END DFT
