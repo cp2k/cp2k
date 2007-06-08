@@ -25,8 +25,8 @@ MODULE fist_force_numer
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: &
-       cell_create, cell_release, cell_retain, cell_type, get_cell, get_hinv, &
-       pbc, plane_distance, real_to_scaled, scaled_to_real
+       cell_create, cell_release, cell_type, get_cell, get_hinv, pbc, &
+       plane_distance, real_to_scaled, scaled_to_real
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -59,8 +59,8 @@ MODULE fist_force_numer
                                              molecule_type
   USE pair_potential,                  ONLY: potential_f
   USE pair_potential_types,            ONLY: ea_type,&
-                                             tersoff_type,&
-                                             pair_potential_pp_type
+                                             pair_potential_pp_type,&
+                                             tersoff_type
   USE particle_types,                  ONLY: particle_type
   USE pme,                             ONLY: pme_evaluate
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -1137,7 +1137,6 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1250,7 +1249,6 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1363,7 +1361,6 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1476,7 +1473,6 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1584,7 +1580,6 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1690,7 +1685,6 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1798,7 +1792,6 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! assigning the local variables
   natoms = SIZE(particle_set)
@@ -1924,7 +1917,6 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set
   NULLIFY ( cell_local )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
-  CALL cell_retain ( cell_local ,error=error)
 
 ! allocating
   natoms = SIZE ( particle_set )
@@ -2081,6 +2073,7 @@ SUBROUTINE structure_factor ( atomic_kind_set, particle_set, local_particles, &
   sum_igr = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   DO ig = 1, ngtot
      gsq = DOT_PRODUCT(glocal(:,ig),glocal(:,ig))
+     gauss(ig)=0.0_dp
      IF ( gsq <= 1.0E-10_dp ) CYCLE
      gauss(ig) = EXP(-gsq*0.25_dp/alpha/alpha)/gsq
      DO iparticle_kind = 1, nparticle_kind
@@ -3269,12 +3262,10 @@ SUBROUTINE fi_di_ev_many(fist_nonbond_env,particle_set,local_particles,atomic_ki
       INTENT(INOUT)                          :: f_numer
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp), DIMENSION(3)              :: r_orig(3),r_change(3)
-    INTEGER                                  :: iparticle,nparticle
-    REAL(KIND=dp)                            :: energy_minus, &
+    INTEGER                                  :: idim, iparticle, nparticle
+    REAL(KIND=dp)                            :: dexyz(3), energy_minus, &
                                                 energy_plus
-    REAL(KIND=dp)                            :: dexyz(3)
-    INTEGER                                  :: idim
+    REAL(KIND=dp), DIMENSION(3)              :: r_change(3), r_orig(3)
 
   nparticle = SIZE(particle_set)
   DO iparticle=1,nparticle

@@ -1128,15 +1128,24 @@ CONTAINS
     rij = SQRT ( rijsq )
     hicut = SQRT ( potparm %pot(iatom, jatom) %pot % rcutsq )
     IF (ABS(hicut) <= MIN_HICUT_VALUE) hicut = DEFAULT_HICUT_VALUE
-    e_cutoff_coul = ener_coul ( 0.0_dp, qi, qj, hicut, ewald_type, alpha, eps0, 1.0_dp, my_do_14=.FALSE.)
+    ! If genpot we need to get ready for the evaluation of the potential
+    IF (potparm%pot(iatom,jatom)%pot%type==gp_type) THEN
+       CALL initf(potparm%pot(iatom,jatom)%pot%gp%myid)
+       CALL parsef(potparm%pot(iatom,jatom)%pot%gp%myid,&
+                   TRIM(potparm%pot(iatom,jatom)%pot%gp%potential),&
+                   potparm%pot(iatom,jatom)%pot%gp%parameters)
+    END IF
     energy_cutoff = ener_pot ( potparm%pot(iatom,jatom)%pot, hicut, 0.0_dp, 1.0_dp)
 
     ! non-bond energy
     energy = ener_pot ( potparm%pot(iatom,jatom)%pot, rij, energy_cutoff, 1.0_dp)
-
+    IF (potparm%pot(iatom,jatom)%pot%type==gp_type) THEN
+      CALL finalizef()
+    ENDIF
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
        CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0,error=error)
+       e_cutoff_coul = ener_coul ( 0.0_dp, qi, qj, hicut, ewald_type, alpha, eps0, 1.0_dp, my_do_14=.FALSE.)
        energy = energy &
             + ener_coul (e_cutoff_coul, qi, qj, rij, ewald_type,alpha,eps0, 1.0_dp, my_do_14=.FALSE.)
     END IF
