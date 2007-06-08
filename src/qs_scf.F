@@ -364,6 +364,7 @@ CONTAINS
 !!     long history, see cvs and qs_scf module history
 !!     02.2003 introduced scf_env [fawzi]
 !!     09.2005 Frozen density approximation [TdK]
+!!     06.2007 Check for SCF iteration count early [jgh]
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,converged,should_stop,error)
@@ -501,6 +502,16 @@ CONTAINS
           IF (output_unit > 0) CALL m_flush(output_unit)
 
           total_steps = total_steps + 1
+          IF (scf_env%iter_count > scf_control%max_scf) THEN
+             IF (output_unit>0) THEN
+                WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
+                     "*** Skip SCF loop, SCF run probably NOT converged ***"
+             END IF
+             converged=.FALSE.
+             CALL timestop(0.0_dp,handle2)
+             EXIT scf_loop
+          END IF
+
           CALL cp_iterate(logger%iter_info,&
                           last=.FALSE.,&
                           iter_nr=scf_env%iter_count,&
@@ -615,7 +626,7 @@ CONTAINS
              END IF
              CALL timestop(0.0_dp,handle2)
              EXIT scf_loop
-          ELSE IF (should_stop.OR.  scf_env%iter_count == scf_control%max_scf) THEN
+          ELSE IF (should_stop.OR.  scf_env%iter_count >= scf_control%max_scf) THEN
              IF (output_unit>0) THEN
                 WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                      "*** SCF run NOT converged ***"

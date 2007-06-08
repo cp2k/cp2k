@@ -78,7 +78,6 @@ MODULE pw_grids
   PUBLIC :: pw_grid_retain, pw_grid_release
   PUBLIC :: create_gvectors, pw_grid_find_n, pw_grid_n_from_cutoff,&
        pw_grid_n_for_fft, pw_grid_bounds_from_n, pw_grid_setup1,pw_cutoff_from_n
-!deb  PUBLIC :: pw_grid_create_copy_no_pbc
 
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'

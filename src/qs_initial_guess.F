@@ -36,7 +36,8 @@ MODULE qs_initial_guess
                                              cp_sm_fm_multiply
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
-  USE input_constants,                 ONLY: atomic_guess,&
+  USE input_constants,                 ONLY: no_guess,&
+                                             atomic_guess,&
                                              core_guess,&
                                              densities_guess,&
                                              history_guess,&
@@ -109,6 +110,7 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     03.2006 moved here from qs_scf [Joost VandeVondele]
+!!     06.2007 allow to skip the initial guess [jgh]
 !!
 !!*** **********************************************************************
   SUBROUTINE calculate_first_density_matrix(scf_env,qs_env,error)
@@ -673,6 +675,8 @@ CONTAINS
         CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set, qs_env%rho%rho_ao(ispin)%matrix, &
                                       error=error)
       END DO
+
+    ELSE IF (density_guess == no_guess) THEN
 
     ELSE
 

@@ -28,7 +28,7 @@ MODULE scf_control_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: &
-       atomic_guess, core_guess, general_roks, high_spin_roks, &
+       no_guess, atomic_guess, core_guess, general_roks, high_spin_roks, &
        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_becke, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_optimizer_bisect
