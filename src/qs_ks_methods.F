@@ -1200,18 +1200,20 @@ CONTAINS
 
     ! Correct for  DDAP charges (if any)
     ! storing whatever force might be there from previous decoupling
-    CALL get_qs_env(qs_env=qs_env,force=force,error=error)
-    nforce=0
-    DO i=1,SIZE(force)
-       nforce=nforce+SIZE(force(i)%ch_pulay,2)
-    ENDDO
-    ALLOCATE(store_forces(3,nforce))
-    nforce=0
-    DO i=1,SIZE(force)
-       store_forces(1:3,nforce+1:nforce+SIZE(force(i)%ch_pulay,2))=force(i)%ch_pulay(:,:)
-       force(i)%ch_pulay(:,:)=0.0_dp
-       nforce=nforce+SIZE(force(i)%ch_pulay,2)
-    ENDDO
+    IF (calculate_forces) THEN
+       CALL get_qs_env(qs_env=qs_env,force=force,error=error)
+       nforce=0
+       DO i=1,SIZE(force)
+          nforce=nforce+SIZE(force(i)%ch_pulay,2)
+       ENDDO
+       ALLOCATE(store_forces(3,nforce))
+       nforce=0
+       DO i=1,SIZE(force)
+          store_forces(1:3,nforce+1:nforce+SIZE(force(i)%ch_pulay,2))=force(i)%ch_pulay(:,:)
+          force(i)%ch_pulay(:,:)=0.0_dp
+          nforce=nforce+SIZE(force(i)%ch_pulay,2)
+       ENDDO
+    ENDIF
 
     CALL cp_ddapc_apply_CD(qs_env,&
                            work_rho,&
@@ -1233,11 +1235,13 @@ CONTAINS
     energy%hartree=energy%hartree + full_scaling * ener
 
     ! add scaled forces, restoring the old
-    nforce=0
-    DO i=1,SIZE(force)
-       force(i)%ch_pulay(:,:)=force(i)%ch_pulay(:,:)*full_scaling + store_forces(1:3,nforce+1:nforce+SIZE(force(i)%ch_pulay,2))
-       nforce=nforce+SIZE(force(i)%ch_pulay,2)
-    ENDDO
+    IF (calculate_forces) THEN
+       nforce=0
+       DO i=1,SIZE(force)
+          force(i)%ch_pulay(:,:)=force(i)%ch_pulay(:,:)*full_scaling + store_forces(1:3,nforce+1:nforce+SIZE(force(i)%ch_pulay,2))
+          nforce=nforce+SIZE(force(i)%ch_pulay,2)
+       ENDDO
+    ENDIF
 
     IF (.NOT. just_energy) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
