@@ -27,3 +27,5 @@ He2_ddapc_constraint-4.inp 1
 #test constraint on becke wight population
 H2-BECKE-MD.inp 1
 H2-diffBECKE-ET_coupling.inp 1
+# just energy with sic
+sic_energy.inp 1
