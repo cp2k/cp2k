@@ -24,9 +24,14 @@ MODULE fist_force_numer
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: &
-       cell_create, cell_release, cell_type, get_cell, get_hinv, pbc, &
-       plane_distance, real_to_scaled, scaled_to_real
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             get_cell,&
+                                             get_hinv,&
+                                             pbc,&
+                                             plane_distance,&
+                                             scaled_to_real
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -38,7 +43,6 @@ MODULE fist_force_numer
                                              fist_nonbond_env_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
                                              int_size
   USE manybody_potential,              ONLY: energy_manybody
   USE mathlib,                         ONLY: matvec_3x3
@@ -117,8 +121,8 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, f_bond_numer, pot_bond, numerical_shift )
-
+                              particle_set, f_bond_numer, pot_bond, numerical_shift,&
+                              cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -128,6 +132,7 @@ SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, 
       INTENT(INOUT)                          :: f_bond_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot_bond
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER                                  :: first_atom, i, ibond, idim, &
                                                 ikind, imol, index_a, &
@@ -156,7 +161,7 @@ SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, 
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = bond_list ( ibond ) % a + first_atom - 1
         index_b = bond_list ( ibond ) % b + first_atom - 1
-        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rij = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
 ! get the energy
         CALL force_bonds ( bond_list(ibond)%bond_kind%name,&
                            rij, bond_list ( ibond ) % bond_kind % r0, &
@@ -205,8 +210,7 @@ END SUBROUTINE force_bond_numer
 !******************************************************************************
 
 SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                                particle_set, f_numer, pot, numerical_shift )
-
+                                particle_set, f_numer, pot, numerical_shift, cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -216,6 +220,7 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
       INTENT(INOUT)                          :: f_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER :: akind, bkind, first_atom, i, ibond, idim, ikind, imol, &
       index_a, index_b, nkind, nmol_per_kind, nonfo
@@ -251,7 +256,7 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         index_b = onfo_list ( ibond ) % b + first_atom - 1
         atomic_kind => particle_set ( index_b ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
-        rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
+        rij = pbc(particle_set ( index_b ) % r - particle_set ( index_a ) % r,cell)
 ! get the energy
         rab2 = DOT_PRODUCT ( rij, rij )
         ! LJ contribution
@@ -311,8 +316,8 @@ END SUBROUTINE force_onefour_numer
 !******************************************************************************
 
 SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                            particle_set, f_ub_numer, pot_ub, numerical_shift )
-
+                            particle_set, f_ub_numer, pot_ub, numerical_shift,&
+                            cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -322,6 +327,7 @@ SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
       INTENT(INOUT)                          :: f_ub_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot_ub
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER                                  :: first_atom, i, idim, ikind, &
                                                 imol, index_a, index_b, iub, &
@@ -350,7 +356,7 @@ SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = ub_list ( iub ) % a + first_atom - 1
         index_b = ub_list ( iub ) % c + first_atom - 1
-        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rij = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
 ! get the energy
         CALL force_bonds ( ub_list(iub)%ub_kind%name,&
                            rij, ub_list ( iub ) % ub_kind % r0, &
@@ -401,8 +407,8 @@ END SUBROUTINE force_ub_numer
 !******************************************************************************
 
 SUBROUTINE force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, f_bend_numer, pot_bend, numerical_shift )
-
+                              particle_set, f_bend_numer, pot_bend, numerical_shift,&
+                              cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -412,6 +418,7 @@ SUBROUTINE force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, 
       INTENT(INOUT)                          :: f_bend_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot_bend
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER                                  :: first_atom, i, ibend, idim, &
                                                 ikind, imol, index_a, &
@@ -447,8 +454,8 @@ BEND: DO ibend = 1, nbends
         index_a = bend_list ( ibend ) % a + first_atom - 1
         index_b = bend_list ( ibend ) % b + first_atom - 1
         index_c = bend_list ( ibend ) % c + first_atom - 1
-        b12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        b32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
+        b12 = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
+        b32 = pbc(particle_set ( index_c ) % r - particle_set ( index_b ) % r,cell)
         d12 = SQRT(DOT_PRODUCT(b12,b12))
         id12 = 1.0_dp/d12
         d32 = SQRT(DOT_PRODUCT(b32,b32))
@@ -569,8 +576,8 @@ END SUBROUTINE force_bend_numer
 !******************************************************************************
 
 SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, f_torsion_numer, pot_torsion, numerical_shift, error )
-
+                              particle_set, f_torsion_numer, pot_torsion, numerical_shift,&
+                              cell, error )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -580,6 +587,7 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
       INTENT(INOUT)                          :: f_torsion_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot_torsion
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: first_atom, i, idim, ikind, imol, imul, index_a, index_b, &
@@ -613,9 +621,9 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
         index_b = torsion_list ( itorsion ) % b + first_atom - 1
         index_c = torsion_list ( itorsion ) % c + first_atom - 1
         index_d = torsion_list ( itorsion ) % d + first_atom - 1
-        t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
-        t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
+        t12 = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell) 
+        t32 = pbc(particle_set ( index_c ) % r - particle_set ( index_b ) % r,cell) 
+        t43 = pbc(particle_set ( index_d ) % r - particle_set ( index_c ) % r,cell) 
         s32 = SQRT(DOT_PRODUCT(t32,t32))
         is32 = 1.0_dp/s32
         dist1 = DOT_PRODUCT(t12,t32)
@@ -793,8 +801,7 @@ END SUBROUTINE force_torsion_numer
 !******************************************************************************
 
 SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                                 particle_set, f_numer, pot, numerical_shift, error )
-
+                                 particle_set, f_numer, pot, numerical_shift, cell, error )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -804,6 +811,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
       INTENT(INOUT)                          :: f_numer
     REAL(KIND=dp), INTENT(INOUT)             :: pot
     REAL(KIND=dp), INTENT(IN)                :: numerical_shift
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER :: first_atom, i, idim, ikind, imol, index_a, index_b, index_c, &
@@ -836,9 +844,9 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
         index_b = impr_list ( itorsion ) % b + first_atom - 1
         index_c = impr_list ( itorsion ) % c + first_atom - 1
         index_d = impr_list ( itorsion ) % d + first_atom - 1
-        t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
-        t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
+        t12 = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell) 
+        t32 = pbc(particle_set ( index_c ) % r - particle_set ( index_b ) % r,cell) 
+        t34 = pbc(particle_set ( index_c ) % r - particle_set ( index_d ) % r,cell) 
 ! t12 x t32
         tm(1) = t12(2)*t32(3)-t32(2)*t12(3)
         tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
@@ -1161,7 +1169,7 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vp )
+                              particle_set, vp, cell_local )
 
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
@@ -1174,7 +1182,7 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vm )
+                              particle_set, vm, cell_local )
 
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
@@ -1273,7 +1281,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vp )
+                              particle_set, vp, cell_local )
 
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
@@ -1286,7 +1294,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
-                                 particle_set, vm )
+                                 particle_set, vm, cell_local )
 
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
@@ -1385,7 +1393,7 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vp )
+                              particle_set, vp, cell_local )
 
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
@@ -1398,7 +1406,7 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
            particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vm )
+                              particle_set, vm, cell_local )
 
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
@@ -1496,7 +1504,7 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
            particle_set ( i ) % r = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vp )
+                              particle_set, vp, cell_local )
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 ! get inverse
@@ -1506,7 +1514,7 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
            particle_set ( i ) % r = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vm )
+                              particle_set, vm, cell_local )
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
 ! resetting the hmat
@@ -1603,7 +1611,7 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_torsion ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vp )
+                              particle_set, vp, cell_local )
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 ! get inverse
@@ -1613,7 +1621,7 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set(i)%r = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_torsion ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vm )
+                              particle_set, vm, cell_local )
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
 ! resetting the hmat and particle_set
@@ -1708,7 +1716,7 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_imptors ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, vp )
+                              particle_set, vp, cell_local )
 ! tweak again
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 ! get inverse
@@ -1718,7 +1726,7 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
            particle_set(i)%r = MATMUL(cell_local % hmat,s(:,i))
         END DO
         CALL potential_imptors ( molecule_set, molecule_kind_set, local_molecules, &
-                                particle_set, vm )
+                                particle_set, vm, cell_local )
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
 ! resetting the hmat and particle_set
@@ -2293,14 +2301,14 @@ END SUBROUTINE ewald_energy_numer
 !******************************************************************************
 
 SUBROUTINE potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, energy )
-
+                           particle_set, energy,cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER                                  :: first_atom, i, ibond, ikind, &
                                                 imol, index_a, index_b, &
@@ -2329,7 +2337,7 @@ SUBROUTINE potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = bond_list ( ibond ) % a + first_atom - 1
         index_b = bond_list ( ibond ) % b + first_atom - 1
-        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rij = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
         CALL force_bonds(bond_list(ibond)%bond_kind%name,&
                          rij,bond_list ( ibond ) % bond_kind % r0, &
                          bond_list ( ibond ) % bond_kind % k, &
@@ -2345,7 +2353,7 @@ END SUBROUTINE potential_bond
 !!****** fist_force_numer/potential_onefour [1.0] *
 !!
 !!   NAME
-!!     potential_bond
+!!     potential_onefour
 !!
 !!   FUNCTION
 !!     Computes analytically the potential from the onefours
@@ -2360,14 +2368,14 @@ END SUBROUTINE potential_bond
 !******************************************************************************
 
 SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set, energy )
-
+                               particle_set, energy, cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER                                  :: akind, bkind, first_atom, i, &
                                                 ibond, ikind, imol, index_a, &
@@ -2404,7 +2412,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         index_b = onfo_list ( ibond ) % b + first_atom - 1
         atomic_kind => particle_set ( index_b ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
-        rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
+        rij = pbc(particle_set ( index_b ) % r - particle_set ( index_a ) % r,cell)
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
         e0 = potential_s ( spline_data, rab2, fscalar )
@@ -2438,14 +2446,14 @@ END SUBROUTINE potential_onefour
 !******************************************************************************
 
 SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, energy )
-
+                           particle_set, energy ,cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER                                  :: first_atom, i, ikind, imol, &
                                                 index_a, index_b, iub, nkind, &
@@ -2474,7 +2482,7 @@ SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = ub_list ( iub ) % a + first_atom - 1
         index_b = ub_list ( iub ) % c + first_atom - 1
-        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rij = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
         CALL force_bonds(ub_list(iub)%ub_kind%name,&
                          rij,ub_list ( iub ) % ub_kind % r0, &
                          ub_list ( iub ) % ub_kind % k, &
@@ -2506,14 +2514,14 @@ END SUBROUTINE potential_ub
 !******************************************************************************
 
 SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
-                           particle_set, energy )
-
+                           particle_set, energy, cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER                                  :: first_atom, i, ibend, ikind, &
                                                 imol, index_a, index_b, &
@@ -2545,8 +2553,8 @@ SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
         index_a = bend_list ( ibend ) % a + first_atom - 1
         index_b = bend_list ( ibend ) % b + first_atom - 1
         index_c = bend_list ( ibend ) % c + first_atom - 1
-        b12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        b32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
+        b12 = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
+        b32 = pbc(particle_set ( index_c ) % r - particle_set ( index_b ) % r,cell)
         d12 = SQRT(DOT_PRODUCT(b12,b12))
         id12 = 1.0_dp/d12
         d32 = SQRT(DOT_PRODUCT(b32,b32))
@@ -2589,14 +2597,14 @@ END SUBROUTINE potential_bend
 !******************************************************************************
 
 SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set,energy )
-
+                               particle_set,energy,cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER :: first_atom, i, ikind, imol, imul, index_a, index_b, index_c, &
       index_d, itorsion, nkind, nmol_per_kind, ntorsions
@@ -2628,9 +2636,9 @@ SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules,
         index_b = torsion_list ( itorsion ) % b + first_atom - 1
         index_c = torsion_list ( itorsion ) % c + first_atom - 1
         index_d = torsion_list ( itorsion ) % d + first_atom - 1
-        t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
-        t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
+        t12 = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
+        t32 = pbc(particle_set ( index_c ) % r - particle_set ( index_b ) % r,cell)
+        t43 = pbc(particle_set ( index_d ) % r - particle_set ( index_c ) % r,cell)
         s32 = SQRT(DOT_PRODUCT(t32,t32))
         is32 = 1.0_dp/s32
         dist1 = DOT_PRODUCT(t12,t32)
@@ -2675,14 +2683,14 @@ END SUBROUTINE potential_torsion
 !******************************************************************************
 
 SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set,energy )
-
+                               particle_set,energy,cell )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(cell_type), POINTER                 :: cell
 
     INTEGER :: first_atom, i, ikind, imol, index_a, index_b, index_c, &
       index_d, itorsion, nimpr, nkind, nmol_per_kind
@@ -2714,9 +2722,9 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
         index_b = impr_list ( itorsion ) % b + first_atom - 1
         index_c = impr_list ( itorsion ) % c + first_atom - 1
         index_d = impr_list ( itorsion ) % d + first_atom - 1
-        t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
-        t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
+        t12 = pbc(particle_set ( index_a ) % r - particle_set ( index_b ) % r,cell)
+        t32 = pbc(particle_set ( index_c ) % r - particle_set ( index_b ) % r,cell)
+        t34 = pbc(particle_set ( index_c ) % r - particle_set ( index_d ) % r,cell)
 ! t12 x t32
         tm(1) = t12(2)*t32(3)-t32(2)*t12(3)
         tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
@@ -2811,7 +2819,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, local_particles, 
      DO ipair = 1, neighbor_kind_pair%npairs
         atom_a = neighbor_kind_pair%list(1,ipair)
         atom_b = neighbor_kind_pair%list(2,ipair)
-        rab    = pbc(particle_set(atom_b)%r-particle_set(atom_a)%r,cell)+cell_v
+        rab    = pbc(particle_set(atom_b)%r,cell)-pbc(particle_set(atom_a)%r,cell)+cell_v
         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
         IF (rab2 <= rab2_max) THEN
@@ -2877,15 +2885,14 @@ END SUBROUTINE potential_nonbond
                              maxatom=maxatom)
 ! Zero
     energy_numer = 0.0_dp
-    f_numer = 0.0_dp
+    f_numer      = 0.0_dp
 
 !   *** Allocate work storage ***
 
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "atom",nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom",nkind*int_size)
 
 !   *** Initialize the local data structures ***
 
@@ -2894,7 +2901,6 @@ END SUBROUTINE potential_nonbond
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
-
       NULLIFY (atom(ikind)%list)
       NULLIFY (atom(ikind)%list_local_a_index)
       NULLIFY (atom(ikind)%list_local_b_index)
@@ -2911,46 +2917,39 @@ END SUBROUTINE potential_nonbond
 
       maxatom_local = MAX(maxatom_local,natom_local_a)
 
-        IF (natom_local_a > 0) THEN
+      IF (natom_local_a > 0) THEN
 
-          ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "atom(ikind)%list_local_a_index",&
-                                           natom_local_a*int_size)
+        ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "atom(ikind)%list_local_a_index",&
+                                         natom_local_a*int_size)
 
-!         *** Build index vector for mapping ***
+!       *** Build index vector for mapping ***
 
-          DO iatom_local=1,natom_local_a
-            atom_a = local_particles%list(ikind)%array(iatom_local)
-            DO iatom=1,natom_a
-              IF (atom_a == atom(ikind)%list(iatom)) THEN
-                atom(ikind)%list_local_a_index(iatom_local) = iatom
-                EXIT
-              END IF
-            END DO
+        DO iatom_local=1,natom_local_a
+          atom_a = local_particles%list(ikind)%array(iatom_local)
+          DO iatom=1,natom_a
+            IF (atom_a == atom(ikind)%list(iatom)) THEN
+              atom(ikind)%list_local_a_index(iatom_local) = iatom
+              EXIT
+            END IF
           END DO
-
-        END IF
-
-        ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%r_pbc",3*natom_a*dp_size)
-
-        ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%s_pbc",3*natom_a*dp_size)
-
-!       *** Calculate PBC coordinates ***
-
-        DO iatom=1,natom_a
-          atom_a = atom(ikind)%list(iatom)
-          r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell )
-          atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-          CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
         END DO
+      END IF
 
-        atom ( ikind ) % qeff = qeff
+      ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "atom(ikind)%r_pbc")
 
+!     *** Calculate PBC coordinates ***
+
+      DO iatom=1,natom_a
+        atom_a = atom(ikind)%list(iatom)
+        r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell )
+        atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
+      END DO
+
+      atom ( ikind ) % qeff = qeff
     END DO
 
 !   *** evaluate the forces ***
@@ -2966,18 +2965,12 @@ END SUBROUTINE potential_nonbond
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%list_local_a_index")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom(ikind)%list_local_a_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%r_pbc")
-      END IF
-      IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
-        DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atom(ikind)%s_pbc")
       END IF
     END DO
 
@@ -3025,11 +3018,11 @@ END SUBROUTINE potential_nonbond
 
     INTEGER :: atom_a, atom_b, handle, i, iatom, iatom_local, icell, ikind, &
       jatom_local, jcell, jkind, kcell, natom_local_a, natom_local_b, nkind
-    INTEGER, DIMENSION(3)                    :: cell_b, ncell, periodic
-    LOGICAL                                  :: exclude_flag, include_ab
+    INTEGER, DIMENSION(3)                    :: ncell, periodic
+    LOGICAL                                  :: cell000, exclude_flag, targ
     REAL(KIND=dp)                            :: qi, qj, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: r, rab, rb, sab, sab_max, sb, &
-                                                sb_max, sb_min, sb_pbc
+    REAL(KIND=dp), DIMENSION(3)              :: cell_b, r, rab, rb, sab_max, &
+                                                wrk
 
     CALL timeset(routineN,"I","",handle)
 
@@ -3050,12 +3043,10 @@ END SUBROUTINE potential_nonbond
     DO ikind=1,nkind
 
       IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
-
       natom_local_a = SIZE(atom(ikind)%list_local_a_index)
       qi = atom(ikind)%qeff
 
       DO jkind=1,nkind
-
         natom_local_b = SIZE(atom(jkind)%list)
         qj = atom(jkind)%qeff
 
@@ -3068,110 +3059,69 @@ END SUBROUTINE potential_nonbond
         sab_max(2) = r(2)/plane_distance(0,1,0,cell)
         sab_max(3) = r(3)/plane_distance(0,0,1,cell)
 
-        ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
+        ncell(:) = (INT(sab_max(:)+0.5_dp)+1)*periodic(:)
 
 !       *** No subcells will be considered in the debug for safety check****
+        DO jatom_local=1,natom_local_b
+          atom_b = atom(jkind)%list(jatom_local)
 
-!         *** Case 1: No subcell grid is needed ***
+          targ = .FALSE.
+          loop1_kcell: DO kcell=-ncell(3),ncell(3)
+            cell_b(3) = REAL(kcell,KIND=dp)
 
-          DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_a_index(iatom_local)
-            atom_a = atom(ikind)%list(iatom)
-          END DO
+            loop1_jcell: DO jcell=-ncell(2),ncell(2)
+              cell_b(2) = REAL(jcell,KIND=dp)
 
-          DO jatom_local=1,natom_local_b
-
-            atom_b = atom(jkind)%list(jatom_local)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
-
-            loop1_kcell: DO kcell=-ncell(3),ncell(3)
-
-              sb(3) = sb_pbc(3) + REAL(kcell,dp)
-              sb_min(3) = sb(3) - sab_max(3)
-              sb_max(3) = sb(3) + sab_max(3)
-              IF (periodic(3) /= 0) THEN
-                IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
-                IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
-              END IF
-              cell_b(3) = kcell
-
-              loop1_jcell: DO jcell=-ncell(2),ncell(2)
-
-                sb(2) = sb_pbc(2) + REAL(jcell,dp)
-                sb_min(2) = sb(2) - sab_max(2)
-                sb_max(2) = sb(2) + sab_max(2)
-                IF (periodic(2) /= 0) THEN
-                  IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
-                  IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
+              loop1_icell: DO icell=-ncell(1),ncell(1)
+                cell_b(1) = REAL(icell,KIND=dp)
+                cell000 = .FALSE.
+                IF ((kcell==0).AND.(jcell==0).AND.(icell==0)) THEN 
+                   targ = .TRUE.
+                   cell000 = .TRUE.
                 END IF
-                cell_b(2) = jcell
+                IF (.NOT.targ) CYCLE
 
-                loop1_icell: DO icell=-ncell(1),ncell(1)
+                CALL scaled_to_real(rb,cell_b, cell)
+                rb = rb + atom(jkind)%r_pbc(:,jatom_local)
 
-                  sb(1) = sb_pbc(1) + REAL(icell,dp)
-                  sb_min(1) = sb(1) - sab_max(1)
-                  sb_max(1) = sb(1) + sab_max(1)
-                  IF (periodic(1) /= 0) THEN
-                    IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
-                    IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                DO iatom_local=1,natom_local_a
+                  iatom = atom(ikind)%list_local_a_index(iatom_local)
+                  atom_a = atom(ikind)%list(iatom)
+                  IF (cell000.AND.(atom_a <= atom_b)) CYCLE
+                  rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                  rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+
+                  IF (rab2 < rab2_max ) THEN
+                    exclude_flag = .FALSE.
+                    IF (ANY(particle_set(atom_a)%list_exclude_vdw== atom_b)) THEN
+                         wrk = rab-pbc(particle_set(atom_b)%r-particle_set(atom_a)%r, cell) 
+                         IF (DOT_PRODUCT(wrk,wrk) < 1.0E-6_dp) exclude_flag = .TRUE.
+                    END IF
+                    IF (.NOT.exclude_flag ) THEN
+                      SELECT CASE ( potparm %pot( ikind, jkind )%pot % type )
+                      CASE ( ea_type )
+                        CALL stop_program ( "force_nonbond_numer","DEBUG results for EAM are in regtest" )
+                      CASE ( tersoff_type )
+                        ! Do Nothing..
+                      CASE DEFAULT
+                        CALL finite_difference_evaluate(ewald_env,     &
+                                                       potparm, rab,    &
+                                                       ikind, jkind, &
+                                                       atom_a, atom_b, &
+                                                       qi, qj, &
+                                                       numerical_shift, &
+                                                       f_numer,     &
+                                                       energy_numer,error=error)
+                      END SELECT
+                    END IF
                   END IF
-                  cell_b(1) = icell
+                END DO
 
-                  CALL scaled_to_real(rb,sb(:),cell)
+              END DO loop1_icell
+            END DO loop1_jcell
+          END DO loop1_kcell
 
-                  DO iatom_local=1,natom_local_a
-                    iatom = atom(ikind)%list_local_a_index(iatom_local)
-                    atom_a = atom(ikind)%list(iatom)
-                    IF (atom_a > atom_b) THEN
-                      include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                    ELSE
-                      include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                    END IF
-                    IF (include_ab) THEN
-                      rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                      IF (rab2 < rab2_max ) THEN
-                        IF (rab2 > 1.0E-6_dp) THEN
-                          CALL real_to_scaled(sab,rab(:),cell)
-                          exclude_flag = .FALSE.
-                          IF (ANY(particle_set(atom_a)%list_exclude_vdw== atom_b))&
-                               exclude_flag = .TRUE.
-                          IF (.NOT.exclude_flag ) THEN
-                            SELECT CASE ( potparm %pot( ikind, jkind )%pot % type )
-                            CASE ( ea_type )
-                              CALL stop_program ( "force_nonbond_numer", &
-                                "DEBUG results for EAM are in regtest" )
-                            CASE ( tersoff_type )
-                              !CALL fi_di_ev_many (fist_nonbond_env, &
-                              !                    particle_set, &
-                              !                    local_particles, &
-                              !                    atomic_kind_set, &
-                              !                    cell, &
-                              !                    atom_a,atom_b, &
-                              !                    numerical_shift, &
-                              !                    f_numer, &
-                              !                    error=error)
-                            CASE DEFAULT
-                              CALL finite_difference_evaluate(ewald_env,     &
-                                                             potparm, rab,    &
-                                                             ikind, jkind, &
-                                                             atom_a, atom_b, &
-                                                             qi, qj, &
-                                                             numerical_shift, &
-                                                             f_numer,     &
-                                                             energy_numer,error=error)
-                            END SELECT
-                          END IF
-                        END IF
-                      END IF
-                    END IF
-                  END DO
-
-                END DO loop1_icell
-              END DO loop1_jcell
-            END DO loop1_kcell
-
-          END DO
+        END DO
 
       END DO
     END DO

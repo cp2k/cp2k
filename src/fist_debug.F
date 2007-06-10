@@ -44,7 +44,8 @@ MODULE fist_debug
                                              do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -205,9 +206,8 @@ SUBROUTINE  debug_control ( force_env, error)
   CALL mp_sum ( dbg % f_ub, group )
 
 ! defining delta
-  delta = 1.0E-8
-  IF ( iw>0 ) &
-  WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
+  CALL section_vals_val_get(force_env%root_section,"DEBUG%DX",r_val=delta,error=error)
+  IF ( iw>0 )  WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
 
 ! Debug real-space non-bonded interactions
 
@@ -313,7 +313,7 @@ SUBROUTINE  debug_control ( force_env, error)
   f_numer = 0.0_dp
   energy_numer = 0.0_dp
   CALL force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                          particle_set, f_numer, energy_numer, delta )
+                          particle_set, f_numer, energy_numer, delta, cell )
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 ) THEN
@@ -402,7 +402,7 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                        particle_set, f_numer, energy_numer, delta )
+                        particle_set, f_numer, energy_numer, delta, cell )
 
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
@@ -490,7 +490,7 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                              particle_set, f_numer, energy_numer, delta )
+                              particle_set, f_numer, energy_numer, delta,cell )
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 ) THEN
@@ -576,7 +576,7 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                          particle_set, f_numer, energy_numer, delta )
+                          particle_set, f_numer, energy_numer, delta,cell )
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
 
@@ -663,7 +663,7 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                            particle_set, f_numer, energy_numer, delta ,error=error)
+                            particle_set, f_numer, energy_numer, delta ,cell,error=error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
 
@@ -753,7 +753,7 @@ SUBROUTINE  debug_control ( force_env, error)
   energy_numer = 0.0_dp
   pv_test = 0.0_dp
   CALL force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
-                                  particle_set, f_numer, energy_numer, delta ,error=error)
+                                  particle_set, f_numer, energy_numer, delta ,cell,error=error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( iw > 0 ) THEN

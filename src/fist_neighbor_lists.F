@@ -535,7 +535,7 @@ CONTAINS
     g0_i  = ncell(1)*nsubcell(1)
     g0_j  = ncell(2)*nsubcell(2)
     g0_k  = ncell(3)*nsubcell(3)
-    g00   = (g0_i)*dim2p +(g0_j)*dim1p + g0_i
+    g00   = (g0_k)*dim2p +(g0_j)*dim1p + g0_i 
     is_tersoff_pot = .FALSE.
     ! Loop over first subcell
     loop_a_k: DO a_k=1,nsubcell(3)
