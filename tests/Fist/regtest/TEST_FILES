@@ -52,3 +52,4 @@ water_intern.inp          2
 #integrators for shocks
 argon_msst.inp            2
 argon_msst_damped.inp     2
+h2.inp                    7

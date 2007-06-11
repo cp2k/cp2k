@@ -1,0 +1,68 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+      &BOND
+        ATOMS H H
+        KIND HARMONIC
+        K 1.0
+        R0 [angstrom] 0.74
+      &END BOND
+      &NONBONDED
+        &GENPOT
+          ATOMS H H
+          FUNCTION 0.0
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED
+    &END FORCEFIELD
+    
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10 10 10
+      PERIODIC NONE
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+      H  0.0  0.0  0.3
+      H  0.0  0.0 -0.3
+    &END COORD
+    &TOPOLOGY
+      &GENERATE
+        CREATE_MOLECULES T
+      &END GENERATE
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+        GENERATE_INFO T
+      &END
+    &END
+
+  &END SUBSYS
+  &PRINT
+   &FORCES
+   &END
+  &END PRINT
+&END FORCE_EVAL
+&GLOBAL
+  FFT_LIB FFTSG
+  PROJECT h2
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEOOPT
+     MAX_ITER 5
+  &END
+&END
+

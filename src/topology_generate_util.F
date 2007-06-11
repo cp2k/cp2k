@@ -709,6 +709,7 @@ CONTAINS
                 iatm2 = bond_list(iatm1)%array1(j)
                 print_info = .FALSE.
                 IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
+                IF (h_list(iatm2).AND.(iatm2<=iatm1)) CYCLE
                 k     = bond_list(iatm1)%array2(j)
                 ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
                 k     = ABS(k)
