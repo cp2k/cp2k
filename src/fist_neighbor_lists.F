@@ -314,11 +314,10 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
-      b_pk, bg_i, bg_j, bg_k, dim1, dim1p, dim2, dim2p, g0_i, g0_j, g0_k, &
-      handle, i, i1, iab, iatom_local, icell, icellmap, ii, ii_start, ij, &
-      ij_start, ik, ik_start, ikind, imap, imax_cell, iw, ix, j, j1, &
-      jatom_local, jcell, jkind, jx, k, kcell, kx, natom_local_a, ncellmax, &
-      nkind, nkind00, stat, tmpdim, xdim, ydim, zdim
+      b_pk, bg_i, bg_j, bg_k, handle, i, i1, iab, iatom_local, icell, &
+      icellmap, ii, ii_start, ij, ij_start, ik, ik_start, ikind, imap, &
+      imax_cell, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, kcell, kx, &
+      natom_local_a, ncellmax, nkind, nkind00, stat, tmpdim, xdim, ydim, zdim
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
@@ -528,13 +527,6 @@ CONTAINS
     END DO
     DEALLOCATE(work,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    dim1  =  nsubcell(1)
-    dim2  =  nsubcell(2)*nsubcell(1)
-    dim1p = (2*ncell(1)+1)*dim1
-    dim2p = (2*ncell(1)+1)*(2*ncell(2)+1)*dim2
-    g0_i  = ncell(1)*nsubcell(1)
-    g0_j  = ncell(2)*nsubcell(2)
-    g0_k  = ncell(3)*nsubcell(3)
     zdim  = nsubcell(3)
     ydim  = nsubcell(2)
     xdim  = nsubcell(1)
