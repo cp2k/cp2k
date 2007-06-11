@@ -314,11 +314,11 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
-      b_pk, bg_i, bg_j, bg_k, dim1, dim1p, dim2, dim2p, g00, g0_i, g0_j, &
-      g0_k, g_i, g_j, g_k, glob_a_index, glob_b_index, handle, i, i1, iab, &
-      iatom_local, icell, icellmap, ii, ij, ik, ikind, imap, imax_cell, iw, &
-      ix, j, j1, jatom_local, jcell, jkind, jx, k, kcell, kx, natom_local_a, &
-      ncellmax, nkind, nkind00, pre_glob_ind, stat, tmpdim, xdim
+      b_pk, bg_i, bg_j, bg_k, dim1, dim1p, dim2, dim2p, g0_i, g0_j, g0_k, &
+      handle, i, i1, iab, iatom_local, icell, icellmap, ii, ii_start, ij, &
+      ij_start, ik, ik_start, ikind, imap, imax_cell, iw, ix, j, j1, &
+      jatom_local, jcell, jkind, jx, k, kcell, kx, natom_local_a, ncellmax, &
+      nkind, nkind00, stat, tmpdim, xdim, ydim, zdim
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
@@ -535,44 +535,47 @@ CONTAINS
     g0_i  = ncell(1)*nsubcell(1)
     g0_j  = ncell(2)*nsubcell(2)
     g0_k  = ncell(3)*nsubcell(3)
-    g00   = (g0_k)*dim2p +(g0_j)*dim1p + g0_i 
+    zdim  = nsubcell(3)
+    ydim  = nsubcell(2)
+    xdim  = nsubcell(1)
     is_tersoff_pot = .FALSE.
+    ! We can skip until ik>=0.. this prescreens the order of the subcells
+    ik_start = -isubcell(3)
+    IF (.NOT.any_tersoff_pot) ik_start = 0
     ! Loop over first subcell
     loop_a_k: DO a_k=1,nsubcell(3)
     loop_a_j: DO a_j=1,nsubcell(2)
     loop_a_i: DO a_i=1,nsubcell(1)
        IF (subcell_a(a_i,a_j,a_k)%natom == 0) CYCLE
-       g_i = g0_i+a_i
-       g_j = g0_j+a_j
-       g_k = g0_k+a_k
-       pre_glob_ind = (g_k-1)*dim2p +(g_j-1)*dim1p + g_i
-       glob_a_index = pre_glob_ind-g00+1
        ! Loop over second subcell
-       loop_b_k: DO ik=-isubcell(3),isubcell(3)
+       loop_b_k: DO ik=ik_start,isubcell(3)
           bg_k = a_k+ik
-          xdim = nsubcell(3)
-          b_k  = MOD(bg_k,xdim)
-          b_pk = bg_k/xdim
+          b_k  = MOD(bg_k,zdim)
+          b_pk = bg_k/zdim
           IF (b_k<=0) THEN 
-             b_k  = xdim+b_k
+             b_k  = zdim+b_k
              b_pk = b_pk - 1
           END IF
           IF ((periodic(3)==0).AND.(ABS(b_pk)>0)) CYCLE
-       loop_b_j: DO ij=-isubcell(2),isubcell(2)
+          ! Setup the starting point.. this prescreens the order of the subcells
+          ij_start = -isubcell(2)
+          IF ((ik==0).AND.(.NOT.any_tersoff_pot)) ij_start = 0
+       loop_b_j: DO ij=ij_start,isubcell(2)
           bg_j = a_j+ij
-          xdim = nsubcell(2)
-          b_j  = MOD(bg_j,xdim)
-          b_pj = bg_j/xdim
+          b_j  = MOD(bg_j,ydim)
+          b_pj = bg_j/ydim
           IF (b_j<=0) THEN 
-             b_j  = xdim+b_j
+             b_j  = ydim+b_j
              b_pj = b_pj - 1
           END IF
           IF ((periodic(2)==0).AND.(ABS(b_pj)>0)) CYCLE
-       loop_b_i: DO ii=-isubcell(1),isubcell(1)
+          ! Setup the starting point.. this prescreens the order of the subcells
+          ii_start = -isubcell(1)
+          IF ((ik==0).AND.(ij==0).AND.(.NOT.any_tersoff_pot)) ii_start = 0
+       loop_b_i: DO ii=ii_start,isubcell(1)
           ! Ellipsoidal screening of subcells
           IF (.NOT.sphcub(ii,ij,ik)) CYCLE
           bg_i  = a_i+ii
-          xdim = nsubcell(1)
           b_i  = MOD(bg_i,xdim)
           b_pi = bg_i/xdim
           IF (b_i<=0) THEN 
@@ -581,13 +584,6 @@ CONTAINS
           END IF
           IF ((periodic(1)==0).AND.(ABS(b_pi)>0)) CYCLE
           IF ( subcell_b(b_i,b_j,b_k)%natom == 0) CYCLE
-          ! Screen the interactions (avoid double counting of interacting subcells)
-          g_i = g0_i+bg_i
-          g_j = g0_j+bg_j
-          g_k = g0_k+bg_k
-          pre_glob_ind = (g_k-1)*dim2p +(g_j-1)*dim1p + g_i
-          glob_b_index = pre_glob_ind-g00+1
-          IF ((glob_a_index > glob_b_index).AND.(.NOT.any_tersoff_pot)) CYCLE 
           ! Find the replica vector
           icellmap = cellmap(b_pi,b_pj,b_pk)
           cell_v = 0.0_dp
@@ -614,9 +610,6 @@ CONTAINS
                    is_tersoff_pot = (pot_type(ikind,jkind)==tersoff_type)
                    IF (is_tersoff_pot) THEN
                       atom_order = (atom_a==atom_b)
-                   ELSE
-                      ! Unique order for all other cases..
-                      IF (glob_a_index > glob_b_index) CYCLE
                    END IF
                 END IF
                 IF (subcell000.AND.atom_order) CYCLE
