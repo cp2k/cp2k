@@ -32,11 +32,13 @@ MODULE fist_force_numer
                                              pbc,&
                                              plane_distance,&
                                              scaled_to_real
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
+  USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -1774,8 +1776,8 @@ END SUBROUTINE pv_imptors_numer
 !******************************************************************************
 
 SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
-                              particle_set, local_particles, cell, pv_test, delta, error )
-
+                              particle_set, local_particles, cell, pv_test, delta,&
+                              para_env, force_env_section, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -1786,6 +1788,8 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(INOUT)                          :: pv_test
     REAL(KIND=dp), INTENT(IN)                :: delta
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, ii, isos, j, jj, k, natoms
@@ -1794,10 +1798,12 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
       DIMENSION(:, :)                        :: s
     REAL(KIND=dp), DIMENSION(3, 3)           :: dvdh
     TYPE(cell_type), POINTER                 :: cell_local
+    TYPE(particle_type), POINTER             :: core_particle_set(:), &
+                                                shell_particle_set( : )
 
 !------------------------------------------------------------------------------
 
-  NULLIFY ( cell_local )
+  NULLIFY ( cell_local, shell_particle_set, core_particle_set )
 
   CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. ,error=error)
 
@@ -1825,6 +1831,10 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         DO i = 1, natoms
            particle_set ( i ) % r ( : ) = MATMUL ( cell_local % hmat, s(:,i) )
         END DO
+        ! Update neighbor lists
+        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
+                            cell_local, fist_nonbond_env,para_env, force_env_section, &
+                            shell_particle_set, core_particle_set, .TRUE., error)
         CALL potential_nonbond ( fist_nonbond_env, particle_set, local_particles, &
                                  atomic_kind_set, ewald_env, cell_local, vnb ,error=error)
         vp = vnb
@@ -1835,6 +1845,10 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         DO i = 1, natoms
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
         END DO
+        ! Update neighbor lists
+        CALL list_control ( atomic_kind_set, particle_set, local_particles, &
+                            cell_local, fist_nonbond_env, para_env, force_env_section, &
+                            shell_particle_set, core_particle_set, .TRUE., error)
         CALL potential_nonbond ( fist_nonbond_env, particle_set, local_particles, &
                                  atomic_kind_set, ewald_env, cell_local, vnb ,error=error)
         vm = vnb
@@ -1850,6 +1864,10 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         END DO
      END DO LOOP2
   END DO LOOP1
+  ! Update neighbor lists
+  CALL list_control ( atomic_kind_set, particle_set, local_particles, &
+                      cell_local, fist_nonbond_env,para_env, force_env_section, &
+                      shell_particle_set, core_particle_set, .TRUE., error)
 
 ! computing pv_test
   DO i = 1, 3

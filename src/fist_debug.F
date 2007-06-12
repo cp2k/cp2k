@@ -283,7 +283,8 @@ SUBROUTINE  debug_control ( force_env, error)
 ! Debug non-bonded virial
 
   CALL pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
-                          particle_set, local_particles, cell, pv_test, delta ,error=error)
+                          particle_set, local_particles, cell, pv_test, delta , para_env,&
+                          force_env%force_env_section, error=error)
 
   CALL mp_sum( pv_test, group )
 

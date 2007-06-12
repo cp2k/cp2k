@@ -215,8 +215,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_s
   IF (fist_nonbond_env%do_nonbonded) THEN
      ! first check with list_control to update neighbor lists
      CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                         cell, fist_nonbond_env,para_env, iw, force_env_section, &
-                         shell_particle_set, core_particle_set, error)
+                         cell, fist_nonbond_env,para_env, force_env_section, &
+                         shell_particle_set, core_particle_set, error=error)
   END IF
 
   ! Initialize force, energy and pressure tensor arrays

@@ -28,6 +28,8 @@ MODULE fist_neighbor_list_control
                                              cell_create,&
                                              cell_release,&
                                              cell_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type
@@ -68,8 +70,8 @@ CONTAINS
 ! list update, then the list routine is called.
 
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
-                          cell, fist_nonbond_env, para_env,output_unit, &
-                          force_env_section, shell_particle_set, core_particle_set, error)
+                          cell, fist_nonbond_env, para_env, force_env_section,&
+                          shell_particle_set, core_particle_set, force_update, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -77,17 +79,17 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(cell_type), POINTER                 :: cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: output_unit
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), POINTER             :: shell_particle_set( : ), &
                                                 core_particle_set( : )
+    LOGICAL, INTENT(IN), OPTIONAL            :: force_update
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
 
     INTEGER :: counter, handle, i, ikind, iparticle, iparticle_kind, &
       iparticle_local, ishell, istat, jkind, last_update, nparticle, &
-      nparticle_kind, nparticle_local, nshell, num_update
+      nparticle_kind, nparticle_local, nshell, num_update, output_unit
     INTEGER, DIMENSION(:, :), POINTER        :: pot_type
     LOGICAL                                  :: build_from_scratch, &
                                                 shell_adiabatic, &
@@ -98,6 +100,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
     TYPE(cell_type), POINTER                 :: cell_last_update
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
@@ -106,6 +109,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                                 rshell_last_update_pbc
 
   CALL timeset(routineN,"I"," ",handle )
+  NULLIFY(logger)
+  logger => cp_error_get_logger(error)
 
 ! *** Assigning local pointers ***
 
@@ -141,9 +146,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   build_from_scratch = .FALSE.
 
   IF (ASSOCIATED(r_last_update)) THEN
-
     dr2_max = 0.0_dp
-
     DO iparticle_kind=1,nparticle_kind
       nparticle_local = local_particles%n_el(iparticle_kind)
       DO iparticle_local=1,nparticle_local
@@ -166,9 +169,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       END DO
       update_neighbor_lists = .TRUE.
     END IF
-
   ELSE
-
     ALLOCATE (r_last_update(nparticle),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routineN,moduleN,__LINE__,"r_last_update",&
@@ -180,7 +181,10 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
     update_neighbor_lists = .TRUE.
     build_from_scratch = .TRUE.
-
+  END IF
+  ! Force Update
+  IF (PRESENT(force_update)) THEN
+    IF (force_update) update_neighbor_lists = .TRUE.
   END IF
 
   ! Update the rlast_update_pbc
@@ -254,12 +258,16 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                last_update=last_update,&
                                cell_last_update=cell_last_update,error=error)
 
+     output_unit = cp_print_key_unit_nr(logger,force_env_section,"MM%PRINT%NEIGHBOR_LISTS",&
+       extension=".mmLog",error=error)
      IF (output_unit>0) THEN
         WRITE (UNIT=output_unit,&
              FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
              REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
              " LIST UPDATES[steps]","= ",lup,aup,REPEAT("*",79)
      END IF
+     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "MM%PRINT%NEIGHBOR_LISTS",error=error)
      DEALLOCATE(pot_type,stat=istat)
      IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,"pot_type",nparticle_kind**2)

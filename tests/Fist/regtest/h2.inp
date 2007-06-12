@@ -62,7 +62,7 @@
 &END GLOBAL
 &MOTION
   &GEOOPT
-     MAX_ITER 5
+     MAX_ITER 1
   &END
 &END
 

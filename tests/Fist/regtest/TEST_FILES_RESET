@@ -275,3 +275,4 @@ C_tersoff.inp
 C_tersoff.inp
 # faster bonded correct gaussian and bug fix for stress tensor in shell model
 water_3_dist.inp
+h2.inp
