@@ -746,9 +746,15 @@ END SUBROUTINE f_env_rm_defaults
              my_para_env => para_env
              my_error = error
           END IF
-          ! Initialize force_env_section
-          CALL section_vals_duplicate(force_env_sections,force_env_section,&
-               i_force_eval(iforce_eval),i_force_eval(iforce_eval),my_error)
+          ! Initialize force_env_section..
+          ! No need to allocate one more force_env_section if only 1 force_eval
+          ! is provided.. this is in order to save memory..
+          IF (nforce_eval>1) THEN
+             CALL section_vals_duplicate(force_env_sections,force_env_section,&
+                  i_force_eval(iforce_eval),i_force_eval(iforce_eval),my_error)
+          ELSE
+             force_env_section => force_env_sections
+          END IF
           CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=my_error)
 
           SELECT CASE (method_name_id)
@@ -823,7 +829,7 @@ CPSourceFileRef,&
              lgroup_distribution = iforce_eval
           END IF
           ! Release force_env_section
-          CALL section_vals_release(force_env_section,my_error)
+          IF (nforce_eval>1) CALL section_vals_release(force_env_section,my_error)
        END DO
        DEALLOCATE(group_distribution,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
