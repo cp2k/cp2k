@@ -61,11 +61,11 @@ MODULE four_center_integrals
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE x_hf,                            ONLY: proc_assoc_with_this_energy_config,&
-                                             proc_assoc_with_this_forces_config,&
+  USE x_hf,                            ONLY: proc_assoc_energy,&
+                                             proc_assoc_forces,&
                                              x_hf_screening_type,&
-                                             x_hf_set_integral_distribution_energy,&
-                                             x_hf_set_integral_distribution_forces,&
+                                             x_hf_set_distr_energy,&
+                                             x_hf_set_distr_forces,&
                                              x_hf_type
 #include "cp_common_uses.h"
 
@@ -1876,7 +1876,7 @@ MODULE four_center_integrals
 
 #ifdef __parallel
               distribution_counter = distribution_counter + 1
-              IF(.NOT.proc_assoc_with_this_energy_config(distribution_counter, qs_env%x_data%integral_distribution_energy)) CYCLE
+              IF(.NOT.proc_assoc_energy(distribution_counter, qs_env%x_data%integral_distribution_energy)) CYCLE
 #endif
 
               !calculate symmetry_factor
@@ -2465,7 +2465,7 @@ MODULE four_center_integrals
 
 #ifdef __parallel
               distribution_counter = distribution_counter + 1
-              IF(.NOT.proc_assoc_with_this_forces_config(distribution_counter, qs_env%x_data%integral_distribution_forces)) CYCLE
+              IF(.NOT.proc_assoc_forces(distribution_counter, qs_env%x_data%integral_distribution_forces)) CYCLE
 #endif
 
 
@@ -3030,7 +3030,7 @@ MODULE four_center_integrals
     DO mepos=1,ncpu
       distr => integral_distribution(mepos,:)
       IF(para_env%mepos == mepos-1)&
-         CALL x_hf_set_integral_distribution_energy(distr,x_data,error=error)
+         CALL x_hf_set_distr_energy(distr,x_data,error=error)
     END DO
     DEALLOCATE(cost_per_cpu,integral_distribution, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -3401,7 +3401,7 @@ MODULE four_center_integrals
     DO mepos=1,ncpu
       distr => integral_distribution(mepos,:)
       IF(para_env%mepos == mepos-1) &
-         CALL x_hf_set_integral_distribution_forces(distr,x_data,error=error)
+         CALL x_hf_set_distr_forces(distr,x_data,error=error)
     END DO
     DEALLOCATE(cost_per_cpu,integral_distribution, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

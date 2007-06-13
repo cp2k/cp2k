@@ -30,8 +30,8 @@ MODULE x_hf
   IMPLICIT NONE
   PRIVATE
   PUBLIC  x_hf_type, x_hf_create, x_hf_release, x_hf_screening_type ,&
-          x_hf_set_integral_distribution_energy, proc_assoc_with_this_energy_config,&
-          x_hf_set_integral_distribution_forces, proc_assoc_with_this_forces_config
+          x_hf_set_distr_energy, proc_assoc_energy,&
+          x_hf_set_distr_forces, proc_assoc_forces
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
 
@@ -134,7 +134,7 @@ MODULE x_hf
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE x_hf_release
 
-  SUBROUTINE x_hf_set_integral_distribution_energy(distr, x_data, error)
+  SUBROUTINE x_hf_set_distr_energy(distr, x_data, error)
     INTEGER*8, DIMENSION(:), POINTER         :: distr
     TYPE(x_hf_type), POINTER                 :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -142,7 +142,7 @@ MODULE x_hf
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
     CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'x_hf_set_integral_distribution_energy', &
+      routineN = 'x_hf_set_dist_energy', &
       routineP = moduleN//':'//routineN
 
     DEALLOCATE(x_data%integral_distribution_energy,STAT=stat)
@@ -150,32 +150,32 @@ MODULE x_hf
 
     ALLOCATE(x_data%integral_distribution_energy(SIZE(distr)))
     x_data%integral_distribution_energy = distr
-  END SUBROUTINE x_hf_set_integral_distribution_energy
+  END SUBROUTINE x_hf_set_distr_energy
 
-  FUNCTION proc_assoc_with_this_energy_config(counter, distribution)
-    LOGICAL                                  :: proc_assoc_with_this_energy_config
+  FUNCTION proc_assoc_energy(counter, distribution)
+    LOGICAL                                  :: proc_assoc_energy
     INTEGER*8                                :: counter
     INTEGER*8, DIMENSION(:), POINTER         :: distribution
 
     INTEGER                                  :: mysize, ipos
 
 #ifndef __parallel
-    proc_assoc_with_this_energy_config = .TRUE.
+    proc_assoc_energy = .TRUE.
     RETURN
 #else
     mysize = SIZE(distribution,1)/2
     
-    proc_assoc_with_this_energy_config = .FALSE.
+    proc_assoc_energy = .FALSE.
     DO ipos = 1,mysize
       IF(counter>=distribution(2*ipos-1) .AND. counter<=distribution(2*ipos) ) THEN
-        proc_assoc_with_this_energy_config = .TRUE.
+        proc_assoc_energy = .TRUE.
         RETURN
       END IF
     END DO
 #endif
-  END FUNCTION proc_assoc_with_this_energy_config
+  END FUNCTION proc_assoc_energy
 
-  SUBROUTINE x_hf_set_integral_distribution_forces(distr, x_data, error)
+  SUBROUTINE x_hf_set_distr_forces(distr, x_data, error)
     INTEGER*8, DIMENSION(:), POINTER         :: distr
     TYPE(x_hf_type), POINTER                 :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -183,7 +183,7 @@ MODULE x_hf
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
     CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'x_hf_set_integral_distribution_forces', &
+      routineN = 'x_hf_set_distr_forces', &
       routineP = moduleN//':'//routineN
 
 
@@ -192,30 +192,30 @@ MODULE x_hf
 
     ALLOCATE(x_data%integral_distribution_forces(SIZE(distr)))
     x_data%integral_distribution_forces = distr
-  END SUBROUTINE x_hf_set_integral_distribution_forces
+  END SUBROUTINE x_hf_set_distr_forces
 
-  FUNCTION proc_assoc_with_this_forces_config(counter, distribution)
-    LOGICAL                                  :: proc_assoc_with_this_forces_config
+  FUNCTION proc_assoc_forces(counter, distribution)
+    LOGICAL                                  :: proc_assoc_forces
     INTEGER*8                                :: counter
     INTEGER*8, DIMENSION(:), POINTER         :: distribution
 
     INTEGER                                  :: mysize, ipos
 
 #ifndef __parallel
-    proc_assoc_with_this_forces_config = .TRUE.
+    proc_assoc_forces = .TRUE.
     RETURN
 #else
     mysize = SIZE(distribution,1)/2
     
-    proc_assoc_with_this_forces_config = .FALSE.
+    proc_assoc_forces = .FALSE.
     DO ipos = 1,mysize
       IF(counter>=distribution(2*ipos-1) .AND. counter<=distribution(2*ipos) ) THEN
-        proc_assoc_with_this_forces_config = .TRUE.
+        proc_assoc_forces = .TRUE.
         RETURN
       END IF
     END DO
 #endif
-  END FUNCTION proc_assoc_with_this_forces_config
+  END FUNCTION proc_assoc_forces
  
 END MODULE x_hf
 
