@@ -1,4 +1,4 @@
-15
+16
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -14,6 +14,7 @@ B2(T) =!4
 sparseness function f2 =!5
 CheckSum Shifts =!4
 CheckSum NICS =!4
+CheckSum Chi =!4
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value
