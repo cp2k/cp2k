@@ -845,11 +845,13 @@ MODULE qs_rho_atom_methods
     CALL reallocate(my_CG,1,max_s_set,1,max_s_set,1,max_s_harm)
 
 !   *** If NMR compute additional expasion coefficientsin the harmonics
-    do_dxyz_asym = .FALSE.
-    IF(ASSOCIATED(linres_control)) THEN
-      IF(linres_control%property==lr_chemshift) do_dxyz_asym=.TRUE.
-      IF(linres_control%property==lr_gtensor) do_dxyz_asym=.TRUE. !R
-    END IF
+    !vw Set that guy to T. linres_control is never set before the call of this routine.
+    do_dxyz_asym = .TRUE.
+    !do_dxyz_asym = .FALSE.
+    !IF(ASSOCIATED(linres_control)) THEN
+    !  IF(linres_control%property==lr_chemshift) do_dxyz_asym=.TRUE.
+    !  IF(linres_control%property==lr_gtensor) do_dxyz_asym=.TRUE. !R
+    !END IF
     ALLOCATE(rga(lcleb,2),STAT=istat)
     DO lc1 = 0,maxlgto
       DO  iso1=nsoset(lc1-1)+1,nsoset(lc1)

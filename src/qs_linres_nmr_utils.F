@@ -119,6 +119,7 @@ MODULE qs_linres_nmr_utils
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -507,21 +508,21 @@ CONTAINS
 !****************************************************************************
 
   SUBROUTINE nmr_env_init(nmr_env,qs_env,error)
-
+    !
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-
+    !
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: label
     CHARACTER(LEN=default_string_length)     :: nics_file_name
     INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
-      istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
-      natom, ncubes, nmoloc, nspins, nstates, output_unit
+         istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
+         natom, ncubes, nmoloc, nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
-    LOGICAL                                  :: failure, gapw, ionode, my_end
+    LOGICAL                                  :: failure, gapw, my_end
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
     REAL(dp)                                 :: center(3), center2(3), dist, &
                                                 mdist, rab(3)
@@ -532,17 +533,17 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(jrho_atom_type), DIMENSION(:), &
-      POINTER                                :: jrho1_atom_set
+         POINTER                             :: jrho1_atom_set
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
+         POINTER                             :: mos
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                             :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+         POINTER                             :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
 
@@ -553,91 +554,88 @@ CONTAINS
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, matrix_s, mos, mpools, nmr_section, particle_set)
     NULLIFY(auxbas_pw_pool,pw_env,parser)
+    NULLIFY(jrho1_atom_set)
+
     n_mo(1:2) = 0
     nao = 0
     nmoloc = 0
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
+    !ionode = logger%para_env%mepos==logger%para_env%source
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
-
+         &                             extension=".linresLog",error=error)
+    
     IF(nmr_env%ref_count /= 0) THEN
       CALL nmr_env_cleanup(nmr_env,error=error)
     END IF
 
-
     IF(output_unit>0) THEN
-
-      WRITE (UNIT=output_unit,FMT="(/,T20,A,/)")&
-         "*** Start NMR Chemical Shift Calculation ***"
-      WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-         "Inizialization of the NMR environment"
-
-    END IF
+      WRITE(output_unit,"(/,T20,A,/)") "*** Start NMR Chemical Shift Calculation ***"
+      WRITE(output_unit,"(T10,A,/)") "Inizialization of the NMR environment"
+    ENDIF
 
     CALL nmr_env_create(nmr_env,error=error)
-
+    !
     ! If surrent_density or full_nmr different allocations are required
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
-                                                 "PROPERTIES%LINRES%NMR",error=error)
+         &                                    "PROPERTIES%LINRES%NMR",error=error)
     CALL section_vals_val_get(nmr_section,"FULL",l_val=nmr_env%full_nmr,error=error)
     CALL section_vals_val_get(nmr_section,"RESTART_NMR",l_val=nmr_env%restart_nmr,error=error)
     CALL section_vals_val_get(nmr_section,"NICS",l_val=nmr_env%do_nics,error=error)
-    IF(nmr_env%do_nics)THEN
-      CALL section_vals_val_get(nmr_section,"NICS_FILE_NAME",&
-           c_val=nics_file_name,error=error)
-      CALL parser_create(parser,nics_file_name,error=error)
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,nmr_env%n_nics,error=error)
-      ALLOCATE(nmr_env%r_nics(3,nmr_env%n_nics),STAT=istat)
-      CALL parser_get_next_line(parser,2,error=error)
-      DO j = 1,nmr_env%n_nics
-        CALL parser_get_object(parser,label,error=error)
-        CALL parser_get_object(parser,nmr_env%r_nics(1,j),error=error)
-        CALL parser_get_object(parser,nmr_env%r_nics(2,j),error=error)
-        CALL parser_get_object(parser,nmr_env%r_nics(3,j),error=error)
-        CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(1,j))
-        CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(2,j))
-        CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(3,j))
-        CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
-        IF (my_end) EXIT
-      END DO
-      CALL parser_release(parser,error=error)
-    END IF
-
+    IF(nmr_env%do_nics) THEN
+       CALL section_vals_val_get(nmr_section,"NICS_FILE_NAME",&
+            &                    c_val=nics_file_name,error=error)
+       CALL parser_create(parser,nics_file_name,error=error)
+       CALL parser_get_next_line(parser,1,error=error)
+       CALL parser_get_object(parser,nmr_env%n_nics,error=error)
+       ALLOCATE(nmr_env%r_nics(3,nmr_env%n_nics),STAT=istat)
+       CALL parser_get_next_line(parser,2,error=error)
+       DO j = 1,nmr_env%n_nics
+          CALL parser_get_object(parser,label,error=error)
+          CALL parser_get_object(parser,nmr_env%r_nics(1,j),error=error)
+          CALL parser_get_object(parser,nmr_env%r_nics(2,j),error=error)
+          CALL parser_get_object(parser,nmr_env%r_nics(3,j),error=error)
+          CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(1,j))
+          CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(2,j))
+          CALL convert_to_cp2k_units("ANGSTROM",length=nmr_env%r_nics(3,j))
+          CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+          IF (my_end) EXIT
+       ENDDO
+       CALL parser_release(parser,error=error)
+    ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    linres_control=linres_control,&
-                    matrix_s=matrix_s,&
-                    mos=mos,&
-                    mpools=mpools,&
-                    particle_set=particle_set,&
-                    pw_env=pw_env,&
-                    scf_control=scf_control,error=error)
-
+         &          atomic_kind_set=atomic_kind_set,&
+         &          cell=cell,&
+         &          dft_control=dft_control,&
+         &          linres_control=linres_control,&
+         &          matrix_s=matrix_s,&
+         &          mos=mos,&
+         &          mpools=mpools,&
+         &          particle_set=particle_set,&
+         &          pw_env=pw_env,&
+         &          scf_control=scf_control,error=error)
+    !
     ! Check if restat also psi0 should be restarted
     IF(nmr_env%restart_nmr .AND. scf_control%density_guess/=restart_guess)THEN
-      CALL stop_program("nmr_env_init","restart_nmr requires density_guess=restart")
-    END IF
-
+       CALL stop_program("nmr_env_init","restart_nmr requires density_guess=restart")
+    ENDIF
+    !
     ! check that the psi0 are localized and you have all the centers
-     CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
-     IF(failure .AND. (output_unit>0)) THEN
-       WRITE (UNIT=output_unit,FMT='(A)') &
-          ' To get NMR parameters within PBC you need localized zero order orbitals '
-     END IF
-     nspins = dft_control%nspins
-     natom = SIZE(particle_set,1)
-     ALLOCATE(nmr_env%centers_set(nspins),STAT=istat)
-     nstates = 0
-     nmr_env%nstates = 0
-     DO ispin = 1,nspins
+    CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
+    IF(failure .AND. (output_unit>0)) THEN
+       WRITE(output_unit,'(A)') &
+            ' To get NMR parameters within PBC you need localized zero order orbitals '
+    ENDIF
+    gapw = dft_control%qs_control%gapw
+    nspins = dft_control%nspins
+    natom = SIZE(particle_set,1)
+    ALLOCATE(nmr_env%centers_set(nspins),STAT=istat)
+    nstates = 0
+    nmr_env%nstates = 0
+    DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=n_mo(ispin),homo=homo)
        nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
        CPPrecondition(nmoloc==homo,cp_warning_level,routineP,error,failure)
@@ -645,211 +643,213 @@ CONTAINS
        CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
        ! point to the psi0 centers
        DO idir = 1,3
-         nmr_env%centers_set(ispin)%array(idir,:) = &
-           linres_control%localized_wfn_control%centers_set(ispin)%array(idir,:)
-       END DO
+          nmr_env%centers_set(ispin)%array(idir,:) = &
+               & linres_control%localized_wfn_control%centers_set(ispin)%array(idir,:)
+       ENDDO
        nmr_env%nstates(ispin) = homo
        nstates = MAX(nstates,homo)
-     END DO
-     nmr_env%nao =nao
-     ALLOCATE(nmr_env%statetrueindex(3,nstates),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     nmr_env%statetrueindex = 0
-     ALLOCATE(state_done(3,nstates),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     state_done = .FALSE.
+    ENDDO
+    nmr_env%nao =nao
+    ALLOCATE(nmr_env%statetrueindex(3,nstates),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    nmr_env%statetrueindex = 0
+    ALLOCATE(state_done(3,nstates),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    state_done = .FALSE.
 
-     nmr_env%statetrueindex(1,1) = 1
-     center(1)  = nmr_env%centers_set(1)%array(1,1)
-     center(2)  = nmr_env%centers_set(1)%array(2,1)
-     center(3)  = nmr_env%centers_set(1)%array(3,1)
-     state_done(1,1) = .TRUE.
-     icount = 1
+    nmr_env%statetrueindex(1,1) = 1
+    center(1)  = nmr_env%centers_set(1)%array(1,1)
+    center(2)  = nmr_env%centers_set(1)%array(2,1)
+    center(3)  = nmr_env%centers_set(1)%array(3,1)
+    state_done(1,1) = .TRUE.
+    icount = 1
 
-     DO idir = 1,3
+    DO idir = 1,3
        ini = 1
        IF(idir == 1) ini = 2
        DO istate = ini, nstates
-         mdist = 100.0_dp
+          mdist = 100.0_dp
+          
+          DO istate2 = 1,nstates
+             IF(.NOT.state_done(idir,istate2)) THEN
+                center2(1)  = nmr_env%centers_set(1)%array(1,istate2)
+                center2(2)  = nmr_env%centers_set(1)%array(2,istate2)
+                center2(3)  = nmr_env%centers_set(1)%array(3,istate2)
+                
+                rab = pbc(center,center2,cell)
+                CALL set_vecp(idir,j,k)
+                dist = SQRT(rab(j)*rab(j)+rab(k)*rab(k))
 
-         DO istate2 = 1,nstates
-           IF(.NOT.state_done(idir,istate2)) THEN
-             center2(1)  = nmr_env%centers_set(1)%array(1,istate2)
-             center2(2)  = nmr_env%centers_set(1)%array(2,istate2)
-             center2(3)  = nmr_env%centers_set(1)%array(3,istate2)
+                IF(dist .LT. mdist) THEN
+                   mdist =dist
+                   istate_next = istate2
+                ENDIF
+             ENDIF
+          ENDDO  ! istate2
 
-             rab = pbc(center,center2,cell)
-             CALL set_vecp(idir,j,k)
-             dist = SQRT(rab(j)*rab(j)+rab(k)*rab(k))
-
-             IF(dist .LT. mdist) THEN
-                mdist =dist
-                istate_next = istate2
-             END IF
-           END IF
-         END DO  ! istate2
-
-         icount = icount + 1
-         state_done(idir,istate_next) = .TRUE.
-         nmr_env%statetrueindex(idir,icount) = istate_next
-!dbg
-!   write(*,*) idir,icount,istate_next
-!dbg
-         center(1)  = nmr_env%centers_set(1)%array(1,istate_next)
-         center(2)  = nmr_env%centers_set(1)%array(2,istate_next)
-         center(3)  = nmr_env%centers_set(1)%array(3,istate_next)
-       END DO  ! istate
+          icount = icount + 1
+          state_done(idir,istate_next) = .TRUE.
+          nmr_env%statetrueindex(idir,icount) = istate_next
+          center(1)  = nmr_env%centers_set(1)%array(1,istate_next)
+          center(2)  = nmr_env%centers_set(1)%array(2,istate_next)
+          center(3)  = nmr_env%centers_set(1)%array(3,istate_next)
+       ENDDO  ! istate
        icount = 0
-     END DO  ! idir
-     DEALLOCATE(state_done,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDDO  ! idir
+    DEALLOCATE(state_done,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    ! Conversion factors
+    ! factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
+    nmr_env%shift_factor = ( 1.0_dp / 137.03602_dp )**2   * 1.0E+6_dp / cell%deth
+    ! factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
+    nmr_env%shift_factor_gapw = ( 1.0_dp / 137.03602_dp )**2   * 1.0E+6_dp
+    ! chi_factor =  1/4 * e^2/m * a_0 ^2
+    nmr_env%chi_factor = 1.9727566E-29_dp / 1.0E-30_dp ! -> displayed in 10^-30 J/T^2
+    ! Factor to convert 10^-30 J/T^2 into ppm cgs = ppm cm^3/mol
+    ! = 10^-30 * mu_0/4pi * N_A * 10^6 * 10^6  [one 10^6 for ppm, one for m^3 -> cm^3]
+    nmr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp
+    ! Chi to Shift: 10^-30  *  2/3  mu_0 / Omega  * 1/ppm
+    nmr_env%chi_SI2shiftppm = 1.0E-30_dp * 8.37758041E-7_dp/ &
+         &                   (cell%deth /cell%unit_of_length**3*1.0E-30_dp) * 1.0E+6_dp
 
-!    Conversion factors
-!    factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
-     nmr_env%shift_factor = ( 1.0_dp / 137.03602_dp )**2   * 1.0E+6_dp / cell%deth
-!    chi_factor =  1/4 * e^2/m * a_0 ^2
-     nmr_env%chi_factor = 1.9727566E-29_dp / 1.0E-30_dp ! -> displayed in 10^-30 J/T^2
-!    Factor to convert 10^-30 J/T^2 into ppm cgs = ppm cm^3/mol
-!      = 10^-30 * mu_0/4pi * N_A * 10^6 * 10^6  [one 10^6 for ppm, one for m^3 -> cm^3]
-     nmr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp
-!    Chi to Shift: 10^-30  *  2/3  mu_0 / Omega  * 1/ppm
-     nmr_env%chi_SI2shiftppm = 1.0E-30_dp * 8.37758041E-7_dp/ &
-                      (cell%deth /cell%unit_of_length**3*1.0E-30_dp) * 1.0E+6_dp
-
-     IF(output_unit>0) THEN
+    IF(output_unit>0) THEN
        IF(nmr_env%full_nmr) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "  NMR|","Full orbital dependent correction"
-       END IF
+          WRITE(output_unit,"(T2,A,T60,A)") "  NMR|","Full orbital dependent correction"
+       ENDIF
        IF(nmr_env%do_nics) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T50,I5,A)")&
-            "  NMR|   NICS computed in ",nmr_env%n_nics," additional points"
-         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "  NMR|   NICS coordinates read on file ",nics_file_name
-       END IF
-       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
-            "  NMR|      Shift factor (ppm)", nmr_env%shift_factor
-       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
-            "  NMR|        Chi factor  (SI)", nmr_env%chi_factor
-       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
-            "  NMR| Conversion Chi (ppm/cgs)", nmr_env%chi_SI2ppmcgs
-       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
-            "  NMR| Conversion Chi to Shift", nmr_env%chi_SI2shiftppm
-     END IF
+          WRITE(output_unit,"(T2,A,T50,I5,A)")&
+               & "  NMR|   NICS computed in ",nmr_env%n_nics," additional points"
+          WRITE(output_unit,"(T2,A,T60,A)")&
+               & "  NMR|   NICS coordinates read on file ",nics_file_name
+       ENDIF
+       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
+            & "  NMR|      Shift factor (ppm)", nmr_env%shift_factor
+       IF(gapw) THEN
+          WRITE(output_unit,"(T2,A,T60,ES15.6)")&
+               & "  NMR| Shift factor gapw (ppm)", nmr_env%shift_factor_gapw
+       ENDIF
+       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
+            & "  NMR|        Chi factor  (SI)", nmr_env%chi_factor
+       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
+            & "  NMR| Conversion Chi (ppm/cgs)", nmr_env%chi_SI2ppmcgs
+       WRITE(output_unit,"(T2,A,T60,ES15.6)")&
+            & "  NMR| Conversion Chi to Shift", nmr_env%chi_SI2shiftppm
+    ENDIF
 
-     nmr_env%store_current = .FALSE.
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-                  "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+    nmr_env%store_current = .FALSE.
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+         &    "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
 
        NULLIFY(bounds,list)
        ncubes = 0
        CALL section_vals_val_get(nmr_section,&
-          "PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LU_BOUNDS",&
-           i_vals=bounds,error=error)
+            &                    "PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LU_BOUNDS",&
+            &                    i_vals=bounds,error=error)
        ncubes = bounds(2) - bounds(1)  + 1
        IF(ncubes > 0 ) THEN
-         ALLOCATE( nmr_env%list_cubes(ncubes),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO ir = 1,ncubes
-           nmr_env%list_cubes(ir) = bounds(1) + (ir-1)
-         END DO
-       END IF
+          ALLOCATE( nmr_env%list_cubes(ncubes),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO ir = 1,ncubes
+             nmr_env%list_cubes(ir) = bounds(1) + (ir-1)
+          ENDDO
+       ENDIF
        IF(.NOT. ASSOCIATED(nmr_env%list_cubes)) THEN
-         CALL section_vals_val_get(nmr_section,"PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LIST",&
-             n_rep_val=n_rep,error=error)
-         ncubes = 0
-         DO ir = 1,n_rep
-          NULLIFY(list)
           CALL section_vals_val_get(nmr_section,"PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LIST",&
-             i_rep_val=ir,i_vals=list,error=error)
-          IF(ASSOCIATED(list)) THEN
-            CALL reallocate(nmr_env%list_cubes,1,ncubes+ SIZE(list))
-            DO ini = 1, SIZE(list)
-              nmr_env%list_cubes(ini+ncubes) = list(ini)
-            END DO
-            ncubes = ncubes + SIZE(list)
-          END IF
-         END DO  ! ir
-       END IF
+               &                    n_rep_val=n_rep,error=error)
+          ncubes = 0
+          DO ir = 1,n_rep
+             NULLIFY(list)
+             CALL section_vals_val_get(nmr_section,"PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LIST",&
+                  &                    i_rep_val=ir,i_vals=list,error=error)
+             IF(ASSOCIATED(list)) THEN
+                CALL reallocate(nmr_env%list_cubes,1,ncubes+ SIZE(list))
+                DO ini = 1, SIZE(list)
+                   nmr_env%list_cubes(ini+ncubes) = list(ini)
+                ENDDO
+                ncubes = ncubes + SIZE(list)
+             ENDIF
+          ENDDO  ! ir
+       ENDIF
        IF(.NOT. ASSOCIATED(nmr_env%list_cubes)) THEN
-         ALLOCATE( nmr_env%list_cubes(nstates),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO ir = 1,nstates
-           nmr_env%list_cubes(ir) = ir
-         END DO
-       END IF
-     END IF
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-                  "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
+          ALLOCATE( nmr_env%list_cubes(nstates),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO ir = 1,nstates
+             nmr_env%list_cubes(ir) = ir
+          ENDDO
+       ENDIF
+    ENDIF
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+         &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
        nmr_env%store_current = .TRUE.
-     END IF
+    ENDIF
 
-     ALLOCATE (nmr_env%do_calc_cs_atom(natom), STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     nmr_env%do_calc_cs_atom = 0
+    ALLOCATE (nmr_env%do_calc_cs_atom(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    nmr_env%do_calc_cs_atom = 0
 
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-                  "PRINT%SHIELDING_TENSOR",error=error),cp_p_file)) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+         &    "PRINT%SHIELDING_TENSOR",error=error),cp_p_file)) THEN
 
        NULLIFY(bounds,list)
        nat_print = 0
        CALL section_vals_val_get(nmr_section,&
-          "PRINT%SHIELDING_TENSOR%ATOMS_LU_BOUNDS",&
-           i_vals=bounds,error=error)
+            &                    "PRINT%SHIELDING_TENSOR%ATOMS_LU_BOUNDS",&
+            &                    i_vals=bounds,error=error)
        nat_print = bounds(2) - bounds(1)  + 1
        IF(nat_print > 0) THEN
-         ALLOCATE(nmr_env%cs_atom_list(nat_print),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO ir = 1,nat_print
-           nmr_env%cs_atom_list(ir) = bounds(1) + (ir-1)
-           nmr_env%do_calc_cs_atom(bounds(1) + (ir-1)) = 1
-         END DO
-       END IF
+          ALLOCATE(nmr_env%cs_atom_list(nat_print),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO ir = 1,nat_print
+             nmr_env%cs_atom_list(ir) = bounds(1) + (ir-1)
+             nmr_env%do_calc_cs_atom(bounds(1) + (ir-1)) = 1
+          ENDDO
+       ENDIF
 
        IF(.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
-         CALL section_vals_val_get(nmr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
-             n_rep_val=n_rep,error=error)
-         nat_print = 0
-         DO ir = 1,n_rep
-          NULLIFY(list)
           CALL section_vals_val_get(nmr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
-             i_rep_val=ir,i_vals=list,error=error)
-          IF(ASSOCIATED(list)) THEN
-            CALL reallocate(nmr_env%cs_atom_list,1,nat_print + SIZE(list))
-            DO ini = 1, SIZE(list)
-              nmr_env%cs_atom_list(ini+nat_print) = list(ini)
-              nmr_env%do_calc_cs_atom(list(ini)) = 1
-            END DO
-            nat_print = nat_print + SIZE(list)
-          END IF
-         END DO  ! ir
-       END IF
+               &                    n_rep_val=n_rep,error=error)
+          nat_print = 0
+          DO ir = 1,n_rep
+             NULLIFY(list)
+             CALL section_vals_val_get(nmr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
+                  &                    i_rep_val=ir,i_vals=list,error=error)
+             IF(ASSOCIATED(list)) THEN
+                CALL reallocate(nmr_env%cs_atom_list,1,nat_print + SIZE(list))
+                DO ini = 1, SIZE(list)
+                   nmr_env%cs_atom_list(ini+nat_print) = list(ini)
+                   nmr_env%do_calc_cs_atom(list(ini)) = 1
+                ENDDO
+                nat_print = nat_print + SIZE(list)
+             ENDIF
+          ENDDO  ! ir
+       ENDIF
 
        IF(.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
-         ALLOCATE(nmr_env%cs_atom_list(natom),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO ir = 1,natom
-           nmr_env%cs_atom_list(ir) = ir
-         END DO
-         nmr_env%do_calc_cs_atom = 1
-       END IF
+          ALLOCATE(nmr_env%cs_atom_list(natom),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO ir = 1,natom
+             nmr_env%cs_atom_list(ir) = ir
+          ENDDO
+          nmr_env%do_calc_cs_atom = 1
+       ENDIF
 
-     ELSE
-        NULLIFY(nmr_env%cs_atom_list)
-     END IF
+    ELSE
+       NULLIFY(nmr_env%cs_atom_list)
+    ENDIF
 
-     IF(output_unit>0) THEN
+    IF(output_unit>0) THEN
        IF(ASSOCIATED(nmr_env%cs_atom_list)) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T40,I5,A)")&
-            "  NMR|   Shielding tensor computed for ", SIZE(nmr_env%cs_atom_list,1) ," atoms"
+          WRITE(output_unit,"(T2,A,T40,I5,A)")&
+               & "  NMR|   Shielding tensor computed for ",&
+               & SIZE(nmr_env%cs_atom_list,1) ," atoms"
        ELSE
-         WRITE (UNIT=output_unit,FMT="(T2,A,T50)")&
-            "  NMR|   Shielding tensor not computed at the atomic positions"
+          WRITE(output_unit,"(T2,A,T50)")&
+               & "  NMR|   Shielding tensor not computed at the atomic positions"
+       ENDIF
+    ENDIF
 
-       END IF
-     END IF
-
-     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=nmr_env%ao_mo_fm_pools, error=error)
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=nmr_env%ao_mo_fm_pools, error=error)
     ! for the chemical shift we need 6 psi1, i.e. 6 optimization procedures
     ! They become 9 if full nmr is calculated, i.e. with the correction term too
     ! All of them are required at the end of the optimization procedure
@@ -858,136 +858,150 @@ CONTAINS
     ! that after every optimization the corresponding shift contribution is calculated
     ! prepare the psi1
 
-     ALLOCATE(nmr_env%psi1_p(nspins,3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     ALLOCATE(nmr_env%psi1_rxp(nspins,3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     DO ispin = 1,nspins
+    ALLOCATE(nmr_env%psi1_p(nspins,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(nmr_env%psi1_rxp(nspins,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
        DO idir = 1,3
-         NULLIFY(nmr_env%psi1_p(ispin,idir)%matrix)
-         CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
-              nmr_env%psi1_p(ispin,idir)%matrix,error=error)
-         NULLIFY(nmr_env%psi1_rxp(ispin,idir)%matrix)
-         CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
-              nmr_env%psi1_rxp(ispin,idir)%matrix,error=error)
-       END DO
-     END DO
+          NULLIFY(nmr_env%psi1_p(ispin,idir)%matrix)
+          CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
+               &                 nmr_env%psi1_p(ispin,idir)%matrix,error=error)
+          NULLIFY(nmr_env%psi1_rxp(ispin,idir)%matrix)
+          CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
+               &                 nmr_env%psi1_rxp(ispin,idir)%matrix,error=error)
+       ENDDO
+    ENDDO
 
-     IF(nmr_env%full_nmr) THEN
+    IF(nmr_env%full_nmr) THEN
        ALLOCATE(nmr_env%psi1_D(nspins,3),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ispin = 1,nspins
-         DO idir = 1,3
-           NULLIFY(nmr_env%psi1_D(ispin,idir)%matrix)
-           CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
-                nmr_env%psi1_D(ispin,idir)%matrix,error=error)
-         END DO
-       END DO
-     END IF
-
-     ! px py pz operator acting on the atomic orbitals
-     CALL allocate_matrix_set(nmr_env%op_p_ao,3,error=error)
-     CALL set_up_op_sm(nmr_env%op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",&
-          name="OP_P",error=error)
-     CALL set_matrix(nmr_env%op_p_ao(1)%matrix,0.0_dp)
-     DO idir = 2,3
+          DO idir = 1,3
+             NULLIFY(nmr_env%psi1_D(ispin,idir)%matrix)
+             CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
+                  &                 nmr_env%psi1_D(ispin,idir)%matrix,error=error)
+          ENDDO
+       ENDDO
+    ENDIF
+    !
+    ! px py pz operator acting on the atomic orbitals
+    CALL allocate_matrix_set(nmr_env%op_p_ao,3,error=error)
+    CALL set_up_op_sm(nmr_env%op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",&
+         &            name="OP_P",error=error)
+    CALL set_matrix(nmr_env%op_p_ao(1)%matrix,0.0_dp)
+    DO idir = 2,3
        CALL replicate_matrix_structure(nmr_env%op_p_ao(1)%matrix, &
-            nmr_env%op_p_ao(idir)%matrix,&
-            "nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            target_symmetry="antisymmetric",error=error)
+            &                          nmr_env%op_p_ao(idir)%matrix,&
+            &                          "nmr_env%op_p_ao"//"-"//TRIM(&
+            &                          ADJUSTL(cp_to_string(idir))),&
+            &                          target_symmetry="antisymmetric",&
+            &                          error=error)
        CALL set_matrix(nmr_env%op_p_ao(idir)%matrix,0.0_dp)
-     END DO
-
-     ! for the rxp we cannot calculate it a priori because it is in facts (r-dk)xp
-     ! where dk is the center of the orbital it is applied to. We would need nstate operators
-     ! What we can store is (r-dk)xp|psi0k> for each k, which is a full matrix only
-     ! Therefore we prepare here the full matrix p_psi0 and rxp_psi0
-     ! We also need a temporary sparse matrix where to store the integrals during the calculation
-     ALLOCATE(nmr_env%p_psi0(nspins,3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     ALLOCATE(nmr_env%rxp_psi0(nspins,3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     DO ispin = 1,nspins
+    ENDDO
+    !
+    ! for the rxp we cannot calculate it a priori because it is in facts (r-dk)xp
+    ! where dk is the center of the orbital it is applied to. We would need nstate operators
+    ! What we can store is (r-dk)xp|psi0k> for each k, which is a full matrix only
+    ! Therefore we prepare here the full matrix p_psi0 and rxp_psi0
+    ! We also need a temporary sparse matrix where to store the integrals during the calculation
+    ALLOCATE(nmr_env%p_psi0(nspins,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(nmr_env%rxp_psi0(nspins,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
        DO idir = 1,3
-         NULLIFY(nmr_env%p_psi0(ispin,idir)%matrix)
-         CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
-              nmr_env%p_psi0(ispin,idir)%matrix,error=error)
-         NULLIFY(nmr_env%rxp_psi0(ispin,idir)%matrix)
-         CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
-              nmr_env%rxp_psi0(ispin,idir)%matrix,error=error)
-       END DO
-     END DO
+          NULLIFY(nmr_env%p_psi0(ispin,idir)%matrix)
+          CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
+               &                 nmr_env%p_psi0(ispin,idir)%matrix,error=error)
+          NULLIFY(nmr_env%rxp_psi0(ispin,idir)%matrix)
+          CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,&
+               &                 nmr_env%rxp_psi0(ispin,idir)%matrix,error=error)
+       ENDDO
+    ENDDO
 
-     CALL allocate_matrix_set(nmr_env%op_rmd_ao,3,error=error)
-     CALL set_up_op_sm(nmr_env%op_rmd_ao(1)%matrix,qs_env,symmetry="none",&
-          name="OP_RMD",error=error)
-     CALL set_matrix(nmr_env%op_rmd_ao(1)%matrix,0.0_dp)
-     DO idir = 2,3
-       CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-            nmr_env%op_rmd_ao(idir)%matrix,"nmr_env%op_rmd_ao"//&
-            "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none",error=error)
+    CALL allocate_matrix_set(nmr_env%op_rmd_ao,3,error=error)
+    CALL set_up_op_sm(nmr_env%op_rmd_ao(1)%matrix,qs_env,symmetry="none",&
+         &            name="OP_RMD",error=error)
+    CALL set_matrix(nmr_env%op_rmd_ao(1)%matrix,0.0_dp)
+    DO idir = 2,3
+       CALL replicate_matrix_structure(nmr_env%op_rmd_ao(1)%matrix, &
+            &                          nmr_env%op_rmd_ao(idir)%matrix,&
+            &                          "nmr_env%op_rmd_ao"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(idir))),&
+            &                          target_symmetry="none",error=error)
        CALL set_matrix(nmr_env%op_rmd_ao(idir)%matrix,0.0_dp)
-     END DO
-
+    ENDDO
+    !
     ! Current density matrix in x y and z:
-     CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-           nmr_env%jp1_ao,"nmr_env%jp1_ao",target_symmetry="none",error=error)
-     CALL set_matrix(nmr_env%jp1_ao,0.0_dp)
+    CALL replicate_matrix_structure(nmr_env%op_rmd_ao(1)%matrix, &
+         &                          nmr_env%jp1_ao,"nmr_env%jp1_ao",&
+         &                          target_symmetry="none",error=error)
+    CALL set_matrix(nmr_env%jp1_ao,0.0_dp)
 
-     ALLOCATE( nmr_env%jp2_ao(2),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     DO idir = 1,2
+    ALLOCATE( nmr_env%jp2_ao(2),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idir = 1,2
        NULLIFY(nmr_env%jp2_ao(idir)%matrix)
-       CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-          nmr_env%jp2_ao(idir)%matrix,"nmr_env%jp2_ao"//&
-          "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none",error=error)
-     END DO
-
-     ! If the current density on the grid needs to be stored
-     IF(nmr_env%store_current) THEN
-        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+       CALL replicate_matrix_structure(nmr_env%op_rmd_ao(1)%matrix, &
+            &                          nmr_env%jp2_ao(idir)%matrix,"nmr_env%jp2_ao"//&
+            &                          "-"//TRIM(ADJUSTL(cp_to_string(idir))),&
+            &                          target_symmetry="none",error=error)
+    ENDDO
+    !
+    ! If the current density on the grid needs to be stored
+    IF(nmr_env%store_current) THEN
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
        ALLOCATE(nmr_env%jrho1_set(3,3),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO i_B = 1,3
-         DO idir = 1,3
-           NULLIFY(nmr_env%jrho1_set(idir,i_B)%rho)
-           ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-           nmr_env%jrho1_set(idir,i_B)%rho%ref_count = 1
-           NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_r)
-           NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_g)
+          DO idir = 1,3
+             NULLIFY(nmr_env%jrho1_set(idir,i_B)%rho)
+             ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             nmr_env%jrho1_set(idir,i_B)%rho%ref_count = 1
+             NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_r)
+             NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_g)
 
-           ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(nspins),stat=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-           ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_g(nspins),stat=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-           DO ispin=1,nspins
-               CALL pw_pool_init_coeff(auxbas_pw_pool,&
-                    nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),&
-                    use_data=REALDATA3D,in_space=REALSPACE,error=error)
-               CALL coeff_zero(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin))
+             ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(nspins),stat=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_g(nspins),stat=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             DO ispin=1,nspins
+                CALL pw_pool_init_coeff(auxbas_pw_pool,&
+                     &                  nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),&
+                     &                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                CALL coeff_zero(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin))
 
-               CALL pw_pool_init_coeff(auxbas_pw_pool,&
-                    nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin),&
-                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-               CALL coeff_zero(nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin))
+                CALL pw_pool_init_coeff(auxbas_pw_pool,&
+                     &                  nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin),&
+                     &                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                     &                  error=error)
+                CALL coeff_zero(nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin))
+             ENDDO
+             CALL qs_rho_retain(nmr_env%jrho1_set(idir,i_B)%rho,error=error)
+          ENDDO
+       ENDDO
 
-           END DO
-           CALL qs_rho_retain(nmr_env%jrho1_set(idir,i_B)%rho,error=error)
-         END DO
-       END DO
-
-     END IF
-
-     ! Initialize local current density if GAPW calculation
-     gapw = dft_control%qs_control%gapw
-     IF(gapw) THEN
+    ENDIF
+    !
+    ! Initialize local current density if GAPW calculation
+    IF(gapw) THEN
+       !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+       !write(*,*) 'nmr_env_init: we dont compute list_3c_jrho_atom and init_jrho_atom_set'
+       !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+       !write(*,*) 'nmr_env_init: enter list_3c_jrho_atom'
        CALL list_3c_jrho_atom(qs_env,error=error)
+       !write(*,*) 'nmr_env_init: enter init_jrho_atom_set'
        CALL init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,&
-            nspins,nmr_env%store_current,error=error)
-       CALL set_nmr_env(nmr_env=nmr_env, jrho1_atom_set=jrho1_atom_set, error=error)
-     END IF
-
+            &                  nspins,nmr_env%store_current,&
+            &                  error=error)
+       !write(*,*) 'nmr_env_init: enter set_nmr_env'
+       CALL set_nmr_env(nmr_env=nmr_env,jrho1_atom_set=jrho1_atom_set,&
+            &           error=error)
+       !write(*,*) 'nmr_env_init: done with gapw'
+    ENDIF
+    !
     ! Initialize the chemical shift tensor
     nmr_env%chi_tensor = 0.0_dp
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),STAT=istat)
@@ -997,13 +1011,13 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%chemical_shift = 0.0_dp
     IF(nmr_env%do_nics) THEN
-      ALLOCATE(nmr_env%chemical_shift_loc_nics(3,3,nmr_env%n_nics),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      nmr_env%chemical_shift_loc_nics = 0.0_dp
-      ALLOCATE(nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      nmr_env%chemical_shift_nics = 0.0_dp
-    END IF
+       ALLOCATE(nmr_env%chemical_shift_loc_nics(3,3,nmr_env%n_nics),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       nmr_env%chemical_shift_loc_nics = 0.0_dp
+       ALLOCATE(nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       nmr_env%chemical_shift_nics = 0.0_dp
+    ENDIF
     ALLOCATE(nmr_env%basisfun_center(3,nmr_env%nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%basisfun_center = 0.0_dp
@@ -1012,7 +1026,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%fullnmr_done = .FALSE.
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
+         &                            "PRINT%PROGRAM_RUN_INFO",error=error)
 
     CALL timestop(0.0_dp,handle)
 

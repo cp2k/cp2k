@@ -142,7 +142,7 @@ MODULE qs_linres_types
                                                     simplenmr_converged(6),&
                                                     store_current,restart_nmr
      LOGICAL, DIMENSION(:,:), POINTER            :: fullnmr_done
-     REAL(dp)                                    :: shift_factor, chi_factor
+     REAL(dp)                                    :: shift_factor, shift_factor_gapw, chi_factor
      REAL(dp)                                    :: chi_SI2shiftppm, chi_SI2ppmcgs
      REAL(dp)                                    :: chi_tensor(3,3)
      REAL(dp)                                    :: chi_tensor_loc(3,3)
@@ -520,6 +520,7 @@ CONTAINS
     IF(PRESENT(chi_tensor         )) chi_tensor          =  nmr_env%chi_tensor
     IF(PRESENT(chi_tensor_loc     )) chi_tensor_loc      =  nmr_env%chi_tensor_loc
     IF(PRESENT(chemical_shift     )) chemical_shift      => nmr_env%chemical_shift
+    IF(PRESENT(chemical_shift_loc )) chemical_shift_loc  => nmr_env%chemical_shift_loc
     IF(PRESENT(chemical_shift_nics)) chemical_shift_nics => nmr_env%chemical_shift_nics
     IF(PRESENT(r_nics             )) r_nics              => nmr_env%r_nics
     IF(PRESENT(basisfun_center    )) basisfun_center     => nmr_env%basisfun_center
@@ -739,14 +740,14 @@ CONTAINS
     INTEGER                                  :: iB, idir
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
+    failure =.FALSE.
 
-     CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,error,failure)
+    CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,error,failure)
 
-     IF(PRESENT(g_free_factor)) epr_env%g_free_factor=g_free_factor !R
-     IF(PRESENT(g_zke_factor)) epr_env%g_zke_factor=g_zke_factor !R
-     IF(PRESENT(g_so_factor)) epr_env%g_so_factor=g_so_factor !R
-     IF(PRESENT(g_soo_factor)) epr_env%g_soo_factor=g_soo_factor !R
+    IF(PRESENT(g_free_factor)) epr_env%g_free_factor=g_free_factor !R
+    IF(PRESENT(g_zke_factor)) epr_env%g_zke_factor=g_zke_factor !R
+    IF(PRESENT(g_so_factor)) epr_env%g_so_factor=g_so_factor !R
+    IF(PRESENT(g_soo_factor)) epr_env%g_soo_factor=g_soo_factor !R
 !R   IF(PRESENT(shift_factor)) epr_env%chi_factor=chi_factor
 !R   IF(PRESENT(shift_factor)) epr_env%chi_factor=chi_factor
 !R   IF(PRESENT(chi_SI2shiftppm)) epr_env%chi_SI2shiftppm=chi_SI2shiftppm
@@ -766,27 +767,26 @@ CONTAINS
 !R     END DO 
 !R   END IF
 
-     IF(PRESENT(jrho1_atom_set)) THEN
+    IF(PRESENT(jrho1_atom_set)) THEN
        IF(ASSOCIATED(epr_env%jrho1_atom_set)) THEN
-         CALL deallocate_jrho_atom_set(epr_env%jrho1_atom_set,error=error)
-       END IF
+          CALL deallocate_jrho_atom_set(epr_env%jrho1_atom_set,error=error)
+       ENDIF
        epr_env%jrho1_atom_set => jrho1_atom_set
-     END IF
+    ENDIF
 
-     IF(PRESENT(nablavks_atom_set)) THEN
+    IF(PRESENT(nablavks_atom_set)) THEN
        IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
-         CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set,error=error)
-       END IF
+          CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set,error=error)
+       ENDIF
        epr_env%nablavks_atom_set => nablavks_atom_set
-     END IF
+    ENDIF
 
-     IF(PRESENT(vks_atom_set)) THEN
+    IF(PRESENT(vks_atom_set)) THEN
        IF(ASSOCIATED(epr_env%vks_atom_set)) THEN
-         CALL deallocate_rho_atom_set(epr_env%vks_atom_set)
-       END IF
+          CALL deallocate_rho_atom_set(epr_env%vks_atom_set)
+       ENDIF
        epr_env%vks_atom_set => vks_atom_set
-     END IF
-
+    ENDIF
   END SUBROUTINE set_epr_env
 
 ! *****************************************************************************
@@ -803,18 +803,15 @@ CONTAINS
     INTEGER                                  :: iat, istat
     LOGICAL                                  :: failure
 
-     failure = .FALSE.
+    failure = .FALSE.
 
-     ALLOCATE(nablavks_atom_set(natom), STAT=istat)
-     CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+    ALLOCATE(nablavks_atom_set(natom), STAT=istat)
+    CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
 
-     DO iat = 1,natom
-
+    DO iat = 1,natom
        NULLIFY(nablavks_atom_set(iat)%nablavks_vec_rad_h)
        NULLIFY(nablavks_atom_set(iat)%nablavks_vec_rad_s)
-
-     END DO
-
+    ENDDO
   END SUBROUTINE allocate_nablavks_atom_set
 
 ! *****************************************************************************
@@ -831,29 +828,30 @@ CONTAINS
                                                 NATOM
     LOGICAL                                  :: failure
 
-     CPPrecondition(ASSOCIATED(nablavks_atom_set),cp_failure_level,routineN,error,failure)
-     natom = SIZE(nablavks_atom_set)
+    failure = .FALSE.
 
-     DO iat = 1,natom
+    CPPrecondition(ASSOCIATED(nablavks_atom_set),cp_failure_level,routineN,error,failure)
+    natom = SIZE(nablavks_atom_set)
+
+    DO iat = 1,natom
        IF(ASSOCIATED(nablavks_atom_set(iat)%nablavks_vec_rad_h)) THEN
-         n = SIZE(nablavks_atom_set(iat)%nablavks_vec_rad_h,2)
-         DO i=1,n
-           DO idir = 1,3
-             DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h(idir,i)%r_coef,STAT=istat)
-             CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
-             DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s(idir,i)%r_coef,STAT=istat)
-             CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
-           END DO
-         END DO
-         DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h,STAT=istat)
-         CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
-         DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s,STAT=istat)
-         CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
-       END IF
-     END DO
-     DEALLOCATE(nablavks_atom_set, STAT=istat)
-     CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
-
+          n = SIZE(nablavks_atom_set(iat)%nablavks_vec_rad_h,2)
+          DO i=1,n
+             DO idir = 1,3
+                DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h(idir,i)%r_coef,STAT=istat)
+                CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+                DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s(idir,i)%r_coef,STAT=istat)
+                CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+             ENDDO
+          ENDDO
+          DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h,STAT=istat)
+          CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+          DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s,STAT=istat)
+          CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+       ENDIF
+    ENDDO
+    DEALLOCATE(nablavks_atom_set, STAT=istat)
+    CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
   END SUBROUTINE deallocate_nablavks_atom_set
 
 ! *****************************************************************************
@@ -869,13 +867,12 @@ CONTAINS
     INTEGER                                  :: iat, istat
     LOGICAL                                  :: failure
 
-     failure = .FALSE.
+    failure = .FALSE.
 
-     ALLOCATE(jrho_atom_set(natom), STAT=istat)
-     CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
+    ALLOCATE(jrho_atom_set(natom), STAT=istat)
+    CPPrecondition(istat==0, cp_failure_level,routineN,error,failure)
      
-     DO iat = 1,natom
-
+    DO iat = 1,natom
        NULLIFY(jrho_atom_set(iat)%cjc_h)
        NULLIFY(jrho_atom_set(iat)%cjc_s)
        NULLIFY(jrho_atom_set(iat)%cjc_ii_h)
@@ -902,9 +899,7 @@ CONTAINS
        NULLIFY(jrho_atom_set(iat)%jrho_b_s_iii)
        NULLIFY(jrho_atom_set(iat)%jrho_c_h_iii)
        NULLIFY(jrho_atom_set(iat)%jrho_c_s_iii)
-
-     END DO
-
+    ENDDO
   END SUBROUTINE allocate_jrho_atom_set
 
 ! *****************************************************************************
@@ -920,10 +915,12 @@ CONTAINS
                                                 natom
     LOGICAL                                  :: failure
 
-     CPPrecondition(ASSOCIATED(jrho_atom_set),cp_failure_level,routineN,error,failure)
-     natom = SIZE(jrho_atom_set)
+    failure = .FALSE.
 
-     DO iat = 1,natom
+    CPPrecondition(ASSOCIATED(jrho_atom_set),cp_failure_level,routineN,error,failure)
+    natom = SIZE(jrho_atom_set)
+
+    DO iat = 1,natom
 
        IF(ASSOCIATED(jrho_atom_set(iat)%cjc_h)) THEN
          IF(ASSOCIATED(jrho_atom_set(iat)%cjc_h(1)%r_coef)) THEN
@@ -1049,7 +1046,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
+
+    failure = .FALSE.
+
     CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
+
     IF(.NOT.failure) THEN
          ALLOCATE (jrho1_atom%jrho_a_h(ispin)%r_coef(nr,max_iso_not0),STAT=istat)
          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1116,40 +1117,38 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set2zero_jrho_atom_rad(jrho1_atom,ispin,error)
-  
+    !
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_jrho_atom_rad', &
-      routineP = moduleN//':'//routineN
-
+    !
+    CHARACTER(len=*), PARAMETER              :: routineN = 'set2zero_jrho_atom_rad', &
+         &                                      routineP = moduleN//':'//routineN
     LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
-    IF(.NOT.failure) THEN
-
-      jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
-
-      jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_c_h_ii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_c_s_ii(ispin)%r_coef = 0.0_dp
-
-      jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_c_h_iii(ispin)%r_coef = 0.0_dp
-      jrho1_atom%jrho_c_s_iii(ispin)%r_coef = 0.0_dp
-
-    END IF
-
+    !
+    failure = .FALSE.
+    !
+    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineN,error,failure)
+    !
+    jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
+    !
+    jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_c_h_ii(ispin)%r_coef = 0.0_dp ! this is not needed
+    jrho1_atom%jrho_c_s_ii(ispin)%r_coef = 0.0_dp ! this is not needed
+    !
+    jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_c_h_iii(ispin)%r_coef = 0.0_dp ! this is not needed
+    jrho1_atom%jrho_c_s_iii(ispin)%r_coef = 0.0_dp ! this is not needed
+    !
   END SUBROUTINE set2zero_jrho_atom_rad
 
 ! *****************************************************************************
@@ -1159,34 +1158,36 @@ CONTAINS
              cjc_iii_h,cjc_iii_s,jrho_rad_h,jrho_rad_s,jrho_vec_rad_h,jrho_vec_rad_s,error)
 
     TYPE(jrho_atom_type), DIMENSION(:), &
-      POINTER                                :: jrho1_atom_set
-    INTEGER, INTENT(IN)                      :: iatom
+         & POINTER                              :: jrho1_atom_set
+    INTEGER, INTENT(IN)                         :: iatom
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: cjc_h, cjc_s, cjc_ii_h, &
-                                                cjc_ii_s, cjc_iii_h, &
-                                                cjc_iii_s, jrho_rad_h, &
-                                                jrho_rad_s
-    TYPE(rho_atom_coeff), &
-      DIMENSION(:, :, :), OPTIONAL, POINTER  :: jrho_vec_rad_h, jrho_vec_rad_s
-    TYPE(cp_error_type), INTENT(inout)       :: error
+         OPTIONAL, POINTER                      :: cjc_h, cjc_s, cjc_ii_h, &
+                                                   cjc_ii_s, cjc_iii_h, &
+                                                   cjc_iii_s, jrho_rad_h, &
+                                                   jrho_rad_s
+    TYPE(rho_atom_coeff), DIMENSION(:,:,:), &
+         &                   OPTIONAL, POINTER  :: jrho_vec_rad_h, jrho_vec_rad_s
+    TYPE(cp_error_type), INTENT(inout)          :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_jrho_atom', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-     CPPrecondition(ASSOCIATED(jrho1_atom_set), cp_failure_level,routineN,error,failure)
+    failure = .FALSE.
 
-     IF(PRESENT(cjc_h)) cjc_h => jrho1_atom_set(iatom)%cjc_h
-     IF(PRESENT(cjc_s)) cjc_s => jrho1_atom_set(iatom)%cjc_s
-     IF(PRESENT(cjc_ii_h)) cjc_ii_h => jrho1_atom_set(iatom)%cjc_ii_h
-     IF(PRESENT(cjc_ii_s)) cjc_ii_s => jrho1_atom_set(iatom)%cjc_ii_s
-     IF(PRESENT(cjc_iii_h)) cjc_iii_h => jrho1_atom_set(iatom)%cjc_iii_h
-     IF(PRESENT(cjc_iii_s)) cjc_iii_s => jrho1_atom_set(iatom)%cjc_iii_s
-     IF(PRESENT(jrho_rad_h)) jrho_rad_h => jrho1_atom_set(iatom)%jrho_rad_h
-     IF(PRESENT(jrho_rad_s)) jrho_rad_s => jrho1_atom_set(iatom)%jrho_rad_s
-     IF(PRESENT(jrho_vec_rad_h)) jrho_vec_rad_h => jrho1_atom_set(iatom)%jrho_vec_rad_h
-     IF(PRESENT(jrho_vec_rad_s)) jrho_vec_rad_s => jrho1_atom_set(iatom)%jrho_vec_rad_s
+    CPPrecondition(ASSOCIATED(jrho1_atom_set), cp_failure_level,routineN,error,failure)
+
+    IF(PRESENT(cjc_h)) cjc_h => jrho1_atom_set(iatom)%cjc_h
+    IF(PRESENT(cjc_s)) cjc_s => jrho1_atom_set(iatom)%cjc_s
+    IF(PRESENT(cjc_ii_h)) cjc_ii_h => jrho1_atom_set(iatom)%cjc_ii_h
+    IF(PRESENT(cjc_ii_s)) cjc_ii_s => jrho1_atom_set(iatom)%cjc_ii_s
+    IF(PRESENT(cjc_iii_h)) cjc_iii_h => jrho1_atom_set(iatom)%cjc_iii_h
+    IF(PRESENT(cjc_iii_s)) cjc_iii_s => jrho1_atom_set(iatom)%cjc_iii_s
+    IF(PRESENT(jrho_rad_h)) jrho_rad_h => jrho1_atom_set(iatom)%jrho_rad_h
+    IF(PRESENT(jrho_rad_s)) jrho_rad_s => jrho1_atom_set(iatom)%jrho_rad_s
+    IF(PRESENT(jrho_vec_rad_h)) jrho_vec_rad_h => jrho1_atom_set(iatom)%jrho_vec_rad_h
+    IF(PRESENT(jrho_vec_rad_s)) jrho_vec_rad_s => jrho1_atom_set(iatom)%jrho_vec_rad_s
 
   END SUBROUTINE get_jrho_atom
 

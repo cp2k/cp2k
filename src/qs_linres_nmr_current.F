@@ -512,24 +512,38 @@ CONTAINS
 
           IF(gapw) THEN
              DO idir = 1,3
+                !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+                !write(*,*) 'we skip calculate_jrho_atom_coeff, calculate_jrho_atom_rad and shift_atom'
+                !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+                !exit
+
                 ! compute the atomic response current densities on the spherical grids
                 ! First the sparse matrices are multiplied by the expansion coefficients
-                ! this is the eqiuvalent of the CPC for the charge density
+                ! this is the equivalent of the CPC for the charge density
                 CALL calculate_jrho_atom_coeff(qs_env,nmr_env,density_matrix,&
                      &                         density_matrix_ii,density_matrix_iii,&
                      &                         i_B,idir,error=error)
+                
+                !write(*,*) 'enter naive_integrator'
+                !CALL naive_integrator(qs_env,nmr_env,density_matrix,&
+                !     &                density_matrix_ii,density_matrix_iii,&
+                !     &                i_B,idir,error=error)
+                !write(*,*) 'exit naive_integrator'
+
+                !(qs_env,nmr_env,mat_jp,mat_jp_pii,&
+                ! mat_jp_piii,iB,idir,error)
+
                 ! Then the radial parts are computed on the local radial grid, atom by atom
                 ! 8 functions are computed for each atom, per grid point
                 ! and per LM angular momentum. The multiplication by the Clebsh-Gordon
                 ! coefficients or they correspondent for the derivatives, is also done here
-                CALL calculate_jrho_atom_rad(qs_env,nmr_env,I_B,idir,error=error)
-               
+                CALL calculate_jrho_atom_rad(qs_env,nmr_env,i_B,idir,error=error)
+                !
                 ! Finally the radial functions are multiplied by the YLM and properly summed
                 ! The resulting array is J on the local grid. One array per atom.
-
                 ! Local contributions by numerical integration over the spherical grids
                 CALL shift_atom(qs_env,nmr_env,i_B,idir,error=error)
-             ENDDO  ! idir
+             ENDDO ! idir
           ENDIF
           !
           ! Tranform the column i_B of the shift tensor from reciprocal to real space
@@ -640,7 +654,7 @@ CONTAINS
 !!      are not symmetric, that means that all the pairs (ab and ba) have
 !!      to be considered separately
 !
-!!      mat_jp_{\mu\nu} is nultiplied by
+!!      mat_jp_{\mu\nu} is multiplied by
 !!          f_{\mu\nu} = \phi_{\mu} (d\phi_{\nu}/dr)_{idir} -
 !!                       (d\phi_{\mu}/dr)_{idir} \phi_{\nu}
 !
