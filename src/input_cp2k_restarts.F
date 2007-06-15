@@ -156,15 +156,19 @@ CONTAINS
       keys = (/"PRINT%RESTART_HISTORY", "PRINT%RESTART        "/)
     INTEGER                                  :: handle, ikey, ires, &
                                                 nforce_eval, strend, strstart
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: motion_section, sections
+    TYPE(section_vals_type), POINTER         :: global_section, motion_section, sections
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+
+    NULLIFY(global_section)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
            motion_section,keys(1),error=error),cp_p_file) .OR.  &
@@ -174,7 +178,7 @@ CONTAINS
        sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
-       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,error)
+       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,save_mem=save_mem,error=error)
 
        CALL m_datum(datx)
        CALL m_getcwd(cwd)
@@ -218,12 +222,146 @@ CONTAINS
           ENDIF
 
        ENDDO
+ 
 
+       IF(save_mem) THEN
+          CALL update_subsys_release(md_env,force_env,root_section,error)
+       END IF
     ENDIF
 
     CALL timestop(handle)
 
   END SUBROUTINE write_restart
+
+!!****f* input_cp2k_restarts/update_subsys_release [1.0] *
+!!
+!!   NAME
+!!    update_subsys_release 
+!!
+!!   FUNCTION
+!!     deallocate some sub_sections of the section subsys to save some memory 
+!!
+!!   NOTES
+!!
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!     06.2007 created [MI]
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE update_subsys_release(md_env,force_env,root_section,error)
+
+    TYPE(md_environment_type), OPTIONAL, &
+      POINTER                                :: md_env
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iforce_eval, isubsys, myid, nforce_eval
+    INTEGER, DIMENSION(:), POINTER           :: i_force_eval
+    LOGICAL                                  :: explicit, failure, skip_vel_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(force_env_type), POINTER            :: my_force_env, &
+                                                my_force_b
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(particle_list_type), POINTER        :: core_particles, &
+                                                particles, &
+                                                shell_particles
+    TYPE(section_vals_type), POINTER         :: force_env_sections, subsys_section, work_section
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    NULLIFY(core_particles,logger,my_force_env,force_env_p,my_force_b,particles, shell_particles,subsys,work_section)
+    logger => cp_error_get_logger(error)
+
+    IF (PRESENT(md_env)) THEN
+       CALL get_md_env ( md_env=md_env,force_env_p=force_env_p)
+       CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
+       my_force_env => force_env_p(1)%force_env
+    ELSEIF (PRESENT(force_env)) THEN 
+          my_force_env => force_env
+    END IF
+    IF (ASSOCIATED(my_force_env))  THEN
+
+
+      NULLIFY(subsys_section)
+      CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
+      skip_vel_section =((myid /= mol_dyn_run).AND.&
+                         (myid /= mon_car_run).AND.&
+                         (myid /= pint_run))
+
+      force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
+      CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
+
+      DO iforce_eval=1,nforce_eval
+         subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+              i_rep_section=i_force_eval(iforce_eval),error=error)
+         CALL section_vals_get(subsys_section, explicit=explicit, error=error)
+         IF (.NOT.explicit) CYCLE ! Nothing to update...
+
+         my_force_b => my_force_env
+         IF (iforce_eval>1) my_force_b => my_force_env%sub_force_env(iforce_eval-1)%force_env
+
+         CALL force_env_get(my_force_b, subsys=subsys, error=error)
+
+         CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+         DO isubsys=1,SIZE(subsys)
+            CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                 particles=particles, &
+                 shell_particles=shell_particles, &
+                 core_particles=core_particles, error=error)       
+
+            work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
+            CALL section_vals_remove_values(work_section, error)
+
+            work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+            IF (.NOT.skip_vel_section) THEN
+               CALL section_vals_remove_values(work_section, error)
+            END IF
+
+            IF(ASSOCIATED(shell_particles)) THEN
+              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
+              CALL Section_vals_remove_values(work_section, error=error)
+              work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+              IF (.NOT.skip_vel_section) THEN
+                  CALL Section_vals_remove_values(work_section, error=error)
+              END IF
+            END IF
+
+            IF(ASSOCIATED(core_particles)) THEN
+              work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
+              CALL Section_vals_remove_values(work_section, error=error)
+              work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+              IF (.NOT.skip_vel_section) THEN
+                 CALL Section_vals_remove_values(work_section, error=error)
+              END IF
+            END IF
+
+         END DO  ! isubsys
+
+      END DO  ! iforce_env
+      DEALLOCATE(i_force_eval)
+    END IF  ! associated my_force_env
+
+    CALL timestop(handle)
+
+  END SUBROUTINE update_subsys_release
+
 
 !!****f* input_cp2k_restarts/update_input [1.0] *
 !!
@@ -247,7 +385,7 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,error)
+  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,save_mem,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -257,13 +395,14 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: coords, vels
+    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, lcond
+    LOGICAL                                  :: failure, lcond, my_save_mem
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
@@ -276,6 +415,9 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger,motion_section,my_force_env,my_kg_env,my_meta_env,force_env_p)
+    my_save_mem = .FALSE.
+    IF(PRESENT(save_mem)) my_save_mem=save_mem
+
     logger => cp_error_get_logger(error)
     !
     ! Can handle md_env or force_env
@@ -312,7 +454,7 @@ CONTAINS
        !
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        CALL update_motion(motion_section,md_env,my_force_env,my_kg_env,my_meta_env,&
-            logger,coords,vels,error)
+            logger,coords,vels,save_mem=my_save_mem,error=error)
        !
        ! Update one force_env_section per time..
        !
@@ -347,7 +489,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,meta_env,logger,&
-       coords,vels,error)
+       coords,vels,save_mem,error)
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -357,6 +499,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: coords, vels
+    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
@@ -369,7 +512,7 @@ CONTAINS
     INTEGER, POINTER                         :: accepted_md, INDEX(:), &
                                                 itimes, md_approach_nr, &
                                                 nhc_per_proc( : )
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, vbuffer
@@ -414,6 +557,9 @@ CONTAINS
        END IF
     END IF
     
+    my_save_mem=.FALSE.
+    IF (PRESENT(save_mem)) my_save_mem=save_mem
+
     CALL timeset(routineN//"_COUNTERS","I",'',handle2)
     IF (ASSOCIATED(itimes)) THEN
        IF (itimes>=0) THEN
@@ -607,6 +753,20 @@ CONTAINS
 
        work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+       IF(my_save_mem) THEN
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%COORD",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%VELOCITY",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%FORCE",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE%MASS",error=error)
+         CALL section_vals_remove_values(work_section, error)
+       END IF
     END IF
     CALL timestop(0.0_dp,handle2)
     ! BAROSTAT
@@ -636,6 +796,20 @@ CONTAINS
        
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
        CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
+       IF(my_save_mem) THEN
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%COORD",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%VELOCITY",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%FORCE",error=error)
+         CALL section_vals_remove_values(work_section, error)
+         NULLIFY(work_section)
+         work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE%MASS",error=error)
+         CALL section_vals_remove_values(work_section, error)
+       END IF
        
     END IF
     CALL timestop(0.0_dp,handle2)
@@ -1060,6 +1234,7 @@ CONTAINS
     subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
          i_rep_section=i_force_eval(iforce_eval),error=error)
     CALL update_subsys(subsys_section,force_env,skip_vel_section,error)
+
     rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
     CALL update_rng(rng_section,force_env,error)
     DEALLOCATE(i_force_eval)
@@ -1246,6 +1421,7 @@ CONTAINS
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_coord_val_set(work_section, particles, molecules, conv_factor, scale,&
             cell, error=error)
+
        work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
        IF (.NOT.skip_vel_section) THEN
           CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
@@ -1355,7 +1531,7 @@ CONTAINS
 
     CHARACTER(LEN=2*default_string_length)   :: line
     CHARACTER(LEN=default_string_length)     :: icval, my_tag, name, rcval
-    INTEGER                                  :: ik, imol, irk, k, last_atom, &
+    INTEGER                                  :: handle, ik, imol, irk, k, last_atom, &
                                                 Nlist
     LOGICAL                                  :: failure, ldum, &
                                                 molname_generated, my_shell
@@ -1364,6 +1540,8 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_now
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
+
+    CALL timeset(routineN,"I",'',handle)
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
@@ -1376,6 +1554,8 @@ CONTAINS
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
          "_DEFAULT_KEYWORD_",error,failure)
+
+
     DO
        IF (SIZE(coord_section%values,2)==1) EXIT
        CALL section_vals_add_values(coord_section,error=error)
@@ -1476,6 +1656,8 @@ CONTAINS
        END IF
     END DO
     coord_section%values(ik,1)%list => vals
+
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE section_coord_val_set
 
 !!****f* input_cp2k_restarts/section_velocity_val_set [1.0] *
@@ -1510,13 +1692,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_velocity_val_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, Nlist, stat
+    INTEGER                                  :: handle, ik, irk, Nlist, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
+    CALL timeset(routineN,"I",'',handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPPrecondition(ASSOCIATED(velocity_section),cp_failure_level,routineP,error,failure)
@@ -1565,6 +1748,8 @@ CONTAINS
        NULLIFY(my_val)
     END DO
     velocity_section%values(ik,1)%list => vals
+
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE section_velocity_val_set
 
 !!****f* input_cp2k_restarts/section_rng_val_set [1.0] *

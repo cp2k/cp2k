@@ -39,6 +39,7 @@ MODULE atoms_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
+                                             section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE input_val_types,                 ONLY: val_get,&
@@ -83,13 +84,14 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-  SUBROUTINE read_atoms_input ( topology, root_section, overwrite, subsys_section, error )
+  SUBROUTINE read_atoms_input ( topology, root_section, overwrite, subsys_section, save_mem, error )
 
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN), OPTIONAL            :: overwrite
     TYPE(section_vals_type), POINTER         :: subsys_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_atoms_input', &
@@ -102,7 +104,7 @@ CONTAINS
                                                 j, natom, output_unit, &
                                                 start_c, wrd
     LOGICAL                                  :: explicit, failure, ionode, &
-                                                is_ok, my_overwrite, &
+                                                is_ok, my_overwrite, my_save_mem, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: unit_of_length, r0(3)
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -114,6 +116,7 @@ CONTAINS
 
     failure=.FALSE.
     my_overwrite = .FALSE.
+    my_save_mem = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -123,12 +126,13 @@ CONTAINS
       output_unit = -1
     END IF
     IF (PRESENT(overwrite)) my_overwrite=overwrite
+    IF (PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(coord_section)
     coord_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
     CALL section_vals_get(coord_section, explicit=explicit, error=error)
     IF (.NOT.explicit) RETURN
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN,"I",'',handle)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. get cell and topolgoy%atom_info
@@ -262,7 +266,9 @@ CONTAINS
           atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
        END IF
     END DO
-    CALL timestop(handle)
+    IF(my_save_mem) CALL section_vals_remove_values(coord_section, error)
+
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE read_atoms_input
 
 !******************************************************************************
@@ -284,7 +290,7 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell,&
-             root_section, subsys_section, core_particle_set, error )
+             root_section, subsys_section, core_particle_set, save_mem, error )
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set, &
@@ -293,6 +299,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: core_particle_set
+    LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input', &
@@ -308,7 +315,7 @@ CONTAINS
                                                 sh_index, start_c, wrd
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index, at_index_c
     LOGICAL                                  :: explicit, failure, ionode, &
-                                                is_ok, is_shell, &
+                                                is_ok, is_shell, my_save_mem, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: dab, mass_com, rab(3), &
                                                 unit_of_length
@@ -323,6 +330,7 @@ CONTAINS
     TYPE(val_type), POINTER                  :: val
 
     failure=.FALSE.
+    my_save_mem = .FALSE.
     NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -332,6 +340,7 @@ CONTAINS
       output_unit = -1
     END IF
 
+    IF(PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(shell_coord_section, core_coord_section)
     shell_coord_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
     CALL section_vals_get(shell_coord_section, explicit=explicit, error=error)
@@ -339,7 +348,7 @@ CONTAINS
 
     explicit = .FALSE.
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN,"I",'',handle)
 
     CALL get_cell(cell=cell,&
        scaled_coordinates=scaled_coordinates,&
@@ -448,6 +457,7 @@ CONTAINS
               END DO
             END DO
           END IF ! failure
+          IF(my_save_mem) CALL section_vals_remove_values(core_coord_section, error)
         END IF  ! explicit
       END IF  ! core_particle_set
 
@@ -510,8 +520,9 @@ CONTAINS
       DEALLOCATE(rc,at_index_c,at_name_c,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     
-    END IF
-    CALL timestop(handle)
+    END IF  ! failure
+    IF(my_save_mem) CALL section_vals_remove_values(shell_coord_section, error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_shell_coord_input
 

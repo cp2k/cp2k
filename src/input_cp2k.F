@@ -112,7 +112,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN,"I",'',handle)
     failure=.FALSE.
     NULLIFY(res)
     NULLIFY(cpparser, input_structure, default_units)
@@ -126,7 +126,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
-    CALL timestop(handle)
+    CALL timestop(0.0_dp,handle)
   END FUNCTION create_cp2k_input_reading
 !***************************************************************************
 
@@ -162,7 +162,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN,"I",'',handle)
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
@@ -216,7 +216,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        CALL keyword_release(keyword,error=error)
 
     END IF
-    CALL timestop(handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE create_cp2k_root_section
 !***************************************************************************
@@ -435,6 +435,14 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
                         usage="SEED 4137",&
                         default_i_val=2000,&
                         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="SAVE_MEM",&
+         description="Some sections of the input structure are deallocated when not needed,"//&
+         " and reallocated only when used. This reduces the required maximum memory  ",&
+         usage="SAVE_MEM",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

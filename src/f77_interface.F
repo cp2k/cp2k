@@ -598,7 +598,7 @@ END SUBROUTINE f_env_rm_defaults
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iforce_eval, isubforce_eval, k, method_name_id, my_group, &
+    INTEGER :: handle, i, iforce_eval, isubforce_eval, k, method_name_id, my_group, &
       nforce_eval, ngroups, nsubforce_size, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 i_force_eval, &
@@ -622,6 +622,7 @@ END SUBROUTINE f_env_rm_defaults
       subsys_section, wrk_section
     TYPE(timer_env_type), POINTER            :: timer_env
 
+
     failure=.FALSE.
 
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
@@ -632,6 +633,9 @@ END SUBROUTINE f_env_rm_defaults
        para_env => default_para_env
        CALL cp_para_env_retain(para_env,error=error)
     END IF
+
+    CALL timeset(routineN,"I","",handle)
+
     IF (PRESENT(output_unit)) THEN
        unit_nr=output_unit
     ELSE
@@ -701,7 +705,9 @@ END SUBROUTINE f_env_rm_defaults
     END IF
 
     IF (.NOT.failure) THEN
+
        CALL cp2k_read(root_section,para_env,globenv,error=error)
+
        CALL cp2k_setup(root_section,para_env,globenv,error)
        ! Group Distribution
        ALLOCATE(group_distribution(0:para_env%num_pe-1),stat=stat)
@@ -746,7 +752,8 @@ END SUBROUTINE f_env_rm_defaults
              my_para_env => para_env
              my_error = error
           END IF
-          ! Initialize force_env_section..
+
+          ! Initialize force_env_section
           ! No need to allocate one more force_env_section if only 1 force_eval
           ! is provided.. this is in order to save memory..
           IF (nforce_eval>1) THEN
@@ -850,6 +857,8 @@ CPSourceFileRef,&
     CALL section_vals_release(root_section,error)
     CALL cp_para_env_release(para_env,error=error)
     CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env,error=error,ierr=ierr)
+
+    CALL timestop ( 0.0_dp, handle )
 
   END SUBROUTINE create_force_env
   !****************************************************************************

@@ -42,7 +42,9 @@ MODULE force_fields_all
        impr_kind_type, input_info_type, onfo_kind_type, torsion_kind_type, &
        ub_kind_type
   USE input_constants,                 ONLY: do_qmmm_none
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -1881,13 +1883,14 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list, &
                                                 shell_list_tmp
     LOGICAL :: failure, found, found_shell, is_a_shell, is_link_atom, &
-      null_massfrac, only_qm, shell_adiabatic
+      null_massfrac, only_qm, save_mem, shell_adiabatic
     REAL(KIND=dp)                            :: atmmass, scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(section_vals_type), POINTER         :: global_section
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
 
@@ -1899,6 +1902,11 @@ CONTAINS
     nshell_tot = 0
     n = 0
     null_massfrac =.FALSE.
+
+    NULLIFY(global_section)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
+
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2055,10 +2063,10 @@ CONTAINS
       ! moved in the coordinate_control module..
       IF(shell_adiabatic) THEN
         CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-             root_section, subsys_section, core_particle_set, error=error)
+             root_section, subsys_section, core_particle_set, save_mem=save_mem, error=error)
       ELSE
         CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-             root_section, subsys_section,error=error)
+             root_section, subsys_section,save_mem=save_mem, error=error)
       END IF
 
       ! Determine the number of shells per molecule kind

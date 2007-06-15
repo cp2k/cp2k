@@ -384,7 +384,6 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                     section => section_vals_get_subs_vals(section1,"CORE_COORD",error=error)
                     CALL section_vals_set_subs_vals(section2,"CORE_COORD",section,error=error)
                  END IF
-
                  
                  CALL section_vals_val_get(r_section,"RESTART_SHELL_VELOCITY",l_val=flag,&
                       error=error)
@@ -392,6 +391,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                     section => section_vals_get_subs_vals(section1,"SHELL_VELOCITY",error=error)
                     CALL section_vals_set_subs_vals(section2,"SHELL_VELOCITY",section,error=error)
                  END IF
+
                  CALL section_vals_val_get(r_section,"RESTART_CORE_VELOCITY",l_val=flag,&
                       error=error)
                  IF (flag) THEN
@@ -406,7 +406,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                    " input file or whether the restart file is compatible with the input!",&
                    error,failure)    
            END IF
-        END DO
+        END DO  ! iforce_eval
         CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&
              error=error)
         IF (flag) THEN

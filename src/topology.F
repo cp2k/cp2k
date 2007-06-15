@@ -508,8 +508,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, i, iw
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: failure, found, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: global_section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -517,6 +518,11 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
+
+    NULLIFY(global_section)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. If reading in from external file, make sure its there first
@@ -539,18 +545,18 @@ CONTAINS
     CASE (do_coord_g96)
        CALL read_coordinate_g96 (topology,para_env,subsys_section,error)
        CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
-                               subsys_section=subsys_section,error=error)
+                               subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_pdb)
        CALL read_coordinate_pdb (topology,para_env,subsys_section,error)
        CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
-                               subsys_section=subsys_section,error=error)
+                               subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_xyz)
        CALL read_coordinate_xyz (topology,para_env,subsys_section,error)
        CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
-                               subsys_section=subsys_section,error=error)
+                               subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE DEFAULT
        CALL read_atoms_input ( topology, root_section, subsys_section=subsys_section,&
-            error=error)
+            save_mem=save_mem,error=error)
     END SELECT
     CALL timestop(0.0_dp,handle2)
     IF (topology%natoms.LE.0) THEN

@@ -62,6 +62,7 @@ MODULE md_run
   USE input_cp2k_restarts,             ONLY: update_subsys,&
                                              write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -152,12 +153,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ibead, in_use, &
+    INTEGER                                  :: handle, handle2, i, ibead, in_use, &
                                                 istat, istep, isubsys, &
                                                 iter_level, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: apply_cns0, failure, &
-                                                shell_adiabatic, &
+                                                save_mem, shell_adiabatic, &
                                                 shell_present, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
@@ -180,7 +181,7 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-    TYPE(section_vals_type), POINTER :: force_env_section, motion_section, &
+    TYPE(section_vals_type), POINTER :: force_env_section, global_section, motion_section, &
       print_section, root_section, subsys_section, work2_section, &
       work3_section, work_section
     TYPE(simulation_parameters_type), &
@@ -202,6 +203,12 @@ CONTAINS
     para_env=>force_env_p ( 1 ) % force_env % para_env
 
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+
+    NULLIFY(global_section)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
+    CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
+
+
     nbeads = SIZE ( force_env_p )
     DO i = 1, nbeads
       CPPrecondition ( ASSOCIATED ( force_env_p ( i ) % force_env ), cp_failure_level,routineP,error,failure)
@@ -435,6 +442,23 @@ CONTAINS
                                         force_rescaling=.TRUE.,&
                                         error=error)
           END DO
+       END IF
+
+       IF(save_mem) THEN
+
+          NULLIFY (work_section)
+          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+          CALL section_vals_remove_values(work_section, error)
+
+          IF(shell_present .AND. shell_adiabatic) THEN
+             NULLIFY (work_section)
+             work_section => section_vals_get_subs_vals(subsys_section,"SHELL_VELOCITY",error=error)
+             CALL section_vals_remove_values(work_section, error)
+             NULLIFY (work_section)
+             work_section => section_vals_get_subs_vals(subsys_section,"CORE_VELOCITY",error=error)
+            CALL section_vals_remove_values(work_section, error)
+          END IF
+
        END IF
 
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&

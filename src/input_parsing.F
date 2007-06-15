@@ -131,7 +131,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: el
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN,"I",'',handle)
 
     NULLIFY(previous_list,previous_last)
 
@@ -405,7 +405,7 @@ CONTAINS
        END IF
     END IF
     CALL cp_error_dealloc_ref(suberror)
-    CALL timestop(handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE section_vals_parse
 !***************************************************************************
 
