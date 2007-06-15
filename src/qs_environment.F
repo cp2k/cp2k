@@ -853,7 +853,7 @@ CONTAINS
     ! at as few places as possible, just duplicating the beta orbitals
     IF (dft_control%restricted) THEN
        ! it is really not yet tested till the end ! Joost
-       iw = cp_logger_get_default_unit_nr(logger)
+       iw = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
        WRITE(iw,*) ""
        WRITE(iw,*) " **************************************"
        WRITE(iw,*) " restricted calculation cutting corners"

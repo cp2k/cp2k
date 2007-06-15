@@ -201,50 +201,36 @@ MODULE four_center_integrals
 !!
 !!****************************************************************************
 
-  SUBROUTINE screen4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
+  SUBROUTINE screen4(ra, rb, zeta, zetb, &
                       la_min, la_max, lb_min, lb_max,&
-                      lc_min, lc_max, ld_min, ld_max,&
-                      npgfa, npgfb, npgfc, npgfd,&
+                      npgfa, npgfb, &
                       max_val, screening_parameter)
 
-    REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb, zetc, zetd
+    REAL(dp), INTENT(IN)                     :: ra(3), rb(3)
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: zeta, zetb
     INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, &
-                                                lb_max, lc_min, lc_max, &
-                                                ld_min, ld_max, npgfa, npgfb, &
-                                                npgfc, npgfd
+                                                lb_max, npgfa, npgfb
     REAL(dp), INTENT(INOUT)                  :: max_val
     TYPE(x_hf_screening_type)                :: screening_parameter
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'screen4'
 
-    INTEGER                                  :: ipgf, jpgf, kpgf, la, lb, lc, &
-                                                ld, lpgf
+    INTEGER                                  :: ipgf, jpgf, la, lb
     REAL(dp)                                 :: max_val_temp
 
     max_val_temp = max_val
     DO ipgf = 1,npgfa
       DO jpgf = 1,npgfb
-        DO kpgf = 1,npgfc
-          DO lpgf = 1,npgfd
-
             DO la = la_min,la_max
               DO lb = lb_min, lb_max
-                DO lc = lc_min, lc_max
-                  DO ld = ld_min, ld_max
-                    !Build primitives
-                    CALL evaluate_eri_screen(lib, ra, rb, rc, rd,&
-                                             zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-                                             la, lb, lc ,ld,&
+                   !Build primitives
+                    CALL evaluate_eri_screen(lib, ra, rb, ra, rb,&
+                                             zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
+                                             la, lb, la ,lb,&
                                              max_val_temp, screening_parameter)
                     max_val = MAX(max_val, max_val_temp)
-                  END DO !ld
-                END DO !lc
               END DO !lb
             END DO !la
-
-          END DO !lpgf
-        END DO !kpgf
       END DO !jpgf
     END DO !ipgf
 
@@ -303,7 +289,7 @@ MODULE four_center_integrals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: contraction_max
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_b, zetb, zetc
     REAL(KIND=dp)                            :: max_val, p2s_b, p2s_c, rb(3), &
-                                                rc(3)
+                                                rc(3),t1,t2
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_b, orb_basis_c
 
@@ -379,11 +365,10 @@ MODULE four_center_integrals
             IF( read_from_memory ) THEN
               screen_set(jatom,katom,jset,kset) = buffer(jatom,katom,jset,kset)
             ELSE
-              CALL screen4(rb, rc, rb, rc,&
-                            zetb(:,jset), zetc(:,kset), zetb(:,jset), zetc(:,kset),&
+              CALL screen4(rb, rc, &
+                            zetb(:,jset), zetc(:,kset), &
                             lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                            lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                            npgfb(jset), npgfc(kset), npgfb(jset), npgfc(kset),&
+                            npgfb(jset), npgfc(kset), &
                             max_val, screening_parameter)
               screen_set(jatom,katom,jset,kset) = SQRT(max_val)*p2s_b*p2s_c
               IF( PRESENT(buffer) ) buffer(jatom,katom,jset,kset) = screen_set(jatom,katom,jset,kset)
