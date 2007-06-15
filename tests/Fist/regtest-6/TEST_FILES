@@ -17,11 +17,12 @@ uo2_shell_nve.inp         2
 uo2_shell_nve_r.inp       2
 # Shell model NVT
 uo2_shell_nvt.inp         2
+uo2_shell_nvt_res.inp     2
+uo2_shell_nvt_res_2.inp     2
 # Shell model NPT
 uo2_shell_npti_b.inp      2
 uo2_shell_npti.inp        2
 uo2_shell_npt300.inp      2
-uo2_shell_nvt_res.inp     2
 # New grouping colvar
 ethene_colv1_g.inp        2
 ethene_colv2_g.inp        2

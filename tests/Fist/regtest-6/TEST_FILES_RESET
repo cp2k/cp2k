@@ -9,14 +9,6 @@ uo2_shell_nvt.inp
 uo2_shell_npti_b.inp     
 uo2_shell_npti.inp      
 uo2_shell_npt300.inp   
-#3 steps were not enough and a bug was passing through the regtest
-C_tersoff.inp
-#numerics only for online regtest
-water_3_dist_centers2.inp
-# faster bonded correct gaussian and bug fix for stress tensor in shell model
-uo2_shell_npt300.inp
-uo2_shell_npti_b.inp
-uo2_shell_npti.inp
-water_3_dist_g.inp
-# heavy cleaning of pair_potential and bug fix in the 0 of the coulomb for shell model
-uo2_shell_npti_b.inp
+##########
+uo2_shell_nvt.inp         
+uo2_shell_nvt_res.inp         
