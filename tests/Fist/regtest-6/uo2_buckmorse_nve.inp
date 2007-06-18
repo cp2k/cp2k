@@ -1,0 +1,122 @@
+
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM U
+        CHARGE 2.4
+      &END
+      &CHARGE
+        ATOM O
+        CHARGE -1.2
+      &END
+      &NONBONDED
+        &BUCKMORSE
+          atoms U  O
+          F0 [eV*angstrom^-1] 0.04222
+          A1 [angstrom] 1.63
+          A2 [angstrom] 1.91
+          B1 [angstrom] 0.163511
+          B2 [angstrom] 0.163511
+          C  0.0
+          D  [eV]   0.57745
+          R0 [angstrom]  2.369
+          BETA [angstrom^-1] 1.65
+          RCUT 10.4
+        &END BUCKMORSE
+        &BUCKMORSE
+          atoms O O
+          F0 [eV*angstrom^-1] 0.04222
+          A1 [angstrom] 1.91
+          A2 [angstrom] 1.91
+          B1 [angstrom] 0.163511
+          B2 [angstrom] 0.163511
+          C  [eV*angstrom^6]  3.9506332644
+          D  [eV] 0.0
+          R0 [angstrom]  1.0
+          BETA [angstrom^-1] 1.0
+          RCUT 10.4
+        &END BUCKMORSE
+        &BUCKMORSE
+          atoms U U
+          F0 [eV*angstrom^-1] 0.04222
+          A1 [angstrom] 1.63
+          A2 [angstrom] 1.63
+          B1 [angstrom] 0.163511
+          B2 [angstrom] 0.163511
+          C  0.0
+          D  [eV]  0.0
+          R0 [angstrom]  1.0
+          BETA [angstrom^-1] 1.0
+          RCUT 10.4
+        &END BUCKMORSE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX  64
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC  10.936 10.936 10.936
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE ../sample_psf/uo2_2x2x2.psf
+      CONNECTIVITY UPSF
+      COORD_FILE ../sample_xyz/uo2_displ.xyz
+      COORDINATE XYZ
+    &END TOPOLOGY
+    &KIND U
+      MASS 238.03000
+    &END
+    &KIND O
+      MASS 16.000
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROJECT uo2_shell_nve
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS  20
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    PV_AVA
+    &PRINT
+      &ENERGY
+        EACH 1
+      &END
+      &SHELL_ENERGY LOW
+        EACH 1
+      &END
+    &END PRINT
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      EACH 1
+    &END
+    &VELOCITIES
+      EACH 1000
+    &END
+    &STRESS
+      EACH 1
+    &END
+    &RESTART
+      EACH 5
+    &END
+    &RESTART_HISTORY
+      EACH 1000
+    &END
+  &END
+&END MOTION

@@ -37,3 +37,5 @@ cubane_15.inp             7
 cubane_0.inp              7
 #fist debug run
 cf_genpot_debug.inp       0
+# buck-morse potential
+uo2_buckmorse_nve.inp     2
