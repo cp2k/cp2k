@@ -108,7 +108,7 @@ MODULE qs_linres_nmr_current
   USE qs_linres_nmr_op,                ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
-  USE qs_linres_nmr_shift,             ONLY: chi_soft_analytic,&
+  USE qs_linres_nmr_shift,             ONLY: chi_analytic,&
                                              interpolate_shift_pwgrid,&
                                              gsum_shift_pwgrid,&
                                              mult_G_ov_G2_grid
@@ -219,7 +219,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: pw_gspace_work, &
                                                 shift_pw_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: shift_pw_gspace
+    TYPE(coeff_type), DIMENSION(:,:), POINTER:: shift_pw_gspace
     TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace
     TYPE(coeff_type)                         :: wf_r
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
@@ -291,13 +291,15 @@ CONTAINS
        ENDIF
        !
        ! Allocate grids for the calculation of jrho and the shift
-       ALLOCATE(shift_pw_gspace(3),STAT=istat)
+       ALLOCATE(shift_pw_gspace(3,dft_control%nspins),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO idir = 1,3
-          CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_gspace(idir),&
-               &                  use_data=COMPLEXDATA1D,&
-               &                  in_space=RECIPROCALSPACE,error=error)
-          CALL coeff_zero(shift_pw_gspace(idir))
+       DO ispin = 1,dft_control%nspins
+          DO idir = 1,3
+             CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_gspace(idir,ispin),&
+                  &                  use_data=COMPLEXDATA1D,&
+                  &                  in_space=RECIPROCALSPACE,error=error)
+             CALL coeff_zero(shift_pw_gspace(idir,ispin))
+          ENDDO
        ENDDO
        CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_rspace,&
             &                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
@@ -361,7 +363,7 @@ CONTAINS
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              !
              ! First compute the contribution to the CHI tensor coming from the soft density
-             CALL chi_soft_analytic(nmr_env,qs_env,ispin,i_B,error=error)
+             CALL chi_analytic(nmr_env,qs_env,ispin,i_B,error=error)
              !
              ! Construct the 3 density matrices for the field in direction i_B
              !
@@ -435,7 +437,7 @@ CONTAINS
                   &                  ncol=homo,alpha=alpha,error=error)
              DO idir3=1,3
                 ! set to zero for the calculation of the shift
-                CALL coeff_zero(shift_pw_gspace(idir3))
+                CALL coeff_zero(shift_pw_gspace(idir3,ispin))
              ENDDO
              DO idir = 1,3
                 !
@@ -489,10 +491,11 @@ CONTAINS
                       CALL set_vecp_rev(idir,idir2,idir3)
                       scale_fac=fac_vecp(idir3,idir2,idir)
                       CALL coeff_scale(pw_gspace_work,scale_fac)
-                      CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3))
+                      CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3,ispin))
                    ENDIF
                 ENDDO
-             ENDDO  ! idir
+                !
+             ENDDO ! idir
              !
              ! Deallocate buffer vectors
              DO idir = 1,3
@@ -508,31 +511,18 @@ CONTAINS
              ELSE
                 NULLIFY(psi0_fk)
              ENDIF
-          ENDDO  !  ispin
+          ENDDO !  ispin
 
           IF(gapw) THEN
              DO idir = 1,3
-                !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-                !write(*,*) 'we skip calculate_jrho_atom_coeff, calculate_jrho_atom_rad and shift_atom'
-                !write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-                !exit
-
+                !
                 ! compute the atomic response current densities on the spherical grids
                 ! First the sparse matrices are multiplied by the expansion coefficients
                 ! this is the equivalent of the CPC for the charge density
                 CALL calculate_jrho_atom_coeff(qs_env,nmr_env,density_matrix,&
                      &                         density_matrix_ii,density_matrix_iii,&
                      &                         i_B,idir,error=error)
-                
-                !write(*,*) 'enter naive_integrator'
-                !CALL naive_integrator(qs_env,nmr_env,density_matrix,&
-                !     &                density_matrix_ii,density_matrix_iii,&
-                !     &                i_B,idir,error=error)
-                !write(*,*) 'exit naive_integrator'
-
-                !(qs_env,nmr_env,mat_jp,mat_jp_pii,&
-                ! mat_jp_piii,iB,idir,error)
-
+                !
                 ! Then the radial parts are computed on the local radial grid, atom by atom
                 ! 8 functions are computed for each atom, per grid point
                 ! and per LM angular momentum. The multiplication by the Clebsh-Gordon
@@ -550,22 +540,29 @@ CONTAINS
           ! get the values on the atomic positions and on the other required points (if any)
           ! this can be done by interpolation of the values of the grid
           ! on the required positions in real space
-          DO idir = 1,3
-             ! Here the shifts are computed from summation of the coeff on the G-grip .
-             CALL gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,&
-                  &                shift_pw_gspace(idir),i_B,idir,nmr_section,&
-                  &                error=error)
-             ! Here first G->R and then interpolation to get the shifts.
-             ! The interpolation doesnt work in parallel yet.
-             ! The choice between both methods should be left to the user.
-             !CALL coeff_transform_space(shift_pw_gspace(idir),shift_pw_rspace)
-             !CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
-             !             i_B,idir,nmr_section,error=error)
+          DO ispin = 1,dft_control%nspins
+             DO idir = 1,3
+                ! Here the shifts are computed from summation of the coeff on the G-grip .
+                CALL gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,&
+                     &                shift_pw_gspace(idir,ispin),i_B,idir,nmr_section,&
+                     &                error=error)
+                ! Here first G->R and then interpolation to get the shifts.
+                ! The interpolation doesnt work in parallel yet.
+                ! The choice between both methods should be left to the user.
+                !CALL coeff_transform_space(shift_pw_gspace(idir),shift_pw_rspace)
+                !CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
+                !             i_B,idir,nmr_section,error=error)
+             ENDDO
           ENDDO
-
+          !
+          ! Cube files 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                &    "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
-
+             IF(output_unit>0) THEN
+                write(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+                write(output_unit,*) 'Are you sure you want to punch current density cube files?'
+                write(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
+             ENDIF
              DO idir = 1,3
                 CALL coeff_zero(wf_r)
                 !!WARNING
@@ -605,7 +602,7 @@ CONTAINS
        ! Integrated current response checksum
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum R-integrated j=',&
-               SQRT(DDOT(9,jrho_tot_R(1,1),1,jrho_tot_R(1,1),1))
+               &            SQRT(DDOT(9,jrho_tot_R(1,1),1,jrho_tot_R(1,1),1))
        ENDIF
        !
        IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
@@ -616,8 +613,10 @@ CONTAINS
        !
        ! Dellocate grids for the calculation of jrho and the shift
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,pw_gspace_work,error=error)
-       DO idir = 1,3
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_gspace(idir),error=error)
+       DO ispin = 1,dft_control%nspins
+          DO idir = 1,3
+             CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_gspace(idir,ispin),error=error)
+          ENDDO
        ENDDO
        DEALLOCATE(shift_pw_gspace,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

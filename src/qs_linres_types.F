@@ -524,7 +524,7 @@ CONTAINS
     IF(PRESENT(chemical_shift_nics)) chemical_shift_nics => nmr_env%chemical_shift_nics
     IF(PRESENT(r_nics             )) r_nics              => nmr_env%r_nics
     IF(PRESENT(basisfun_center    )) basisfun_center     => nmr_env%basisfun_center
-    IF(PRESENT(centers_set        )) centers_set         => nmr_env%centers_set
+    !IF(PRESENT(centers_set        )) centers_set         => nmr_env%centers_set
     IF(PRESENT(psi1_p             )) psi1_p              => nmr_env%psi1_p
     IF(PRESENT(psi1_rxp           )) psi1_rxp            => nmr_env%psi1_rxp
     IF(PRESENT(psi1_D             )) psi1_D              => nmr_env%psi1_D

@@ -106,7 +106,7 @@ MODULE qs_linres_nmr_shift
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: chi_soft_analytic, interpolate_shift_pwgrid, &
+  PUBLIC :: chi_analytic, interpolate_shift_pwgrid, &
        &    gsum_shift_pwgrid, mult_G_ov_G2_grid, nmr_print_shift
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
@@ -116,14 +116,14 @@ MODULE qs_linres_nmr_shift
 
 CONTAINS
 
-  SUBROUTINE chi_soft_analytic(nmr_env,qs_env,ispin,iB,error)
+  SUBROUTINE chi_analytic(nmr_env,qs_env,ispin,iB,error)
     !
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ispin, iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     !
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_analytic', &
          routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, idir, idir2, ii, &
@@ -172,7 +172,7 @@ CONTAINS
 
     gapw = dft_control%qs_control%gapw
 write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-write(*,*) 'chi_soft_analytic: gapw=',gapw,' reset to .false.'
+write(*,*) 'chi_analytic: gapw=',gapw,' reset to .false.'
 gapw=.false.
 write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
 
@@ -470,7 +470,7 @@ write(*,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE chi_soft_analytic
+  END SUBROUTINE chi_analytic
 
 
 !  *****************************************************************************************

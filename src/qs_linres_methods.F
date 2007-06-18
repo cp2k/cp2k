@@ -27,6 +27,7 @@ MODULE qs_linres_methods
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace,&
+                                             cp_fm_column_scale,&
                                              cp_fm_frobenius_norm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
@@ -326,13 +327,15 @@ CONTAINS
              "Iter.","Method","Stepsize","G-norm","Convergence","Total energy",&
              REPEAT("-",77)
     ENDIF
+    !
     ! Multiply the right part of the equation by the occupation numbers
-    !DO ispin = 1, dft_control%nspins
-    !   CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-    !                   occupation_numbers=occupations )
-    !   !CALL cp_fm_column_scale(h1_psi0(ispin)%matrix, occupations)
-    !ENDDO
-
+    DO ispin = 1,dft_control%nspins
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupations )
+       CALL cp_fm_column_scale(h1_psi0(ispin)%matrix,occupations)
+       write(*,*) 'occupations=',occupations
+    ENDDO
+    !
+    !
     iteration: DO iter = 1,linres_control%max_scf
        !
        p_env%etotal   = 0.0_dp
@@ -345,9 +348,9 @@ CONTAINS
        ! Apply the perturbative operator
        DO ispin=1, dft_control%nspins
           ! Multiply the left part of the equation by the occupation numbers
-          !CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-          !                occupation_numbers=occupations )
-          ! CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupations )
+          CALL cp_fm_column_scale(Ab(ispin)%matrix,occupations)
+          !
           CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp1,error)
           CALL cp_fm_trace(psi1(ispin)%matrix,h1_psi0(ispin)%matrix,tmp2,error)
           ! add h1_psi0 to Ab
@@ -358,7 +361,7 @@ CONTAINS
           !          sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
           ! Since H_1 and psi1_k are purely imaginary the second term is
           !                 2*\sum_k <psi1_k|H_1|psi0_k>
-          p_env%etotal = p_env%etotal + tmp1+2.0_dp*tmp2
+          p_env%etotal = p_env%etotal + 0.5_dp*(tmp1+2.0_dp*tmp2)
        ENDDO
        !
        !minimization
@@ -428,7 +431,7 @@ CONTAINS
   END SUBROUTINE linres_scf
 
   SUBROUTINE check_p_env_init(p_env,linres_control, nspins, error)
-
+    !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER, INTENT(IN)                      :: nspins
@@ -436,7 +439,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
       routineP = moduleN//':'//routineN
-
     INTEGER                                  :: ispin, ncol, nrow
     LOGICAL                                  :: failure
 
@@ -445,7 +447,6 @@ CONTAINS
     p_env%iter = 0
     p_env%only_energy = .FALSE.
     p_env%ls_count=0
-
 
     IF(linres_control%opt_method == lr_cg ) THEN
 
@@ -500,11 +501,10 @@ CONTAINS
 
   END SUBROUTINE check_p_env_init
 
-
-
 ! *****************************************************************************
-  SUBROUTINE linres_scf_mini(p_env,qs_env,linres_control,b,Ab,nspins,iter,error)
 
+  SUBROUTINE linres_scf_mini(p_env,qs_env,linres_control,b,Ab,nspins,iter,error)
+    !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -512,10 +512,9 @@ CONTAINS
       POINTER                                :: b, Ab
     INTEGER, INTENT(IN)                      :: nspins, iter
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-
+    !
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
       routineP = moduleN//':'//routineN
-
     INTEGER                                  :: ispin, k, nao, nmo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: polak_gamma, test_down, tmp
@@ -687,20 +686,18 @@ CONTAINS
 
   END SUBROUTINE linres_scf_mini
 
-
 ! *****************************************************************************
   SUBROUTINE linres_derivative(Ab,PS_psi0,p_env,nspins,error)
-
+    !
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: Ab
     TYPE(cp_fm_p_type), DIMENSION(2)         :: PS_psi0
     TYPE(qs_p_env_type), POINTER             :: p_env
     INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
-
+    !
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_derivative', &
       routineP = moduleN//':'//routineN
-
     INTEGER                                  :: ispin, n_ao, n_mo
     LOGICAL                                  :: failure
 
@@ -723,14 +720,14 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE do_lr_line_search(p_env,vectors,linres_control,nspins,error)
-
+    !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: vectors
     TYPE(linres_control_type), POINTER       :: linres_control
     INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
-
+    !
     INTEGER                                  :: ispin
     REAL(dp)                                 :: ds
 
@@ -755,17 +752,17 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE do_lr_ls_2pnt(p_env,vectors,ds_min,nspins,error)
-
+    !
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: vectors
     REAL(dp)                                 :: ds_min
     INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-
+    !
     INTEGER                                  :: count, ispin
     REAL(dp)                                 :: a, b, c, ds, pos, val, x0, x1
-    REAL(DP), DIMENSION(:), POINTER          :: ls_pos
+    REAL(dp), DIMENSION(:), POINTER          :: ls_pos
 
     NULLIFY(ls_pos)
     p_env%ls_count = p_env%ls_count + 1
@@ -810,7 +807,6 @@ CONTAINS
     END DO
 
   END SUBROUTINE do_lr_ls_2pnt
-
 
 ! *****************************************************************************
   SUBROUTINE do_lr_ls_3pnt(p_env,vectors,ds_min,nspins,error)
