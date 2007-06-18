@@ -201,8 +201,8 @@ CONTAINS
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbm,error=error)
           ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4
           IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhft,bmhft=.TRUE.,error=error)
-             CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbm,buckmo=.TRUE.,error=error)
+             CALL read_bm_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
 
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
