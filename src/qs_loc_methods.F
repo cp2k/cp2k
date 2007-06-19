@@ -42,6 +42,10 @@ MODULE qs_loc_methods
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
        cp_fm_to_fm, cp_fm_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -96,6 +100,7 @@ MODULE qs_loc_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -699,7 +704,10 @@ CONTAINS
       POINTER                                :: mos
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: op_sm_set
-
+    !
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    !
     failure = .FALSE.
     my_one_spin = .FALSE.
     IF(PRESENT(onlyspin1)) my_one_spin = onlyspin1
@@ -707,6 +715,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
 
+    NULLIFY(para_env)
     NULLIFY(cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
     NULLIFY(mos, dft_control)
 
@@ -716,20 +725,58 @@ CONTAINS
                         op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
                         cell=cell, weights=weights,error=error)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos,error=error)
+    CALL get_qs_env(qs_env=qs_env,&
+         &          dft_control=dft_control,&
+         &          para_env=para_env,&
+         &          mos=mos,error=error)
 
     localized_wfn_control%iter_count = localized_wfn_control%iter_count + 1
     my_nspins = dft_control%nspins
     IF(my_one_spin) my_nspins = 1
-
     DO ispin = 1,my_nspins
        loc_method = localized_wfn_control%localization_method
        SELECT CASE (localized_wfn_control%operator_type)
        CASE(op_loc_berry)
-         CALL optimize_loc_berry(loc_method, localized_wfn_control, &
-              moloc_coeff(ispin)%matrix, op_sm_set, &
-              op_fm_set, cell, weights, ispin, loc_section, error=error)
-
+          !
+          !> here we allocate op_fm_set with the RIGHT size for uks
+          NULLIFY(tmp_fm_struct,mo_coeff)
+          nmosub = localized_wfn_control%nloc_states(ispin)
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
+          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmosub,&
+               ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,&
+               error=error)
+          !
+          ALLOCATE ( op_fm_set( 2, 3 ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DO i = 1, SIZE ( op_fm_set, 2 )
+             DO j = 1, SIZE ( op_fm_set, 1 )
+                NULLIFY(op_fm_set(j,i)%matrix)
+                CALL cp_fm_create (op_fm_set(j,i)%matrix , tmp_fm_struct ,error=error)
+                CALL cp_fm_get_info(op_fm_set(j,i)%matrix, nrow_global=nmosub, &
+                     error=error)
+                CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
+                CALL cp_fm_set_all(op_fm_set(j,i)%matrix,0.0_dp,error=error)
+             END DO
+          END DO
+          CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+          !<
+          !
+          CALL optimize_loc_berry(loc_method, localized_wfn_control, &
+               moloc_coeff(ispin)%matrix, op_sm_set, &
+               op_fm_set, cell, weights, ispin, loc_section, error=error)
+          !
+          !> here we dealloctate op_fm_set
+          IF(ASSOCIATED(op_fm_set)) THEN
+             DO i=1,SIZE ( op_fm_set,2)
+                DO j=1,SIZE ( op_fm_set,1)
+                   CALL cp_fm_release(op_fm_set(j,i)%matrix,error=error)
+                END DO
+             END DO
+             DEALLOCATE(op_fm_set,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          !<
+          !
        CASE(op_loc_boys)
 
        CASE(op_loc_pipek)
