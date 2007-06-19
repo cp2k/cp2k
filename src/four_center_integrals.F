@@ -124,10 +124,6 @@ MODULE four_center_integrals
                       screening_parameter)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
-    REAL(dp), DIMENSION(1:npgfa), INTENT(IN)       :: zeta
-    REAL(dp), DIMENSION(1:npgfb), INTENT(IN)       :: zetb
-    REAL(dp), DIMENSION(1:npgfc), INTENT(IN)       :: zetc
-    REAL(dp), DIMENSION(1:npgfd), INTENT(IN)       :: zetd
     INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, &
                                                 lb_max, lc_min, lc_max, &
                                                 ld_min, ld_max, npgfa, npgfb, &
@@ -135,6 +131,10 @@ MODULE four_center_integrals
                                                 ncoa,ncob,ncoc,ncod
     REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod) :: primitive_integrals
     TYPE(x_hf_screening_type)                :: screening_parameter
+    REAL(dp), DIMENSION(1:npgfa), INTENT(IN)       :: zeta
+    REAL(dp), DIMENSION(1:npgfb), INTENT(IN)       :: zetb
+    REAL(dp), DIMENSION(1:npgfc), INTENT(IN)       :: zetc
+    REAL(dp), DIMENSION(1:npgfd), INTENT(IN)       :: zetd
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
       offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
