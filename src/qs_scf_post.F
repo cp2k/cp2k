@@ -892,6 +892,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_r
+    TYPE(coeff_type), pointer                :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -995,10 +996,40 @@ CONTAINS
           IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
                "Ideal and single determinant S**2 : ",s_square_ideal,s_square
        ENDIF
+!   *** total density ***
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN ! write the electron density
+          NULLIFY(rho_core)
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
+               error=error)
+          CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,error=error)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+               pw_pools=pw_pools,error=error)
+          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+               use_data = REALDATA3D,&
+               in_space = REALSPACE, error=error)
+          CALL pw_transfer(rho_core%pw,wf_r%pw)
+          DO ispin=1,dft_control%nspins
+             CALL coeff_sumup(rho%rho_r(ispin),wf_r)
+          END DO
+          filename = "TOTAL_DENSITY"
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
+               extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+          CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"TOTAL DENSITY",&
+               rs,particles=particles,&
+               stride=section_get_ival(dft_section,"PRINT%TOT_DENSITY_CUBE%STRIDE",error=error),&
+               error=error)
+          CALL cp_print_key_finished_output(unit_nr,logger,input,&
+               "DFT%PRINT%TOT_DENSITY_CUBE",error=error)
+          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+          CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
+       END IF
 
 !   *** Cube file of the electron density ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN ! write the electron densoity
+            "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN ! write the electron density
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,error=error)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
@@ -1063,23 +1094,6 @@ CONTAINS
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 
-!    *** stupid (non periodic) calculation of the dipole moment ***
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,"DFT%PRINT%DIPOLE",&
-            first_time=first_time,error=error),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,input, "DFT%PRINT%DIPOLE",&
-               extension=".dipole", log_filename=.FALSE., error=error)
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-               error=error)
-          CALL calc_stupid_dipole(qs_env%subsys,rho%rho_r,qs_env%rho_core%pw,&
-               aux_bas_pool=auxbas_pw_pool,cell=cell,&
-               unit_nr=unit_nr,&
-               print_header=first_time,&
-               error=error)
-          CALL cp_print_key_finished_output(unit_nr, logger,input,&
-               "DFT%PRINT%DIPOLE",error=error)
-       END IF
-
 !    *** write the density matrix ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
@@ -1110,151 +1124,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_available_results
-
-!!****f* qs_scf_post/calc_stupid_dipole *
-!!
-!!   NAME
-!!     calc_stupid_dipole
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - subsystem: the atoms to calculate the center of mass
-!!     - rho_r: the electronic density in real space
-!!     - rho_core_g: the charge of the core in the reciprocal space
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
-     cell,unit_nr,print_header,error)
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
-    TYPE(coeff_type), DIMENSION(:), &
-      INTENT(in)                             :: rho_r
-    TYPE(pw_type), POINTER                   :: rho_core_g
-    TYPE(pw_pool_type), POINTER              :: aux_bas_pool
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: print_header
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_stupid_dipole', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=default_string_length)     :: iter
-    INTEGER                                  :: i, ip, j, k, np(3)
-    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    LOGICAL                                  :: failure, my_print_header
-    REAL(kind=dp)                            :: dvol, mass, tot_m
-    REAL(kind=dp), DIMENSION(3)              :: com, dipole_center, &
-                                                dipole_com, dr, r, r_com, &
-                                                shift
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(pw_type), POINTER                   :: total_charge
-
-  failure=.FALSE.
-  my_print_header=.FALSE.
-  IF (PRESENT(print_header)) my_print_header=print_header
-
-  logger => cp_error_get_logger(error)
-  com=0._dp
-  tot_m=0._dp
-  CALL cp_subsys_get(subsystem,particles=particles,error=error)
-  DO ip=1,particles%n_els
-     CALL get_atomic_kind(particles%els(ip)%atomic_kind,mass=mass)
-     tot_m=tot_m+mass
-     r=particles%els(ip)%r
-     com=com+mass*r
-  END DO
-  com=com/tot_m
-  com(1)=MODULO(com(1),cell%hmat(1,1))
-  com(2)=MODULO(com(2),cell%hmat(2,2))
-  com(3)=MODULO(com(3),cell%hmat(3,3))
-
-  CALL pw_pool_create_pw(aux_bas_pool,total_charge,use_data=REALDATA3D,&
-       in_space=REALSPACE,error=error)
-  CALL pw_transfer(rho_core_g,total_charge)
-  DO i=1,SIZE(rho_r)
-     CALL pw_sumup(rho_r(i)%pw,total_charge)
-  END DO
-
-  dipole_center=0._dp
-  bo=total_charge%pw_grid%bounds_local
-  gbo=total_charge%pw_grid%bounds
-  np=total_charge%pw_grid%npts
-  dvol = total_charge%pw_grid%dvol
-  dr=total_charge%pw_grid%dr
-!
-!  Small error in the evaluation of the function on the rs grid, if odd number of points
-!  shift=REAL(MODULO(np,2),dp)*dr
-  shift=-REAL(MODULO(np,2),dp)*dr/2.0_dp
-
-  dipole_com=0._dp
-  DO k=bo(1,3),bo(2,3)
-     r(3)=k*dr(3)+shift(3)
-     r_com(3)=MODULO(r(3)-com(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
-     DO j=bo(1,2),bo(2,2)
-        r(2)=j*dr(2)+shift(2)
-        r_com(2)=MODULO(r(2)-com(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
-        r(1)=bo(1,1)*dr(1)+shift(1)
-        r_com(1)=MODULO(r(1)-com(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-        DO i=bo(1,1),bo(2,1)
-           dipole_com=dipole_com+total_charge%cr3d(i,j,k)*r_com
-           dipole_center=dipole_center+total_charge%cr3d(i,j,k)*r
-           r(1)=r(1)+dr(1)
-           r_com(1)=MODULO(r(1)-com(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
-        END DO
-     END DO
-  END DO
-  dipole_center=dipole_center*dvol
-  dipole_com=dipole_com*dvol
-
-!!FM  cdip=CMPLX(0._dp,0._dp,dp)
-!!FM  DO k=bo(1,3),bo(2,3)
-!!FM     arg=REAL(k-gbo(1,3),dp)/REAL(np(3),dp)*twopi
-!!FM     cr(3)=CMPLX(COS(arg),SIN(arg),dp)
-!!FM     DO j=bo(1,2),bo(2,2)
-!!FM        arg=REAL(j-gbo(1,2),dp)/REAL(np(2),dp)*twopi
-!!FM        cr(2)=CMPLX(COS(arg),SIN(arg),dp)
-!!FM        DO i=bo(1,1),bo(2,1)
-!!FM           arg=REAL(i-gbo(1,1),dp)/REAL(np(1),dp)*twopi
-!!FM           cr(1)=CMPLX(COS(arg),SIN(arg),dp)
-!!FM           cdip=cdip+cr*total_charge%cr3d(i,j,k)
-!!FM        END DO
-!!FM     END DO
-!!FM  END DO
-!!FM
-!!FM  cdip=cdip*dvol
-!!FM
-!!FM  CALL mp_sum(cdip,total_charge%pw_grid%para%group)
-  CALL mp_sum(dipole_center,total_charge%pw_grid%para%group)
-  CALL mp_sum(dipole_com,total_charge%pw_grid%para%group)
-
-!!FM  DO i =1,3
-!!FM     bdipole(i)=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( cdip(i) ) )
-!!FM  END DO
-
-  IF (unit_nr>0) THEN
-     IF (my_print_header) THEN
-        WRITE(unit=unit_nr,fmt="('# iteration com(x,y,z)[Angstrom]"//&
-             " dipole_com(x,y,z)[au] dipole_cell_center(x,y,z)[au]')")
-     END IF
-     iter=cp_iter_string(logger%iter_info,error=error)
-     WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
-          iter(1:15),&
-          com*angstrom,-dipole_com,-dipole_center
-  END IF
-  CALL pw_pool_give_back_pw(aux_bas_pool,total_charge,error=error)
-
-END SUBROUTINE calc_stupid_dipole
-!***************************************************************************
 
 END MODULE

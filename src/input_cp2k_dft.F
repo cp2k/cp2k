@@ -1089,6 +1089,20 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"tot_density_cube",&
+            description="Controls the printing of cube files with "//&
+            "the total density (electronic+core)", &
+            print_level=high_print_level,each=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"v_hartree_cube",&
             description="Controls the printing of a cube file with eletrostatic potential (electrons+core).", &
             print_level=high_print_level,each=(/1/),filename="",&
@@ -1197,14 +1211,6 @@ CONTAINS
        CALL section_add_subsection(print_key,print_key2,error=error)
        CALL section_release(print_key2,error=error)       
 
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DIPOLE",&
-            description="Calculates the dipole, for the moment it only supports"//&
-            "the stupid non periodic dipole, should be extended soon", &
-            print_level=high_print_level,each=(/1/),filename=" ",&
-            common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
