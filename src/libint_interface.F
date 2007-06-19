@@ -361,19 +361,21 @@ MODULE libint_interface
 
   SUBROUTINE evaluate_eri(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                           n_a,n_b,n_c,n_d,&
+                          ncoa,ncob,ncoc,ncod,&
+                          offset_a,offset_b,offset_c,offset_d,&
                           primitives,screening_parameter)
     
     TYPE(lib_int)                           :: lib
     REAL(dp), INTENT(IN),TARGET             :: A(3), B(3), C(3), D(3)
     REAL(dp), INTENT(IN),TARGET             :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                     :: n_a, n_b, n_c, n_d
-    REAL(dp), DIMENSION(:,:,:,:)            :: primitives
+    INTEGER, INTENT(IN)                     :: ncoa,ncob,ncoc,ncod,offset_a,offset_b,offset_c,offset_d
+    REAL(dp), DIMENSION(ncoa,ncob,ncoc,ncod):: primitives
     TYPE(x_hf_screening_type)               :: screening_parameter
  
 #if defined(__LIBINT)
     INTEGER                                  :: i,j,k,l,p_i,p_j,p_k,p_l,p_index,temp
     TYPE(prim_data),TARGET                   :: prim
-    INTEGER(KIND=C_INT)                      :: Config(4)
     INTEGER(KIND=C_INT)                      :: m_max
     INTEGER(KIND=C_INT)                      :: mysize,a_mysize(1)
     INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
@@ -433,8 +435,7 @@ MODULE libint_interface
       Zeta_D1 => Y  
     END IF
    
-    Config = (/n1,n2,n3,n4/)
-    m_max = Config(1) + Config(2) + Config(3) + Config(4)
+    m_max = n1+n2+n3+n4
 
 
     CALL build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max,&
@@ -449,7 +450,7 @@ MODULE libint_interface
     a_mysize = mysize
      
     IF(n_a+ n_b + n_c + n_d  /=0) THEN
-      CALL C_F_PROCPOINTER(build_eri(config(4),config(3),config(2),config(1)),pbuild)
+      CALL C_F_PROCPOINTER(build_eri(n4,n3,n2,n1),pbuild)
       pc_result = pbuild(lib,1)
       CALL C_F_POINTER(pc_result, p_work, a_mysize)
       DO l = 1,nco(n_d)
@@ -482,16 +483,16 @@ MODULE libint_interface
               END IF
    
               p_index = (((p_i-1)*nco(n2)+(p_j-1))*nco(n3)+(p_k-1))*nco(n4)+(p_l-1) + 1
-              primitives(i,&
-                         j,&
-                         k,&
-                         l)=p_work(p_index)
+              primitives(offset_a+i,&
+                         offset_b+j,&
+                         offset_c+k,&
+                         offset_d+l)=p_work(p_index)
             END DO
           END DO
         END DO
       END DO
     ELSE
-      primitives(1,1,1,1) = prim%F(1)
+      primitives(offset_a+1,offset_b+1,offset_c+1,offset_d+1) = prim%F(1)
     END IF
 #endif
   END SUBROUTINE evaluate_eri
@@ -750,7 +751,6 @@ MODULE libint_interface
 #if defined(__LIBINT)
     INTEGER                                 :: i,j,k,l,p_i,p_j,p_k,p_l,p_index,temp
     TYPE(prim_data),TARGET                  :: prim
-    INTEGER(KIND=C_INT)                     :: Config(4)
     INTEGER(KIND=C_INT)                     :: m_max
     INTEGER(KIND=C_INT)                     :: mysize,a_mysize(1)
     INTEGER(KIND=C_INT)                     :: n1, n2, n3, n4, n
@@ -845,8 +845,7 @@ MODULE libint_interface
     END IF
 
    
-    Config = (/n1,n2,n3,n4/)
-    m_max = Config(1) + Config(2) + Config(3) + Config(4)
+    m_max = n1+n2+n3+n4
 
     m_max = m_max + 1
     CALL build_deriv_data(A1, B1, C1, D1, Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, &
@@ -859,7 +858,7 @@ MODULE libint_interface
     deriv%PrimQuartet = C_LOC(prim)
     deriv%AB = A1-B1
     deriv%CD = C1-D1
-    CALL C_F_PROCPOINTER(build_deriv1_eri(config(4),config(3),config(2),config(1)),pbuild_deriv1)
+    CALL C_F_PROCPOINTER(build_deriv1_eri(n4,n3,n2,n1),pbuild_deriv1)
     CALL pbuild_deriv1(deriv,1)
     DO k=1,12
       IF(k==4 .OR. k==5 .OR. k==6) CYCLE
@@ -950,7 +949,6 @@ MODULE libint_interface
 #if defined(__LIBINT)
     INTEGER                                  :: i
     TYPE(prim_data),TARGET                   :: prim
-    INTEGER(KIND=C_INT)                      :: Config(4)
     INTEGER(KIND=C_INT)                      :: m_max
     INTEGER(KIND=C_INT)                      :: mysize, a_mysize(1)
     INTEGER(KIND=C_INT)                      :: n1, n2, n3, n4, n
@@ -1010,9 +1008,7 @@ MODULE libint_interface
       Zeta_D1 => Y  
     END IF
    
-    Config = (/n1,n2,n3,n4/)
-    m_max = Config(1) + Config(2) + Config(3) + Config(4)
-
+    m_max = n1+n2+n3+n4
 
     CALL build_quartet_data(A1,B1,C1,D1,Zeta_A1, Zeta_B1, Zeta_C1, Zeta_D1, m_max, &
                             screening_parameter, prim)
@@ -1026,7 +1022,7 @@ MODULE libint_interface
     a_mysize = mysize
     max_val = 0.0_dp
     IF(n_a+ n_b + n_c + n_d  /=0) THEN
-      CALL C_F_PROCPOINTER(build_eri(config(4),config(3),config(2),config(1)),pbuild)
+      CALL C_F_PROCPOINTER(build_eri(n4,n3,n2,n1),pbuild)
       pc_result = pbuild(lib,1)
       CALL C_F_POINTER(pc_result, p_work, a_mysize)
       DO i=1,mysize
